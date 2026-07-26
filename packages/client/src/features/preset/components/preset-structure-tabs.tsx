@@ -132,6 +132,16 @@ function PromptTab({
             />
           )}
         </form.AppField>
+        <form.AppField name="formatStrings.impersonateNudge">
+          {(field): ReactElement => (
+            <field.MacroField
+              label="Impersonate nudge"
+              description="The instruction that steers an impersonation — the model writes your next line (blank uses the built-in default)."
+              suggestions={[]}
+              rows={3}
+            />
+          )}
+        </form.AppField>
         <form.AppField name="params.thinkingDisplay">
           {(field): ReactElement => (
             <field.SelectField label="Reasoning display" description="How the model's reasoning is shown, when it reasons." items={THINKING_DISPLAY_ITEMS} />

@@ -14,10 +14,7 @@ import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { uploadAsset } from "#data";
-
-/** Client-side pre-check ceiling — a background photo is larger than an avatar but still bounded. */
-const MAX_BACKGROUND_BYTES = 30_000_000;
+import { uploadAsset, useUploadCaps } from "#data";
 
 export interface BackgroundUploadFieldProps {
   /** The currently-persisted `backgroundAssetHash` (preview source); `""` ⇒ nothing uploaded yet. */
@@ -29,6 +26,8 @@ export interface BackgroundUploadFieldProps {
 /** Pick → `uploadAsset(file, "background")` → hand the full `StoredAsset` up. Upload failure surfaces
  *  inline in the `Field` error slot; the dropzone's own `loading`/`success` states cover the in-flight UX. */
 export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUploadFieldProps): ReactElement {
+  // Client-side pre-check ceiling — the SERVED image cap; the server re-caps + magic-checks regardless.
+  const maxBackgroundBytes = useUploadCaps().image;
   const [previewHash, setPreviewHash] = useState<string>(currentHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -59,7 +58,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
         <Avatar size="lg" fallbackDelay={0} {...(previewHash === "" ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={ImagePlus} size="lg" />
         </Avatar>
-        <FileDropzone accept="image/*" maxSizeBytes={MAX_BACKGROUND_BYTES} loading={loading} success={success} onFilesSelected={handleFilesSelected} />
+        <FileDropzone accept="image/*" maxSizeBytes={maxBackgroundBytes} loading={loading} success={success} onFilesSelected={handleFilesSelected} />
       </Row>
     </Field>
   );

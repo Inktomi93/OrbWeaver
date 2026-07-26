@@ -13,6 +13,8 @@
 // hole); the scope-partition test proves the two buckets never share rows.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { AppSettings } from "@orb/contracts/settings";
+import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -22,6 +24,7 @@ import { env } from "@orb/server/foundation/env";
 import type { RateLimitDecision } from "@orb/server/transport/trpc";
 import { like } from "drizzle-orm";
 import { describe } from "vitest";
+import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer";
 import { createRateLimitGate } from "../../../packages/server/src/entry/rate-limit-gate";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
@@ -30,23 +33,34 @@ const T0 = 1_700_000_000_000;
 const PUBLIC_CAP = env.RATE_LIMIT_PUBLIC_IP;
 const AUTHED_CAP = env.RATE_LIMIT_AUTHED;
 
+// The production gate resolves its caps from the effective-config; with no admin override that is the env
+// floor (`layer({}).rateLimits`), so these failsafe assertions still key on the env caps above.
 function gate(db: Db): ReturnType<typeof createRateLimitGate> {
-  return createRateLimitGate({ db, now: () => T0 });
+  return createRateLimitGate({ db, now: () => T0, resolveRateLimits: () => layer({}).rateLimits });
 }
 
 function anon(clientIp: string | null): RateLimitDecision {
   return { path: "chat.send", type: "mutation", principal: null, clientIp };
 }
 
-function authed(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
-  const principal: Principal = {
+function principalFor(userId: string): Principal {
+  return {
     userId: castId<UserId>(userId),
     role: "user",
     handle: castId<Handle>(userId),
     externalId: null,
     via: "header",
   };
-  return { path: "chat.send", type: "mutation", principal, clientIp };
+}
+
+// A NON-turn authed request (a plain query) — hits ONLY the general per-user bucket, never the ai-turn one.
+function authed(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
+  return { path: "chat.listChats", type: "query", principal: principalFor(userId), clientIp };
+}
+
+// A $/GPU turn request — hits the STRICTER ai-turn bucket AND the general bucket.
+function turn(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
+  return { path: "chat.send", type: "mutation", principal: principalFor(userId), clientIp };
 }
 
 /** Drive `enforce` `n` times, swallowing throws — returns how many were ALLOWED before the first reject. */
@@ -112,5 +126,122 @@ describe("rate-limit gate — the anonymous → tight-bucket failsafe (never key
     expect(authedRows).toHaveLength(1);
     // The authed row is keyed on the userId, never on an "anon" literal or the IP.
     expect(authedRows[0]?.key).toContain("user_b");
+  });
+});
+
+describe("rate-limit gate — the ai-turn ($/GPU) bucket (stricter than the general request bucket)", () => {
+  const aiTurnCap = env.RATE_LIMIT_AI_TURN;
+
+  test("premise: the ai-turn cap is STRICTER than the general (authed) cap", () => {
+    expect(aiTurnCap).toBeLessThan(AUTHED_CAP);
+  });
+
+  test("a $/GPU turn verb throttles at the ai-turn cap while a plain query at the same count still has headroom", async () => {
+    const { enforce } = gate(await freshDb());
+
+    // A stream of `chat.send` (a turn) trips at the ai-turn cap (30), NOT the looser general cap (600).
+    const turnsAllowed = await consumeUntilThrottled(enforce, turn("user_t"), aiTurnCap + 5);
+    expect(turnsAllowed).toBe(aiTurnCap);
+    await expect(enforce(turn("user_t"))).rejects.toBeInstanceOf(DomainRateLimitError);
+
+    // A DIFFERENT user's plain query driven to the same count is still under the general cap — proving the
+    // turn was throttled by the ai-turn bucket, not the general one.
+    const queriesAllowed = await consumeUntilThrottled(enforce, authed("user_q"), aiTurnCap);
+    expect(queriesAllowed).toBe(aiTurnCap);
+    await expect(enforce(authed("user_q"))).resolves.toBeUndefined();
+  });
+
+  test("a turn debits BOTH buckets — it lands rows in ai-turn: AND general: for the same user", async () => {
+    const db = await freshDb();
+    const { enforce } = gate(db);
+
+    await enforce(turn("user_both"));
+
+    const aiTurnRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "ai-turn:%"));
+    const generalRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "general:%"));
+    expect(aiTurnRows).toHaveLength(1);
+    expect(generalRows).toHaveLength(1);
+    expect(aiTurnRows[0]?.key).toContain("user_both");
+    expect(generalRows[0]?.key).toContain("user_both");
+  });
+
+  test("a plain authed query never touches the ai-turn bucket (no free-turn leak the OTHER way — a non-turn stays cheap)", async () => {
+    const db = await freshDb();
+    const { enforce } = gate(db);
+
+    await enforce(authed("user_qonly"));
+
+    const aiTurnRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "ai-turn:%"));
+    expect(aiTurnRows).toHaveLength(0);
+  });
+});
+
+describe("rate-limit gate — LIVE admin override (the gate reads the RESOLVED cap fresh per request)", () => {
+  test("an admin override to the ai-turn cap takes effect on the next request (no restart)", async () => {
+    // The production gate reads `resolveRateLimits()` per consume. Simulate an admin edit by flipping which
+    // resolved config the accessor returns mid-session — the very next enforce sees the new cap.
+    const db = await freshDb();
+    // A mutable holder the accessor closes over — an admin PATCH would flip the resolved config the same way
+    // (reloadEffectiveConfig swaps the cached blob); the gate reads it fresh per consume.
+    const state: { override: AppSettings } = { override: {} };
+    const enforce = createRateLimitGate({
+      db,
+      now: () => T0,
+      resolveRateLimits: () => layer(state.override).rateLimits,
+    }).enforce;
+
+    // Admin tightens the ai-turn cap to 2. The next two turns pass; the third trips — proving the new cap
+    // was read live, not baked at construction.
+    state.override = { rateLimits: { aiTurn: 2 } };
+    await expect(enforce(turn("user_live"))).resolves.toBeUndefined();
+    await expect(enforce(turn("user_live"))).resolves.toBeUndefined();
+    await expect(enforce(turn("user_live"))).rejects.toBeInstanceOf(DomainRateLimitError);
+  });
+
+  test("at UNSET override the gate's caps are BYTE-IDENTICAL to the env floor (no silent loosen/tighten)", () => {
+    // The security invariant: wiring the settings layer in must not change behavior when no admin override
+    // exists. `layer({}).rateLimits` (what the gate resolves with no override) equals the env floors 1:1.
+    const resolved = layer({}).rateLimits;
+    expect(resolved.publicIp).toBe(env.RATE_LIMIT_PUBLIC_IP);
+    expect(resolved.authed).toBe(env.RATE_LIMIT_AUTHED);
+    expect(resolved.aiTurn).toBe(env.RATE_LIMIT_AI_TURN);
+    expect(resolved.general).toBe(env.RATE_LIMIT_GENERAL);
+  });
+
+  test("a set override WINS over the floor", () => {
+    expect(layer({ rateLimits: { authed: 42 } }).rateLimits.authed).toBe(42);
+    expect(layer({ rateLimits: { aiTurn: 7 } }).rateLimits.aiTurn).toBe(7);
+    // an unset field in a partial override still falls to its floor
+    expect(layer({ rateLimits: { authed: 42 } }).rateLimits.aiTurn).toBe(env.RATE_LIMIT_AI_TURN);
+  });
+});
+
+describe("rate-limit gate — bounds/clamp (an absurd or hostile override never LOOSENS or breaks the limiter)", () => {
+  test("a 0 / negative cap fails parse → the field drops → the resolver reads the env floor (fail-safe)", () => {
+    // 0 and negatives are below the `.int().min(RATE_LIMIT_CAP_MIN)` bound — parse rejects, the whole
+    // rateLimits object (the field's `.catch(undefined)` parent) drops, and the floor reads back. An admin
+    // can NEVER set an un-capped (0/absurd) limiter through the override.
+    expect(parseAppSettings({ rateLimits: { authed: 0 } }).rateLimits).toBeUndefined();
+    expect(parseAppSettings({ rateLimits: { aiTurn: -5 } }).rateLimits).toBeUndefined();
+    // and the resolver therefore reads the floor, unchanged:
+    expect(layer(parseAppSettings({ rateLimits: { authed: 0 } })).rateLimits.authed).toBe(env.RATE_LIMIT_AUTHED);
+  });
+
+  test("an absurdly-low cap (below MIN) fails parse → floor (no self-lock at 1/min)", () => {
+    // A cap of 1 is technically positive but would DoS the deployment; it's below MIN (5), so it drops.
+    expect(parseAppSettings({ rateLimits: { authed: 1 } }).rateLimits).toBeUndefined();
+  });
+
+  test("an absurdly-high cap (above MAX) fails parse → floor (no effectively-uncapped hole)", () => {
+    expect(parseAppSettings({ rateLimits: { publicIp: 10_000_000 } }).rateLimits).toBeUndefined();
+  });
+
+  test("a non-integer / non-number cap fails parse → floor", () => {
+    expect(parseAppSettings({ rateLimits: { authed: 42.5 } }).rateLimits).toBeUndefined();
+    expect(parseAppSettings({ rateLimits: { authed: "600" } }).rateLimits).toBeUndefined();
+  });
+
+  test("a value WITHIN bounds is accepted", () => {
+    expect(parseAppSettings({ rateLimits: { authed: 300 } }).rateLimits?.authed).toBe(300);
   });
 });

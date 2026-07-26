@@ -14,6 +14,74 @@ synthetic "Group" character spoke — `round.ts` was supposed to yield the GM *a
 program keeps finding (5 half-shipped features tonight), and it is why "drive it live, then pin it" is the
 posture rather than paranoia. Judge every finding against that frame.
 
+## ═══ ▶▶ RESUME HERE (2026-07-25 LATE NIGHT — supersedes EVERYTHING below, incl. the evening block) ═══
+
+**TONIGHT'S COMMITS (all local, commit-only — owner: never push, never ask):** `20627b64` (guided
+P2 consolidation: greeting studio spec'd… superseded) → `2a450a8b` (Stop-during-arbitration ·
+worldInfoActivated · F3 pins) → `80eca58e` (contracts/chat 9-seam split + chain-Stop-in-full) →
+`712047b4` (G2 union-gate repair +20 re-spells · Toggle pressed ring · snap --contexts ·
+2 flake root-fixes) → `c8c613fa` (workboard-remainder close: F1 both halves · sibling-front-door
+rule · root-deps guard · scroll-mode→kit · jscpd lens + stableStringify hoist) → `2ee1d0b2`
+(compose services.ts split: keystone + 8 seams, stickler-reviewed) → **`be1ba6b4`** (the side-gen
+SAMPLING LADDER: 9 sites → one resolver, floors as data, gate 149; + the buried-knobs audit ledger
+`reports/scout/2026-07-25-buried-knobs-audit-wip.md` and gate design
+`reports/stickler/2026-07-25-knob-drift-gates.md` as cited records).
+
+**IN THE TREE UNCOMMITTED — KNOB-WIRE PROGRAM PHASE A (owner: "wire it all up, handle it properly
+in full"):** L0 `knob-wire-coverage` gate LANDED (D107 minted · count 150 · six arms ·
+DOORWAY/DEFERRED two-map registry · conformance 2/2 · orchestrator fixed 2 TS7030s + the
+_support exactOptional red post-landing, house ternary idiom) · L1 rateLimits ENFORCED
+(security-executor: gate reads getEffectiveConfig().rateLimits LIVE · aiTurn wired via a typed
+exhaustive $-verb map [missed verb = build error] · fail-safe bounds [absurd override → env
+floor] · 90/90 incl. adversarial) · L3 chat FIVE-of-six (continueNudge honors the field ·
+impersonateNudge slot + ST-importer drop closed · toolRecurseLimit FULL path [verb+sweep+matrix+
+all 8 TurnPrep sites] · memorySummarizer into digests + reserve mirror · providerRouting
+receipted) · L4 dupThreshold end-to-end BOTH arms (user knob = cosine arm only; chat Jaccard
+keeps its own floor — fabricated-math rejected) · L5 (uploads cap catalog @orb/contracts/uploads
+SERVED on /api/auth/config · image arm honors maxImageBytes · 4096→2048 align · sessions cap 200
+newest-first · REASONING_CPS obeys smoothStream/CPS).
+**IN FLIGHT: L3's groupDefaults-seed continuation** (agent warm; seed metadata.group from
+creator's settings.groupDefaults at group-chat creation; int-test both arms).
+
+**ON L3's LANDING (the sequence):** ① prune the gate registry's transient STALE entries — their
+fixes are in-tree: `A:rateLimits` · `A:memorySummarizer` · `C:dupThreshold` ·
+`F:toolRecurseLimit:read`+`:write` · plus `B:groupDefaults`/section once seeded (each DELETE rides
+the ratchet's own demand) ② pnpm format:docs ③ full bar (read artifacts) ④ **PHASE A
+CONSOLIDATION COMMIT** ⑤ dispatch PHASE B.
+
+**OWNER RULINGS THIS THREAD (all final):** `rateLimits.general` = **DELETE** (field + env floor
+RATE_LIMIT_GENERAL + resolver line; grep deployments for the env var; rationale into the D107
+area — poisoned name, no demand, gate makes re-add safe; rides Phase B's rateLimits pane) ·
+`providerRouting` = **DEFER** (stays a cited DEFERRED entry; the 3-piece wiring shape is recorded:
+thread meta→OR request build as request-dressing beside the sealed 4-tuple + host room-settings
+control + optional settings default) · summarize-concurrency = admin knob (Phase B ⑩) · 4096 =
+aligned · toolRecurseLimit/groupDefaults/dupThreshold = wired · vLLM engineLaunch sampling
+defaults = the OWNER-CLARIFIED item in the Phase B manifest (per-launched-model defaults, NOT a
+Qwen knob) · **Phase B must MINT THE SETTINGS-SECTION REGISTRY FIRST** (pain-point §7 cure:
+per-domain descriptor contributions like defineContextTabs; every new pane lands as a
+contribution, never more god-feature growth).
+
+**PAIN-POINT DOC TRIAGE (2026-07-25, read in full):** NAILED/PURGED: workloads (design ratified,
+stages A–E VERY LAST) · party two-homes (no-party ruling) · entity zoo + buddy/crew duplication
+(purged, lesson encoded in the contribution seam) · anth-direct cell (purged). STILL LIVE:
+settings god-feature (→ the Phase B registry mandate above) · localStorage autosave BRICK-LOOP
+(§8, never traced — TRACE CHIP before lite-rpg adds stores) · capability cell-keying (source×api)
++ AgentTurnRequest scalar-plucking + roles/agent.ts-vs-resolve-role tension = REBUILD-GATE
+verifications (before buddy returns) · generic tool-loop homed in chat = rebuild-charter note ·
+context-menu over/under-use → the polish program's side-eye lens. Policed-fine: session double
+meaning · vllm folder · SDK parallel serialization (upstream).
+
+**FLAKE LEDGER:** swipe-strip:122 (2 strikes) · code-editor:192 (1, suspect CM6 delay class) ·
+file-dropzone:86 (1) · message-list:309 + lightbox FIXED and held 3 consecutive bars.
+
+**QUEUED AFTER PHASE B:** the BG-V live drive (video background side-eye; needs seeded video
+asset) · localStorage brick-loop trace · the token-estimate gate-widening chip (stickler §8,
+dispatch-ready) · THEN the LITE-RPG + VISUAL-POLISH program (mockup-first;
+Context-Panel-Program.md is the sharpened spec; rpg-shell-mockup-v2 = the target) · workloads
+A–E very last. Fixture stack note: multi-user-fixture.sh SHARES the live ports — snap --contexts
+refuses with the up-remedy when it's down; the live stack is back on data/orbweaver.db
+(single-user).
+
 ## ═══ ▶ RESUME HERE (2026-07-25 EVENING — full current state; supersedes everything below) ═══
 
 **TODAY'S COMMIT LEDGER (all LOCAL — nothing pushed to origin, owner hasn't said push):**
@@ -195,12 +263,60 @@ suppressions baseline 3-line follow-the-suppression regen. CONTRACTS AUDIT: FUNC
 (F1-F5/G1-G3 done; F6-F8 advisory by its own ruling). FLAKE LEDGER: swipe-strip:122 (2nd strike,
 root-fix chip stands) · code-editor:192 NEW 1st-striker (suspect the CM6 interaction-delay class).
 
-**NEXT (owner-ratified order): ① the SIDE-GEN SAMPLING LADDER** (final pre-program item;
-inventory = reports/scout/2026-07-25-side-gen-posture-inventory.md: 9 sites/15 consts/0 overrides;
-connection resolution verified SOUND — the ladder is per-action guidedActions sampling fields →
-the caller's preset `params` (chat-scoped: active preset · card/user-scoped: default preset) →
-`SIDE_GEN_POSTURES` floor catalog as data + a no-sampling-literals gate) → **② THE LITE-RPG +
-VISUAL-POLISH PROGRAM** (CP-3/CP-4 + facelift ledger, mockup-first) → ③ workloads A–E VERY LAST.
+**✅ ① the SIDE-GEN SAMPLING LADDER LANDED — `be1ba6b4`** (9 sites → one resolver; floors as data;
+guidedActions sampling fields live in the preset cards, visually verified; gate 149; byte-identical
+at default int-proven; the buried-knobs audit ledger + knob-drift gate design committed as cited
+records in the same commit).
+
+**═══ THE KNOB-WIRE PROGRAM (owner: "wire it all up, handle it properly in full") ═══**
+**COVERAGE LAW: every a/b/c finding in reports/scout/2026-07-25-buried-knobs-audit-wip.md is in
+Phase A (in flight), the Phase B manifest below, or the knob-wire-coverage gate's DEFERRED/DOORWAY
+registry — the registry is ENFORCED both directions (stale entries go red), so nothing can
+silently drop.**
+
+PHASE A (5 lanes in flight, post-be1ba6b4): L0 gate+D-entry (founding DEFERRED registry = the
+program manifest with teeth) · L1 rateLimits consumption (security-executor; general/aiTurn to
+their DESIGNED points, stop-and-report if intent unrecoverable) · L3 chat six (continueNudge honors
+the field [behavior change IS the fix] · impersonateNudge slot + closes the ST-importer drop ·
+toolRecurseLimit server write path + TurnPrep thread · groupDefaults new-chat seed ·
+memorySummarizer into digests + reserve mirror · providerRouting archaeology) · L4 dupThreshold
+end-to-end BOTH arms (cosine vs Jaccard modeled honestly) · L5 (byte-cap catalog + served-to-client
++ image arm honors maxImageBytes · agent-runner 2048 align · sessions LIMIT · REASONING_CPS obeys
+smoothStream/CPS).
+
+PHASE B MANIFEST (ONE settings-surface lane — single owner of contracts/settings + settings UI;
+dispatches at Phase A consolidation): ① memory.enabled client write path + Memory section UI (the
+#1 finding — the unreachable master switch) ② worldInfo section UI (scanDepth/tokenBudget) ③ the
+THREE UI-less AppSettings admin panes: memoryDefaults (11 knobs) · memorySummarizer · rateLimits
+(+ rateLimits.login field per L1's pointer; **OWNER RULED: DELETE rateLimits.general** — field +
+RATE_LIMIT_GENERAL env floor + resolver line, grep deployments for the env var, pane shows
+publicIp/authed/aiTurn/login; rationale → D107 area) ④ databank: UserSettings.databank section + editor +
+REAL compose binding + gather k/minScore/rerank passthrough + the composed-real int test (owner:
+dormant-by-design, WIRE IT; absorbs search's DEFAULT_DOCUMENT_K/MIN_SCORE and
+DATABANK_SLOT_TOKEN_BUDGET=4096) ⑤ Workloads pane bindings: dupThreshold · computeThemesK ·
+cooccurrence maxPairs/hubFraction ⑥ persona toggles: personaWizardSeen wire-or-delete ·
+showNotifications HONORED ⑦ toolRecurseLimit room-settings control (client half of L3's verb)
+⑧ chat prefs: TEMPORARY_CHAT_REAP_TTL → chat setting · autoSwipe.maxRetries/autoContinueRounds
+(the PD-146 bounds await exactly this knob) ⑨ preset: compaction.verbatimTail
+(MANAGED_VERBATIM_TAIL=8 — the missing 4th compaction field) · logitBias/advanced.* "Advanced"
+disclosure ⑩ admin tier: agentSdkConcurrency.summarize (Q6 → knob, default 4 preserved) ·
+PROMPT_TRANSFORM_DEADLINE_MS · databank-upload cap admin field · member-budget WINDOW sibling ·
+catalog-refresh cadence · image variant quality (CACHE-KEY CAVEAT: key must incorporate quality) ·
+vLLM sampling DEFAULTS at the engineLaunch admin tier (OWNER CLARIFIED 2026-07-25: not a
+Qwen-presence knob per se — admin-settable per-launched-model sampling defaults [presence penalty
+et al.] applied whenever the vLLM backend serves a request, INCLUDING role/side-gen traffic when
+the main chat rides agent-sdk; replaces CARD_DEFAULT_PRESENCE_PENALTY=1.5 silently applying to ANY
+swapped genModel; genRepetitionPenalty = the exact precedent — env floor ⊕ AppSettings override,
+resolved per spawn/request) ⑪ library.pageSize (weak-a) ⑫ the IMAGERY-TEMPLATES design lift (guided-actions-pattern editing
+for PROMPT_TEMPLATES/CAPTION_INSTRUCTIONS — the audit's one named design fork; LAST, own sub-lane).
+DEFERRED-until-ruled (in the gate registry, never dropped): presence GRACE_MS (borderline-d) ·
+RECENT_TRANSCRIPT/WINDOW side-gen context knob (ladder-adjacent). PLUS the queued BG-V live drive
+(video-background side-eye — the BG lane skipped it 07-24; needs a seeded video asset
+post-WAL-wipe).
+
+**THEN: ② THE LITE-RPG + VISUAL-POLISH PROGRAM** (CP-3/CP-4 + facelift ledger, mockup-first) →
+③ workloads A–E VERY LAST (unchanged owner order — knob-wire slots in as the owner's 2026-07-25
+"wire it all" ruling, before lite-rpg).
 
 **CLOSED QUEUE RECORD (was the closing queue):** ① tsx →
 devDependencies (the Gemini "favor" at package.json:70, commit 4f5073ec — a runtime dep the private

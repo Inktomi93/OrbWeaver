@@ -10,6 +10,7 @@
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
+import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
@@ -30,18 +31,7 @@ const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const NAME_FIELD = "name";
 
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// A single asset (avatar/gallery image). Also passed as the store's maxBytes belt, so an over-cap single
-// field is rejected before the CAS write even if it slips the body cap.
-const ASSET_UPLOAD_MAX_MIB = 64;
-const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MAX_MIB * BYTES_PER_MIB;
-const IMPORT_MAX_MIB = 256;
-const IMPORT_MAX_BYTES = IMPORT_MAX_MIB * BYTES_PER_MIB;
-// A single source document (txt/md/pdf/html). The design's upload size cap (databank-design/02 §6, LEAN
-// 20 MB); also the store's maxBytes belt on the CAS write.
-const DATABANK_UPLOAD_MAX_MIB = 20;
-const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MAX_MIB * BYTES_PER_MIB;
+const IMAGE_MIME_PREFIX = "image/";
 
 /** The `assets` front-door slice the asset-upload route consumes (the full {@link StoredAsset} result —
  *  a superset of {@link ImportAssetPort}'s `{assetId}`, so one handle serves both routes). */
@@ -65,6 +55,10 @@ export interface UploadDeps {
   readonly worldInfo: ImportWorldInfoPort;
   /** PD-136: the doc-ingest façade — the databank producer's binary front door (bytes → extract → chunk). */
   readonly databank: Pick<DatabankService, "upload">;
+  /** The admin-tunable effective `maxImageBytes` — the asset route clamps an IMAGE-kind upload to the tighter
+   *  of the route cap and this (the same per-request accessor the character/imagery asset stores use). A
+   *  non-image kind (document/plugin) keeps the fixed route cap. */
+  readonly maxImageBytes: () => number;
 }
 
 interface PrincipalEnv {
@@ -111,13 +105,18 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     if (!kind.success) {
       return c.json({ error: `invalid "${KIND_FIELD}" — expected an AssetKind` }, BAD_REQUEST);
     }
+    const mime = file.type.length > 0 ? file.type : FALLBACK_MIME;
+    // An image upload obeys the TIGHTER of the route cap and the admin-tunable maxImageBytes; a non-image
+    // kind (document/plugin bundle) keeps the fixed route cap. Keyed on the mime family the store's magic
+    // sniff verifies anyway, so the cap matches the bytes actually being stored.
+    const maxBytes = mime.startsWith(IMAGE_MIME_PREFIX) ? Math.min(ASSET_UPLOAD_MAX_BYTES, deps.maxImageBytes()) : ASSET_UPLOAD_MAX_BYTES;
     const stored = await deps.assets.store({
       principal,
       bytes: await fileBytes(file),
       kind: kind.data,
-      mime: file.type.length > 0 ? file.type : FALLBACK_MIME,
+      mime,
       enforceMagic: true,
-      maxBytes: ASSET_UPLOAD_MAX_BYTES,
+      maxBytes,
     });
     return c.json(stored);
   });
@@ -146,7 +145,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     return c.json(result);
   });
 
-  app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_BYTES), async (c) => {
+  app.post(IMPORT_ROUTE, authCsrfGuard, bodyCap(IMPORT_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);

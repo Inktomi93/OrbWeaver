@@ -17,8 +17,9 @@ import { z } from "zod";
 export type { ChatMetadata } from "@orb/contracts/chat";
 
 export const TOOL_RECURSE_LIMIT_DEFAULT = 5;
-const TOOL_RECURSE_LIMIT_MAX = 20;
-const toolRecurseLimitSchema = z.number().int().min(1).max(TOOL_RECURSE_LIMIT_MAX);
+export const TOOL_RECURSE_LIMIT_MIN = 1;
+export const TOOL_RECURSE_LIMIT_MAX = 20;
+export const toolRecurseLimitSchema = z.number().int().min(TOOL_RECURSE_LIMIT_MIN).max(TOOL_RECURSE_LIMIT_MAX);
 
 /** The declarative shape of the `chats.metadata` blob — every sub-blob independently fault-isolated
  *  (`.catch(undefined)`: a malformed one heals to absent without nuking its siblings) and the object

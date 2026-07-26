@@ -4,6 +4,7 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import { blobUrl } from "@orb/contracts/assets";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Field } from "@orb/ui/field";
@@ -15,9 +16,6 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useBoundField } from "./use-bound-field";
 
-/** Client-side pre-check ceiling — mirrors the `FileDropzone` doc example's own avatar-size precedent. */
-const MAX_AVATAR_BYTES = 20_000_000;
-
 export interface AvatarUploadFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
@@ -28,13 +26,17 @@ export interface AvatarUploadFieldProps {
    *  existing avatar (a fresh create). Superseded the instant a new upload completes. */
   readonly initialHash?: string | null;
   readonly disabled?: boolean;
+  /** The client pre-check byte ceiling. forms/ can't reach `#data`, so the served image cap is INJECTED
+   *  (like `upload`) — the consuming feature passes `useUploadCaps().image`. Omitted ⇒ the contract route
+   *  cap (never a third invented number); the server re-caps + magic-checks regardless. */
+  readonly maxBytes?: number;
 }
 
 /** Bound avatar-upload field: `<Field>`-wrapped `<Avatar>` preview + `<FileDropzone>` picker. Upload
  *  failure surfaces inline (the `Field` error slot); a mid-upload/just-succeeded state rides the
  *  dropzone's own 8-state `loading`/`success` props — this field holds no separate spinner. */
 export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
-  const { upload, initialHash = null, disabled = false } = props;
+  const { upload, initialHash = null, disabled = false, maxBytes = ASSET_UPLOAD_MAX_BYTES } = props;
   const { field, fieldProps } = useBoundField<AssetId | null>(props);
   const [previewHash, setPreviewHash] = useState<string | null>(initialHash);
   const [loading, setLoading] = useState(false);
@@ -67,14 +69,7 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
         <Avatar size="lg" fallbackDelay={0} {...(previewHash === null ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={CircleUser} size="lg" />
         </Avatar>
-        <FileDropzone
-          accept="image/*"
-          maxSizeBytes={MAX_AVATAR_BYTES}
-          loading={loading}
-          success={success}
-          disabled={disabled}
-          onFilesSelected={handleFilesSelected}
-        />
+        <FileDropzone accept="image/*" maxSizeBytes={maxBytes} loading={loading} success={success} disabled={disabled} onFilesSelected={handleFilesSelected} />
       </Row>
     </Field>
   );

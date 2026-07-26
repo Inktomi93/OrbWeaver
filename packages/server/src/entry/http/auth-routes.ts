@@ -208,6 +208,9 @@ async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response
 function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
   // DB-backed throttle (shared rate_limit_buckets → replica-correct). Body-limit belt runs first so a huge
   // POST is rejected before the body buffers; the throttle then caps brute-force + scrypt-CPU-flood.
+  // Hardcoded cap THIS lane — the admin-flippable `AppSettings.rateLimits.login` field is Phase B schema
+  // work; when it lands, thread `() => settings.getEffectiveConfig().rateLimits.login` here (the tRPC gate's
+  // live-cap pattern, entry/rate-limit-gate.ts) instead of the LOGIN_MAX_PER_WINDOW constant.
   const loginLimiter = createRateLimiter(deps.db, {
     scope: LOGIN_RATE_SCOPE,
     points: LOGIN_MAX_PER_WINDOW,

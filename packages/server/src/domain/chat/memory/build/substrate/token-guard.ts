@@ -13,8 +13,11 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { MsgRow } from "../../types";
 import { renderTranscript } from "./transcript";
 
-/** Tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted separately). */
-const OUTPUT_RESERVE_TOKENS = 1024;
+/** The baseline tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted
+ *  separately). The EFFECTIVE reserve is `AppSettings.memorySummarizer.maxTokens ?? this` — the one home the
+ *  summarize REQUEST's `max_tokens` and this fit-reserve both read, so they can't diverge (the
+ *  `materializeOutputReserve` one-home rule). */
+export const DEFAULT_OUTPUT_RESERVE_TOKENS = 1024;
 
 /** The §10 config-time floor: below this resolved summarizer context, even a small block + output is risky →
  *  emit the soft-warning at build start (the degrade is visible, never silent). */
@@ -24,10 +27,17 @@ export const SUMMARIZER_CONTEXT_FLOOR = 4096;
  * Fit a block's rows to the summarizer transcript budget by trimming OLDEST-within-block until the rendered
  * transcript fits `contextTokens` (minus the system prompt + the output reserve). Returns the kept rows, or
  * `null` when even the single newest message overflows (the caller skips-and-flags — never silent truncation).
- * `contextTokens ≤ 0` ⇒ no room at all ⇒ `null`.
+ * `contextTokens ≤ 0` ⇒ no room at all ⇒ `null`. `outputReserveTokens` = the SAME `max_tokens` the summarize
+ * request sends (the one-home rule; caller resolves `AppSettings.memorySummarizer.maxTokens ?? default`).
  */
-export function fitBlockToBudget(rows: readonly MsgRow[], macroNames: RowMacroNameContext, contextTokens: number, systemPromptTokens: number): MsgRow[] | null {
-  const budget = contextTokens - systemPromptTokens - OUTPUT_RESERVE_TOKENS;
+export function fitBlockToBudget(
+  rows: readonly MsgRow[],
+  macroNames: RowMacroNameContext,
+  contextTokens: number,
+  systemPromptTokens: number,
+  outputReserveTokens: number,
+): MsgRow[] | null {
+  const budget = contextTokens - systemPromptTokens - outputReserveTokens;
   if (budget <= 0) {
     return null;
   }

@@ -12,7 +12,7 @@ import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRe
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType } from "@orb/contracts/preset";
-import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -100,6 +100,10 @@ type TurnVerbs = Pick<
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
 
+/** The `TurnPrep` patch carrying the per-chat tool-recurse cap: present only when the chat set one (absent ⇒
+ *  the engine's seed default stands). One home so every generating prep threads it identically. */
+const recursePatch = (toolRecurseLimit: number | undefined): { toolRecurseLimit?: number } => (toolRecurseLimit !== undefined ? { toolRecurseLimit } : {});
+
 const ATTACHMENT_ALT = "attachment";
 
 /** Composes the persisted body from the (post-regex) user text + one `![](asset:<id>)` ref per attached
@@ -114,9 +118,10 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
 }
 
 /** Synthetic trailing-user nudges: the unsteered continue/impersonate baseline, riding `appendUserTurn`. A
- *  `guided` steer composes with these. */
-const CONTINUE_NUDGE = "[Continue the previous message from exactly where it left off, without repeating it.]";
-const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
+ *  `guided` steer composes with these. Resolved from the turn's own resolved preset (`formatStrings`) so an
+ *  editable/ST-imported nudge actually steers the turn; an absent field falls back to `DEFAULT_FORMAT_STRINGS`. */
+const nudgeOf = (assembleContext: AssembleContext, key: "continueNudge" | "impersonateNudge"): string =>
+  assembleContext.promptConfig.formatStrings?.[key] ?? DEFAULT_FORMAT_STRINGS[key];
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
  *  their display names, the character cast ids (WI/memory), and the present personas. */
@@ -1009,6 +1014,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       signal: handle.signal,
     };
@@ -1074,6 +1080,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
     };
     try {
@@ -1241,6 +1248,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       speakerCharacterId: target.characterId,
       persist: { mode: "append-variant", targetMessageId: messageId },
@@ -1282,8 +1290,9 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       speakerCharacterId: target.characterId,
-      appendUserTurn: CONTINUE_NUDGE,
+      appendUserTurn: nudgeOf(assembleContext, "continueNudge"),
       persist: { mode: "continue", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
     });
@@ -1324,8 +1333,9 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       speakerCharacterId: null,
-      appendUserTurn: IMPERSONATE_NUDGE,
+      appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
       persist: {
         mode: "new-slot",
         role: "user",
@@ -1384,6 +1394,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       speakerCharacterId: speaker,
       lockFree: true,
       ...(shape !== undefined ? { shape } : {}),
@@ -1497,6 +1508,7 @@ async function runDeferredRound(
     memoryConfig,
     ...(memoryRecall !== null ? { memoryRecall } : {}),
     attachedToolNames,
+    ...recursePatch(chat.metadata.toolRecurseLimit),
     respondsToLatestUserTurn,
     signal: handle.signal,
   };
@@ -1687,6 +1699,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      ...recursePatch(chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       signal: handle.signal,
     };

@@ -31,6 +31,11 @@ const stagedHandleSchema = z
 
 const computeThemesParams = z.object({ k: z.number().int().positive().optional() });
 
+/** find-duplicates: the near-dup analytics pass. `threshold` is an optional per-run raw-cosine floor for the
+ *  CHARACTER arm (0..1). Precedence (param → `UserSettings.workloads.dupThreshold` → the runner floor) resolves
+ *  in the runner. The chat Jaccard arm keeps its own floor — a different metric, not this cosine knob. */
+const findDuplicatesParams = z.object({ threshold: z.number().min(0).max(1).optional() });
+
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
  *  owner (`ctx.ownerId`) scopes the run. */
 const databankIngestParams = z.object({ documentId: documentIdSchema });
@@ -70,7 +75,7 @@ export const PARAMS_SCHEMAS = {
   "memory-backfill": noParams,
   "group-character-backfill": noParams,
   "compute-cooccurrence": noParams,
-  "find-duplicates": noParams,
+  "find-duplicates": findDuplicatesParams,
   csls: noParams,
   "assets-backfill": maintenanceParams,
   "assets-gc": maintenanceParams,

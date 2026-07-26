@@ -26,6 +26,7 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
 import type { CollectedCard, CollectedPersona, ImportFsPort, ImportPersonaInput } from "#domain/import";
@@ -35,12 +36,6 @@ import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldIn
 import { buildImportContext } from "./build-import-context";
 
 const AVATAR_MIME = "image/png";
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-const PROFILE_IMPORT_MAX_ASSET_MIB = 64;
-/** PD-94 — the per-blob byte cap the profile importer stores card/avatar PNGs under (a single ST asset well
- *  under this; the bound is the zip-bomb belt, not a product limit). Enforced at the assets store seam. */
-export const PROFILE_IMPORT_MAX_ASSET_BYTES = PROFILE_IMPORT_MAX_ASSET_MIB * BYTES_PER_MIB;
 
 export interface ProfileDirImportDeps {
   readonly fs: ImportFsPort;
@@ -141,7 +136,8 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
       bytes: p.avatarBytes,
       kind: "avatar",
       mime: AVATAR_MIME,
-      maxBytes: PROFILE_IMPORT_MAX_ASSET_BYTES,
+      // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
+      maxBytes: ASSET_UPLOAD_MAX_BYTES,
     });
     avatarAssetId = stored.assetId;
   }
@@ -161,7 +157,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<P
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
-  const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: PROFILE_IMPORT_MAX_ASSET_BYTES });
+  const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
   const ctx = buildImportContext({
     principal: deps.principal,
     character: deps.character,

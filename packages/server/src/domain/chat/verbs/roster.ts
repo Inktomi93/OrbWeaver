@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata";
 import type {
   AcceptHostHandoffParams,
   AddCharacterToChatParams,
@@ -43,6 +44,7 @@ import type {
   SetMemberHistoryVisibilityParams,
   SetRoomOverridesParams,
   SetSeatKnobsParams,
+  SetToolRecurseLimitParams,
 } from "../contract/params";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
@@ -77,6 +79,7 @@ type RosterVerbs = Pick<
   | "setRoomOverrides"
   | "setChatDocumentVisibility"
   | "setChatBackground"
+  | "setToolRecurseLimit"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
   | "kick"
@@ -94,6 +97,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setRoomOverrides: createSetRoomOverrides(ctx, emit),
     setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit),
     setChatBackground: createSetChatBackground(ctx, emit),
+    setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
     addCharacterToChat: createAddCharacterToChat(ctx, emit),
@@ -315,6 +319,36 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       ctx.now(),
     );
     return source;
+  };
+}
+
+/** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
+ *  (`chatMetadata.toolRecurseLimit`, 1..20). Merges into the sibling sub-blobs (`...chat.metadata`) so it never
+ *  nukes roomOverrides/group. An out-of-range value is a `forbiddenOverride`, never a silent write. */
+function createSetToolRecurseLimit(ctx: ChatContext, emit: EmitChatEvent): ChatService["setToolRecurseLimit"] {
+  return async ({ principal, chatId, limit }: SetToolRecurseLimitParams): Promise<number> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    const parsed = toolRecurseLimitSchema.safeParse(limit);
+    if (!parsed.success) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.forbiddenOverride,
+        `chat ${chatId}: toolRecurseLimit must be an integer between ${TOOL_RECURSE_LIMIT_MIN} and ${TOOL_RECURSE_LIMIT_MAX}`,
+      );
+    }
+    const nextMetadata = { ...chat.metadata, toolRecurseLimit: parsed.data };
+    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.setToolRecurseLimit",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { limit: parsed.data },
+      },
+      ctx.now(),
+    );
+    return parsed.data;
   };
 }
 

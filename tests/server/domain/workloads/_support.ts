@@ -122,7 +122,7 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         scanned: 6,
         written: 4,
       })),
-      findDuplicates: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
+      findDuplicates: vi.fn(async (_args: { ownerId: UserId | null; threshold?: number | undefined; signal: AbortSignal }) => ({
         scanned: 9,
         written: 1,
       })),

@@ -23,6 +23,13 @@ describe("workload-params", () => {
     expect(() => parseParamsForKind("compute-themes", { k: -3 })).toThrow();
   });
 
+  test("find-duplicates accepts an optional cosine threshold (0..1) and rejects out-of-range", () => {
+    expect(parseParamsForKind("find-duplicates", { threshold: 0.85 })).toEqual({ threshold: 0.85 });
+    expect(parseParamsForKind("find-duplicates", {})).toEqual({});
+    expect(() => parseParamsForKind("find-duplicates", { threshold: 1.5 })).toThrow();
+    expect(() => parseParamsForKind("find-duplicates", { threshold: -0.1 })).toThrow();
+  });
+
   test("index requires a source and accepts an optional force flag", () => {
     expect(parseParamsForKind("index", { source: "text" })).toEqual({ source: "text" });
     expect(parseParamsForKind("index", { source: "all", force: true })).toEqual({

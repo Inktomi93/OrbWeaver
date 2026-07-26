@@ -6,6 +6,7 @@
 // + a fresh dynamic import per test — the module-level `configPromise` memo would otherwise leak the
 // PREVIOUS test's cached result across tests in the same file.
 
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { afterEach, vi } from "vitest";
 import type { AuthConfig } from "../../../packages/client/src/data/auth-config";
 import { expect, test } from "../../support/fixtures";
@@ -18,6 +19,7 @@ const CONFIG: AuthConfig = {
   discreetLogin: false,
   defaultHandle: null,
   multiHumanCapable: true,
+  uploads: DEFAULT_UPLOAD_CAPS,
 };
 
 type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config").fetchAuthConfig;

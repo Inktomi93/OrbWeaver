@@ -142,7 +142,15 @@ export function GhostMessageRow({
     // w-full so the shimmer/streaming-markdown children have a sized parent (the assistant skin is
     // otherwise shrink-to-fit).
     <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full", decoration?.className)} style={decoration?.style}>
-      {reasoning.length > 0 ? <ReasoningBlock reasoning={reasoning} thinking={thinking} showIcon={showLLMReasoningIcon} /> : null}
+      {reasoning.length > 0 ? (
+        <ReasoningBlock
+          reasoning={reasoning}
+          thinking={thinking}
+          showIcon={showLLMReasoningIcon}
+          smoothStream={smoothStream}
+          smoothStreamCps={smoothStreamCps}
+        />
+      ) : null}
       <GhostBubbleBody held={held} streaming={streaming} />
     </Stack>
   );

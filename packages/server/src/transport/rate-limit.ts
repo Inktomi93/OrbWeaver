@@ -25,7 +25,9 @@ const MEMBER_BUDGET_SCOPE = "member-budget";
 export interface RateLimitConfig {
   /** Short tag distinguishing this limiter's rows in the shared table — e.g. "login-ip", "public-ip". */
   readonly scope: string;
-  readonly points: number;
+  /** The cap. A thunk is read PER consume so an admin-flippable AppSettings cap (the tRPC gate's buckets)
+   *  takes effect on the next request; a plain number is a fixed floor (the login throttle). */
+  readonly points: number | (() => number);
   /** Window size in ms. Fixed-window: a request at second 0 and one at second 59 share a bucket. */
   readonly windowMs: number;
   readonly now: () => number;
@@ -101,7 +103,7 @@ export function createRateLimiter(db: Db, cfg: RateLimitConfig): RateLimiter {
       consumeWindow(db, {
         scope: cfg.scope,
         id,
-        points: cfg.points,
+        points: typeof cfg.points === "function" ? cfg.points() : cfg.points,
         windowMs: cfg.windowMs,
         now: cfg.now(),
       }),

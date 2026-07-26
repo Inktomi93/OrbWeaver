@@ -23,6 +23,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
+import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
@@ -575,6 +576,11 @@ export interface ChatContext {
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the user's actual context. */
   readonly summarizerContextTokens: number;
+  /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
+   *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
+   *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer
+   *  runs on its own defaults + the token-guard's baseline reserve (byte-identical to pre-wire). */
+  readonly memorySummarizer: MemorySummarizerConfig;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
 
@@ -615,6 +621,12 @@ export type ResolveTurnPolicyOp = (runAsUserId: UserId) => Promise<{ readonly bu
 
 /** What `createChatService` receives from the entry root: collaborators not on {@link ChatContext} and not
  *  built inside the composition root. */
+/** Resolve a chat creator's `UserSettings.groupDefaults` — the per-user default `GroupConfig` a NEW chat
+ *  seeds its `metadata.group` from (the FOREIGN-inputs seam: chat never reads the settings domain; the op is
+ *  wired at compose from `loadUserSettings`). Always resolves (the setting is `.default(DEFAULT_GROUP_CONFIG)`),
+ *  so `start-chat` compares against `DEFAULT_GROUP_CONFIG` to decide whether the seed is meaningful. */
+export type ResolveCreatorGroupDefaultsOp = (userId: UserId) => Promise<GroupConfig>;
+
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first). */
   readonly emit: (event: ChatBusEvent) => Promise<void>;
@@ -626,6 +638,8 @@ export interface ChatServiceDeps {
   readonly delay: (ms: number) => Promise<void>;
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
+  /** The creator's per-user default GroupConfig — `start-chat` seeds a new chat's `metadata.group` from it. */
+  readonly resolveCreatorGroupDefaults: ResolveCreatorGroupDefaultsOp;
   readonly debitBudget: DebitBudgetOp;
   readonly resolveTurnPolicy: ResolveTurnPolicyOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */

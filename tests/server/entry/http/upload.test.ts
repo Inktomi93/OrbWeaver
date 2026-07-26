@@ -143,12 +143,18 @@ const noopWorldInfo: ImportWorldInfoPort = {
 // satisfy UploadDeps (its handlers are the asset + import routes).
 const noopDatabank: UploadDeps["databank"] = { upload: () => Promise.reject(new Error("databank upload not exercised in this suite")) };
 
+// A generous effective image cap so the DEFAULT paths keep asserting the fixed 64 MiB route cap; the
+// image-clamp test overrides it to a tighter value to prove the min() takes it.
+const ROUTE_CAP_BYTES = 64 * 1024 * 1024;
+const generousMaxImageBytes = (): number => ROUTE_CAP_BYTES * 2;
+
 const okDeps: UploadDeps = {
   assets: okAssets,
   character: creatingCharacter,
   tag: noopTag,
   worldInfo: noopWorldInfo,
   databank: noopDatabank,
+  maxImageBytes: generousMaxImageBytes,
 };
 
 describe("registerUpload — asset upload", () => {
@@ -195,6 +201,7 @@ describe("registerUpload — asset upload", () => {
       tag: noopTag,
       worldInfo: noopWorldInfo,
       databank: noopDatabank,
+      maxImageBytes: generousMaxImageBytes,
     };
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
@@ -203,13 +210,58 @@ describe("registerUpload — asset upload", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(STORED);
     expect(calls).toHaveLength(1);
-    // PD-94: the route passes the store's maxBytes belt (64 MiB) alongside enforceMagic.
+    // PD-94: the route passes the store's maxBytes belt (64 MiB route cap; maxImageBytes is looser here so
+    // the route cap wins) alongside enforceMagic.
     expect(calls[0]).toEqual({
       kind: "avatar",
       mime: "image/png",
       enforceMagic: true,
-      maxBytes: 64 * 1024 * 1024,
+      maxBytes: ROUTE_CAP_BYTES,
     });
+  });
+
+  test("image kind honors the TIGHTER of the route cap and the admin maxImageBytes", async () => {
+    const tighter = 5 * 1024 * 1024;
+    const calls: number[] = [];
+    const deps: UploadDeps = {
+      ...okDeps,
+      assets: {
+        store: (p: Parameters<UploadAssetsPort["store"]>[0]): Promise<StoredAsset> => {
+          if (p.maxBytes !== undefined) {
+            calls.push(p.maxBytes);
+          }
+          return Promise.resolve(STORED);
+        },
+      },
+      maxImageBytes: () => tighter,
+    };
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
+    form.append("kind", "avatar");
+    await handlerFor(deps, ASSET_ROUTE)(makeCtx(OWNER, form));
+    expect(calls).toEqual([tighter]);
+  });
+
+  test("a NON-image kind keeps the fixed route cap, ignoring a tighter maxImageBytes", async () => {
+    const calls: number[] = [];
+    const deps: UploadDeps = {
+      ...okDeps,
+      assets: {
+        store: (p: Parameters<UploadAssetsPort["store"]>[0]): Promise<StoredAsset> => {
+          if (p.maxBytes !== undefined) {
+            calls.push(p.maxBytes);
+          }
+          return Promise.resolve(STORED);
+        },
+      },
+      maxImageBytes: () => 1024,
+    };
+    const form = new FormData();
+    // A plugin bundle is a non-image kind (application/zip) — the tighter image cap must NOT apply.
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "p.zip", { type: "application/zip" }));
+    form.append("kind", "plugin");
+    await handlerFor(deps, ASSET_ROUTE)(makeCtx(OWNER, form));
+    expect(calls).toEqual([ROUTE_CAP_BYTES]);
   });
 });
 

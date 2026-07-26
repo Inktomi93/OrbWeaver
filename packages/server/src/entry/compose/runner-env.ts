@@ -288,10 +288,13 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         const stats = await deps.discovery.computeCooccurrence({ signal });
         return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
       },
-      // Both dedup arms run in the one find-duplicates workload; counts are summed.
-      findDuplicates: async ({ ownerId }): Promise<DiscoveryOut> => {
+      // Both dedup arms run in the one find-duplicates workload; counts are summed. The user/param
+      // `threshold` is a raw-COSINE floor — it drives the CHARACTER arm only. The chat arm is Jaccard of
+      // segment content-hash sets (a set-overlap fraction, not a cosine), an incompatible scale, so it keeps
+      // its own `DEFAULT_CHAT_JACCARD` floor internally — never this cosine knob.
+      findDuplicates: async ({ ownerId, threshold }): Promise<DiscoveryOut> => {
         const [chars, chatPairs] = await Promise.all([
-          deps.discovery.computeDuplicatePairs({ ownerId }),
+          deps.discovery.computeDuplicatePairs({ ownerId, ...(threshold !== undefined ? { threshold } : {}) }),
           deps.discovery.computeChatDuplicatePairs({ ownerId }),
         ]);
         return {

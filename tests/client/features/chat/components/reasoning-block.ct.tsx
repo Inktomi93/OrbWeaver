@@ -30,6 +30,28 @@ test("reveals the growing reasoning trace as markdown while thinking", async ({ 
   await expect(component.getByText("best", { exact: false })).toBeVisible();
 });
 
+test("smoothStream off (the default): the full reasoning trace is revealed instantly, unpaced, while thinking", async ({ mount }) => {
+  // PD-146 — with `chat.smoothStream` off the reasoning block must NOT pace the reveal (useSmoothText is a
+  // strict passthrough when disabled); the whole trace is present on the first render even mid-thinking.
+  const full = "The complete reasoning trace shown all at once with no pacing whatsoever";
+  const component = await mount(<ReasoningBlockStory reasoning={full} thinking={true} smoothStream={false} />);
+  await expect(component.getByText(full)).toBeVisible();
+});
+
+test("smoothStream on: the reveal is paced (not instant), then completes as the pacer drains", async ({ mount, page }) => {
+  // PD-146 — with `chat.smoothStream` on the reveal is routed through useSmoothText (rAF pacer). Unlike the
+  // off case it is NOT a passthrough: at mount `shown=0`, so the full trace is absent until frames advance;
+  // once enough animation time passes the pacer drains and the whole trace lands.
+  await page.clock.install();
+  const full = "AAAAAAAAAA BBBBBBBBBB CCCCCCCCCC DDDDDDDDDD EEEEEEEEEE FFFFFFFFFF GGGGGGGGGG";
+  const component = await mount(<ReasoningBlockStory reasoning={full} thinking={true} smoothStream={true} smoothStreamCps={15} />);
+
+  await expect(component.getByText(full)).toBeHidden();
+
+  await page.clock.runFor(10 * ONE_SECOND_MS);
+  await expect(component.getByText(full)).toBeVisible();
+});
+
 test("auto-collapses to the frozen 'Thought for Ns' the instant thinking ends", async ({ mount, page }) => {
   await page.clock.install();
   const component = await mount(<ReasoningBlockStory reasoning="Some reasoning" thinking={true} />);
