@@ -246,16 +246,23 @@ function GreetingActions({
         // The greeting studio (audit §3): accept appends the result as a NEW alternate (the original is
         // preserved — the source's swipe semantics, but durable on the card). The push routes through the
         // D78 store-subscription driver (autosaves through character.update), then jumps to the new opening.
-        <GreetingStudio
-          characterId={characterId}
-          baseGreeting={baseGreeting}
-          trusted={trusted}
-          onAccept={(text): void => {
-            form.pushFieldValue("greetings", { text });
-            onStartAlternate(greetingCount);
-            setStudioOpen(false);
-          }}
-        />
+        // The one-line explainer mirrors the draft-row dialog's description (the mount owns its copy) —
+        // side-eye cold-read finding: without it, Rewrite-vs-Make-new is opaque in the primary home.
+        <Stack gap="row">
+          <Text size="label" tone="muted">
+            Rewrite this greeting or make a new one — the result is saved to the character card.
+          </Text>
+          <GreetingStudio
+            characterId={characterId}
+            baseGreeting={baseGreeting}
+            trusted={trusted}
+            onAccept={(text): void => {
+              form.pushFieldValue("greetings", { text });
+              onStartAlternate(greetingCount);
+              setStudioOpen(false);
+            }}
+          />
+        </Stack>
       ) : null}
     </Stack>
   );

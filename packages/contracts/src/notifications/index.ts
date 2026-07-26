@@ -22,6 +22,11 @@ const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
  *  rendered server-side over room state every recipient can already read). */
 export const AUTOMATION_NOTICE_MESSAGE_MAX = 200;
 
+/** Who a `post_notification`/plugin `notify` can address (automation-design/03 §1.5, plugin-design/01 §2):
+ *  the installer/host, or every present human member of the chat. Resolved DOMAIN-side, never client-asserted. */
+export const NOTIFICATION_RECIPIENTS = ["host", "all_members"] as const;
+export type NotificationRecipient = (typeof NOTIFICATION_RECIPIENTS)[number];
+
 // The discriminant strings ARE the db `notifications.type` column values. Closed: a new delivery
 // reason is a member here + its chat producer; the contract test's exhaustiveness guard catches drift.
 export const notificationEventSchema = z.discriminatedUnion("type", [

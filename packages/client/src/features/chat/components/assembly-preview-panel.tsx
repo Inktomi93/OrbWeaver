@@ -80,6 +80,8 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
 
       <TraceSummary trace={trace} />
 
+      <WorldInfoActivated activated={trace.worldInfoActivated} />
+
       <ShapeTraceSummary trace={shapeTrace} />
     </Stack>
   );
@@ -202,6 +204,30 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
           </Row>
         ) : null}
       </Stack>
+    </Section>
+  );
+}
+
+/** The WI entries that actually FIRED into this turn's prompt (budget-survived), by identity — each row is the
+ *  entry id + its keyword list (keys empty ⇒ an always-scope entry). Distinct from the `matchedKeys` line on
+ *  the Trace section (keyword strings, not entry identity). Empty ⇒ a one-line explanation, never a blank. */
+function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["worldInfoActivated"] }): ReactElement {
+  return (
+    <Section heading={`World info — ${activated.length} activated`}>
+      {activated.length === 0 ? (
+        <Text tone="muted">No world-info entries activated.</Text>
+      ) : (
+        <Stack gap="field">
+          {activated.map((entry) => (
+            <Row key={entry.id} gap="block" justify="between" align="center">
+              <Text size="label">{entry.id}</Text>
+              <Text size="label" tone="muted">
+                {entry.keys.length === 0 ? "always" : entry.keys.join(", ")}
+              </Text>
+            </Row>
+          ))}
+        </Stack>
+      )}
     </Section>
   );
 }

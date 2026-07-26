@@ -16,6 +16,10 @@ const PREVIEW_TRACE = {
   dynamicSections: ["authorsNote"],
   worldInfoIncluded: 2,
   worldInfoDropped: [{ id: "wi_1", reason: "budget" as const }],
+  worldInfoActivated: [
+    { id: "we_dragon", keys: ["dragon", "wyrm"] },
+    { id: "we_intro", keys: [] },
+  ],
   matchedKeys: [{ key: "cake", matchedLatestUserMessage: true }],
   compactSummaryIncluded: true,
   memoryIncluded: false,
@@ -81,6 +85,30 @@ test("loading fallback renders, then the provenance rows render from the routed 
   // SHAPE-phase content-free trace.
   await expect(component.getByText("10 → 11 → 9 → 9")).toBeVisible();
   await expect(component.getByText("Placed (offset 3 from end)")).toBeVisible();
+
+  // World-info activation: the fired entries by identity — count heading, id + its keys, and the "always"
+  // label for a key-less (always-scope) entry.
+  await expect(component.getByText("World info — 2 activated")).toBeVisible();
+  await expect(component.getByText("we_dragon")).toBeVisible();
+  await expect(component.getByText("dragon, wyrm")).toBeVisible();
+  await expect(component.getByText("we_intro")).toBeVisible();
+  await expect(component.getByText("always")).toBeVisible();
+});
+
+test("world-info activation shows the empty-state explanation when nothing fired", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      prompt: { ...PREVIEW_ASSEMBLY_DATA.prompt, trace: { ...PREVIEW_TRACE, worldInfoActivated: [] } },
+      trace: { ...PREVIEW_TRACE, worldInfoActivated: [] },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  await expect(component.getByText("World info — 0 activated")).toBeVisible();
+  await expect(component.getByText("No world-info entries activated.")).toBeVisible();
 });
 
 test("error surface renders when either read fails", async ({ mount, page }) => {

@@ -713,6 +713,21 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
     expect(warnings(h.events)).toHaveLength(0);
     // Nothing reached canon either — the fallback never ran, so no speaker was scheduled.
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
+
+    // The Stop AFFORDANCE fix: `turnAccepted` fires BEFORE arbitration (the slot opens so Stop can render
+    // during the hang), and — since the turn never reaches the engine — `turnAborted` fires from the
+    // arbitration-abort path itself to CLOSE that slot. No `turnStarted` (the engine never ran).
+    const turnTypes = h.events.map((e) => e.type).filter((t) => t.startsWith("turn"));
+    expect(turnTypes).toEqual(["turnAccepted", "turnAborted"]);
+    const accepted = h.events.find((e) => e.type === "turnAccepted");
+    expect(accepted).toMatchObject({ intent: "send", speakerCharacterId: null, targetMessageId: null });
+    // `turnAccepted` precedes the user-row commit's? No — the user row commits first; accept is the FIRST
+    // turn-lifecycle event, and it precedes the abort.
+    const acceptedIdx = h.events.findIndex((e) => e.type === "turnAccepted");
+    const abortedIdx = h.events.findIndex((e) => e.type === "turnAborted");
+    expect(acceptedIdx).toBeGreaterThanOrEqual(0);
+    expect(abortedIdx).toBeGreaterThan(acceptedIdx);
+    expect(h.events[abortedIdx]).toMatchObject({ type: "turnAborted", intent: "send", reason: "user", automationDepth: 0 });
   });
 });
 

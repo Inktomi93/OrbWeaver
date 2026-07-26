@@ -56,6 +56,9 @@ function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly Invalid
 const BUS_FILTERS: BusFilterMap = {
   delta: nothing,
   reasoningStreamDone: nothing,
+  // Turn ACCEPTED — a slot-open signal only (the reducer opens the pending slot); nothing durable changed, so
+  // no refetch, exactly like turnStarted.
+  turnAccepted: nothing,
   turnStarted: nothing,
   warning: nothing,
   worldInfoActivated: nothing,

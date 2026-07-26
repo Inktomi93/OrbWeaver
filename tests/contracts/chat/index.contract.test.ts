@@ -409,8 +409,9 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("chatOpened")).toBe(true);
   expect(isChatBusEventType("warning")).toBe(true);
   expect(isChatBusEventType("messageHidden")).toBe(true);
-  // 20 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`) + 6 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(26);
+  expect(isChatBusEventType("turnAccepted")).toBe(true);
+  // 21 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`) + 6 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(27);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {
@@ -478,6 +479,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
     dynamicSections: [],
     worldInfoIncluded: 1,
     worldInfoDropped: [],
+    worldInfoActivated: [{ id: "we_1", keys: ["dragon"] }],
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,

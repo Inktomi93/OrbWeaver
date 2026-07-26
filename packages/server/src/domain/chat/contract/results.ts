@@ -13,6 +13,7 @@ import type {
   SpeakerRef,
   TurnAbortReason,
   TurnInitiator,
+  TurnIntent,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
@@ -50,6 +51,20 @@ export interface TurnSpeakerShape {
 
 const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
+
+/** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `opening`/`auto`/`force` surface as
+ *  their nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`
+ *  emits AND the verb's pre-arbitration `turnAccepted` emit both key on it (never a re-spelled map). */
+export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
+  send: "send",
+  swipe: "swipe",
+  continue: "continue",
+  generate: "generate",
+  impersonate: "impersonate",
+  opening: "generate",
+  auto: "generate",
+  force: "generate",
+};
 
 /**
  * The persist mode for a turn's generated output. Absent on a {@link TurnPrep} means new-slot assistant (a

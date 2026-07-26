@@ -141,12 +141,12 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
       matchedLatestUserMessage: true,
     });
     // D50 pt-2: the fired entry's real id lands in the trace `worldInfoActivated` reads.
-    expect(fired.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
+    expect(fired.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_k"), keys: ["dragon"] }]);
 
     // No pending text + not in the recent window → does NOT fire (keyword gate holds).
     const quiet = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     expect(quiet.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
-    expect(quiet.wiTrace?.entryIds).toEqual([]);
+    expect(quiet.wiTrace?.activated).toEqual([]);
   });
 
   test("a keyword entry fires on a COMMITTED recent message (the haystack spans the recent window, not just the in-flight turn)", async () => {
@@ -161,7 +161,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { recentMessages: ["a dragon flew overhead", "the knight fled"] }));
     expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
     expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
-    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
+    expect(out.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_k"), keys: ["dragon"] }]);
   });
 
   // F4 (§6 item 5): the guided steer text joins the WI keyword haystack (source `scan=true`). A generate/
@@ -180,7 +180,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     });
     expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
     expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
-    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
+    expect(out.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_k"), keys: ["dragon"] }]);
   });
 
   test("F4: steer ABSENT ⇒ the keyword entry stays asleep (the steer is the only thing that would wake it)", async () => {
@@ -192,7 +192,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
 
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
-    expect(out.wiTrace?.entryIds).toEqual([]);
+    expect(out.wiTrace?.activated).toEqual([]);
   });
 
   test("F4: a steer with no matching keyword does NOT falsely fire the entry (raw steer input scanned, not the boilerplate template)", async () => {
@@ -207,7 +207,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
       guided: { action: "response", input: "be more terse" },
     });
     expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
-    expect(out.wiTrace?.entryIds).toEqual([]);
+    expect(out.wiTrace?.activated).toEqual([]);
   });
 });
 
@@ -282,7 +282,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     // No dangling `[World info:\n]` scaffold anywhere, and the entry contributes no injection.
     expect(out.worldInfoBefore).not.toContain("World info:");
     expect((out.chatInjections ?? []).some((i) => i.content.includes("World info:"))).toBe(false);
-    expect(out.wiTrace?.entryIds).toEqual([]);
+    expect(out.wiTrace?.activated).toEqual([]);
   });
 
   test("position routing: always → world_info_before anchor; keyword(fired) → in_prompt; inject → in_chat", async () => {
@@ -318,9 +318,9 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     expect(out.worldInfoBefore).not.toContain("BBBBBBBB"); // lower priority dropped
     expect((out.chatInjections ?? []).map((i) => i.content)).toContain("OPERATOR"); // spared (ignoreBudget)
     expect(out.wiTrace?.dropped).toContainEqual({ id: "world_entry_lo", reason: "budget" });
-    // D50 pt-2: `entryIds` is the budget-SURVIVED fired set — the kept entry's real id, not the dropped one,
-    // and never the synthetic `user:*`/`guided` ids of the operator injection.
-    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_hi")]);
+    // D50 pt-2: `activated` is the budget-SURVIVED fired set — the kept entry's real id (+ its keys), not the
+    // dropped one, and never the synthetic `user:*`/`guided` ids of the operator injection.
+    expect(out.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_hi"), keys: [] }]);
   });
 
   test("budget <= 0 keeps ALL candidates (unbudgeted pass) — the same set that a positive budget drops survives whole", async () => {
@@ -336,7 +336,12 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     expect(out.worldInfoBefore).toContain("AAAAAAAA");
     expect(out.worldInfoBefore).toContain("BBBBBBBB");
     expect(out.wiTrace?.dropped).toEqual([]);
-    expect(out.wiTrace?.entryIds).toEqual(expect.arrayContaining([castId<WorldEntryId>("world_entry_hi"), castId<WorldEntryId>("world_entry_lo")]));
+    expect(out.wiTrace?.activated).toEqual(
+      expect.arrayContaining([
+        { id: castId<WorldEntryId>("world_entry_hi"), keys: [] },
+        { id: castId<WorldEntryId>("world_entry_lo"), keys: [] },
+      ]),
+    );
   });
 });
 

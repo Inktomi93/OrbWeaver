@@ -34,6 +34,7 @@ function quietPrompt(systemPrompt: string): AssembledPrompt {
       dynamicSections: [],
       worldInfoIncluded: 0,
       worldInfoDropped: [],
+      worldInfoActivated: [],
       matchedKeys: [],
       compactSummaryIncluded: false,
       memoryIncluded: false,
