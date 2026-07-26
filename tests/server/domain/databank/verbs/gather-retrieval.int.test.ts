@@ -4,11 +4,13 @@
 // preserved, `tokensEstimated <= tokenBudget`). The `search.documents` lens is a scripted fake — the lens's
 // own scope-gating is proven in the search-domain gate-8 test; here we drive the fit/format/null logic.
 
+import { databankRetrievalSettingsSchema } from "@orb/contracts/databank";
 import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { describe } from "vitest";
 import type { DocumentChunkHit } from "../../../../../packages/server/src/domain/search/contract/results.ts";
+import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE } from "../../../../../packages/server/src/domain/search/substrate/constants.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeDatabankHarness } from "../_support.ts";
@@ -51,6 +53,49 @@ describe("gatherRetrieval", () => {
     const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
 
     expect(result).toBeNull();
+  });
+
+  test("passes the retrieval params (k/minScore/rerank) to search.documents when supplied", async () => {
+    const db = await freshDb();
+    const seen: { k: number | undefined; minScore: number | undefined; rerank: boolean | undefined }[] = [];
+    const { service } = makeDatabankHarness(db, {
+      searchDocuments: (p) => {
+        seen.push({ k: p.k, minScore: p.minScore, rerank: p.rerank });
+        return Promise.resolve([hit("document_a", "Alpha", 0, "a0")]);
+      },
+    });
+
+    await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000, k: 3, minScore: 0.4, rerank: true });
+
+    expect(seen).toEqual([{ k: 3, minScore: 0.4, rerank: true }]);
+  });
+
+  test("omits retrieval params when absent ⇒ search.documents uses its own defaults (byte-identity pin)", async () => {
+    const db = await freshDb();
+    const seen: { k: number | undefined; minScore: number | undefined; rerank: boolean | undefined }[] = [];
+    const { service } = makeDatabankHarness(db, {
+      searchDocuments: (p) => {
+        seen.push({ k: p.k, minScore: p.minScore, rerank: p.rerank });
+        return Promise.resolve([hit("document_a", "Alpha", 0, "a0")]);
+      },
+    });
+
+    await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
+
+    expect(seen).toEqual([{ k: undefined, minScore: undefined, rerank: undefined }]);
+  });
+
+  // PIN, NOT a derive: `search.documents`' own fallbacks (DEFAULT_DOCUMENT_K / DEFAULT_DOCUMENT_MIN_SCORE) and
+  // the databank retrieval-settings defaults (databankRetrievalSettingsSchema) are TWO INDEPENDENT literals in
+  // two domains. They MUST agree so an unset databank knob (gather omits it → search falls to its own default)
+  // is byte-identical to the databank default the UI shows. They stay SEPARATE by design: `search` is
+  // databank-agnostic (the Knowledge-Cluster boundary — search is the one retrieval engine, it must not import
+  // databank), so this is an equality ASSERTION, never a derive. Do NOT "fix" the duplication by importing one
+  // into the other — that would couple retrieval to databank across the cluster boundary.
+  test("search's document-retrieval defaults EQUAL the databank retrieval defaults (cluster-boundary pin, not a derive)", () => {
+    const databankDefaults = databankRetrievalSettingsSchema.parse({});
+    expect(DEFAULT_DOCUMENT_K).toBe(databankDefaults.k);
+    expect(DEFAULT_DOCUMENT_MIN_SCORE).toBe(databankDefaults.minScore);
   });
 
   test("returns null when the budget cannot seat even the best chunk", async () => {

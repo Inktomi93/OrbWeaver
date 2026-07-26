@@ -27,6 +27,7 @@ export { deriveChatTitle } from "./lib/chat-summary-row";
 export { makeChatsSection } from "./lib/chats-section";
 export { commandModal } from "./lib/command-modal";
 export { isContinueEligible } from "./lib/continue-on-empty";
+export { databankSettingsSection } from "./lib/databank-settings-section";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
 export { memorySettingsSection } from "./lib/memory-settings-section";
 export { newChatModal } from "./lib/new-chat-modal";

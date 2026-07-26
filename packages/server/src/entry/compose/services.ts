@@ -406,6 +406,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embedModel: roleClients.embedModel,
     search,
     workloads,
+    loadUserSettings: settings.loadUserSettings,
   });
 
   // The host's REAL principal by userId — shared by chat compose and rpg's lite capability resolve (a game turn

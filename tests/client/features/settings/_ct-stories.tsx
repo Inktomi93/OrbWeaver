@@ -4,10 +4,12 @@
 
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { SettingsSectionContribution } from "@orb/client/state";
+import type { SettingsCategoryId, SettingsSectionContribution } from "@orb/client/state";
+import { openSettingsTo } from "@orb/client/state";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useState } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
 // Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
 // not exported standalone.
@@ -25,6 +27,26 @@ import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-d
  *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —
  *  CtRealSectionRegistry nests it (mirrors main.tsx's door). */
 export function SettingsShellStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 560, width: 900 }}>
+          <SettingsShell />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The shell with a deep-link target seeded BEFORE first render (the `openSettingsTo` seam). The lazy
+ *  useState initializer runs exactly once, synchronously, so `useSettingsTarget()` reads the target on the
+ *  first render — reproducing a cold `__orb.nav.openSettings(target)` where the sessions.me probe is still in
+ *  flight. Pair with a DELAYED viewer stub in the `.ct.tsx` to exercise the when-gated-pane deep-link race. */
+export function SettingsShellDeepLinkStory({ target }: { readonly target: SettingsCategoryId }): ReactElement {
+  useState(() => {
+    openSettingsTo(target);
+    return null;
+  });
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>

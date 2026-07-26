@@ -860,6 +860,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           autoSwipe: us.chat.autoSwipe,
           customStoppingStrings: us.chat.customStoppingStrings,
         },
+        // DB6: the host's databank retrieval params (k/minScore/rerank) the gather passes to search.documents,
+        // plus the {{databank}} slot budget — the FOREIGN-inputs seam (settings read chat delegates).
+        databankRetrieval: us.databank.retrieval,
+        databankSlotTokenBudget: us.databank.slotTokenBudget,
       };
     },
     debitBudget: memberBudget.debit,

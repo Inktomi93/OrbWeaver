@@ -9,7 +9,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { SettingsModalStory, SettingsShellStory } from "../_ct-stories";
+import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellStory } from "../_ct-stories";
 
 /** The getUserSettings read-model the Appearance pane suspends on — defaults are enough to render it. */
 const USER_SETTINGS_VIEW = {
@@ -28,7 +28,7 @@ const APP_CONFIG = {
   trustHtml: false,
   memoryDefaults: {},
   memorySummarizer: {},
-  rateLimits: { general: 100, aiTurn: 10, publicIp: 50, authed: 200 },
+  rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
   vllmConcurrency: { embed: 4, summarize: 2 },
   allowNonOwnerLocalCompute: true,
   nonOwnerLocalComputeBudget: null,
@@ -154,6 +154,26 @@ test("an admin viewer sees the Admin category and it mounts the REAL pane", asyn
   // with subcategories), so the REAL-pane proof is the presence of those section entries.
   await expect(component.getByRole("button", { name: "Users" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Engines" })).toBeVisible();
+});
+
+// The deep-link-to-when-gated-pane race: a COLD `openSettings('admin')` resolves `active` while the
+// non-suspense sessions.me probe is still in flight (isAdmin false → 'admin' not yet visible), so the shell
+// must re-apply the still-unsatisfied target once visibility GROWS — not fall back to Appearance forever.
+test("a deep-link to a when-gated pane lands on it once the viewer probe resolves (not stuck on the fallback)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "sessions.me": () => ({ userId: "user_admin", handle: "admin", globalRole: "admin" }),
+    "admin.listUsers": () => [],
+    "admin.vllmEngines": () => ({}),
+    "settings.getAppSettingsWithOverrides": () => ({ resolved: { ...APP_CONFIG, memoryDefaults: {}, memorySummarizer: {} }, overrides: {} }),
+  });
+  const component = await mount(<SettingsShellDeepLinkStory target="admin" />);
+
+  // Once the probe resolves, Admin is the ACTIVE pane (its region is labelled + its sub-nav shows), NOT the
+  // Appearance fallback the race would have stuck on.
+  await expect(component.getByRole("region", { name: "Admin settings" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Users" })).toBeVisible();
+  await expect(component.getByRole("region", { name: "Appearance settings" })).toHaveCount(0);
 });
 
 // Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.

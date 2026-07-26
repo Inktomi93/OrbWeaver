@@ -794,7 +794,7 @@ CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoin
 CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 4 NOT NULL,
+	`schema_version` integer DEFAULT 5 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade

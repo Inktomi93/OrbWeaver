@@ -19,7 +19,7 @@ import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { makeCharactersSection } from "@orb/client/features/character";
-import { commandModal, makeChatsSection, memorySettingsSection, newChatModal } from "@orb/client/features/chat";
+import { commandModal, databankSettingsSection, makeChatsSection, memorySettingsSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
 import { notificationsChrome } from "@orb/client/features/notifications";
@@ -132,7 +132,7 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // registry (memory ① + world-info ②), so the shell CT renders the contributed sections too.
 const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>(
   "chat-behavior-settings-sections",
-  [memorySettingsSection, worldInfoSettingsSection],
+  [memorySettingsSection, worldInfoSettingsSection, databankSettingsSection],
 );
 
 const realAdminSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [

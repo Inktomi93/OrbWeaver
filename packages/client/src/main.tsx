@@ -22,7 +22,15 @@ import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider }
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { characterSlashCommands, makeCharactersSection } from "#features/character";
-import { chatOptionsChrome, chatSlashCommands, commandModal, makeChatsSection, memorySettingsSection, newChatModal } from "#features/chat";
+import {
+  chatOptionsChrome,
+  chatSlashCommands,
+  commandModal,
+  databankSettingsSection,
+  makeChatsSection,
+  memorySettingsSection,
+  newChatModal,
+} from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { notificationsChrome } from "#features/notifications";
@@ -167,6 +175,7 @@ const chrome = createContributorRegistry(
 const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionContribution>("chat-behavior-settings-sections", [
   memorySettingsSection,
   worldInfoSettingsSection,
+  databankSettingsSection,
 ]);
 
 // The admin-anchored sections (Phase B ③): the AppSettings admin-tier surfaces (memory tuning +

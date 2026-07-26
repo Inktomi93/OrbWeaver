@@ -123,4 +123,10 @@ export interface DatabankGatherParams {
   readonly chatId: ChatId;
   readonly queryText: string;
   readonly tokenBudget: number;
+  /** The retrieval params (the host's `UserSettings.databank.retrieval`, threaded via ForeignInputs) the
+   *  gather passes to `search.documents`. Absent ⇒ gather omits them and search uses its own defaults, which
+   *  ARE the databank defaults (the byte-identity pin: an old caller not supplying these is unchanged). */
+  readonly k?: number | undefined;
+  readonly minScore?: number | undefined;
+  readonly rerank?: boolean | undefined;
 }
