@@ -10,6 +10,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { UserSettings } from "@orb/contracts/settings";
+import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { BatchStmt, Db } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -54,6 +56,9 @@ export interface ImageryComposeDeps {
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
   readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
+  /** ⑫ — the caller's UserSettings read (the FOREIGN-inputs seam) for the per-mode prompt-template/caption
+   *  overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
+  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
   readonly maxImageBytes: () => number;
   /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
    *  `extractQuiet` gate — never during boot. */
@@ -135,6 +140,11 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },
+    // ⑫ — the caller's per-mode prompt-template / caption-instruction: their UserSettings.imagery override ⊕
+    // the shipped `@orb/contracts/imagery` catalog default (the FOREIGN-inputs seam — imagery delegates the
+    // settings read). Unset ⇒ byte-identical to the shipped default.
+    resolvePromptTemplate: async (caller, mode) => resolveImageryTemplate((await deps.loadUserSettings(caller.userId)).imagery, mode),
+    resolveCaptionInstruction: async (caller, mode) => resolveImageryCaption((await deps.loadUserSettings(caller.userId)).imagery, mode),
     // EC-B owner-gated byte read (the caller owns the asset it references).
     readAsset: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId),
 

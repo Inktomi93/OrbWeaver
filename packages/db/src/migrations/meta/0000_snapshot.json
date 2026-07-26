@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a5e592cd-77be-4e30-85c2-6bcdee6daca1",
+  "id": "67a70da1-d6ec-4a87-90e1-6d416b05e203",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5142,7 +5142,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 5
+          "default": 6
         },
         "config": {
           "name": "config",

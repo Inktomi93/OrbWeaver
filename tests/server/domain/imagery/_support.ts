@@ -5,6 +5,7 @@
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, users } from "@orb/db";
@@ -117,6 +118,10 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
       return Promise.resolve({ bytes: PNG_BYTES, mime: "image/png" });
     },
     getCard: () => Promise.resolve(fakeCard(castId<AssetId>("asset_avatar"))),
+    // ⑫ — the default resolvers return the shipped catalog byte-identically (no user override in the harness);
+    // a test can inject overrides to exercise the per-user path. Mirrors the compose resolver's default arm.
+    resolvePromptTemplate: (_caller, mode) => Promise.resolve(DEFAULT_PROMPT_TEMPLATES[mode]),
+    resolveCaptionInstruction: (_caller, mode) => Promise.resolve(DEFAULT_CAPTION_INSTRUCTIONS[mode]),
     recordStats: (delta) => {
       recordedStats.push(delta);
       return Promise.resolve();

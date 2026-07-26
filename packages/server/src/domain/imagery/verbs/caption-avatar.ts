@@ -9,7 +9,6 @@
 import { PromptExtractionFailedError } from "../contract/errors";
 import type { CaptionAvatar, ImageryContext } from "../contract/service";
 import { processReply } from "../substrate/process-reply";
-import { CAPTION_INSTRUCTIONS } from "../substrate/templates";
 
 export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
   return async (args) => {
@@ -21,7 +20,9 @@ export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
       return null;
     }
     const { bytes, mime } = await ctx.readAsset(args.caller, card.avatarAssetId);
-    const { text, costUsd } = await ctx.captionImage({ caller: args.caller, bytes, mime, instruction: CAPTION_INSTRUCTIONS[args.mode] });
+    // The caption instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫).
+    const instruction = await ctx.resolveCaptionInstruction(args.caller, args.mode);
+    const { text, costUsd } = await ctx.captionImage({ caller: args.caller, bytes, mime, instruction });
     const prompt = processReply(text);
     if (prompt.length === 0) {
       throw new PromptExtractionFailedError(`imagery: the vision caption for mode "${args.mode}" produced no usable keywords`);

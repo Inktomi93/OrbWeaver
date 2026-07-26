@@ -86,6 +86,7 @@ import { DatabankSettingsSection } from "../../../../packages/client/src/feature
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
+import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section";
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
@@ -1789,6 +1790,18 @@ export function DatabankSettingsSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
         <DatabankSettingsSection />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Image-prompts settings SECTION (Phase B ⑫) over the real data layer — getUserSettings +
+ *  updateUserSettingsSection("imagery") stubbed in the `.ct.tsx`. Proves the per-mode template write path. */
+export function ImageryTemplatesSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <ImageryTemplatesSection />
       </div>
     </CtDataProviders>
   );

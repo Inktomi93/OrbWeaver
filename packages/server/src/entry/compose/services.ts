@@ -395,6 +395,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
     resolveUserPresetParams,
     resolveChatPresetParams,
+    // ⑫ — the FOREIGN-inputs seam for the per-mode imagery prompt-template/caption overrides.
+    loadUserSettings: settings.loadUserSettings,
     toolUse,
   });
 

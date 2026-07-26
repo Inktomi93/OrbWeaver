@@ -27,6 +27,7 @@ import {
   chatSlashCommands,
   commandModal,
   databankSettingsSection,
+  imageryTemplatesSection,
   makeChatsSection,
   memorySettingsSection,
   newChatModal,
@@ -176,6 +177,7 @@ const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionCo
   memorySettingsSection,
   worldInfoSettingsSection,
   databankSettingsSection,
+  imageryTemplatesSection,
 ]);
 
 // The admin-anchored sections (Phase B ③): the AppSettings admin-tier surfaces (memory tuning +

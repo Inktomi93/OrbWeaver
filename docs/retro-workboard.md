@@ -57,8 +57,16 @@ VLLM_GEN_PRESENCE_PENALTY per-request preset-wins wire-snapshot-proven] + AppSet
 EffectiveAppConfig 16→22 + spine doc corrected + the RESET TRAP-UNDER-THE-TRAP: nested undefined
 strips on the JSON wire AND the naive leaf-null would have section-.catch-wiped engineLaunch —
 .nullable() leaf + null reset, probe-verified; bar perfect 7369/0 · 1420/0 · zero flakes).
-**MANIFEST ①–⑪ ALL DONE. PHASE B REMAINING: the ONE side-eye pass (dispatching NOW, quiesced
-tree) → fix BROKEN via the warm lane → ⑫ imagery-templates (own sub-lane, LAST).**
+**MANIFEST ①–⑪ ALL DONE. ✅ THE SIDE-EYE PASS RAN + CLOSED — `8195c660`:** verdict SHIP WITH
+FIXES, ZERO BROKEN across all 8 surfaces; the honesty round-trip PROVEN vs server truth
+(override→Save→Reset on blockSize, _debug cross-checked); ARIA clean 37/37; deep-link fix proven
+cold-context. The 3 fixes landed: reset draft-resync (all 3 admin sections) · the disclosure
+CHEVRON at the collapsible PRIMITIVE (chevron={false} arm for the 2 own-chevron consumers, 7/7
+swept) · RECENCY_BIAS_CEIL=1 at the bounds home w/ inputs deriving. UGLY→FACELIFT LEDGER: admin
+density vs the Chat-behavior craft bar (side-eye's "single biggest opportunity") · Save-button
+grouping spacer · autosave status-line placement · tool-use description column · 28px steppers
+sub-44. Receipts: reports/snaps/admin-memory-shot.png et al. **PHASE B REMAINING: ⑫ ONLY
+(dispatching).**
 
 **MORNING NOTE #2 (operational, safe-by-design):** stint 6 folded image-variant QUALITY into the
 variant cache KEY (`w<w>-q<q>.webp`) — every pre-existing cached variant ORPHANS on next serve

@@ -4,9 +4,13 @@
 // and the prompt-length clamp — boundary-tested here since the wire is the trust edge).
 
 import {
+  DEFAULT_CAPTION_INSTRUCTIONS,
+  DEFAULT_PROMPT_TEMPLATES,
+  EXTRACTION_MODES,
   generateImageActionArgsSchema,
   generatePictureRequestSchema,
   MODE_TRIGGERS,
+  MULTIMODAL_MODES,
   PROMPT_TEMPLATE_MODES,
   promptTemplateModeSchema,
   SIZE_PRESET_NAMES,
@@ -52,6 +56,26 @@ test("generatePictureRequestSchema enforces the n fan-out cap (1..4) and the pro
   // The 2000-char prompt ceiling — at cap parses, one over is rejected.
   expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2000) }).success).toBe(true);
   expect(generatePictureRequestSchema.safeParse({ mode: "free", prompt: "a".repeat(2001) }).success).toBe(false);
+});
+
+// ── ⑫ the prompt-building CATALOG (as-data) — the shipped-default authored content ──
+
+test("EXTRACTION_MODES + MULTIMODAL_MODES partition the non-free modes, and the default catalogs key on them", () => {
+  // The two subsets are the non-free modes, split by extraction-vs-caption; together they cover every mode but `free`.
+  expect([...EXTRACTION_MODES, ...MULTIMODAL_MODES].toSorted()).toEqual(PROMPT_TEMPLATE_MODES.filter((m) => m !== "free").toSorted());
+  // The default catalogs are keyed EXACTLY by their subset (the Record exhaustiveness the resolver relies on).
+  expect(Object.keys(DEFAULT_PROMPT_TEMPLATES).toSorted()).toEqual([...EXTRACTION_MODES].toSorted());
+  expect(Object.keys(DEFAULT_CAPTION_INSTRUCTIONS).toSorted()).toEqual([...MULTIMODAL_MODES].toSorted());
+});
+
+test("the default catalog pins the load-bearing content (macros in extraction, prefixes, no-macro captions)", () => {
+  // Extraction templates carry the {{char}} macro (resolved by the ONE macro engine) + the required opening prefix.
+  expect(DEFAULT_PROMPT_TEMPLATES.character).toContain("{{char}}");
+  expect(DEFAULT_PROMPT_TEMPLATES.character).toContain("Begin your reply with: full body portrait,");
+  expect(DEFAULT_PROMPT_TEMPLATES.background.toLowerCase()).toContain("no people");
+  // Caption instructions are macro-free (the image IS the subject).
+  expect(DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal).not.toContain("{{");
+  expect(DEFAULT_CAPTION_INSTRUCTIONS.face_multimodal).toContain("Begin with: close up facial portrait,");
 });
 
 // ── IC-C mints (imagery-design/05 §IC-C) — the /imagine trigger map + the automation action-arm args ──

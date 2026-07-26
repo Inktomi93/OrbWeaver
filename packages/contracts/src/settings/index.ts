@@ -10,6 +10,8 @@ import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
+import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "#imagery";
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -383,7 +385,7 @@ const roleDefaultsSchema = z
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 5;
+export const USER_SETTINGS_SCHEMA_VERSION = 6;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -547,6 +549,51 @@ const librarySchema = z
     pageSize: z.number().int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
   })
   .prefault({});
+
+// ⑫ per-user image-prompt-building overrides — each mode's extraction/caption instruction, authored by the
+// user, composing over the shipped `@orb/contracts/imagery` catalog (unset ⇒ the byte-identical default). Keyed
+// by the canonical PROMPT_TEMPLATE_MODES literals (the imagery catalog's shape); every field OPTIONAL with a
+// per-field `.catch(undefined)` so a malformed override self-heals to the default (never nukes the section).
+// Cap mirrors the request prompt cap scale — an instruction is a paragraph, not an essay.
+const IMAGERY_TEMPLATE_MAX_CHARS = 4000;
+const imageryTemplateField = (): z.ZodCatch<z.ZodOptional<z.ZodString>> => z.string().max(IMAGERY_TEMPLATE_MAX_CHARS).optional().catch(undefined);
+const imagerySchema = z
+  .object({
+    // The four text-EXTRACTION mode instructions ({{char}}/{{user}} resolve via the ONE macro engine).
+    templates: z
+      .object({
+        character: imageryTemplateField(),
+        face: imageryTemplateField(),
+        scenario: imageryTemplateField(),
+        background: imageryTemplateField(),
+      })
+      .prefault({}),
+    // The two MULTIMODAL vision-caption instructions (no macros — the image is the subject).
+    // biome-ignore-start lint/style/useNamingConvention: the keys ARE the snake_case PROMPT_TEMPLATE_MODES literals (the imagery catalog's shape); a rename would fork the wire vocabulary.
+    captions: z
+      .object({
+        character_multimodal: imageryTemplateField(),
+        face_multimodal: imageryTemplateField(),
+      })
+      .prefault({}),
+    // biome-ignore-end lint/style/useNamingConvention: see start marker
+  })
+  .prefault({});
+
+export type ImagerySettings = z.infer<typeof imagerySchema>;
+
+/** Resolve the extraction instruction for a mode: the user's per-mode override ⊕ the shipped
+ *  `@orb/contracts/imagery` catalog default. Unset ⇒ byte-identical to the shipped default (the
+ *  default-identity discipline). The ONE resolver both the compose op + the tests read (never a re-spelled
+ *  fallback that could drift from the catalog). */
+export function resolveImageryTemplate(imagery: ImagerySettings, mode: ExtractionMode): string {
+  return imagery.templates[mode] ?? DEFAULT_PROMPT_TEMPLATES[mode];
+}
+
+/** Resolve the multimodal caption instruction for a mode: the user's override ⊕ the shipped catalog default. */
+export function resolveImageryCaption(imagery: ImagerySettings, mode: MultimodalCaptionMode): string {
+  return imagery.captions[mode] ?? DEFAULT_CAPTION_INSTRUCTIONS[mode];
+}
 
 const personaSchema = z
   .object({
@@ -763,6 +810,7 @@ export const userSettingsSchema = z.object({
   databank: databankSchema,
   chat: chatSchema,
   library: librarySchema,
+  imagery: imagerySchema,
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
@@ -784,6 +832,7 @@ export const USER_SETTINGS_SECTIONS = [
   "databank",
   "chat",
   "library",
+  "imagery",
   "persona",
 
   "groupDefaults",
@@ -872,6 +921,10 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // databank key, which reads back as the `.prefault({})` grounded defaults (byte-identical to pre-wire).
   // Nothing to move; carry every namespace through untouched (the section's absence IS its default).
   4: (c) => ({ ...c }),
+  // v5→v6: the `imagery` section (per-mode prompt-template/caption overrides, Phase B ⑫) is purely ADDITIVE —
+  // an old blob has no imagery key, which reads back as `.prefault({})` (every override absent ⇒ the shipped
+  // `@orb/contracts/imagery` catalog default, byte-identical). Carry every namespace through untouched.
+  5: (c) => ({ ...c }),
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({

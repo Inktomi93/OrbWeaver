@@ -8,46 +8,14 @@
 // preamble is REPLACED by an explicit "Pause the roleplay" task frame (we control the system prompt, ST didn't).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { ExtractionMode, MultimodalMode } from "../contract/params";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 
-export const PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
-  character:
-    "Pause the roleplay. Describe {{char}}'s complete physical appearance in the current moment " +
-    "as a single comma-delimited list of concrete visual keywords for an image-generation model: " +
-    "body type, hair, eyes, skin, facial features, clothing and its state, accessories, pose, " +
-    "expression. Only visual terms — no names, no story, no prose sentences, no quotation marks. " +
-    "Begin your reply with: full body portrait,",
-  face:
-    "Pause the roleplay. Describe {{char}}'s face in the current moment as a single " +
-    "comma-delimited list of concrete visual keywords for an image-generation model: facial " +
-    "features, expression, eye color and shape, hair framing the face, skin, any marks or " +
-    "accessories on the head. Only visual terms — no names, no prose, no quotation marks. " +
-    "Begin your reply with: close up facial portrait,",
-  scenario:
-    "Pause the roleplay. Summarize the current scene of the story as a single comma-delimited " +
-    "list of concrete visual keywords for an image-generation model: the characters present and " +
-    "their visible actions, the setting, time of day, mood, lighting, notable objects. Only " +
-    "visual terms — no names beyond simple descriptors, no prose, no quotation marks. " +
-    "Begin your reply with: scene,",
-  background:
-    "Pause the roleplay. Describe the current location of the story as a single comma-delimited " +
-    "list of concrete visual keywords for an image-generation model: the place, architecture or " +
-    "natural features, time of day, weather, lighting, atmosphere. Describe ONLY the environment " +
-    "— no people, no characters, no figures. Begin your reply with: background,",
-};
-
-// biome-ignore-start lint/style/useNamingConvention: keyed by the canonical PROMPT_TEMPLATE_MODES literals (snake_case).
-export const CAPTION_INSTRUCTIONS: Record<MultimodalMode, string> = {
-  character_multimodal:
-    "Describe the person in this image as a single comma-delimited list of concrete visual " +
-    "keywords for an image-generation model: body type, hair, eyes, skin, clothing, accessories, " +
-    "pose. Only visual terms, no prose. Begin with: full body portrait,",
-  face_multimodal:
-    "Describe the face of the person in this image as a single comma-delimited list of concrete " +
-    "visual keywords for an image-generation model: facial features, expression, eyes, hair, " +
-    "skin, head accessories. Only visual terms, no prose. Begin with: close up facial portrait,",
-};
-// biome-ignore-end lint/style/useNamingConvention: see start marker
+// The prompt-building content is now the SHIPPED-DEFAULT catalog homed in `@orb/contracts/imagery` (Phase B ⑫,
+// so a per-user `UserSettings.imagery` override composes over it). These re-exports keep every existing
+// consumer's import path (D15 front-door) AND remain the byte-identical FALLBACK the resolver reads when the
+// caller has no override — never a re-spelled literal that could drift from the catalog (`no-inline-union-redecl`).
+export const PROMPT_TEMPLATES = DEFAULT_PROMPT_TEMPLATES;
+export const CAPTION_INSTRUCTIONS = DEFAULT_CAPTION_INSTRUCTIONS;
 
 /** The composition each non-free mode's keyword list must OPEN with — the templates instruct the LLM to
  *  begin here; `ensurePrefix` re-asserts it (doc 02 §1 step 4). The FACE→portrait / BACKGROUND→landscape
