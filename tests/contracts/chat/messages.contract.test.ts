@@ -1,0 +1,156 @@
+import type { MessageSlot, MessageView } from "@orb/contracts/chat";
+import { messageSlotSchema, toolCallRecordSchema } from "@orb/contracts/chat";
+import type { UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { expect, test } from "../../support/fixtures";
+
+// ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
+const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);
+const SAMPLE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
+const SAMPLE_VARIANT_ID = mintTypeId(ID_PREFIX.messageVariant);
+const SAMPLE_CHARACTER_ID = mintTypeId(ID_PREFIX.character);
+const SAMPLE_PERSONA_ID = mintTypeId(ID_PREFIX.persona);
+const SAMPLE_USER_ID = castId<UserId>("user-alice");
+
+// ═══ D26 — the message SLOT carries NO content; content lives on the variant ════
+
+test("messageSlotSchema round-trips a valid slot", () => {
+  const slot: MessageSlot = {
+    id: SAMPLE_MESSAGE_ID,
+    chatId: SAMPLE_CHAT_ID,
+    seq: 4,
+    role: "assistant",
+    authorUserId: null,
+    characterId: SAMPLE_CHARACTER_ID,
+    personaId: null,
+    selectedVariantId: SAMPLE_VARIANT_ID,
+    excludedFromPrompt: false,
+    createdAt: 1,
+    editedAt: null,
+  };
+  expect(messageSlotSchema.parse(slot)).toEqual(slot);
+});
+
+test("a content field is STRIPPED from the slot at the boundary (D26 — slot has no content)", () => {
+  const slotWithContent = {
+    id: SAMPLE_MESSAGE_ID,
+    chatId: SAMPLE_CHAT_ID,
+    seq: 0,
+    role: "user" as const,
+    authorUserId: SAMPLE_USER_ID,
+    characterId: null,
+    personaId: SAMPLE_PERSONA_ID,
+    selectedVariantId: SAMPLE_VARIANT_ID,
+    excludedFromPrompt: false,
+    createdAt: 1,
+    editedAt: null,
+    // The D26 violation — a generation's text on the slot. The plain z.object strips it.
+    content: "this must not survive on the slot",
+    reasoning: "neither must this",
+  };
+  const parsed = messageSlotSchema.parse(slotWithContent);
+  expect("content" in parsed).toBe(false);
+  expect("reasoning" in parsed).toBe(false);
+});
+
+// SECRET-STRIP BACKSTOP (bus-payload-allowlist, mirrors the notifications strip test). `ChatBusEvent` is a
+// schema-less TS union (validated only via `isChatBusEventType`, never zod-parsed — its secret-free shape is
+// pinned at the type level in `index.test-d.ts`). `messageSlotSchema` is the canonical chat payload that DOES
+// cross a zod boundary: it is a plain `z.object` (NOT `.loose()`), so an injected secret-bearing field is
+// STRIPPED at parse — it can never ride into the durable row or the stream. If someone loosens it, this goes
+// red. The values are obvious non-secret literals (noSecrets); the field NAMES are what an exfil would use.
+test("an injected secret field is stripped from a chat payload at the schema boundary", () => {
+  const slotWithSecret = {
+    id: SAMPLE_MESSAGE_ID,
+    chatId: SAMPLE_CHAT_ID,
+    seq: 1,
+    role: "assistant" as const,
+    authorUserId: null,
+    characterId: SAMPLE_CHARACTER_ID,
+    personaId: null,
+    selectedVariantId: SAMPLE_VARIANT_ID,
+    excludedFromPrompt: false,
+    createdAt: 1,
+    editedAt: null,
+    apiKey: "injected-extra-field",
+    token: "injected-extra-field",
+  };
+  const parsed = messageSlotSchema.parse(slotWithSecret);
+  expect("apiKey" in parsed).toBe(false);
+  expect("token" in parsed).toBe(false);
+});
+
+test("MessageView is the slot joined with its selected variant (content + economics present)", () => {
+  const view: MessageView = {
+    id: SAMPLE_MESSAGE_ID,
+    chatId: SAMPLE_CHAT_ID,
+    seq: 2,
+    role: "assistant",
+    authorUserId: null,
+    characterId: SAMPLE_CHARACTER_ID,
+    personaId: null,
+    excludedFromPrompt: false,
+    createdAt: 1,
+    editedAt: null,
+    selectedVariantId: SAMPLE_VARIANT_ID,
+    selectedVariantIdx: 0,
+    variantCount: 1,
+    hasContinuation: false,
+    content: "hello there",
+    reasoning: null,
+    model: "claude-sonnet",
+    provider: "openrouter",
+    finishReason: "stop",
+    stopReason: null,
+    terminalReason: null,
+    tokensIn: 10,
+    tokensOut: 20,
+    cacheReadTokens: null,
+    cacheWriteTokens: null,
+    contextWindow: 200_000,
+    costUsd: null,
+    ttftMs: 120,
+    genStartedAt: 1000,
+    genFinishedAt: 4400,
+    generationId: null,
+    contextBoundaryMessageId: null,
+    toolCalls: [],
+  };
+  expect(view.content).toBe("hello there");
+  expect(view.selectedVariantId).toBe(SAMPLE_VARIANT_ID);
+});
+
+// ── toolCallRecordSchema (D48/PD-54 T1) — the db read-seam parse for `message_variants.toolCalls` ────
+test("toolCallRecordSchema round-trips an executed record AND the recorded-unexecuted shape", () => {
+  const executed = {
+    toolCallId: "call_abc123",
+    name: "tick_clock",
+    arguments: '{"minutes":30}',
+    result: '{"advanced":true}',
+    isError: false,
+    durationMs: 12,
+  };
+  expect(toolCallRecordSchema.parse(executed)).toEqual(executed);
+
+  // Recurse-limit hit: recorded-but-unexecuted ⇔ result:null + durationMs:null (03 §2.2).
+  const unexecuted = { ...executed, result: null, durationMs: null };
+  expect(toolCallRecordSchema.parse(unexecuted)).toEqual(unexecuted);
+
+  // isError is authoritative for chip styling — an error result is still a JSON document string.
+  const errored = { ...executed, result: '{"error":"party is mid-combat"}', isError: true };
+  expect(toolCallRecordSchema.parse(errored)).toEqual(errored);
+});
+
+test("toolCallRecordSchema refuses a structurally wrong record (no cast-shaped reads)", () => {
+  // `arguments` must stay the RAW string — a pre-parsed object is the exact drift the schema exists to catch.
+  expect(
+    toolCallRecordSchema.safeParse({
+      toolCallId: "call_x",
+      name: "n",
+      arguments: { minutes: 30 },
+      result: null,
+      isError: false,
+      durationMs: null,
+    }).success,
+  ).toBe(false);
+});

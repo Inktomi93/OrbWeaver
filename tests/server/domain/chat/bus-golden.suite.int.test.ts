@@ -81,6 +81,53 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     expect(swipeEvents[0]).toMatchObject({ intent: "swipe", targetMessageId: assistantId });
   });
 
+  test("auto-mode chain: each chained iteration re-opens the slot — … turnCompleted → turnAccepted → turnStarted …", async () => {
+    // A natural-policy 2-character room: the human round's ONE arbitration drives its selected speakers (both,
+    // here) under a single `turnAccepted`; then the autoMode chain runs one AI→AI continuation whose OWN
+    // arbitration emits its OWN `turnAccepted` (so Stop renders through a chain-arbitration hang). The
+    // load-bearing pin: the chain boundary reads turnCompleted → turnAccepted → turnStarted — the slot RE-OPENS
+    // for the continuation instead of staying idle after the human round (the chain-window Stop-affordance fix).
+    const chat = await scenario.chat(tape().reply("one").reply("two").reply("three").reply("four"), {
+      characters: ["aria", "bryn"],
+      policy: "natural",
+      autoMode: true,
+      autoModeMaxTurns: 1,
+    });
+
+    await chat.send("go");
+
+    expect(types(chat.events)).toEqual([
+      "messageCommitted",
+      // human round: ONE accept, then a start→terminal per selected speaker
+      "turnAccepted",
+      "turnStarted",
+      "delta",
+      "messageCommitted",
+      "turnCompleted",
+      "turnStarted",
+      "delta",
+      "messageCommitted",
+      "turnCompleted",
+      // chain continuation: its own arbitration re-opens the slot BEFORE the engine turn
+      "turnAccepted",
+      "turnStarted",
+      "delta",
+      "messageCommitted",
+      "turnCompleted",
+    ]);
+    // The chain boundary: a turnCompleted is immediately followed by turnAccepted → turnStarted (the re-open).
+    const seq = types(chat.events);
+    const chainAcceptIdx = seq.lastIndexOf("turnAccepted");
+    expect(seq[chainAcceptIdx - 1]).toBe("turnCompleted");
+    expect(seq[chainAcceptIdx + 1]).toBe("turnStarted");
+    // Every accept carries no speaker/target on accept; the chained one is a `generate` continuation.
+    const accepts = chat.events.filter((e) => e.type === "turnAccepted");
+    for (const a of accepts) {
+      expect(a).toMatchObject({ speakerCharacterId: null, targetMessageId: null });
+    }
+    expect(accepts.at(-1)).toMatchObject({ intent: "generate" });
+  });
+
   test("continue: turnStarted(intent continue) → delta → messageCommitted → turnCompleted", async () => {
     const chat = await scenario.chat(tape().reply("start").reply(" more"), {
       characters: ["aria"],

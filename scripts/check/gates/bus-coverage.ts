@@ -20,10 +20,10 @@ const STALE_MESSAGE_PREFIX = "DEFERRED bus member now HAS an emit site — delet
  *  branch, and the DEFERRED/STALE arms are demonstrated by the `user-bus-coverage` twin (its
  *  `connectionsChanged` entry — same reconcile, shared lib; the FLOOR-GATE-EXHAUSTIVE-MAP.md accepted-delta rule). */
 const SPEC: BusCoverageSpec = {
-  contractsFile: /\/packages\/contracts\/src\/chat\/index\.ts$/u,
+  contractsFile: /\/packages\/contracts\/src\/chat\/bus\.ts$/u,
   typesConst: "CHAT_BUS_EVENT_TYPES",
   keyShape: "object",
-  reportFile: "packages/contracts/src/chat/index.ts",
+  reportFile: "packages/contracts/src/chat/bus.ts",
   deferred: {},
   missingPrefix: MISSING_MESSAGE_PREFIX,
   stalePrefix: STALE_MESSAGE_PREFIX,
@@ -44,7 +44,7 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { neverEmitted: "neverEmitted" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "somethingElse";\n',
       },
       expect: { messageIncludes: "NO server emit site" },
@@ -59,7 +59,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: {
-        "packages/contracts/src/chat/index.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_BUS_EVENT_TYPES = { emitted: "emitted" } as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const q = "emitted";\n',
       },
       why: "the member's discriminator appears as a server emit literal — covered, passes",

@@ -763,6 +763,56 @@ describe("send — auto-mode AI→AI chain", () => {
     expect(canon.filter((m) => m.role === "assistant")).toHaveLength(4);
     expect(canon).toHaveLength(5);
   });
+
+  // THE CHAIN-ARBITRATION HANG (owner: "handle it in full"): the continuation arbitration between chained
+  // speakers rides the SAME `smart` side-LLM that can hang. Each chain iteration now emits `turnAccepted`
+  // BEFORE it arbitrates (so Stop renders during the hang), and the abort handle spans the WHOLE chain — so a
+  // Stop mid-chain-arbitration cancels the chain, not just the current iteration.
+  test("a hung chain arbitration mid-chain: Stop cancels the WHOLE chain (turnAborted lands, no further turn)", async () => {
+    // A `smart` room so the chain's continuation arbitration calls the side-LLM director each iteration.
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], {
+      autoMode: true,
+      autoModeMaxTurns: 3,
+    });
+    // The director answers the FIRST arbitrations (human round → aria, chain iter 1 → bryn), then HANGS on the
+    // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
+    let calls = 0;
+    let hungEntered: () => void = () => undefined;
+    const arrived = new Promise<void>((resolve) => {
+      hungEntered = resolve;
+    });
+    const summarize: ChatContext["summarize"] = (_inputs, opts): Promise<SummarizeResult> => {
+      calls += 1;
+      const pick = calls === 1 ? "aria" : "bryn";
+      if (calls <= 2) {
+        return Promise.resolve({ items: [{ text: pick, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      }
+      return new Promise((_resolve, reject) => {
+        opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        hungEntered();
+      });
+    };
+    const h = harness(db, names, { summarize });
+
+    const sending = h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    await arrived; // the chain reached the hung arbitration
+    await h.turn.abort({ principal: principal(host), chatId });
+    const outcome = await sending;
+
+    // The chain STOPPED at the hung iteration — the human round (aria) + exactly ONE chained turn (bryn)
+    // committed, and NO third arbitration produced a turn.
+    const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
+    expect(assistants.map((m) => m.characterId)).toEqual([chars[0], chars[1]]);
+    expect(outcome.aborted).toBe(false); // the PRIMARY round completed; the chain is a background continuation
+    // The chain iteration that hung opened a slot (turnAccepted) and CLOSED it with turnAborted(user) — the
+    // Stop affordance had something to drive and the slot never strands. The final turn-lifecycle event is the
+    // chain's turnAborted, and no turnStarted follows it (no further turn ran).
+    const turnEvents = h.events.filter((e) => e.type === "turnAccepted" || e.type === "turnStarted" || e.type === "turnAborted" || e.type === "turnCompleted");
+    expect(turnEvents.at(-1)).toMatchObject({ type: "turnAborted", intent: "generate", reason: "user", automationDepth: 0 });
+    // At least THREE turnAccepteds fired (human round + chain iter 1 + the hung chain iter 2); each precedes
+    // its own resolution, and the hung one is closed by the trailing turnAborted.
+    expect(h.events.filter((e) => e.type === "turnAccepted").length).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
