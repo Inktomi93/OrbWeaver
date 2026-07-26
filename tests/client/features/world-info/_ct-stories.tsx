@@ -10,7 +10,21 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor";
+import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+
+/** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
+ *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's
+ *  autosave write path fires. */
+export function WorldInfoSettingsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 640, padding: 16 }}>
+        <WorldInfoSettingsSection />
+      </div>
+    </CtDataProviders>
+  );
+}
 
 /** The World Info LIST surface over the real data layer (listBooks/listGlobal stubbed in the `.ct.tsx`). */
 export function WorldInfoLibrarySurfaceStory(): ReactElement {

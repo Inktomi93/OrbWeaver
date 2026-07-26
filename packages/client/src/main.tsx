@@ -22,18 +22,18 @@ import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider }
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { characterSlashCommands, makeCharactersSection } from "#features/character";
-import { chatOptionsChrome, chatSlashCommands, commandModal, makeChatsSection, newChatModal } from "#features/chat";
+import { chatOptionsChrome, chatSlashCommands, commandModal, makeChatsSection, memorySettingsSection, newChatModal } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
+import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { adminPane } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
-import { worldInfoSection } from "#features/world-info";
+import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
   CharacterDetailContribution,
   ChatContextState,
@@ -44,6 +44,7 @@ import type {
   ToolRenderer,
 } from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
+import type { SettingsSectionContribution } from "#state";
 import {
   assembleChrome,
   ChromeRegistryProvider,
@@ -159,6 +160,15 @@ const chrome = createContributorRegistry(
   }),
 );
 
+// The settings-SECTION contributor seam (§6c / pain-point §7): domains graft ONE anchored section into a
+// host pane WITHOUT growing features/settings. Assembled at the door (G8), threaded into the chat-behavior
+// pane factory. Phase B: memory ① (the master switch) + world-info ② (scanDepth/tokenBudget) — both owned
+// by their features, both landing here as contributions. An empty list ⇒ the pane is byte-identical.
+const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionContribution>("chat-behavior-settings-sections", [
+  memorySettingsSection,
+  worldInfoSettingsSection,
+]);
+
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
@@ -167,7 +177,7 @@ const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   tags: tagsPane,
   workloads: workloadsPane,
   backup: backupPane,
-  "chat-behavior": chatBehaviorPane,
+  "chat-behavior": makeChatBehaviorPane(chatBehaviorSettingsSections),
   regex: regexPane,
   connections: connectionsPane,
   automation: automationPane,

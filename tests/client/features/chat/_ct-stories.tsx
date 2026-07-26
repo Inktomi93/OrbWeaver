@@ -88,6 +88,7 @@ import { GroupConfigForm } from "../../../../packages/client/src/features/chat/c
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
+import { MemorySettingsSection } from "../../../../packages/client/src/features/chat/components/memory-settings-section";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageCostReadout } from "../../../../packages/client/src/features/chat/components/message-cost-readout";
@@ -1763,6 +1764,18 @@ export function InjectionsManagerStory({ isHost = true }: { readonly isHost?: bo
         >
           <InjectionsManager chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Memory settings SECTION (Phase B ①) over the real data layer — getUserSettings +
+ *  updateUserSettingsSection("memory") stubbed in the `.ct.tsx`. Proves the master switch's write path. */
+export function MemorySettingsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 640, padding: 16 }}>
+        <MemorySettingsSection />
       </div>
     </CtDataProviders>
   );

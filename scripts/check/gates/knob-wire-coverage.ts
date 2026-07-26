@@ -38,9 +38,10 @@ const DEFERRED: Record<string, string> = {
   "A:allowNonOwnerLocalCompute":
     "D107 triage — resolved compute-permission read by no behavior outside the resolver; remediation = the non-owner local-compute gate reads getEffectiveConfig().allowNonOwnerLocalCompute.",
   // B: a USER_SETTINGS_SECTIONS member with no reachable section-patch write path — its schema defaults are
-  // pinned for every user (the memory.enabled class: a master switch nobody can flip).
-  "B:memory": "D107 — the settings-wiring remediation program (memory master switch; memory.enabled is live-read every turn but unsettable).",
-  "B:worldInfo": "D107 — the settings-wiring remediation program (scanDepth/tokenBudget are read-live via ForeignInputs but write-missing).",
+  // pinned for every user (the memory.enabled class: a master switch nobody can flip). memory + worldInfo
+  // WIRED 2026-07-25 (Phase B ①/②, the settings-section contribution seam: features/chat's
+  // memory-settings-section writes section:"memory"; features/world-info's world-info-settings-surface
+  // writes section:"worldInfo") — entries pruned.
   "B:workloads": 'D107 — the settings-wiring remediation program (the pane exists; the knobs are unbound — no section:"workloads" write).',
   "B:profile":
     "D107 — the settings-wiring remediation program (profile.avatarAssetId is live-read but the section has zero writers; the user's own avatar is unsettable).",
@@ -597,17 +598,21 @@ export const gate: GateDescriptor = {
       why: "arm F (write): a metadata field with no verb/router writer — the toolRecurseLimit class, its documentation lies",
     },
     {
-      // STALE: a member that IS wired but STILL carries a founding DEFERRED entry. `B:memory` is a real
-      // DEFERRED key; a synthetic tree whose ONLY section is `memory`, WITH a section:"memory" write, makes it
-      // wired+cited → STALE. (No real-tree sentinel is present, so the ORPHAN pass stays quiet — ORPHAN's bite
-      // is proven live on the real tree, the bus-coverage-twin pattern.) The self-cleaning-both-directions
-      // half of the ratchet: a member that gained its wire must have its stale entry deleted.
+      // STALE: a member that IS wired but STILL carries a founding DEFERRED entry. The proof MUST borrow a
+      // member that is a LIVE DEFERRED key in this file's map above — a synthetic tree can't inject into the
+      // gate's own module-level DEFERRED, so it references a surviving entry. `B:workloads` is that key (the
+      // pane exists, the knobs are unbound). A tree whose ONLY section is `workloads`, WITH a
+      // section:"workloads" write, makes it wired+cited → STALE. (No real-tree sentinel is present, so ORPHAN
+      // stays quiet — ORPHAN's bite is proven live on the real tree, the bus-coverage-twin pattern.)
+      // NEXT PRUNER: if you delete B:workloads, repoint this fixture at another SURVIVING DEFERRED "B:" key
+      // (else this stale bite-proof goes vacuous — expected a finding but gets 0).
       files: {
-        "packages/contracts/src/settings/index.ts": 'export const USER_SETTINGS_SECTIONS = ["memory"] as const;\n',
-        "packages/client/src/features/x/components/x.tsx": 'export const updateUserSettingsSection = 1;\nexport const w = { section: "memory", patch: {} };\n',
+        "packages/contracts/src/settings/index.ts": 'export const USER_SETTINGS_SECTIONS = ["workloads"] as const;\n',
+        "packages/client/src/features/x/components/x.tsx":
+          'export const updateUserSettingsSection = 1;\nexport const w = { section: "workloads", patch: {} };\n',
       },
       expect: { messageIncludes: "GAINED its wire but still carries" },
-      why: "STALE: the founding DEFERRED B:memory member gains a section-patch writer → its stale entry must be deleted (the ratchet, self-cleaning both directions)",
+      why: "STALE: the founding DEFERRED B:workloads member gains a section-patch writer → its stale entry must be deleted (the ratchet, self-cleaning both directions)",
     },
     {
       // TRIPWIRE: the updateUserSettingsSection anchor present but USER_SETTINGS_SECTIONS renamed away.

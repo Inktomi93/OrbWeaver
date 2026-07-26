@@ -8,6 +8,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { ContributorRegistry } from "#lib";
 import type { SettingsCategoryId } from "./shell-store";
 
 /** The two nav groups — the settings region's USER + APP micro-caps taxonomy (pane taxonomy homes WITH
@@ -59,4 +60,85 @@ export interface SettingsPaneDefinition {
  *  literal. Shared by every pane surface (owner features + the settings host's scroll-spy). */
 export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string): string {
   return `settings-anchor-${categoryId}-${subId}`;
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// The settings-SECTION contribution seam (client-architecture-lockdown.md §6c / pain-point §7) — the
+// granularity BELOW panes. A pane owns a CATEGORY; a domain that only needs ONE anchored section inside an
+// existing pane (memory's master switch, world-info's scan knobs) CONTRIBUTES it here instead of growing
+// the settings god-feature. Structural mirror of the character-detail `editor-sections` seam
+// (`CharacterDetailContribution` + `resolveDetailSections`, registry-contracts.ts): an OPEN
+// `ContributorRegistry` (no fixed vocabulary — purely additive, so no existing pane's in-body sections
+// must migrate, §A's total-registry migration clause never triggers), assembled EMPTY-typed at the door
+// (G8), threaded into the host pane's surface by PROP (the `detailContributors` posture), consumed at a
+// named pane anchor. Zero contributions ⇒ the pane renders byte-identical to today.
+//
+// Homed HERE (not lib/registry-contracts.ts, where `CharacterDetailContribution` lives) because a
+// contribution reuses `SettingsSubcategory` — a state-owned nav shape — so the def binds state vocabulary
+// and homes in state (§5 rule 6; `client-lib-floor` forbids lib importing state). `ContributorRegistry`
+// rides DOWN from `#lib` (the sanctioned direction, the slash-command-registry-context precedent).
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The pane anchors that accept contributed sections — a CLOSED tuple (an unlisted anchor is unspellable;
+ *  the `CHARACTER_DETAIL_ANCHORS` posture). Today ONE: the chat-behavior pane's body, where per-chat
+ *  generation-context sections (memory, world-info) land. A future host pane adds one entry + one union
+ *  arm. Each anchor is a live `SettingsCategoryId` — the pane it targets — so a contribution's nav merges
+ *  into that pane's own subcategories under the shared `settingsAnchorId`. */
+export const SETTINGS_SECTION_ANCHORS = ["chat-behavior"] as const satisfies readonly SettingsCategoryId[];
+export type SettingsSectionAnchor = (typeof SETTINGS_SECTION_ANCHORS)[number];
+
+/** A contributed settings section (§6c) — a discriminated union BY ANCHOR (the `ChatSurfaceContribution`
+ *  shape), so a second anchor carrying a different projection narrows cleanly with zero casts. One arm
+ *  today. `nav` reuses the existing `SettingsSubcategory` so a contributed section is a first-class
+ *  nav/search citizen with zero new vocabulary (derive, don't re-declare) — the host pane merges it into
+ *  its own `subcategories`. `body` renders the section keyed to `settingsAnchorId(anchor, nav.id)` so the
+ *  host's scroll-spy and fuzzy-search jump work unchanged. */
+export interface SettingsSectionContribution {
+  /** The registry key + React key (a duplicate throws at door construction). */
+  readonly id: string;
+  /** The host pane this section renders into (the discriminant). */
+  readonly anchor: SettingsSectionAnchor;
+  /** The pane left-nav + search-index entry for this section. */
+  readonly nav: SettingsSubcategory;
+  /** The contributed `<Section>` node. Anchored via `settingsAnchorId(anchor, nav.id)` by the section. */
+  readonly body: () => ReactNode;
+}
+
+/** A resolved contributed section — the node plus its nav, in declared registry order. */
+export interface ResolvedSettingsSection {
+  readonly id: string;
+  readonly nav: SettingsSubcategory;
+  readonly node: ReactNode;
+}
+
+/** Group every contribution by its own `anchor` into a total `Record<anchor, contributions[]>`, in
+ *  declared registry order. A KEYED write (`groups[c.anchor].push`) — never an `anchor === "…"` comparison
+ *  (with a single-member tuple that is provably always-true; the single-arm-dispatch-record-not-switch
+ *  precedent). A future anchor is one tuple entry + one union arm; the seed stays total by construction. */
+function groupByAnchor(registry: ContributorRegistry<SettingsSectionContribution>): Record<SettingsSectionAnchor, readonly SettingsSectionContribution[]> {
+  const groups = Object.fromEntries(SETTINGS_SECTION_ANCHORS.map((a) => [a, [] as SettingsSectionContribution[]])) as Record<
+    SettingsSectionAnchor,
+    SettingsSectionContribution[]
+  >;
+  for (const c of registry.list()) {
+    groups[c.anchor].push(c);
+  }
+  return groups;
+}
+
+/** The contributed sections for one anchor, in declared registry order — the host pane appends these
+ *  below its own sections and merges their `nav`s into its subcategory list. Zero contributions ⇒ an
+ *  empty array (the caller renders no wrapper — byte-identical to today, the `editor-sections` posture). */
+export function resolveSettingsSections(
+  registry: ContributorRegistry<SettingsSectionContribution>,
+  anchor: SettingsSectionAnchor,
+): readonly ResolvedSettingsSection[] {
+  return groupByAnchor(registry)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body() }));
+}
+
+/** The `nav` entries a host pane merges into its own subcategory list, for one anchor — same grouping,
+ *  in declared registry order. Consumed by the pane def (nav-time) while `resolveSettingsSections` is
+ *  consumed by the surface (render-time), off the SAME keyed group so neither compares an anchor. */
+export function settingsSectionNavs(registry: ContributorRegistry<SettingsSectionContribution>, anchor: SettingsSectionAnchor): readonly SettingsSubcategory[] {
+  return groupByAnchor(registry)[anchor].map((c) => c.nav);
 }

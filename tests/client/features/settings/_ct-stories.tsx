@@ -3,6 +3,8 @@
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { SettingsSectionContribution } from "@orb/client/state";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -90,13 +92,18 @@ export function AppearanceSettingsStory(): ReactElement {
   );
 }
 
+// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②); this story
+// pins the chat-behavior pane's native fields, so it mounts with zero contributions (the door's empty
+// case — byte-identical to the pre-seam pane).
+const emptySettingsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-settings-sections", []);
+
 /** The real Chat-behavior pane (PD-146) in isolation — `getUserSettings` (read) and
  *  `updateUserSettingsSection("chat")` (the autosave write) are stubbed per-test via routeTrpc. */
 export function ChatBehaviorSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <ChatBehaviorSettingsSurface />
+        <ChatBehaviorSettingsSurface sectionContributors={emptySettingsSections} />
       </div>
     </CtDataProviders>
   );
