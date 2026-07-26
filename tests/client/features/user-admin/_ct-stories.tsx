@@ -8,6 +8,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section";
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section";
+import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section";
 import { AdminSettingsSurface } from "../../../../packages/client/src/features/user-admin/surfaces/admin-settings-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
@@ -52,6 +53,20 @@ export function MemoryTuningSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
           <MemoryTuningSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The System tuning admin SECTION (Phase B ⑩) in isolation — getAppSettingsWithOverrides +
+ *  updateAppSettings stubbed per-test. */
+export function SystemTuningSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <SystemTuningSection />
         </div>
       </TooltipProvider>
     </CtDataProviders>

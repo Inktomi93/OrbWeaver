@@ -14,6 +14,10 @@ import type { UserId } from "@orb/kit/ids";
 interface VariantKey {
   readonly kind: VariantKind;
   readonly width: number;
+  /** The lossy-encoder quality the variant was encoded at (item 6). FOLDED INTO THE CACHE FILENAME so an
+   *  admin change to AppSettings.imageVariantQuality yields a DIFFERENT key → a fresh encode, never a
+   *  stale-quality variant served forever. A missing/legacy entry (pre-quality filename) simply misses → recompute. */
+  readonly quality: number;
 }
 
 export interface VariantCache {
@@ -42,13 +46,17 @@ export function createVariantCache(rootDir: string): VariantCache {
     return join(rootDir, ownerId, hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END), hash);
   }
 
-  // `kind` folds into the filename, not a subdirectory, so `removeAll` still drops both with one rm.
+  // `kind` + `quality` fold into the filename, not a subdirectory, so `removeAll` still drops them with one rm.
+  // The `q<quality>` segment is the cache-key cavat (item 6): a quality change ⇒ a distinct filename ⇒ regen.
   function variantPath(ownerId: UserId, hash: string, variant: VariantKey): string {
     if (!Number.isInteger(variant.width) || variant.width <= 0) {
       throw new Error(`variant-cache: invalid width ${variant.width}`);
     }
-    const filename = variant.kind === "icon" ? `w${variant.width}.webp` : `${variant.kind}-w${variant.width}.webp`;
-    return join(hashDir(ownerId, hash), filename);
+    if (!Number.isInteger(variant.quality) || variant.quality <= 0) {
+      throw new Error(`variant-cache: invalid quality ${variant.quality}`);
+    }
+    const base = variant.kind === "icon" ? `w${variant.width}` : `${variant.kind}-w${variant.width}`;
+    return join(hashDir(ownerId, hash), `${base}-q${variant.quality}.webp`);
   }
 
   return {

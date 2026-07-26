@@ -149,6 +149,53 @@ describe("createVllmChat", () => {
     expect(sentBody?.["max_tokens"]).toBe(512);
   });
 
+  // ── item 7: the per-request presence-penalty default (engineLaunch.genPresencePenalty). Verified by the
+  // WIRE BODY only — never a live vLLM request (engines are up; launcher/request-firing is banned). ──
+  test("applies the card-default presence_penalty (1.5) when the preset is silent and no getter is injected", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ params: {} }));
+    expect(sentBody?.["presence_penalty"]).toBe(1.5);
+  });
+
+  test("applies the INJECTED genPresencePenalty default when the preset is silent (admin retune, per request)", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock(), genPresencePenalty: () => 0.3 });
+    await chat(chatReq({ params: {} }));
+    expect(sentBody?.["presence_penalty"]).toBe(0.3);
+  });
+
+  test("a preset's explicit presencePenalty WINS over the admin default", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock(), genPresencePenalty: () => 0.3 });
+    await chat(chatReq({ params: { presencePenalty: 1.9 } }));
+    expect(sentBody?.["presence_penalty"]).toBe(1.9);
+  });
+
   test("forwards the chatId on each delta", async () => {
     const client = streamingClient(['{"choices":[{"delta":{"content":"x"}}]}']);
     const seen: ChatId[] = [];

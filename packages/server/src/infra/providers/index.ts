@@ -57,6 +57,11 @@ export interface BackendRegistryDeps {
 
   readonly query?: AgentSdkBackendDeps["query"];
   readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
+  /** Live getter for the agent-sdk summarize worker count (Q6 — agentSdkConcurrency.summarize). Absent ⇒ floor. */
+  readonly agentSdkSummarizeConcurrency?: AgentSdkBackendDeps["summarizeConcurrency"];
+  /** Live getter for the vLLM chat surface's per-request presence-penalty default (item 7 — engineLaunch
+   *  .genPresencePenalty). Read per request so an admin retune applies without a restart. Absent ⇒ the card floor. */
+  readonly genPresencePenalty?: VllmBackendDeps["genPresencePenalty"];
   /** TASK-24: the provider wire-capture sink. When present, threaded into the agent-sdk + vLLM backends so
    *  their send boundaries record the final request body; absent ⇒ no capture (the prod default). */
   readonly captureWire?: WireCaptureSink;
@@ -92,6 +97,7 @@ function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
     ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.imageToPng !== undefined ? { normalizeImageBytes: createImageNormalizer(deps.imageToPng) } : {}),
+    ...(deps.agentSdkSummarizeConcurrency !== undefined ? { summarizeConcurrency: deps.agentSdkSummarizeConcurrency } : {}),
   };
 }
 function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
@@ -99,6 +105,7 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
     now: deps.now,
     ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
     ...(deps.engineLaunch !== undefined ? { engineLaunch: deps.engineLaunch } : {}),
+    ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
     ...(deps.vllmClient !== undefined ? { client: deps.vllmClient } : {}),

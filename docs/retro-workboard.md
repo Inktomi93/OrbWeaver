@@ -42,7 +42,21 @@ vLLM-gated embed hop is the one un-asserted link; + the settings DEEP-LINK RACE 
 [(target,satisfiable) latch, 2-pass convergence, CT vs the real async probe]; + 0000_baseline
 SQUASH-REGENERATED for the derived schema_version column DEFAULT [pre-launch law] — **MORNING
 NOTE: next stack restart RESETS data/orbweaver.db by design** [tonight's re-seedable fixtures;
-boot backs up first + Backrest]; bar 7350/0 · CT 1400/0).
+boot backs up first + Backrest]; bar 7350/0 · CT 1400/0) → **`8876abaa`** (STINTS 4+5 WAVE:
+⑤ workloads knobs incl. cooccurrence full thread · ⑥ personaWizardSeen DELETED +
+showNotifications honored at documented scope · ⑦ toolRecurseLimit host control + ChatDetail
+read · ⑧ tempChatTtlHours 1..8760 + autoSwipe/autoContinue hard-ceiling-5 [PD-146 cited,
+default 1 byte-identical, AUTO_* constants dead] · ⑨ compaction.verbatimTail + Advanced
+disclosure · ⑪ library.pageSize 10..100; + the SORTABLE PRODUCT FIX
+[useDragDropMonitor+rAF, 600-green] + swipe-strip root-fix; both verifiers CONFIRMED-zero-defects;
+bar: check all-green · vitest 7355/0 · CT residues fixed [scroll-spy → Library · knip un-export]).
+**PHASE B REMAINING: ⑩ admin tier (stint 6, dispatching) → the ONE side-eye pass → ⑫
+imagery-templates (own sub-lane, last).**
+
+**MORNING NOTE #2 (operational, safe-by-design):** stint 6 folded image-variant QUALITY into the
+variant cache KEY (`w<w>-q<q>.webp`) — every pre-existing cached variant ORPHANS on next serve
+(one-time regeneration; old `w*.webp` files are dead disk until their asset's removeAll). Variants
+are reproducible, not canon — no action needed, just don't be surprised by first-load regen churn.
 
 **✅ swipe-strip:122 ROOT-FIXED (2026-07-26, rides the stint-4 commit):** the dropzone CLASS
 generalized — mount() resolves at DOM-attach BEFORE React flushes the useEffect that installs the

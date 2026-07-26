@@ -47,6 +47,13 @@ const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
 // 1.05 is the Qwen-card-recommended value that fixed the loop live. ONE home for the literal; env-layered
 // so an admin can retune + restart.
 const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.05;
+// The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
+// silent (Phase B ⑩ item 7). 1.5 = the former hardcoded CARD_DEFAULT_PRESENCE_PENALTY (Qwen3-VL card), now
+// env-layered ⊕ AppSettings override so an admin can retune the per-launched-model default. OpenAI range -2..2.
+const VLLM_GEN_PRESENCE_PENALTY_DEFAULT = 1.5;
+// The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). 4 = the former hardcoded
+// SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override. DISTINCT from the vLLM engine's summarize floor.
+const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;
 // Whole-request embed timeout (ms): a warming/wedged engine can't hang boot-time embedding forever.
 const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
 const MIN_SESSION_SECRET_CHARS = 32;
@@ -133,6 +140,11 @@ const envSchema = z
     // The gen engine's --override-generation-config repetition_penalty (#23) — the LAUNCH default that stops
     // the Qwen3-VL 1.0-penalty output-cap loop on the sampler-less agent-sdk wire. Admin-layerable + restart.
     VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
+    // The gen engine's per-REQUEST presence-penalty default (Phase B ⑩ item 7) — applied by the vLLM chat
+    // surface when a preset is silent. Admin-layerable ⊕ AppSettings override; OpenAI presence_penalty range.
+    VLLM_GEN_PRESENCE_PENALTY: z.coerce.number().default(VLLM_GEN_PRESENCE_PENALTY_DEFAULT),
+    // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). Admin-layerable ⊕ override.
+    AGENT_SDK_SUMMARIZE_CONCURRENCY: z.coerce.number().int().positive().default(AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT),
     VLLM_EMBED_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT),
     VLLM_EMBED_DIM: z.coerce.number().int().positive().default(VLLM_EMBED_DIM_DEFAULT),
     VLLM_EMBED_CHUNK_SIZE: z.coerce.number().int().positive().default(VLLM_EMBED_CHUNK_DEFAULT),
@@ -314,6 +326,7 @@ export function engineLaunchEnvFloor(): {
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
   readonly VLLM_GEN_REPETITION_PENALTY: number;
+  readonly VLLM_GEN_PRESENCE_PENALTY: number;
   readonly VLLM_EMBED_PORT: number;
   readonly VLLM_RERANK_PORT: number;
   readonly VLLM_GEN_PORT: number;
@@ -333,6 +346,7 @@ export function engineLaunchEnvFloor(): {
     VLLM_POOLING_MAX_PIXELS: env.VLLM_POOLING_MAX_PIXELS,
     VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
     VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
+    VLLM_GEN_PRESENCE_PENALTY: env.VLLM_GEN_PRESENCE_PENALTY,
     VLLM_EMBED_PORT: env.VLLM_EMBED_PORT,
     VLLM_RERANK_PORT: env.VLLM_RERANK_PORT,
     VLLM_GEN_PORT: env.VLLM_GEN_PORT,

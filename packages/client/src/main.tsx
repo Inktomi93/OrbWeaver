@@ -39,7 +39,7 @@ import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { makeAdminPane, memoryTuningSection, rateLimitsSection } from "#features/user-admin";
+import { makeAdminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
 import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "#features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
@@ -181,7 +181,11 @@ const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionCo
 // The admin-anchored sections (Phase B ③): the AppSettings admin-tier surfaces (memory tuning +
 // summarizer, rate limits) — owned by user-admin (admin-tier config), grafted into the admin pane via the
 // same seam. An empty list ⇒ the admin pane is byte-identical.
-const adminSettingsSections = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [memoryTuningSection, rateLimitsSection]);
+const adminSettingsSections = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [
+  memoryTuningSection,
+  rateLimitsSection,
+  systemTuningSection,
+]);
 
 // The workloads-anchored sections (Phase B ⑤): the analysis-tuning knobs (dupThreshold/computeThemesK/
 // maxPairs/hubFraction) — owned by features/workloads (its own pane), grafted via the same seam.

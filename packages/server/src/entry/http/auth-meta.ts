@@ -21,6 +21,9 @@ export interface AuthMetaDeps {
   /** The admin-tunable effective `maxImageBytes` — resolves the served image cap (min of route cap and this)
    *  so the client's dropzone hints + pre-checks derive the LIVE value instead of an invented per-widget number. */
   readonly maxImageBytes: () => number;
+  /** The admin-tunable effective `maxDatabankBytes` — resolves the served databank-document cap (min of route
+   *  cap and this; an override may only TIGHTEN) so the client's document-upload hint matches the route. */
+  readonly maxDatabankBytes: () => number;
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -35,7 +38,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       discreetLogin: discreet,
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),
-      uploads: resolveUploadCaps(deps.maxImageBytes()),
+      uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
     });
   });
 

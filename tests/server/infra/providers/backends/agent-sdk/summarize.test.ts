@@ -32,11 +32,12 @@ const HOSTED_HINT_RE = /openrouter/u;
 /** The wired summarize fn (the backend always sets it; the cast drops the contract's `| undefined`). */
 type SummarizeFn = (req: SummarizeRequest) => Promise<SummarizeResult>;
 
-function backendOf(query: unknown): SummarizeFn {
+function backendOf(query: unknown, summarizeConcurrency?: () => number): SummarizeFn {
   const backend = createAgentSdkBackend({
     now: () => 0,
     query: query as never,
     refreshHostSubToken: () => Promise.resolve(false),
+    ...(summarizeConcurrency !== undefined ? { summarizeConcurrency } : {}),
   });
   return backend.summarize as SummarizeFn;
 }
@@ -270,6 +271,30 @@ describe("agent-sdk summarize", () => {
 
     expect(result.items.map((it) => it.text)).toEqual(replies);
     expect(fakeQuery).toHaveBeenCalledTimes(3);
+  });
+
+  // Q6 (stint-6 item 1): the worker COUNT is the injected agentSdkConcurrency.summarize getter, not a const.
+  // A concurrency of 2 over 5 items must never run more than 2 turns at once (peak in-flight ≤ 2). Each item's
+  // turn yields across a microtask so the pool genuinely overlaps — a serial run would peak at 1.
+  test("caps in-flight summarize turns at the injected concurrency getter (Q6 — was a hardcoded 4)", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const fakeQuery = vi.fn(() =>
+      (async function* gated(): AsyncGenerator<unknown> {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        // A couple of microtask hops so concurrently-started workers overlap before any completes.
+        await Promise.resolve();
+        await Promise.resolve();
+        inFlight -= 1;
+        yield* textTurn("ok");
+      })(),
+    );
+    const summarize = backendOf(fakeQuery, () => 2);
+    const inputs = Array.from({ length: 5 }, (_v, i) => ({ systemPrompt: "s", userPrompt: `input ${i}` }));
+    await summarize(reqOf({ inputs }));
+    expect(peak).toBe(2); // exactly the injected concurrency — never the former hardcoded 4, never serial 1.
+    expect(fakeQuery).toHaveBeenCalledTimes(5);
   });
 
   test("whole-batch-on-first-error: one failed item rejects the entire batch (vLLM/OR convention)", async () => {

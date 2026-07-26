@@ -79,6 +79,8 @@ export interface AgentSdkBackendDeps {
   readonly refreshHostSubToken?: AgentSdkDeps["refreshHostSubToken"];
   /** TASK-24 wire-capture sink — compose injects it only when capture is enabled; absent ⇒ no capture. */
   readonly captureWire?: AgentSdkDeps["captureWire"];
+  /** Live getter for the summarize worker count (Q6); compose wires it off the effective config. */
+  readonly summarizeConcurrency?: AgentSdkDeps["summarizeConcurrency"];
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBackend {
@@ -90,6 +92,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     normalizeImageBytes: deps.normalizeImageBytes ?? passthroughImageNormalizer,
     refreshHostSubToken: deps.refreshHostSubToken ?? ((): Promise<boolean> => ensureFreshHostSubToken({ now: deps.now })),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    ...(deps.summarizeConcurrency !== undefined ? { summarizeConcurrency: deps.summarizeConcurrency } : {}),
   };
   return {
     key: "agent-sdk",

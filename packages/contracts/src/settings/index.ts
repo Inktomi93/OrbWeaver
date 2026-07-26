@@ -15,6 +15,7 @@ import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
 // `#theme` (shared with the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
 import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
+import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig } from "#versioned-config";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -29,7 +30,7 @@ export const logLevelSchema = z.enum(LOG_LEVELS);
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 3;
+export const APP_SETTINGS_SCHEMA_VERSION = 4;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -177,6 +178,35 @@ export const vllmConcurrencySchema = z.object({
 });
 export type VllmConcurrency = z.infer<typeof vllmConcurrencySchema>;
 
+// The agent-sdk summarize concurrency (Q6): the max in-flight summarize calls the agent-sdk backend runs.
+// DISTINCT from vllmConcurrency.summarize (a vLLM engine policy, floor 32) — this caps the Claude-Agent-SDK
+// subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
+export const agentSdkConcurrencySchema = z.object({
+  summarize: z.number().int().positive().optional(),
+});
+export type AgentSdkConcurrency = z.infer<typeof agentSdkConcurrencySchema>;
+
+// Image variant lossy-encoder quality (1–100, webp/jpeg) — the admin-tunable default the asset variant
+// pipeline encodes at. CRITICAL: the value is folded into the variant CACHE KEY (resolve-variant), so an
+// admin change yields fresh keys → regeneration, never a stale-quality variant served forever.
+export const IMAGE_VARIANT_QUALITY_MIN = 1;
+export const IMAGE_VARIANT_QUALITY_MAX = 100;
+const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(IMAGE_VARIANT_QUALITY_MIN).max(IMAGE_VARIANT_QUALITY_MAX).optional();
+
+/** Clamp a raw image-variant quality to the schema bounds (integer 1–100), `null` for non-finite. Shares the
+ *  ONE bounds home with the schema so a clamped admin value always passes (no silent-wipe). */
+export function clampImageVariantQuality(raw: number): number | null {
+  if (!Number.isFinite(raw)) {
+    return null;
+  }
+  return Math.min(IMAGE_VARIANT_QUALITY_MAX, Math.max(IMAGE_VARIANT_QUALITY_MIN, Math.round(raw)));
+}
+
+// Positive-integer millisecond durations (born-in-DB admin floors, no env): the prompt-transform per-transform
+// deadline (floor 250ms), the non-owner local-compute budget WINDOW (floor 24h — the cap's sibling), and the
+// model-catalog success-refresh cadence (floor 24h). A value ≤0 / non-finite drops at parse → the floor governs.
+const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive().optional();
+
 // The vLLM engine LAUNCH-config override tier (#14): the per-engine serve flags an admin can retune on
 // another box (models / context windows / gpu-util fractions / vision max_pixels) and apply via the admin
 // Engines section's "restart to apply" affordance. Every field optional — unset falls to the env floor
@@ -185,6 +215,9 @@ export type VllmConcurrency = z.infer<typeof vllmConcurrencySchema>;
 const GPU_UTIL_FLOOR = 0;
 const GPU_UTIL_CEIL = 1;
 const gpuUtil = (): z.ZodOptional<z.ZodNumber> => z.number().gt(GPU_UTIL_FLOOR).max(GPU_UTIL_CEIL).optional();
+// OpenAI presence_penalty wire range (the vLLM chat surface's per-request default lives in engineLaunch).
+export const GEN_PRESENCE_PENALTY_MIN = -2;
+export const GEN_PRESENCE_PENALTY_MAX = 2;
 export const engineLaunchSchema = z.object({
   embedModel: z.string().min(1).optional(),
   rerankModel: z.string().min(1).optional(),
@@ -203,6 +236,16 @@ export const engineLaunchSchema = z.object({
   // sampler-less agent-sdk /v1/messages wire → output-cap api_error); the launch default (env floor 1.05)
   // stops the loop. Admin-retunable; applies on engine restart. 0<p (a positive multiplier; 1 = no penalty).
   genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).optional(),
+  // The gen engine's default PRESENCE penalty applied per-REQUEST whenever the vLLM chat surface serves (main
+  // chat AND role/side-gen traffic, e.g. when main chat rides agent-sdk and a swapped genModel runs on vLLM).
+  // Replaces the surface's silent CARD_DEFAULT_PRESENCE_PENALTY=1.5 that hit ANY model; env floor 1.5,
+  // admin-retunable per launched model (genRepetitionPenalty is the exact precedent). OpenAI presence_penalty
+  // range is -2..2; a preset that sets its own presencePenalty still wins over this default. `.nullable()`: a
+  // LEAF `null` is the merge-clear sentinel (the System-tuning section's Reset sends `{ genPresencePenalty:
+  // null }` — a nested `undefined` would be stripped by tRPC's plain-JSON wire and no-op the reset; a null
+  // survives, and the resolver's `?? floor` reads null as the floor). Clearing ONLY this leaf, never the
+  // whole engineLaunch section (which the restart-gated launch editor owns).
+  genPresencePenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).nullable().optional(),
 });
 export type EngineLaunch = z.infer<typeof engineLaunchSchema>;
 
@@ -219,6 +262,13 @@ const MAX_IMAGE_BYTES_FLOOR = 100_000;
 const MAX_IMAGE_BYTES_CEIL = 100_000_000;
 export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 
+// The databank-upload override CEILING = the route belt (@orb/contracts/uploads DATABANK_UPLOAD_MAX_BYTES,
+// 20 MiB). An admin override may only ever TIGHTEN below this — the schema max IS the belt so an over-belt
+// value drops at parse (fail-safe: a widen attempt never loosens the route/store cap). Floor 100 KB keeps a
+// fat-fingered near-zero cap from bricking every document upload.
+const MAX_DATABANK_BYTES_FLOOR = 100_000;
+const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
+
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
@@ -230,10 +280,21 @@ export const appSettingsSchema = z.object({
   memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
   vllmConcurrency: vllmConcurrencySchema.nullable().optional().catch(undefined),
+  agentSdkConcurrency: agentSdkConcurrencySchema.nullable().optional().catch(undefined),
   engineLaunch: engineLaunchSchema.nullable().optional().catch(undefined),
   allowNonOwnerLocalCompute: z.boolean().nullable().optional().catch(undefined),
   nonOwnerLocalComputeBudget: z.number().int().positive().nullable().optional().catch(undefined),
+  // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
+  nonOwnerLocalComputeBudgetWindowMs: durationMs().nullable().optional().catch(undefined),
   maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
+  // Databank single-document upload cap — TIGHTEN-only (schema max = the route belt).
+  maxDatabankBytes: z.number().int().min(MAX_DATABANK_BYTES_FLOOR).max(MAX_DATABANK_BYTES_CEIL).nullable().optional().catch(undefined),
+  // The per-transform prompt-transform execution deadline (ms). Born-in-DB floor 250.
+  promptTransformDeadlineMs: durationMs().nullable().optional().catch(undefined),
+  // The model-catalog success-refresh cadence (ms). Born-in-DB floor 24h.
+  catalogRefreshIntervalMs: durationMs().nullable().optional().catch(undefined),
+  // The image-variant lossy-encoder quality (folded into the variant cache key — see resolve-variant).
+  imageVariantQuality: imageVariantQualitySchema().nullable().optional().catch(undefined),
   allowNonOwnerMaxProSub: z.boolean().nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
@@ -254,6 +315,10 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // renamed. Stamp the version so a v2 row stops re-running the lift chain; the absent section reads back
   // as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
+  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, nonOwnerLocalComputeBudgetWindowMs,
+  // maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs, imageVariantQuality, and
+  // engineLaunch.genPresencePenalty) are purely additive/optional — an absent field reads back as its floor.
+  3: (config) => ({ ...config, schemaVersion: 4 }),
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -835,6 +900,10 @@ export interface ResolvedVllmConcurrency {
   summarize: number;
 }
 
+export interface ResolvedAgentSdkConcurrency {
+  summarize: number;
+}
+
 /** The RESOLVED vLLM engine launch config (env floor ⊕ admin override), every field present. The server's
  *  engine spawner consumes this to build the serve argv (structurally the infra `EngineLaunchConfig`, minus
  *  the env-only ports the spawner reads directly). Applied on engine RESTART, not next-use. */
@@ -853,6 +922,7 @@ export interface ResolvedEngineLaunch {
   poolingMaxPixels: number;
   genMaxPixels: number;
   genRepetitionPenalty: number;
+  genPresencePenalty: number;
 }
 
 export interface EffectiveAppConfig {
@@ -865,13 +935,19 @@ export interface EffectiveAppConfig {
   memorySummarizer: MemorySummarizerConfig;
   rateLimits: ResolvedRateLimits;
   vllmConcurrency: ResolvedVllmConcurrency;
+  agentSdkConcurrency: ResolvedAgentSdkConcurrency;
   engineLaunch: ResolvedEngineLaunch;
   allowNonOwnerLocalCompute: boolean;
   nonOwnerLocalComputeBudget: number | null;
+  nonOwnerLocalComputeBudgetWindowMs: number;
   allowNonOwnerMaxProSub: boolean;
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;
+  maxDatabankBytes: number;
+  promptTransformDeadlineMs: number;
+  catalogRefreshIntervalMs: number;
+  imageVariantQuality: number;
 }
 
 /** The admin-surface read for AppSettings: the RESOLVED config (floor ⊕ override, every field present) PLUS

@@ -13,6 +13,9 @@ import type { AssetsService } from "../contract/service";
 import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy";
 
 const WEBP = "webp";
+// The fallback when a context doesn't inject the live quality getter (tests) — byte-identical to infra/image
+// DEFAULT_QUALITY. The LIVE value comes from ctx.imageVariantQuality (item 6), folded into the cache key.
+const DEFAULT_VARIANT_QUALITY = 80;
 
 /** The `icon` ladder: width-only, any source aspect (the pre-existing behavior, untouched). */
 async function resolveIconVariant(ctx: AssetsContext, ownerId: UserId, hash: string, width: number): Promise<Uint8Array | undefined> {
@@ -20,7 +23,8 @@ async function resolveIconVariant(ctx: AssetsContext, ownerId: UserId, hash: str
   if (snapped === undefined) {
     return;
   }
-  const key = { kind: "icon" as const, width: snapped };
+  const quality = ctx.imageVariantQuality?.() ?? DEFAULT_VARIANT_QUALITY;
+  const key = { kind: "icon" as const, width: snapped, quality };
   const cached = await ctx.variants?.read(ownerId, hash, key);
   if (cached !== undefined) {
     return cached;
@@ -33,7 +37,7 @@ async function resolveIconVariant(ctx: AssetsContext, ownerId: UserId, hash: str
   if (isAnimated(original)) {
     return original;
   }
-  const variant = await ctx.imageTransform(original, { width: snapped, format: WEBP });
+  const variant = await ctx.imageTransform(original, { width: snapped, format: WEBP, quality });
   await ctx.variants?.put(ownerId, hash, key, variant);
   return variant;
 }
@@ -44,7 +48,8 @@ async function resolvePortraitVariant(ctx: AssetsContext, ownerId: UserId, hash:
   if (size === undefined) {
     return;
   }
-  const key = { kind: "portrait" as const, width: size.width };
+  const quality = ctx.imageVariantQuality?.() ?? DEFAULT_VARIANT_QUALITY;
+  const key = { kind: "portrait" as const, width: size.width, quality };
   const cached = await ctx.variants?.read(ownerId, hash, key);
   if (cached !== undefined) {
     return cached;
@@ -63,6 +68,7 @@ async function resolvePortraitVariant(ctx: AssetsContext, ownerId: UserId, hash:
     fit: "cover",
     position: "attention",
     format: WEBP,
+    quality,
   });
   await ctx.variants?.put(ownerId, hash, key, variant);
   return variant;
@@ -74,7 +80,8 @@ async function resolveBannerVariant(ctx: AssetsContext, ownerId: UserId, hash: s
   if (size === undefined) {
     return;
   }
-  const key = { kind: "banner" as const, width: size.width };
+  const quality = ctx.imageVariantQuality?.() ?? DEFAULT_VARIANT_QUALITY;
+  const key = { kind: "banner" as const, width: size.width, quality };
   const cached = await ctx.variants?.read(ownerId, hash, key);
   if (cached !== undefined) {
     return cached;
@@ -93,6 +100,7 @@ async function resolveBannerVariant(ctx: AssetsContext, ownerId: UserId, hash: s
     fit: "cover",
     position: "attention",
     format: WEBP,
+    quality,
   });
   await ctx.variants?.put(ownerId, hash, key, variant);
   return variant;

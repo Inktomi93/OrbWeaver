@@ -27,6 +27,10 @@ export interface AssetsContext {
   readonly cas: Cas;
   readonly variants?: VariantCache;
   readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
+  /** Live getter for the admin-tunable lossy-encoder quality (item 6 — AppSettings.imageVariantQuality). Read
+   *  per resolve so a retune applies without a restart; FOLDED INTO the variant cache key so a quality change
+   *  yields a fresh encode. Optional (tests / cache-less contexts) ⇒ the resolver's fallback. */
+  readonly imageVariantQuality?: () => number;
   readonly emit: EmitDomainEvent;
   readonly now: () => number;
   readonly newAssetId: () => AssetId;

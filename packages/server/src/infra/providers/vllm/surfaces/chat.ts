@@ -24,7 +24,9 @@ import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, WireCapt
 import { ProviderError } from "../../contract";
 import type { VllmEngineClient } from "../engine";
 
-// Qwen3-VL-8B-Instruct card defaults applied when the preset is silent (not in generation_config.json).
+// Qwen3-VL-8B-Instruct card default applied when the preset is silent (not in generation_config.json). The
+// FALLBACK when compose doesn't inject the resolved getter (tests); the LIVE value comes from
+// deps.genPresencePenalty (item 7 — engineLaunch.genPresencePenalty, env floor 1.5 ⊕ AppSettings override).
 const CARD_DEFAULT_PRESENCE_PENALTY = 1.5;
 
 const CHAT_PATH = "/v1/chat/completions";
@@ -35,6 +37,9 @@ export interface VllmChatDeps {
   /** TASK-24 wire-capture: records the FINAL /v1/chat/completions body this surface POSTs. Absent ⇒ no
    *  capture (the compose default) — a plain send, zero cost. */
   readonly captureWire?: WireCaptureSink | undefined;
+  /** Live getter for the per-request presence-penalty default applied when a preset is silent (item 7). Read
+   *  per request so an admin retune applies immediately. Absent ⇒ the card-default fallback. */
+  readonly genPresencePenalty?: (() => number) | undefined;
 }
 
 type VllmChatTurn = ChatRequest & { readonly api: "chat-completions" | "responses" };
@@ -102,14 +107,14 @@ function toMessages(req: VllmChatTurn): WireMessage[] {
   return system.length > 0 ? [{ role: "system", content: system }, ...history] : history;
 }
 
-function buildBody(req: VllmChatTurn): Record<string, unknown> {
+function buildBody(req: VllmChatTurn, presencePenaltyDefault: number): Record<string, unknown> {
   const p = req.params;
   const sampling = buildOpenAiSamplingFields({
     temperature: p.temperature,
     topP: p.topP,
     topK: p.topK,
     frequencyPenalty: p.frequencyPenalty,
-    presencePenalty: p.presencePenalty ?? CARD_DEFAULT_PRESENCE_PENALTY,
+    presencePenalty: p.presencePenalty ?? presencePenaltyDefault,
     repetitionPenalty: p.repetitionPenalty,
     minP: p.minP,
     topA: p.topA,
@@ -200,7 +205,7 @@ export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promis
     };
 
     try {
-      const wireBody = buildBody(turn);
+      const wireBody = buildBody(turn, deps.genPresencePenalty?.() ?? CARD_DEFAULT_PRESENCE_PENALTY);
       // TASK-24: capture the LITERAL openai-compat body right before it goes on the wire (the harness reads
       // this to prove the FE setting propagated truthfully into the real bytes). Only fires when compose
       // wired a sink (capture enabled); otherwise absent → zero cost.

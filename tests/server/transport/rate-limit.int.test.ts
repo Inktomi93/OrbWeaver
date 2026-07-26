@@ -86,7 +86,7 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
 
   test("the COUNT budget caps per member and is attributed to triggeredBy", async () => {
     const db = await freshDb();
-    const budget = createMemberBudget(db, { windowMs: WINDOW_MS, now: () => T0 });
+    const budget = createMemberBudget(db, { windowMs: () => WINDOW_MS, now: () => T0 });
 
     await budget.debit(memberA, 2);
     await budget.debit(memberA, 2);
@@ -98,7 +98,7 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
 
   test("a null budget is unbounded — no throw, and no bucket rows are written", async () => {
     const db = await freshDb();
-    const budget = createMemberBudget(db, { windowMs: WINDOW_MS, now: () => T0 });
+    const budget = createMemberBudget(db, { windowMs: () => WINDOW_MS, now: () => T0 });
 
     for (let i = 0; i < 5; i += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: sequential debits — the test asserts the cumulative no-op, not throughput.
@@ -112,7 +112,7 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
   test("the member budget resets at the next window", async () => {
     const db = await freshDb();
     let clock = T0;
-    const budget = createMemberBudget(db, { windowMs: WINDOW_MS, now: () => clock });
+    const budget = createMemberBudget(db, { windowMs: () => WINDOW_MS, now: () => clock });
 
     await budget.debit(memberA, 1);
     await expect(budget.debit(memberA, 1)).rejects.toBeInstanceOf(DomainRateLimitError);

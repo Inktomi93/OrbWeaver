@@ -5,3 +5,4 @@
 export { makeAdminPane } from "./lib/admin-pane";
 export { memoryTuningSection } from "./lib/memory-tuning-section";
 export { rateLimitsSection } from "./lib/rate-limits-section";
+export { systemTuningSection } from "./lib/system-tuning-section";

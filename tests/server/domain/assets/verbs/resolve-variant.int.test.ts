@@ -56,6 +56,7 @@ describe("resolveVariant", () => {
     expect(h.imageTransform).toHaveBeenCalledWith(expect.anything(), {
       width: SNAPPED_WIDTH,
       format: "webp",
+      quality: 80,
     });
 
     const second = await svc.resolveVariant({
@@ -85,6 +86,7 @@ describe("resolveVariant", () => {
     expect(h.imageTransform).toHaveBeenCalledWith(expect.anything(), {
       width: TOP_RUNG,
       format: "webp",
+      quality: 80,
     });
   });
 
@@ -174,6 +176,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
 
     const second = await svc.resolveVariant({
@@ -206,6 +209,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
   });
 
@@ -226,6 +230,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     expect(h.imageTransform).toHaveBeenNthCalledWith(1, expect.anything(), {
       width: ICON_SNAP_OF_200,
       format: "webp",
+      quality: 80,
     });
     expect(h.imageTransform).toHaveBeenNthCalledWith(2, expect.anything(), {
       width: PORTRAIT_SNAPPED_WIDTH,
@@ -233,6 +238,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
   });
 
@@ -284,6 +290,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
 
     const second = await svc.resolveVariant({
@@ -316,6 +323,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
   });
 
@@ -337,6 +345,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
     expect(h.imageTransform).toHaveBeenNthCalledWith(2, expect.anything(), {
       width: 480,
@@ -344,6 +353,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
       fit: "cover",
       position: "attention",
       format: "webp",
+      quality: 80,
     });
   });
 

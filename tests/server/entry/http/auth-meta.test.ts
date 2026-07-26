@@ -54,6 +54,7 @@ function run(handler: Handler, principal: Principal | null = null): MockResult {
 }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_DATABANK_BYTES = 20 * 1024 * 1024;
 
 function depsFor(mode: AuthMode, discreet = false, capable = false): AuthMetaDeps {
   return {
@@ -62,6 +63,7 @@ function depsFor(mode: AuthMode, discreet = false, capable = false): AuthMetaDep
     discreetLogin: () => discreet,
     multiHumanCapable: () => capable,
     maxImageBytes: () => MAX_IMAGE_BYTES,
+    maxDatabankBytes: () => MAX_DATABANK_BYTES,
   };
 }
 
@@ -83,14 +85,14 @@ describe("GET /api/auth/config", () => {
       discreetLogin: false,
       defaultHandle: "owner",
       multiHumanCapable: false,
-      uploads: resolveUploadCaps(MAX_IMAGE_BYTES),
+      uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
     });
   });
 
   test("serves the resolved upload byte caps (image cap = min of the route cap and the admin maxImageBytes)", () => {
     const body = run(handlers(depsFor("local")).config).body;
     // maxImageBytes (5 MiB) is tighter than the 64 MiB route cap, so the served image cap is the admin value.
-    expect(body["uploads"]).toEqual(resolveUploadCaps(MAX_IMAGE_BYTES));
+    expect(body["uploads"]).toEqual(resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }));
     expect((body["uploads"] as { image: number }).image).toBe(MAX_IMAGE_BYTES);
   });
 
@@ -120,6 +122,7 @@ describe("GET /api/auth/config", () => {
       discreetLogin: () => false,
       multiHumanCapable: () => capable,
       maxImageBytes: () => MAX_IMAGE_BYTES,
+      maxDatabankBytes: () => MAX_DATABANK_BYTES,
     });
     expect(run(config).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -134,6 +137,7 @@ describe("GET /api/auth/config", () => {
       discreetLogin: () => discreet,
       multiHumanCapable: () => false,
       maxImageBytes: () => MAX_IMAGE_BYTES,
+      maxDatabankBytes: () => MAX_DATABANK_BYTES,
     });
     expect(run(config).body["defaultHandle"]).toBe("owner");
     discreet = true;

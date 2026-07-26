@@ -68,6 +68,8 @@ export interface AssetsCharacterComposeDeps {
   readonly materializeBackground: MaterializeBackgroundOp;
   /** LIVE effective per-image byte cap (the background materialize belt reads it per download). */
   readonly maxImageBytes: () => number;
+  /** LIVE effective image-variant quality (item 6) — folded into the variant cache key so a retune regenerates. */
+  readonly imageVariantQuality: () => number;
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
@@ -116,6 +118,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     cas,
     variants,
     imageTransform: imageAdapter.transform,
+    imageVariantQuality: deps.imageVariantQuality,
     imageProbe: imageAdapter.probe,
     emit: deps.emit,
     now,

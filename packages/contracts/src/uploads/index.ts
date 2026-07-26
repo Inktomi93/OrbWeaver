@@ -70,13 +70,24 @@ export const DEFAULT_UPLOAD_CAPS: UploadCaps = {
   importTotal: IMPORT_MAX_TOTAL_BYTES,
 };
 
-/** Resolve the served caps from the admin-tunable `maxImageBytes` (the effective-config value). The image
- *  cap is the tighter of the route cap and `maxImageBytes`; everything else is the fixed route/runner cap. */
-export function resolveUploadCaps(maxImageBytes: number): UploadCaps {
+/** The admin-tunable effective caps the served block clamps against. Each is the effective-config value; the
+ *  served cap is the TIGHTER of the fixed route cap and the override — an admin override may only narrow a
+ *  route cap, never widen it past the store/route belt (the security ceiling stays fixed). */
+export interface EffectiveUploadOverrides {
+  /** effectiveConfig.maxImageBytes — clamps the single-asset IMAGE cap. */
+  readonly maxImageBytes: number;
+  /** effectiveConfig.maxDatabankBytes — clamps the databank document cap (may only TIGHTEN below the route belt). */
+  readonly maxDatabankBytes: number;
+}
+
+/** Resolve the served caps from the admin-tunable effective overrides. The image cap is the tighter of the
+ *  route cap and `maxImageBytes`; the databank cap is the tighter of the route cap and `maxDatabankBytes`;
+ *  everything else is the fixed route/runner cap. */
+export function resolveUploadCaps(overrides: EffectiveUploadOverrides): UploadCaps {
   return {
     assetUpload: ASSET_UPLOAD_MAX_BYTES,
-    image: Math.min(ASSET_UPLOAD_MAX_BYTES, maxImageBytes),
-    databankUpload: DATABANK_UPLOAD_MAX_BYTES,
+    image: Math.min(ASSET_UPLOAD_MAX_BYTES, overrides.maxImageBytes),
+    databankUpload: Math.min(DATABANK_UPLOAD_MAX_BYTES, overrides.maxDatabankBytes),
     importTotal: IMPORT_MAX_TOTAL_BYTES,
   };
 }
