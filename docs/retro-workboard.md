@@ -26,7 +26,13 @@ rule · root-deps guard · scroll-mode→kit · jscpd lens + stableStringify hoi
 SAMPLING LADDER: 9 sites → one resolver, floors as data, gate 149; + the buried-knobs audit ledger
 `reports/scout/2026-07-25-buried-knobs-audit-wip.md` and gate design
 `reports/stickler/2026-07-25-knob-drift-gates.md` as cited records) → **`d9525f02`** (KNOB-WIRE
-PHASE A consolidation — next block).
+PHASE A consolidation) → **`9acbcf5b`** (Phase B stint 1: the settings-SECTION contribution seam +
+memory.enabled master switch + worldInfo knobs) → **`3c09113d`** (Phase B stint 2: three admin
+surfaces [memoryDefaults·memorySummarizer·rateLimits w/ floor-vs-override honesty via
+getAppSettingsWithOverrides + section-level Reset] + rateLimits.general DELETED / login ADDED
+bounds-safe per rulings + the verifier's silent-wipe Medium killed at one home
+[MEMORY_DEFAULTS_BOUNDS in contracts, schema derives, client clamps] + token-estimate gate
+widened + dropzone flake root-fixed; bar 7341/0 · CT 1396/0 · zero flakes).
 
 **✅ PHASE A CONSOLIDATED — `d9525f02`** (perfect bar: check ok:true failed:[] · vitest 7341/0 ·
 CT 1380 expected / 0 unexpected / 0 flaky — first flake-free battery of the night). In it: the
@@ -135,6 +141,25 @@ re-bucketed surfaces/→components/ w/ CT mirrors · inline type → indexed-acc
 test replaced · **conformance STALE fixture had borrowed the pruned B:memory — repointed to
 B:workloads w/ NEXT-PRUNER warning; standing trap for every future prune**). Design record:
 reports/executor/2026-07-25-settings-section-registry.md.
+
+**✅ STINT-2 LIVE SNAP RECEIPTS (2026-07-26, orchestrator drive):** admin pane proven in the real
+app — contributed sections render, navs merge (Users|Engines|Model catalog|Card embeddings|Memory
+tuning|Rate limits), floor/override rows live; receipts at reports/snaps/admin-pane-*.png. ONE REAL
+FIND → **the settings deep-link race** (pre-existing, host-level): `openSettings(<when-gated cat>)`
+on a COLD sessions.me cache falls back to "appearance" PERMANENTLY (initial-active resolves during
+the probe's loading window; the seenTarget adjust never re-fires because the target didn't change) —
+warm caches hide it, every fresh context hits it. Routed to the settings lane as a stint-3 rider
+(fix = re-evaluate the unsatisfied target when visibility GROWS; CT w/ delayed viewer stub). Live
+invalid-save probe deliberately SKIPPED — clamp already triple-covered (CT pins · server int via
+real zod · verifier's empirical probes). snap gotcha logged: the settings nav is `role=navigation`
+(a Stack, not <nav>), and it SCROLLS — "missing" subs may be below its fold; probe innerText of
+`[role=navigation]`, don't trust one viewport screenshot.
+
+**NOW RUNNING — STINT 3 = ④ DATABANK** (UserSettings.databank section [schema change → STAMP
+version] + editor contribution + REAL compose binding absorbing DEFAULT_DOCUMENT_K/MIN_SCORE +
+DATABANK_SLOT_TOKEN_BUDGET + composed-real int test; scope-honesty arm: if gather is more dormant
+than audited, report the honest boundary + keep entries DEFERRED with updated cites — never a
+lying wire) + the deep-link-race rider.
 
 **✅ TOKEN-ESTIMATE GATE CHIP DONE (2026-07-26, in-tree, rides the next commit):** stickler §8
 executed — `no-manual-token-estimate` gained the const-dodge arm (`.length / IDENT` where IDENT

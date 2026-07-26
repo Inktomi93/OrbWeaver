@@ -64,14 +64,21 @@ export function SettingsShell(): ReactElement {
   // A cross-feature deep-link can request a specific pane via the shell store's `settingsCategory` seam;
   // honor it as the initial pane and whenever it changes (a `when`-hidden target falls back to the default).
   const targetCategory = useSettingsTarget();
-  const [active, setActive] = useState<SettingsCategoryId>(() =>
-    isCategoryId(targetCategory) && visibleIds.has(targetCategory) ? targetCategory : "appearance",
-  );
-  // Adjust state during render on a prop change (not a setState-in-effect cascade) when the deep-link target changes.
-  const [seenTarget, setSeenTarget] = useState(targetCategory);
-  if (targetCategory !== seenTarget) {
-    setSeenTarget(targetCategory);
-    if (isCategoryId(targetCategory) && visibleIds.has(targetCategory)) {
+  const targetSatisfiable = isCategoryId(targetCategory) && visibleIds.has(targetCategory);
+  const [active, setActive] = useState<SettingsCategoryId>(() => (targetSatisfiable ? targetCategory : "appearance"));
+  // Adjust state during render (never a setState-in-effect cascade) when the deep-link target changes OR when
+  // an as-yet-UNSATISFIED target becomes satisfiable — the latter is the deep-link-to-when-gated-pane race:
+  // a cold `openSettings('admin')` resolves `active` while the non-suspense sessions.me probe is in flight
+  // (isAdmin false → 'admin' not yet in visibleIds), so we must re-apply once the probe resolves and
+  // visibility GROWS, not only when the target string itself changes. Keying the "seen" latch on
+  // (target, satisfiable) re-fires exactly then, and never again once applied (satisfiable stays true).
+  const [seen, setSeen] = useState<{ readonly target: SettingsCategoryId | null; readonly satisfiable: boolean }>({
+    target: targetCategory,
+    satisfiable: targetSatisfiable,
+  });
+  if (targetCategory !== seen.target || targetSatisfiable !== seen.satisfiable) {
+    setSeen({ target: targetCategory, satisfiable: targetSatisfiable });
+    if (targetSatisfiable) {
       setActive(targetCategory);
     }
   }

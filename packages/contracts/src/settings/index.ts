@@ -9,6 +9,7 @@ import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
+import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -314,7 +315,7 @@ const roleDefaultsSchema = z
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 4;
+export const USER_SETTINGS_SCHEMA_VERSION = 5;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -364,6 +365,29 @@ const worldInfoSchema = z
 const memorySchema = z
   .object({
     enabled: z.boolean().catch(false).default(false),
+  })
+  .prefault({});
+
+// The per-user databank tuning (databank-design/08 §4) — the chunk params ingest uses (chunkText) + the
+// retrieval params gather passes to search.documents (k/minScore/rerank) + the `{{databank}}` slot token
+// budget. `chunk`/`retrieval` REUSE the `#databank` shapes (derive, never re-spell — a drift fails tsc here);
+// `slotTokenBudget` was the chat-side DATABANK_SLOT_TOKEN_BUDGET=4096 constant, absorbed so an admin/user can
+// retune the slot's share of the turn. Every nested block `.prefault({})` so an old blob with no databank
+// section reads the grounded defaults byte-identically (the memory/appearance additive-section precedent).
+const DATABANK_SLOT_TOKEN_BUDGET_MIN = 0;
+const DATABANK_SLOT_TOKEN_BUDGET_MAX = 65_536;
+const DATABANK_SLOT_TOKEN_BUDGET_DEFAULT = 4096;
+const databankSchema = z
+  .object({
+    chunk: chunkParamsSchema.prefault({}),
+    retrieval: databankRetrievalSettingsSchema.prefault({}),
+    slotTokenBudget: z
+      .number()
+      .int()
+      .min(DATABANK_SLOT_TOKEN_BUDGET_MIN)
+      .max(DATABANK_SLOT_TOKEN_BUDGET_MAX)
+      .catch(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT)
+      .default(DATABANK_SLOT_TOKEN_BUDGET_DEFAULT),
   })
   .prefault({});
 
@@ -604,6 +628,7 @@ export const userSettingsSchema = z.object({
   seeds: seedsSchema,
   worldInfo: worldInfoSchema,
   memory: memorySchema,
+  databank: databankSchema,
   chat: chatSchema,
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
@@ -623,6 +648,7 @@ export const USER_SETTINGS_SECTIONS = [
   "seeds",
   "worldInfo",
   "memory",
+  "databank",
   "chat",
   "persona",
 
@@ -708,6 +734,10 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     });
     return { ...c, appearance: { ...appearance, backgroundLibrary } };
   },
+  // v4→v5: the `databank` section (chunk/retrieval/slotTokenBudget) is purely ADDITIVE — an old blob has no
+  // databank key, which reads back as the `.prefault({})` grounded defaults (byte-identical to pre-wire).
+  // Nothing to move; carry every namespace through untouched (the section's absence IS its default).
+  4: (c) => ({ ...c }),
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({

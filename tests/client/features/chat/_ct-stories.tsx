@@ -82,6 +82,7 @@ import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek";
+import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
@@ -1776,6 +1777,18 @@ export function MemorySettingsSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
         <MemorySettingsSection />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Databank settings SECTION (Phase B ④) over the real data layer — getUserSettings +
+ *  updateUserSettingsSection("databank") stubbed in the `.ct.tsx`. Proves the retrieval-tuning write path. */
+export function DatabankSettingsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 640, padding: 16 }}>
+        <DatabankSettingsSection />
       </div>
     </CtDataProviders>
   );

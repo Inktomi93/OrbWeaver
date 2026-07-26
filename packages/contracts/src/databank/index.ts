@@ -65,6 +65,7 @@ export const databankRetrievalSettingsSchema = z.object({
   minScore: z.number().min(0).max(1).default(MIN_SCORE_DEFAULT), // ST score_threshold
   rerank: z.boolean().default(false), // LEAN default off (databank-design/05 §3.5)
 });
+export type DatabankRetrievalSettings = z.infer<typeof databankRetrievalSettingsSchema>;
 
 export const databankSettingsSchema = z.object({
   chunk: chunkParamsSchema,

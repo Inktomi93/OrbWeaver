@@ -21,6 +21,7 @@ const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
+const SCHEMA_VERSION_V5 = 5;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -175,6 +176,10 @@ test("UserSettings.persona.showNotifications defaults true from an empty blob (n
   const parsed = parseUserSettings({});
   expect(parsed.persona.showNotifications).toBe(true);
   expect(DEFAULT_USER_SETTINGS.persona.showNotifications).toBe(true);
+});
+
+test("USER_SETTINGS_SECTIONS includes databank (section-patchable — the DB6 retrieval-tuning write path)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("databank");
 });
 
 test("USER_SETTINGS_SECTIONS includes persona (section-patchable via updateUserSettingsSection)", () => {
@@ -348,9 +353,20 @@ test("v3→v4 lift backfills a DETERMINISTIC entryId on each backgroundLibrary e
   expect(lib[2]?.entryId).toBe("kept_uuid");
 });
 
-test("the pinned schema versions: AppSettings v3 (the engineLaunch section), UserSettings v4 (background-library entryId row-id)", () => {
+test("v4→v5 lift is a no-op passthrough — the databank section is additive, absent ⇒ grounded defaults", () => {
+  // A v4 row (no databank key) lifts to v5 untouched; the missing section reads back as its prefault defaults
+  // (byte-identical to pre-wire — the memory/appearance additive-section precedent). Other namespaces survive.
+  const storedV4 = { worldInfo: { scanDepth: 12 } };
+  const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V5);
+  expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
+  expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
+  expect(lifted.databank.slotTokenBudget).toBe(4096);
+});
+
+test("the pinned schema versions: AppSettings v3 (the engineLaunch section), UserSettings v5 (the databank section)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V3);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V5);
 });
 
 test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (engineLaunch is additive)", () => {

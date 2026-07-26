@@ -14,6 +14,7 @@
 // file-local shape) because BOTH `ForeignInputs` and the assembly producer now reference it — one home.
 
 import type { AssemblePersona } from "@orb/contracts/chat";
+import type { DatabankRetrievalSettings } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { ChatSettings } from "@orb/contracts/settings";
@@ -55,6 +56,10 @@ export interface ResolvedPersonas {
  *                             `TurnPrep.memoryConfig` — D36 opt-out on both sides); absent ⇒ the floor (`DEFAULTS`).
  *   • `chatBehavior`        — the host's `UserSettings.chat` turn-behavior arm (PD-146 — {@link ChatBehaviorInputs}):
  *                             custom stop strings + auto-continue/auto-swipe. All-off ⇒ byte-identical to today.
+ *   • `databankRetrieval`   — the host's `UserSettings.databank.retrieval` (k/minScore/rerank, settings) — the
+ *                             gather passes these to `search.documents` (DB6). Absent ⇒ search's own defaults.
+ *   • `databankSlotTokenBudget` — the host's `UserSettings.databank.slotTokenBudget` — the `{{databank}}` slot's
+ *                             share of the turn. Absent ⇒ the gather's baked 4096 fallback.
  */
 export interface ForeignInputs {
   readonly promptConfig: PromptConfig;
@@ -66,6 +71,13 @@ export interface ForeignInputs {
   /** Absent ⇒ the turn path defaults to {@link DEFAULT_CHAT_BEHAVIOR} (all-off — byte-identical to today),
    *  mirroring the `memoryConfig` opt-out precedent above. The real composition-root op always supplies it. */
   readonly chatBehavior?: ChatBehaviorInputs | undefined;
+  /** The host's `UserSettings.databank.retrieval` (k/minScore/rerank) — the gather passes these to
+   *  `search.documents` (DB6). Absent ⇒ gather omits them and `search.documents` uses its own defaults,
+   *  which ARE the databank defaults (byte-identical to pre-wire); the real compose op always supplies it. */
+  readonly databankRetrieval?: DatabankRetrievalSettings | undefined;
+  /** The host's `UserSettings.databank.slotTokenBudget` — the `{{databank}}` slot's share of the turn.
+   *  Absent ⇒ the gather uses its baked default (4096, byte-identical to pre-wire). */
+  readonly databankSlotTokenBudget?: number | undefined;
 }
 
 /** The PD-146 turn-behavior floor: no custom stops, no auto-continue, no auto-swipe. The one home the turn

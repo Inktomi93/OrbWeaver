@@ -49,11 +49,17 @@ function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): {
 
 export function createGatherRetrieval(ctx: DatabankContext): DatabankService["gatherRetrieval"] {
   return async (params: DatabankGatherParams): Promise<DatabankGatherResult | null> => {
-    // v1: k/minScore/rerank fall to `search.documents`' own defaults, which ARE the databank settings
-    // defaults (databank-design/05 §3.7) — so a settings read (host resolution + getDatabankSettings) buys
-    // nothing here until the Phase-6 per-user override makes it non-trivial. Then this reads the host's
-    // settings and passes explicit values.
-    const hits = await ctx.searchDocuments({ scope: { chatId: params.chatId }, queryText: params.queryText });
+    // The retrieval params (k/minScore/rerank) ride the params from chat's ForeignInputs (the host's
+    // `UserSettings.databank.retrieval`). Each is passed to `search.documents` only when supplied; an absent
+    // value falls to search's own default, which IS the databank default — so a caller not threading them is
+    // byte-identical to pre-wire (databank-design/05 §3.7).
+    const hits = await ctx.searchDocuments({
+      scope: { chatId: params.chatId },
+      queryText: params.queryText,
+      ...(params.k !== undefined ? { k: params.k } : {}),
+      ...(params.minScore !== undefined ? { minScore: params.minScore } : {}),
+      ...(params.rerank !== undefined ? { rerank: params.rerank } : {}),
+    });
     if (hits.length === 0) {
       return null;
     }

@@ -16,6 +16,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
 import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather";
+import type { DatabankGatherParams } from "../../../../../packages/server/src/domain/databank/contract/params";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
@@ -299,6 +300,58 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
     expect(calls[0]?.queryText).toBe("tell me more about that\nsecond turn\nfirst turn");
     expect(calls[0]?.chatId).toBe(chatId);
     expect(calls[0]?.tokenBudget).toBeGreaterThan(0);
+  });
+
+  // DB6 settings wire: the host's `UserSettings.databank` (retrieval k/minScore/rerank + slotTokenBudget),
+  // threaded via ForeignInputs, must reach the gather op so it can pass them to search.documents.
+  test("ForeignInputs databank settings reach the gather op (retrieval params + slot budget)", async () => {
+    const { host, chatId, aria } = await seedRoom("db_settings");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "q" });
+    const calls: DatabankGatherParams[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      gatherDatabank: (args) => {
+        calls.push(args);
+        return Promise.resolve({ text: "# Doc\nhit" });
+      },
+    });
+
+    await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "ask" },
+      foreignOf({ databankRetrieval: { k: 3, minScore: 0.4, rerank: true }, databankSlotTokenBudget: 2048 }),
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.k).toBe(3);
+    expect(calls[0]?.minScore).toBe(0.4);
+    expect(calls[0]?.rerank).toBe(true);
+    expect(calls[0]?.tokenBudget).toBe(2048);
+  });
+
+  test("no databank settings in ForeignInputs ⇒ gather op gets no retrieval params (byte-identity pin)", async () => {
+    const { host, chatId, aria } = await seedRoom("db_default");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "q" });
+    const calls: DatabankGatherParams[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      gatherDatabank: (args) => {
+        calls.push(args);
+        return Promise.resolve({ text: "# Doc\nhit" });
+      },
+    });
+
+    await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "ask" },
+      foreignOf(),
+    );
+
+    expect(calls).toHaveLength(1);
+    // Absent ⇒ omitted (search.documents falls to its own defaults = the databank defaults).
+    expect(calls[0]?.k).toBeUndefined();
+    expect(calls[0]?.minScore).toBeUndefined();
+    expect(calls[0]?.rerank).toBeUndefined();
   });
 });
 

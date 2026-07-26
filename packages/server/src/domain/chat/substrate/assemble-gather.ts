@@ -43,9 +43,10 @@ interface SendRegexSink {
  *  until retrieval complaints trace to query construction. */
 const DATABANK_QUERY_RECENT_TURNS = 2;
 const DATABANK_QUERY_MAX_CHARS = 1000;
-/** The `{{databank}}` slot's share of the turn budget (databank-design/07 §6). v1 LEAN: a chat-side constant
- *  sized to seat the default retrieval (k=5 × 2500-char chunks ≈ 3.1k tokens) while capping a pathological
- *  huge-chunk config — the preset-section-derived budget supersedes it once that apportionment infra lands. */
+/** The `{{databank}}` slot's share of the turn budget (databank-design/07 §6) — the baked FALLBACK when the
+ *  host's `UserSettings.databank.slotTokenBudget` isn't threaded (a test fake / byte-identity pin). The real
+ *  turn supplies it via `foreign.databankSlotTokenBudget`. Sized to seat the default retrieval (k=5 ×
+ *  2500-char chunks ≈ 3.1k tokens) while capping a pathological huge-chunk config. */
 const DATABANK_SLOT_TOKEN_BUDGET = 4096;
 
 /** Build the retrieval query: the pending user text + the last 2 committed turns, most-recent-first, capped.
@@ -62,7 +63,13 @@ function buildDatabankQuery(pendingUserText: string | undefined, eligibleContent
  *  null result produce the SAME empty slot resolution. */
 async function gatherDatabank(
   ctx: ChatContext,
-  args: { readonly chatId: ChatId; readonly pendingUserText: string | undefined; readonly eligibleContent: readonly string[] },
+  args: {
+    readonly chatId: ChatId;
+    readonly pendingUserText: string | undefined;
+    readonly eligibleContent: readonly string[];
+    /** The host's databank settings (DB6), from ForeignInputs — retrieval params + the slot budget. */
+    readonly foreign: ForeignInputs;
+  },
 ): Promise<string | undefined> {
   if (ctx.gatherDatabank === undefined) {
     return;
@@ -71,7 +78,13 @@ async function gatherDatabank(
   if (queryText.length === 0) {
     return;
   }
-  const result = await ctx.gatherDatabank({ chatId: args.chatId, queryText, tokenBudget: DATABANK_SLOT_TOKEN_BUDGET });
+  const retrieval = args.foreign.databankRetrieval;
+  const result = await ctx.gatherDatabank({
+    chatId: args.chatId,
+    queryText,
+    tokenBudget: args.foreign.databankSlotTokenBudget ?? DATABANK_SLOT_TOKEN_BUDGET,
+    ...(retrieval !== undefined ? { k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } : {}),
+  });
   return result === null ? undefined : result.text;
 }
 
@@ -282,7 +295,7 @@ export async function gatherAssembleContext(
       },
       out,
     ),
-    gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content) }),
+    gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
   ]);
 
   // The host-tier regex union (host-global ∪ chat-preset ∪ present cast), deterministically ordered/deduped.

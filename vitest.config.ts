@@ -46,6 +46,9 @@ const SERIAL_INT = [
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
+  // The DB6 databank settings wire (Phase B ④): a full-`createServices` composed-real file — the first
+  // test pays the cold whole-server-graph import + createServices cost, which flakes a parallel 5s timeout.
+  "tests/server/entry/compose/databank.int.test.ts",
   // The P6 agent-seat wire round-trips (D60): full-`createServices` app-fixture files — cold import of the
   // whole server graph on the first test flakes a parallel 5s timeout.
   "tests/server/transport/trpc/routers/chat.int.test.ts",
