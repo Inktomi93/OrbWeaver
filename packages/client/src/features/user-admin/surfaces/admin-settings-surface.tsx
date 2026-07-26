@@ -6,10 +6,12 @@ import { Container, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
-import { settingsAnchorId } from "#state";
+import type { SettingsSectionContribution } from "#state";
+import { resolveSettingsSections, settingsAnchorId } from "#state";
 import { AdminEnginesSection } from "../components/admin-engines-section";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section";
 import { AdminUsersSection } from "../components/admin-users-section";
@@ -17,7 +19,13 @@ import { ADMIN_SUBCATEGORY_IDS } from "../lib/admin-nav";
 
 const anchor = (sub: string): string => settingsAnchorId("admin", sub);
 
-export function AdminSettingsSurface(): ReactElement {
+export interface AdminSettingsSurfaceProps {
+  /** The `admin`-anchored settings-section contributors (§6c) — the AppSettings admin-tier sections (memory
+   *  tuning, rate limits) graft their bodies here. Assembled empty ⇒ byte-identical to the pre-seam pane. */
+  readonly sectionContributors: ContributorRegistry<SettingsSectionContribution>;
+}
+
+export function AdminSettingsSurface({ sectionContributors }: AdminSettingsSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -28,18 +36,22 @@ export function AdminSettingsSurface(): ReactElement {
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       >
         <Container>
-          <AdminPaneBody />
+          <AdminPaneBody sectionContributors={sectionContributors} />
         </Container>
       </QueryBoundary>
     </Stack>
   );
 }
 
-function AdminPaneBody(): ReactElement {
+function AdminPaneBody({ sectionContributors }: AdminSettingsSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: users }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.admin.listUsers.queryOptions(), trpc.sessions.me.queryOptions()],
   });
+
+  // The contributed admin sections (§6c) — the AppSettings admin-tier sections, in declared registry order.
+  // Each owns its own suspense/mutation, so they render below the built sections. Zero contributions ⇒ none.
+  const contributedSections = resolveSettingsSections(sectionContributors, "admin");
 
   return (
     <Stack gap="section">
@@ -55,6 +67,9 @@ function AdminPaneBody(): ReactElement {
       <Section divider={true} heading="Card embeddings" id={anchor(ADMIN_SUBCATEGORY_IDS.embeddings)}>
         <AdminEmbedCardSection />
       </Section>
+      {contributedSections.map((section) => (
+        <Fragment key={section.id}>{section.node}</Fragment>
+      ))}
     </Stack>
   );
 }

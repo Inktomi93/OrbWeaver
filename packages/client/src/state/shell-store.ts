@@ -35,6 +35,14 @@ export const SETTINGS_CATEGORY_IDS = [
 ] as const;
 export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
 
+// The settings-pane anchors that accept contributed SECTIONS (client-architecture-lockdown.md §6c) — SHELL
+// VOCABULARY by the M6.1 test (§5 rule 5): it keys door-assembled contributions spanning features
+// (chat-behavior ← chat/world-info; admin ← user-admin), so it homes HERE beside SETTINGS_CATEGORY_IDS, not
+// in the registry file (which re-declaring it would trip `no-parallel-section-map`, the YOU_MODAL_IDS shape).
+// `satisfies readonly SettingsCategoryId[]` keeps anchors a checked SUBSET — an anchor must be a real pane.
+export const SETTINGS_SECTION_ANCHORS = ["chat-behavior", "admin"] as const satisfies readonly SettingsCategoryId[];
+export type SettingsSectionAnchor = (typeof SETTINGS_SECTION_ANCHORS)[number];
+
 /** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
 export type PanelMode = (typeof PANEL_MODES)[number];

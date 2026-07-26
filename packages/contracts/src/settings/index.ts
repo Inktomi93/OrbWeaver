@@ -36,23 +36,89 @@ const RECENCY_BIAS_FLOOR = 0;
 const TEMPERATURE_FLOOR = 0;
 const TEMPERATURE_CEIL = 2;
 
+// The per-knob numeric BOUNDS — the ONE home the schema below AND the admin surface's clamp both read, so a
+// clamped client value always passes the schema (no silent-wipe path: an out-of-range send fails the inner
+// schema and trips memoryDefaults' `.catch(undefined)`, wiping EVERY override). `int` = integer-only;
+// `min`/`max` inclusive; `max: null` = unbounded above (the count knobs — the schema never capped them, so
+// clamping preserves the exact accepted set). `mode` (enum) + `keywordMatch` (boolean) are non-numeric.
+export const MEMORY_DEFAULTS_BOUNDS = {
+  blockSize: { min: 1, max: null, int: true },
+  verbatimWindow: { min: 0, max: null, int: true },
+  queryWindow: { min: 1, max: null, int: true },
+  fanOut: { min: 1, max: null, int: true },
+  maxTier: { min: 0, max: null, int: true },
+  retrieveK: { min: 1, max: null, int: true },
+  rerankTo: { min: 1, max: null, int: true },
+  minScore: { min: SCORE_FLOOR, max: SCORE_CEIL, int: false },
+  recencyBias: { min: RECENCY_BIAS_FLOOR, max: null, int: false },
+} as const;
+export type MemoryDefaultsBoundKey = keyof typeof MEMORY_DEFAULTS_BOUNDS;
+
+// Build one knob's zod number from its bounds (the schema DERIVES from MEMORY_DEFAULTS_BOUNDS — never a
+// re-spelled literal that could drift from the surface's clamp).
+function memoryKnob(key: MemoryDefaultsBoundKey, describe: string): z.ZodOptional<z.ZodNumber> {
+  const b = MEMORY_DEFAULTS_BOUNDS[key];
+  const withInt = b.int ? z.number().int() : z.number();
+  const withMin = withInt.min(b.min);
+  const bounded = b.max === null ? withMin : withMin.max(b.max);
+  return bounded.optional().describe(describe);
+}
+
+/** Clamp a raw numeric input for one memoryDefaults knob to its schema bounds (min/max + round-to-int),
+ *  returning `null` for a non-finite input (the caller drops it). The admin surface calls this before
+ *  writing so a fat-fingered value is CLAMPED to a valid one instead of sent out-of-range — which would fail
+ *  the inner schema and trip `memoryDefaults.catch(undefined)`, silently wiping every override. One home for
+ *  the bounds ⇒ the clamp and the schema can never disagree. */
+export function clampMemoryDefault(key: MemoryDefaultsBoundKey, raw: number): number | null {
+  if (!Number.isFinite(raw)) {
+    return null;
+  }
+  const b = MEMORY_DEFAULTS_BOUNDS[key];
+  const rounded = b.int ? Math.round(raw) : raw;
+  const floored = Math.max(b.min, rounded);
+  return b.max === null ? floored : Math.min(b.max, floored);
+}
+
 export const memoryDefaultsSchema = z.object({
-  blockSize: z.number().int().positive().optional().describe("Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
-  verbatimWindow: z.number().int().nonnegative().optional().describe("Recent messages never digested — the protect zone / seam buffer (default 8)."),
-  queryWindow: z.number().int().positive().optional().describe("Recent messages used as the retrieval query for mixB/mixC (default 2)."),
+  blockSize: memoryKnob("blockSize", "Messages per tier-0 digest block (default 8; ≈3k BGE tok, under the 8192 cap)."),
+  verbatimWindow: memoryKnob("verbatimWindow", "Recent messages never digested — the protect zone / seam buffer (default 8)."),
+  queryWindow: memoryKnob("queryWindow", "Recent messages used as the retrieval query for mixB/mixC (default 2)."),
   mode: z
     .enum(MEMORY_RETRIEVAL_MODES)
     .optional()
     .describe("off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC."),
-  fanOut: z.number().int().positive().optional().describe("Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
-  maxTier: z.number().int().nonnegative().optional().describe("Max consolidation depth; 0 = tier-0 only (default 3)."),
-  retrieveK: z.number().int().positive().optional().describe("Vector candidate pool size for mixB/mixC (default 8)."),
-  rerankTo: z.number().int().positive().optional().describe("Digests kept after cross-encoder rerank in mixC (default 3)."),
-  minScore: z.number().min(SCORE_FLOOR).max(SCORE_CEIL).optional().describe("Minimum cosine similarity for a retrieved digest (default 0.25)."),
+  fanOut: memoryKnob("fanOut", "Tier-k digests consolidated into one tier-(k+1) digest (default 4)."),
+  maxTier: memoryKnob("maxTier", "Max consolidation depth; 0 = tier-0 only (default 3)."),
+  retrieveK: memoryKnob("retrieveK", "Vector candidate pool size for mixB/mixC (default 8)."),
+  rerankTo: memoryKnob("rerankTo", "Digests kept after cross-encoder rerank in mixC (default 3)."),
+  minScore: memoryKnob("minScore", "Minimum cosine similarity for a retrieved digest (default 0.25)."),
   keywordMatch: z.boolean().optional().describe("Also match digest keywords whole-word against recent messages (default true)."),
-  recencyBias: z.number().min(RECENCY_BIAS_FLOOR).optional().describe("Mild score boost toward recent digests in mixB/mixC (default 0 = off)."),
+  recencyBias: memoryKnob("recencyBias", "Mild score boost toward recent digests in mixB/mixC (default 0 = off)."),
 });
 export type MemoryDefaults = z.infer<typeof memoryDefaultsSchema>;
+
+// Every knob present + non-nullable — the resolved floor shape (the server `ResolvedMemoryConfig` mirror,
+// derived from `MemoryDefaults` so a new knob flows here automatically). `Required<>` alone keeps zod's
+// `| undefined`, so strip it with `NonNullable`.
+export type ResolvedMemoryDefaults = { [K in keyof MemoryDefaults]-?: NonNullable<MemoryDefaults[K]> };
+
+// The baked-in memoryDefaults FLOOR — the core/Knowledge-Cluster.md §5 grounded numbers (every knob present),
+// the ONE home for the values the schema `.describe()` strings document. The server resolver
+// (domain/chat/memory/constants.ts DEFAULTS) derives from this; the admin surface reads it to show the floor
+// beneath an override. Every field non-optional: this IS the floor an absent override falls through to.
+export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
+  blockSize: 8,
+  verbatimWindow: 8,
+  queryWindow: 2,
+  mode: "mixC",
+  fanOut: 4,
+  maxTier: 3,
+  retrieveK: 8,
+  rerankTo: 3,
+  minScore: 0.25,
+  keywordMatch: true,
+  recencyBias: 0,
+};
 
 export const memorySummarizerSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
@@ -60,21 +126,49 @@ export const memorySummarizerSchema = z.object({
 });
 export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
 
+// The memorySummarizer maxTokens FLOOR — the ONE home for the digest-output reserve. The server's
+// `DEFAULT_OUTPUT_RESERVE_TOKENS` (domain/chat/memory .../token-guard.ts) DERIVES from this, and the admin
+// surface shows it beneath the override, so the displayed floor and the reserve the summarize request uses
+// can't diverge. `temperature` has no fixed floor — unset ⇒ the summarizer provider's own default (the
+// surface shows "provider default", never a fabricated number), so it is omitted here.
+export const DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS = 1024;
+
 // Per-window request-cap bounds (a security control — see domain/settings/effective-config/layer.ts +
 // entry/rate-limit-gate.ts). MIN keeps an admin from setting a self-locking absurd-low cap (a cap of 1/min
 // would DoS the deployment); MAX keeps a fat-fingered/hostile value from being an effectively-uncapped hole.
 // A value outside these bounds fails parse → the field is dropped → the resolver reads the env floor
 // (fail-safe: an absurd override never LOOSENS or breaks the limiter, it falls back to the known-good floor).
-const RATE_LIMIT_CAP_MIN = 5;
-const RATE_LIMIT_CAP_MAX = 100_000;
+export const RATE_LIMIT_CAP_MIN = 5;
+export const RATE_LIMIT_CAP_MAX = 100_000;
 const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
 export const rateLimitsSchema = z.object({
-  general: rateLimitCap(),
   aiTurn: rateLimitCap(),
   publicIp: rateLimitCap(),
   authed: rateLimitCap(),
+  // Per-IP login-attempt cap/min (backs the auth-route throttle — brute-force + scrypt-CPU-flood guard).
+  login: rateLimitCap(),
 });
 export type RateLimits = z.infer<typeof rateLimitsSchema>;
+
+/** Clamp a raw rate-limit cap to the schema bounds (integer, MIN..MAX), `null` for non-finite. The admin
+ *  surface clamps before writing so a fat-fingered cap is corrected instead of sent out-of-range — which
+ *  would fail the schema and trip `rateLimits.catch(undefined)`, silently wiping every cap override. Shares
+ *  the ONE bounds home with `rateLimitsSchema`. */
+export function clampRateLimit(raw: number): number | null {
+  if (!Number.isFinite(raw)) {
+    return null;
+  }
+  return Math.min(RATE_LIMIT_CAP_MAX, Math.max(RATE_LIMIT_CAP_MIN, Math.round(raw)));
+}
+
+/** Clamp a raw memorySummarizer maxTokens to its schema bounds (positive integer), `null` for non-finite —
+ *  same silent-wipe guard as the others (an invalid value would trip `memorySummarizer.catch(undefined)`). */
+export function clampMemorySummarizerMaxTokens(raw: number): number | null {
+  if (!Number.isFinite(raw)) {
+    return null;
+  }
+  return Math.max(1, Math.round(raw));
+}
 
 export const vllmConcurrencySchema = z.object({
   embed: z.number().int().positive().optional(),
@@ -634,10 +728,10 @@ export function parseUserSettings(raw: unknown, storedVersion?: number): UserSet
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export interface ResolvedRateLimits {
-  general: number;
   aiTurn: number;
   publicIp: number;
   authed: number;
+  login: number;
 }
 
 export interface ResolvedVllmConcurrency {
@@ -682,4 +776,14 @@ export interface EffectiveAppConfig {
   localMultiUser: boolean;
   discreetLogin: boolean;
   maxImageBytes: number;
+}
+
+/** The admin-surface read for AppSettings: the RESOLVED config (floor ⊕ override, every field present) PLUS
+ *  the raw STORED overrides (every field `null`/absent = the floor governs, a value = an active override).
+ *  The pane needs BOTH to render honestly — which fields are actively overridden vs on the floor, and to
+ *  offer a real "clear override" (write the `null` sentinel). `getAppSettings` returns only `resolved`; this
+ *  richer read (`getAppSettingsWithOverrides`) adds `overrides` without changing that existing surface. */
+export interface AppSettingsView {
+  readonly resolved: EffectiveAppConfig;
+  readonly overrides: AppSettings;
 }

@@ -8,24 +8,13 @@
 // deterministic — no clock, no I/O (these are VALUES/a function, not exported types, so `types-in-contract`
 // does not apply).
 
+import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { MemoryConfig, ResolvedMemoryConfig } from "./types";
 
-/** The baked-in resolver floor — the core/Knowledge-Cluster.md §5 grounded defaults, mirroring the
- *  `memoryDefaultsSchema` describe-defaults (blockSize 8, verbatimWindow 8, queryWindow 2, mode `mixC`,
- *  fanOut 4, maxTier 3, retrieveK 8, rerankTo 3, minScore 0.25, keywordMatch on, recencyBias off). */
-export const DEFAULTS: ResolvedMemoryConfig = {
-  blockSize: 8,
-  verbatimWindow: 8,
-  queryWindow: 2,
-  mode: "mixC",
-  fanOut: 4,
-  maxTier: 3,
-  retrieveK: 8,
-  rerankTo: 3,
-  minScore: 0.25,
-  keywordMatch: true,
-  recencyBias: 0,
-};
+/** The baked-in resolver floor — the core/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
+ *  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it
+ *  displays); this re-exports under the subsystem's `ResolvedMemoryConfig` type (every knob present). */
+export const DEFAULTS: ResolvedMemoryConfig = DEFAULT_MEMORY_DEFAULTS;
 
 /** Resolve a partial `memoryDefaults` over {@link DEFAULTS} (each absent/undefined knob → the floor). Pure +
  *  deterministic: identical input → identical output (no ambient state). */

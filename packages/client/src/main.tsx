@@ -31,7 +31,7 @@ import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { adminPane } from "#features/user-admin";
+import { makeAdminPane, memoryTuningSection, rateLimitsSection } from "#features/user-admin";
 import { backupPane, workloadsPane } from "#features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
@@ -169,6 +169,11 @@ const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionCo
   worldInfoSettingsSection,
 ]);
 
+// The admin-anchored sections (Phase B ③): the AppSettings admin-tier surfaces (memory tuning +
+// summarizer, rate limits) — owned by user-admin (admin-tier config), grafted into the admin pane via the
+// same seam. An empty list ⇒ the admin pane is byte-identical.
+const adminSettingsSections = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [memoryTuningSection, rateLimitsSection]);
+
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
@@ -182,7 +187,7 @@ const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   connections: connectionsPane,
   automation: automationPane,
   system: systemPane,
-  admin: adminPane,
+  admin: makeAdminPane(adminSettingsSections),
 });
 
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders

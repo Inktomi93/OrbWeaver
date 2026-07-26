@@ -47,6 +47,7 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
     sessions: sessionsStub(),
     now: (): number => NOW,
     db,
+    resolveLoginLimit: (): number => 10,
     authenticate: ownerAuth(castId<UserId>("usr_owner")),
     ...over,
   };

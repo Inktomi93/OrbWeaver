@@ -46,11 +46,11 @@ const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
 const LOGIN_BODY_KIB = 4;
 const BYTES_PER_KIB = 1024;
-// Per-IP login throttle: 10 attempts/min/IP caps brute-force + scrypt-CPU-flood on the only
-// unauthenticated CPU-heavy endpoint `local` mode opens (the tRPC rate-limit mount doesn't cover this
-// plain Hono route). DB-backed (transport/rate-limit) so the cap holds across replicas.
+// Per-IP login throttle: caps brute-force + scrypt-CPU-flood on the only unauthenticated CPU-heavy endpoint
+// `local` mode opens (the tRPC rate-limit mount doesn't cover this plain Hono route). DB-backed
+// (transport/rate-limit) so the cap holds across replicas. The cap itself is `AppSettings.rateLimits.login`
+// (env floor RATE_LIMIT_LOGIN=10 ⊕ admin override), resolved fresh per attempt via `deps.resolveLoginLimit`.
 const LOGIN_WINDOW_MS = 60_000;
-const LOGIN_MAX_PER_WINDOW = 10;
 const LOGIN_RATE_SCOPE = "login-ip";
 // The anonymous caller when no peer IP resolves — one shared throttle bucket beats an un-throttled hole.
 const UNKNOWN_IP_KEY = "unknown";
@@ -182,6 +182,10 @@ export interface AuthRoutesDeps {
   readonly now: () => number;
   /** Backs the per-IP login throttle (shared `rate_limit_buckets` table — replica-correct). */
   readonly db: Db;
+  /** The RESOLVED per-IP login-attempt cap/min (env floor ⊕ AppSettings override), read FRESH per attempt —
+   *  a mid-session admin edit reloads the effective-config cache, so the next attempt sees the new cap (LIVE,
+   *  the tRPC rate-limit-gate pattern). */
+  readonly resolveLoginLimit: () => number;
   readonly authenticate?: LocalAuthenticator;
   readonly oidc?: OidcRoutesDeps;
 }
@@ -207,13 +211,12 @@ async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response
 /** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → verify → mint cookie. */
 function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
   // DB-backed throttle (shared rate_limit_buckets → replica-correct). Body-limit belt runs first so a huge
-  // POST is rejected before the body buffers; the throttle then caps brute-force + scrypt-CPU-flood.
-  // Hardcoded cap THIS lane — the admin-flippable `AppSettings.rateLimits.login` field is Phase B schema
-  // work; when it lands, thread `() => settings.getEffectiveConfig().rateLimits.login` here (the tRPC gate's
-  // live-cap pattern, entry/rate-limit-gate.ts) instead of the LOGIN_MAX_PER_WINDOW constant.
+  // POST is rejected before the body buffers; the throttle then caps brute-force + scrypt-CPU-flood. The cap
+  // is the RESOLVED `AppSettings.rateLimits.login` (env floor RATE_LIMIT_LOGIN=10 ⊕ admin override), read
+  // FRESH per attempt so an admin edit is LIVE (the tRPC gate's live-cap pattern, entry/rate-limit-gate.ts).
   const loginLimiter = createRateLimiter(deps.db, {
     scope: LOGIN_RATE_SCOPE,
-    points: LOGIN_MAX_PER_WINDOW,
+    points: () => deps.resolveLoginLimit(),
     windowMs: LOGIN_WINDOW_MS,
     now: deps.now,
   });

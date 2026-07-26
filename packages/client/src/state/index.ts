@@ -163,12 +163,11 @@ export type {
   ResolvedSettingsSection,
   SettingsGroup,
   SettingsPaneDefinition,
-  SettingsSectionAnchor,
   SettingsSectionContribution,
   SettingsSubcategory,
   SettingsViewerView,
 } from "./settings-pane-registry";
-export { resolveSettingsSections, SETTINGS_GROUPS, SETTINGS_SECTION_ANCHORS, settingsAnchorId, settingsSectionNavs } from "./settings-pane-registry";
+export { resolveSettingsSections, SETTINGS_GROUPS, settingsAnchorId, settingsSectionNavs } from "./settings-pane-registry";
 export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
 export {
   SettingsPaneRegistryContext,
@@ -181,6 +180,7 @@ export type {
   PanelName,
   SectionId,
   SettingsCategoryId,
+  SettingsSectionAnchor,
 } from "./shell-store";
 export {
   closeModal,
@@ -192,6 +192,7 @@ export {
   revealContextPanel,
   SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
+  SETTINGS_SECTION_ANCHORS,
   setActiveSection,
   setContextTab,
   setMobileViewport,

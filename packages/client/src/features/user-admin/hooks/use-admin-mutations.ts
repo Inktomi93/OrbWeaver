@@ -65,6 +65,16 @@ export const useUpdateAppSettings = createEntityMutation<{ readonly partial: App
   errorToast: "Couldn't save the engine launch config.",
 });
 
+/** Write an AppSettings-override PATCH from an admin settings SECTION (Phase B ③: memory tuning, summarizer,
+ *  rate limits). Same admin-gated `updateAppSettings` path; a field value = an override, `null` = clear it
+ *  to the floor. Invalidates BOTH admin reads — `getAppSettings` (the engine-launch surface) AND
+ *  `getAppSettingsWithOverrides` (these sections' floor-vs-override read). */
+export const useUpdateAppOverrides = createEntityMutation<{ readonly partial: AppSettings }, EffectiveAppConfig>({
+  options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
+  invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter(), trpc.settings.getAppSettingsWithOverrides.queryFilter()],
+  errorToast: "Couldn't save the setting.",
+});
+
 /** Refresh the OpenRouter model catalog (fetch `/models` → write the KV snapshot, warm the cache).
  *  Invalidates the browse read so pickers see the fresh catalog. */
 export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connection"]["refreshCatalog"]>, unknown>({

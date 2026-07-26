@@ -14,7 +14,8 @@ describe("layer (floor-merge)", () => {
     const cfg = layer({});
     expect(cfg.corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
     expect(cfg.logLevel).toBe(env.LOG_LEVEL);
-    expect(cfg.rateLimits.general).toBe(env.RATE_LIMIT_GENERAL);
+    expect(cfg.rateLimits.authed).toBe(env.RATE_LIMIT_AUTHED);
+    expect(cfg.rateLimits.login).toBe(env.RATE_LIMIT_LOGIN);
   });
 
   test("an override field WINS over the floor", () => {

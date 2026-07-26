@@ -13,11 +13,11 @@
 // names "general". Window is env-only (`RATE_LIMIT_WINDOW_MS`, no AppSettings override — a fixed-window
 // size, not a cap).
 //
-// NOTE — the `rateLimits.general` FIELD (env floor RATE_LIMIT_GENERAL, 120) is NOT consumed: the design
-// docs describe only publicIp / authed(=the "general"-scope per-user bucket) / aiTurn, so `general`'s
-// distinct enforcement point is unrecoverable. Wiring the per-user bucket to it instead of `authed` would
-// TIGHTEN 600→120 (a behavior change, not the byte-identical wire-up this lane requires). Left for a
-// DOORWAY/DEFERRED ruling — see the lane report.
+// NOTE — the `general` SCOPE literal (below) is the AUTHED per-user bucket; its cap is `rateLimits.authed`.
+// The former `rateLimits.general` FIELD was DELETED (owner-final, D107): it was never consumed (no
+// recoverable enforcement point distinct from `authed`), its name was poisoned, and the knob-wire gate makes
+// a future re-add safe. Deleting it loosened nothing (it drove no bucket). The login-attempt cap now rides
+// `rateLimits.login` (auth-routes.ts threads getEffectiveConfig().rateLimits.login into the login limiter).
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";

@@ -48,6 +48,9 @@ export const settingsRouter = t.router({
   // AppSettings (admin-runtime) — admin-gated at the router; the verb re-checks via the injected guard.
   getAppSettings: adminProcedure.query(({ ctx }) => ctx.services.settings.getAppSettings({ principal: ctx.auth })),
 
+  // The admin surface's honest read: resolved config + raw stored overrides (floor-vs-override + clear).
+  getAppSettingsWithOverrides: adminProcedure.query(({ ctx }) => ctx.services.settings.getAppSettingsWithOverrides({ principal: ctx.auth })),
+
   updateAppSettings: adminProcedure
     .input(z.object({ partial: appSettingsSchema }))
     .mutation(({ ctx, input }) => ctx.services.settings.updateAppSettings({ principal: ctx.auth, partial: input.partial })),

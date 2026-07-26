@@ -9,7 +9,8 @@
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "#lib";
-import type { SettingsCategoryId } from "./shell-store";
+import type { SettingsCategoryId, SettingsSectionAnchor } from "./shell-store";
+import { SETTINGS_SECTION_ANCHORS } from "./shell-store";
 
 /** The two nav groups — the settings region's USER + APP micro-caps taxonomy (pane taxonomy homes WITH
  *  the Def, not shell-store — the section-registry `SectionGroup` precedent). */
@@ -79,13 +80,11 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // rides DOWN from `#lib` (the sanctioned direction, the slash-command-registry-context precedent).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The pane anchors that accept contributed sections — a CLOSED tuple (an unlisted anchor is unspellable;
- *  the `CHARACTER_DETAIL_ANCHORS` posture). Today ONE: the chat-behavior pane's body, where per-chat
- *  generation-context sections (memory, world-info) land. A future host pane adds one entry + one union
- *  arm. Each anchor is a live `SettingsCategoryId` — the pane it targets — so a contribution's nav merges
- *  into that pane's own subcategories under the shared `settingsAnchorId`. */
-export const SETTINGS_SECTION_ANCHORS = ["chat-behavior"] as const satisfies readonly SettingsCategoryId[];
-export type SettingsSectionAnchor = (typeof SETTINGS_SECTION_ANCHORS)[number];
+// The anchor vocabulary (`SETTINGS_SECTION_ANCHORS` / `SettingsSectionAnchor`) is SHELL VOCABULARY and homes
+// in `shell-store.ts` beside `SETTINGS_CATEGORY_IDS` (§5 rule 5 / M6.1; re-declaring it here trips
+// `no-parallel-section-map`). It is imported above; `chat-behavior` hosts per-chat generation sections
+// (memory master switch, world-info), `admin` hosts the AppSettings admin-tier sections (memory tuning,
+// summarizer, rate limits). Each anchor is a checked SUBSET of `SettingsCategoryId` — the pane it targets.
 
 /** A contributed settings section (§6c) — a discriminated union BY ANCHOR (the `ChatSurfaceContribution`
  *  shape), so a second anchor carrying a different projection narrows cleanly with zero casts. One arm
