@@ -751,11 +751,11 @@ async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: U
 // empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
 // server-read field stays inert BY DESIGN.
 
-/** The bound on each auto-behavior — ONE follow-up, never a loop (neo parity: a model that keeps hitting the
- *  length cap needs a bigger `maxOutputTokens`, and one that keeps producing rejects needs a different prompt
- *  — not an unbounded spend). Written as a bounded re-check so the shape stays extensible. */
-const AUTO_CONTINUE_MAX = 1;
-const AUTO_SWIPE_MAX = 1;
+// The bound on each auto-behavior is now the host's PD-146 knob (`UserSettings.chat.autoContinueRounds` /
+// `autoSwipe.maxRetries`, default 1 — the neo-parity ONE-follow-up floor, byte-identical), threaded via
+// `ChatBehaviorInputs` and read in the loops below. A model that keeps hitting the length cap wants a bigger
+// `maxOutputTokens`, and one that keeps producing rejects wants a different prompt — the ceiling (5) caps a
+// pathological spend.
 
 /** The auxiliary verbs the send's post-round auto-behaviors re-enter (built once at {@link createTurn}). Each
  *  re-runs the full member gate under the SAME principal + registers its OWN abort handle, so a user abort
@@ -803,7 +803,7 @@ interface AutoFrame {
 async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView, cfg: ChatBehaviorInputs["autoSwipe"]): Promise<MessageView[]> {
   const rows: MessageView[] = [];
   let current = tip;
-  for (let i = 0; i < AUTO_SWIPE_MAX && !frame.signal.aborted; i += 1) {
+  for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
     const target = current;
     // biome-ignore lint/performance/noAwaitInLoops: each swipe re-checks the prior variant + takes the per-chat lock — inherently sequential (bound 1).
     const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
@@ -821,10 +821,10 @@ async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Messa
 
 /** The bounded auto-continue loop: extend a length-capped reply via one continue, up to the bound. Stops
  *  when the tip no longer finished at the length cap, the bound is hit, a continue fails, or abort fires. */
-async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView): Promise<MessageView[]> {
+async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: MessageView, rounds: number): Promise<MessageView[]> {
   const rows: MessageView[] = [];
   let current = tip;
-  for (let i = 0; i < AUTO_CONTINUE_MAX && !frame.signal.aborted; i += 1) {
+  for (let i = 0; i < rounds && !frame.signal.aborted; i += 1) {
     if (current.role !== "assistant" || current.finishReason !== "length") {
       break;
     }
@@ -865,7 +865,7 @@ async function runAutoBehaviors(
     return await runAutoSwipe(auto, frame, tip, args.behavior.autoSwipe);
   }
   if (args.behavior.autoContinue) {
-    return await runAutoContinue(auto, frame, tip);
+    return await runAutoContinue(auto, frame, tip, args.behavior.autoContinueRounds);
   }
   return [];
 }

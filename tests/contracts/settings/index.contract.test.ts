@@ -170,6 +170,24 @@ test("additive namespaces (onboarding/groupDefaults/workloads/profile) read defa
   expect(parsed.groupDefaults).toEqual(DEFAULT_GROUP_CONFIG);
 });
 
+test("onboarding: personaWizardSeen was DELETED (⑥); a stored stale value is stripped, sibling seeded-flags survive", () => {
+  // The dead field is gone from the shape (the first-run gate triggers on zero personas, not a "seen" flag).
+  expect(Object.hasOwn(DEFAULT_USER_SETTINGS.onboarding, "personaWizardSeen")).toBe(false);
+  // A stamped blob carrying the retired key parses (zod strips the unknown key) and keeps the consumed
+  // sibling flags. `schemaVersion` stamped so no lift rewrites the shape (this pins the current parse, not a lift).
+  const parsed = parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, onboarding: { personaWizardSeen: true, defaultPersonaSeeded: true } });
+  expect(Object.hasOwn(parsed.onboarding, "personaWizardSeen")).toBe(false);
+  expect(parsed.onboarding.defaultPersonaSeeded).toBe(true);
+});
+
+test("workloads: the analysis-tuning knobs are section-patchable (⑤) — maxPairs/hubFraction accepted", () => {
+  const parsed = parseUserSettings({
+    schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+    workloads: { dupThreshold: 0.8, computeThemesK: 20, maxPairs: 5000, hubFraction: 0.3 },
+  });
+  expect(parsed.workloads).toEqual({ dupThreshold: 0.8, computeThemesK: 20, maxPairs: 5000, hubFraction: 0.3 });
+});
+
 // ── persona (FINAL-Persona §A.6b) — the additive persona-UX namespace ──
 
 test("UserSettings.persona.showNotifications defaults true from an empty blob (no version bump)", () => {

@@ -56,7 +56,9 @@ export interface WorkloadDatabankEnv {
 export interface WorkloadDiscoveryEnv {
   readonly computeThemes: (args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => Promise<AnalyticsResult>;
   readonly distillCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly computeCooccurrence: (args: { signal: AbortSignal }) => Promise<AnalyticsResult>;
+  /** `maxPairs`/`hubFraction` (optional) are the triggering user's `UserSettings.workloads` cooccurrence
+   *  knobs; absent ⇒ discovery's own runner floors (DEFAULT_MAX_PAIRS / DEFAULT_HUB_FRACTION). */
+  readonly computeCooccurrence: (args: { maxPairs?: number | undefined; hubFraction?: number | undefined; signal: AbortSignal }) => Promise<AnalyticsResult>;
   /** `threshold` (optional) is the CHARACTER arm's raw-cosine floor (0..1); absent ⇒ discovery's own default.
    *  The chat Jaccard arm keeps its own floor internally — a different metric, never this cosine knob. */
   readonly findDuplicates: (args: { ownerId: UserId | null; threshold?: number | undefined; signal: AbortSignal }) => Promise<AnalyticsResult>;

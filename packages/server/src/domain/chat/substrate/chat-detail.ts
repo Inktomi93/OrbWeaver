@@ -72,6 +72,7 @@ export function toChatDetail({
     pendingHostUserId: chat.pendingHostUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
+    toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
     background: chat.metadata.background ?? null,
     opening: chat.metadata.opening ?? null,
     compactSummary: checkpointVisible ? chat.compactSummary : null,

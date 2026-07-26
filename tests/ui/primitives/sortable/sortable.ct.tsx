@@ -91,6 +91,27 @@ test("keyboard reorder in handle mode: focus survives the ArrowDown re-render on
   await expect(page.getByTestId("reorder-count")).toHaveText("1");
 });
 
+// The property the focus-loss defect actually breaks: continuing a MULTI-STEP keyboard reorder. If the
+// first ArrowDown strands focus on <body>, the SECOND ArrowDown never reaches the sensor and the drag
+// can't complete on the intended target. Pick up item 0, arrow past item 1 AND item 2 (two moves),
+// drop — it must land last (count=1, order 1,2,0). This fails outright when restoration is
+// render-coupled and the state-flip-before-focus-loss race fires.
+test("keyboard reorder in handle mode: a second ArrowDown after the first still completes the move", async ({ mount, page }) => {
+  await mount(<ReorderableList handle={true} itemCount={3} />);
+  const handles = page.locator('[data-slot="sortable-handle"]');
+  const rows = page.locator('[data-slot="sortable-item"]');
+  await handles.nth(0).focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Space");
+
+  await expect(page.getByTestId("reorder-count")).toHaveText("1");
+  await expect(rows.nth(0)).toContainText("Item 1");
+  await expect(rows.nth(1)).toContainText("Item 2");
+  await expect(rows.nth(2)).toContainText("Item 0");
+});
+
 test("keyboard drag start/drop announce through the aria-live region", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');

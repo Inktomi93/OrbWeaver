@@ -663,13 +663,17 @@ const MANAGED_VERBATIM_TAIL = 8;
  *   • no fit boundary (the agent-sdk norm — the SDK owns context, nothing trims) → keep the newest
  *     `MANAGED_VERBATIM_TAIL` rows verbatim and cover everything older (`maxSeq - tail`).
  *  `undefined` when there is nothing old enough to compact (a short chat under the tail) — no coverage this turn. */
-function resolveCoveragePoint(result: Awaited<ReturnType<typeof runTurnPipeline>>, canonAll: readonly MessageView[]): number | undefined {
+function resolveCoveragePoint(
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+  canonAll: readonly MessageView[],
+  compaction: NonNullable<UserIntent["compaction"]>,
+): number | undefined {
   if (result.contextBoundaryMessageId !== null) {
     const boundarySeq = canonAll.find((m) => m.id === result.contextBoundaryMessageId)?.seq;
     return boundarySeq === undefined ? undefined : boundarySeq - 1;
   }
   const maxSeq = canonAll.at(-1)?.seq ?? 0;
-  const coverage = maxSeq - MANAGED_VERBATIM_TAIL;
+  const coverage = maxSeq - (compaction.verbatimTail ?? MANAGED_VERBATIM_TAIL);
   return coverage > 0 ? coverage : undefined;
 }
 
@@ -701,7 +705,7 @@ function preTurnCoveragePoint(args: {
   // Over threshold → compact through everything older than the recent verbatim tail (same rule as the post-turn
   // no-fit-boundary path). Undefined when there is nothing old enough to compact yet.
   const maxSeq = args.canonAll.at(-1)?.seq ?? 0;
-  const coverage = maxSeq - MANAGED_VERBATIM_TAIL;
+  const coverage = maxSeq - (args.compaction.verbatimTail ?? MANAGED_VERBATIM_TAIL);
   return coverage > args.currentCoverage && coverage > 0 ? coverage : undefined;
 }
 
@@ -816,7 +820,7 @@ function fireManagedCompaction(
   if (compaction.mode !== "managed" || prep.connection.api !== "agent-sdk" || !compactionTriggered(compaction, turn.result)) {
     return;
   }
-  const coveragePoint = resolveCoveragePoint(turn.result, turn.canonAll);
+  const coveragePoint = resolveCoveragePoint(turn.result, turn.canonAll, compaction);
   if (coveragePoint === undefined) {
     return;
   }

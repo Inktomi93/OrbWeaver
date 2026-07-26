@@ -38,7 +38,7 @@ import {
 } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection } from "@orb/client/features/user-admin";
-import { backupPane, workloadsPane } from "@orb/client/features/workloads";
+import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "@orb/client/features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "@orb/client/features/world-info";
 import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
@@ -140,12 +140,17 @@ const realAdminSections: ContributorRegistry<SettingsSectionContribution> = crea
   rateLimitsSection,
 ]);
 
+const realWorkloadsSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>(
+  "workloads-settings-sections",
+  [workloadsTuningSection],
+);
+
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
   personas: personasPane,
   appearance: appearancePane,
   automation: automationPane,
   tags: tagsPane,
-  workloads: workloadsPane,
+  workloads: makeWorkloadsPane(realWorkloadsSections),
   backup: backupPane,
   "chat-behavior": makeChatBehaviorPane(realSettingsSections),
   regex: regexPane,

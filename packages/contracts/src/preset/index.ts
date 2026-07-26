@@ -154,6 +154,11 @@ const REPETITION_PENALTY_MIN = 0;
 const REPETITION_PENALTY_MAX = 2;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
+// The managed-compaction VERBATIM TAIL: the newest N canon rows kept literal when the SDK owns context and
+// nothing trims — everything older is compacted (`maxSeq - tail`). Was the engine's `MANAGED_VERBATIM_TAIL=8`
+// const (the missing 4th compaction knob); a value outside these bounds drops at parse → the engine floor.
+const COMPACTION_VERBATIM_TAIL_MIN = 1;
+const COMPACTION_VERBATIM_TAIL_MAX = 100;
 
 // The RESPONSE-LENGTH default (ST `openai_max_tokens`), reserved for the completion when a preset/turn
 // sets no explicit `maxOutputTokens`. Deliberately a small response length — NOT the model's output-cap
@@ -179,6 +184,7 @@ export const generationKnobSchemas = {
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
   seed: z.number().int().optional(),
   compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
+  compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
 } as const;
 
 // `.strict()` rejects unknown keys (a typo'd field is a real bug). We use `.strict()` on a plain
@@ -217,6 +223,9 @@ export const userIntentSchema = z
         mode: z.enum(COMPACTION_MODES).optional(),
         thresholdPct: generationKnobSchemas.compactionThresholdPct,
         instructions: z.string().optional(),
+        // The newest-N canon rows kept literal on the no-fit-boundary (agent-sdk) path; older rows compact.
+        // Absent ⇒ the engine floor (`MANAGED_VERBATIM_TAIL`), derived from that const — byte-identical default.
+        verbatimTail: generationKnobSchemas.compactionVerbatimTail,
       })
       .optional(),
 

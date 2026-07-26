@@ -3,6 +3,7 @@
 // view, and bulk mode. The Chat CTA resumes the most-recent chat with a character or starts a new one.
 
 import type { CharacterListSort } from "@orb/contracts/character";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -49,16 +50,17 @@ import { filterCharacters } from "../lib/filter-characters";
 
 const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
-const PAGE_LIMIT = 30;
 const MAX_PAGES = 5;
 
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
 
+// ⑪ — `pageSize` is a PARAM the consumer supplies (from `UserSettings.library.pageSize`), never a
+// factory-internal settings read (tier direction: the collection-surface factory takes it as data).
 const useCharacterLibraryCollection = createCollectionSurface({
-  query: (trpc: Trpc, params: { sort: CharacterListSort }) =>
+  query: (trpc: Trpc, params: { sort: CharacterListSort; pageSize: number }) =>
     trpc.character.list.infiniteQueryOptions(
-      { limit: PAGE_LIMIT, sort: params.sort },
+      { limit: params.pageSize, sort: params.sort },
       {
         initialCursor: null,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -86,7 +88,11 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
   const showArchived = useShowArchived();
   const tagFilter = useTagFilter();
   const bulkMode = useCharacterBulkMode();
-  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode });
+  // ⑪ — the user's library page size (cache-first; the settings read is already loaded app-wide). Until it
+  // resolves, fall back to the schema default so the first page fetches at the same size as pre-wire.
+  const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
+  const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
+  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode, pageSize });
   const selectedId = useSelectedCharacterId();
   const update = useUpdateCharacter({ trpc, invalidation });
   const duplicate = useDuplicateCharacter({ trpc, invalidation });

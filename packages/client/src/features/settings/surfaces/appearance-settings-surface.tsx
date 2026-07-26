@@ -7,10 +7,13 @@ import { useRef } from "react";
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
+import { Input } from "@orb/ui/input";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { SettingRow } from "@orb/ui/setting-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ChangeEvent, ReactElement } from "react";
+import { useId } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
@@ -57,6 +60,20 @@ const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>(
   errorToast: "Couldn't save your appearance settings.",
 });
 
+// ⑪ — the library-list page size lives in its OWN `library` section (not `appearance`), so its write is a
+// distinct section-patch. Surfaced here because it is a display pref (the appearance pane is settings-owned).
+interface UpdateLibraryVars {
+  readonly section: "library";
+  readonly patch: { readonly pageSize: number };
+}
+const useUpdateLibrary = createEntityMutation<UpdateLibraryVars, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't save your library settings.",
+});
+const LIBRARY_PAGE_SIZE_MIN = 10;
+const LIBRARY_PAGE_SIZE_MAX = 100;
+
 /** The DOM anchor id for one appearance subcategory `<Section>`, derived from the shared registry ids. */
 const anchor = (sub: string): string => settingsAnchorId("appearance", sub);
 
@@ -92,9 +109,35 @@ function AppearanceSettingsForm(): ReactElement {
   const save = (values: AppearanceSettings): Promise<unknown> => update.mutateAsync({ section: "appearance", patch: values as Record<string, unknown> });
 
   return (
-    <AppearanceForm entityId={APPEARANCE_ENTITY_ID} serverValues={data.config.appearance} save={save}>
-      {(session): ReactElement => <AppearanceFormBody session={session} />}
-    </AppearanceForm>
+    <Stack gap="section">
+      <AppearanceForm entityId={APPEARANCE_ENTITY_ID} serverValues={data.config.appearance} save={save}>
+        {(session): ReactElement => <AppearanceFormBody session={session} />}
+      </AppearanceForm>
+      <LibraryPageSizeRow pageSize={data.config.library.pageSize} />
+    </Stack>
+  );
+}
+
+/** ⑪ — the library page-size control (its own `library` section-patch; a display pref surfaced on the
+ *  appearance pane). A blank/out-of-range input is dropped (never a wipe-triggering write; the server
+ *  re-validate + `.catch` self-heal is the true enforcement, these bound the input). */
+function LibraryPageSizeRow({ pageSize }: { readonly pageSize: number }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const update = useUpdateLibrary({ trpc, invalidation });
+  const id = useId();
+  const onChange = (e: ChangeEvent<HTMLInputElement>): void => {
+    const n = Number(e.target.value);
+    if (Number.isInteger(n) && n >= LIBRARY_PAGE_SIZE_MIN && n <= LIBRARY_PAGE_SIZE_MAX) {
+      update.mutate({ section: "library", patch: { pageSize: n } });
+    }
+  };
+  return (
+    <Section divider={true} heading="Library" id={anchor(APPEARANCE_SUBCATEGORY_IDS.library)}>
+      <SettingRow id={id} label="Rows per page" description="How many entries the library lists load per page as you scroll.">
+        <Input id={id} type="number" min={LIBRARY_PAGE_SIZE_MIN} max={LIBRARY_PAGE_SIZE_MAX} value={String(pageSize)} onChange={onChange} />
+      </SettingRow>
+    </Section>
   );
 }
 

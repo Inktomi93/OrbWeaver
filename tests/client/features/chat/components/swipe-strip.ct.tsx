@@ -126,9 +126,30 @@ test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ 
   });
 
   await mount(<SwipeStripStory message={atTipOf2} />);
-  // Nothing is focused (no editable control on the page) — the global listener fires.
-  await page.keyboard.press("ArrowRight");
-  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  // Nothing is focused (no editable control on the page) — the global listener fires. That listener
+  // attaches in a `useEffect` (post-paint, async) while Playwright's `mount()` resolves at DOM-attach —
+  // BEFORE React flushes the effect. Under parallel scheduler load the gap widens and the FIRST
+  // ArrowRight can dispatch into a window with no listener yet (swipe count stays 0 forever, never 1 —
+  // the same freshly-mounted-control activation drop as file-dropzone.ct.tsx's post-Tab Enter). Re-press
+  // ArrowRight until the swipe lands rather than betting on one keypress winning the effect race. Read
+  // the count BEFORE each press and skip the press once it has fired: a press-then-read poll would land
+  // a SECOND swipe (count 2) — the fake network clears `isPending` between fast resolves, so the
+  // component's `busy` guard no longer blocks the next tick's press. Guarding on the recorded count
+  // (`trpc.count` records at the network-route boundary) keeps exactly one request in flight. Still
+  // proves ArrowRight (never a click) drives navigation.
+  await expect
+    .poll(
+      async () => {
+        const already = trpc.count("chat.swipe");
+        if (already > 0) {
+          return already;
+        }
+        await page.keyboard.press("ArrowRight");
+        return trpc.count("chat.swipe");
+      },
+      { intervals: [50, 100, 150, 200] },
+    )
+    .toBe(1);
 });
 
 test("ArrowLeft/ArrowRight are ignored while an editable control has focus (don't fight typing)", async ({ mount, page }) => {

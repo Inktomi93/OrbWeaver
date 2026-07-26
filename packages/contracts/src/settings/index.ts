@@ -324,6 +324,21 @@ const WI_TOKEN_BUDGET_MIN = 0;
 const WI_TOKEN_BUDGET_MAX = 65_536;
 const WI_TOKEN_BUDGET_DEFAULT = 1024;
 const AUTO_SWIPE_MIN_LENGTH_DEFAULT = 0;
+// PD-146 post-round auto-behavior bounds — the max follow-ups a send auto-issues. Default 1 (the neo-parity
+// ONE-follow-up floor the turn engine hard-coded as AUTO_SWIPE_MAX / AUTO_CONTINUE_MAX); the ceiling caps a
+// pathological spend (each retry is a full generation). A value outside these self-heals to the default.
+const AUTO_SWIPE_MAX_RETRIES_MIN = 1;
+const AUTO_SWIPE_MAX_RETRIES_MAX = 5;
+const AUTO_SWIPE_MAX_RETRIES_DEFAULT = 1;
+const AUTO_CONTINUE_ROUNDS_MIN = 1;
+const AUTO_CONTINUE_ROUNDS_MAX = 5;
+const AUTO_CONTINUE_ROUNDS_DEFAULT = 1;
+// ⑧(a) temporary-chat reap TTL in HOURS (the per-user reaper's cutoff). Default 24 = the engine's former
+// TEMPORARY_CHAT_REAP_TTL_MS (86_400_000ms); 1h..1yr bounds keep a fat-fingered value from wiping fresh
+// temp chats or never reaping.
+const TEMP_CHAT_TTL_HOURS_MIN = 1;
+const TEMP_CHAT_TTL_HOURS_MAX = 8760;
+const TEMP_CHAT_TTL_HOURS_DEFAULT = 24;
 // Smooth-stream pacing (client-honored — `@orb/ui/stream` useSmoothText): the trickle floor in chars/sec.
 // Range mirrors neo's Streaming pref; default OFF so the reveal tracks raw chunk cadence unless opted in.
 const SMOOTH_STREAM_CPS_MIN = 15;
@@ -332,6 +347,13 @@ const SMOOTH_STREAM_CPS_DEFAULT = 80;
 const DUP_THRESHOLD_FLOOR = 0;
 const DUP_THRESHOLD_CEIL = 1;
 const COMPUTE_THEMES_K_MAX = 100;
+// Cooccurrence-pass tuning (discovery `computeCooccurrence`): the max keyword pairs retained per owner + the
+// hub-token cutoff fraction. Bounds mirror the runner's grounded defaults' scale (DEFAULT_MAX_PAIRS=10k,
+// DEFAULT_HUB_FRACTION=0.5); a value outside these drops at parse → the runner floor governs (fail-safe).
+const COOCCURRENCE_MAX_PAIRS_MIN = 100;
+const COOCCURRENCE_MAX_PAIRS_MAX = 1_000_000;
+const HUB_FRACTION_FLOOR = 0;
+const HUB_FRACTION_CEIL = 1;
 
 const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({});
 
@@ -403,15 +425,38 @@ const chatSchema = z
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
     enterSends: z.boolean().catch(true).default(true),
     autoContinue: z.boolean().catch(false).default(false),
+    // PD-146: the max auto-continue follow-ups a send issues after a length-capped reply (the bound the turn
+    // engine's AUTO_CONTINUE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
+    autoContinueRounds: z
+      .number()
+      .int()
+      .min(AUTO_CONTINUE_ROUNDS_MIN)
+      .max(AUTO_CONTINUE_ROUNDS_MAX)
+      .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
+      .default(AUTO_CONTINUE_ROUNDS_DEFAULT),
     continueOnSend: z.boolean().catch(true).default(true),
     autoSwipe: z
       .object({
         enabled: z.boolean().default(false),
         minLength: z.number().int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
         blacklist: z.array(z.string()).default([]),
+        // PD-146: the max auto-swipe regenerations for a rejected reply (the bound the turn engine's
+        // AUTO_SWIPE loop reads). Default 1 = the neo-parity ONE-follow-up floor (byte-identical).
+        maxRetries: z.number().int().min(AUTO_SWIPE_MAX_RETRIES_MIN).max(AUTO_SWIPE_MAX_RETRIES_MAX).default(AUTO_SWIPE_MAX_RETRIES_DEFAULT),
       })
       .prefault({}),
     customStoppingStrings: z.array(z.string()).catch([]).default([]),
+    // ⑧(a) — how long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
+    // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
+    // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds
+    // self-heals to the default.
+    tempChatTtlHours: z
+      .number()
+      .int()
+      .min(TEMP_CHAT_TTL_HOURS_MIN)
+      .max(TEMP_CHAT_TTL_HOURS_MAX)
+      .catch(TEMP_CHAT_TTL_HOURS_DEFAULT)
+      .default(TEMP_CHAT_TTL_HOURS_DEFAULT),
     // Client-honored (the streaming ghost's `useSmoothText` pacer). Default OFF: raw chunk cadence.
     smoothStream: z.boolean().catch(false).default(false),
     smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
@@ -421,6 +466,19 @@ const chatSchema = z
   .prefault({});
 
 export type ChatSettings = z.infer<typeof chatSchema>;
+
+// ⑪ — the library-list page size (rows fetched per page by the paginated library surfaces). Client-honored:
+// the collection-surface CONSUMER reads it and passes `limit` into the query (never a factory-internal read,
+// tier direction). Default 30 = the former client `PAGE_LIMIT` const (byte-identical); the ceiling mirrors
+// the server list verb's MAX_LIMIT=100 (a larger request is server-clamped anyway).
+const LIBRARY_PAGE_SIZE_MIN = 10;
+const LIBRARY_PAGE_SIZE_MAX = 100;
+const LIBRARY_PAGE_SIZE_DEFAULT = 30;
+const librarySchema = z
+  .object({
+    pageSize: z.number().int().min(LIBRARY_PAGE_SIZE_MIN).max(LIBRARY_PAGE_SIZE_MAX).catch(LIBRARY_PAGE_SIZE_DEFAULT).default(LIBRARY_PAGE_SIZE_DEFAULT),
+  })
+  .prefault({});
 
 const personaSchema = z
   .object({
@@ -432,12 +490,18 @@ const workloadsSchema = z
   .object({
     dupThreshold: z.number().min(DUP_THRESHOLD_FLOOR).max(DUP_THRESHOLD_CEIL).optional().catch(undefined),
     computeThemesK: z.number().int().positive().max(COMPUTE_THEMES_K_MAX).optional().catch(undefined),
+    maxPairs: z.number().int().min(COOCCURRENCE_MAX_PAIRS_MIN).max(COOCCURRENCE_MAX_PAIRS_MAX).optional().catch(undefined),
+    hubFraction: z.number().min(HUB_FRACTION_FLOOR).max(HUB_FRACTION_CEIL).optional().catch(undefined),
   })
   .prefault({});
 
 const onboardingSchema = z
   .object({
-    personaWizardSeen: z.boolean().catch(false).default(false),
+    // NOTE: `personaWizardSeen` was DELETED (2026-07-26, Phase B ⑥ / D107): it was defined here but READ +
+    // WRITTEN by nothing (even in legacy-main). The first-run persona gate triggers on zero owned personas
+    // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
+    // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
+    // sibling seeded-flags below are consumed (character seeder + boot seed-default-persona).
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
   })
@@ -630,6 +694,7 @@ export const userSettingsSchema = z.object({
   memory: memorySchema,
   databank: databankSchema,
   chat: chatSchema,
+  library: librarySchema,
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
@@ -650,6 +715,7 @@ export const USER_SETTINGS_SECTIONS = [
   "memory",
   "databank",
   "chat",
+  "library",
   "persona",
 
   "groupDefaults",

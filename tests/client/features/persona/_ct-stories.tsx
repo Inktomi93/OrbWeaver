@@ -5,11 +5,15 @@
 // "set current" (no nesting, no stopPropagation crutch). The row instantiates `useUpdatePersona`, so it
 // mounts under `CtDataProviders` (the trpc client) — the overlay tests trigger no network call.
 
+import { QueryBoundary } from "@orb/client/data";
 import { PersonaPanelRow } from "@orb/client/features/persona";
-import type { PersonaId } from "@orb/kit/ids";
+import { bindNotify } from "@orb/client/lib";
+import { selectChat } from "@orb/client/state";
+import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 type PersonaFixture = Parameters<typeof PersonaPanelRow>[0]["persona"];
@@ -26,6 +30,35 @@ const PERSONA: PersonaFixture = {
   createdAt: 1,
   updatedAt: 1,
 };
+
+// The CT's active-chat id — the `.ct.tsx` stubs `chat.getChat` for this same id (a plain module-const, not
+// an export: a story module exports components ONLY — useComponentExportOnlyModules).
+const THIS_CHAT_ID = castId<ChatId>("chat_persona_ct");
+
+/** `<PersonaThisChatSection>` with an active chat seeded (⑥b — HONOR persona.showNotifications). The section
+ *  suspends on persona.list + getUserSettings + gates on getChat, all stubbed per-test; the seeded chat makes
+ *  `useActiveChatId` non-null so the section renders. Wrapped in the production QueryBoundary (the persona
+ *  panel's own boundary in-app) so the suspense reads have a boundary. */
+export function PersonaThisChatStory(): ReactElement {
+  // `notify` no-ops in the CT harness (bindNotify is main.tsx-only), so bind it here to a DOM sink — the CT
+  // observes the gated `notify.info` via the marker rather than the (unbound) toast surface.
+  const [notified, setNotified] = useState<string>("");
+  useState(() => {
+    selectChat(THIS_CHAT_ID);
+    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <div style={{ width: 360, padding: 16 }}>
+        <QueryBoundary fallback={<p>Loading…</p>} renderError={(): ReactElement => <p>error</p>}>
+          <PersonaThisChatSection />
+        </QueryBoundary>
+        <p data-testid="notified">{notified}</p>
+      </div>
+    </CtDataProviders>
+  );
+}
 
 /** `<PersonaPanelRow>` under the data layer — records which callback fired into a visible marker so the CT
  *  can assert control clicks are disjoint from the "set current" overlay. */

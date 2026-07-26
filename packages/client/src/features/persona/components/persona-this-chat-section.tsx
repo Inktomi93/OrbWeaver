@@ -40,6 +40,11 @@ export function PersonaThisChatSection(): ReactElement | null {
 
   const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
+  // The per-user opt-out (PD — persona.showNotifications). Cache-first (the persona panel already loaded
+  // settings); a confirming toast fires on a persona switch ONLY when this is on. `?? true` matches the
+  // schema default so a not-yet-resolved read behaves as the on-by-default setting.
+  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const notifyOnChange = settings.config.persona.showNotifications;
 
   const setActive = useSetChatActivePersona({ trpc, invalidation });
   const setAnchor = useSetChatAnchorPersona({ trpc, invalidation });
@@ -48,6 +53,25 @@ export function PersonaThisChatSection(): ReactElement | null {
   if (chatId === null || chat === undefined) {
     return null;
   }
+
+  // Switch the caller's chat persona; on success fire a confirming toast ONLY when the user opted in via
+  // persona.showNotifications (HONORING the previously-stored-but-ignored setting). A no-op switch (already
+  // this persona) is skipped so the toast marks a real change.
+  const onSwitchPersona = (persona: PersonaListItem): void => {
+    if (persona.id === chat.viewerActivePersonaId) {
+      return;
+    }
+    setActive.mutate(
+      { chatId, personaId: persona.id },
+      {
+        onSuccess: (): void => {
+          if (notifyOnChange) {
+            notify.info(`Now playing as ${persona.name} in this chat.`);
+          }
+        },
+      },
+    );
+  };
 
   const onReattribute = async (): Promise<void> => {
     const targetPersonaId = chat.viewerActivePersonaId;
@@ -83,7 +107,7 @@ export function PersonaThisChatSection(): ReactElement | null {
           />
           <MenuPopup>
             {personas.map((p) => (
-              <MenuItem key={p.id} onClick={(): void => setActive.mutate({ chatId, personaId: p.id })}>
+              <MenuItem key={p.id} onClick={(): void => onSwitchPersona(p)}>
                 <Row gap="field" align="center" className="justify-between w-full">
                   {p.name}
                   {p.id === chat.viewerActivePersonaId ? <Icon icon={Check} size="xs" /> : null}

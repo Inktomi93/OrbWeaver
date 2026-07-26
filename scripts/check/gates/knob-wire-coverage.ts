@@ -41,8 +41,8 @@ const DEFERRED: Record<string, string> = {
   // pinned for every user (the memory.enabled class: a master switch nobody can flip). memory + worldInfo
   // WIRED 2026-07-25 (Phase B ①/②, the settings-section contribution seam: features/chat's
   // memory-settings-section writes section:"memory"; features/world-info's world-info-settings-surface
-  // writes section:"worldInfo") — entries pruned.
-  "B:workloads": 'D107 — the settings-wiring remediation program (the pane exists; the knobs are unbound — no section:"workloads" write).',
+  // writes section:"worldInfo") — entries pruned. workloads WIRED 2026-07-26 (Phase B ⑤: features/workloads'
+  // workloads-tuning-section writes section:"workloads" — dupThreshold/computeThemesK/maxPairs/hubFraction).
   "B:profile":
     "D107 — the settings-wiring remediation program (profile.avatarAssetId is live-read but the section has zero writers; the user's own avatar is unsettable).",
   "B:groupDefaults":
@@ -51,8 +51,9 @@ const DEFERRED: Record<string, string> = {
   // memorySummarizer + rateLimits WIRED 2026-07-26 (Phase B ③: features/user-admin's memory-tuning-section +
   // rate-limits-section write them through the admin pane's settings-section seam) — entries pruned.
   "B2:importSkipCharacters": "D107 — the admin-editor wave of the settings-wiring program (verified UI-less 2026-07-25: zero admin-surface write field).",
-  // C: a settings schema leaf READ by nothing — dead from the schema down.
-  "C:personaWizardSeen": "D107 audit Q3 — wire or delete (the first-run persona dialog does not consult it); blob-only vocabulary change.",
+  // C: a settings schema leaf READ by nothing — dead from the schema down. personaWizardSeen DELETED
+  // 2026-07-26 (Phase B ⑥ / D107): the first-run persona gate triggers on zero personas, never a "seen" flag,
+  // so the field was removed (the rateLimits.general dead-field precedent) — entry pruned with the field.
 };
 
 // ── member-source symbols + their paired-anchor rename tripwires ─────────────────────────────────────────
@@ -598,19 +599,18 @@ export const gate: GateDescriptor = {
     {
       // STALE: a member that IS wired but STILL carries a founding DEFERRED entry. The proof MUST borrow a
       // member that is a LIVE DEFERRED key in this file's map above — a synthetic tree can't inject into the
-      // gate's own module-level DEFERRED, so it references a surviving entry. `B:workloads` is that key (the
-      // pane exists, the knobs are unbound). A tree whose ONLY section is `workloads`, WITH a
-      // section:"workloads" write, makes it wired+cited → STALE. (No real-tree sentinel is present, so ORPHAN
-      // stays quiet — ORPHAN's bite is proven live on the real tree, the bus-coverage-twin pattern.)
-      // NEXT PRUNER: if you delete B:workloads, repoint this fixture at another SURVIVING DEFERRED "B:" key
+      // gate's own module-level DEFERRED, so it references a surviving entry. `B:profile` is that key (the
+      // profile section has no writer yet). A tree whose ONLY section is `profile`, WITH a section:"profile"
+      // write, makes it wired+cited → STALE. (No real-tree sentinel is present, so ORPHAN stays quiet —
+      // ORPHAN's bite is proven live on the real tree, the bus-coverage-twin pattern.)
+      // NEXT PRUNER: if you delete B:profile, repoint this fixture at another SURVIVING DEFERRED "B:" key
       // (else this stale bite-proof goes vacuous — expected a finding but gets 0).
       files: {
-        "packages/contracts/src/settings/index.ts": 'export const USER_SETTINGS_SECTIONS = ["workloads"] as const;\n',
-        "packages/client/src/features/x/components/x.tsx":
-          'export const updateUserSettingsSection = 1;\nexport const w = { section: "workloads", patch: {} };\n',
+        "packages/contracts/src/settings/index.ts": 'export const USER_SETTINGS_SECTIONS = ["profile"] as const;\n',
+        "packages/client/src/features/x/components/x.tsx": 'export const updateUserSettingsSection = 1;\nexport const w = { section: "profile", patch: {} };\n',
       },
       expect: { messageIncludes: "GAINED its wire but still carries" },
-      why: "STALE: the founding DEFERRED B:workloads member gains a section-patch writer → its stale entry must be deleted (the ratchet, self-cleaning both directions)",
+      why: "STALE: the founding DEFERRED B:profile member gains a section-patch writer → its stale entry must be deleted (the ratchet, self-cleaning both directions)",
     },
     {
       // TRIPWIRE: the updateUserSettingsSection anchor present but USER_SETTINGS_SECTIONS renamed away.

@@ -248,10 +248,10 @@ test("scrolling to the bottom activates the last subcategory (scroll-spy)", asyn
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
-  // At rest, the first section is active — Effects is NOT.
-  await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
+  // At rest, the first section is active — Library (the trailing section since the ⑪ pageSize row) is NOT.
+  await expect(component.getByRole("button", { name: "Library" })).not.toHaveAttribute("aria-current", "true");
 
-  // Scroll the pane region to the very bottom → the short trailing "Effects" section wins.
+  // Scroll the pane region to the very bottom → the short trailing "Library" section wins.
   await page.evaluate(() => {
     const region = document.querySelector('[role="region"]') as HTMLElement | null;
     if (region !== null) {
@@ -259,7 +259,7 @@ test("scrolling to the bottom activates the last subcategory (scroll-spy)", asyn
     }
   });
 
-  await expect(component.getByRole("button", { name: "Effects" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Library" })).toHaveAttribute("aria-current", "true");
 });
 
 // Click-jump suppresses the spy so the nav never flickers through intermediate sections during the

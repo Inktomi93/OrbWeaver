@@ -19,7 +19,11 @@ const STORY_PRESET = "preset_paramsstoryaa";
 // A vLLM-shaped capability: a 32768 window + an 8192 output cap — the two ceilings the panel's fields clamp
 // against (retro #7 de-hardcode: the window is the engine's self-reported max_model_len). Built through the
 // TYPED factory (schema-parsed, browser-safe: contracts+kit only) — no fabrication cast.
-const STORY_CAPABILITY = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 32_768 } });
+const STORY_CAPABILITY = makeModelCapability({
+  sampling: { temperature: { min: 0, max: 2 } },
+  output: { maxTokens: { min: 1, max: 8192 } },
+  context: { window: 32_768 },
+});
 
 const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
@@ -32,6 +36,38 @@ export function ParamsPanelOutputStory(): ReactElement {
     <StoryForm entityId={STORY_PRESET} serverValues={DEFAULT_PROMPT_CONFIG} save={save}>
       {(session): ReactElement => <StoryBody form={session.form as AppFormInstance<PromptConfig>} />}
     </StoryForm>
+  );
+}
+
+/** ⑨(b) — the Sampling axis, whose "Advanced" disclosure surfaces the escape-hatch fields (logitBias +
+ *  advanced.parallelToolCalls/dynamicContext). The `<output>` mirrors those on demand so the CT can prove an
+ *  edit PERSISTED into the form (the same read-button pattern). */
+export function ParamsPanelSamplingStory(): ReactElement {
+  const save = (): Promise<void> => Promise.resolve();
+  return (
+    <StoryForm entityId={STORY_PRESET} serverValues={DEFAULT_PROMPT_CONFIG} save={save}>
+      {(session): ReactElement => <SamplingStoryBody form={session.form as AppFormInstance<PromptConfig>} />}
+    </StoryForm>
+  );
+}
+
+function SamplingStoryBody({ form }: { readonly form: Parameters<typeof ParamsPanel>[0]["form"] }): ReactElement {
+  const [snapshot, setSnapshot] = useState("bias=- parallel=- dyn=-");
+  return (
+    <div>
+      <output>{snapshot}</output>
+      <button
+        type="button"
+        onClick={(): void =>
+          setSnapshot(
+            `bias=${JSON.stringify(form.getFieldValue("params.logitBias") ?? null)} parallel=${String(form.getFieldValue("params.advanced")?.parallelToolCalls)} dyn=${String(form.getFieldValue("params.advanced")?.dynamicContext)}`,
+          )
+        }
+      >
+        read values
+      </button>
+      <ParamsPanel form={form} capability={STORY_CAPABILITY} axis="sampling" />
+    </div>
   );
 }
 
