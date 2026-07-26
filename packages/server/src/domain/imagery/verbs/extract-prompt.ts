@@ -14,17 +14,18 @@ import type { ExtractedPrompt } from "../contract/results";
 import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service";
 import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode";
 import { processReply } from "../substrate/process-reply";
-import { PROMPT_TEMPLATES } from "../substrate/templates";
 
-/** The text-extraction branch: chat's quiet shaper reads recent canon under the mode's template, then normalize. */
+/** The text-extraction branch: chat's quiet shaper reads recent canon under the mode's template, then normalize.
+ *  The instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫). */
 async function extractText(
   ctx: ImageryContext,
   args: { readonly caller: Principal; readonly chatId: ChatId; readonly mode: ExtractionMode; readonly subjectCharacterId: CharacterId | undefined },
 ): Promise<{ readonly prompt: string; readonly costUsd: number | null }> {
+  const instruction = await ctx.resolvePromptTemplate(args.caller, args.mode);
   const { text, costUsd } = await ctx.extractQuiet({
     caller: args.caller,
     chatId: args.chatId,
-    instruction: PROMPT_TEMPLATES[args.mode],
+    instruction,
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
   });
   const prompt = processReply(text);

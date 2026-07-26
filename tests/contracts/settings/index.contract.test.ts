@@ -1,4 +1,5 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import type { AppSettings, UserSettings } from "@orb/contracts/settings";
 import {
   APP_SETTINGS_SCHEMA_VERSION,
@@ -10,6 +11,8 @@ import {
   LOG_LEVELS,
   parseAppSettings,
   parseUserSettings,
+  resolveImageryCaption,
+  resolveImageryTemplate,
   STREAM_SCROLL_MODES,
   USER_SETTINGS_SCHEMA_VERSION,
   USER_SETTINGS_SECTIONS,
@@ -22,6 +25,7 @@ const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
+const SCHEMA_VERSION_V6 = 6;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -398,20 +402,64 @@ test("v3→v4 lift backfills a DETERMINISTIC entryId on each backgroundLibrary e
   expect(lib[2]?.entryId).toBe("kept_uuid");
 });
 
-test("v4→v5 lift is a no-op passthrough — the databank section is additive, absent ⇒ grounded defaults", () => {
-  // A v4 row (no databank key) lifts to v5 untouched; the missing section reads back as its prefault defaults
-  // (byte-identical to pre-wire — the memory/appearance additive-section precedent). Other namespaces survive.
+test("v4→(v5→v6) lift is a no-op passthrough — databank + imagery sections are additive, absent ⇒ grounded defaults", () => {
+  // A v4 row (no databank/imagery keys) lifts through the chain to the current version untouched; the missing
+  // sections read back as their prefault defaults (byte-identical — the additive-section precedent). Others survive.
   const storedV4 = { worldInfo: { scanDepth: 12 } };
   const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V5);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V6);
   expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
   expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
   expect(lifted.databank.slotTokenBudget).toBe(4096);
+  // v5→v6 imagery additive: every per-mode override absent ⇒ the section reads back empty (⇒ shipped defaults).
+  expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
 });
 
-test("the pinned schema versions: AppSettings v4 (the Phase B ⑩ admin-tier fields), UserSettings v5 (the databank section)", () => {
+test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key reads back the empty override set", () => {
+  const storedV5 = { chat: { enterSends: false } };
+  const lifted = parseUserSettings(storedV5, SCHEMA_VERSION_V5);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V6);
+  expect(lifted.chat.enterSends).toBe(false); // an existing override survives
+  expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
+});
+
+test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v6 (the imagery section, Phase B ⑫)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V5);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V6);
+});
+
+// ── ⑫ imagery templates: default-identity + per-mode override resolution ──
+
+test("resolveImageryTemplate/Caption: a virgin UserSettings resolves EVERY mode to the shipped catalog (byte-identical)", () => {
+  const imagery = DEFAULT_USER_SETTINGS.imagery;
+  // The default-identity discipline: unset ⇒ the shipped default, character-for-character.
+  for (const mode of ["character", "face", "scenario", "background"] as const) {
+    expect(resolveImageryTemplate(imagery, mode)).toBe(DEFAULT_PROMPT_TEMPLATES[mode]);
+  }
+  for (const mode of ["character_multimodal", "face_multimodal"] as const) {
+    expect(resolveImageryCaption(imagery, mode)).toBe(DEFAULT_CAPTION_INSTRUCTIONS[mode]);
+  }
+});
+
+test("resolveImageryTemplate/Caption: a per-mode override wins for THAT mode; the others stay on the default", () => {
+  // A CURRENT-version blob (stamped) so no legacy lift runs — the lift chain from an unstamped v1 blob is a
+  // full rebuild that only carries the old-shape keys (imagery didn't exist then). A live write is always stamped.
+  // biome-ignore lint/style/useNamingConvention: the caption key IS the snake_case PROMPT_TEMPLATE_MODES literal.
+  const captions = { face_multimodal: "my caption" };
+  const parsed = parseUserSettings({
+    schemaVersion: SCHEMA_VERSION_V6,
+    imagery: { templates: { character: "my custom {{char}} prompt" }, captions },
+  });
+  expect(resolveImageryTemplate(parsed.imagery, "character")).toBe("my custom {{char}} prompt");
+  expect(resolveImageryTemplate(parsed.imagery, "face")).toBe(DEFAULT_PROMPT_TEMPLATES.face); // untouched mode → default
+  expect(resolveImageryCaption(parsed.imagery, "face_multimodal")).toBe("my caption");
+  expect(resolveImageryCaption(parsed.imagery, "character_multimodal")).toBe(DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal);
+});
+
+test("imagery override self-heals an over-cap value to the default (never nukes the section)", () => {
+  const parsed = parseUserSettings({ schemaVersion: SCHEMA_VERSION_V6, imagery: { templates: { character: "x".repeat(4001) } } });
+  // The over-cap string trips the field's `.catch(undefined)` → the mode falls back to the shipped default.
+  expect(resolveImageryTemplate(parsed.imagery, "character")).toBe(DEFAULT_PROMPT_TEMPLATES.character);
 });
 
 test("AppSettings v2→v3 lift is a no-op passthrough that stamps the version (engineLaunch is additive)", () => {

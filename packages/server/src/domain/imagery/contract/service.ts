@@ -12,7 +12,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
-import type { EditImageParams, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params";
+import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results";
 
 // ── Internal verb-wiring op types (verb-to-verb factory injection, wired at service.ts) ──
@@ -137,6 +137,12 @@ export interface ImageryContext {
     readonly instruction: string;
     readonly subjectCharacterId?: CharacterId | undefined;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
+  /** ⑫ — the caller's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]` override ⊕ the
+   *  shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose off
+   *  `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
+  readonly resolvePromptTemplate: (caller: Principal, mode: ExtractionMode) => Promise<string>;
+  /** ⑫ — the caller's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
+  readonly resolveCaptionInstruction: (caller: Principal, mode: MultimodalMode) => Promise<string>;
   /** The D45/D47-6 vision caption op — the ONE captioner (over `summarize`-with-images at compose; a
    *  §9-reject to duplicate). `instruction` is the multimodal template; the image IS the subject. */
   readonly captionImage: (p: {

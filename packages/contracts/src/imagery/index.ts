@@ -17,6 +17,68 @@ export const PROMPT_TEMPLATE_MODES = ["free", "character", "face", "scenario", "
 export const promptTemplateModeSchema = z.enum(PROMPT_TEMPLATE_MODES);
 export type PromptTemplateMode = z.infer<typeof promptTemplateModeSchema>;
 
+// ── The prompt-building CATALOG (Phase B ⑫) — the SHIPPED-DEFAULT authored content, as-data ──────────
+// The image-prompt-mode instructions were hardcoded in the server leaf (`domain/imagery/substrate/templates`);
+// homed HERE as the catalog (the ONE imagery-vocabulary home, grows additively) so a per-user
+// `UserSettings.imagery` override composes over them (unset ⇒ byte-identical to the shipped default). The
+// server substrate DERIVES `PROMPT_TEMPLATES`/`CAPTION_INSTRUCTIONS` from these (never re-spelled — the
+// `no-inline-union-redecl` discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve
+// through the ONE `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
+
+/** The text-EXTRACTION modes (the quiet-shaper reads recent canon under these). `free` = the user's verbatim
+ *  prompt (no template); the multimodal modes caption an avatar instead. */
+export const EXTRACTION_MODES = ["character", "face", "scenario", "background"] as const satisfies readonly PromptTemplateMode[];
+export type ExtractionMode = (typeof EXTRACTION_MODES)[number];
+
+/** The MULTIMODAL caption modes (the ONE vision op captions the subject's avatar — the image IS the subject,
+ *  so these carry no `{{macros}}`). */
+export const MULTIMODAL_MODES = ["character_multimodal", "face_multimodal"] as const satisfies readonly PromptTemplateMode[];
+export type MultimodalCaptionMode = (typeof MULTIMODAL_MODES)[number];
+
+/** The shipped-default extraction instructions (imagery-design/02 §5). Each instructs the LLM to open with the
+ *  mode's REQUIRED composition prefix (the size defaults assume it; `ensurePrefix` re-asserts it as a drift
+ *  belt). Modernized from ST's promptTemplates: the jailbreak preamble is an explicit "Pause the roleplay". */
+export const DEFAULT_PROMPT_TEMPLATES: Record<ExtractionMode, string> = {
+  character:
+    "Pause the roleplay. Describe {{char}}'s complete physical appearance in the current moment " +
+    "as a single comma-delimited list of concrete visual keywords for an image-generation model: " +
+    "body type, hair, eyes, skin, facial features, clothing and its state, accessories, pose, " +
+    "expression. Only visual terms — no names, no story, no prose sentences, no quotation marks. " +
+    "Begin your reply with: full body portrait,",
+  face:
+    "Pause the roleplay. Describe {{char}}'s face in the current moment as a single " +
+    "comma-delimited list of concrete visual keywords for an image-generation model: facial " +
+    "features, expression, eye color and shape, hair framing the face, skin, any marks or " +
+    "accessories on the head. Only visual terms — no names, no prose, no quotation marks. " +
+    "Begin your reply with: close up facial portrait,",
+  scenario:
+    "Pause the roleplay. Summarize the current scene of the story as a single comma-delimited " +
+    "list of concrete visual keywords for an image-generation model: the characters present and " +
+    "their visible actions, the setting, time of day, mood, lighting, notable objects. Only " +
+    "visual terms — no names beyond simple descriptors, no prose, no quotation marks. " +
+    "Begin your reply with: scene,",
+  background:
+    "Pause the roleplay. Describe the current location of the story as a single comma-delimited " +
+    "list of concrete visual keywords for an image-generation model: the place, architecture or " +
+    "natural features, time of day, weather, lighting, atmosphere. Describe ONLY the environment " +
+    "— no people, no characters, no figures. Begin your reply with: background,",
+};
+
+/** The shipped-default multimodal vision-caption instructions (imagery-design/02 §6). No macros — the image IS
+ *  the subject. */
+// biome-ignore-start lint/style/useNamingConvention: the keys ARE the snake_case PROMPT_TEMPLATE_MODES literals (the mode vocabulary); a rename would fork the wire.
+export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string> = {
+  character_multimodal:
+    "Describe the person in this image as a single comma-delimited list of concrete visual " +
+    "keywords for an image-generation model: body type, hair, eyes, skin, clothing, accessories, " +
+    "pose. Only visual terms, no prose. Begin with: full body portrait,",
+  face_multimodal:
+    "Describe the face of the person in this image as a single comma-delimited list of concrete " +
+    "visual keywords for an image-generation model: facial features, expression, eyes, hair, " +
+    "skin, head accessories. Only visual terms, no prose. Begin with: close up facial portrait,",
+};
+// biome-ignore-end lint/style/useNamingConvention: see start marker
+
 /** The semantic size presets (imagery-design/02 §6 — gpt-image-1's published set; every hosted model snaps
  *  arbitrary dimensions to its own buckets anyway, so optimizing for the strictest wire wins). The concrete
  *  WxH mapping lives in the leaf's `substrate/size.ts` (Phase 7). */

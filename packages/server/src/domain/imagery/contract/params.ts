@@ -4,15 +4,16 @@
 // the branded chat id. P5 drives `mode:"free"` with a required `prompt`; the extraction modes are Phase 7.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
-// The mode SUBSETS (derived via Extract/Exclude — never re-spelled) home here so the substrate guards +
-// the template Records import them from a type home (no-inline-types forbids exporting them from substrate).
+// The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
+// tuples the default catalog keys on, Phase B ⑫) — re-exported here under the domain's local names so the
+// substrate guards + params keep their type-home import path (no re-spell — the `no-inline-union-redecl` law).
 /** The multimodal caption modes (doc 02 §3). */
-export type MultimodalMode = Extract<PromptTemplateMode, "character_multimodal" | "face_multimodal">;
+export type MultimodalMode = MultimodalCaptionMode;
 /** The four text-extraction modes — NOT "free", NOT multimodal (doc 02 §2). */
-export type ExtractionMode = Exclude<PromptTemplateMode, "free" | MultimodalMode>;
+export type ExtractionMode = CatalogExtractionMode;
 /** The subject-bearing "portrait" modes the reuse gate scopes to (doc 03 §4.4) — character/face + their
  *  multimodal variants. Scenario/background/free are moment art, never reuse-matched. */
 export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | MultimodalMode>;
