@@ -1,3 +1,4 @@
+import type { ScrollMode } from "@orb/kit/scroll-mode";
 import type { Range } from "@tanstack/react-virtual";
 import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
@@ -93,7 +94,7 @@ export interface MessageListProps<T> {
    * tail-follow OFF; the caller pins the just-sent message to the top via the handle's `pinToIndex` on
    * turn start and it holds while the reply streams below. Byte-identical to today under `follow`.
    */
-  readonly scrollMode?: "follow" | "pin-prompt";
+  readonly scrollMode?: ScrollMode;
   /**
    * Low-level index-space override for the rendered range. Composes as the base window when
    * `keepMounted` is also set; the library default otherwise.

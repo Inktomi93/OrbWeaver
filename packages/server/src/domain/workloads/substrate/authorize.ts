@@ -10,7 +10,7 @@ import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { IsAdmin } from "../../admin/contract/guard";
+import type { IsAdmin } from "#domain/admin";
 
 /**
  * Assert a kind supports the requested run mode (the shared MODE-support gate the schedule verbs reuse — the

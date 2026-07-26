@@ -24,6 +24,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
+import { stableStringify } from "@orb/kit/stable-stringify";
 import { resolveEntryInjection, resolveEntryScope } from "@orb/kit/world-info";
 
 function str(v: unknown): string {
@@ -301,28 +302,8 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
 }
 
 // cardContentHash — the one home; character imports it from here, no private copy.
-
-/** Deterministic JSON: object keys sorted recursively (arrays keep order), so two logically-identical
- *  cards serialize identically regardless of key insertion order — the property the determinism +
- *  re-import-dedup tests rely on. */
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    // lib.es5.d.ts types `JSON.stringify` as always returning `string`, but it really returns
-    // `undefined` for `undefined`/function/symbol values (e.g. an explicit `{ a: undefined }`
-    // field surviving from a partially-populated CharacterCard) — a real runtime gap the TS lib
-    // misses, not a redundant guard.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see comment above; JSON.stringify(undefined) is `undefined` at runtime despite the `string` lib type
-    return JSON.stringify(value) ?? "null";
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const obj = value as Record<string, unknown>;
-  return `{${Object.keys(obj)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
-    .join(",")}}`;
-}
+// stableStringify — the deterministic key-sorted serialize this hash relies on — moved to
+// `@orb/kit/stable-stringify` (shared with the forms layer's draft-baseline hash).
 
 /** The semantic content subset that IDENTIFIES a card. EXCLUDED (deliberate — re-attributing/re-deriving a
  *  card must NOT change its identity): creator, creatorNotes, cardVersion, extensions, refinery,

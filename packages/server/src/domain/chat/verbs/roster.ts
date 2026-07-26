@@ -400,7 +400,8 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent): ChatSe
  *  — the same stamp the host-handoff character-drop uses), then emits chatUpdated. IDEMPOTENT: an absent or
  *  already-left character is a no-op (the `kick`/`addCharacterToChat` idiom — never a coded refusal). leftSeq is
  *  the WITNESSING boundary (D55): from the stamp the pruned character stops witnessing this chat's canon — the
- *  intended semantic for a cast member peeled out of a scene fork (rpg-design/07 §2.2). */
+ *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked rpg-design's
+ *  scene-cast prune, `rpg-design/07 §2.2`, not a live consumer today). */
 function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent): ChatService["removeCharacterFromChat"] {
   return async ({ principal, chatId, characterId }: RemoveCharacterFromChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
@@ -441,15 +442,16 @@ export async function setParticipantActivePersona(
 }
 
 /** `setSeatKnobs` — host-only; the ONE participantId-keyed AI-seat knob write (D80). Resolves a PRESENT
- *  AI-driven seat (character|agent) by its `participantId` (the roster is present-only, so a left/absent seat
- *  is a miss), applies whichever of `talkativeness`/`disabled` the patch carries, emits chatUpdated, and
- *  returns the kind-appropriate resolved view. Replaces the retired per-kind forking — one home, so no arm is
- *  ever skipped again (agent talkativeness, formerly unsettable, now rides the same path as mute). A
- *  non-AI-driven seat (a human seat, or observer) carries no arbitration knobs → `participant_not_found`
+ *  AI-driven seat (`character` today; `agent` grafts back on per PD-17) by its `participantId` (the roster is
+ *  present-only, so a left/absent seat is a miss), applies whichever of `talkativeness`/`disabled` the patch
+ *  carries, emits chatUpdated, and returns the kind-appropriate resolved view. Replaces the retired per-kind
+ *  forking — one home, so no arm can be skipped again when the agent kind returns. A non-AI-driven seat (a
+ *  human seat, or the not-yet-rebuilt observer kind) carries no arbitration knobs → `participant_not_found`
  *  (host-only surface: the caller already sees the roster, so a coded refusal leaks nothing). An empty patch
  *  is a no-op that still returns the current view (idempotent — `applyToChat` re-apply leans on this). */
-/** Resolve a mutated seat row to its ParticipantView by kind — an agent seat via its soul name, a character
- *  seat via its live card (under the host's ownership; a null card degrades to the removed-character label). */
+/** Resolve a mutated seat row to its ParticipantView by kind — today only `character` (via its live card,
+ *  under the host's ownership; a null card degrades to the removed-character label); the `agent` arm (via its
+ *  soul name) grafts back on with PD-17. */
 async function seatViewFor(ctx: ChatContext, ownerId: UserId, row: typeof chatParticipants.$inferSelect): Promise<ParticipantView> {
   const card = row.characterId !== null ? await ctx.getCard({ ownerId, characterId: row.characterId }) : null;
   return characterParticipantView(row, card, ctx.resolveAssetHash);

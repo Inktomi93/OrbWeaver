@@ -40,13 +40,14 @@ export const updateBookSchema = z.object({
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
-/** Machine-writer provenance an automated upserter (the chat/rpg crew keeper, the D46 automation writer)
- *  stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER LEFT IT — the
- *  hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer hashing to this
- *  value knows a human curated the entry and SKIPS it (the host's hand always wins). `span` is the transcript
- *  window that produced the entry (display + re-run idempotency). Generic on purpose — the three-way shared
- *  `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee (chat-crew-design
- *  /02 §7, /03 §1; CC-D). */
+/** Machine-writer provenance an automated upserter (the D46 automation writer today; the purged chat/rpg
+ *  crew keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
+ *  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
+ *  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
+ *  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
+ *  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
+ *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee
+ *  (chat-crew-design/02 §7, /03 §1; CC-D). */
 export const loreEntryCrewProvenanceSchema = z.object({
   contentHash: z.string(),
   span: z.object({ fromSeq: z.number().int().nonnegative(), toSeq: z.number().int().nonnegative() }).optional(),
@@ -167,8 +168,9 @@ export interface BulkImportLorebookResult {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // upsertEntries — the SHARED machine-writer bulk op (D58 satellite; chat-crew-design/02 §7, /03 §1). The ONE
-// home for hand-edit-safe lore upkeep: three consumers (the chat crew keeper, the rpg lorebook upkeep, the
-// D46 automation writer) inject it and never fork a fence-strip/compare copy. The op upserts by (bookId,
+// home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat crew keeper and
+// rpg lorebook upkeep were the other two intended consumers before the 2026-07-25 purge — the rebuild wires
+// them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
 // entry (the stored `metadata.crew.contentHash` vs the current content is the guard). Caller policy (caps,
 // merge-mode, span-stamped names, mark advance) stays with the caller; the SKIP semantics live here so every

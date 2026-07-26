@@ -26,10 +26,11 @@ import { createRoster } from "./verbs/roster";
 import { createStartChat } from "./verbs/start-chat";
 import { createRequestTurn, createTurn } from "./verbs/turn";
 
-/** The room-facing display name for a seat — the ONE rule (R10 + owner ruling: no raw id ever renders), shared
- *  with the seat-verb returns via {@link resolveAgentSeatName}. Character → the live card name, else the
- *  removed-character label; human → publics displayName, else its handle, else the removed-member label; agent
- *  → the AgentCardView soul name (sourceKind label for an unhatched buddy). `observer` is unseatable (never read). */
+/** The room-facing display name for a seat — the ONE rule (R10 + owner ruling: no raw id ever renders). Today
+ *  only `human`/`character` are live kinds: character → the live card name, else the removed-character label;
+ *  human → publics displayName, else its handle, else the removed-member label. The `agent` arm (→ the
+ *  AgentCardView soul name, else the sourceKind label for an unhatched buddy) and `observer` (unseatable, never
+ *  read) graft back on per PD-17/AP3-2 when the agent-principal design set returns. */
 function resolveSeatDisplayName(
   r: Awaited<ReturnType<typeof loadRoster>>[number],
   resolved: {

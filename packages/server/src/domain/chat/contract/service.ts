@@ -257,8 +257,9 @@ export interface ChatService {
   /** Add a character to the roster (host-only; the one character participant-insert chokepoint). */
   readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
   /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
-   *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. The
-   *  only consumer is rpg's scene-cast prune (injected; no client caller — no tRPC row). */
+   *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. Has
+   *  a tRPC row today; the rpg-design scene-cast prune (parked, `rpg-design/07 §2.2`) is a future INJECTED
+   *  consumer of this same verb, not a caller that exists yet. */
   readonly removeCharacterFromChat: (params: RemoveCharacterFromChatParams) => Promise<void>;
 
   /** Host-only write of the four-field `chatMetadata.roomOverrides` allowlist. */
@@ -276,10 +277,10 @@ export interface ChatService {
   readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
 
   /** The ONE AI-seat knob write (host-only; D80) — participantId-keyed, kind-blind. Patches a PRESENT
-   *  character|agent seat's `talkativeness`/`disabled` (both optional; empty patch = no-op returning the
-   *  current view). Replaces the retired per-kind forking (`setParticipantDisabled`/
-   *  `setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can be skipped again (agent
-   *  talkativeness, formerly unsettable, now works). A muted/tuned seat stays seated; cards/WI still contribute. */
+   *  AI-driven seat's (`character` today; `agent` grafts back on per PD-17) `talkativeness`/`disabled` (both
+   *  optional; empty patch = no-op returning the current view). Replaces the retired per-kind forking
+   *  (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can
+   *  be skipped again when the agent kind returns. A muted/tuned seat stays seated; cards/WI still contribute. */
   readonly setSeatKnobs: (params: SetSeatKnobsParams) => Promise<ParticipantView>;
 
   // ── invites (the one participant-insert chokepoint) ──────────

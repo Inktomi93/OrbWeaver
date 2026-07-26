@@ -37,7 +37,16 @@ const NON_STAGE_ALLOWLIST = new Set([
   "check:show", // the report INSPECTOR (a read-only viewer, not a gate)
 ]);
 
-type PackageJson = { readonly scripts?: Readonly<Record<string, string>> };
+type PackageJson = {
+  readonly scripts?: Readonly<Record<string, string>>;
+  readonly dependencies?: Readonly<Record<string, string>>;
+};
+
+const ROOT_DEP = (name: string): string =>
+  `the repo-root package.json declares a runtime dependency "${name}" — the root is a PRIVATE monorepo ` +
+  "root that is NEVER prod-installed, so a `dependencies` entry here is a category error: nothing installs " +
+  "it and a runtime `import` of it from a package would not resolve. Script runners and tooling (tsx, " +
+  "biome, …) are devDependencies. Move it to devDependencies, or into the workspace package that imports it.";
 
 /** The set of package.json script names a registry stage invokes via its whole-scope `pnpm <script>` argv.
  *  A stage whose argv isn't `pnpm <script>` (a raw bin) contributes nothing here. */
@@ -93,7 +102,20 @@ function reconcile(root: string): Violation[] {
       }
     }
   }
+
+  // Arm 3: the root manifest's `dependencies` must be empty/absent (same real-root `verify` guard as arm 2).
+  violations.push(...rootDepsViolations(pkg));
   return violations;
+}
+
+/** Arm 3: the root manifest's `dependencies` must be empty/absent. Rides this manifest gate rather than
+ *  minting a new gate (a new gate = module + doc row + count bump; extending here costs only doc-row prose).
+ *  Guarded on the real-root `verify` host script so synthetic example manifests no-op unless they opt in. */
+function rootDepsViolations(pkg: PackageJson): Violation[] {
+  if (!("verify" in (pkg.scripts ?? {}))) {
+    return [];
+  }
+  return Object.keys(pkg.dependencies ?? {}).map((name) => ({ file: PKG_REL, line: 0, message: ROOT_DEP(name) }));
 }
 
 export const gate: GateDescriptor = {
@@ -127,6 +149,19 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "but package.json has no" },
       why: "arm 2 DEAD_ROW: the `verify` guard is present so arm 2 activates, but the registry names stages absent from this package.json — a registry row pointing at a missing script",
     },
+    {
+      files: {
+        // The `verify` host activates arm 3; a runtime `dependencies` entry on the private monorepo root is
+        // the category error (tonight's tsx lesson). Every registry stage script is also present so arm 2
+        // stays clean and only the root-dep arm fires.
+        "package.json": JSON.stringify({
+          scripts: Object.fromEntries([...registryScriptNames()].map((s) => [s, "x"]).concat([["verify", "x"]])),
+          dependencies: { tsx: "^4.0.0" },
+        }),
+      },
+      expect: { messageIncludes: "PRIVATE monorepo root" },
+      why: "arm 3: a runtime dependency on the private, never-prod-installed monorepo root — a category error (script runners are devDependencies)",
+    },
   ],
   mustPass: [
     {
@@ -137,6 +172,16 @@ export const gate: GateDescriptor = {
         "package.json": '{ "scripts": { "dev": "vite", "format": "biome format --write ." } }\n',
       },
       why: "no verification-shaped script beyond the allowlisted `format` writer — nothing unplaced, passes",
+    },
+    {
+      files: {
+        // arm 3 activates (the `verify` host is present) but there is NO `dependencies` key — the correct
+        // shape for the private monorepo root. Every registry stage script is present so arm 2 is clean too.
+        "package.json": JSON.stringify({
+          scripts: Object.fromEntries([...registryScriptNames()].map((s) => [s, "x"]).concat([["verify", "x"]])),
+        }),
+      },
+      why: "arm 3 pass: the `verify` host is present (arm 3 active) but the root declares no `dependencies` — the correct never-prod-installed shape",
     },
   ],
 };

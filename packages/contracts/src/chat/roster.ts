@@ -56,14 +56,16 @@ export const talkativenessSchema = z.number().min(TALKATIVENESS_MIN).max(TALKATI
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ONE ROSTER-MEMBER VOCABULARY (D80 — the participant five-plane model). Homed HERE (chat owns the
-// runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; roster-preset imports from
-// chat, identity stays the DAG root). Defined below talkativenessSchema so the value reference resolves.
+// runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; a roster-preset domain, if
+// it returns, would import from chat — identity stays the DAG root). Defined below talkativenessSchema so
+// the value reference resolves.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The knobs every AI seat carries — ONE home (D80). Presets, founding casts, and the participantId-keyed
- *  `setSeatKnobs` verb project this shape; the per-kind knob-verb forking is retired (it guaranteed skipped
- *  arms — the mute + talkativeness gaps proved the class). `talkativeness` absent = inherit the chat default
- *  ({@link TALKATIVENESS_DEFAULT}); the RANGE clamp is the raw `talkativenessSchema` (0–1). */
+/** The knobs every AI seat carries — ONE home (D80). The participantId-keyed `setSeatKnobs` verb projects
+ *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
+ *  talkativeness gaps proved the class). Roster presets/founding casts are unbuilt (purged with the
+ *  2026-07-25 rollback) — they'd project this same shape if they return. `talkativeness` absent = inherit
+ *  the chat default ({@link TALKATIVENESS_DEFAULT}); the RANGE clamp is the raw `talkativenessSchema` (0–1). */
 export const seatKnobsSchema = z.object({
   talkativeness: z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).optional(),
   disabled: z.boolean().optional(),
@@ -81,13 +83,13 @@ export const characterMemberSpecSchema = z.object({
 });
 export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
-/** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60; D80).
- *  Every membership-template lifetime (roster presets, founding casts, saved-rosters v2) PROJECTS through
- *  this shape; nothing mints a flat characterId array beside it. Kind-discriminated like {@link SpeakerRef}.
- *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
- *  invite's runtime preconditions; D80); `observer` is reserved/un-seatable. The `character` and `agent`
- *  arms are both live from birth — a surface that only persists one arm NARROWS the vocabulary (RP-D1),
- *  never a private re-spell. */
+/** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
+ *  membership-template lifetime (roster presets, founding casts, saved-rosters v2 — none built today; the
+ *  rebuild grafts onto this shape) PROJECTS through it; nothing mints a flat characterId array beside it.
+ *  Kind-discriminated like {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only
+ *  human join path — a template cannot carry an invite's runtime preconditions); `observer` and `agent` were
+ *  purged 2026-07-25 (the rebuild re-adds their arms here if either domain returns) — `character` is the
+ *  only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
 export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
@@ -106,10 +108,11 @@ export interface RenderPolicy {
 }
 
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)
- *  drives the identity + column shape per the 4-way `chat_participants_kind_shape` CHECK: `human`/`agent` carry
- *  `userId`, `character` carries `characterId`, `observer` neither (the old 2-way XOR was replaced at AP0).
- *  `talkativeness`/`disabled` feed arbitration; `disabled` also drops a CHARACTER from `{{groupNotMuted}}`
- *  (agents are never in the group macros); `leftSeq` null = present (the "present-and-contributing" predicate). */
+ *  drives the identity + column shape per the `chat_participants_kind_shape` CHECK: `human` carries `userId`,
+ *  `character` carries `characterId` (the old 2-way XOR was replaced at AP0; the CHECK still carries dormant
+ *  `agent`/`observer` arms from the purged agent-principal build — unreachable while PARTICIPANT_KINDS stays
+ *  2-member). `talkativeness`/`disabled` feed arbitration; `disabled` also drops a CHARACTER from
+ *  `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing" predicate). */
 export interface ParticipantView {
   id: ChatParticipantId;
   chatId: ChatId;
@@ -125,10 +128,10 @@ export interface ParticipantView {
   leftSeq: number | null;
   joinHistoryVisibility: JoinHistoryVisibility;
   /** Resolved display name — one rule, no raw id ever (R10): a human's publics displayName (else handle, else
-   *  a removed-member label); a character's card name (else a removed-character label); an agent's resolved soul
-   *  name (else its `sourceKind` label for an unhatched buddy). */
+   *  a removed-member label); a character's card name (else a removed-character label). (An agent's resolved
+   *  soul name was the third arm before the agent-principal purge; the rebuild re-adds it if that seat returns.) */
   displayName: string;
-  /** A human's public handle (null for an agent/character). */
+  /** A human's public handle (null for a character). */
   handle: Handle | null;
   /** The avatar asset (the floor — always member-visible via the D21 blob route's roster exception). */
   avatarAssetId: AssetId | null;
@@ -150,7 +153,7 @@ export interface ParticipantView {
   themeOverride?: ThemeOverride | null;
   /** BG-C — the RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
    *  `themeOverride` twin), threaded unmerged. `null` = no card background for a character seat, always
-   *  `null` for a human/agent seat. In a TRUE-SOLO room (see {@link soleTrueSoloCharacter}) the sole
+   *  `null` for a human seat. In a TRUE-SOLO room (see {@link soleTrueSoloCharacter}) the sole
    *  character's carried background takes over the app-root background layer, BELOW the chat-set override;
    *  any other composition leaves it INERT (the viewer's own appearance wins). Resolution lives client-side
    *  in the app-shell background resolver. */

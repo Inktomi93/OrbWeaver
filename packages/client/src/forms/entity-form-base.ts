@@ -6,6 +6,7 @@
 // vocabulary (seed-read + mirror-write, keyed by entityId). Each factory keeps its own onChange/effect
 // gating — this base makes no decision about WHEN a mirror happens, only about how.
 
+import { stableStringify } from "@orb/kit/stable-stringify";
 import type { EntityDraftStore } from "#state";
 
 /** The listener debounce both factories default their draft mirror to (ms). */
@@ -26,25 +27,6 @@ export function focusFirstInvalidField(): void {
 /** A stable-key structural hash of a server snapshot — the identity a draft's baseline is matched against. */
 export function hashServerBaseline(serverValues: unknown): string {
   return stableStringify(serverValues);
-}
-
-/** Deterministic JSON with object keys sorted at every depth (plain-JSON stringify is key-order-sensitive). */
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    // TS's lib types JSON.stringify as always-string, but `undefined` (which reaches this branch —
-    // typeof undefined !== "object") REALLY returns undefined at runtime (repro: JSON.stringify(undefined)
-    // === undefined), so the fallback is load-bearing; the typed lint narrows through any annotation.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- TS lib lie: stringify(undefined) is undefined
-    return JSON.stringify(value) ?? "null";
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const obj = value as Record<string, unknown>;
-  const entries = Object.keys(obj)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`);
-  return `{${entries.join(",")}}`;
 }
 
 /**

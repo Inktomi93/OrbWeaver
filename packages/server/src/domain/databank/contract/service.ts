@@ -18,9 +18,9 @@ import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { EmbeddingsService } from "#domain/embeddings";
+import type { SearchService } from "#domain/search";
 import type { AuditEntry } from "#foundation/observability";
-import type { EmbeddingsService } from "../../embeddings/contract/service";
-import type { SearchService } from "../../search/contract/service";
 import type {
   CharacterAttachParams,
   ChatAttachParams,
