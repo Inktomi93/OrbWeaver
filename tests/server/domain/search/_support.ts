@@ -8,6 +8,7 @@
 // gate scopes only `packages/server/src/domain`).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, RoleClients, SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
@@ -200,7 +201,7 @@ export async function seedChatDocument(db: Db, chatId: ChatId, documentId: Docum
 }
 
 /** Seat a user in a chat with a role (the `{chatId}` scope resolver reads role='host', leftSeq NULL). */
-export async function seedChatParticipant(db: Db, chatId: ChatId, userId: UserId, role: "host" | "member" = "host"): Promise<void> {
+export async function seedChatParticipant(db: Db, chatId: ChatId, userId: UserId, role: ParticipantRole = "host"): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chatpart_${chatId}_${userId}`),
     chatId,

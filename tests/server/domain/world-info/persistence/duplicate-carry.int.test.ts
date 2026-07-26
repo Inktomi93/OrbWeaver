@@ -3,6 +3,7 @@
 // the SAME world_books are re-pointed at the new character id (fresh junction rows, roles preserved); the
 // books themselves are NEVER cloned; the source's own junctions are untouched; zero attachments = no-op.
 
+import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -18,7 +19,7 @@ const NOW = 1_700_000_000_000;
 
 async function seedAttachedBook(
   db: Db,
-  args: { readonly bookId: string; readonly ownerId: UserId; readonly characterId: CharacterId; readonly role: "primary" | "auxiliary" },
+  args: { readonly bookId: string; readonly ownerId: UserId; readonly characterId: CharacterId; readonly role: WorldBookRole },
 ): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(args.bookId);
   await db.insert(worldBooks).values({ id: bookId, ownerId: args.ownerId, name: args.bookId, description: null, createdAt: NOW });

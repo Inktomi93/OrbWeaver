@@ -26,6 +26,15 @@ test("focus trap + Escape + focus-return-to-trigger (inherited from Dialog)", as
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
+  // Base UI moves initial focus INTO the popup in a post-open effect (asynchronously, after the open
+  // animation begins) — the focus TRAP only intercepts Tab once focus is inside the guarded region. Under
+  // battery-load contention that effect can lag past `toBeVisible()`; a Tab pressed while focus still sits on
+  // the trigger (outside) is a native forward-Tab the trap never sees, so it lands somewhere other than the
+  // popup and the trap poll below never settles true. Wait for initial focus to actually land inside the
+  // dialog first — that arms the trap deterministically before we exercise it. (Same interaction-delay class
+  // as CM6 acceptCompletion: an immediate keypress after open races the widget's own async focus wiring.)
+  await expect.poll(() => dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+
   // Focus trap: Tab from inside the popup never escapes back to the trigger sitting behind it.
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");

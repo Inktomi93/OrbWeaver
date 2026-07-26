@@ -195,6 +195,36 @@
  *   pnpm snap / --pages 2 --open-chat@0 <id> --open-chat@1 <id> --fill@0 '[data-testid=composer]=hi' \
  *               --key@0 '[data-testid=composer]=Enter' --eval@1 '__orb.bus().live'
  *
+ *   MULTI-USER CONTEXTS — `--contexts <N>` (2..4) opens N ISOLATED browser contexts (own cookies/
+ *   localStorage each — unlike --pages tabs, which share ONE context's auth), each logged in as a
+ *   DIFFERENT dev user, so host-vs-member views / presence / visibility-floors can be captured in one
+ *   run. This ALWAYS targets the multi-user FIXTURE stack (scripts/dev/multi-user-fixture.sh), NEVER the
+ *   shared :5173/:8788 dev stack (which is always AUTH_MODE=single-user — one user, no login form,
+ *   nothing to authenticate AS). The auth door is the real one a browser uses: `POST /api/auth/login`
+ *   (handle+password → the session cookie), seeded into each context BEFORE its first navigation — never
+ *   a bypass. The fixture's roster is fixed at 2 dev users today (owner, member — its own header
+ *   docstring); `--contexts N` assigns them in that order. Target a context with the SAME `@<idx>` suffix
+ *   --pages uses (unsuffixed = context 0); shots suffix `-u<idx>` (distinct from --pages' `-p<idx>`, so
+ *   the two never collide); RESULT gains contexts=N + users=<handles>. Combining `--contexts` with
+ *   `--pages` is refused (an unexercised combination, not silently under-tested).
+ *   pnpm snap / --contexts 2 --eval@0 '__orb.snap()' --eval@1 '__orb.snap()'
+ *                                          # context 0 = owner, context 1 = member (roster order)
+ *   pnpm snap / --as member --eval '__orb.snap()'
+ *                                          # single-context variant (--contexts 1, the default): pick
+ *                                          # WHICH fixture user context 0 authenticates as. Mutually
+ *                                          # exclusive with --contexts N>1 (that already assigns N
+ *                                          # distinct handles) — refused loudly if combined.
+ *   REFUSALS (mirror --open-chat's ambiguity-refusal style — a stated reason + the exact remedy, never a
+ *   silent fallback to the shared stack):
+ *     `--contexts N` bigger than the fixture's seeded roster (today: 2) → "exceeds the fixture's seeded
+ *     roster" + the remedy line.
+ *     the fixture stack down, or its live process env-pin-mismatched (the same drift `stack.sh status`
+ *     surfaces — a stale pidfile serving `local`-shaped /api/auth/config while the bound process is
+ *     actually still single-user) → "FIXTURE REFUSED …" + `run scripts/dev/multi-user-fixture.sh up`.
+ *   Bringing the fixture up/down is a HUMAN/orchestrator call (`bash scripts/dev/multi-user-fixture.sh
+ *   up`) — snap NEVER boots or stops it itself, and never silently restarts the shared stack under a
+ *   different AUTH_MODE. Full detection/credential logic lives in scripts/probes/_kit/fixture.ts.
+ *
  *   ISOLATED STAGE — serve snaps from a FROZEN HEAD worktree, never the live dev stack. The one-flag
  *   recovery for the crash-loop story: a visual pass against the dev stack fights concurrent lanes' HMR
  *   (tsx-watch/vite crash-looping under a reviewer mid-edit). --isolated boots a SECOND, fully isolated
@@ -234,6 +264,15 @@ import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
+import {
+  defaultFixtureUsers,
+  FIXTURE_BASE_URL,
+  FIXTURE_SERVER_URL,
+  fixtureRefusalLine,
+  fixtureStatus,
+  loginFixtureUser,
+  resolveFixtureUsers,
+} from "./_kit/fixture.ts";
 import type { Viewport } from "./_kit/flags.ts";
 import { parseGotoTarget, parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
@@ -367,6 +406,17 @@ type Args = {
   /** How many pages (tabs) to open in ONE shared browser context (shared auth/localStorage).
    *  Default 1 (byte-identical single-page path). Steps/captures target a tab via `@<idx>`. */
   pages: number;
+  /** `--contexts N` (2..4): N ISOLATED browser contexts, each authenticated as a DIFFERENT dev user
+   *  against the multi-user FIXTURE stack (scripts/dev/multi-user-fixture.sh) — own cookies/localStorage,
+   *  so host-vs-member views/presence/visibility-floors can be captured in one run. Default 1 (the
+   *  ordinary single-context path, untouched). Steps/captures target a context via the SAME `@<idx>`
+   *  suffix `--pages` uses (unsuffixed = context 0); combining `--contexts >1` with `--pages >1` is
+   *  refused (unexercised combination, not silently under-tested). */
+  contexts: number;
+  /** `--as <handle>`: with `--contexts 1` (the default), pick WHICH fixture dev user context 0
+   *  authenticates as, instead of the roster default (context 0 = "owner"). Ignored/refused combined with
+   *  `--contexts N>1` (that already assigns N distinct handles in roster order) — pass N contexts instead. */
+  as: string | null;
   /** Timed observation series after nav+steps settle: total window (ms). 0 = disabled (single-shot).
    *  Every tick screenshots (`<out>-t<elapsed>.png`) and re-runs --eval exprs, labeled by elapsed ms. */
   watchMs: number;
@@ -568,6 +618,12 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--pages": (a, rest) => {
     a.pages = Math.max(1, Number(rest.shift() ?? "1") || 1);
   },
+  "--contexts": (a, rest) => {
+    a.contexts = Math.max(1, Number(rest.shift() ?? "1") || 1);
+  },
+  "--as": (a, rest) => {
+    a.as = rest.shift() ?? null;
+  },
   "--watch": (a, rest) => {
     a.watchMs = Math.max(0, Number(rest.shift() ?? "0") || 0);
   },
@@ -699,6 +755,8 @@ function parseArgs(argv: string[]): Args {
     steps: [],
     navActions: [],
     pages: 1,
+    contexts: 1,
+    as: null,
     watchMs: 0,
     watchEveryMs: MS_PER_SECOND,
     out: null,
@@ -1460,10 +1518,25 @@ function pageOut(out: string, pageIndex: number, totalPages: number): string {
   return totalPages > 1 ? out.replace(PNG_EXT_RE, `-p${pageIndex}.png`) : out;
 }
 
+// `--contexts` mirrors pageOut's suffix idiom with its OWN letter ("-u<idx>", user) so a run combining
+// reports never collides with a --pages "-p<idx>" file — the two modes are mutually exclusive (refused
+// together), but the naming stays self-documenting regardless.
+function contextOut(out: string, contextIndex: number, totalContexts: number): string {
+  return totalContexts > 1 ? out.replace(PNG_EXT_RE, `-u${contextIndex}.png`) : out;
+}
+
 // One page's full capture pass. Nav actions + steps + captures are FILTERED to this page's index, so a
 // flat argv list drives N tabs. On single-page (totalPages 1) every filter is a no-op and the flow is
-// byte-identical to the original.
-type PagePlan = ShotPlan & { pageIndex: number; totalPages: number };
+// byte-identical to the original. `unit` picks the shot suffix: "p" (--pages, the default) or "u"
+// (--contexts) — the two modes are mutually exclusive so only one is ever requested per run.
+type PagePlan = ShotPlan & { pageIndex: number; totalPages: number; unit?: "p" | "u" };
+
+// Extracted (not inlined) purely to keep `capture`'s cognitive-complexity count under the gate — the
+// suffix decision itself is trivial.
+function planOut(plan: PagePlan, pageIndex: number, totalPages: number): string {
+  return plan.unit === "u" ? contextOut(plan.out, pageIndex, totalPages) : pageOut(plan.out, pageIndex, totalPages);
+}
+
 async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureOutcome> {
   const { pageIndex, totalPages } = plan;
   const outcome: CaptureOutcome = {
@@ -1480,7 +1553,7 @@ async function capture(page: Page, opts: Args, plan: PagePlan): Promise<CaptureO
     mapError: null,
   };
   const forThisPage = <T extends { page: number }>(items: readonly T[]): T[] => items.filter((i) => i.page === pageIndex);
-  const out = pageOut(plan.out, pageIndex, totalPages);
+  const out = planOut(plan, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
   try {
@@ -1654,9 +1727,19 @@ type ShotPlan = {
   produceShot: boolean;
 };
 
-type ReportCtx = ShotPlan & { failed: CapturedRequest[]; totalPages: number };
+// `label` is the multi-item banner word ("PAGE" for --pages, "CONTEXT" for --contexts) — printPageReport
+// reads it so the two modes share one printer without a 5th positional param.
+type ReportCtx = ShotPlan & { failed: CapturedRequest[]; totalPages: number; label?: string };
 
-function printSummary(session: ProbeSession, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
+// Structural subset printSummary needs — a ProbeSession OR a ProbeContext both satisfy it, so --contexts'
+// per-context report can call the SAME function as the single-context/--pages path.
+type SessionCounts = {
+  readonly requests: ReadonlyMap<string, CapturedRequest>;
+  readonly consoleLines: readonly string[];
+  readonly pageErrors: readonly string[];
+};
+
+function printSummary(session: SessionCounts, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
   let shotDisplay = ctx.out;
   if (!ctx.produceShot) {
     shotDisplay = "(none — --no-shot)";
@@ -1734,7 +1817,7 @@ function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | n
   print("  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.");
 }
 
-function printCaptureLog(session: ProbeSession, failed: CapturedRequest[]): void {
+function printCaptureLog(session: SessionCounts, failed: CapturedRequest[]): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
     for (const r of failed) {
@@ -1910,9 +1993,10 @@ function printWatchBlock(ticks: readonly WatchTick[]): void {
 
 // One page's report section. Multi-tab prefixes a `=== PAGE N ===` banner; single-page prints exactly
 // the original layout. Session-wide logs (requests/console/pageErrors) print ONCE after all pages.
-function printPageReport(session: ProbeSession, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
+// ctx.label lets --contexts reuse this for a `=== CONTEXT N ===` banner instead.
+function printPageReport(session: SessionCounts, outcome: CaptureOutcome, opts: Args, ctx: ReportCtx): void {
   if (ctx.totalPages > 1) {
-    print(`\n========== PAGE ${outcome.pageIndex} ==========`);
+    print(`\n========== ${ctx.label ?? "PAGE"} ${outcome.pageIndex} ==========`);
   }
   printSummary(session, outcome, opts, ctx);
   printAriaBlock(opts, outcome.ariaText);
@@ -1998,8 +2082,162 @@ async function snap(opts: Args): Promise<number> {
   return red ? 1 : 0;
 }
 
+// ── --contexts N: N isolated, differently-authenticated browser contexts ────────────────────────────
+// A SEPARATE top-level path from `snap()` (not threaded through the --pages loop): contexts have their
+// OWN cookies/console/requests (unlike --pages tabs, which share one context's auth) — reusing the
+// generic `capture()`/print* helpers (widened to `SessionCounts`) but iterating `session.contexts`
+// instead of `session.pages`, one page (page 0) per context. `--pages` + `--contexts` together is refused
+// in `main()` before this ever runs.
+type FixtureUser = { readonly handle: string; readonly password: string };
+
+// Log in EACH user via the real form door (POST /api/auth/login) BEFORE any browser context opens — the
+// session cookie is then seeded into its matching context (buildContext in _kit/browser.ts), so the very
+// first navigation is already authenticated as that user, no in-page login-form drive needed. Returns
+// null (having already printed the failing line) on the first login that doesn't mint a cookie.
+async function loginAllFixtureUsers(users: readonly FixtureUser[]): Promise<(string | null)[] | null> {
+  const cookies: (string | null)[] = [];
+  for (const u of users) {
+    // biome-ignore lint/performance/noAwaitInLoops: N logins (≤4) against the fixture's per-IP throttle — sequential is deliberate, not a bottleneck worth parallelizing.
+    const login = await loginFixtureUser(FIXTURE_SERVER_URL, u.handle, u.password);
+    if ("error" in login) {
+      print(`LOGIN FAILED  ${u.handle}: ${login.error}`);
+      return null;
+    }
+    cookies.push(login.cookie);
+  }
+  return cookies;
+}
+
+type ContextReportArgs = {
+  readonly opts: Args;
+  readonly session: ProbeSession;
+  readonly outcomes: readonly CaptureOutcome[];
+  readonly users: readonly FixtureUser[];
+  readonly plan: ShotPlan;
+  readonly out: string;
+  readonly totalContexts: number;
+};
+
+// One context's report section + its running request/error totals — factored out of snapContexts to
+// keep that function's cognitive complexity under the gate. A single params object dodges the
+// too-many-positional-params rule while keeping every field self-documenting at the call site.
+function reportOneContext(args: ContextReportArgs, i: number): { readonly failedReq: number; readonly pageErrors: number } {
+  const { opts, session, outcomes, users, plan, out, totalContexts } = args;
+  const ctxSession = session.contexts[i] as (typeof session.contexts)[number];
+  const outcome = outcomes[i] as CaptureOutcome;
+  const failed = [...ctxSession.requests.values()].filter((r) => r.failed !== null || (r.status ?? 0) >= HTTP_ERROR_STATUS_MIN);
+  const ctx: ReportCtx = { ...plan, out: contextOut(out, i, totalContexts), failed, totalPages: totalContexts, label: "CONTEXT" };
+  print(`\nuser         ${users[i]?.handle} (context ${i})`);
+  printPageReport(ctxSession, outcome, opts, ctx);
+  printCaptureLog(ctxSession, failed);
+  return { failedReq: failed.length, pageErrors: ctxSession.pageErrors.length };
+}
+
+async function snapContexts(opts: Args, users: readonly FixtureUser[]): Promise<number> {
+  const url = buildUrl(opts.base, opts.route);
+  const name = opts.out ?? routeSlug(opts.route);
+  const out = join(await artifactDir("snaps"), `${name}.png`);
+  const produceShot = opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
+  const totalContexts = users.length;
+
+  const cookies = await loginAllFixtureUsers(users);
+  if (cookies === null) {
+    return 1;
+  }
+
+  const session = await launchProbeSession({
+    headless: !opts.vnc,
+    viewport: opts.viewport,
+    colorScheme: opts.colorScheme,
+    reducedMotion: opts.reducedMotion || opts.probe,
+    localStorage: buildSeeds(opts),
+    device: opts.device,
+    contexts: totalContexts,
+    contextCookies: cookies,
+    cookieDomain: new URL(opts.base).hostname,
+  });
+  if (opts.probe) {
+    for (const c of session.contexts) {
+      // biome-ignore lint/performance/noAwaitInLoops: N contexts (≤4), each needs its OWN init script — sequential, not a bottleneck.
+      await c.context.addInitScript({ content: PROBE_CSS_SCRIPT });
+    }
+  }
+
+  const plan: ShotPlan = { url, out, produceShot };
+  const outcomes: CaptureOutcome[] = [];
+  for (let i = 0; i < totalContexts; i += 1) {
+    const page = session.contexts[i]?.pages[0] as Page;
+    // biome-ignore lint/performance/noAwaitInLoops: contexts capture SEQUENTIALLY — same discipline as the --pages loop (argv/index order, one user's turn observed before the next).
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: i, totalPages: totalContexts, unit: "u" }));
+  }
+  await session.browser.close();
+
+  let anyPageErrors = 0;
+  let anyFailedReq = 0;
+  const reportArgs: ContextReportArgs = { opts, session, outcomes, users, plan, out, totalContexts };
+  for (let i = 0; i < totalContexts; i += 1) {
+    const totals = reportOneContext(reportArgs, i);
+    anyFailedReq += totals.failedReq;
+    anyPageErrors += totals.pageErrors;
+  }
+
+  const contrastFails = outcomes.reduce((n, o) => n + o.contrastResults.filter((c) => c.failed).length, 0);
+  const navFailures = outcomes.reduce((n, o) => n + o.navFailures, 0);
+  const stepFailures = outcomes.reduce((n, o) => n + o.stepFailures, 0);
+  const anyNavError = outcomes.some((o) => o.navError !== null);
+  const deadCssTotal = outcomes.reduce((n, o) => n + o.deadCss.length, 0);
+  const emptyCssTotal = outcomes.reduce((n, o) => n + o.emptyCss.length, 0);
+  const ariaSeen = outcomes.some((o) => o.ariaText !== null);
+  const evalsTotal = outcomes.reduce((n, o) => n + o.evalResults.length, 0);
+  const red = anyNavError || navFailures > 0 || anyPageErrors > 0 || anyFailedReq > 0 || stepFailures > 0 || contrastFails > 0;
+  printResult("snap", [
+    ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
+    ["contexts", totalContexts],
+    ["users", users.map((u) => u.handle).join(",")],
+    ["aria", ariaSeen ? "yes" : "no"],
+    ["evals", evalsTotal],
+    ["contrast-fails", contrastFails],
+    ["nav", anyNavError ? "ERROR" : "OK"],
+    ["nav-actions-failed", navFailures],
+    ["steps-failed", stepFailures],
+    ["page-errors", anyPageErrors],
+    ["failed-req", anyFailedReq],
+    ["deadcss", deadCssTotal],
+    ["emptycss", emptyCssTotal],
+  ]);
+  return red ? 1 : 0;
+}
+
 // Isolated-stage gate: --stage-down tears down and exits; --isolated boots-or-reuses the stage and repoints
 // the base URL at it BEFORE the normal snap runs. Everything else (flags, capture, report) is unchanged.
+// `--contexts N>1` (or `--as`) targets the multi-user FIXTURE stack, NEVER the shared :5173/:8788 —
+// resolves its users + repoints opts.base at its client port, or returns a loud refusal line (the
+// fixture down/mismatched, or N exceeding its seeded roster) — never a silent fallback to the shared
+// stack. `null` return = proceed on the ordinary (single-context) path; `{ users }` = drive snapContexts.
+function resolveContextsMode(opts: Args): { readonly users: readonly FixtureUser[] } | { readonly refuse: string } | null {
+  if (opts.contexts <= 1 && opts.as === null) {
+    return null;
+  }
+  if (opts.contexts > 1 && opts.as !== null) {
+    return {
+      refuse: "--as is only for a single context (--contexts 1, the default) — a --contexts N>1 run already assigns N distinct handles in roster order",
+    };
+  }
+  if (opts.pages > 1) {
+    return { refuse: "--contexts + --pages together is an unexercised combination — drive one at a time" };
+  }
+  const status = fixtureStatus();
+  if (!status.up) {
+    return { refuse: fixtureRefusalLine(status.reason) };
+  }
+  const resolved = opts.as !== null ? resolveFixtureUsers([opts.as]) : defaultFixtureUsers(opts.contexts);
+  if ("error" in resolved) {
+    return { refuse: fixtureRefusalLine(resolved.error) };
+  }
+  opts.base = FIXTURE_BASE_URL;
+  return { users: resolved.users };
+}
+
 async function main(opts: Args): Promise<number> {
   if (opts.stageDown) {
     print(`[snap-stage] ${teardownStage()}`);
@@ -2015,6 +2253,14 @@ async function main(opts: Args): Promise<number> {
       print(`STAGE ERROR: ${errorMessage(e)}`);
       return 1;
     }
+  }
+  const contextsMode = resolveContextsMode(opts);
+  if (contextsMode !== null) {
+    if ("refuse" in contextsMode) {
+      print(contextsMode.refuse);
+      return 1;
+    }
+    return await snapContexts(opts, contextsMode.users);
   }
   return await snap(opts);
 }

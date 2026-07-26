@@ -5,6 +5,7 @@
 // the verbs read directly (users / characters / character_embeddings / chats / chat_participants /
 // chat_digests / chat_segments / assets / image_embeddings).
 
+import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
   assets,
@@ -483,7 +484,7 @@ export async function seedImageEmbedding(
     readonly embedding: Float32Array;
     readonly model?: string;
     readonly contentHash?: string;
-    readonly lens?: "image-raw" | "image-captioned";
+    readonly lens?: ImageLens;
     readonly caption?: string;
     readonly captionMeta?: Record<string, unknown>;
   },

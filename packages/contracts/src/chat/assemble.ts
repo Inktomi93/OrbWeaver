@@ -10,6 +10,7 @@ import type { InjectionPlacement } from "@orb/kit/injection";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
+import type { EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig } from "#preset";
 import type { RegexScript } from "#regex";
@@ -71,7 +72,7 @@ export interface AssembleWorldEntry {
    *  (active persona). Drives the dual-persona macro routing. */
   source: "character" | "chat";
   /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
-  position: "before" | "after";
+  position: EntryPosition;
   /** WI-at-depth: when set, splice into the chat HISTORY at this placement instead of the system half. */
   inject?: InjectionPlacement | null;
 }

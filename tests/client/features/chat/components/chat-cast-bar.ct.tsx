@@ -6,6 +6,7 @@
 // The roster stub returns only what the bar reads (`participants` with kind/characterId/displayName/
 // disabled) — a partial `ChatDetail`, the same posture as chats-section.ct's stub.
 
+import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatCastBarStory } from "../_ct-stories";
@@ -31,7 +32,7 @@ function roster(...members: unknown[]): unknown {
 
 /** A human seat — `role` seats a host/member; the bar's add-member gate is the separate server-resolved
  *  `viewerIsHost` field, NOT this seat's role (a member behind a host seat must not see the "+"). */
-function human(role: "host" | "member"): unknown {
+function human(role: ParticipantRole): unknown {
   return {
     id: `participant_${role}`,
     kind: "human",

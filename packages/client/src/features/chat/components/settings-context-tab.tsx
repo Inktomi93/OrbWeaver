@@ -14,12 +14,14 @@ import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 import { DraftGroupConfigTabBody, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
 import { RoomOverridesTab } from "./room-overrides-tab";
+
+// The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
+const GROUP_SECTION_SKELETON_ROWS = 4;
 
 export interface CommittedSettingsTabProps {
   readonly chatId: ChatId;
@@ -41,7 +43,10 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       {showGroup ? (
         <Section heading="Group behavior">
           <QueryBoundary
-            fallback={<Text tone="muted">Loading group settings…</Text>}
+            // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
+            // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
+            // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
+            fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
           >
             <CommittedGroupConfigTab chatId={chatId} />

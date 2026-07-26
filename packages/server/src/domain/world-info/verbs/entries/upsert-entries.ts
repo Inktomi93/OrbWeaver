@@ -7,7 +7,7 @@
 // always wins). Caller policy (caps, merge-mode, span-stamped titles, mark advance) stays with the caller; the
 // SKIP semantic lives here so every consumer inherits it. Keyed entries fire through the normal keyword match.
 
-import type { EntryMetadata, LoreEntryCrewProvenance, UpsertLoreEntryInput } from "@orb/contracts/world-info";
+import type { EntryMetadata, LoreEntryCrewProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -28,7 +28,7 @@ type EntryRow = Awaited<ReturnType<typeof listBookEntries>>[number];
 interface UpsertOutcome {
   readonly outcome: "insert" | "update" | "skip";
   readonly entryId: WorldEntryId;
-  readonly scope: "always" | "keyword";
+  readonly scope: WorldInfoScope;
 }
 
 function crewProvenance(input: UpsertLoreEntryInput): LoreEntryCrewProvenance {
@@ -83,7 +83,7 @@ async function emitEntry(
   emitWiEvent: WorldInfoContext["emitWiEvent"],
   chatIds: readonly ChatId[],
   entryId: WorldEntryId,
-  scope: "always" | "keyword",
+  scope: WorldInfoScope,
 ): Promise<void> {
   for (const chatId of chatIds) {
     // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — sequential fan-out keeps per-chat ordering deterministic (the createEntry precedent).

@@ -11,7 +11,7 @@ import type { CardDepthPrompt } from "@orb/contracts/character";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { TagStatus } from "@orb/contracts/tag";
-import type { EntryMetadata } from "@orb/contracts/world-info";
+import type { EntryMetadata, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -221,12 +221,7 @@ export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Pro
   return id;
 }
 
-export async function seedCharacterBook(
-  db: Db,
-  characterId: CharacterId,
-  worldBookId: WorldBookId,
-  role: "primary" | "auxiliary" = "auxiliary",
-): Promise<void> {
+export async function seedCharacterBook(db: Db, characterId: CharacterId, worldBookId: WorldBookId, role: WorldBookRole = "auxiliary"): Promise<void> {
   await db.insert(characterBooks).values({ characterId, worldBookId, role, createdAt: FROZEN_AT });
 }
 

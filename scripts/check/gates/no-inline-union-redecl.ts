@@ -3,12 +3,60 @@
 // inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal set whose members
 // EXACTLY EQUAL an existing canonical tuple — catches a union in a property position or a `z.enum([...])`
 // call that (A) misses. A genuine one-off enum with no canonical tuple (e.g. NODE_ENV) is not flagged.
-import type { ArrayLiteralExpression, CallExpression, UnionTypeNode, VariableDeclaration } from "ts-morph";
+//
+// Two blind spots repaired (audit 2026-07-25 §F4/§G2):
+//  - `as const satisfies readonly X[]` tuples: the house-encouraged derive idiom parses as a
+//    SatisfiesExpression wrapping the AsExpression, so `unwrapAsConstTuple` now peels it. The satisfies clause
+//    IS the axis's co-declaration of record — if it binds to `Interface["prop"]`, that property's own
+//    inline literal union is the SOURCE the tuple derives from, not a re-spell; arm B exempts exactly
+//    that binding site (else the idiom flags itself).
+//  - the 2-member floor: a 2-member axis (ENTRY_POSITIONS, PROMPT_TRANSFORM_POINTS) never registered as
+//    canonical. Arm A keeps its ≥3 floor (a bare `"ok" | "error"` alias is not noise-worthy), but arm B's
+//    canonical-tuple REGISTRATION drops to ≥2 for tuples homed in `packages/contracts/` or `packages/kit/`
+//    ONLY — the home demonstrably exists there, so a 2-member exact-set match is a low false-positive class
+//    (a coincidental generic-pair match would need a homed contracts/kit tuple of the same two strings).
+import type { ArrayLiteralExpression, CallExpression, Expression, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
-const MIN_MEMBERS = 3;
+const ALIAS_MIN_MEMBERS = 3; // arm A floor (an inline union type-alias)
+const TUPLE_MIN_MEMBERS = 3; // arm B default registration floor
+const TUPLE_MIN_MEMBERS_HOMED = 2; // arm B floor for a tuple homed in contracts/ or kit/
 const SEP = " ";
+
+/** Package homes where a 2-member canonical tuple is trusted enough to register for arm B. */
+function isTrustedHome(relFile: string): boolean {
+  return relFile.startsWith("packages/contracts/") || relFile.startsWith("packages/kit/");
+}
+
+// The package cake (kit ← contracts ← db ← server ← client; ui deps kit only) — a file can only DERIVE
+// from a tuple its package is allowed to import. A candidate can never re-spell a tuple homed UP the cake
+// (it physically can't import it — e.g. a kit fn returning "always"|"keyword" cannot reach a contracts
+// WORLD_INFO_SCOPES), so arm B must not flag it. Rank by import reach: a re-spell in package P against a
+// tuple homed in H is only a real re-spell when H is reachable from P (rank[H] ≤ rank[P]).
+const PACKAGE_IMPORT_RANK: Readonly<Record<string, number>> = { kit: 0, contracts: 1, ui: 1, db: 2, server: 3, client: 4 };
+const PACKAGE_RE = /^packages\/(?<pkg>[^/]+)\//u;
+const TESTS_RANK = 5; // tests import anything — never up-cake-blocked
+
+/** The import-reach rank of the package a repo-relative file lives in (tests reach everything). */
+function importRank(relFile: string): number {
+  if (relFile.startsWith("tests/")) {
+    return TESTS_RANK;
+  }
+  const pkg = PACKAGE_RE.exec(relFile)?.groups?.["pkg"];
+  return pkg !== undefined ? (PACKAGE_IMPORT_RANK[pkg] ?? TESTS_RANK) : TESTS_RANK;
+}
+
+/** Can a re-spell in `candidateFile` legally import a tuple homed in `homeFile` (same-or-down the cake)?
+ *  `ui` (rank 1) may only reach `kit` (rank 0), not its rank-peer `contracts` — encode that one exception. */
+function canReachHome(candidateFile: string, homeFile: string): boolean {
+  const candPkg = PACKAGE_RE.exec(candidateFile)?.groups?.["pkg"];
+  const homePkg = PACKAGE_RE.exec(homeFile)?.groups?.["pkg"];
+  if (candPkg === "ui" && homePkg === "contracts") {
+    return false; // ui deps kit ONLY (D54) — a contracts tuple is unreachable from ui
+  }
+  return importRank(homeFile) <= importRank(candidateFile);
+}
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
@@ -57,33 +105,83 @@ function zEnumArrayMembers(call: CallExpression): string[] | undefined {
   return arg !== undefined && Node.isArrayLiteralExpression(arg) ? stringArrayMembers(arg) : undefined;
 }
 
-/** sig of a `const X = [...] as const` string tuple (>=MIN_MEMBERS), or undefined. */
-function tupleSig(decl: VariableDeclaration): string | undefined {
-  const init = decl.getInitializer();
-  if (init === undefined || !Node.isAsExpression(init) || init.getTypeNode()?.getText() !== "const") {
+/** A location key `file:line:col` for a node — used to exempt a satisfies-referenced co-declaration site. */
+type LocKey = string;
+function locKeyOf(node: Node, root: string): LocKey {
+  const sf = node.getSourceFile();
+  const { column } = sf.getLineAndColumnAtPos(node.getStart());
+  return `${relPath(root, sf.getFilePath())}:${node.getStartLineNumber()}:${column}`;
+}
+
+/** Unwrap a variable initializer to its `as const` array literal, tolerating a `satisfies` wrapper.
+ *  Returns the array literal AND (when present) the `satisfies` element TYPE NODE — the co-declaration
+ *  the tuple derives from. */
+function unwrapAsConstTuple(init: Expression): { readonly arr: ArrayLiteralExpression; readonly satisfiesElement: Node | undefined } | undefined {
+  let node: Expression = init;
+  let satisfiesElement: Node | undefined;
+  if (Node.isSatisfiesExpression(node)) {
+    satisfiesElement = satisfiesElementType(node.getTypeNode());
+    node = node.getExpression();
+  }
+  if (!Node.isAsExpression(node) || node.getTypeNode()?.getText() !== "const") {
     return;
   }
-  const expr = init.getExpression();
-  if (!Node.isArrayLiteralExpression(expr)) {
+  const expr = node.getExpression();
+  return Node.isArrayLiteralExpression(expr) ? { arr: expr, satisfiesElement } : undefined;
+}
+
+/** Peel `readonly X[]` → the element type node `X` (the axis's co-declaration reference). */
+function satisfiesElementType(typeNode: Node | undefined): Node | undefined {
+  let el = typeNode;
+  if (el !== undefined && Node.isTypeOperatorTypeNode(el)) {
+    el = el.getTypeNode();
+  }
+  if (el !== undefined && Node.isArrayTypeNode(el)) {
+    return el.getElementTypeNode();
+  }
+  return el;
+}
+
+/** The union declaration node an `Interface["prop"]` indexed-access refers to (its co-declaration site),
+ *  or undefined if it doesn't resolve to a single interface-property literal union. */
+function coDeclarationUnionNode(elementType: Node): UnionTypeNode | undefined {
+  if (!Node.isIndexedAccessTypeNode(elementType)) {
     return;
   }
-  const members = stringArrayMembers(expr);
-  return members !== undefined && members.length >= MIN_MEMBERS ? sig(members) : undefined;
+  const indexLit = elementType.getIndexTypeNode();
+  if (!Node.isLiteralTypeNode(indexLit)) {
+    return;
+  }
+  const indexName = indexLit.getLiteral();
+  if (!Node.isStringLiteral(indexName)) {
+    return;
+  }
+  const prop = indexName.getLiteralText();
+  const sym = elementType.getObjectTypeNode().getType().getSymbol();
+  const propTypeNode = (sym?.getDeclarations() ?? [])
+    .filter((d) => Node.isInterfaceDeclaration(d))
+    .map((decl) => decl.getProperty(prop)?.getTypeNode())
+    .find((tn) => tn !== undefined && Node.isUnionTypeNode(tn));
+  return propTypeNode !== undefined && Node.isUnionTypeNode(propTypeNode) ? propTypeNode : undefined;
 }
 
 // Arm A (an inline string-union type-alias ≥3 members) is self-contained per alias → emitted at visit.
 // Arm B (an inline union / z.enum re-spelling a CANONICAL tuple) needs ALL tuples collected before it can
 // judge (a re-spell can reference a tuple declared later in the walk), so re-spell candidates are
 // accumulated in visit and reconciled against the collected tuples in `finalize`.
-// legacy Check.
 type RespellCandidate = {
   readonly file: string;
   readonly line: number;
   readonly column: number;
+  readonly loc: LocKey;
   readonly sig: string;
   readonly kind: "union" | "zenum";
 };
-const passTuples = new Map<string, string>(); // sig → tuple name
+type TupleHome = { readonly name: string; readonly file: string };
+const passTuples = new Map<string, TupleHome>(); // sig → { tuple name, home file }
+// Locations of satisfies-referenced co-declaration union nodes (Interface["prop"]) — a registered tuple's
+// SOURCE of record, not a re-spell; arm B skips a candidate that IS one of these.
+const passCoDeclLocs = new Set<LocKey>();
 const passRespells: RespellCandidate[] = [];
 
 function candidateColumn(node: Node): number {
@@ -95,9 +193,39 @@ function pushRespell(node: Node, root: string, members: string[], kind: "union" 
     file: relPath(root, node.getSourceFile().getFilePath()),
     line: node.getStartLineNumber(),
     column: candidateColumn(node),
+    loc: locKeyOf(node, root),
     sig: sig(members),
     kind,
   });
+}
+
+/** Register a `const X = [...] as const [satisfies readonly Y[]]` string tuple as a canonical axis home
+ *  (if it clears the per-home member floor) and record its satisfies co-declaration site for exemption. */
+function registerTuple(decl: VariableDeclaration, root: string): void {
+  const init = decl.getInitializer();
+  if (init === undefined) {
+    return;
+  }
+  const unwrapped = unwrapAsConstTuple(init);
+  if (unwrapped === undefined) {
+    return;
+  }
+  const members = stringArrayMembers(unwrapped.arr);
+  if (members === undefined) {
+    return;
+  }
+  const relFile = relPath(root, decl.getSourceFile().getFilePath());
+  const floor = isTrustedHome(relFile) ? TUPLE_MIN_MEMBERS_HOMED : TUPLE_MIN_MEMBERS;
+  if (members.length < floor) {
+    return;
+  }
+  passTuples.set(sig(members), { name: decl.getName(), file: relFile });
+  if (unwrapped.satisfiesElement !== undefined) {
+    const coDecl = coDeclarationUnionNode(unwrapped.satisfiesElement);
+    if (coDecl !== undefined) {
+      passCoDeclLocs.add(locKeyOf(coDecl, root));
+    }
+  }
 }
 
 /** Arm A — emit an inline string-union type alias (≥3 members) immediately; it is self-contained. */
@@ -110,7 +238,7 @@ function visitAlias(node: Node, ctx: GateRunCtx): void {
     return;
   }
   const members = unionStringMembers(typeNode);
-  if (members !== undefined && members.length >= MIN_MEMBERS) {
+  if (members !== undefined && members.length >= ALIAS_MIN_MEMBERS) {
     ctx.report(node, { token: `union ${node.getName()}`, offset: 0 });
   }
 }
@@ -150,15 +278,13 @@ export const gate: GateDescriptor = {
   kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.TypeAliasDeclaration, SyntaxKind.UnionType, SyntaxKind.CallExpression],
   begin: () => {
     passTuples.clear();
+    passCoDeclLocs.clear();
     passRespells.length = 0;
   },
   visit: (node, _sf, ctx) => {
     // Collect canonical tuples (for arm B's finalize reconciliation).
     if (Node.isVariableDeclaration(node)) {
-      const s = tupleSig(node);
-      if (s !== undefined) {
-        passTuples.set(s, node.getName());
-      }
+      registerTuple(node, ctx.root);
       return;
     }
     visitAlias(node, ctx); // arm A (self-contained)
@@ -166,20 +292,31 @@ export const gate: GateDescriptor = {
   },
   finalize: (ctx: GateRunCtx) => {
     for (const c of passRespells) {
-      const name = passTuples.get(c.sig);
-      if (name === undefined) {
+      const home = passTuples.get(c.sig);
+      if (home === undefined) {
+        continue;
+      }
+      // A satisfies-bound tuple's own `Interface["prop"]` co-declaration is the SOURCE it derives from,
+      // not a re-spell — skip it (else the derive idiom flags itself).
+      if (passCoDeclLocs.has(c.loc)) {
+        continue;
+      }
+      // A candidate that can't legally import the tuple's home (it sits UP the cake) is NOT a re-spell —
+      // it physically cannot derive from it (a kit fn returning "always"|"keyword" can't reach a contracts
+      // WORLD_INFO_SCOPES). Only flag when the home is reachable from the candidate's package.
+      if (!canReachHome(c.file, home.file)) {
         continue;
       }
       const message =
         c.kind === "zenum"
-          ? `z.enum([...]) re-spells the canonical tuple '${name}' — use z.enum(${name}). Spine-TypeScript-and-Patterns.md §7.5`
-          : `inline union re-spells the canonical tuple '${name}' — derive ((typeof ${name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`;
+          ? `z.enum([...]) re-spells the canonical tuple '${home.name}' — use z.enum(${home.name}). Spine-TypeScript-and-Patterns.md §7.5`
+          : `inline union re-spells the canonical tuple '${home.name}' — derive ((typeof ${home.name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`;
       ctx.report({
         file: c.file,
         line: c.line,
         column: c.column,
         message,
-        token: `re-spell ${name}`,
+        token: `re-spell ${home.name}`,
       });
     }
   },
@@ -206,17 +343,53 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "z.enum([...]) re-spells the canonical tuple" },
       why: "a `z.enum([...])` respelling a homed `as const` tuple (arm B ZENUM sub-kind — the AUTH_MODE bug) — use z.enum(X)",
     },
+    {
+      files: {
+        "packages/kit/src/pair-home.ts": "export const PAIR = ['x', 'y'] as const;\n",
+        "packages/server/src/pair-respell.ts": "export interface P { side: 'x' | 'y' }\n",
+      },
+      expect: { messageIncludes: "re-spells the canonical tuple" },
+      why: "blind spot (b) repaired: a 2-member tuple homed in kit/ now registers, so a 2-member re-spell is caught (arm B at the ≥2 homed floor)",
+    },
+    {
+      files: {
+        "packages/contracts/src/sat-home.ts":
+          "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
+        "packages/server/src/sat-respell.ts": "export interface Reuse { mode: 'a' | 'b' | 'c' }\n",
+      },
+      expect: { messageIncludes: "re-spells the canonical tuple" },
+      why: "blind spot (a) repaired: an `as const satisfies readonly X[]` tuple now registers, so a FOREIGN re-spell is caught — while its OWN satisfies co-declaration (Cfg.mode) is exempt (the next mustPass proves the exemption)",
+    },
   ],
   mustPass: [
     {
       files: "export type NodeEnv = 'development' | 'production';\n",
       at: "packages/contracts/src/y.ts",
-      why: "a 2-member one-off union with no canonical tuple — under the ≥3 floor + no home, passes",
+      why: "a 2-member one-off union with no canonical tuple — arm A ≥3 floor + no home, passes",
     },
     {
       files: "export const schema = z.enum(['development', 'production', 'test']);\n",
       at: "packages/contracts/src/env.ts",
       why: "a `z.enum([...])` one-off (NODE_ENV-class) with NO matching canonical tuple in the tree — arm B no-op, passes",
+    },
+    {
+      files: "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
+      at: "packages/contracts/src/sat-selfsource.ts",
+      why: "the satisfies co-declaration EXEMPTION: `Cfg.mode` is the SOURCE the satisfies tuple derives from — the idiom must not flag itself (blind-spot-(a) care clause from §G2)",
+    },
+    {
+      files: {
+        "packages/server/src/local-pair-home.ts": "export const LOCAL_PAIR = ['x', 'y'] as const;\n",
+        "packages/server/src/local-pair-use.ts": "export interface Q { side: 'x' | 'y' }\n",
+      },
+      why: "a 2-member tuple homed OUTSIDE contracts/kit stays below the arm-B registration floor (≥3), so a coincidental generic pair is NOT flagged — the false-positive control from §G2 fix (b)",
+    },
+    {
+      files: {
+        "packages/contracts/src/scope-home.ts": "export const SCOPES = ['always', 'keyword'] as const;\n",
+        "packages/kit/src/engine.ts": "export function resolve(): 'always' | 'keyword' {\n  return 'always';\n}\n",
+      },
+      why: "the up-cake reach guard: a kit fn returning a union whose sig matches a CONTRACTS-homed tuple can't import it (kit ← contracts is one-directional) — flagging it would demand an illegal import, so it passes (the live `resolveEntryScope` case)",
     },
   ],
 };

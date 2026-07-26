@@ -7,6 +7,7 @@
 // excluded. On a GROUP it opens the Members context tab (unchanged); on a SOLO chat it opens a compact
 // roster popover — the present seats + a host-only "Add a character" that converts the solo chat to a group.
 
+import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatContextHeaderDraftStory, ChatHeaderStory } from "../_ct-stories";
@@ -15,7 +16,7 @@ import { makeMessagesPage } from "../fixtures";
 const MEMBERS_CHIP_RE = /Members/;
 
 /** A human seat — `role` seats a host/member (the roster shape); `displayName` for the roster popover row. */
-function human(role: "host" | "member"): Record<string, unknown> {
+function human(role: ParticipantRole): Record<string, unknown> {
   return {
     id: `participant_${role}`,
     kind: "human",

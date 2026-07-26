@@ -3,6 +3,7 @@
 // is membership-scoped, resolving requireParticipant/requireHost(principal, chatId); there is no ownerId.
 
 import type {
+  ChatInjection,
   ChatInjectionInput,
   CreateInviteInput,
   GroupConfigInput,
@@ -287,7 +288,7 @@ export interface ForkChatParams extends ChatScopedParams {
 /** `setChatInjection` — upserts a persisted positional injection. `id` set means update; absent means create. */
 export interface SetChatInjectionParams extends ChatScopedParams {
   readonly id?: ChatInjectionId | undefined;
-  readonly position: "before_prompt" | "in_static" | "in_prompt" | "in_chat";
+  readonly position: ChatInjection["position"];
   readonly depth: number;
   readonly role: MessageRole;
   readonly content: string;

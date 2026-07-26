@@ -3,6 +3,7 @@
 // (PD-141) the source's attached world-info book REFERENCES are CARRIED onto the clone (the books are never
 // cloned — new junction rows point at the SAME books).
 
+import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -18,7 +19,7 @@ import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.
 /** Seed an owned world book + attach it to a character at `role` (PD-141 carry fixtures). */
 async function seedAttachedBook(
   db: Db,
-  args: { readonly bookId: string; readonly ownerId: UserId; readonly characterId: CharacterId; readonly role: "primary" | "auxiliary" },
+  args: { readonly bookId: string; readonly ownerId: UserId; readonly characterId: CharacterId; readonly role: WorldBookRole },
 ): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(args.bookId);
   await db.insert(worldBooks).values({ id: bookId, ownerId: args.ownerId, name: args.bookId, description: null, createdAt: FROZEN_AT_MS });

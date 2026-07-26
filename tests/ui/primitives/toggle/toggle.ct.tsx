@@ -24,7 +24,25 @@ test("pressed wears the accent token", async ({ mount, page }) => {
     </Toggle>,
   );
   const control = page.getByRole("button");
+  await expect(control).toHaveAttribute("aria-pressed", "true");
   await expect(control).toHaveCSS("background-color", TOKENS["color.accent"].value);
+});
+
+// The neutral pressed fill sits only ΔL≈0.03 above the group surface — the Ember inset-ring is the
+// lightness-INDEPENDENT selection cue (side-eye a11y receipt). Clicking (not tabbing) sets pressed
+// without a focus-visible ring, so the ONLY box-shadow present is the pressed inset-ring: it carries
+// the `inset` keyword and the Ember `--ring` token (= color.primary), neither of which the offset
+// focus ring would produce.
+test("pressed paints an Ember inset-ring as a non-color selection cue", async ({ mount, page }) => {
+  const toggle = await mount(<Toggle aria-label="Bold">B</Toggle>);
+  const control = page.getByRole("button");
+  await expect(toggle).toHaveCSS("box-shadow", "none");
+  await control.click();
+  await expect(control).toHaveAttribute("aria-pressed", "true");
+  const shadow = await control.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).not.toBe("none");
+  expect(shadow).toContain("inset");
+  expect(shadow).toContain(TOKENS["color.primary"].value);
 });
 
 test("onPressedChange reports the next state", async ({ mount, page }) => {

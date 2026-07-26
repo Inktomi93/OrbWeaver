@@ -6,6 +6,7 @@
 
 import type { Branded } from "@orb/kit/ids";
 import type { ChatTriggerType, DomainTriggerType } from "#automation";
+import type { PromptTransformPoint } from "#chat";
 
 /** An opaque ref to a guest-registered callback, minted host-side during activation and carried on a collected
  *  registration. The port's `invoke` resolves it back into the resident guest; the domain treats it as opaque
@@ -26,7 +27,7 @@ export interface PluginToolRegistration {
  *  activation. Occupies the plugin band (order 1000+, assigned by activation order). */
 export interface PluginTransformRegistration {
   readonly name: string;
-  readonly point: "user_input" | "assembled_dynamic";
+  readonly point: PromptTransformPoint;
   readonly handler: PluginHandlerRef;
 }
 

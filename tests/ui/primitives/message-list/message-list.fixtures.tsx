@@ -1,7 +1,7 @@
 // CT fixtures for the MessageList seal. Playwright CT serializes mount props, so the function props
 // (getItemKey/estimateSize/renderItem) — and the stateful "append a message" story — live HERE; the
 // tests themselves pass only numbers/strings (the virtual-list.fixtures.tsx precedent).
-import type { MessageListHandle } from "@orb/ui/message-list";
+import type { MessageListHandle, MessageListProps } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement, ReactNode } from "react";
 import { Component, useRef, useState } from "react";
@@ -337,7 +337,7 @@ interface PinPromptListProps {
   /** The index the "pin" button pins to the viewport top (the just-sent prompt in the real consumer). */
   readonly pinIndex: number;
   /** Defaults to the mode under test; `follow` mounts the SAME fixture to prove pinToIndex is inert there. */
-  readonly scrollMode?: "follow" | "pin-prompt";
+  readonly scrollMode?: MessageListProps<unknown>["scrollMode"];
 }
 
 /**

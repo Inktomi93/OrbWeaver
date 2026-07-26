@@ -7,6 +7,7 @@
 // exactly.
 
 import type { BlurSurface } from "@orb/contracts/settings";
+import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects";
@@ -17,7 +18,7 @@ export interface ShellCascadeFixtureProps {
   readonly elevation?: "flat" | "ramp";
   readonly hasBgImage?: boolean;
   readonly blurSurfaces?: readonly BlurSurface[];
-  readonly density?: "comfortable" | "compact";
+  readonly density?: ThemeDensity;
   readonly fontScale?: number;
   readonly messageRole?: MessageRole;
   /** The active section stamped on `.shell-grid` (WS3 reading-surface backing). Left off ⇒ the immersive

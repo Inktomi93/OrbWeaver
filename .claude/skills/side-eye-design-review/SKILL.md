@@ -186,6 +186,18 @@ keyboard walk**):
   **MULTI-TAB:** `--pages <N>` opens N pages in ONE shared context; step/capture flags take an
   `@<idx>` suffix (`--fill@0`, `--eval@1`; unsuffixed = page 0) — drive one tab, read the passive one,
   per-page report sections. (Multi-tab is NO LONGER a chrome-devtools reason.)
+  **MULTI-USER CONTEXTS:** `--contexts <N>` (2..4) opens N ISOLATED browser contexts (own cookies —
+  unlike `--pages`, which shares one context's auth), each logged in as a DIFFERENT dev user, for
+  host-vs-member views / presence / visibility-floors in one run. Same `@<idx>` targeting as `--pages`
+  (context 0 unsuffixed); shots suffix `-u<idx>`. `--as <handle>` picks which user a single context
+  (`--contexts 1`, the default) logs in as. **This ALWAYS targets the multi-user FIXTURE stack**
+  (`scripts/dev/multi-user-fixture.sh`), never the shared :5173/:8788 (always single-user, no login
+  form) — bring the fixture up yourself first: `bash scripts/dev/multi-user-fixture.sh up` (same
+  8788/5173 ports as the shared stack — stop that first if it's running; `down`/`status` manage it).
+  A `--contexts N` bigger than the fixture's seeded roster (2 today: owner, member), or the fixture
+  down/env-pin-mismatched, REFUSES loudly (`FIXTURE REFUSED …`) with the exact remedy line — never a
+  silent fallback to the shared stack. Full flag doc: `scripts/probes/snap.ts` header; detection/
+  credential logic: `scripts/probes/_kit/fixture.ts`.
   **VIEWPORT TOGGLES:** `--mobile` (real iPhone 14 Pro Max emulation — 430×932, DPR 3, touch +
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
