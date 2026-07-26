@@ -19,6 +19,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 import { DraftGroupConfigTabBody, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
 import { RoomOverridesTab } from "./room-overrides-tab";
+import { ToolRecurseControl } from "./tool-recurse-control";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
@@ -50,6 +51,18 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
             renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
           >
             <CommittedGroupConfigTab chatId={chatId} />
+          </QueryBoundary>
+        </Section>
+      ) : null}
+      {/* Tool use — host-only (⑦, the §8.1 permission-OMIT: a member never sees the control). Reads getChat
+          (already loaded for this tab) for the current cap; the QueryBoundary matches the getChat suspense. */}
+      {isHost ? (
+        <Section heading="Tool use">
+          <QueryBoundary
+            fallback={<SkeletonRows count={1} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool-call limit" onRetry={retry} />}
+          >
+            <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>
         </Section>
       ) : null}

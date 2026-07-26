@@ -60,8 +60,15 @@ export function projectChatForm(chat: ChatSettings): ChatBehaviorForm {
   };
 }
 
-/** The full `chat` section shape (deep-merged by the section-patch write). */
-export function toChatSectionPatch(form: ChatBehaviorForm): ChatSettings {
+/** The pane-edited slice of the `chat` section (the section-patch DEEP-MERGES, so the PD-146 knobs this pane
+ *  does NOT edit — `autoSwipe.maxRetries`, `autoContinueRounds`, `tempChatTtlHours` — survive untouched: the
+ *  nested `autoSwipe` merge preserves the stored `maxRetries`, and the omitted top-level knobs are preserved).
+ *  A partial-deep of `ChatSettings` so those unedited fields are not required here. */
+type ChatBehaviorPatch = Omit<ChatSettings, "autoSwipe" | "autoContinueRounds" | "tempChatTtlHours"> & {
+  readonly autoSwipe: Omit<ChatSettings["autoSwipe"], "maxRetries">;
+};
+
+export function toChatSectionPatch(form: ChatBehaviorForm): ChatBehaviorPatch {
   return {
     enterSends: form.enterSends,
     continueOnSend: form.continueOnSend,

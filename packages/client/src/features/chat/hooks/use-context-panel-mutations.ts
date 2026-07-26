@@ -32,6 +32,21 @@ export const useSetRoomOverrides = createEntityMutation<SetRoomOverridesVars, un
   errorToast: "Couldn't save the chat overrides.",
 });
 
+/** `chat.setToolRecurseLimit` vars (Phase A L3, ⑦) — the host's per-chat tool-call recursion cap (int
+ *  1..20, server-re-validated) + the target chat. Host-gated INSIDE the verb (`requireHost`). */
+interface SetToolRecurseLimitVars {
+  readonly chatId: ChatId;
+  readonly limit: number;
+}
+
+export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
+  options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
+  // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap
+  // reads back via `ChatDetail.toolRecurseLimit`), delivered by the active subscription (the setRoomOverrides twin).
+  busDriven: true,
+  errorToast: "Couldn't save the tool-call limit.",
+});
+
 /** `chat.setChatInjection` vars — the authored injection fields (`ChatInjectionInput`: id?/position/
  *  depth/role/content/order?) + the target chat. `id` present ⇒ update; absent ⇒ create (upsert). */
 type SetChatInjectionVars = ChatInjectionInput & { readonly chatId: ChatId };

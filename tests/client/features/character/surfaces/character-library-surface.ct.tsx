@@ -11,8 +11,10 @@
 // NOTE (mirrors message-list-surface.ct.tsx's own note): `trpc.character.list` is stubbed at the NETWORK
 // (routeTrpc) — the responder inspects the decoded `input.cursor` to serve page 1 vs page 2.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories";
 import { makeCharacterSummary, makeTagFixture } from "../fixtures";
@@ -237,4 +239,36 @@ test("D4 the create dialog gates Create on BOTH name and description, with the r
   await page.getByRole("textbox", { name: "Character description" }).fill("A sharp-tongued map-maker.");
   await expect(create).toBeEnabled();
   await expect(page.getByText("A name and a description are both required.")).toHaveCount(0);
+});
+
+// ⑪ — the library page size is the user's `UserSettings.library.pageSize` (a consumer-supplied param into
+// createCollectionSurface, not a factory-internal settings read). A custom pageSize reaches the
+// `character.list` request's `limit`; unset falls to the schema default (30), byte-identical to pre-wire.
+function settingsView(pageSize: number): unknown {
+  return {
+    userId: "user_ct_lib",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, library: { pageSize } },
+    updatedAt: 0,
+  };
+}
+
+test("⑪ the user's library.pageSize threads into the character.list request limit", async ({ mount, page }) => {
+  const trpc: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsView(42),
+    "character.list": twoPageResponder,
+  });
+  await mount(<CharacterLibrarySurfaceStory />);
+  await expect(page.getByText("Aria Nightshade")).toBeVisible();
+  await expect.poll(() => (trpc.lastInput("character.list") as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(42);
+});
+
+test("⑪ with no stored pageSize, the request falls to the schema default (30)", async ({ mount, page }) => {
+  const trpc: TrpcRecorder = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsView(DEFAULT_USER_SETTINGS.library.pageSize),
+    "character.list": twoPageResponder,
+  });
+  await mount(<CharacterLibrarySurfaceStory />);
+  await expect(page.getByText("Aria Nightshade")).toBeVisible();
+  await expect.poll(() => (trpc.lastInput("character.list") as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(30);
 });

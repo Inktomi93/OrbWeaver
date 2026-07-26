@@ -138,6 +138,12 @@ export const appearancePane: SettingsPaneDefinition = {
         },
       ],
     },
+    {
+      id: APPEARANCE_SUBCATEGORY_IDS.library,
+      label: "Library",
+      keywords: ["library", "pagination", "page size", "rows"],
+      settings: [{ id: "rows-per-page", label: "Rows per page", keywords: ["pagination", "page", "size", "limit"] }],
+    },
   ],
   body: () => <AppearanceSettingsSurface />,
 };

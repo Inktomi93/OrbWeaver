@@ -32,7 +32,51 @@ surfaces [memoryDefaults·memorySummarizer·rateLimits w/ floor-vs-override hone
 getAppSettingsWithOverrides + section-level Reset] + rateLimits.general DELETED / login ADDED
 bounds-safe per rulings + the verifier's silent-wipe Medium killed at one home
 [MEMORY_DEFAULTS_BOUNDS in contracts, schema derives, client clamps] + token-estimate gate
-widened + dropzone flake root-fixed; bar 7341/0 · CT 1396/0 · zero flakes).
+widened + dropzone flake root-fixed; bar 7341/0 · CT 1396/0 · zero flakes) → **`201c2d74`**
+(Phase B stint 3: DATABANK WIRED — UserSettings.databank v4→v5 additive lift [verifier-walked,
+no override drops] · the ownerId-blind compose stub KILLED [was silently breaking ingest chunk
+params] · retrieval rides FOREIGN-inputs host-governed, field-for-field to search.documents ·
+search↔databank defaults = PINNED equality not a derive [Knowledge-Cluster boundary] ·
+composed-real int test hits the exact bindGetDatabankSettings binding · honest boundary: the
+vLLM-gated embed hop is the one un-asserted link; + the settings DEEP-LINK RACE fixed
+[(target,satisfiable) latch, 2-pass convergence, CT vs the real async probe]; + 0000_baseline
+SQUASH-REGENERATED for the derived schema_version column DEFAULT [pre-launch law] — **MORNING
+NOTE: next stack restart RESETS data/orbweaver.db by design** [tonight's re-seedable fixtures;
+boot backs up first + Backrest]; bar 7350/0 · CT 1400/0).
+
+**✅ swipe-strip:122 ROOT-FIXED (2026-07-26, rides the stint-4 commit):** the dropzone CLASS
+generalized — mount() resolves at DOM-attach BEFORE React flushes the useEffect that installs the
+window keydown listener, so the first ArrowRight dispatched into a listener-less window under load
+(proven dropped-not-delayed via diag). Fix = re-press-poll WITH a read-before-press guard on the
+recorded chat.swipe count (naive press-then-read landed a DUPLICATE — fake network clears
+isPending between fast resolves). 150/150 @ 12 workers + 360/360 @ 24 + 300/300 @ 48; assertion
+still .toBe(1), still keyboard-path. code-editor:192 verdict: DIFFERENT class (CM6
+internal-readiness, listener attached) — a re-press poll would fix it too if it strikes again.
+Memory generalized: [[native-file-input-first-enter-drop]].
+
+**⚠️ sortable:79 = A PRODUCT DEFECT, NOT A FLAKE (flake-lane verdict 2026-07-26, instrumented
+proof):** @orb/ui/sortable's keyboard focus-restoration (sortable.tsx:58-72) is a DEPLESS
+render-coupled effect, but dnd-kit keyboard moves DON'T RENDER through React (internal DOM/overlay
+transforms; onReorder fires at drag-END only — the header comment's premise is FALSE). ArrowDown
+mid-drag = focus-steal + re-render in NONDETERMINISTIC order; re-render-first (3/40 @ 12 workers)
+→ effect no-ops, focus falls to <body>, NO further render ever re-runs the effect → keyboard user
+STRANDED (3s DOM sampling: never recovers). The CT was correctly catching it all along — the
+shitsfucked class (looked done, silently wasn't). Ledgered prescriptions (widen polls) are VOID —
+nothing re-runs the effect. ORCHESTRATOR'S OWN FAILED ATTEMPT recorded: a pickup-announce poll
+made it 25/25 deterministic (the added latency arms the async-order regime) — reverted; the
+committed test stands untouched. PRODUCT-FIX LANE RUNNING: restoration driven off dnd-kit's drag
+lifecycle (monitor/onDragMove) or a per-move dep, verified against the INSTALLED @dnd-kit API;
+proof = the unmodified CT 50-green @ 12 workers + a new second-ArrowDown-continues arm. STINT 5
+(⑧⑨⑪ chat prefs · verbatimTail+Advanced disclosure · library.pageSize) runs in PARALLEL;
+stint-4 commit cuts as a wave-close once both land.
+**✅ THE SORTABLE FIX LANDED (in-tree):** restoration = `useDragDropMonitor({onDragMove})` as a
+KeyboardFocusKeeper inside DragDropProvider (the depless effect + its refs DELETED); keyboard-gated
+via `activatorEvent instanceof KeyboardEvent` (pointer drags untouched); **rAF deferral is
+LOAD-BEARING** (the sensor's focus-steal runs AFTER onDragMove dispatches — sync refocus is undone;
+dnd-kit's own drop-time restoreFocus defers identically); target = source.handle ?? element.
+Proof: 600 consecutive green @ the reproducing 12-worker parallelism + the new
+multi-step-continues CT arm; lying header comment corrected. Memory:
+[[sortable-keyboard-focus-monitor]].
 
 **✅ PHASE A CONSOLIDATED — `d9525f02`** (perfect bar: check ok:true failed:[] · vitest 7341/0 ·
 CT 1380 expected / 0 unexpected / 0 flaky — first flake-free battery of the night). In it: the

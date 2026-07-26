@@ -106,6 +106,10 @@ export interface ChatDetail {
   /** The effective room behavior (parsed from `metadata`; defaults applied — never raw). */
   readonly group: GroupConfig;
   readonly roomOverrides: RoomOverrides;
+  /** The host's per-chat tool-call recursion cap (`metadata.toolRecurseLimit`, Phase A L3) — `null` when
+   *  unset (the turn engine falls to its default). Exposed so the host's room-settings control can display +
+   *  edit the current value; the WRITE is `chat.setToolRecurseLimit` (host-gated). */
+  readonly toolRecurseLimit: number | null;
   /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */

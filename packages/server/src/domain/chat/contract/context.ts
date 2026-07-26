@@ -610,7 +610,14 @@ export interface ChatContext {
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;
+  /** ⑧(a) — the caller's `UserSettings.chat.tempChatTtlHours`, the per-user temporary-chat reap TTL (the
+   *  FOREIGN-inputs seam: chat never reads the settings domain; wired at compose from `loadUserSettings`).
+   *  Always resolves (the setting is `.default`ed); `reapTemporaryChats` converts hours→ms for its cutoff. */
+  readonly resolveTempChatTtlHours: ResolveTempChatTtlHoursOp;
 }
+
+/** Resolve a user's temporary-chat reap TTL in HOURS (`UserSettings.chat.tempChatTtlHours`). */
+type ResolveTempChatTtlHoursOp = (userId: UserId) => Promise<number>;
 
 /** The injected per-member count budget debit. `budget === null` means unbounded (a no-op debit). */
 export type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Promise<void>;

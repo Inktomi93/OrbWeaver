@@ -241,6 +241,27 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     expect(markerCalls.length).toBeGreaterThan(0);
   });
 
+  // ⑨(a) — the verbatim tail is the preset's `compaction.verbatimTail` knob, not the MANAGED_VERBATIM_TAIL
+  // const. A SMALLER tail (4 vs the default 8) keeps fewer rows literal ⇒ a HIGHER coverage point (compacts
+  // more): maxSeq(16) − verbatimTail(4) = 12. Uses the pre-turn arm (failing model) for an exact coverage.
+  test("compaction.verbatimTail drives the coverage point (the preset knob, not a const)", async () => {
+    const chatId = await seedChatWithHistory(16);
+    const failingTurn: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.reject(new Error("agent-sdk: doomed dispatch"));
+        yield { kind: "text", text: "" };
+      })();
+    const engine = buildEngine(failingTurn);
+
+    await engine
+      .runTurn(prepOf(chatId, AGENT_SDK, { intent: { compaction: { mode: "managed", verbatimTail: 4 }, maxContextTokens: SMALL_CAP } }))
+      .catch((e: unknown) => e);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    // maxSeq(16) − verbatimTail(4) = 12 (vs 16 − default 8 = 8): the smaller tail compacts through a higher seq.
+    expect(row?.compactedAtSeq).toBe(12);
+  });
+
   test("WEDGE-STATE failure-honest: a FAILING pre-turn compaction does not block the turn (logs + proceeds)", async () => {
     const chatId = await seedChatWithHistory(8);
     // The marker generation THROWS, but the turn still dispatches (a committed reply) — the pre-turn compaction is

@@ -427,6 +427,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     log: () => undefined,
     getGroupConfig: notStubbed,
     getRoomOverrides: notStubbed,
+    // ⑧(a) — default the reap TTL to the 24h floor; a reap test overrides to prove the knob threads.
+    resolveTempChatTtlHours: () => Promise.resolve(24),
     // D46 config plane — default "no declared ChoiceBlock variables" so `getVariables` collapses to the raw
     // stored picks (orphan-preserve); a variables test overrides with the preset's declared specs.
     resolvePromptVariables: () => Promise.resolve([]),

@@ -284,8 +284,12 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         });
         return { scanned: stats.scanned, written: stats.distilled };
       },
-      computeCooccurrence: async ({ signal }): Promise<DiscoveryOut> => {
-        const stats = await deps.discovery.computeCooccurrence({ signal });
+      computeCooccurrence: async ({ maxPairs, hubFraction, signal }): Promise<DiscoveryOut> => {
+        const stats = await deps.discovery.computeCooccurrence({
+          signal,
+          ...(maxPairs !== undefined ? { maxPairs } : {}),
+          ...(hubFraction !== undefined ? { hubFraction } : {}),
+        });
         return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
       },
       // Both dedup arms run in the one find-duplicates workload; counts are summed. The user/param

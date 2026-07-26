@@ -40,7 +40,7 @@ import { refinerySection } from "#features/refinery";
 import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection } from "#features/user-admin";
-import { backupPane, workloadsPane } from "#features/workloads";
+import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "#features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
   CharacterDetailContribution,
@@ -183,13 +183,17 @@ const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionCo
 // same seam. An empty list ⇒ the admin pane is byte-identical.
 const adminSettingsSections = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [memoryTuningSection, rateLimitsSection]);
 
+// The workloads-anchored sections (Phase B ⑤): the analysis-tuning knobs (dupThreshold/computeThemesK/
+// maxPairs/hubFraction) — owned by features/workloads (its own pane), grafted via the same seam.
+const workloadsSettingsSections = createContributorRegistry<SettingsSectionContribution>("workloads-settings-sections", [workloadsTuningSection]);
+
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   personas: personasPane,
   appearance: appearancePane,
   tags: tagsPane,
-  workloads: workloadsPane,
+  workloads: makeWorkloadsPane(workloadsSettingsSections),
   backup: backupPane,
   "chat-behavior": makeChatBehaviorPane(chatBehaviorSettingsSections),
   regex: regexPane,

@@ -24,12 +24,13 @@ import type { MemoryConfig } from "./memory";
 /** The host's turn-behavior knobs the engine honors (PD-146) — the schema-real `UserSettings.chat` arm the
  *  settings domain owns, picked (never re-spelled) to exactly the fields the SERVER turn path consumes:
  *   • `customStoppingStrings` — extra stop strings merged into the generation request's stop set (pipeline).
- *   • `autoContinue`          — after a length-capped reply, auto-issue ONE continue for the same speaker.
- *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate ONE swipe.
+ *   • `autoContinue`          — after a length-capped reply, auto-issue continues (up to `autoContinueRounds`).
+ *   • `autoContinueRounds`    — PD-146 bound: the max auto-continue follow-ups (the AUTO_CONTINUE loop cap).
+ *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate (up to `autoSwipe.maxRetries`).
  *  `enterSends`/`continueOnSend`/`smoothStream*` are CLIENT-honored (composer keydown / empty-send / stream
  *  pacer) and carry no server arm, so they are deliberately absent here. All fields default off/empty ⇒ a
  *  host who never touched the pane sees byte-identical behavior. */
-export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoSwipe" | "customStoppingStrings">;
+export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContinueRounds" | "autoSwipe" | "customStoppingStrings">;
 
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
@@ -84,7 +85,8 @@ export interface ForeignInputs {
  *  path defaults to when a `ForeignInputs` omits `chatBehavior` (a test fake / the memory-opt-out precedent). */
 export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
   autoContinue: false,
-  autoSwipe: { enabled: false, minLength: 0, blacklist: [] },
+  autoContinueRounds: 1,
+  autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
   customStoppingStrings: [],
 };
 

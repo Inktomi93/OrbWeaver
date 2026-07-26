@@ -12,11 +12,13 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import type { ContributorRegistry } from "#lib";
 import { testId, useFocusOnMount } from "#lib";
-import { settingsAnchorId } from "#state";
+import type { SettingsSectionContribution } from "#state";
+import { resolveSettingsSections, settingsAnchorId } from "#state";
 import { RunWorkloadDialog } from "../components/run-workload-dialog";
 import { SchedulesSection } from "../components/schedules-section";
 import { WorkloadRow } from "../components/workload-row";
@@ -32,8 +34,14 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
   return (WORKLOAD_FILTERS as readonly unknown[]).includes(value);
 }
 
+export interface WorkloadsSettingsSurfaceProps {
+  /** The `workloads`-anchored settings-section contributors (§6c) — the analysis-tuning section grafts here.
+   *  Assembled empty ⇒ byte-identical to the pre-seam pane. */
+  readonly sectionContributors: ContributorRegistry<SettingsSectionContribution>;
+}
+
 /** The Workloads panel body (rendered inside the settings modal's category column). */
-export function WorkloadsSettingsSurface(): ReactElement {
+export function WorkloadsSettingsSurface({ sectionContributors }: WorkloadsSettingsSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -44,15 +52,16 @@ export function WorkloadsSettingsSurface(): ReactElement {
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your workloads" onRetry={retry} />}
       >
         <Container>
-          <WorkloadsPaneBody />
+          <WorkloadsPaneBody sectionContributors={sectionContributors} />
         </Container>
       </QueryBoundary>
     </Stack>
   );
 }
 
-/** Suspends on the caller's workload list + the viewer, then renders the tabs + rows + run dialog. */
-function WorkloadsPaneBody(): ReactElement {
+/** Suspends on the caller's workload list + the viewer, then renders the tabs + rows + run dialog + the
+ *  contributed sections (the analysis-tuning section). */
+function WorkloadsPaneBody({ sectionContributors }: WorkloadsSettingsSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: workloads }, { data: viewer }] = useSuspenseQueries({
@@ -70,6 +79,10 @@ function WorkloadsPaneBody(): ReactElement {
 
   const [filter, setFilter] = useState<WorkloadFilter>("all");
   const [runOpen, setRunOpen] = useState(false);
+
+  // The contributed sections (§6c) — the analysis-tuning section, in declared registry order. Each owns its
+  // own suspense/mutation, so they render below the built sections. Zero contributions ⇒ none.
+  const contributedSections = resolveSettingsSections(sectionContributors, "workloads");
 
   const ownerHandleFor = (workload: WorkloadItem): string | null => {
     if (!isPrivileged || workload.ownerId === null || workload.ownerId === viewer.userId) {
@@ -150,6 +163,10 @@ function WorkloadsPaneBody(): ReactElement {
             createdAt: workload.createdAt,
           }))}
       />
+
+      {contributedSections.map((section) => (
+        <Fragment key={section.id}>{section.node}</Fragment>
+      ))}
     </Stack>
   );
 }

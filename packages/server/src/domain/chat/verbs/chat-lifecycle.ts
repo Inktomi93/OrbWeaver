@@ -176,14 +176,16 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent, abortTurns: (chatId
   };
 }
 
-// How long a temporary chat lives before it is reap-eligible — 24h.
-const TEMPORARY_CHAT_REAP_TTL_MS = 86_400_000;
+const MS_PER_HOUR = 3_600_000;
 
 /** `reapTemporaryChats` — bulk-delete the caller's expired temporary chats (temporary + past the TTL +
- *  caller is the present host). Children cascade (FK); no bus event. Returns the count. */
+ *  caller is the present host). The TTL is the caller's own `UserSettings.chat.tempChatTtlHours` (⑧a, default
+ *  24h — byte-identical to the former TEMPORARY_CHAT_REAP_TTL_MS const), resolved via the FOREIGN-inputs op.
+ *  Children cascade (FK); no bus event. Returns the count. */
 function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryChats"] {
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
-    const cutoff = ctx.now() - TEMPORARY_CHAT_REAP_TTL_MS;
+    const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
+    const cutoff = ctx.now() - ttlHours * MS_PER_HOUR;
     const removed = await ctx.db
       .delete(chats)
       .where(

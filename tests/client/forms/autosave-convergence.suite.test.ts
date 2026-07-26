@@ -34,11 +34,19 @@ import { expect, test } from "../../support/fixtures";
 // The SERVER SHAPE for a `userSettings` section: the section patch is deep-merged into the settings blob
 // and re-parsed (the `updateUserSettingsSection` write path), then the section is plucked back. This runs
 // the section's zod `.catch`/`.default`/nested-prefault exactly as the server would on the echo.
+/** A DEEP-partial section patch (mirrors the real deep-merge write: a pane that edits only some fields — e.g.
+ *  chat's `toChatSectionPatch` omits the PD-146 knobs it doesn't surface, INCLUDING nested ones like
+ *  `autoSwipe.maxRetries` — leaves them untouched). */
+type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+
 function serverShapeSection<K extends keyof typeof DEFAULT_USER_SETTINGS>(
   section: K,
-  patch: (typeof DEFAULT_USER_SETTINGS)[K],
+  patch: DeepPartial<(typeof DEFAULT_USER_SETTINGS)[K]>,
 ): (typeof DEFAULT_USER_SETTINGS)[K] {
-  return userSettingsSchema.parse({ ...DEFAULT_USER_SETTINGS, [section]: patch })[section];
+  // Shallow-merge the top-level patch into the default section; the schema `.catch`/`.default`/nested-prefault
+  // then run on the echo. A nested partial (e.g. `autoSwipe` without maxRetries) is re-parsed to its default.
+  const merged = { ...(DEFAULT_USER_SETTINGS[section] as object), ...(patch as object) };
+  return userSettingsSchema.parse({ ...DEFAULT_USER_SETTINGS, [section]: merged })[section];
 }
 
 // ── chat-behavior ──────────────────────────────────────────────────────────────────────────────────
@@ -50,8 +58,10 @@ describe("convergence: chat-behavior", () => {
       enterSends: false,
       continueOnSend: false,
       autoContinue: true,
-      autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"] },
+      autoContinueRounds: 1,
+      autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 1 },
       customStoppingStrings: ["###", "END"],
+      tempChatTtlHours: 24,
       smoothStream: true,
       smoothStreamCps: 150,
       streamScrollMode: "pin-prompt",

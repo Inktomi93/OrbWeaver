@@ -776,6 +776,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     log: (entry) => recordMemoryLog(entry),
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
+    // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
+    resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
     resolvePromptVariables,
     // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The E3 classify hook fires
     // fire-and-forget after a variant commits (expressions-design/02 §0).
@@ -857,6 +859,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         // PD-146: the host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
         chatBehavior: {
           autoContinue: us.chat.autoContinue,
+          autoContinueRounds: us.chat.autoContinueRounds,
           autoSwipe: us.chat.autoSwipe,
           customStoppingStrings: us.chat.customStoppingStrings,
         },

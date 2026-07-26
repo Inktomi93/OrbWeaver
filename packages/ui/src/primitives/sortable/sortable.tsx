@@ -1,13 +1,13 @@
 // The @dnd-kit/react seal — dep-cruiser seals this dir as the ONE @dnd-kit import site (never
 // @dnd-kit/core/sortable/utilities). Keyboard + a11y come free from DragDropProvider/useSortable
-// defaults (KeyboardSensor, Accessibility plugin) — nothing to hand-wire.
+// defaults (KeyboardSensor, Accessibility plugin); the ONE thing hand-wired is mid-drag keyboard
+// focus restoration (KeyboardFocusKeeper below) — dnd-kit only restores focus at drop, not per move.
 import { Feedback } from "@dnd-kit/dom";
 import { move } from "@dnd-kit/helpers";
-import type { DragEndEvent } from "@dnd-kit/react";
-import { DragDropProvider } from "@dnd-kit/react";
+import type { DragEndEvent, DragMoveEvent } from "@dnd-kit/react";
+import { DragDropProvider, useDragDropMonitor } from "@dnd-kit/react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useRef } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { GripVertical, Icon } from "#primitives/icons";
 import { sortableVariants } from "./variants";
@@ -55,32 +55,13 @@ function SortableItem({ id, index, handle, handleLabel, disabled, children }: So
       : {}),
   });
   const slots = sortableVariants();
-  // @dnd-kit's KeyboardSensor moves the drag by re-ordering the list, which re-renders these rows;
-  // the browser drops DOM focus off the handle button in that reflow, landing it on <body>. A
-  // keyboard-only user then can't continue a multi-step reorder (further arrows never reach the
-  // sensor). While THIS row is the active drag source, restore focus to its handle after each such
-  // re-render — but only if focus actually escaped, so we never yank focus mid-interaction otherwise.
-  const handleButtonRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!isDragSource) {
-      return;
-    }
-    const button = handleButtonRef.current;
-    if (button && document.activeElement !== button) {
-      button.focus();
-    }
-  });
-  const setHandleRef = (element: HTMLButtonElement | null): void => {
-    handleButtonRef.current = element;
-    handleRef(element);
-  };
   // Arm the pickup affordance the instant the item becomes the drag source (Space/Enter), not just
   // once a move flips status to "dragging" (isDragging) — so the visual state matches the
   // "Picked up" live-region announcement for a sighted keyboard user.
   return (
     <div className={slots.item()} data-dragging={isDragging || isDragSource ? "" : undefined} data-slot="sortable-item" ref={ref}>
       {handle ? (
-        <button aria-label={handleLabel} className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={setHandleRef} type="button">
+        <button aria-label={handleLabel} className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={handleRef} type="button">
           <Icon icon={GripVertical} size="sm" />
         </button>
       ) : null}
@@ -89,6 +70,45 @@ function SortableItem({ id, index, handle, handleLabel, disabled, children }: So
       </div>
     </div>
   );
+}
+
+// Keyboard focus-restoration, driven off dnd-kit's OWN drag lifecycle rather than React rendering.
+//
+// The KeyboardSensor moves the drag via `manager.actions.move` (transform math on the feedback
+// element) WITHOUT flushing an onReorder — the list only re-renders when its own internal state
+// signals flip, which happens on an unpredictable schedule relative to the sensor's DOM reflow. In
+// that reflow the browser can drop focus off the active handle onto <body>, and dnd-kit's built-in
+// `restoreFocus` runs ONLY at drop-animation end (its `runDropAnimation`), not per mid-drag move. A
+// render-coupled effect that refocuses "after each re-render" therefore races: if the state flip
+// lands BEFORE the focus loss, the effect sees focus intact, no-ops, and never re-runs — focus stays
+// on <body> for the rest of a multi-step keyboard reorder (further arrows never reach the sensor).
+//
+// So we subscribe to the manager's `dragmove` event (fires on EVERY move regardless of React render)
+// and re-grab the active source's handle. `activatorEvent` being a keyboard event is the gate: a
+// POINTER drag must never have its focus yanked (pointer users routinely move focus mid-drag), and a
+// keyboard drag is exactly the case where focus belongs on the handle for the next arrow key.
+function KeyboardFocusKeeper(): null {
+  useDragDropMonitor({
+    onDragMove(event: DragMoveEvent, manager): void {
+      if (!(manager.dragOperation.activatorEvent instanceof KeyboardEvent)) {
+        return;
+      }
+      const source = event.operation.source;
+      const focusTarget = source?.handle ?? source?.element;
+      if (!(focusTarget instanceof HTMLElement)) {
+        return;
+      }
+      // Defer to the next frame: the sensor's list reflow (which is what steals focus onto <body>)
+      // runs after this event dispatches, so a synchronous refocus here would be immediately undone.
+      // dnd-kit's own drop-time `restoreFocus` defers the same way (requestAnimationFrame).
+      requestAnimationFrame(() => {
+        if (document.activeElement !== focusTarget) {
+          focusTarget.focus();
+        }
+      });
+    },
+  });
+  return null;
 }
 
 /** Generic controlled reorderable list over `@dnd-kit/react`; caller owns `items` and applies `onReorder`. */
@@ -116,6 +136,7 @@ export function SortableList<T>({
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
+      <KeyboardFocusKeeper />
       <div className={cn(sortableVariants().root(), className)} data-slot="sortable-root">
         {items.map((item, index) => (
           <SortableItem

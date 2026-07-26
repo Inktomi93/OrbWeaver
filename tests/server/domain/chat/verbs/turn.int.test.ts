@@ -818,7 +818,8 @@ describe("send — auto-mode AI→AI chain", () => {
 describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
   const behaviorOff: ChatBehaviorInputs = {
     autoContinue: false,
-    autoSwipe: { enabled: false, minLength: 0, blacklist: [] },
+    autoContinueRounds: 1,
+    autoSwipe: { enabled: false, minLength: 0, blacklist: [], maxRetries: 1 },
     customStoppingStrings: [],
   };
 
@@ -919,7 +920,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
   test("autoSwipe regenerates a too-short reply as a new selected variant", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names, {
-      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 12, blacklist: [] } },
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 12, blacklist: [], maxRetries: 1 } },
       replyTape: [{ content: "too short" }, { content: "a comfortably long reply that clears the bar" }],
     });
 
@@ -933,7 +934,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
   test("autoSwipe fires on a blacklist hit (case-insensitive)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names, {
-      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 0, blacklist: ["Sorry"] } },
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 0, blacklist: ["Sorry"], maxRetries: 1 } },
       replyTape: [{ content: "i'm sorry, i can't help with that" }, { content: "sure, here is the scene" }],
     });
 
@@ -948,7 +949,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     let generations = 0;
     const h = harness(db, names, {
-      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 100, blacklist: [] } },
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 100, blacklist: [], maxRetries: 1 } },
       onChatRequest: () => {
         generations += 1;
       },
@@ -962,11 +963,30 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     expect(tip?.variantCount).toBe(2);
   });
 
+  // ⑧(b) — the bound is the host's `autoSwipe.maxRetries` knob, not a const: maxRetries=2 rerolls TWICE.
+  test("autoSwipe honors maxRetries=2: a persistently rejected model rerolls exactly TWICE (the knob, not a const)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, autoSwipe: { enabled: true, minLength: 100, blacklist: [], maxRetries: 2 } },
+      onChatRequest: () => {
+        generations += 1;
+      },
+      replyTape: [{ content: "nope" }, { content: "still short" }, { content: "again short" }],
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    expect(generations).toBe(3); // initial + exactly two swipes (the maxRetries=2 bound).
+    const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
+    expect(tip?.variantCount).toBe(3);
+  });
+
   test("auto-swipe takes precedence over auto-continue on a reply that is both short AND length-capped", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     let generations = 0;
     const h = harness(db, names, {
-      chatBehavior: { ...behaviorOff, autoContinue: true, autoSwipe: { enabled: true, minLength: 20, blacklist: [] } },
+      chatBehavior: { ...behaviorOff, autoContinue: true, autoSwipe: { enabled: true, minLength: 20, blacklist: [], maxRetries: 1 } },
       onChatRequest: () => {
         generations += 1;
       },

@@ -49,6 +49,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
   "add-member-popover": { coveredBy: "chat-cast-bar", why: "the add-member popover anchors on the cast bar; chat-cast-bar.ct drives it." },
   "chat-content": { coveredBy: "chat-room-surface", why: "ChatContent is the room-surface body; chat-room-surface.ct mounts it." },
+  "tool-recurse-control": {
+    coveredBy: "settings-context-tab",
+    why: "the host-only Tool-use cap control renders inside CommittedSettingsTab; settings-context-tab.ct drives it end-to-end (host sees + edits → setToolRecurseLimit fires; member sees no section).",
+  },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
 

@@ -4,6 +4,7 @@
 
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { PromptConfig, Quality } from "@orb/contracts/preset";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
@@ -12,6 +13,7 @@ import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import type { ResolvedSamplingKnob } from "../lib/capability-panel-model";
@@ -98,9 +100,91 @@ function SamplingSection({ form, capability }: { readonly form: AppForm; readonl
             {(field): ReactElement => <field.NumberField label="Seed" description="A fixed seed for reproducible sampling (leave blank for random)." />}
           </form.AppField>
         ) : null}
+        <AdvancedSamplingDisclosure form={form} />
       </Stack>
     </Section>
   );
+}
+
+/** ⑨(b) — the collapsed-by-default "Advanced" disclosure for the power-user escape-hatch fields that already
+ *  exist on the schema but had no editor: `logitBias` (a token→bias map, edited as JSON) + the wire toggles
+ *  `advanced.parallelToolCalls` + `advanced.dynamicContext`. The preset-structure CollapsedSection idiom. */
+const DYNAMIC_CONTEXT_ITEMS: SelectItems<string> = [
+  { value: "", label: "Auto (model-appropriate)" },
+  { value: "system", label: "Join into the cached system prompt" },
+  { value: "hook", label: "Deliver at the message tail (cache-safe)" },
+];
+
+function AdvancedSamplingDisclosure({ form }: { readonly form: AppForm }): ReactElement {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger>
+        <Text size="label" weight="medium">
+          Advanced
+        </Text>
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <Stack gap="field">
+          <form.Subscribe selector={(state): Record<string, number> | undefined => state.values.params.logitBias}>
+            {(logitBias): ReactElement => (
+              <Field label="Logit bias" description="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored.">
+                <Textarea
+                  aria-label="Logit bias"
+                  rows={3}
+                  defaultValue={logitBias === undefined ? "" : JSON.stringify(logitBias)}
+                  onBlur={(e): void => form.setFieldValue("params.logitBias", parseLogitBias(e.target.value))}
+                />
+              </Field>
+            )}
+          </form.Subscribe>
+          <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
+            {(parallel): ReactElement => (
+              <Row gap="row" align="center" justify="between">
+                <Text size="body">Parallel tool calls — let the model emit several tool calls in one turn.</Text>
+                <Switch
+                  aria-label="Parallel tool calls"
+                  checked={parallel}
+                  onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)}
+                />
+              </Row>
+            )}
+          </form.Subscribe>
+          <form.Subscribe selector={(state): string | undefined => state.values.params.advanced?.dynamicContext}>
+            {(dynamicContext): ReactElement => (
+              <Field label="Dynamic-context delivery" description="Where the per-turn system half is delivered on the wire.">
+                <Select
+                  aria-label="Dynamic-context delivery"
+                  items={DYNAMIC_CONTEXT_ITEMS}
+                  value={dynamicContext ?? ""}
+                  onValueChange={(next): void => form.setFieldValue("params.advanced.dynamicContext", next === "system" || next === "hook" ? next : undefined)}
+                />
+              </Field>
+            )}
+          </form.Subscribe>
+        </Stack>
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+/** Parse the logit-bias JSON textarea → a `Record<string, number>` (or `undefined` on empty/invalid — the
+ *  escape hatch never crashes the form; the server re-validates via `userIntentSchema`). */
+function parseLogitBias(raw: string): Record<string, number> | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return; // invalid JSON — the escape hatch never crashes the form.
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return;
+  }
+  const entries = Object.entries(parsed).filter(([, v]) => typeof v === "number") as [string, number][];
+  return entries.length === 0 ? undefined : Object.fromEntries(entries);
 }
 
 /** One optional numeric sampling knob — an override switch gating a bounded slider. */

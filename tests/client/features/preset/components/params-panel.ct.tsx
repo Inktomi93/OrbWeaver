@@ -4,12 +4,14 @@
 // commit (Base UI NumberField clamps to `max` on blur), not persisted as the overflow value.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ParamsPanelOutputStory } from "./_params-panel-stories";
+import { ParamsPanelOutputStory, ParamsPanelSamplingStory } from "./_params-panel-stories";
 
 const WINDOW_CAP_RE = /Model context window: 32768 tokens/;
 const OUTPUT_CAP_RE = /max output: 8192 tokens/;
 const OUT_VALUE_RE = /out=8192/;
 const CTX_VALUE_RE = /ctx=32768/;
+const BIAS_VALUE_RE = /bias=\{"128":-100\}/;
+const PARALLEL_VALUE_RE = /parallel=true/;
 
 test("Output axis renders the resolved caps line + both token fields", async ({ mount }) => {
   const panel = await mount(<ParamsPanelOutputStory />);
@@ -48,4 +50,42 @@ test("maxContextTokens clamps a typed overflow to the model window (32768)", asy
   await expect(field).toHaveValue("32,768");
   await panel.getByRole("button", { name: "read values" }).click();
   await expect(panel.getByText(CTX_VALUE_RE)).toBeVisible();
+});
+
+// ⑨(b): the Sampling axis "Advanced" disclosure — collapsed by default, expands to reveal the escape-hatch
+// fields (logitBias JSON + parallel-tool-calls + dynamic-context delivery). An edit must PERSIST into the form.
+test("Advanced disclosure is collapsed by default and expands to reveal the escape-hatch fields", async ({ mount }) => {
+  const panel = await mount(<ParamsPanelSamplingStory />);
+
+  // Collapsed: the trigger is present, the escape-hatch fields are not yet in the accessibility tree.
+  await expect(panel.getByRole("button", { name: "Advanced" })).toBeVisible();
+  await expect(panel.getByLabel("Logit bias", { exact: true })).toBeHidden();
+
+  await panel.getByRole("button", { name: "Advanced" }).click();
+
+  await expect(panel.getByLabel("Logit bias", { exact: true })).toBeVisible();
+  await expect(panel.getByLabel("Parallel tool calls", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("combobox", { name: "Dynamic-context delivery" })).toBeVisible();
+});
+
+test("editing logitBias JSON persists a parsed token→bias map into the form", async ({ mount }) => {
+  const panel = await mount(<ParamsPanelSamplingStory />);
+  await panel.getByRole("button", { name: "Advanced" }).click();
+
+  const bias = panel.getByLabel("Logit bias", { exact: true });
+  await bias.fill('{"128":-100}');
+  await bias.blur();
+
+  await panel.getByRole("button", { name: "read values" }).click();
+  await expect(panel.getByText(BIAS_VALUE_RE)).toBeVisible();
+});
+
+test("toggling parallel-tool-calls persists into the form", async ({ mount }) => {
+  const panel = await mount(<ParamsPanelSamplingStory />);
+  await panel.getByRole("button", { name: "Advanced" }).click();
+
+  await panel.getByLabel("Parallel tool calls", { exact: true }).click();
+
+  await panel.getByRole("button", { name: "read values" }).click();
+  await expect(panel.getByText(PARALLEL_VALUE_RE)).toBeVisible();
 });

@@ -359,4 +359,22 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
     // Idempotent: a second sweep finds nothing.
     expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
   });
+
+  // ⑧(a) — the reap TTL is the caller's `UserSettings.chat.tempChatTtlHours` (via the FOREIGN op), not a
+  // const. A shorter TTL reaps a chat the default (24h) window would spare.
+  test("a user's tempChatTtlHours narrows the reap window (the knob threads, not a const)", async () => {
+    const host = await seedUser(db, "host");
+    // Born 2h ago — SAFE under the 24h default, EXPIRED under a 1h TTL.
+    const twoHoursAgo = FROZEN_AT - 2 * 3_600_000;
+    const chatId = await seedChat(db, "recent-temp", { temporary: true, createdAt: twoHoursAgo });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+
+    // Default 24h TTL → survives.
+    const lifeDefault = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+    expect(await lifeDefault.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
+
+    // A 1h TTL (the user's knob) → the same 2h-old chat is now reap-eligible.
+    const lifeShort = createChatLifecycle(makeChatContext(db, { resolveTempChatTtlHours: () => Promise.resolve(1) }), lifecycleDeps());
+    expect(await lifeShort.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 1 });
+  });
 });
