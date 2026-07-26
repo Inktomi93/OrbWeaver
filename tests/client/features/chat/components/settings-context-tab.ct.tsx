@@ -23,6 +23,32 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
+// The Group-behavior section's suspense read (chat.getGroupConfig) held pending: the QueryBoundary
+// fallback must be the shape-matched skeleton (house loading law, UIP-309 / UI-Arch §4.3 rule 7), never
+// the old spinner/text void. Hang the query with a route registered BEFORE routeTrpc so it wins the match.
+test("committed host + group: the Group-behavior section shows a skeleton (never a spinner void) while loading", async ({ mount, page }) => {
+  await page.route("**/api/trpc/**", async (route) => {
+    const url = new URL(route.request().url());
+    const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "");
+    // Hold the group-config read pending forever so the QueryBoundary stays in its fallback.
+    if (procs.includes("chat.getGroupConfig")) {
+      return; // never fulfilled — the request hangs
+    }
+    await route.fallback();
+  });
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}) });
+
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+
+  // The section heading renders immediately; its body is the skeleton region while the read is pending.
+  await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
+  const busy = component.locator('[aria-busy="true"]');
+  await expect(busy).toBeVisible();
+  await expect(busy.locator('[data-slot="skeleton"]').first()).toBeVisible();
+  // The old text-only fallback is gone.
+  await expect(component.getByText("Loading group settings…")).toHaveCount(0);
+});
+
 test("committed non-host: Group behavior is ABSENT, Appearance overrides persists (read-only)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),

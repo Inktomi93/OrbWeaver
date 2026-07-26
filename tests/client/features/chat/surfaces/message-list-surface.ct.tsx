@@ -315,11 +315,38 @@ test("a chatOpened at a non-advancing cursor id STILL invalidates on reopen (the
   });
   await routeChatStream(page, { events: MARK_THEN_REOPEN });
 
+  // Deterministic-race gate (same class as the first test above): hold the EventSource response — hence the
+  // whole scripted burst, INCLUDING the trailing `chatOpened("0")` — until the surface's initial mount reads
+  // have rendered. `chatOpened`'s invalidate calls `queryClient.invalidateQueries(getChat)`, which per
+  // TanStack Query only starts a SECOND network fetch when the query is IDLE; if the query's FIRST fetch is
+  // still in flight (`fetchStatus !== "idle"`, `data === undefined`) it merely marks it stale and reuses the
+  // in-flight promise — NO second call. Under heavy parallel CPU contention the SSE burst can be fully
+  // processed (deltas climb the seq mark, then `chatOpened` invalidates) before the mount's `chat.getChat`
+  // fetch settles, so the invalidate lands on an in-flight query and the second getChat never fires →
+  // `trpc.count("chat.getChat")` sticks at 1 and the poll times out. Gating the stream on the canon read
+  // having RENDERED ("Ping?" visible ⇒ the mount batch settled, getChat is idle) makes the reopen invalidate
+  // always land on an idle query, so the refetch always fires for real. Registered last ⇒ runs FIRST per
+  // request (Playwright routes are LIFO) and falls through unchanged for non-stream traffic.
+  let releaseStream: (() => void) | undefined;
+  const mountSettled = new Promise<void>((resolve) => {
+    releaseStream = resolve;
+  });
+  await page.route("**/api/trpc/**", async (route) => {
+    const accept = route.request().headers()["accept"] ?? "";
+    if (accept.includes("text/event-stream")) {
+      await mountSettled;
+    }
+    await route.fallback();
+  });
+
   const component = await mount(<MessageListSurfaceStory />); // committed=true
 
-  // The surface reads its roster once at mount (getChat #1). The streamed turn advances the seq mark but
-  // fires NO getChat invalidate (turnStarted/delta invalidate nothing).
+  // The surface reads its roster once at mount (getChat #1). Once canon has rendered, the mount reads are
+  // settled (getChat idle) — release the stream so its trailing chatOpened invalidate lands on an idle query.
   await expect(component.getByText("Ping?")).toBeVisible();
+  releaseStream?.();
+
+  // The streamed turn advances the seq mark but fires NO getChat invalidate (turnStarted/delta invalidate nothing).
   await expect(component.getByText("Hello world")).toBeVisible();
 
   // The trailing chatOpened("0") is the ONLY getChat invalidator. Admitted-by-type ⇒ a SECOND getChat fetch.

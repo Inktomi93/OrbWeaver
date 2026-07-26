@@ -9,7 +9,9 @@
 import type { Branded } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { EntryPosition } from "@orb/kit/world-info";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
+import type { PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { NotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest";
@@ -46,7 +48,7 @@ export interface PluginWorldEntryUpsert {
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
-  readonly position: "before" | "after";
+  readonly position: EntryPosition;
 }
 
 /** What a handler/entry receives about ITS invocation context. */
@@ -151,7 +153,7 @@ export interface PluginHostV1 {
      *  by registration order). capability: chat.transform */
     register: (def: {
       name: string;
-      point: "user_input" | "assembled_dynamic";
+      point: PromptTransformPoint;
       /** The re-entry passes ONE structured-clone-safe object (the single-arg host→guest invoke seam tools +
        *  events already use — a named field bag is arity-stable: adding an env field never changes the call
        *  shape). `input.draft` is the working text; `input.env` = `{chatId, vars}` for a sync read inside the

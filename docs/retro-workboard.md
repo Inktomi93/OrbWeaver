@@ -138,9 +138,39 @@ at the chain boundary; reducer completed→pending re-open pinned; zero contract
 **FLAKE LEDGER (both passed-on-retry, root-fix queued):** message-list-surface.ct:309 (4th battery
 sighting) · lightbox focus-trap (2nd strike — promoted as warned).
 
-**NEXT (dispatch order):** no-inline-union-redecl repair (G2, audit) · F1 comment-drift sweep ·
-facelift ledger (Group-tab loading state · @orb/ui Toggle pressed-fill contrast [side-eye P3,
-primitive-level]) · `--contexts N` snap chip · root-fix the two ledgered flakes.
+**FOUR LANES IN FLIGHT (2026-07-25 late, path-disjoint):** ① G2 union-gate blind-spot repair
+(contracts+gate) ② facelift pair: @orb/ui Toggle pressed-fill via D71 tokens + Group-behavior
+loading skeletons (ui/client) ③ snap `--contexts N`/`--as` multi-user (scripts/probes; DECISION:
+targets the multi-user FIXTURE stack — scripts/dev/multi-user-fixture.sh, own ports/DB; the shared
+stack is single-user with NO login door; refusal+remedy when the fixture is down; lane may bring
+the fixture up and leaves it up for side-eye) ④ root-fix the two ledgered flakes
+(message-list:309 · lightbox focus-trap; 25-repeat proofs; product-defect stop-and-report arm).
+
+**═══ PROGRAM ORDER — OWNER RULING (2026-07-25 night): WORKLOADS GOES VERY LAST ═══**
+The workloads junk-drawer exit (report ACCEPTED as the design —
+reports/stickler/2026-07-25-workloads-junk-drawer-exit.md; orchestrator co-signs all 7 fork
+recommendations, formal ratification when the program un-parks) is slotted at the VERY END of
+everything. Owner: "get the rest of everything on the retro workboard done before touching the
+waves in workloads, and I want to do the light rpg and the visual polish rather than jump into
+something new — stay the course." Priority order therefore: ① finish the workboard remainder
+(current wave commit → services.ts split solo → F1 comment-drift sweep → small chips:
+STREAM_SCROLL_MODES re-home to kit · swipe-strip:122 flake · greeting Phase-3 committed-chat
+surfaces if pulled) → ② THE LITE-RPG + VISUAL-POLISH PROGRAM (CP-3 tracker kit + CP-4 takeover
+per Context-Panel-Program.md §3/§4 + the cohesion game plan; the facelift ledger rides along;
+mockup-first build loop per the minted doctrine) → ③ workloads stages A–E, LAST. The report's two
+standalone product defects (global concurrency=1 head-blocking · silent poison-row drop) are
+PARKED WITH the program — they ride stage E/the lanes, not ahead of them.
+
+**QUEUED AFTER THIS WAVE — the `services.ts` split (owner: "check out the services.ts mess"):**
+seam map ON RECORD at reports/scout/2026-07-25-compose-services-seam-map.md (sections ·
+single-consumer proof (lifecycle.ts only) · the NOT-pure-move entanglements: explicit-deps
+builders per the compose/chat.ts precedent, 2 late-bind holders, the resolveViewerVisibility
+forward-ref, automation+plugin extracted LAST as a pair · the 821-line mirror test splits in
+lockstep · no live path-keyed gates). Runs SOLO like the chat/index split. God-file verdicts
+recorded: turn.ts 1720 = one lifecycle, LEAVE; engine.ts 1303 = golden-tested product, LEAVE;
+preset/index 1407 = audit-ruled defensibly-one-module, leave until it hurts.
+
+**THEN:** F1 comment-drift sweep (after G2 lands — both touch contracts prose/code).
 
 **PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
 on the owner right now.

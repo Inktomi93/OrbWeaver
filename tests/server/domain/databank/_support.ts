@@ -7,7 +7,7 @@
 
 import { databankSettingsSchema } from "@orb/contracts/databank";
 import type { ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
-import type { Principal } from "@orb/contracts/identity";
+import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
@@ -43,7 +43,7 @@ export function principalFor(userId: UserId): Principal {
 }
 
 /** Seed a chat with `hostId` as its live host (the scope resolver reads chat_participants role='host'). */
-export async function seedChatHost(db: Db, chatId: ChatId, hostId: UserId, role: "host" | "member" = "host"): Promise<void> {
+export async function seedChatHost(db: Db, chatId: ChatId, hostId: UserId, role: ParticipantRole = "host"): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chatpart_${chatId}_${hostId}`),
     chatId,

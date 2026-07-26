@@ -8,7 +8,7 @@
 // reorder re-ranks `order`.
 
 import type { AutomationAction } from "@orb/contracts/automation";
-import type { PromptTransform, PromptTransformEnv } from "@orb/contracts/chat";
+import type { PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -21,7 +21,7 @@ import { makeAutomationHarness, makeTestPromptRegistry, principal, seedHostChat,
 
 const TURN_STARTED = { bus: "chat", type: "turnStarted" } as const;
 
-function transformArm(template: string, target: "user_input" | "assembled_dynamic" = "user_input"): AutomationAction {
+function transformArm(template: string, target: PromptTransformPoint = "user_input"): AutomationAction {
   return { type: "transform_draft", target, template };
 }
 

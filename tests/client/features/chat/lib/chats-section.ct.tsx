@@ -13,6 +13,7 @@
 // value crosses the routeTrpc JSON boundary as a plain object.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
@@ -45,7 +46,7 @@ async function stubMultiHumanCapable(page: Page, capable: boolean): Promise<void
 // A human seat in the room — `role` seats a host/member (the roster shape); the surface's host gate is
 // the separate server-resolved `viewerIsHost` field, NOT this seat's role. The rest is filler the panel
 // ignores.
-function human(role: "host" | "member"): Record<string, unknown> {
+function human(role: ParticipantRole): Record<string, unknown> {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
 
@@ -69,7 +70,7 @@ function character(key: string): Record<string, unknown> {
 // `role` seats the viewer's OWN human row AND sets the server-resolved `viewerIsHost` to match — the
 // honest single-human case where the seat and the server field agree (the proxy-vs-server DISAGREEMENT
 // is exercised by its own dedicated test below).
-function chatDetail(role: "host" | "member", roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
+function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
   return {
     participants: [human(role), ...characters],
     roomOverrides,
@@ -110,7 +111,7 @@ function emptyTrace(): Record<string, unknown> {
 
 // A PRESENT human seat with the fields the People tab renders (multi-human invites lane):
 // `leftSeq: null` is load-bearing — `resolveHumanParticipants` keeps only present seats.
-function humanSeat(id: string, displayName: string, role: "host" | "member"): Record<string, unknown> {
+function humanSeat(id: string, displayName: string, role: ParticipantRole): Record<string, unknown> {
   return {
     id: `participant_${id}`,
     kind: "human",

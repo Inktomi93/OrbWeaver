@@ -6,6 +6,7 @@
 // composed-real router test covers the domain wiring; this is the runtime mirror + the security-gate pins.
 
 import process from "node:process";
+import type { NotificationRecipient } from "@orb/contracts/notifications";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -142,7 +143,7 @@ function fakeBridge(): {
   bridge: PluginBridge;
   kv: Map<string, string>;
   store: Map<string, string>;
-  notices: { recipient: "host" | "all_members"; message: string }[];
+  notices: { recipient: NotificationRecipient; message: string }[];
   chips: { label: string; sendText: string }[][];
   writes: { count: number };
   lore: { count: number };
@@ -153,7 +154,7 @@ function fakeBridge(): {
   // The plugin-PRIVATE store the bridge closes pluginId/installer over (the fake models it as a flat map — the
   // real cross-plugin isolation is proven in the composed-real domain test, not this runtime mirror).
   const store = new Map<string, string>();
-  const notices: { recipient: "host" | "all_members"; message: string }[] = [];
+  const notices: { recipient: NotificationRecipient; message: string }[] = [];
   const chips: { label: string; sendText: string }[][] = [];
   const writes = { count: 0 };
   const lore = { count: 0 };

@@ -8,8 +8,10 @@
 import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { ChatBusEvent } from "#chat";
+import { PROMPT_TRANSFORM_POINTS } from "#chat";
 import type { DomainEventType } from "#events";
 import { generateImageActionArgsSchema } from "#imagery";
 import { NOTIFICATION_RECIPIENTS } from "#notifications";
@@ -191,7 +193,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam — A7).
   z.object({
     type: z.literal("transform_draft"),
-    target: z.enum(["user_input", "assembled_dynamic"]),
+    target: z.enum(PROMPT_TRANSFORM_POINTS),
     template: z.string().max(TRANSFORM_TEMPLATE_MAX),
   }),
   // 1.3 upsert a world-info entry into a book attached to the rule's chat.
@@ -201,7 +203,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     entryKey: z.string().max(WI_ENTRY_KEY_MAX),
     keys: z.array(z.string()).max(WI_KEYS_MAX),
     contentTemplate: z.string().max(WI_CONTENT_MAX),
-    position: z.enum(["before", "after"]).default("before"),
+    position: z.enum(ENTRY_POSITIONS).default("before"),
   }),
   // 1.4 surface transient quick-reply chips (rendered at click time as the clicking member's message).
   z.object({

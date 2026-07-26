@@ -3,6 +3,7 @@
 // variant; the full variant set = the swipe array); the D28 primary-character name + anchor-persona name;
 // the roomOverrides.authorsNote → note_prompt + parentChatId → main_chat round-trip; the txt format.
 
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
@@ -48,7 +49,7 @@ async function seedChatRow(
 async function seedMember(
   chatId: ChatId,
   key: string,
-  actor: { userId?: UserId; characterId?: string; role?: "host" | "member"; leftSeq?: number },
+  actor: { userId?: UserId; characterId?: string; role?: ParticipantRole; leftSeq?: number },
 ): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${key}`),
