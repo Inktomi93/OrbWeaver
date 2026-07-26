@@ -54,6 +54,9 @@ const SEED_COVERED = new Set<string>(["color.scrim"]);
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
 //   • chart-1..5: a categorical data-viz ramp — the five hues are chosen for mutual DISTINGUISHABILITY,
 //     not to track the surface palette; recolouring them off the base would collapse the categories.
+//   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — the SAME species as chart-*: a
+//     categorical ramp for pool/meter/clock FILLS, keyed by definition order for stable per-category
+//     color; base-only (a theme json MAY override, none is required to), meaning never rides color alone.
 const STATIC_RATIONALE = new Set<string>([
   "color.destructive",
   "color.destructive-foreground",
@@ -71,6 +74,12 @@ const STATIC_RATIONALE = new Set<string>([
   "color.chart-3",
   "color.chart-4",
   "color.chart-5",
+  "color.track-1",
+  "color.track-2",
+  "color.track-3",
+  "color.track-4",
+  "color.track-5",
+  "color.track-6",
 ]);
 
 const ALL_COLOR_TOKENS = Object.keys(TOKENS).filter((k) => k.startsWith("color."));

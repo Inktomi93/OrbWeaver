@@ -70,3 +70,56 @@ export const segmentedClockVariants = tv({
   },
   defaultVariants: { size: "md" },
 });
+
+// ─── The tracker-kit decorative-geometry pair (Context-Panel-Program §3.2 / §4.8) ───────────────────
+// TrackBar (linear) + RingGauge (arc) — same magnitude-display species as Meter, but DECORATIVE:
+// aria-hidden geometry whose fill/stroke rides the D71 track ramp; the value TEXT is the datum (§4.9).
+// tailwind-variants can't build a class from a runtime number, so each ramp is a static Record of literal
+// utilities (Tailwind must SEE each class whole to emit it). These maps are INTERNAL — the index never
+// re-exports them (§13.7); the public `TrackColor`/`RingColor` types live on the component files.
+
+/** The 6-step track ramp as literal FILL utilities — one per `--color-track-N` (TrackBar). */
+export const TRACK_FILL = {
+  1: "bg-track-1",
+  2: "bg-track-2",
+  3: "bg-track-3",
+  4: "bg-track-4",
+  5: "bg-track-5",
+  6: "bg-track-6",
+} as const;
+
+/** The 6-step track ramp as literal TEXT-color utilities — the RingGauge arc strokes `currentColor`. */
+export const RING_STROKE = {
+  1: "text-track-1",
+  2: "text-track-2",
+  3: "text-track-3",
+  4: "text-track-4",
+  5: "text-track-5",
+  6: "text-track-6",
+} as const;
+
+export const trackBarVariants = tv({
+  slots: {
+    // The empty track: a faint neutral rail (the mockup's --track-bg ≈ the input overlay tone). Height
+    // rides the `field` spacing intent (0.375rem = the 6px §3.2 bar; the Meter track precedent above).
+    root: "relative h-field w-full overflow-hidden rounded-full bg-input",
+    // The fill width is data (inline style) — its COLOR is a ramp token; danger swaps to the intent.
+    fill: "h-full rounded-full",
+  },
+  variants: {
+    danger: { true: { fill: "bg-destructive" } },
+  },
+});
+
+export const ringGaugeVariants = tv({
+  slots: {
+    // The orb column: the ring over an optional label + value readout (the mockup .orb stack).
+    root: "flex flex-col items-center gap-field",
+    svg: "block size-control-lg",
+    // The empty ring track (faint) + the value glyph centered in the arc.
+    track: "text-muted",
+    valueText: "fill-foreground font-semibold text-label tabular-nums",
+    label: "text-micro text-muted-foreground uppercase tracking-micro",
+    readout: "text-micro text-muted-foreground tabular-nums",
+  },
+});

@@ -65,8 +65,85 @@ CHEVRON at the collapsible PRIMITIVE (chevron={false} arm for the 2 own-chevron 
 swept) · RECENCY_BIAS_CEIL=1 at the bounds home w/ inputs deriving. UGLY→FACELIFT LEDGER: admin
 density vs the Chat-behavior craft bar (side-eye's "single biggest opportunity") · Save-button
 grouping spacer · autosave status-line placement · tool-use description column · 28px steppers
-sub-44. Receipts: reports/snaps/admin-memory-shot.png et al. **PHASE B REMAINING: ⑫ ONLY
-(dispatching).**
+sub-44. Receipts: reports/snaps/admin-memory-shot.png et al.
+
+**═══ ✅ THE KNOB-WIRE PROGRAM IS COMPLETE — `a5ace0fc` (2026-07-26) ═══**
+⑫ landed: PROMPT_TEMPLATES/CAPTION_INSTRUCTIONS → data catalogs (byte-for-byte verifier-diffed),
+per-user UserSettings.imagery overrides (HOME RULING: NOT preset — /imagine resolves
+Principal+mode with no preset in scope; the lane correctly overruled the orchestrator's preset
+lean with cites), v5→v6 lift, override ?? default through compose ops, one macro engine,
+MacroField ghost-default cards at chat-behavior, over-cap self-heal probed, 0000_baseline
+regenerated AGAIN for the v6 column default (the derived-DEFAULT class now bit twice — every
+future USER_SETTINGS_SCHEMA_VERSION bump owes a baseline regen, expect it), design report
+force-committed per the cited-reports rule. **Program totals: audit (~440 files, 2 waves) → gate
+150/D107 → Phase A (6 lanes) → Phase B (7 stints on ONE warm lane + parallel chips) → side-eye
+SHIP-WITH-FIXES → ⑫. Every finding wired, ruled dead, or gate-cited. Two product bugs killed en
+route (ownerId-blind databank stub · sortable keyboard stranding) + 2 flakes root-fixed + the
+deep-link race + the reset silent-wipe classes.** Facelift ledger carries the taste items.
+**QUEUED (unchanged): BG-V live drive (needs seeded video asset + a side-eye moment) · the
+rebuild-gate verifications (before buddy returns).**
+
+**═══ ▶ NOW ACTIVE: THE LITE-RPG + VISUAL-POLISH PROGRAM (owner course, mockup-first) ═══**
+Start = CP-3 trackers embryo per Context-Panel-Program.md §3 + the ratified convergence design
+(ONE ChatInjection channel; tracker block ≡ persistent guide; swipe-keyed snapshots + resolution
+ladder + staging accumulator + applyLockedPatch; custom stats = validated snake_case tokens in
+JSON planes, zero migrations; ALL owner rulings folded — no party/roster-is-membership/rpg.status/
+ambient strip mode-agnostic/goal-lines-as-lite-quests/editable-in-place/Status headshots/currency
+line + money=openQ/MA-3). **MOCKUP LAW: rpg-shell-mockup-v2 IS the committed target (owner
+confirmed 2026-07-26 — no new mockup); the loop starts at BUILD: iterate snap-vs-v2 until match,
+side-eye AFTER convergence; CP-3 embryo targets v2's tracker-block crops; a state v2 doesn't
+depict = a one-crop addendum, never a v3.**
+**STINT 1: THE LANE CAUGHT A CONTRADICTION IN THE DISPATCH (clean escalation, zero code
+written) — orchestrator RULED, scope split.** The dispatch's "tracker-class arms on the ONE
+ChatInjection channel" was a category error: the ratified convergence design rules
+chat_injections PROSE-ONLY (flat text rows, no kind/JSON plane) and homes STRUCTURED trackers
+(pools/stats/goals/ambient — 80% of the §3.2 vocabulary) in the swipe-keyed `rpg_*` plane
+("stats stay rpg_* rows" · "do NOT falsely unify") — and BOTH substrates are purge debris
+(crew_guides + all rpg_* gone; D59/D86 park in proposed/). Memory minted:
+[[tracker-plane-vs-injection-channel]].
+**RULING (2026-07-26): build B NOW** — the seven-block KIT is pure presentation (props-driven,
+components/ tier, CP-4 = committed 2nd consumer) + the D71 track ramp (Q4 lean) + edit
+affordances IN the kit API (onEdit props; read-only arm for honest-arms), snap-vs-mockup-v2
+convergence, CTs both arms.
+**═══ OWNER RULING (2026-07-26, awake): NO LEGACY PORTING — "it should be done right for us."
+SCOPE = LITE + GUIDED ONLY. ═══** This supersedes BOTH prior stint-2 framings (greenfield-vague
+AND port-from-legacy — the orchestrator went through each; the owner's answer is neither):
+· **No stealing from legacy-main.** The old R1–R4 vertical stays archaeology/reference (reading
+  it for original-consumer semantics remains legal per the port-law memory; COPYING it is not).
+· **FULL RPG MODE IS NOT BEING BUILT.** No crew, no GM seat, no encounters, no quests/journal/map
+  engines, no d20 spine port. CP-4's FULL roster (§4.3) is inherited design intent for someday —
+  not this program.
+· **THE BUILD = the CP spec's lite slice + guided steering, designed FRESH for this tree:** the
+  §3.2 block kit (stint 1, running) · the Trackers tab for normal chats (§3.3, ONE ChatInjection
+  steering seam — guided already built the channel; no crew_guides needed, the guides-home OPEN
+  QUESTION DISSOLVES) · the CP-4 takeover LITE TRIM (§4.4: Status·Sheet·Inventory·Scene + the
+  rpg.game lite arm as Stats & Trackers editor + the §4.5 banner/orbs + §4.11 registry deltas) ·
+  a LEAN lite data plane built new: the ratified state model (swipe-keyed volatile snapshots on
+  message_variants + resolution ladder + staging accumulator + applyLockedPatch) at LITE scope
+  only, statProfile-as-data vocabulary (D86 §2's shape, fresh), write path = lean lite tool defs
+  registered in the CURRENT built tool-use domain (D48) + hand-edit verbs (editable-in-place
+  law). The cohesion plan (D86) + the CP spec are the DESIGN REFERENCE; the lite carve is the
+  build target.
+**NEXT: stint 2 = the lite-substrate DESIGN CARVE — DISPATCHED (Fable-tier designer, running)**
+→ `reports/lite-plus-guided-substrate-spec.md`. Commission: shared spine full-shaped from day one
+(mode axis + exhaustive MODE_POLICY · statProfile-as-data w/ the modifier contract · swipe-keyed
+snapshot plane · wallet/inventory FIRST-CLASS in lite [surviving ruling — Q6 money = ANSWERED]) ·
+lite v1 exact build list · **the GRAFT MAP appendix = the zero-respell proof** ("share parts but
+don't build the full thing" made checkable) · bake-once rolls · no crew · prose-guides stay
+ChatInjection. **OWNER AMENDMENT (mid-carve, relayed): lite HAS quests + journal — DATA PLANES
+not engines** ("just structured output that gets generated and can help steer the plot"): lite's
+line = ENGINES excluded (encounters/session-wrap/map/checks/GM seat), quest-objective + journal-
+beats planes INCLUDED (model-writable, hand-editable, steering-fed); **CP spec §4.4 lite trim is
+AMENDED — Quests + Journal tabs join lite** (Map stays MA-3); the carve records the §4.4 delta
+for ratification. **CARVE v1 LANDED** (reports/lite-plus-guided-substrate-spec.md — chat-side
+spine SURVIVED the purge as null-op wired ChatRpgOps · rpg_games real table + metadata.rpg opaque
+sync pointer · rpg_sheets NOT rpg_party · wallet stored first-class · 7 lite tables + graft-map
+appendix · D86 re-mints verbatim later, carve rulings mint D108+). **OWNER RATIFICATION RULINGS
+(2026-07-26): ① VETO the narrative-ledger rewind exemption — swipes rewind EVERYTHING the panel
+renders (quests/journal included; variant-aware redesign, revision in flight) ② preset override
+= a SURFACED KNOB with a default, never hardcoded ("we just dealt with this same symptom" — the
+knob-wire lesson applied prospectively; spec must sweep for any other hardcoded-posture knobs)
+③ wallet/inventory first-class CONFIRMED.** Spec revision running → then build waves.
 
 **MORNING NOTE #2 (operational, safe-by-design):** stint 6 folded image-variant QUALITY into the
 variant cache KEY (`w<w>-q<q>.webp`) — every pre-existing cached variant ORPHANS on next serve
