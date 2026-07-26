@@ -38,10 +38,10 @@ function splitCsv(raw: string): string[] {
 
 function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits {
   return {
-    general: o?.general ?? env.RATE_LIMIT_GENERAL,
     aiTurn: o?.aiTurn ?? env.RATE_LIMIT_AI_TURN,
     publicIp: o?.publicIp ?? env.RATE_LIMIT_PUBLIC_IP,
     authed: o?.authed ?? env.RATE_LIMIT_AUTHED,
+    login: o?.login ?? env.RATE_LIMIT_LOGIN,
   };
 }
 

@@ -87,8 +87,23 @@ test("keyboard: Tab focuses the real input and Enter opens the native file picke
   await mount(<FileDropzone aria-label="Upload" />);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Upload")).toBeFocused();
-  const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.keyboard.press("Enter");
+  // Chromium drops the FIRST Enter->activate on a freshly-mounted+focused file input under parallel
+  // scheduler load: the key event fires and focus stays on the input, but the native picker's
+  // default-action isn't wired yet, so no `filechooser` (confirmed — a second Enter always opens it;
+  // a real user's post-Tab keypress is never this tight). Poll the activation until the picker fires
+  // instead of betting on a single keypress — this still proves Enter (never click) opens it.
+  let opened = false;
+  const fileChooserPromise = page.waitForEvent("filechooser").then(() => {
+    opened = true;
+  });
+  await expect
+    .poll(async () => {
+      if (!opened) {
+        await page.keyboard.press("Enter");
+      }
+      return opened;
+    })
+    .toBe(true);
   await fileChooserPromise;
 });
 

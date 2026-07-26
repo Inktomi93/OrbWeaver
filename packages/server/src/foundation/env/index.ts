@@ -52,10 +52,10 @@ const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
-const RATE_LIMIT_GENERAL_DEFAULT = 120;
 const RATE_LIMIT_AI_TURN_DEFAULT = 30;
 const RATE_LIMIT_PUBLIC_IP_DEFAULT = 60;
 const RATE_LIMIT_AUTHED_DEFAULT = 600;
+const RATE_LIMIT_LOGIN_DEFAULT = 10;
 
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
 // export. Two escape hatches (VITEST, ORB_ENV_NO_OVERRIDE=1) keep the override from fighting a one-off
@@ -240,10 +240,10 @@ const envSchema = z
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(RATE_LIMIT_WINDOW_MS_DEFAULT),
-    RATE_LIMIT_GENERAL: z.coerce.number().int().positive().default(RATE_LIMIT_GENERAL_DEFAULT),
     RATE_LIMIT_AI_TURN: z.coerce.number().int().positive().default(RATE_LIMIT_AI_TURN_DEFAULT),
     RATE_LIMIT_PUBLIC_IP: z.coerce.number().int().positive().default(RATE_LIMIT_PUBLIC_IP_DEFAULT),
     RATE_LIMIT_AUTHED: z.coerce.number().int().positive().default(RATE_LIMIT_AUTHED_DEFAULT),
+    RATE_LIMIT_LOGIN: z.coerce.number().int().positive().default(RATE_LIMIT_LOGIN_DEFAULT),
   })
   .superRefine((val, ctx) => {
     // Fail fast at boot if oidc is selected without the credentials to run it — a misconfigured deploy

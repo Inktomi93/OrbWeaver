@@ -167,13 +167,19 @@ const ownerAuth =
 describe("local login — registration", () => {
   test("login route is NOT registered without an authenticator", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(false);
   });
 
   test("login route IS registered with an authenticator", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, authenticate: ownerAuth(castId<UserId>("usr_owner")) };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      authenticate: ownerAuth(castId<UserId>("usr_owner")),
+    };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(true);
   });
 });
@@ -186,7 +192,7 @@ describe("logout — CSRF gate", () => {
 
   test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123` } }));
     expect(res.status).toBe(403);
     expect(rec.revoked).toBeNull();
@@ -195,7 +201,7 @@ describe("logout — CSRF gate", () => {
 
   test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (204)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
     expect(res.status).toBe(204);
     expect(rec.revoked).toBe("tok-123");
@@ -204,7 +210,7 @@ describe("logout — CSRF gate", () => {
 
   test("WITH the CSRF header but no cookie → still clears, does not revoke (204)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF]: "1" } }));
     expect(res.status).toBe(204);
     expect(rec.revoked).toBeNull();
@@ -325,13 +331,14 @@ describe("OIDC route registration", () => {
 
   test("OIDC routes present only when oidc deps are supplied", () => {
     const rec = recordingSessions();
-    const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB };
+    const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     expect(routesOf(withoutOidc).has("GET /api/auth/oidc/login")).toBe(false);
 
     const withOidc: AuthRoutesDeps = {
       sessions: rec.sessions,
       now: (): number => NOW,
       db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
       oidc: oidcStub(),
     };
     const routes = routesOf(withOidc);
@@ -425,6 +432,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       sessions: recordingSessions().sessions,
       now: (): number => NOW,
       db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
       oidc: rec.deps,
     };
     const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
@@ -467,6 +475,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
       sessions: session.sessions,
       now: (): number => NOW,
       db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
       oidc: {
         // Must NOT run when the state consume fails — the 401 short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
@@ -541,6 +550,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
       sessions: session.sessions,
       now: (): number => NOW,
       db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
       oidc: {
         // Must NOT run on an IdP-error callback — the 401 short-circuits before the token exchange.
         getConfig: (): Promise<never> => {

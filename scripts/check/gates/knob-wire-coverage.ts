@@ -47,11 +47,9 @@ const DEFERRED: Record<string, string> = {
     "D107 — the settings-wiring remediation program (profile.avatarAssetId is live-read but the section has zero writers; the user's own avatar is unsettable).",
   "B:groupDefaults":
     "D107 audit Q1 — READ half wired 2026-07-25 (start-chat seeds metadata.group when the creator's defaults deviate); the section-patch WRITE path (a groupDefaults editor) rides the settings-wiring program.",
-  // B2: an AppSettings admin-editor key with no write field in the admin surfaces — the only UI-less
-  // AppSettings (audit-confirmed).
-  "B2:memoryDefaults": "D107 — the admin-editor wave of the settings-wiring program (UI-less AppSettings).",
-  "B2:memorySummarizer": "D107 — the admin-editor wave of the settings-wiring program (UI-less AppSettings).",
-  "B2:rateLimits": "D107 — the admin-editor wave of the settings-wiring program (UI-less AppSettings).",
+  // B2: an AppSettings admin-editor key with no write field in the admin surfaces. memoryDefaults +
+  // memorySummarizer + rateLimits WIRED 2026-07-26 (Phase B ③: features/user-admin's memory-tuning-section +
+  // rate-limits-section write them through the admin pane's settings-section seam) — entries pruned.
   "B2:importSkipCharacters": "D107 — the admin-editor wave of the settings-wiring program (verified UI-less 2026-07-25: zero admin-surface write field).",
   // C: a settings schema leaf READ by nothing — dead from the schema down.
   "C:personaWizardSeen": "D107 audit Q3 — wire or delete (the first-run persona dialog does not consult it); blob-only vocabulary change.",

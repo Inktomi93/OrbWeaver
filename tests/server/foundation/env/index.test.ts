@@ -184,10 +184,10 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
 
   test("rate-limit budgets are boot-env with the documented floor", async () => {
     const { env } = await reimportEnvWith({});
-    expect(env.RATE_LIMIT_GENERAL).toBe(120);
     expect(env.RATE_LIMIT_AI_TURN).toBe(30);
     expect(env.RATE_LIMIT_PUBLIC_IP).toBe(60);
     expect(env.RATE_LIMIT_AUTHED).toBe(600);
+    expect(env.RATE_LIMIT_LOGIN).toBe(10);
     expect(env.RATE_LIMIT_WINDOW_MS).toBe(60_000);
   });
 

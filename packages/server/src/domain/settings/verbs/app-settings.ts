@@ -4,7 +4,7 @@
 // through a process-wide chain, then reloads the cache. ASSUMES(single-replica): the write chain is
 // per-process.
 
-import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
+import type { AppSettings, AppSettingsView, EffectiveAppConfig } from "@orb/contracts/settings";
 import { APP_SETTINGS_SCHEMA_VERSION, parseAppSettings } from "@orb/contracts/settings";
 import type { JsonValue } from "@orb/kit/json";
 import { APP_SETTINGS_KEY } from "../contract/keys";
@@ -15,6 +15,7 @@ import { deepMergeAppSettings } from "../substrate/merge";
 
 interface AppSettingsVerbs {
   readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;
+  readonly getAppSettingsWithOverrides: (params: GetAppSettingsParams) => Promise<AppSettingsView>;
   readonly updateAppSettings: (params: UpdateAppSettingsParams) => Promise<EffectiveAppConfig>;
 }
 
@@ -38,6 +39,14 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
       ctx.requireAdmin(params.principal);
       return ctx.getEffectiveConfig();
     });
+
+  // The richer admin read: the resolved config (sync cache) PLUS the raw stored overrides (so the admin pane
+  // shows floor-vs-override and can clear an override to the `null` sentinel). Admin-gated like getAppSettings.
+  const getAppSettingsWithOverrides = async (params: GetAppSettingsParams): Promise<AppSettingsView> => {
+    ctx.requireAdmin(params.principal);
+    const overrides = parseAppSettings(await readAppOverrideRaw(ctx.db));
+    return { resolved: ctx.getEffectiveConfig(), overrides };
+  };
 
   // The single process-wide write chain: two concurrent admin PATCHes would each merge against the same
   // base and last-write-wins would drop one; the chain serializes the critical section. ASSUMES(single-replica).
@@ -76,5 +85,5 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
     return run;
   };
 
-  return { getAppSettings, updateAppSettings };
+  return { getAppSettings, getAppSettingsWithOverrides, updateAppSettings };
 }

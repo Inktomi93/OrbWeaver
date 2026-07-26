@@ -246,6 +246,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     sessions: deps.sessions,
     now: deps.now,
     db: deps.db,
+    resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });

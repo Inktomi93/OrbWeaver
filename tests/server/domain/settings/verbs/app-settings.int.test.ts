@@ -1,4 +1,4 @@
-// verbs: getAppSettings / updateAppSettings — the admin-runtime tier. Load-bearing invariants asserted:
+// verbs: getAppSettings / getAppSettingsWithOverrides / updateAppSettings — the admin-runtime tier. Load-bearing invariants asserted:
 // the admin gate (owner ∪ admin) on BOTH verbs; the OWNER-ONLY gate on a PATCH that touches a D17
 // governance field (the box-governance split); the floor⊕override resolution; the null=CLEAR sentinel
 // (a cleared override reads the env floor back); every successful write audits.
@@ -36,6 +36,39 @@ describe("getAppSettings", () => {
     expect(cfg.allowNonOwnerLocalCompute).toBe(true);
     expect(cfg.allowNonOwnerMaxProSub).toBe(false);
     expect(cfg.nonOwnerLocalComputeBudget).toBeNull();
+  });
+});
+
+describe("getAppSettingsWithOverrides — the admin surface's floor-vs-override read", () => {
+  test("a non-admin is REFUSED", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_u", role: "user" });
+    await expect(h.svc.getAppSettingsWithOverrides({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("before any write: resolved is the floor and overrides is empty (nothing actively overridden)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    const view = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    expect(view.resolved.logLevel).toBe(env.LOG_LEVEL);
+    // No override stored → the field is absent/nullish in the raw blob (the floor governs).
+    expect(view.overrides.logLevel ?? null).toBeNull();
+  });
+
+  test("after an override: overrides carries the stored value AND resolved reflects it; a clear empties overrides", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { logLevel: "debug" } });
+    const set = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    expect(set.overrides.logLevel).toBe("debug"); // an ACTIVE override is visible as a value in overrides
+    expect(set.resolved.logLevel).toBe("debug");
+    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { logLevel: null } });
+    const cleared = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    expect(cleared.overrides.logLevel ?? null).toBeNull(); // cleared → back to floor-governed
+    expect(cleared.resolved.logLevel).toBe(env.LOG_LEVEL);
   });
 });
 

@@ -160,7 +160,7 @@ describe("convergence: system settings (diff-based — see the header)", () => {
     trustHtml: false,
     memoryDefaults: {},
     memorySummarizer: {},
-    rateLimits: { general: 100, aiTurn: 10, publicIp: 60, authed: 120 },
+    rateLimits: { login: 10, aiTurn: 10, publicIp: 60, authed: 120 },
     vllmConcurrency: { embed: 2, summarize: 1 },
     engineLaunch: {
       embedModel: "Qwen/Qwen3-VL-Embedding-2B",

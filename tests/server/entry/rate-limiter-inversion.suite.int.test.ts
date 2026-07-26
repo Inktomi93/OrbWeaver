@@ -205,7 +205,7 @@ describe("rate-limit gate — LIVE admin override (the gate reads the RESOLVED c
     expect(resolved.publicIp).toBe(env.RATE_LIMIT_PUBLIC_IP);
     expect(resolved.authed).toBe(env.RATE_LIMIT_AUTHED);
     expect(resolved.aiTurn).toBe(env.RATE_LIMIT_AI_TURN);
-    expect(resolved.general).toBe(env.RATE_LIMIT_GENERAL);
+    expect(resolved.login).toBe(env.RATE_LIMIT_LOGIN);
   });
 
   test("a set override WINS over the floor", () => {

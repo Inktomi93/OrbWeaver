@@ -46,11 +46,43 @@ image arm = min(assetUpload, maxImageBytes) · 4096→2048 align · sessions cap
 REASONING_CPS obeys smoothStream/CPS).
 
 **NOW RUNNING: PHASE B — the settings-surface lane** (single owner of contracts/settings + the
-settings UI; manifest ①–⑫ below; REGISTRY-FIRST mandate — mint the settings-section registry
-before any pane). Lane duty as each item lands: prune its DEFERRED entry from the
-knob-wire-coverage registry (stale entry = red, the gate itself demands it). ENV NOTE: vLLM
-engines DOWNED at owner request (GPU work) — stack runs VLLM_DISABLED=1; relaunch is
-OWNER-TRIGGERED only. The localStorage brick-loop TRACE chip is CLOSED (scout, 2026-07-25 late):
+settings UI; manifest ①–⑫ below; REGISTRY-FIRST mandate — DONE, the seam is stint 1). Lane duty
+as each item lands: prune its DEFERRED entry from the knob-wire-coverage registry (stale entry =
+red, the gate itself demands it). ENV NOTE: vLLM engines DOWNED at owner request (GPU work) —
+**✅ STACK RESTARTED ENGINES-ENABLED (2026-07-26, owner-authorized pre-sleep)** — plain
+`stack.sh restart` (no VLLM_DISABLED), server :8788 healthy · vite :5173 · `_debug/errors` [] ·
+GPU1 idle = the supervisor LAZY-SPAWNS on first vLLM demand (first live turn pulls the engine
+up). Live drives + turns are free again. ⑩'s engineLaunch sampling defaults still verify by
+typecheck + argv snapshots ONLY (never-run-engine-launcher-live law — supervised stack relaunch
+≠ hand-running a launcher).
+
+**═══ OVERNIGHT PLAN (2026-07-26, owner asleep — ratified "you've got this handled") ═══**
+The drive loop, unattended: stint N → whole-tree bar + fresh verifier (parallel) → reconcile via
+the warm lane → commit on green → stint N+1. Stint order: ②=③ admin panes (bar+verifier RUNNING
+now) → ④ databank (own stint, big: section+editor+REAL compose binding+gather passthrough+
+composed-real int test) → ⑤⑥⑦ (workloads pane · persona toggles · toolRecurseLimit control) →
+⑧⑨⑪ (chat prefs · compaction.verbatimTail+Advanced · library.pageSize) → ⑩ admin tier (incl.
+vLLM per-launched-model sampling defaults, argv-snapshot-verified) → OPUS SIDE-EYE pass over ALL
+new settings surfaces on the quiesced tree (one pass, not per-stint; BROKEN fixed via the warm
+lane, UGLY → facelift ledger) → ⑫ imagery-templates design lift (own sub-lane, LAST). Between
+stints if gates-dir is free: the token-estimate gate-widening chip. **IF PHASE B WRAPS BEFORE
+MORNING the night ROLLS INTO THE LITE-RPG + VISUAL-POLISH PROGRAM** (owner confirmed pre-sleep
+this is still the course): start = CP-3 trackers embryo per Context-Panel-Program.md §3 + the
+mockup-first loop (commit mockup → builder iterates snap-vs-mockup until match → side-eye AFTER;
+rpg-shell-mockup-v2 is the CP-4 target; all folded owner rulings apply — NO party/roster is the
+one membership/`rpg.status` tab/ambient strip mode-agnostic/goal lines as lite quests/
+editable-in-place/Status headshots/currency line + money=open-Q/MA-3 minimap allowance;
+swipe-keyed snapshot state model per the ratified spec). vLLM back up by then = live turn drives
+are free. SNAG PROTOCOL: answers from
+legacy-main (`git show legacy-main:<path>`, port hunk-by-hunk law) + docs read in full + pnpm ast
++ the D-ledger; a true judgment call I can't make → dispatch a Fable-tier thinker agent
+(read-only brief, explicit model) and take its counsel; a genuinely OWNER-ONLY fork (product
+taste / scope / anything touching persona-pin behavior, security floors, pushes, engine
+relaunch) → record it HERE as an OPEN QUESTION with my recommendation, take the
+conservative/reversible arm if the item can proceed, else DEFER that item (gate registry keeps
+it) and continue the manifest — never block the night on one fork. Board updated after EVERY
+stint (commit ledger · flake ledger · prunes · open questions). Flakes: 3rd strike overnight =
+dispatch the root-fix lane (file-dropzone:86 sits at 2). The localStorage brick-loop TRACE chip is CLOSED (scout, 2026-07-25 late):
 the loop was already traced + FIXED as workboard #11 — draft trust gate (schemaVersion + zod +
 baselineHash at readDraft, create-entity-draft-store.ts) + save circuit breaker
 (save-circuit-breaker.ts, 5 edit-free submits/10s → saveState:"error"); the earlier "never traced"
@@ -81,8 +113,12 @@ context-menu over/under-use → the polish program's side-eye lens. Policed-fine
 meaning · vllm folder · SDK parallel serialization (upstream).
 
 **FLAKE LEDGER:** swipe-strip:122 (2 strikes) · code-editor:192 (1, suspect CM6 delay class) ·
-file-dropzone:86 (2 strikes — promoted, root-fix chip) · sortable:79 (NEW 1st-striker,
-focus-survives-rerender class) · message-list:309 + lightbox FIXED and held 3 consecutive bars.
+file-dropzone:86 ROOT-FIXED 2026-07-26 (Chromium drops the FIRST Enter→picker activation on a
+fresh file input under load, focus held throughout; poll-retry vs the filechooser event; 50
+consecutive green at the reproducing 6-worker parallelism; memory minted) · sortable:79 (1 strike,
+DIFFERENT mechanism — dnd-kit focus-restoration settle, already polled; next strike = widen its
+poll to retry the Space-drop, do NOT copy the dropzone fix) · message-list:309 + lightbox FIXED
+and held 3 consecutive bars.
 
 **✅ PHASE B STINT 1 LANDED (bar: check ok:true failed:0 · vitest 7338/0 · CT 1384/0, 2
 retry-flakes ledgered):** the settings-SECTION contribution seam — open
@@ -100,9 +136,16 @@ test replaced · **conformance STALE fixture had borrowed the pruned B:memory �
 B:workloads w/ NEXT-PRUNER warning; standing trap for every future prune**). Design record:
 reports/executor/2026-07-25-settings-section-registry.md.
 
+**✅ TOKEN-ESTIMATE GATE CHIP DONE (2026-07-26, in-tree, rides the next commit):** stickler §8
+executed — `no-manual-token-estimate` gained the const-dodge arm (`.length / IDENT` where IDENT
+resolves to a const 3–5 named /CHAR|TOKEN/i), scope widened to kit, estimator home excluded
+STRUCTURALLY (exportsEstimator, not a path pin — rename-proof by construction), multiplication
+legal by design. Bite proven both directions incl. the renamed-home probe; 0 real-tree findings;
+pure widening = no count/row/fixture coupled sites. Biome note for gate authors:
+useSimplifiedLogicExpression rejects compound negations — split guard ifs.
+
 **QUEUED AFTER PHASE B:** the BG-V live drive (video background side-eye; needs seeded video
-asset) · the token-estimate gate-widening chip (stickler §8, dispatch-ready) · THEN the LITE-RPG +
-VISUAL-POLISH program (mockup-first;
+asset) · THEN the LITE-RPG + VISUAL-POLISH program (mockup-first;
 Context-Panel-Program.md is the sharpened spec; rpg-shell-mockup-v2 = the target) · workloads
 A–E very last. Fixture stack note: multi-user-fixture.sh SHARES the live ports — snap --contexts
 refuses with the up-remedy when it's down; the live stack is back on data/orbweaver.db
