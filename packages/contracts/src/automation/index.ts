@@ -144,10 +144,11 @@ export const LIVE_TRIGGERS = {
 } as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union (03) ───────────────────────────────────────────────────────────────────────
-// Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. The
-// reserved arms (crew/rpg/force-activate) are TYPED but refused by `createRule` until their domains land
-// (03 §5). The `generate_image` arm does NOT own its shape — it EXTENDS `@orb/contracts/imagery`'s
-// `generateImageActionArgsSchema` (one home per shape — `no-inline-union-redecl`).
+// Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. Additional
+// arms for purged domains (crew/rpg/force-activate) are not typed here today — the rebuild mints them onto
+// `AUTOMATION_ACTION_TYPES` if those domains return. The `generate_image` arm does NOT own its shape — it
+// EXTENDS `@orb/contracts/imagery`'s `generateImageActionArgsSchema` (one home per shape —
+// `no-inline-union-redecl`).
 
 /** The closed action-arm discriminators (03 §0). A new arm fails the `ARM_EXECUTORS` mapped-type in the
  *  domain engine (exhaustive-dispatch). */
@@ -327,8 +328,8 @@ export interface AutomationOrigin {
  *  emitters + every consumer discriminate on `kind`. */
 export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | { kind: "plugin"; pluginId: PluginId };
 
-/** The automation's OWN per-chat SSE feedback bus (04 §5; the rpg/crew precedent — its own bus, NOT the
- *  frozen chat bus). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
+/** The automation's OWN per-chat SSE feedback bus (04 §5 — its own bus, NOT the frozen chat bus; the
+ *  purged rpg/crew designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
  *  ids — the chips are transient, there is no row to re-read); everything else is host-only + id-only. The
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`
  *  union (the rest are rule-lifecycle events — rule-only by construction). */

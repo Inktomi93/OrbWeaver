@@ -20,8 +20,9 @@
 //
 // Enum columns DERIVE their one canonical tuple (never re-spelled): `messages.role` /
 // `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `chat_participants.kind` ←
-// `PARTICIPANT_KINDS` (the 4-member tuple, D60: human/character/agent each have a kind-shape arm; `observer`
-// stays RESERVED + un-seatable), `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
+// `PARTICIPANT_KINDS` (`human`/`character` only post-rollback, 2026-07-25 purge — the DDL's `agent`/`observer`
+// kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; PD-17 tracks the graft),
+// `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
 // `chat_events.type` derives the `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys); the
 // `chat_injections.position` + `chat_stream_events.kind` tuples are tied to the contract wire types
@@ -376,10 +377,11 @@ export const messageAssets = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_participants — the unified roster (D16). The per-kind SHAPE CHECK + the (chatId,userId) UNIQUE + the
-// lifecycle columns are all born at table creation. `kind` derives the 4-member PARTICIPANT_KINDS. The D60
-// kind-shape CHECK (agent-principal-design/02 §1) REPLACES the 2-way actor XOR so an `agent` (userId-backed AND
-// AI-driven — the thing the XOR could not represent) is expressible: human/agent carry userId, character
-// carries characterId, observer carries neither (reserved, un-seatable). `characterId` keys on identity (D28).
+// lifecycle columns are all born at table creation. `kind` derives PARTICIPANT_KINDS (`human`/`character` live
+// post-rollback). The D60 kind-shape CHECK (agent-principal-design/02 §1) was built so an `agent` (userId-backed
+// AND AI-driven — the thing a 2-way actor XOR could not represent) is expressible: its `agent`/`observer` SQL
+// arms are DORMANT rebuild doorways kept in the DDL for the agent-principal design set's return (PD-17), not
+// live kinds today. `characterId` keys on identity (D28).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const chatParticipants = sqliteTable(
@@ -390,12 +392,13 @@ export const chatParticipants = sqliteTable(
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    // human | character | (observer — reserved). Derives PARTICIPANT_KINDS.
+    // human | character (live). Derives PARTICIPANT_KINDS; the DDL's `agent`/`observer` CHECK arms are
+    // dormant rebuild doorways (PD-17), not selectable values today.
     kind: text("kind", { enum: PARTICIPANT_KINDS }).notNull(),
-    // The actor — the per-kind SHAPE CHECK below fixes which is set: human/agent → userId, character →
-    // characterId, observer → neither. userId CASCADE: a user hard-delete removes their memberships (D18);
-    // an agent's owner-delete cascades the agent `users` row, which cascades its seats here. characterId
-    // CASCADE: a deleted character leaves no roster ghost.
+    // The actor — the per-kind SHAPE CHECK below fixes which is set: human → userId, character →
+    // characterId (the dormant `agent`/`observer` DDL arms would carry userId / neither, same shape rule).
+    // userId CASCADE: a user hard-delete removes their memberships (D18). characterId CASCADE: a deleted
+    // character leaves no roster ghost.
     userId: text("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -431,13 +434,15 @@ export const chatParticipants = sqliteTable(
     // The multi-human bridge's junction read (`entry/compose/emit-character-updated.ts`): "every chat where
     // this character is a present seat" filters `characterId` with NO `chatId`, so neither the (chatId,userId)
     // unique nor `chat_participants_chat_idx` serves it — it table-scanned. House convention: every queried
-    // characterId FK is indexed (roster_preset_members/chat_digest_speakers/gallery_items precedents).
+    // characterId FK is indexed (chat_digest_speakers/gallery_items precedents).
     index("chat_participants_character_idx").on(t.characterId),
-    // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation, REPLACES the 2-way
-    // actor XOR. Each kind fixes its identity columns; `agent` shares the `human` column shape (userId, no
-    // characterId) — the columns answer "which identity table", `kind` answers "who drives it" (the bit the XOR
-    // could not carry). The DB does NOT cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
-    // cross-table CHECK); the ONE agent-seat chokepoint enforces that (agent-principal-design/02 §1 — FLAG[PD-17], AP3).
+    // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation to REPLACE the 2-way
+    // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
+    // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
+    // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
+    // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
+    // cross-table CHECK) — that's the future agent-seat chokepoint's job (agent-principal-design/02 §1 —
+    // FLAG[PD-17], AP3). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
     check(
       "chat_participants_kind_shape",
       sql.raw(

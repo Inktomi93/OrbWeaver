@@ -12,9 +12,9 @@ export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 export const userRoleSchema = z.enum(USER_ROLES);
 
-// Principal-KIND axis — `human | agent`, orthogonal to `role` (an agent is always `role='user'`, a DDL
-// CHECK). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching.
-// FLAG[PD-17]: AP0-AP4a all landed (D99) — the seat wave is CLOSED.
+// Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was purged
+// 2026-07-25). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
+// the rebuild grafts an `agent` member here if the agent-principal design set returns (PD-17).
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 export const userKindSchema = z.enum(USER_KINDS);

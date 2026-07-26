@@ -183,7 +183,26 @@ un-exported · the inline import() type → top-level import · the two undeclar
 DELETED (HEAD-form direct factory calls restored). Bar: check green · vitest 7279/0 · CT 1378/0
 ZERO flakes (both root-fixes held again).
 
-**CLOSING QUEUE (the last workboard items before the LITE-RPG + POLISH program):** ① tsx →
+**✅ THE WORKBOARD REMAINDER IS CLOSED (2026-07-25 night, bar: check ok · vitest 7285/0 · CT
+1376/0):** F1 comment-drift swept BOTH halves (8 contracts + 6 server/db files, prose-only-proven;
+two phantom-symbol comments killed; the hub_score false-cognate correctly spared) · G3
+`domain-sibling-front-door` depcruise rule (NO type-only exemption — the front-door law is a shape
+rule; 6 real F9 fixes, 2 beyond the audit's list; conformance fixture pins the design) · root-deps
+guard (3rd arm on verify-registry-parity; tsx→devDependencies = its first green) · scroll-mode
+re-homed to kit (coverage proven non-vacuous) · jscpd kit-candidates lens SHIPPED + first catch
+(stableStringify → @orb/kit/stable-stringify, both call sites, first-ever direct tests) ·
+suppressions baseline 3-line follow-the-suppression regen. CONTRACTS AUDIT: FUNCTIONALLY CLOSED
+(F1-F5/G1-G3 done; F6-F8 advisory by its own ruling). FLAKE LEDGER: swipe-strip:122 (2nd strike,
+root-fix chip stands) · code-editor:192 NEW 1st-striker (suspect the CM6 interaction-delay class).
+
+**NEXT (owner-ratified order): ① the SIDE-GEN SAMPLING LADDER** (final pre-program item;
+inventory = reports/scout/2026-07-25-side-gen-posture-inventory.md: 9 sites/15 consts/0 overrides;
+connection resolution verified SOUND — the ladder is per-action guidedActions sampling fields →
+the caller's preset `params` (chat-scoped: active preset · card/user-scoped: default preset) →
+`SIDE_GEN_POSTURES` floor catalog as data + a no-sampling-literals gate) → **② THE LITE-RPG +
+VISUAL-POLISH PROGRAM** (CP-3/CP-4 + facelift ledger, mockup-first) → ③ workloads A–E VERY LAST.
+
+**CLOSED QUEUE RECORD (was the closing queue):** ① tsx →
 devDependencies (the Gemini "favor" at package.json:70, commit 4f5073ec — a runtime dep the private
 monorepo root cannot need) + a root-deps-must-be-empty check so the class dies ② F1 comment-drift
 sweep (contracts prose describing purged domains as live — mech sweep, purge list in hand) ③ G3

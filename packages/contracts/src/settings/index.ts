@@ -3,6 +3,8 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { ScrollMode } from "@orb/kit/scroll-mode";
+import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
@@ -198,7 +200,9 @@ const roleDefaultsSchema = z
   .object({
     chat: chatRoleConfigSchema.optional(),
     // The agent role is a per-user connection choice (api + source + model), same shape as chat (D67
-    // api-unpin) — the agent's api is NOT server-pinned. Solo buddy validates the resolved api at its entry.
+    // api-unpin) — the agent's api is NOT server-pinned. (The `buddy` domain that was to validate the
+    // resolved api at its entry was purged 2026-07-25; the connection role itself stays live for the
+    // rebuild to graft onto.)
     agent: chatRoleConfigSchema.optional(),
     embed: inferenceRoleConfigSchema.optional(),
     rerank: inferenceRoleConfigSchema.optional(),
@@ -262,11 +266,11 @@ const memorySchema = z
   .prefault({});
 
 // Stream-display scroll behavior (PD-147, client-honored — the `@orb/ui/message-list` `scrollMode` prop).
-// `follow` = the sealed sticky-tail behavior. `pin-prompt` = ChatGPT-style: on send, pin the just-sent
-// message to the viewport top and hold it while the reply streams below. Default `follow` (byte-identical
-// for untouched users). The `@orb/ui` prop union pairs with this tuple at the consumer (compile-time).
-export const STREAM_SCROLL_MODES = ["follow", "pin-prompt"] as const;
-export type StreamScrollMode = (typeof STREAM_SCROLL_MODES)[number];
+// The axis is homed in `@orb/kit/scroll-mode` (reachable by both `contracts` and the `ui` prop, which may
+// import kit ONLY); re-exported here under the settings-facing name so existing consumers keep their
+// `@orb/contracts/settings` import path (D15 front-door). The wire schema below imports the tuple DOWN.
+export const STREAM_SCROLL_MODES = SCROLL_MODES;
+export type StreamScrollMode = ScrollMode;
 
 const chatSchema = z
   .object({

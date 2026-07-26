@@ -7,8 +7,8 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
-import type { RequireAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
   AddExternalBackgroundParams,
   CreateThemeParams,

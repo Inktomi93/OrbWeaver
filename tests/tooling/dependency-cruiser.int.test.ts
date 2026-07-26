@@ -114,6 +114,12 @@ function writeAllFixtures(): void {
   fx(`${S}/kit/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
 
   fx(`${S}/domain/__dc_feat/cross.ts`, `import "../__dc_feat2/index.ts";\n`);
+  // domain-sibling-front-door (audit F9/G3): a domain reaching into a SIBLING's internals instead of its
+  // index. TYPE-ONLY on purpose — type-only is exempt from domain-no-cross-feature but NOT from this rule
+  // (the front-door law is a shape rule; an injected-op shape must come through the front door too), so
+  // this fixture isolates the new rule's bite AND pins the no-type-exemption design decision.
+  fx(`${S}/domain/__dc_feat2/internal.ts`, "export type DeepTy = number;\n");
+  fx(`${S}/domain/__dc_feat/deepcross.ts`, `import type { DeepTy } from "../__dc_feat2/internal.ts";\nexport type Z = DeepTy;\n`);
   fx(`${S}/transport/__dc/frontdoor.ts`, `import "../../domain/__dc_feat/internal.ts";\n`);
   fx(`${S}/domain/__dc_feat/verbs/b.ts`, "export const b = 1;\n");
   fx(`${S}/domain/__dc_feat/verbs/a.ts`, `import { b } from "./b.ts";\nexport const u = b;\n`);

@@ -10,15 +10,12 @@
 // payload is only a branded id — the subscriber re-reads canon by id, never trusting event-carried data).
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 
-// The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The four
-// `crew.*` members are the chat-crew domain-event MIRROR (chat-crew-design/04 §4): a curated, id-only subset
-// of `CrewBusEvent` that a crew applier emits so D46 Tier-1 automation can trigger on crew activity. Their
-// SPELLINGS are pinned by the landed `DOMAIN_TRIGGER_TYPES` reservation (`@orb/contracts/automation`) — this
-// flip is what arms those reserved triggers. The emit sites land with each applier (CW2–CW5); CW1 lands the
-// type-level mirror + the indexer's no-op arms so the closed-union dispatch stays exhaustive. The five `rpg.*`
-// members are the rpg domain-event MIRROR (rpg-design/05 §5 / 09b — R5): the curated `RpgBusEvent` subset the
-// rpg verbs mirror here so automation triggers on game activity (`rpg.encounterEnded` is a PENDING EMITTER
-// until R8; the other four emit at their landed producer verbs — R5 also lands the indexer's no-op arms).
+// The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The
+// crew/rpg domain-event mirrors (chat-crew-design/04 §4, rpg-design/05 §5 / 09b — curated, id-only subsets
+// of those domains' own bus events so D46 Tier-1 automation could trigger on their activity) were purged
+// with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
+// this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
+// domain returns.
 export const DOMAIN_EVENT_TYPES = ["character.updated", "asset.created"] as const;
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 

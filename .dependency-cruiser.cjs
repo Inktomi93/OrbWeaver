@@ -410,6 +410,17 @@ module.exports = {
       },
     },
     {
+      name: "domain-sibling-front-door",
+      comment:
+        "A domain reaching a SIBLING domain enters through its PUBLIC API (domain/<sibling>/index.ts) — NEVER a deep import of the sibling's internals (../../embeddings/contract/service). The front door re-exports every legal cross-feature shape, so a deep path buys nothing and breaks silently on the sibling's internal renames. Distinct from domain-feature-front-door (which fires only for callers OUTSIDE domain/); this is the sibling arm. Crucially NO type-only exemption — domain-no-cross-feature already exempts type-only, so a type-only deep import (the injected-op SHAPE) would otherwise bypass the front door ungated. The one-directional-flow front-door law is a SHAPE rule, not a value-vs-type rule: even an injected-op type crosses via the door. Intra-module relative imports (a verb reaching its own contract/) stay legal via the $1 self-match. (structure.md §4; audit F9.)",
+      severity: "error",
+      from: { path: `${SRV}domain/([^/]+)/` },
+      to: {
+        path: `${SRV}domain/([^/]+)/.+`,
+        pathNot: [`${SRV}domain/$1/`, `${SRV}domain/[^/]+/index\\.ts$`],
+      },
+    },
+    {
       name: "domain-no-cross-verb",
       comment:
         "GENERIC verb isolation (every feature with a verbs/ dir). A verb file must not import another verb file's VALUE — verb-to-verb deps are wired EXPLICITLY at service.ts via factory injection (createSend(ctx, { runCompaction })). Type-only imports between verbs ARE allowed (declare an injected dep's typed shape). Group barrels (verbs/<group>/index.ts) are the composition point — exempt both sides. (structure.md §4; verb-naming gate is its sibling.)",

@@ -61,13 +61,11 @@
     "e2e:live": "E2E_LIVE=1 playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "jscpd -c jscpd.json",
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
+    "lens:kit-candidates": "tsx scripts/lens/kit-candidates.ts",
     "test:mutation": "stryker run stryker.config.json",
     "test:mutation:gate": "stryker run stryker.gate.config.json",
     "check": "tsx scripts/verify/run.ts --static",
     "verify": "tsx scripts/verify/run.ts"
-  },
-  "dependencies": {
-    "tsx": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -120,6 +118,7 @@
     "tailwindcss": "catalog:",
     "ts-morph": "catalog:",
     "ts7": "npm:typescript@7.0.2",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:",

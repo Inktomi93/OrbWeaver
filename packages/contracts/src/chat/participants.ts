@@ -6,10 +6,11 @@ import type { CharacterId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 
-// `human`/`character` are the v1 kinds. `agent` is a first-class userId-backed AND AI-driven principal
-// (D60). `observer` is the reserved seam (Narrative Director — watches + proposes, never acts, unseatable).
-// PD-17: the `agent` seat is FILLED by `chat.seatAgent` (host-gated; AP3-1 verb, wired to the tRPC chat
-// router at P6) + requested owner≠host via `invites.requestAgentSeat`. `observer` stays reserved (unfillable).
+// `human`/`character` are the only live kinds post-rollback (2026-07-25 purge). `agent` (a first-class
+// userId-backed AND AI-driven principal, D60) and `observer` (the Narrative Director seam — watches +
+// proposes, never acts, unseatable) were purged with the agent-principal build; PD-17 tracks the rebuild —
+// no `chat.seatAgent`/`requestAgentSeat` verb exists today. The rebuild grafts both kinds back onto this
+// tuple if the agent-principal design set returns.
 export const PARTICIPANT_KINDS = ["human", "character"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
