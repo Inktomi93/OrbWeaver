@@ -25,29 +25,37 @@ rule · root-deps guard · scroll-mode→kit · jscpd lens + stableStringify hoi
 (compose services.ts split: keystone + 8 seams, stickler-reviewed) → **`be1ba6b4`** (the side-gen
 SAMPLING LADDER: 9 sites → one resolver, floors as data, gate 149; + the buried-knobs audit ledger
 `reports/scout/2026-07-25-buried-knobs-audit-wip.md` and gate design
-`reports/stickler/2026-07-25-knob-drift-gates.md` as cited records).
+`reports/stickler/2026-07-25-knob-drift-gates.md` as cited records) → **`d9525f02`** (KNOB-WIRE
+PHASE A consolidation — next block).
 
-**IN THE TREE UNCOMMITTED — KNOB-WIRE PROGRAM PHASE A (owner: "wire it all up, handle it properly
-in full"):** L0 `knob-wire-coverage` gate LANDED (D107 minted · count 150 · six arms ·
-DOORWAY/DEFERRED two-map registry · conformance 2/2 · orchestrator fixed 2 TS7030s + the
-_support exactOptional red post-landing, house ternary idiom) · L1 rateLimits ENFORCED
-(security-executor: gate reads getEffectiveConfig().rateLimits LIVE · aiTurn wired via a typed
-exhaustive $-verb map [missed verb = build error] · fail-safe bounds [absurd override → env
-floor] · 90/90 incl. adversarial) · L3 chat FIVE-of-six (continueNudge honors the field ·
-impersonateNudge slot + ST-importer drop closed · toolRecurseLimit FULL path [verb+sweep+matrix+
-all 8 TurnPrep sites] · memorySummarizer into digests + reserve mirror · providerRouting
-receipted) · L4 dupThreshold end-to-end BOTH arms (user knob = cosine arm only; chat Jaccard
-keeps its own floor — fabricated-math rejected) · L5 (uploads cap catalog @orb/contracts/uploads
-SERVED on /api/auth/config · image arm honors maxImageBytes · 4096→2048 align · sessions cap 200
-newest-first · REASONING_CPS obeys smoothStream/CPS).
-**IN FLIGHT: L3's groupDefaults-seed continuation** (agent warm; seed metadata.group from
-creator's settings.groupDefaults at group-chat creation; int-test both arms).
+**✅ PHASE A CONSOLIDATED — `d9525f02`** (perfect bar: check ok:true failed:[] · vitest 7341/0 ·
+CT 1380 expected / 0 unexpected / 0 flaky — first flake-free battery of the night). In it: the
+`knob-wire-coverage` gate (D107 · count 150 · six arms · DOORWAY/DEFERRED two-map registry,
+transient entries pruned; remaining DEFERRED = A:importSkipCharacters · A:allowNonOwnerLocalCompute
+· B:memory · B:worldInfo · B:workloads · B:profile · B:groupDefaults[write half] ·
+B2:memoryDefaults/memorySummarizer/rateLimits/importSkipCharacters · C:personaWizardSeen; DOORWAY
+F:providerRouting:write) · L1 rateLimits ENFORCED (gate reads getEffectiveConfig().rateLimits LIVE
+· aiTurn via the typed exhaustive $-verb map, keyof-derived AI_TURN_PATHS · fail-safe bounds ·
+90/90 incl. adversarial) · L3 chat SIX (continueNudge · impersonateNudge slot + ST-importer drop
+closed · toolRecurseLimit FULL path · groupDefaults deviation-only seed [explicit draft >
+settings-deviation > absent — preserves the null-metadata fast path] · memorySummarizer into
+digests + reserve mirror · providerRouting receipted→DEFER) · L4 dupThreshold BOTH arms
+(cosine-only knob; Jaccard keeps its own floor) · L5 (uploads cap catalog @orb/contracts/uploads
+SERVED on /api/auth/config — PROFILE_IMPORT alias DELETED, consumers use ASSET_UPLOAD_MAX_BYTES ·
+image arm = min(assetUpload, maxImageBytes) · 4096→2048 align · sessions cap 200 newest-first ·
+REASONING_CPS obeys smoothStream/CPS).
 
-**ON L3's LANDING (the sequence):** ① prune the gate registry's transient STALE entries — their
-fixes are in-tree: `A:rateLimits` · `A:memorySummarizer` · `C:dupThreshold` ·
-`F:toolRecurseLimit:read`+`:write` · plus `B:groupDefaults`/section once seeded (each DELETE rides
-the ratchet's own demand) ② pnpm format:docs ③ full bar (read artifacts) ④ **PHASE A
-CONSOLIDATION COMMIT** ⑤ dispatch PHASE B.
+**NOW RUNNING: PHASE B — the settings-surface lane** (single owner of contracts/settings + the
+settings UI; manifest ①–⑫ below; REGISTRY-FIRST mandate — mint the settings-section registry
+before any pane). Lane duty as each item lands: prune its DEFERRED entry from the
+knob-wire-coverage registry (stale entry = red, the gate itself demands it). ENV NOTE: vLLM
+engines DOWNED at owner request (GPU work) — stack runs VLLM_DISABLED=1; relaunch is
+OWNER-TRIGGERED only. The localStorage brick-loop TRACE chip is CLOSED (scout, 2026-07-25 late):
+the loop was already traced + FIXED as workboard #11 — draft trust gate (schemaVersion + zod +
+baselineHash at readDraft, create-entity-draft-store.ts) + save circuit breaker
+(save-circuit-breaker.ts, 5 edit-free submits/10s → saveState:"error"); the earlier "never traced"
+triage line was STALE (carried from the pain-point doc snapshot instead of the board's own #11 —
+the audit-lists-are-snapshots lesson, self-inflicted). No blocker for lite-rpg stores.
 
 **OWNER RULINGS THIS THREAD (all final):** `rateLimits.general` = **DELETE** (field + env floor
 RATE_LIMIT_GENERAL + resolver line; grep deployments for the env var; rationale into the D107
@@ -64,19 +72,37 @@ contribution, never more god-feature growth).
 **PAIN-POINT DOC TRIAGE (2026-07-25, read in full):** NAILED/PURGED: workloads (design ratified,
 stages A–E VERY LAST) · party two-homes (no-party ruling) · entity zoo + buddy/crew duplication
 (purged, lesson encoded in the contribution seam) · anth-direct cell (purged). STILL LIVE:
-settings god-feature (→ the Phase B registry mandate above) · localStorage autosave BRICK-LOOP
-(§8, never traced — TRACE CHIP before lite-rpg adds stores) · capability cell-keying (source×api)
+settings god-feature (→ the Phase B registry mandate above) · ~~localStorage autosave BRICK-LOOP~~
+(RESOLVED — was already workboard #11's fix; chip closed 2026-07-25 late, see the Phase B block) ·
+capability cell-keying (source×api)
 + AgentTurnRequest scalar-plucking + roles/agent.ts-vs-resolve-role tension = REBUILD-GATE
 verifications (before buddy returns) · generic tool-loop homed in chat = rebuild-charter note ·
 context-menu over/under-use → the polish program's side-eye lens. Policed-fine: session double
 meaning · vllm folder · SDK parallel serialization (upstream).
 
 **FLAKE LEDGER:** swipe-strip:122 (2 strikes) · code-editor:192 (1, suspect CM6 delay class) ·
-file-dropzone:86 (1) · message-list:309 + lightbox FIXED and held 3 consecutive bars.
+file-dropzone:86 (2 strikes — promoted, root-fix chip) · sortable:79 (NEW 1st-striker,
+focus-survives-rerender class) · message-list:309 + lightbox FIXED and held 3 consecutive bars.
+
+**✅ PHASE B STINT 1 LANDED (bar: check ok:true failed:0 · vitest 7338/0 · CT 1384/0, 2
+retry-flakes ledgered):** the settings-SECTION contribution seam — open
+`ContributorRegistry<SettingsSectionContribution>` per host pane (editor-sections mirror, NOT a
+total registry: purely additive, no old-beside-new clause triggered), anchor vocab
+`SETTINGS_SECTION_ANCHORS=["chat-behavior"]`, type homed in state/settings-pane-registry.ts
+(client-lib-floor forces state, not registry-contracts — memory minted), assembled empty-typed at
+the door, threaded by prop via `makeChatBehaviorPane`. First two contributions: ① memory.enabled
+master switch (owned by features/chat, section:"memory" write path, read end untouched-verified)
+② worldInfo scanDepth/tokenBudget (owned by features/world-info). B:memory + B:worldInfo pruned
+from the gate registry. Verifier CONFIRMED end-to-end, zero defects. Whole-tree bar caught 6
+reconcile items (single-arm tautologies → groupByAnchor keyed lookup · both section bodies
+re-bucketed surfaces/→components/ w/ CT mirrors · inline type → indexed-access derive · double-cast
+test replaced · **conformance STALE fixture had borrowed the pruned B:memory — repointed to
+B:workloads w/ NEXT-PRUNER warning; standing trap for every future prune**). Design record:
+reports/executor/2026-07-25-settings-section-registry.md.
 
 **QUEUED AFTER PHASE B:** the BG-V live drive (video background side-eye; needs seeded video
-asset) · localStorage brick-loop trace · the token-estimate gate-widening chip (stickler §8,
-dispatch-ready) · THEN the LITE-RPG + VISUAL-POLISH program (mockup-first;
+asset) · the token-estimate gate-widening chip (stickler §8, dispatch-ready) · THEN the LITE-RPG +
+VISUAL-POLISH program (mockup-first;
 Context-Panel-Program.md is the sharpened spec; rpg-shell-mockup-v2 = the target) · workloads
 A–E very last. Fixture stack note: multi-user-fixture.sh SHARES the live ports — snap --contexts
 refuses with the up-remedy when it's down; the live stack is back on data/orbweaver.db

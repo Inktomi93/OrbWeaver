@@ -5,7 +5,7 @@
 
 export { appearancePane } from "./lib/appearance-pane";
 export { automationPane } from "./lib/automation-pane";
-export { chatBehaviorPane } from "./lib/chat-behavior-pane";
+export { makeChatBehaviorPane } from "./lib/chat-behavior-pane";
 export { regexPane } from "./lib/regex-pane";
 export { settingsModal } from "./lib/settings-modal";
 export { systemPane } from "./lib/system-pane";

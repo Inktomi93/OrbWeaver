@@ -160,12 +160,15 @@ export type { SectionRegistry } from "./section-registry-context";
 export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";
 export type {
+  ResolvedSettingsSection,
   SettingsGroup,
   SettingsPaneDefinition,
+  SettingsSectionAnchor,
+  SettingsSectionContribution,
   SettingsSubcategory,
   SettingsViewerView,
 } from "./settings-pane-registry";
-export { SETTINGS_GROUPS, settingsAnchorId } from "./settings-pane-registry";
+export { resolveSettingsSections, SETTINGS_GROUPS, SETTINGS_SECTION_ANCHORS, settingsAnchorId, settingsSectionNavs } from "./settings-pane-registry";
 export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
 export {
   SettingsPaneRegistryContext,

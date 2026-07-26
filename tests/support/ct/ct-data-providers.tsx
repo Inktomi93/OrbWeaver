@@ -19,18 +19,27 @@ import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { makeCharactersSection } from "@orb/client/features/character";
-import { commandModal, makeChatsSection, newChatModal } from "@orb/client/features/chat";
+import { commandModal, makeChatsSection, memorySettingsSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
+import {
+  appearancePane,
+  automationPane,
+  makeChatBehaviorPane,
+  regexPane,
+  settingsModal,
+  systemPane,
+  tagsPane,
+  themeModal,
+} from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import { adminPane } from "@orb/client/features/user-admin";
 import { backupPane, workloadsPane } from "@orb/client/features/workloads";
-import { worldInfoSection } from "@orb/client/features/world-info";
+import { worldInfoSection, worldInfoSettingsSection } from "@orb/client/features/world-info";
 import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
@@ -45,6 +54,7 @@ import type {
   SettingsCategoryId,
   SettingsPaneDefinition,
   SettingsPaneRegistry,
+  SettingsSectionContribution,
 } from "@orb/client/state";
 import {
   assembleChrome,
@@ -118,6 +128,13 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // ── Settings-pane-registry CT provider ────────────────────────────────────────────────────────────
 // The settings host reads the settings-pane registry as a runtime context (mirrors main.tsx's door).
 
+// Mirror main.tsx's door: the chat-behavior pane is a factory over the settings-section contributor
+// registry (memory ① + world-info ②), so the shell CT renders the contributed sections too.
+const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>(
+  "chat-behavior-settings-sections",
+  [memorySettingsSection, worldInfoSettingsSection],
+);
+
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
   personas: personasPane,
   appearance: appearancePane,
@@ -125,7 +142,7 @@ const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = 
   tags: tagsPane,
   workloads: workloadsPane,
   backup: backupPane,
-  "chat-behavior": chatBehaviorPane,
+  "chat-behavior": makeChatBehaviorPane(realSettingsSections),
   regex: regexPane,
   connections: connectionsPane,
   system: systemPane,

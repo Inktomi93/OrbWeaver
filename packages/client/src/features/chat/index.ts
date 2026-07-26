@@ -28,6 +28,7 @@ export { makeChatsSection } from "./lib/chats-section";
 export { commandModal } from "./lib/command-modal";
 export { isContinueEligible } from "./lib/continue-on-empty";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
+export { memorySettingsSection } from "./lib/memory-settings-section";
 export { newChatModal } from "./lib/new-chat-modal";
 export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface";
 export { ChatLandingSurface } from "./surfaces/chat-landing-surface";
