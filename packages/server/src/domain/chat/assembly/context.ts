@@ -59,6 +59,9 @@ interface InjectionCandidate {
   entryId: string;
   /** Set only for a WI-origin candidate; user/guided candidates use a synthetic entryId and leave this unset. */
   worldEntryId?: WorldEntryId;
+  /** The WI entry's keyword list (WI-origin only; [] for an always-scope entry) — surfaced in the activation
+   *  trace so the host preview lists WHICH lore fired by identity + keys. Unset for user/guided candidates. */
+  worldEntryKeys?: string[];
   bucket: "before" | "after" | null;
 }
 
@@ -157,6 +160,7 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
     priority: entry.priority,
     entryId: entry.id,
     worldEntryId: entry.id,
+    worldEntryKeys: [...entry.keys],
   };
   if (entry.inject !== null && entry.inject !== undefined) {
     const injection: ChatInjection = {
@@ -737,8 +741,9 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);
-  // WI-origin candidates that survived the budget pass; worldInfoActivated (engine.ts) reads this off wiTrace.
-  const entryIds = kept.flatMap((c) => (c.worldEntryId !== undefined ? [c.worldEntryId] : []));
+  // WI-origin candidates that survived the budget pass, by identity (id + keys); worldInfoActivated (engine.ts
+  // bus emit + the host preview panel) reads this off wiTrace.
+  const activated = kept.flatMap((c) => (c.worldEntryId !== undefined ? [{ id: c.worldEntryId, keys: c.worldEntryKeys ?? [] }] : []));
 
   return {
     ...base,
@@ -752,7 +757,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       included: chatInjections.length + beforeParts.length + afterParts.length,
       dropped,
       matchedKeys: wi.matchedKeys,
-      entryIds,
+      activated,
     },
   };
 }

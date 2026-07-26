@@ -11,6 +11,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automation";
 import type { GenerateImageActionArgs } from "#imagery";
+import type { NotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
@@ -116,7 +117,7 @@ export interface PluginHostV1 {
   readonly notifications: {
     /** capability: notify — the automation-notice path with recipient rules per 03 §1.5 (participants only,
      *  200-char cap, cooldown floor). */
-    post: (chat: ChatHandle, recipient: "host" | "all_members", message: string) => Promise<void>;
+    post: (chat: ChatHandle, recipient: NotificationRecipient, message: string) => Promise<void>;
   };
 
   readonly imagery: {

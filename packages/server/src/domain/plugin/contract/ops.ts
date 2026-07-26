@@ -12,7 +12,7 @@
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
-import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { NotificationEvent, NotificationRecipient } from "@orb/contracts/notifications";
 import type {
   InvocationChat,
   PluginEventSubscription,
@@ -123,7 +123,7 @@ export interface PluginHostOps {
       readonly pluginId: PluginId;
       readonly installerUserId: UserId;
       readonly chatId: ChatId;
-      readonly recipient: "host" | "all_members";
+      readonly recipient: NotificationRecipient;
       readonly message: string;
     }) => Promise<void>;
   };

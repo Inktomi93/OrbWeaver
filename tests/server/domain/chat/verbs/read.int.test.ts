@@ -586,6 +586,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const preview = await previewAssembly({ principal: principal(me), chatId });
     expect(preview.prompt.static).toBe(prompt.static);
     expect(preview.trace).toBe(preview.prompt.trace);
+    // The activated-WI list reaches the wire trace (freshTrace → prompt.trace passthrough); this room has no
+    // firing lore, so the honest surface is the empty set — the panel renders its "none activated" explanation.
+    expect(preview.trace.worldInfoActivated).toEqual([]);
 
     // No new canon was written by the previews (the one seeded message is unchanged).
     const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));

@@ -37,6 +37,7 @@ import type {
   UndoContinueParams,
 } from "../contract/params";
 import type { DrainDeferredTurnsScope, DrainReport, RequestTurnOp, TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
+import { KIND_TO_INTENT } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
@@ -547,6 +548,16 @@ async function runAiRound(
     readonly chain?: boolean | undefined;
   },
 ): Promise<TurnOutcome> {
+  // ACCEPT the turn to the room BEFORE arbitration: `turnStarted` fires only once the engine runs — AFTER the
+  // `smart` side-LLM arbitration below, which can HANG on a non-responsive director box. Without this emit the
+  // client's turn slot stayed idle through that hang, so the user had no Stop affordance while the turn was in
+  // fact live and abortable (the abort signal already threads into arbitration). `turnAccepted` opens the slot
+  // now; every exit below is TOTAL — it resolves that slot (turnStarted→terminal on the speaking path,
+  // turnAborted on a cancelled arbitration, turnCompleted on a no-eligible round). `speakerCharacterId` is null
+  // (arbitration has not picked yet); the later `turnStarted` re-opens the slot with the resolved speaker.
+  const intent = KIND_TO_INTENT[args.base.kind];
+  await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, intent, speakerCharacterId: null, targetMessageId: null });
+
   const facts = await canonFacts(ctx, args.base.chatId);
   const arbitration = await arbitrate(ctx, deps, {
     chatId: args.base.chatId,
@@ -562,8 +573,12 @@ async function runAiRound(
   // — no narrator mint, no round, no generation on a turn nobody is waiting for. Nothing committed, so the
   // outcome is the bare aborted shape ("user": the only pre-engine abort source is `activeTurns`, i.e. the
   // caller's own Stop or the host's room-gone sweep — the heartbeat's "stale" lock abort lives INSIDE the
-  // engine and cannot fire before a turn starts).
+  // engine and cannot fire before a turn starts). The `turnAborted` bus emit — deliberately WITHHELD before
+  // `turnAccepted` existed (the slot was idle, nothing listened) — now CLOSES the slot this abort left open.
+  // Depth rides `automationDepth` off the base (0 for a human turn) so an automation cascade gates the same as
+  // the engine's own `turnAborted`.
   if (arbitration.aborted) {
+    await deps.emit({ type: "turnAborted", chatId: args.base.chatId, intent, reason: "user", automationDepth: args.base.automationDepth ?? 0 });
     return { messages: [], aborted: true, abortReason: "user" };
   }
   const speakers = arbitration.speakers;
@@ -577,6 +592,15 @@ async function runAiRound(
         ).characterId
       : null;
   const castName = joinedCastName(args.room.castNames);
+  // Whether the round will drive ANY engine turn: narrator always voices one synthetic turn; per-speaker
+  // drives exactly the arbitration result. When arbitration yields NO eligible per-speaker responder the engine
+  // never runs, so it emits neither `turnStarted` nor a terminal — and the `turnAccepted` slot above would
+  // strand OPEN (a stuck Stop button, the same bug inverted). Close it here with the honest no-reply terminal.
+  const drivesAnyTurn = args.group.output === "narrator" || speakers.length > 0;
+  if (!drivesAnyTurn) {
+    await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, intent, messageId: null });
+    return { messages: [], aborted: false, abortReason: undefined };
+  }
   const round = await driveRoundVia({
     engine: deps.engine,
     base: args.base,

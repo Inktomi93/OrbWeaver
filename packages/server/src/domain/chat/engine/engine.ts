@@ -29,7 +29,8 @@ import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
-import type { HistoryMacroNames, TurnEconomics, TurnEngine, TurnIntent, TurnKind, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
+import type { HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
+import { KIND_TO_INTENT } from "../contract/results";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -119,19 +120,6 @@ interface EngineDeps {
     readonly signal?: AbortSignal | undefined;
   }) => Promise<{ readonly summary: string; readonly compactedAtSeq: number; readonly updated: boolean }>;
 }
-
-/** Maps the engine's turn-kind axis to the public bus `TurnIntent`. `opening`/`auto`/`force` surface as
- *  their nearest public lifecycle intent. */
-const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
-  send: "send",
-  swipe: "swipe",
-  continue: "continue",
-  generate: "generate",
-  impersonate: "impersonate",
-  opening: "generate",
-  auto: "generate",
-  force: "generate",
-};
 
 /** The string spliced between a continue turn's existing variant tip and the newly-generated chunk. */
 const CONTINUE_POSTFIX_DELIMITER: Record<ContinuePostfix, string> = {

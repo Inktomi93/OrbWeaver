@@ -471,12 +471,13 @@ function injectionDepthFor(section: PromptSection, idx: number, pivotIndex: numb
 }
 
 function freshTrace(ctx: AssembleContext): AssembleTrace {
-  const wi = ctx.wiTrace ?? { included: 0, dropped: [], matchedKeys: [] };
+  const wi = ctx.wiTrace ?? { included: 0, dropped: [], matchedKeys: [], activated: [] };
   const trace: AssembleTrace = {
     staticSections: [],
     dynamicSections: [],
     worldInfoIncluded: wi.included,
     worldInfoDropped: wi.dropped,
+    worldInfoActivated: wi.activated.map((e) => ({ id: e.id, keys: e.keys })),
     matchedKeys: wi.matchedKeys,
     compactSummaryIncluded: false,
     memoryIncluded: false,

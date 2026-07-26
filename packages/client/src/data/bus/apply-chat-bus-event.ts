@@ -30,6 +30,10 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     case "delta":
       deps.stream.appendDelta(event.delta);
       return;
+    // A turn was ACCEPTED — open the slot NOW (before arbitration) so Stop renders through a hung smart
+    // arbitration that fires `turnStarted` only once it completes. `speakerCharacterId` is null on accept;
+    // `turnStarted` re-opens the same pending slot with the resolved speaker once arbitration picks one.
+    case "turnAccepted":
     case "turnStarted":
       deps.stream.beginTurn(event.chatId, {
         intent: event.intent,

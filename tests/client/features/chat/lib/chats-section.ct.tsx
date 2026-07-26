@@ -96,6 +96,7 @@ function emptyTrace(): Record<string, unknown> {
     dynamicSections: [],
     worldInfoIncluded: 0,
     worldInfoDropped: [],
+    worldInfoActivated: [],
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,

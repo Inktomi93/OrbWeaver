@@ -39,14 +39,17 @@ const resolveForeignInputs: ResolveForeignInputsOp = () =>
 const types = (events: readonly ChatBusEvent[]): string[] => events.map((e) => e.type);
 
 describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequences", () => {
-  test("send (solo): messageCommitted(user) → turnStarted → delta → messageCommitted(assistant) → turnCompleted", async () => {
+  test("send (solo): messageCommitted(user) → turnAccepted → turnStarted → delta → messageCommitted(assistant) → turnCompleted", async () => {
     const chat = await scenario.chat(tape().reply("Hi there"), { characters: ["aria"] });
 
     await chat.send("hello");
 
-    // The user row commits FIRST (canon is durable before the turn starts), THEN the turn lifecycle runs.
-    expect(types(chat.events)).toEqual(["messageCommitted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
+    // The user row commits FIRST (canon is durable before the turn starts); the AI round then ACCEPTS the turn
+    // (opening the client's Stop slot BEFORE arbitration) and only afterwards the engine's turnStarted fires.
+    expect(types(chat.events)).toEqual(["messageCommitted", "turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     // The lifecycle payload discriminants that make the sequence load-bearing.
+    const accepted = chat.events.find((e) => e.type === "turnAccepted");
+    expect(accepted).toMatchObject({ intent: "send", speakerCharacterId: null, targetMessageId: null });
     const started = chat.events.find((e) => e.type === "turnStarted");
     expect(started).toMatchObject({ intent: "send", targetMessageId: null });
     const committed = chat.events.filter((e) => e.type === "messageCommitted");

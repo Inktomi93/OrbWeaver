@@ -412,7 +412,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     toolRecords: loop.records,
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
-    worldInfoEntryIds: ctx.wiTrace?.entryIds ?? [],
+    worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
   };
 }

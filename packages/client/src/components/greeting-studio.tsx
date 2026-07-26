@@ -31,7 +31,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 
@@ -80,6 +80,9 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [instruction, setInstruction] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  // The visible axis label IS the group's accessible name (aria-labelledby, not a duplicate
+  // aria-label) — side-eye finding: two identical unlinked strings double-announce on readers.
+  const labelIdBase = useId();
 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -139,14 +142,14 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
     <Stack gap="block" data-slot="greeting-studio">
       {GREETING_TRANSFORM_AXES.map((axis) => (
         <Stack key={axis} gap="field">
-          <Text size="micro" tone="muted">
+          <Text size="micro" tone="muted" id={`${labelIdBase}-${axis}`}>
             {AXIS_LABEL[axis]}
           </Text>
           <ToggleGroup
             multiple={true}
             value={[...selected]}
             onValueChange={(next): void => setSelected(next)}
-            aria-label={AXIS_LABEL[axis]}
+            aria-labelledby={`${labelIdBase}-${axis}`}
             className="flex-wrap"
           >
             {transformsByAxis(axis).map((t) => (

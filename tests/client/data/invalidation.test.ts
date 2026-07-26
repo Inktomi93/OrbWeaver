@@ -74,6 +74,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // Stream-transient — no read model changes until a terminal/canon event.
   delta: [],
   reasoningStreamDone: [],
+  turnAccepted: [], // slot-open signal only (opens the pending slot); nothing durable changed
   turnStarted: [],
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it

@@ -243,7 +243,7 @@ describe("createTurnEngine — happy path", () => {
       prepOf(chatId, {
         assembleContext: {
           ...ASSEMBLE_CTX,
-          wiTrace: { included: 1, dropped: [], matchedKeys: [], entryIds: [firedId] },
+          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, keys: ["dragon"] }] },
         },
       }),
     );

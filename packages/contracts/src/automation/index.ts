@@ -9,7 +9,10 @@ import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
+import type { ChatBusEvent } from "#chat";
+import type { DomainEventType } from "#events";
 import { generateImageActionArgsSchema } from "#imagery";
+import { NOTIFICATION_RECIPIENTS } from "#notifications";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
  *  The tail after `chatCreated` is reserved (criterion: first real rule request). */
@@ -30,7 +33,7 @@ export const CHAT_TRIGGER_TYPES = [
   "chatUpdated",
   "wiEntryAttached",
   "wiEntryDetached",
-] as const;
+] as const satisfies readonly ChatBusEvent["type"][];
 export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
 
 /** `DomainEvent` types automation may trigger on. The crew/rpg members are reserved — they enter
@@ -39,7 +42,7 @@ export const DOMAIN_TRIGGER_TYPES = [
   // v1 (wired)
   "character.updated",
   "asset.created",
-] as const;
+] as const satisfies readonly DomainEventType[];
 export type DomainTriggerType = (typeof DOMAIN_TRIGGER_TYPES)[number];
 
 /** A rule's trigger: `{bus, type}` where `type` is a member of that bus's source union — no third
@@ -211,7 +214,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.5 post an inbox notification (host-authored capped string — 03 §1.5 argued exception).
   z.object({
     type: z.literal("post_notification"),
-    recipient: z.enum(["host", "all_members"]),
+    recipient: z.enum(NOTIFICATION_RECIPIENTS),
     messageTemplate: z.string().max(NOTIFICATION_MESSAGE_MAX),
   }),
   // 1.6 trigger an autonomous chat turn (SPEND-classed — 03 §1.6).

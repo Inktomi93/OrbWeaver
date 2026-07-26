@@ -9,6 +9,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
+import type { NotificationRecipient } from "#notifications";
 import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1";
 
 /** The JSON-shaped, authority-agnostic op bridge the membrane calls (01 §2). Chat-scoped fns take an admitted
@@ -65,7 +66,7 @@ export interface PluginBridge {
    *  roster — a plugin can never notify a non-participant), and emits through the SAME durable inbox path a
    *  `post_notification` arm uses. */
   readonly notifications: {
-    readonly post: (chatId: ChatId, recipient: "host" | "all_members", message: string) => Promise<void>;
+    readonly post: (chatId: ChatId, recipient: NotificationRecipient, message: string) => Promise<void>;
   };
   /** Surface transient quick-reply chips into the admitted chat (01 §2 `surfaceQuickReply`; the automation-bus
    *  `quickReplySurfaced` event — 03 §1.4). Host-authority gated UPSTREAM in the membrane (same write ceiling as

@@ -172,6 +172,10 @@ export interface AssembleTrace {
   dynamicSections: string[];
   worldInfoIncluded: number;
   worldInfoDropped: { id: string; reason: "budget" }[];
+  /** The WI entries that actually FIRED into this turn's prompt — the budget-survived pool by entry IDENTITY
+   *  (not `matchedKeys`, which is keyword strings). `keys` is the entry's keyword list ([] for an always-scope
+   *  entry); the host inspector lists these so a human can see WHICH lore the model saw. Empty ⇒ no WI fired. */
+  worldInfoActivated: { id: string; keys: string[] }[];
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
   compactSummaryIncluded: boolean;
   memoryIncluded: boolean;
@@ -340,13 +344,15 @@ export interface AssembleContext {
   /** The effective HOST-TIER regex set — host-global ∪ chat-preset ∪ cast, resolved under the frozen
    *  `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex this turn. */
   hostTierRegexScripts?: readonly RegexScript[] | undefined;
-  /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `entryIds` is the
-   *  budget-survived, actually-fired WI entries — NOT `matchedKeys` (keyword strings, not entry identity). */
+  /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `activated` is the
+   *  budget-survived, actually-fired WI entries by identity (id + keyword list) — NOT `matchedKeys` (keyword
+   *  strings, not entry identity). The engine's live-turn `worldInfoActivated` bus emit derives its id list
+   *  from this (`pipeline.ts`); the host preview panel lists id + keys. */
   wiTrace?: {
     included: number;
     dropped: { id: string; reason: "budget" }[];
     matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
-    entryIds: WorldEntryId[];
+    activated: { id: WorldEntryId; keys: string[] }[];
   };
 }
 
@@ -822,6 +828,25 @@ export type ChatBusEvent =
   | { type: "reasoningCleared"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "reasoningStreamDone"; chatId: ChatId }
   // ── Turn lifecycle (the extensibility seam) ─────────────────────────────────
+  // Emitted the instant a turn is ACCEPTED — before arbitration, before the engine's `turnStarted`. It exists
+  // so the client can open its turn slot (→ render Stop) during a hung smart arbitration, which runs BEFORE
+  // `turnStarted` and used to leave the user with no Stop affordance at all. Carries no speaker: the group
+  // arbitration that picks the speaker has not run yet, so `speakerCharacterId` is null on accept and the
+  // later `turnStarted` re-opens the slot with the resolved speaker. `targetMessageId` is the ghost-slot for a
+  // swipe/continue (null for a fresh reply). Every acceptance is TOTAL-RESOLVED: the arbitration path emits
+  // `turnStarted`→`turnCompleted`/`turnAborted` on the speaking path, `turnAborted` on a cancelled
+  // arbitration, and `turnCompleted`(messageId:null) when arbitration yields no eligible speaker — so a
+  // `turnAccepted` slot never strands open.
+  | {
+      type: "turnAccepted";
+      chatId: ChatId;
+      intent: TurnIntent;
+      /** Null on accept — the group arbitration that resolves the speaker has not run yet; `turnStarted`
+       *  carries the resolved speaker once it does. */
+      speakerCharacterId: CharacterId | null;
+      /** For a swipe/continue, the message this turn rerolls/extends (the ghost-slot id). Null otherwise. */
+      targetMessageId: MessageId | null;
+    }
   | {
       type: "turnStarted";
       chatId: ChatId;
@@ -876,6 +901,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   reasoningEdited: true,
   reasoningCleared: true,
   reasoningStreamDone: true,
+  turnAccepted: true,
   turnStarted: true,
   turnCompleted: true,
   turnAborted: true,

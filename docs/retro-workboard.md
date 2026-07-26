@@ -81,14 +81,47 @@ fixes: services.ts optional-chain truth (`guidedActions?.[kind].prompt ?? fallba
 mints in 2 test files, 3 lastInput reads → expect.poll (DEF-14), 2 stale WAIVERS deleted (ratchet
 worked), 3 knip un-exports, docs formatted.
 
-**IN FLIGHT: side-eye on the greeting studio** (both mounts, live :5173; honest-error arm
-acceptable if the dev side-LLM connection is unset). **NEXT (post-commit dispatch order):**
-worldInfoActivated → Preview tab (owner leaned) · Stop-button-during-hung-arbitration (slot opens
-on turn ACCEPT + `turnAborted` from arbitration-abort) · F3 satisfies pins +
-`NOTIFICATION_RECIPIENTS` (mech) — THEN the `contracts/chat` 9-seam split ALONE (most-imported
-file; never alongside other lanes) · no-inline-union-redecl repair · F1 comment-drift sweep ·
-facelift ledger (Group-tab loading state; overflow cue died with the container-responsive fix) ·
-`--contexts N` snap chip · root-fix the message-list-surface load flake.
+**✅ SIDE-EYE ON THE GREETING STUDIO: SHIP** (live generation proven end-to-end — accept grew the
+greeting list 3→4; dialog a11y complete; single-homing confirmed: one component, doorway not
+duplicate; the 14-chip / 4-axis surface ruled INTENTIONAL vs the rewrite modal's lean trio —
+authored content earns the richer catalog). Its two studio-local P3s FIXED inline by the
+orchestrator + re-proven (CT 3/3): the editor mount now carries the dialog's one-line explainer
+(cold-read gap in the primary home), and each axis label is aria-labelledby-linked to its
+ToggleGroup (double-announce killed). Third P3 → facelift ledger: the shared `@orb/ui` Toggle
+pressed-state fill is only ΔL≈0.03 off its container — selection leans on text brightness alone;
+fix at the PRIMITIVE (stronger pressed accent or a ring), benefits every toggle surface. INFRA
+note: :8788 died mid-review + ~3s of Vite-proxy 502s on restart bounced the app to /login and
+cost the reviewer drives — watch for recurrence (2nd class of review-killing infra after HMR). **✅ WAVE 2 LANDED (3 lanes + side-eye fixes + reconcile; bar: check green after 2 meta-JSON
+formats · vitest 7276/0 · CT green after the one consumer-fixture fix):** ① **worldInfoActivated
+in the Preview tab** — "World info — N activated" rows (entry id + keys, "always" for key-less;
+honest empty state). TRUTH CORRECTION: the data was NOT on the wire — computed in `wiTrace`, fed
+the bus event, DROPPED at `freshTrace`; the contract comment claiming otherwise was aspirational.
+New required `AssembleTrace.worldInfoActivated: {id,keys}[]`; ALL literal producers migrated (the
+lane got 3 files of them; the orchestrator caught the 4th — chats-section.ct's emptyTrace fixture
+— on the quiesced bar; memory updated). ② **Stop-during-hung-arbitration FIXED** — new
+`turnAccepted` bus event (26→27) opens the client slot (reuses `pending` phase) before
+arbitration; `turnAborted` emits from arbitration-abort; totality: the silent no-eligible exit
+emits `turnCompleted(null)`; abort verb already threaded into smartArbitrate (the gap was purely
+the affordance). Coupled-site cost of the NEW event paid in full: client total map + count assert
++ **db `chat_events` CHECK baseline regen** (the CHECK derives from the tuple — baseline squash
+via `cd packages/db && npx drizzle-kit generate --name baseline`; NO db:generate script exists;
+memory updated). `KIND_TO_INTENT` re-homed to contract/results. ③ **F3 pins** — both `satisfies`
+subset pins compiled clean (zero drift) + `NOTIFICATION_RECIPIENTS` minted in
+contracts/notifications, 3 re-spell sites derive. ④ side-eye P3 fixes (editor explainer ·
+aria-labelledby axes) re-proven CT 3/3.
+
+**NEW CHIP (from the Stop lane's honest deferral):** auto-mode CHAIN arbitration has the SAME
+no-Stop window (chains arbitrate after the first round's slot closes; per-iteration turnAccepted
+would churn completed→accepted→pending) — needs an owner ruling on the slot semantics before
+building.
+
+**NEXT (dispatch order):** the `contracts/chat` 9-seam split ALONE (most-imported file; never
+alongside other lanes) · no-inline-union-redecl repair (G2) · F1 comment-drift sweep · facelift
+ledger (Group-tab loading state · @orb/ui Toggle pressed-fill contrast [side-eye P3,
+primitive-level]; overflow cue died with the container-responsive fix) · `--contexts N` snap chip
+· root-fix the message-list-surface load flake (3rd battery sighting) · chain-arbitration Stop
+window (owner ruling first). Watch item: lightbox focus-trap CT flaked once on the wave-2 bar
+(passed retry) — 2nd strike promotes it to the flake ledger.
 
 **PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
 on the owner right now.

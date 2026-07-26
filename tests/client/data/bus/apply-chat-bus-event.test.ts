@@ -171,6 +171,36 @@ describe("applyChatBusEvent — stream-transient events", () => {
     h.unsub();
   });
 
+  test("turnAccepted → stream.beginTurn(null speaker); slot → pending (Stop can render); invalidate not called", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    // Accept fires BEFORE arbitration — the slot must open so Stop renders while the smart arbiter is deciding.
+    applyChatBusEvent({ type: "turnAccepted", chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }, h.deps);
+
+    expect(h.beginTurn).toHaveBeenCalledExactlyOnceWith(chatId, {
+      intent: "send",
+      speakerCharacterId: null,
+      targetMessageId: null,
+    });
+    expect(h.slotOf(chatId)).toMatchObject({ phase: "pending", intent: "send", speakerCharacterId: null });
+    expect(h.invalidate).not.toHaveBeenCalled();
+    h.unsub();
+  });
+
+  test("turnAccepted → turnStarted re-opens the same pending slot with the arbitration-resolved speaker", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent({ type: "turnAccepted", chatId, intent: "send", speakerCharacterId: null, targetMessageId: null }, h.deps);
+    applyChatBusEvent(turnStartedEvent({ chatId, intent: "send", speakerCharacterId: CHARACTER_ID, targetMessageId: null }), h.deps);
+
+    // The slot stays pending across accept→started, now carrying the speaker arbitration picked.
+    expect(h.slotOf(chatId)).toMatchObject({ phase: "pending", intent: "send", speakerCharacterId: CHARACTER_ID });
+    expect(h.invalidate).not.toHaveBeenCalled();
+    h.unsub();
+  });
+
   test("reasoningStreamDone → no-op: no store mutation, no invalidate", () => {
     const chatId = freshChatId();
     const h = harness([chatId]);
@@ -292,9 +322,12 @@ describe("applyChatBusEvent — messageCommitted clear-on-commit signal", () => 
 // "canon" by construction, so a newly-added `ChatBusEvent` member automatically gets a generated test
 // here (and fails `buildCanonEvent`'s exhaustive switch below at compile time until taught its shape).
 
-const STREAM_TRANSIENT = new Set(["delta", "turnStarted", "reasoningStreamDone", "warning", "turnCompleted", "turnAborted"]);
+const STREAM_TRANSIENT = new Set(["delta", "turnAccepted", "turnStarted", "reasoningStreamDone", "warning", "turnCompleted", "turnAborted"]);
 
-type CanonEventType = Exclude<ChatBusEvent["type"], "delta" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted">;
+type CanonEventType = Exclude<
+  ChatBusEvent["type"],
+  "delta" | "turnAccepted" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted"
+>;
 
 function assertNeverCanon(value: never): never {
   throw new Error(`buildCanonEvent: unhandled canon event type ${JSON.stringify(value)}`);
