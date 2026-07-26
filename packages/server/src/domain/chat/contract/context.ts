@@ -47,6 +47,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns";
@@ -178,6 +179,12 @@ type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
  *  the whole turn when the box accepts the socket and never answers. */
 export type SummarizeOp = RoleClientsWithSignal["summarize"];
 
+/** The side-gen sampling ladder's middle rung for a chat-scoped side-gen call — the chat host's default-preset
+ *  generation params. Resolved at the entry root (chat never reads the preset domain); a hostless/stale room
+ *  degrades to the system-default params. Consumed by extract-quiet (compaction/quiet-generate/arbiter read
+ *  their own analogous injected resolver). */
+type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
+
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history
  *  window + the ONE MacroContext (the char macro resolved against the subject/roster card), then calls the summarize
@@ -208,6 +215,9 @@ export interface ExtractQuietDeps {
   readonly db: Db;
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
+  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — extract-quiet is
+   *  chat-scoped). Wired at compose; a hostless/stale room degrades to the floor. */
+  readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
 }
 
 /** A QUIET, non-canon generation through the chat's OWN resolved connection/model — NOT the summarizer rail
@@ -238,6 +248,10 @@ export type QuietGenerate = (p: QuietGenerateParams) => Promise<QuietGenerateRes
  *  routing/credential resolution: the caller supplies the already-resolved connection). */
 export interface QuietGenerateDeps {
   readonly runChatTurn: RunChatTurnOp;
+  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — a quiet generation is
+   *  chat-scoped). Folded UNDER the caller's `intent` (compaction's per-pass override wins) and OVER the
+   *  `quiet_generate` floor; a hostless/stale room degrades to the floor. */
+  readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
 }
 
 /** The rpg-facing narrator-post op (rpg-design/02 §1.1 #2): persist ONE assistant-role narrator message
@@ -536,6 +550,9 @@ export interface ChatContext {
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   readonly runChatTurn: RunChatTurnOp;
+  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung) — used by the
+   *  quiet-generate factory (compaction) and the smart-arbitrate seam. Wired at compose. */
+  readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
   /** Null means tool-use isn't wired — byte-identical no-op. */
   readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;

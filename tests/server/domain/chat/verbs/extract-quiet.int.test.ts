@@ -56,7 +56,12 @@ describe("createExtractQuiet", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "A rain-slick alley at dusk." });
 
     const calls: SummarizeCall[] = [];
-    const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+    });
 
     const result = await extractQuiet({ chatId, instruction: "Describe {{char}} in the current moment.", historyFloorSeq: historyFloor(0) });
 
@@ -78,7 +83,12 @@ describe("createExtractQuiet", () => {
     const chatId = await seedRoom(db);
 
     const calls: SummarizeCall[] = [];
-    const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+    });
 
     await extractQuiet({ chatId, instruction: "Describe {{char}}.", historyFloorSeq: historyFloor(0) });
 
@@ -92,7 +102,12 @@ describe("createExtractQuiet", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "HIDDEN line.", excludedFromPrompt: true });
 
     const calls: SummarizeCall[] = [];
-    const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+    });
 
     await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
 
@@ -112,7 +127,12 @@ describe("createExtractQuiet", () => {
     await seedMessage(db, chatId, 3, { role: "assistant", content: "AFTERJOIN line." });
 
     const calls: SummarizeCall[] = [];
-    const extractQuiet = createExtractQuiet({ db, summarize: fakeSummarize(calls), getCard: fakeGetCard("Aria") });
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+    });
 
     await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(3) });
 

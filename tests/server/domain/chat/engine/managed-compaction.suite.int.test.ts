@@ -137,7 +137,7 @@ function buildEngine(turnRunChatTurn: ChatContext["runChatTurn"] = turnWithUsage
   const compactionCtx = makeChatContext(db, { runChatTurn: markerRunChatTurn });
   const { runCompaction } = createCompaction(compactionCtx, {
     emit: () => Promise.resolve(),
-    quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn }),
+    quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn, resolveChatPresetParams: () => Promise.resolve({}) }),
     resolveConnection: () => Promise.resolve(AGENT_SDK),
   });
   return createTurnEngine(ctx, {
@@ -251,7 +251,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     };
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: throwingMarker }), {
       emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: throwingMarker }),
+      quietGenerate: createQuietGenerate({ runChatTurn: throwingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
       resolveConnection: () => Promise.resolve(AGENT_SDK),
     });
     const engine = createTurnEngine(ctx, {
@@ -293,7 +293,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const ctx = makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 4, tokensOut: 2 }) });
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: failingMarker }), {
       emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: failingMarker }),
+      quietGenerate: createQuietGenerate({ runChatTurn: failingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
       resolveConnection: () => Promise.resolve(smallWindowSdk),
     });
     const engine = createTurnEngine(ctx, {
@@ -369,7 +369,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const ctx = makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 2, tokensOut: 2, contextWindow: 200_000 }), summarize });
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: markerRunChatTurn }), {
       emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn }),
+      quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn, resolveChatPresetParams: () => Promise.resolve({}) }),
       resolveConnection: () => Promise.resolve(AGENT_SDK),
     });
     const engine = createTurnEngine(ctx, {
@@ -408,7 +408,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     markerCalls.length = 0;
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: markerRunChatTurn }), {
       emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn }),
+      quietGenerate: createQuietGenerate({ runChatTurn: markerRunChatTurn, resolveChatPresetParams: () => Promise.resolve({}) }),
       resolveConnection: () => Promise.resolve(AGENT_SDK),
     });
     const res = await runCompaction({ chatId, connection: AGENT_SDK, ownerId: HOST, coveragePoint: coveredAt });
@@ -436,7 +436,7 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const ctx = makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 4, tokensOut: 2 }) });
     const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: gatedRunChatTurn }), {
       emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: gatedRunChatTurn }),
+      quietGenerate: createQuietGenerate({ runChatTurn: gatedRunChatTurn, resolveChatPresetParams: () => Promise.resolve({}) }),
       resolveConnection: () => Promise.resolve(AGENT_SDK),
     });
     const engine = createTurnEngine(ctx, {

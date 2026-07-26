@@ -163,6 +163,7 @@ export function makeDiscoveryHarness(
     readonly hubScores?: HubScoreRecorder;
     readonly summarizerModel?: string;
     readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
+    readonly resolveUserPresetParams?: DiscoveryContext["resolveUserPresetParams"];
     readonly characterEconomics?: DiscoveryContext["characterEconomics"];
     readonly characterModelEconomics?: DiscoveryContext["characterModelEconomics"];
     readonly similar?: SimilarOp;
@@ -185,6 +186,9 @@ export function makeDiscoveryHarness(
     summarize: summarize.op,
     summarizerModel: overrides.summarizerModel ?? "test-summarize-model",
     attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
+    // The side-gen sampling ladder's middle rung; default = an empty posture (no preset params) so the distill/
+    // analyze floors stand. A test asserting the ladder overrides it with a scripted params object.
+    resolveUserPresetParams: overrides.resolveUserPresetParams ?? (() => Promise.resolve({})),
     writeHubScores: hubScores.op,
     characterEconomics: overrides.characterEconomics ?? stats.characterEconomics,
     characterModelEconomics: overrides.characterModelEconomics ?? stats.characterModelEconomics,

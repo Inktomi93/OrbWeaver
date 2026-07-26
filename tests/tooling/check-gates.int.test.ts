@@ -526,6 +526,8 @@ function writeFixtures(): void {
   fx(`${D}/__g_loosecast/x.ts`, "declare const x: unknown;\nexport const a = x as never;\n");
   // no-manual-token-estimate: the hand-rolled `.length / 4` token estimate.
   fx(`${D}/__g_tokest/__g_tok.ts`, "export function f(text: string): number {\n  return text.length / 4;\n}\n");
+  // no-hardcoded-side-gen-sampling: a hardcoded sampling literal at a domain side-gen call site.
+  fx(`${D}/__g_sidegen/__g_s.ts`, "export const opts = { temperature: 0.3, maxTokens: 24 };\n");
   // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
   fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).

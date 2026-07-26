@@ -148,6 +148,8 @@ function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonl
         {(field): ReactElement => <field.MacroField label="Template" suggestions={PRESET_PROMPT_MACROS} placeholder={factoryDefault} rows={3} />}
       </form.AppField>
 
+      <SamplingOverride form={form} kind={kind} />
+
       <form.Subscribe
         selector={(state): { prompt: string; role: MessageRole } => ({
           prompt: state.values.guidedActions?.[kind].prompt ?? factoryDefault,
@@ -156,6 +158,31 @@ function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonl
       >
         {({ prompt, role }): ReactElement => <CardFooter prompt={prompt} role={role} factoryDefault={factoryDefault} />}
       </form.Subscribe>
+    </Stack>
+  );
+}
+
+/** Per-action sampling override (the side-gen ladder's top rung) — three OPTIONAL knobs the resolver folds over
+ *  the caller's preset params + the floor posture. Empty ⇒ that knob defers to the preset/floor (the honest
+ *  encoding — the fields are optional, absent ⇒ no override). Only guided-action-backed side-gen sites consume
+ *  it today (the greeting studio via greeting_rewrite/greeting_new); the other kinds carry it inertly. */
+function SamplingOverride({ form, kind }: { readonly form: AssemblyForm; readonly kind: GuidedActionKind }): ReactElement {
+  return (
+    <Stack gap="field">
+      <Text size="micro" tone="muted">
+        Sampling override — leave blank to use your preset's generation params, then the built-in floor.
+      </Text>
+      <Grid cols="auto" gap="field">
+        <form.AppField name={`guidedActions.${kind}.sampling.temperature`}>
+          {(field): ReactElement => <field.NumberField label="Temperature" min={0} max={2} step={0.05} />}
+        </form.AppField>
+        <form.AppField name={`guidedActions.${kind}.sampling.topP`}>
+          {(field): ReactElement => <field.NumberField label="Top P" min={0} max={1} step={0.05} />}
+        </form.AppField>
+        <form.AppField name={`guidedActions.${kind}.sampling.maxOutputTokens`}>
+          {(field): ReactElement => <field.NumberField label="Max output tokens" min={1} step={1} />}
+        </form.AppField>
+      </Grid>
     </Stack>
   );
 }

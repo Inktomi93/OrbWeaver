@@ -17,6 +17,7 @@
 
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
+import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { ArbiterCandidate, CastName, SmartArbitrationResult } from "../contract/arbitration";
 import type { SummarizeOp } from "../contract/context";
 import { isArbiterEligible } from "../persistence/participant";
@@ -36,6 +37,10 @@ interface SmartArbitrateParams {
   readonly lastSpeaker: SpeakerRef | null;
   /** The injected PRNG (D46) — drives the `natural` fallback's weighted pick. */
   readonly rng: () => number;
+  /** The resolved side-gen sampling options (the `arbiter` floor ← the chat host's preset params), mapped to
+   *  the summarize seam's `{temperature, maxTokens}` at compose. A tiny output budget — we want a name, not
+   *  prose — but a user's preset params can now widen it. Absent knobs fall to the runner default. */
+  readonly sampling: SummarizeOptions;
   /** The TURN's abort signal (the active-turn handle the verb registered). Threaded into the side-LLM call so
    *  a box that accepts the socket and never answers can be CUT LOOSE — a hang is not a failure, and without
    *  this the whole turn waits forever. No deadline rides alongside it ON PURPOSE: a 7B director on slow local
@@ -43,11 +48,6 @@ interface SmartArbitrateParams {
    *  setup. Cancellation is the user's (the Stop control / the room-gone sweep), never a guessed number. */
   readonly signal?: AbortSignal | undefined;
 }
-
-/** Low temperature for a deterministic-ish classify (the side-LLM still isn't byte-deterministic — hence the
- *  validating parse + fallback). A tiny output budget — we want a name, not prose. */
-const ARBITER_TEMPERATURE = 0.2;
-const ARBITER_MAX_TOKENS = 24;
 
 /** The cancelled arbitration: no speaker, no degrade. Frozen + module-level — every abort arm returns the
  *  same value, and the invariant (`aborted ⇒ [] + degraded:false`) is stated once, here, not per return. */
@@ -105,8 +105,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   let reply: string;
   try {
     const result = await params.summarize([{ systemPrompt: SYSTEM_PROMPT, userPrompt }], {
-      temperature: ARBITER_TEMPERATURE,
-      maxTokens: ARBITER_MAX_TOKENS,
+      ...params.sampling,
       ...(params.signal !== undefined ? { signal: params.signal } : {}),
     });
     reply = result.items[0]?.text ?? "";

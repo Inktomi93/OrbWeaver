@@ -52,7 +52,7 @@ function resolveSeatDisplayName(
 export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { readonly service: ChatService; readonly requestTurn: RequestTurnOp } {
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
-  const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn });
+  const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });
   // Built BEFORE the engine so the managed-compaction post-turn hook rides the SAME lock-free core the manual
   // `compact` verb exposes (one core, two entry points — the engine never imports the verb).
   const { compact, runCompaction } = createCompaction(ctx, { emit: deps.emit, quietGenerate, resolveConnection: deps.resolveConnection });

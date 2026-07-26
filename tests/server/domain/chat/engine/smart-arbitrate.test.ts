@@ -47,6 +47,9 @@ const CAST = [
   { ref: charRef("bran"), name: "Bran" },
   { ref: charRef("cara"), name: "Cara" },
 ];
+// The resolved arbiter posture (the `arbiter` floor mapped to the summarize seam) — the caller normally folds
+// the ladder; here it is passed literally since these tests exercise the pure `smartArbitrate` in isolation.
+const ARB_SAMPLING = { temperature: 0.2, maxTokens: 24 } as const;
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
 
 describe("smartArbitrate — the validated side-LLM pick", () => {
@@ -59,6 +62,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
     expect(summarize).toHaveBeenCalledTimes(1);
@@ -72,6 +76,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out).toEqual({ speakers: [charRef("cara")], degraded: false, aborted: false });
   });
@@ -86,6 +91,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -105,6 +111,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -125,6 +132,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -140,6 +148,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -156,6 +165,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers).not.toContainEqual(charRef("cara"));
     expect(out.speakers).toHaveLength(1);
@@ -171,6 +181,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       recentHistory: "...",
       lastSpeaker: charRef("aria"),
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out.speakers[0]).not.toEqual(charRef("aria"));
   });
@@ -193,6 +204,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       recentHistory: "...",
       lastSpeaker: charRef("ari"), // ban-last → the fallback avoids Ari, proving no substring match
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out).toEqual({ speakers: [charRef("bran")], degraded: true, aborted: false });
   });
@@ -205,6 +217,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out).toEqual({ speakers: [charRef("ari")], degraded: false, aborted: false });
   });
@@ -220,6 +233,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     // No LLM was consulted, so this is NOT a degrade — a warning here would cry wolf on every solo round.
     expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
@@ -235,6 +249,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
     });
     expect(out).toEqual({ speakers: [], degraded: false, aborted: false });
     expect(summarize).not.toHaveBeenCalled();
@@ -258,6 +273,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
       signal: controller.signal,
     });
 
@@ -285,6 +301,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
       signal: controller.signal,
     });
     controller.abort();
@@ -306,6 +323,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
       signal: controller.signal,
     });
 
@@ -325,6 +343,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       recentHistory: "...",
       lastSpeaker: null,
       rng,
+      sampling: ARB_SAMPLING,
       signal: controller.signal,
     });
 

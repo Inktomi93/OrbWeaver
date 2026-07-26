@@ -8,7 +8,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
@@ -458,6 +458,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.variables;
   };
 
+  // The side-gen sampling ladder's MIDDLE rung for chat-scoped side-gen (quiet-generate/compaction + arbiter):
+  // the chat HOST's active-preset generation params. One home with `resolvePromptVariables` (same host + config
+  // resolution — a hostless/stale room degrades to the system-default params, never a throw).
+  const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> => {
+    const hostUserId = await resolveChatHostUserId(chatId);
+    if (hostUserId === null) {
+      return DEFAULT_PROMPT_CONFIG.params;
+    }
+    const us = await input.settings.loadUserSettings(hostUserId);
+    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    return config.params;
+  };
+
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
   // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
@@ -502,6 +515,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       runChatTurn: input.runChatTurn,
       getOrSkinTierModels: () => input.connection.getOrSkinTierModels(),
     }),
+    resolveChatPresetParams,
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
 
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),

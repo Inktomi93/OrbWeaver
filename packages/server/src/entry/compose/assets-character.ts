@@ -11,7 +11,9 @@
 //   2. FORWARD-REFS `persona` + `preset` — the persona seeder's `createPersona` and character's greeting-template
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
-import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
+import type { Principal } from "@orb/contracts/identity";
+import type { GuidedActionKind } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import {
@@ -22,8 +24,11 @@ import {
   messages as messagesTable,
   personas as personasTable,
 } from "@orb/db";
-import type { AssetId, PersonaId, PresetId } from "@orb/kit/ids";
+import type { AssetId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext, AssetsService } from "#domain/assets";
@@ -46,11 +51,6 @@ import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
 import { createMaterializeBackground } from "./materialize-background";
 import { minter } from "./minter";
 
-// Greeting-studio bounded-completion posture (audit §3) — mirrors quiet-generate's floor constants: a
-// greeting rewrite is a bounded transform of a base text, not an open creative turn.
-const GREETING_STUDIO_TEMPERATURE = 0.3;
-const GREETING_STUDIO_MAX_OUTPUT_TOKENS = 1024;
-
 /** What the assets/character seam needs from the composition root. `getPreset`/`getPersona` are the request-time
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
@@ -71,6 +71,8 @@ export interface AssetsCharacterComposeDeps {
   readonly settings: Pick<SettingsService, "getUserSettings" | "updateUserSettingsSection">;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
+  /** The caller's default-preset generation params (the side-gen sampling ladder's middle rung). */
+  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create. */
   readonly getPersona: () => Pick<PersonaService, "create">;
 }
@@ -85,6 +87,24 @@ export interface AssetsCharacterComposeResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   readonly personaSeeder: DefaultPersonaSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
+}
+
+/** The caller's per-action `sampling` override for one guided action — read off the caller's DEFAULT preset's
+ *  `guidedActions[kind].sampling` (the side-gen ladder's TOP rung). A stale/unowned/missing default preset (or
+ *  a blob predating the field) yields `undefined` — the ladder then folds only the preset params + floor. */
+async function resolveGuidedActionSampling(
+  preset: Pick<PresetService, "get">,
+  settings: Pick<SettingsService, "getUserSettings">,
+  caller: Principal,
+  kind: GuidedActionKind,
+): Promise<SideGenSampling | undefined> {
+  const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
+  if (defaultPresetId === null) {
+    return;
+  }
+  // A bad/unowned default preset ⇒ no per-action override (the ladder folds params + floor only).
+  const detail = await preset.get({ userId: caller.userId, id: castId<PresetId>(defaultPresetId) }).catch(() => null);
+  return detail?.config.guidedActions?.[kind].sampling;
 }
 
 export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCharacterComposeResult {
@@ -238,11 +258,15 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
         return fallback;
       }
     },
-    generateGreetingText: async ({ prompt }): Promise<{ text: string; costUsd: number | null }> => {
-      const res = await roleClients.summarize([{ systemPrompt: prompt, userPrompt: "" }], {
-        temperature: GREETING_STUDIO_TEMPERATURE,
-        maxTokens: GREETING_STUDIO_MAX_OUTPUT_TOKENS,
-      });
+    generateGreetingText: async ({ caller, prompt, kind }): Promise<{ text: string; costUsd: number | null }> => {
+      // The side-gen sampling ladder: the `greeting_studio` floor ← the caller's default-preset params ← the
+      // guided action's per-action `sampling` override (read off the caller's default preset's guidedActions,
+      // so an owner can tune a specific studio action). `maxOutputTokens` maps to the summarize seam's
+      // `maxTokens`; an absent knob is omitted (the backend default stands).
+      const presetParams = await deps.resolveUserPresetParams(caller.userId);
+      const actionSampling = await resolveGuidedActionSampling(deps.getPreset(), settings, caller, kind);
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams, actionSampling);
+      const res = await roleClients.summarize([{ systemPrompt: prompt, userPrompt: "" }], toSummarizeOptions(posture));
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },

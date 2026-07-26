@@ -3,11 +3,14 @@
 // `source:'auto', status:'pending'` tag suggestions (the Accept/Reject review queue). Idempotent: upsert
 // by `characterId`; tag staging never downgrades an already-accepted tag back to pending.
 
-import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
@@ -29,6 +32,7 @@ export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillC
         summarize: ctx.summarize,
         summarizerModel: ctx.summarizerModel,
         attachCardTagByName: ctx.attachCardTagByName,
+        resolveUserPresetParams: ctx.resolveUserPresetParams,
       },
       opts,
     );
@@ -85,8 +89,6 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 - overview: 2-3 sentences — the character's premise, dynamic, and what RP with them is like. Concrete, no fluff.`;
 
 const MAX_CARD_CHARS = 6000;
-const DISTILL_MAX_TOKENS = 512;
-const DISTILL_TEMPERATURE = 0.2;
 // Stays under the libSQL bound-variable cap (each upsert binds ~2x the column count).
 const DISTILL_BATCH_CHUNK = 500;
 // Caps the per-card RETRY fan-out. Validation failure is CORRELATED, not independent: a hosted summarize
@@ -121,6 +123,16 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     return { scanned: targets.length, distilled: 0, failed: 0, tagsStaged: 0 };
   }
 
+  // The side-gen sampling ladder: the `distill` floor (temp 0.2, 512 out — near-deterministic guided decode)
+  // ← the card owner's default-preset params. The whole-library batch has no single owner (a mixed-owner run),
+  // so the preset rung applies ONLY to a per-owner narrow (`opts.ownerId`); the batch stays on the floor. The
+  // structured-output `responseFormat` is orthogonal to sampling and always rides.
+  const presetParams = opts.ownerId !== undefined ? await deps.resolveUserPresetParams(opts.ownerId) : undefined;
+  const sampleOpts: SummarizeOptions = {
+    responseFormat: DISTILL_RESPONSE_FORMAT,
+    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.distill, presetParams)),
+  };
+
   signal?.throwIfAborted();
   // One batched call fills the role's parallel-slot pipeline; `ready[i]` pairs 1:1 with `result.items[i]`.
   const result = await deps.summarize(
@@ -128,17 +140,14 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
       systemPrompt: DISTILL_SYSTEM,
       userPrompt: t.text.slice(0, MAX_CARD_CHARS),
     })),
-    {
-      responseFormat: DISTILL_RESPONSE_FORMAT,
-      maxTokens: DISTILL_MAX_TOKENS,
-      temperature: DISTILL_TEMPERATURE,
-    },
+    sampleOpts,
   );
 
   const writes = await buildDistillWrites(deps, ready, result.items, {
     db,
     model: deps.summarizerModel,
     now: deps.now(),
+    sampleOpts,
   });
   signal?.throwIfAborted();
   await commitSummaries(db, writes.stmts);
@@ -168,7 +177,7 @@ async function buildDistillWrites(
   deps: DistillCharactersDeps,
   ready: readonly DistillTarget[],
   items: readonly { readonly text: string }[],
-  meta: { readonly db: Db; readonly model: string; readonly now: number },
+  meta: { readonly db: Db; readonly model: string; readonly now: number; readonly sampleOpts: SummarizeOptions },
 ): Promise<{ stmts: BatchItem<"sqlite">[]; stagedLabels: StagedLabel[]; failed: number }> {
   // Parse in bounded waves — the first attempt reuses the already-fetched batch text (free), but a correlated
   // schema failure sends every card to a retry summarize call at once; the wave size is that fan-out's bound.
@@ -176,7 +185,7 @@ async function buildDistillWrites(
   for (let i = 0; i < ready.length; i += DISTILL_RETRY_CONCURRENCY) {
     const wave = ready.slice(i, i + DISTILL_RETRY_CONCURRENCY);
     // biome-ignore lint/performance/noAwaitInLoops: bounded-concurrency waves — each wave's per-card retries run in parallel, then the loop advances; that IS the concurrency bound.
-    const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "")));
+    const waveParsed = await Promise.all(wave.map((target, j) => parseOneDistill(deps, target, items[i + j]?.text ?? "", meta.sampleOpts)));
     parsed.push(...waveParsed);
   }
   const stmts: BatchItem<"sqlite">[] = [];
@@ -206,8 +215,14 @@ async function buildDistillWrites(
  *  validation failure ({@link StructuredOutputError}) AND a retry infra error (a provider 429/timeout thrown by
  *  the retry summarize call): containing it here counts just this card `failed` and lets the pass complete and
  *  commit every valid card — one bad card can never abort the whole batch (HEAD's post-summarize resilience). */
-async function parseOneDistill(deps: DistillCharactersDeps, target: DistillTarget, batchText: string): Promise<CharacterDistillation | null> {
-  const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction));
+async function parseOneDistill(
+  deps: DistillCharactersDeps,
+  target: DistillTarget,
+  batchText: string,
+  sampleOpts: SummarizeOptions,
+): Promise<CharacterDistillation | null> {
+  const run = (correction?: string): Promise<string> =>
+    correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction, sampleOpts);
   try {
     const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run });
     return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };
@@ -216,13 +231,10 @@ async function parseOneDistill(deps: DistillCharactersDeps, target: DistillTarge
   }
 }
 
-/** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. */
-async function retryDistillOne(deps: DistillCharactersDeps, target: DistillTarget, correction: string): Promise<string> {
-  const res = await deps.summarize([{ systemPrompt: DISTILL_SYSTEM, userPrompt: `${target.text.slice(0, MAX_CARD_CHARS)}\n\n${correction}` }], {
-    responseFormat: DISTILL_RESPONSE_FORMAT,
-    maxTokens: DISTILL_MAX_TOKENS,
-    temperature: DISTILL_TEMPERATURE,
-  });
+/** Re-summarize ONE card with the zod issues appended — the structured-turn helper's bounded retry. Rides the
+ *  SAME resolved sampling posture the batch call used (`sampleOpts`), so a retry can't drift from the first pass. */
+async function retryDistillOne(deps: DistillCharactersDeps, target: DistillTarget, correction: string, sampleOpts: SummarizeOptions): Promise<string> {
+  const res = await deps.summarize([{ systemPrompt: DISTILL_SYSTEM, userPrompt: `${target.text.slice(0, MAX_CARD_CHARS)}\n\n${correction}` }], sampleOpts);
   return res.items[0]?.text ?? "";
 }
 

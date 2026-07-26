@@ -23,7 +23,7 @@ import { can, isAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { resolveActiveDocumentIds } from "#domain/databank";
-import type { DiscoveryService } from "#domain/discovery";
+import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService } from "#domain/discovery";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
@@ -64,6 +64,8 @@ export interface SearchDiscoveryComposeDeps {
   readonly roleClients: RoleClientsWithSignal;
   readonly eventBus: DomainEventBus;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
+  /** The card owner's default-preset params (the side-gen sampling ladder's middle rung — distill + analyze). */
+  readonly resolveUserPresetParams: DiscoveryContext["resolveUserPresetParams"];
   readonly character: Pick<CharacterService, "listEmbeddableCharacterIds" | "loadCardText">;
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;
@@ -219,6 +221,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     summarize: roleClients.summarize,
     summarizerModel: roleClients.summarizerModel,
     attachCardTagByName: deps.attachCardTagByName,
+    resolveUserPresetParams: deps.resolveUserPresetParams,
     writeHubScores: embeddings.writeHubScores,
     // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,

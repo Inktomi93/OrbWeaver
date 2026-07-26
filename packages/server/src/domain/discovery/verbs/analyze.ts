@@ -6,9 +6,12 @@
 // Both owner-belt via `characters.ownerId` (a foreign/undistilled character short-circuits to null before any
 // summarize call). Analytics ≠ retrieval — this file calls no search verb.
 
-import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context";
@@ -19,9 +22,6 @@ import { readOwnedCardFacet } from "../persistence/summary-reads";
 
 // The recent-scene grounding window for askCard — enough context to answer without dragging a whole history.
 const ASK_SAMPLE_LIMIT = 12;
-const NARRATIVE_MAX_TOKENS = 400;
-const ANSWER_MAX_TOKENS = 400;
-const ANALYZE_TEMPERATURE = 0.3;
 // Trim each grounding scene so a batch of them stays inside the summarizer window (defensive, not a truncation
 // contract — the messages projection has no length guarantee).
 const SCENE_MAX_CHARS = 1200;
@@ -59,12 +59,17 @@ async function compareCharactersDeep(
     return null;
   }
   const prompt = buildComparePrompt(base);
+  // The side-gen sampling ladder: the `analyze` floor (temp 0.3, 400 out — a short grounded answer) ← the
+  // caller's default-preset params. The structured-output `responseFormat` is orthogonal and always rides.
+  const sampleOpts: SummarizeOptions = {
+    responseFormat: NARRATIVE_RESPONSE_FORMAT,
+    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId))),
+  };
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize([{ systemPrompt: COMPARE_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], {
-      responseFormat: NARRATIVE_RESPONSE_FORMAT,
-      maxTokens: NARRATIVE_MAX_TOKENS,
-      temperature: ANALYZE_TEMPERATURE,
-    });
+    const result = await ctx.summarize(
+      [{ systemPrompt: COMPARE_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }],
+      sampleOpts,
+    );
     return result.items[0]?.text ?? "";
   };
   let narrative: ComparisonNarrative;
@@ -112,12 +117,17 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   }
   const samples = await readCharacterMessageSamples(ctx.db, userId, characterId, ASK_SAMPLE_LIMIT);
   const prompt = buildAskPrompt(card.name, question, samples);
+  // The side-gen sampling ladder: the `analyze` floor ← the caller's default-preset params (the `askCard`
+  // half of the analyze pair — identical posture to the compare narrative). `responseFormat` always rides.
+  const sampleOpts: SummarizeOptions = {
+    responseFormat: ANSWER_RESPONSE_FORMAT,
+    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId))),
+  };
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize([{ systemPrompt: ASK_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], {
-      responseFormat: ANSWER_RESPONSE_FORMAT,
-      maxTokens: ANSWER_MAX_TOKENS,
-      temperature: ANALYZE_TEMPERATURE,
-    });
+    const result = await ctx.summarize(
+      [{ systemPrompt: ASK_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }],
+      sampleOpts,
+    );
     return result.items[0]?.text ?? "";
   };
   let answer: string;
