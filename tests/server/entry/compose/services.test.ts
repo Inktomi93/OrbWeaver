@@ -47,6 +47,7 @@ const SERVICE_KEYS = [
   "persona",
   "plugin",
   "preset",
+  "rpg",
   "search",
   "sessions",
   "settings",

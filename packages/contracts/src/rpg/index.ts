@@ -11,10 +11,9 @@
 //   • config.ts   — the `rpg_games.config` blob (statProfile + lite dials, §4.1)
 //   • pointer.ts  — the opaque `chats.metadata.rpg` sync pointer, mode-free `{gameId}` (§2.1)
 //   • views.ts    — the CP read-view projections (getGame/getTrackerView/getConfigView, §4.8)
-//
-// PARKED: the feature-root rpg bus (§4.9) re-lands in W1c WITH its full belt set (the coverage gate + the
-// client total-map) — the D72 machine-ships-with-its-seal rule means the belts can't wire before their
-// producer emit sites (W1c) and client invalidation keys (W2) exist, so the bus union sequences with them.
+//   • tools.ts    — the 7 cheap-mode D48 tool ARG schemas (projection-clean, §4.5)
+//   • extraction.ts — the reliable-mode structured-output schema, DERIVED from the tool args (§4.6)
+//   • bus.ts      — the feature-root rpg bus event union + its `RPG_BUS_EVENT_TYPES` coverage belt (§4.9)
 //
 // LAWS honored across these modules:
 //   • No `ownerId` (D23): every rpg shape is authority-derived through the chat FK chain; no wire shape
@@ -26,8 +25,10 @@
 
 export * from "./actor";
 export * from "./ambient";
+export * from "./bus";
 export * from "./config";
 export * from "./enums";
+export * from "./extraction";
 export * from "./mode";
 export * from "./pointer";
 export * from "./profile";

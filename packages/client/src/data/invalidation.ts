@@ -3,6 +3,7 @@
 // directly (gate `no-inline-invalidate-outside-seam`).
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";
@@ -24,6 +25,9 @@ export interface Invalidation {
   readonly invalidate: (event: ChatBusEvent) => void;
   /** The user-bus half — routes a `UserBusEvent` through `USER_BUS_FILTERS`. Fire-and-forget. */
   readonly invalidateUser: (event: UserBusEvent) => void;
+  /** The rpg-bus half — routes an `RpgBusEvent` through `RPG_BUS_FILTERS` (the feature-root game bus,
+   *  `rpg.stream`). Fire-and-forget. */
+  readonly invalidateRpg: (event: RpgBusEvent) => void;
   /** Gap-heal — on user-bus (re)connect, blanket-invalidate every filter the user map covers. */
   readonly invalidateAllUserRoots: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
@@ -129,6 +133,34 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
 
+// Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/
+// journal reads run `staleTime: Infinity`, so an rpg-bus tick is their freshness driver. TOTAL over
+// `RpgBusEvent["type"]` (the mapped type below is `bus-definition-belts`' consumer-exhaustiveness belt — a new
+// member fails tsc here until it names its reads). SWIPE freshness rides the CHAT bus (`variantSelected`, in
+// `BUS_FILTERS`), NOT a new rpg event — nothing is written on swipe-select, so the rpg bus never announces it.
+//
+// W2 FORWARD-SEAM: the rpg VERB tRPC procs (`trpc.rpg.getTrackerView`/`getGame`/`listJournal`/`getConfigView`)
+// land with the W2 rpg router — they do NOT exist on `AppRouter` yet, so each handler returns `[]` for now
+// (the map's SHAPE is the belt G11 checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
+// The per-member notes name the read each will invalidate — the same "map ready, procs pending" posture the
+// user bus's `connectionsChanged` deferral takes.
+type RpgBusFilterMap = {
+  readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
+};
+
+const RPG_BUS_FILTERS: RpgBusFilterMap = {
+  // → trpc.rpg.getGame + getConfigView (the takeover mode read + the host editor).
+  gameChanged: nothing,
+  // → trpc.rpg.getTrackerView (the whole panel re-resolves against the new resolved-current snapshot).
+  snapshotPatched: nothing,
+  // → trpc.rpg.getTrackerView (the Status/Sheet tabs).
+  sheetChanged: nothing,
+  // → trpc.rpg.getTrackerView (the Quests tab).
+  questChanged: nothing,
+  // → trpc.rpg.listJournal (the paged, lineage-filtered archive).
+  journalChanged: nothing,
+};
+
 /** Every filter the user map covers — derived so a new member can't drift the gap-heal set. */
 function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
   return (Object.keys(USER_BUS_EVENT_TYPES) as UserBusEvent["type"][]).flatMap((type) => {
@@ -161,6 +193,14 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       const filters = handler(event, deps.trpc);
       if (IS_DEV) {
         busInvalidate(event.type, "user", filters.map(filterKeyName));
+      }
+      invalidateFilters(filters);
+    },
+    invalidateRpg: (event): void => {
+      const handler = RPG_BUS_FILTERS[event.type] as (e: RpgBusEvent, t: Trpc) => readonly InvalidateFilter[];
+      const filters = handler(event, deps.trpc);
+      if (IS_DEV) {
+        busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
       invalidateFilters(filters);
     },

@@ -22,6 +22,7 @@ import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
+import type { ChatRpgPointer, RpgActorRef } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
@@ -288,6 +289,28 @@ export interface PostNarratorMessageDeps {
  *  `null` is the not-a-participant 404. A STANDALONE op with no principal — the raw membership lookup rpg gates
  *  around (membership has ONE loader; this is it exposed for injection, never a second read path). */
 export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+
+/** The opaque rpg-pointer WRITE op (rpg-design/05 §3.1): merge the healed `metadata.rpg` `{gameId}` sub-blob so
+ *  the client's takeover gate is a sync read off `ChatDetail`. Called ONCE by rpg's `createGame`; chat never
+ *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
+ *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is
+ *  rpg's (`ChatRpgPointer`) — the foreign-schema precedent (chat stores it blind). */
+export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer) => Promise<void>;
+
+/** One present roster participant projected for rpg's tracker view (roster ∪ sheets, rpg-design/05 §4.3): a
+ *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
+ *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgRosterActor` (rpg declares its
+ *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
+export interface RpgRosterActor {
+  readonly actorRef: RpgActorRef;
+  readonly name: string;
+  readonly avatar?: string;
+}
+
+/** The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
+ *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
+ *  injected-op precedent). Wired into `RpgContext.resolveRoster` at the composition root (W1c-b). */
+export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
 
 /** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
  *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may

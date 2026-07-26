@@ -11,8 +11,10 @@
 
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { RpgBusEvent } from "@orb/contracts/rpg";
+import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
@@ -277,6 +279,44 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
     for (const key of roots) {
       expect(isInvalidated(queryClient, key)).toBe(true);
     }
+  });
+});
+
+// ── The RPG-bus half (§4.9 feature-root game bus): the THIRD exhaustive event→filter contract ─────
+// LIVE-ONLY like the user bus. In W1c-a every `RPG_BUS_FILTERS` handler returns `[]` — the rpg VERB tRPC
+// procs (`trpc.rpg.getTrackerView`/…) land in W2, so the map's SHAPE is what ships now (the G11 consumer-
+// exhaustiveness belt); the real filters wire in W2. This pins: the map is EXHAUSTIVE over `RpgBusEvent["type"]`
+// (a new member fails tsc in `RPG_BUS_FILTERS` until it names its reads), `invalidateRpg` dispatches every
+// member without throwing, and — the W2 forward-seam — nothing is invalidated yet (the honest `[]`).
+// A REAL minimal `RpgBusEvent` per type — no cast, no fabrication (the members carry only `type` + `chatId` +
+// an optional/required branded id, so a real literal satisfies the type exactly). Total over the union: a new
+// member fails `tsc` here until it names a real event, mirroring the `RPG_BUS_FILTERS` mapped type.
+const RPG_EVENTS: Record<RpgBusEvent["type"], RpgBusEvent> = {
+  gameChanged: { type: "gameChanged", chatId: CHAT_ID },
+  snapshotPatched: { type: "snapshotPatched", chatId: CHAT_ID, snapshotId: castId<RpgSnapshotId>("rpg_snapshot_invalidationtest") },
+  sheetChanged: { type: "sheetChanged", chatId: CHAT_ID, sheetId: castId<RpgSheetId>("rpg_sheet_invalidationtest") },
+  questChanged: { type: "questChanged", chatId: CHAT_ID },
+  journalChanged: { type: "journalChanged", chatId: CHAT_ID },
+};
+
+describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
+  test("invalidateRpg dispatches EVERY RpgBusEvent type without throwing (the belt is total)", () => {
+    const { invalidateRpg } = setup();
+    for (const type of RPG_BUS_EVENT_TYPES) {
+      expect(() => invalidateRpg(RPG_EVENTS[type])).not.toThrow();
+    }
+  });
+
+  test("W1c-a forward-seam: the rpg filters are empty (the verb procs land in W2), so nothing is marked stale", () => {
+    const { invalidateRpg, queryClient, trpc } = setup();
+    // A chat read the rpg panel does NOT drive yet — proving the rpg bus touches nothing in W1c-a. No seed is
+    // needed: an unseeded query reports `isInvalidated: false`, and every rpg filter returning `[]` means the
+    // dispatch marks nothing, so the read stays un-invalidated regardless.
+    const chatGet = trpc.chat.getChat.queryKey({ chatId: CHAT_ID });
+    for (const type of RPG_BUS_EVENT_TYPES) {
+      invalidateRpg(RPG_EVENTS[type]);
+    }
+    expect(isInvalidated(queryClient, chatGet)).toBe(false);
   });
 });
 

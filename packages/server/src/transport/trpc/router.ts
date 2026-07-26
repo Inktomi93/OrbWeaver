@@ -19,6 +19,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { pluginRouter } from "./routers/plugin";
 import { presetRouter } from "./routers/preset";
+import { rpgRouter } from "./routers/rpg";
 
 import { searchRouter } from "./routers/search";
 import { sessionsRouter } from "./routers/sessions";
@@ -76,6 +77,7 @@ export const appRouter = t.router({
   persona: personaRouter,
   plugin: pluginRouter,
   preset: presetRouter,
+  rpg: rpgRouter,
 
   search: searchRouter,
   sessions: sessionsRouter,

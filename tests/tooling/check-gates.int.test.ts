@@ -305,6 +305,10 @@ function writeFixtures(): void {
   // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
   // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
   fx(`${D}/chat/__g_userbus.ts`, 'export const staleUserBusEmit = "connectionsChanged";\n');
+  // rpg-bus-coverage: NO fixture — as of W1c-b its DEFERRED map is EMPTY (every RpgBusEvent member gained a real
+  // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
+  // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
+  // (the `bus-coverage` twin's exact posture); the STALE mechanism stays proven by the `user-bus-coverage` twin.
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(`${D}/character/__g_mcv.ts`, "export interface MemberCardView {\n  readonly name: string;\n}\n");
   // diagnostic-legibility: a gate-corpus `message:` string carrying no doc/code-home pointer (the
@@ -640,6 +644,7 @@ const UNFIXTURABLE_GATES = new Set([
   "enforcement-registry-parity",
   "tsconfig-routing-parity",
   "bus-coverage",
+  "rpg-bus-coverage",
   "bus-payload-allowlist",
   "knob-wire-coverage",
 ]);

@@ -40,6 +40,10 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    `turn-staging.ts` (the verb-facing I/O ops over that accumulator — resolve the turn's base snapshot, read/
  *    write the overlay, resolve name refs to party rows; the guard.ts I/O-wrapping-root precedent, shared by the
  *    tool-path verbs so `staging.ts` stays the pure in-memory accumulator; rpg-design/10 §R4 / 05 §3),
+ *    `snapshot-edit.ts` (the verb-facing HAND-edit I/O over the CURRENT resolved snapshot — resolve the
+ *    ladder head, apply a [merge-clear] overlay + auto-lock, write back in place; the `turn-staging.ts`
+ *    I/O-wrapping-root precedent, shared by editSnapshot/upsertQuest/deleteQuest so verb-to-verb VALUE imports
+ *    stay banned; rpg-design/05 §4.4),
  *    `seat.ts` (the ONE FK-walk resolving a game's `gmUserId` into the `RpgGmSeat` the pure deciders
  *    substrate/auth read — it AWAITS the injected `identity.resolvePartyActorKind` op, so it can't live in
  *    zero-I/O `substrate/`; the `turn-staging.ts` I/O-wrapping-root precedent, called at the three GM-seat
@@ -54,7 +58,7 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
   crew: ["bus.ts"],
-  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "seat.ts", "trace.ts", "encounter-commit.ts"],
+  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts"],
   preset: ["constants.ts", "seed.ts"],
   "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],

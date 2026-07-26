@@ -35,10 +35,9 @@ const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
   // applies (Tier-1-DB.md producer-names-the-schema).
   // automation removed 2026-07-17 — the producer domain now EXISTS (A3 global-variable slice), so the
   // normal producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
-  // rpg RE-ADDED 2026-07-26 — the retro rebuild's W0 lands `schema/rpg.ts` (the 6-table lite substrate
-  // floor) BEFORE `domain/rpg` (W1). This rider makes that legal until W1's producer exists; the moment
-  // `packages/server/src/domain/rpg/` lands, this entry is stale and the gate flags it (rpg-design/05 §6.1).
-  rpg: "packages/server/src/domain/rpg",
+  // rpg removed 2026-07-26 — the W1a stint landed `packages/server/src/domain/rpg/` (the producer domain now
+  // EXISTS), so the normal producer-mirror applies (Tier-1-DB.md producer-names-the-schema). It rode this
+  // entry only across W0→W1a (schema/rpg.ts landed in W0, before the domain dir).
   // roster-preset removed 2026-07-17 — the producer domain now EXISTS (RP1 leaf + verbs), so the normal
   // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
 };

@@ -36,6 +36,57 @@
 3. **CONFIRMED: wallet + inventory first-class as specced** ("inventory and wallet are first-class,
    assets and etc are first-class"). §2.6 unchanged; the wallet question is CLOSED.
 
+## Change log — the delivery-model amendment (owner sign-off, 2026-07-26)
+
+**COMMITTED (not yet built) — how the model writes state, resolved.** State extraction is a turn
+SEPARATE from the character-narration turn (owner: "I always intended the tool turn to be separate
+from the characters turn"), gated by a KNOB so a cost-sensitive host may trade reliability for one
+call. This SUPERSEDES the tool-first framing of §3.2/§4.5 (state tools gather-contributed onto the
+character turn) as the SOLE model — it becomes ONE of two modes.
+
+1. **Two delivery modes, knob-gated — `config.extractionMode: "reliable" | "cheap"`** (additive
+   JSON field, self-healing parse-seam lift, no version stamp; WIRED both ends from birth —
+   `knob-wire-coverage`/D107, the §4.11 #1 discipline). **Default `"reliable"`.**
+   - **reliable** — after the character(s) narrate, a DEDICATED extraction turn (structured output,
+     `output_config.format`) reads the beat + resolved base state and emits the whole state delta in
+     ONE object. No user-facing prose in that turn, so structured output is the natural fit — NOT the
+     §4.6 prose-parser fork it would be if it shared the narration turn. State is PROVEN to land.
+   - **cheap** — the §4.5 state tools ride the CHARACTER turn (the original tool-first model),
+     best-effort, honestly labeled. One call; may miss updates on a non-parallel backend (the
+     pain-points §5 sequential-tool reality — parallel tool-use is lost on the agent-sdk wire).
+2. **Honest-arms axis is the RESOLVED mode's capability (amends §4.6).** cheap needs
+   `capability.tools`; reliable needs `capability.output.structured` (separate axes —
+   `contracts/connection`). When the resolved mode's writer capability is ABSENT: warn +
+   **manual-steering** — the model gets NO write path, the host hand-edits every plane
+   (editable-in-place, always on), and those hand values STILL steer via the gather injection (not
+   inert). **NO silent mode-downgrade** — reliable never secretly becomes cheap; the knob is the
+   host's deliberate lever. `trackersReadOnly` is `trackersManualOnly` in spirit; the CP §4.4 pill
+   copy reframes to "manual steering — this model can't auto-update; edit the trackers by hand to
+   steer."
+3. **The extraction turn rides the EXISTING `onTurnCompleted` hook** — no new chat-side wiring beyond
+   `setRpgPointer`. Character message commits → rpg's `onTurnCompleted` runs the reliable-mode
+   extraction call (or, cheap-mode, flushes the staged tool writes) → stages the delta → flushes the
+   clone-forward snapshot keyed to the committed variant → the next turn's gather injects the new
+   state.
+4. **Wave impact.** W1a (persistence/staging/locks) is INVARIANT — the accumulator stages→flushes
+   once at commit regardless of mode/tools/parallel. W1b's gather branches on `extractionMode`,
+   implements the reliable extraction op AND the cheap tool-attach path, and keys readonly on the
+   resolved axis. W1c authors the 7 plane shapes ONCE, exposed two ways — as D48 tool args (cheap)
+   AND as the extraction structured-output schema (reliable); the `z.toJSONSchema` / top-level
+   `z.object` projection discipline (§4.5) covers both.
+
+## Change log — the no-born-seed amendment (build-time, 2026-07-26 — ledger **D108**)
+
+**SUPERSEDES the "seeds the BORN snapshot" language in §2.4 / §4.4 (`createGame` row) / §4.11 and the
+"rung 4 is unreachable in practice" aside (§3.x resolution ladder).** As built, `createGame` stores NO
+snapshot row — it mints only the game row + pointer. A read SYNTHESIZES the born-default (empty state,
+`quests: []`, null clock) from config when the 4-rung ladder returns undefined, so **rung 4 is the
+live born-default path, not a dead branch.** WHY: a born snapshot needs a `message`/`variant` FK, but a
+turn-0 game has neither — a nullable FK to accommodate one snapshot would loosen the schema for every
+row. No-born-seed keeps `rpg_snapshots.message/variant` NON-nullable with zero schema delta and zero
+baseline regen; the synthesized default is byte-pinned by a no-drift identity test. Authority: **D108**
+(the code + ledger win over this report on any conflict).
+
 ---
 
 ## 0. The carve on one screen

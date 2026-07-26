@@ -1,0 +1,288 @@
+// domain/rpg/contract/service — the persistence-layer ROW aliases + the composed snapshot-STATE bridge
+// (rpg-design/05 §2.4-2.5) AND the domain's public API surface: `RpgContext` (the DI bundle the verbs close
+// over, wired at compose) + `RpgService` (the verb interface, §4.4). The db table splits the swipe-volatile
+// plane into columns; `RpgSnapshotState` (@orb/contracts/rpg) is the composed read shape the staging
+// accumulator overlays and clone-forwards. This module homes the row aliases (derived from the db tables —
+// one home, `$inferSelect`/`$inferInsert`, never re-spelled) and the two total projections between a parsed
+// row and the composed state.
+//
+// THE INJECTED-OP SEAM (the cross-feature pattern, §0/§3): rpg's verbs need chat/connection ops they do NOT
+// own — authority (`getMembership`), the opaque pointer write (`setRpgPointer`), the roster projection
+// (`resolveRoster`), the narrator-slot mint for restore (`postNarratorMessage`), and the honest-arms
+// capability verdict (`resolveTrackersReadOnly`). These are declared HERE as typed members of `RpgContext`
+// and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
+// sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
+
+import type { ParticipantRole } from "@orb/contracts/identity";
+import type {
+  ChatRpgPointer,
+  EmitRpgEvent,
+  RpgActorRef,
+  RpgConfigView,
+  RpgGameView,
+  RpgJournalEntryView,
+  RpgSnapshotState,
+  RpgTrackerView,
+} from "@orb/contracts/rpg";
+import type { Db, rpgCheckpoints, rpgGames, rpgHudWidgets, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
+import type {
+  ChatId,
+  ChatTurnId,
+  MessageId,
+  MessageVariantId,
+  RpgCheckpointId,
+  RpgGameId,
+  RpgJournalId,
+  RpgQuestId,
+  RpgSheetId,
+  RpgSnapshotId,
+  RpgWidgetId,
+  UserId,
+} from "@orb/kit/ids";
+import type {
+  AddJournalEntryParams,
+  CreateCheckpointParams,
+  CreateGameParams,
+  CreateWidgetParams,
+  DeleteJournalEntryParams,
+  DeleteQuestParams,
+  DeleteWidgetParams,
+  EditJournalEntryParams,
+  EditSnapshotParams,
+  ListCheckpointsParams,
+  ListJournalParams,
+  PatchSheetParams,
+  ReadGameParams,
+  RestoreCheckpointParams,
+  RollDiceParams,
+  StagedJournalEntry,
+  StagedTurnFlush,
+  UpdateConfigParams,
+  UpdateWidgetParams,
+  UpsertQuestParams,
+} from "./params";
+import type { CreateGameResult, RollDiceResult } from "./results";
+
+export type RpgGameRow = typeof rpgGames.$inferSelect;
+export type NewRpgGame = typeof rpgGames.$inferInsert;
+
+export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
+export type NewRpgSnapshot = typeof rpgSnapshots.$inferInsert;
+
+export type RpgSheetRow = typeof rpgSheets.$inferSelect;
+
+export type RpgWidgetRow = typeof rpgHudWidgets.$inferSelect;
+export type NewRpgWidget = typeof rpgHudWidgets.$inferInsert;
+
+export type RpgJournalRow = typeof rpgJournal.$inferSelect;
+export type NewRpgJournal = typeof rpgJournal.$inferInsert;
+
+export type RpgCheckpointRow = typeof rpgCheckpoints.$inferSelect;
+export type NewRpgCheckpoint = typeof rpgCheckpoints.$inferInsert;
+
+/** Project a parsed snapshot row onto the composed swipe-volatile STATE (the shape the accumulator overlays).
+ *  The row's JSON columns arrive already-parsed by `parseSnapshotRow`; nullable-array columns collapse their
+ *  null (an empty-born row) to `[]` so the state is total. */
+export function snapshotRowToState(row: RpgSnapshotRow): RpgSnapshotState {
+  return {
+    clock: row.clock,
+    calendarDate: row.calendarDate,
+    location: row.location,
+    weather: row.weather,
+    presentCharacters: [...(row.presentCharacters ?? [])],
+    recentEvents: [...(row.recentEvents ?? [])],
+    actorState: [...(row.actorState ?? [])],
+    widgetValues: { ...(row.widgetValues ?? {}) },
+    quests: [...(row.quests ?? [])],
+    fieldLocks: row.fieldLocks,
+  };
+}
+
+/** The staging accumulator's public interface (impl: the feature-root `staging.ts` singleton — a STATEFUL
+ *  in-memory collaborator, the `chat/active-turns.ts` precedent). Homed here (a type has no home in the
+ *  stateful root file nor in zero-state `substrate/`; memory: substrate-not-a-type-home). Buckets are
+ *  process-local, `ChatTurnId`-keyed, and turn-scoped (a bucket lives from first `ensure`/`stage` to
+ *  `take`/`clear`). */
+export interface RpgStagingStore {
+  /** Seed a turn's bucket from the resolution-ladder base if it has none yet; returns the CURRENT effective
+   *  state (read-through — a later tool sees earlier staged writes). Idempotent per turn: a second call with
+   *  a different base does NOT reseed (the first tool's base + every overlay is the turn's truth). */
+  readonly ensure: (turnId: ChatTurnId, base: RpgSnapshotState) => RpgSnapshotState;
+  /** The current effective state for a turn, or `undefined` if untouched. */
+  readonly peek: (turnId: ChatTurnId) => RpgSnapshotState | undefined;
+  /** Overlay a tool-authored patch onto the turn's effective state (locks honored, [merge-clear]). Requires
+   *  the bucket to exist (`ensure` first — a tool always resolves its base before writing). Returns the new
+   *  effective state. */
+  readonly stage: (turnId: ChatTurnId, patch: Record<string, unknown>) => RpgSnapshotState;
+  /** Stage a journal entry (flushed at commit stamped with the committed variant). */
+  readonly stageJournal: (turnId: ChatTurnId, entry: StagedJournalEntry) => void;
+  /** Remove + return a turn's accumulated flush (the state + journal) at `onTurnCompleted`. `undefined` when
+   *  the turn staged nothing (no snapshot to write). The bucket is DELETED — a turn flushes exactly once. */
+  readonly take: (turnId: ChatTurnId) => StagedTurnFlush | undefined;
+  /** Discard a turn's bucket at `onTurnAborted` — nothing durable happened, and a dead turn must never flush
+   *  into the next (the dead-turn-never-flushes pin). Idempotent (no-op if already taken/cleared). */
+  readonly clear: (turnId: ChatTurnId) => void;
+}
+
+// ── the injected cross-feature ops (§0/§3 — wired at compose, W1b-integration/W1c) ───────────────────────
+
+/** The narrow membership read (chat's `GetMembership` op, `domain/chat/contract/context.ts`). rpg gates EVERY
+ *  verb through it — never a chat-table read (§4.4). `null` = not a present member / no such chat (ONE
+ *  leak-free answer — the not-a-member and no-game cases are indistinguishable to the caller). */
+export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+
+/** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame` calls it ONCE so the client's takeover
+ *  gate is a sync read off `ChatDetail` — rpg never reads it back. */
+export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer) => Promise<void>;
+
+/** One roster actor projected for the tracker view (roster ∪ sheets, §4.3). The injected `resolveRoster` op
+ *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the
+ *  name/avatar joins live in chat/character (rpg stays table-blind). */
+export interface RpgRosterActor {
+  readonly actorRef: RpgActorRef;
+  readonly name: string;
+  readonly avatar?: string;
+}
+export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
+
+/** Mint a fresh narrator message slot (chat's `postNarratorMessage`, §3.2). `restoreCheckpoint` posts one to
+ *  carry the clone-forwarded snapshot; returns the committed `{messageId, variantId}` the restored snapshot
+ *  keys to. */
+export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
+
+/** The honest-arms capability verdict (§4.6 — the delivery-model amendment). Resolves the host connection's
+ *  writer capability for THIS game's `extractionMode` and returns `trackersReadOnly` (= manual-steering:
+ *  the model has no write path). Its VALUE is INTEGRATION-supplied (W1b-integration wires the real connection
+ *  resolve); the view TYPE carries the field. A fake returns a fixed boolean in tests. */
+export type RpgResolveTrackersReadOnly = (chatId: ChatId) => Promise<boolean>;
+
+/** The reliable-mode post-narration extraction op (§4.6 / the delivery-model amendment). AFTER the character
+ *  message commits, `reliable` mode runs a DEDICATED structured-output turn that reads the committed beat + the
+ *  resolved base state and emits the whole state delta in ONE object. This is the DECLARED SEAM: `onTurnCompleted`
+ *  (reliable) calls it, stages the returned delta onto the turn's accumulator, and flushes it exactly like a
+ *  cheap-mode tool run. The IMPL (the structured-output schema + the model call + the parse) is W1c —
+ *  W1b-integration DECLARES the type and CALLS it, and tests the reliable path with an injected fake.
+ *
+ *  The seam carries the committed variant's IDENTIFIERS, NOT its prose (`baseState` is the only resolved input):
+ *  the IMPL owns chat/connection access, so it reads the beat text itself (rpg stays out of `message_variants`
+ *  content-reading — the boundary the injected-op pattern draws). `baseState` is the resolution-ladder head the
+ *  extraction reasons against (never re-resolved by the op). A game whose model has NO structured-output writer
+ *  capability never reaches here (readonly/manual-steering; §4.6). */
+export type RpgRunExtraction = (input: {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly turnId: ChatTurnId;
+  readonly messageId: MessageId;
+  readonly variantId: MessageVariantId;
+  readonly baseState: RpgSnapshotState;
+}) => Promise<RpgStateDelta>;
+
+/** What a reliable-mode extraction returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
+ *  [merge-clear] contract — staged via `applyLockedPatch` exactly like a tool write) + the journal entries to
+ *  stamp with the committed variant. The SAME two planes cheap-mode tools stage during the turn, so both modes
+ *  funnel through the one accumulator flush. */
+export interface RpgStateDelta {
+  readonly statePatch: Record<string, unknown>;
+  readonly journal: readonly StagedJournalEntry[];
+}
+
+/** The id mints the verbs use (injected for determinism — a test supplies stable ids, no ambient `crypto`;
+ *  the notifications `mintTypeId`-in-verb precedent inverted to a DI factory so the persistence ids pin). */
+export interface RpgIdMints {
+  readonly game: () => RpgGameId;
+  readonly snapshot: () => RpgSnapshotId;
+  readonly sheet: () => RpgSheetId;
+  readonly widget: () => RpgWidgetId;
+  readonly journal: () => RpgJournalId;
+  readonly checkpoint: () => RpgCheckpointId;
+  readonly quest: () => RpgQuestId;
+}
+
+/** The DI bundle every rpg verb closes over, assembled at the composition root (`context.ts` builds it; its
+ *  TYPE is this explicit interface — no `ReturnType<>`, the `no-context-returntype` gate). db + injected clock
+ *  + id mints + the staging singleton + the five injected cross-feature ops + the dice CSPRNG. */
+export interface RpgContext {
+  readonly db: Db;
+  readonly now: () => number;
+  readonly ids: RpgIdMints;
+  readonly staging: RpgStagingStore;
+  readonly getMembership: RpgGetMembership;
+  readonly setPointer: RpgSetPointer;
+  readonly resolveRoster: RpgResolveRoster;
+  readonly postNarratorMessage: RpgPostNarratorMessage;
+  readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
+  readonly runExtraction: RpgRunExtraction;
+  /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
+   *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
+   *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. A fake
+   *  recorder in tests asserts the emit fired. */
+  readonly emitBus: EmitRpgEvent;
+  /** A uniform int in `[0, max)` — the dice CSPRNG (injected: `crypto.randomInt` at compose, a seeded fake in
+   *  tests). Bake-once; the roll is server-authoritative, a client-supplied seed is never honored (§4.4). */
+  readonly randomInt: (max: number) => number;
+}
+
+/** What the composition root supplies to build the ctx — a pass-through of `RpgContext`'s members (the builder
+ *  does no derivation; every field is injected at compose, W1c). */
+export type RpgContextDeps = RpgContext;
+
+/** The resolved authority context a gated verb works from: the game row + the caller's present role (derived
+ *  from `PARTICIPANT_ROLES`, never re-spelled — §5.5). */
+export interface RpgAuthorized {
+  readonly game: RpgGameRow;
+  readonly role: ParticipantRole;
+}
+
+/** The lock DELTA a hand edit applies (`snapshot-edit.ts`): paths to auto-LOCK (touched fields —
+ *  manual-edit-wins) and paths to CLEAR (a removed keyed element takes its `<field>.<id>` lock with it — the
+ *  symmetric grammar). */
+export interface HandEditLocks {
+  readonly lock?: readonly string[];
+  readonly clear?: readonly string[];
+}
+
+// ── the verb surface (§4.4) ─────────────────────────────────────────────────────────────────────────────
+
+/** The rpg service — the lite verb surface (§4.4). Authority resolves through `ctx.getMembership`: host-gated
+ *  verbs require the roster host; a member may write their OWN `user` row/actor; shared planes are host-write;
+ *  reads are member-gated. Refusals are LEAK-FREE (a non-member gets the same not-found a no-game chat gets —
+ *  the cross-tenant trust boundary). Types the verbs return home in `@orb/contracts/rpg` (the views) or
+ *  `./results` (the two internal results). */
+export interface RpgService {
+  /** Host. Mints the game row (lite only; `"full"` → `RpgModeUnbuiltError`), seeds the born snapshot, writes
+   *  the opaque pointer. Returns the birth summary (incl. `trackersReadOnly`). */
+  readonly createGame: (params: CreateGameParams) => Promise<CreateGameResult>;
+  /** Host. The ONE config write door: profile mutability matrix + `steeringNote` + the `gmPresetId` +
+   *  `extractionMode` knobs. */
+  readonly updateConfig: (params: UpdateConfigParams) => Promise<void>;
+  /** Host any; a member their own `user` ref. MA-4 sheet patch (attribute keys validated ∈ profile + range). */
+  readonly patchSheet: (params: PatchSheetParams) => Promise<void>;
+  /** Host any field; a member their own actor's volatile. Writes volatile state on the current resolved
+   *  snapshot (clone-forward), auto-locking touched fields. */
+  readonly editSnapshot: (params: EditSnapshotParams) => Promise<void>;
+  readonly createWidget: (params: CreateWidgetParams) => Promise<RpgWidgetId>;
+  readonly updateWidget: (params: UpdateWidgetParams) => Promise<void>;
+  readonly deleteWidget: (params: DeleteWidgetParams) => Promise<void>;
+  /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
+  readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
+  readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;
+  /** Host. Hand journal entry — stamps `variantId: NULL` (every-lineage). Returns the entry id. */
+  readonly addJournalEntry: (params: AddJournalEntryParams) => Promise<RpgJournalId>;
+  readonly editJournalEntry: (params: EditJournalEntryParams) => Promise<void>;
+  readonly deleteJournalEntry: (params: DeleteJournalEntryParams) => Promise<void>;
+  /** Host. Label the current resolved snapshot. Returns the checkpoint id. */
+  readonly createCheckpoint: (params: CreateCheckpointParams) => Promise<RpgCheckpointId>;
+  /** Host. Clone the checkpointed snapshot forward BORN COMMITTED onto a fresh narrator slot. */
+  readonly restoreCheckpoint: (params: RestoreCheckpointParams) => Promise<void>;
+  readonly listCheckpoints: (params: ListCheckpointsParams) => Promise<readonly RpgCheckpointRow[]>;
+  /** Member. Server CSPRNG, bake-once — the total + faces + composer stamp. Zero state. */
+  readonly rollDice: (params: RollDiceParams) => Promise<RollDiceResult>;
+  /** Member. The takeover's mode read (§4.8). */
+  readonly getGame: (params: ReadGameParams) => Promise<RpgGameView>;
+  /** Member. The aggregate the takeover renders in one query (roster ∪ sheets, resolved-current snapshot). */
+  readonly getTrackerView: (params: ReadGameParams) => Promise<RpgTrackerView>;
+  /** Member. The paged, lineage-projected journal. */
+  readonly listJournal: (params: ListJournalParams) => Promise<readonly RpgJournalEntryView[]>;
+  /** HOST. The Stats & Trackers editor surface (full profile + steeringNote + gmPresetId). */
+  readonly getConfigView: (params: ReadGameParams) => Promise<RpgConfigView>;
+}

@@ -824,6 +824,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
   "chat.streamMessages": "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
+  "rpg.stream":
+    "subscription: authz per-yield via chat membership (chatEventBounds — rpg has no ownerId, authority is chat-FK-derived, D18/D20); a non-member WITHHOLDS (yields nothing), covered by the rpg bus stream tests",
   "automation.stream":
     "subscription: the visibility gate is resolveStreamAuthority (throws AutomationChatNotFound → NOT_FOUND on first pull for a non-present member, before any bus tail) AND narrows a non-host member to the room-visible quickReplySurfaced only — the membership gate is the loadCallerRole present-member read, covered by the automation.stream visibility unit test",
   // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).

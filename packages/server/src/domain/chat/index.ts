@@ -27,7 +27,10 @@ export type {
   PostNarratorMessageDeps,
   PresenceReadOp,
   PromptTransformRegistry,
+  ResolveRpgRoster,
   ResolveViewerVisibility,
+  RpgRosterActor,
+  SetRpgPointer,
   ViewerVisibility,
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
@@ -88,5 +91,11 @@ export { createPostNarratorMessage } from "./verbs/post-narrator-message";
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).
 // Exported for the same reason `isBelowHistoryFloor` is: the verdict must be chat's everywhere it is applied,
 // and a sibling domain re-deriving it is the defect class this op exists to make impossible.
+// The rpg roster-resolution op (rpg-design/05 §4.3) — resolves present participants into rpg actor refs +
+// name/avatar; wired into `RpgContext.resolveRoster` at the composition root (W1c-b). Standalone + principal-free.
+export { createResolveRpgRoster } from "./verbs/resolve-rpg-roster";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility";
 export { setParticipantActivePersona } from "./verbs/roster";
+// The opaque rpg-pointer WRITE op (rpg-design/05 §3.1) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
+// at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
+export { createSetRpgPointer } from "./verbs/set-rpg-pointer";

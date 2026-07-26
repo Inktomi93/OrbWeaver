@@ -58,24 +58,134 @@ kit id brands · 78 tests). Verifier: CONFIRMED incl. a fresh-build honesty audi
 · **seed:demo rpg content rides W1** (the seeder writes only through domain verbs — none exist
   until W1b).
 
-**═══ SESSION HANDOFF (2026-07-26 — owner swapped accounts, weekly usage exhausted) ═══**
-The closing commit rode SCOPED verification + the pre-commit full static check (the last FULL
-battery — vitest 7428/0 · CT 1453/0 · zero flakes — predates only the three small W0 reconcile
-fixes, themselves scoped-green). **The next session's first acts, in order:** ① one confirming
-full battery (`pnpm check` + `pnpm test`, read the artifacts) ② dispatch **W1a**
-(persistence + staging accumulator + locks merge per spec §6.1/§6.2 — the swipe-rewind machinery;
-the ratification pin [total swipe-consistency] is ITS test matrix) ③ then W1b → W1c → W2 → W3 per
-the NOW block above. Everything needed is: this board + the ratified spec + the memories — zero
-context assumed.
+**═══ W1 — THE DOMAIN VERTICAL — IN FLIGHT (2026-07-26; UNCOMMITTED) ═══**
+W1 is ONE wave (stints W1a→W1b-core→W1b-integration→W1c); it is NOT committed per-stint — the domain
+is not gate-legal until compose (`feature-structure` needs the full skeleton+verbs; the composed-real
+int test is the proof, spec §6.1). **COMMIT AT W1c only.** The uncommitted tree = the spec
+delivery-model amendment (below) + `scripts/check/gates/db-structure.ts` (rpg baseline-rider removed) +
+`packages/server/src/domain/rpg/**` + `packages/contracts/src/rpg/config.ts` (extractionMode field) +
+`tests/server/domain/rpg/**` + this board. Whole-tree check GREEN except ONE carried knip forward-seam
+red (the `RpgContext` op-type exports in `domain/rpg/index.ts`+`contract/service.ts` —
+`RpgGetMembership`/`SetPointer`/`ResolveTrackersReadOnly`/`IdMints`/`RpgService`/`RpgStagingStore`; sole
+consumer is W1c compose; clears there — do NOT remove/ignore).
 
-**Wave sequence after W0:** W1a persistence+staging+locks → W1b verbs+gather+ChatRpgOps+
-`setRpgPointer` → W1c tools+bus+compose (the composed-real int test is the proof) → W2 transport
-(EVERY proc cross-tenant-sweep PROBED) → W3 the CP-4 lite takeover client — owned by the
-Context-Panel program ([`docs/architecture/Context-Panel-Program.md`](architecture/Context-Panel-Program.md)),
-mockup-first against `reports/design-refs/rpg-shell-mockup-v2.html` (owner: NO new mockup — a
-state v2 lacks = a one-crop addendum, never a v3), side-eye AFTER convergence. Test obligations =
-spec §6.2 (the swipe-consistency matrix is the ratification pin); ledger deltas ride the
-COMPLETING wave.
+**✅ W1a (persistence+staging+locks) LANDED-uncommitted, TWICE-verified.** 4-rung snapshot ladder ·
+`ChatTurnId`-keyed Option-A staging accumulator · `applyLockedPatch`. Verifier CONFIRMED the
+swipe-consistency ratification pin. Defect found+fixed: per-quest `quests.<id>` locks didn't bite on the
+ARRAY (merge hit the array-replace branch) → generic `KEYED_ARRAYS` element-lock (quests→id · inventory→id
+· presentCharacters→key registered; **actorState deferred = computed-key forward-seam**); re-verified with
+the exploit counterexample.
+
+**✅ W1b-core (8-slot skeleton + 20 CRUD/read verbs + authority matrix) LANDED-uncommitted, security+code
+verified + gate-finalized.** 103 tests. **security-executor FOUND+FIXED a cross-tenant WRITE IDOR:**
+updateWidget/deleteWidget/editJournalEntry/deleteJournalEntry wrote by a caller-supplied id with NO
+`gameId` predicate (host-of-A could rewrite game-B rows) → `and(eq(id),eq(gameId,game.id))` + leak-free
+NotFound + a two-game exploit-drive test; rest of the authz model CONFIRMED sound. code-verifier CONFIRMED
+the verb logic. Finalized through the whole-tree gates: verbs → group subdirs (each file exports
+`create<Verb>`) + per-verb mirror tests; `.suite` reserved for cross-cutting (authority · swipe-consistency).
+
+**✅ W1b-integration — LANDED-uncommitted, verifier CONFIRMED (8/8), whole-tree `pnpm check` FULLY GREEN
+(0 reds) + full `pnpm test` battery GREEN (vitest 7558/0 · CT 1453/0 · 0 flakes). The W1a+W1b-core+
+W1b-integration tree is fully green — gate-legal, verified, ready for W1c (the only remaining stint).** gather +
+`buildLiteReminder` + `ChatRpgOps` runtime + `setRpgPointer` + the extractionMode branch + readonly-axis,
+landed-uncommitted. Homes: rpg `chat-ops/{index,gather,flush,tracker-view}.ts` (a subsystem, NOT `verbs/`
+— the cross-verb-value-import ban) + `substrate/{reminder,readonly-axis}.ts`; chat
+`verbs/set-rpg-pointer.ts`. **`runExtraction` seam APPROVED** (orchestrator): `(input:{chatId, gameId,
+turnId, messageId, variantId, baseState}) => Promise<RpgStateDelta>` — `narrationText` DROPPED (W1c's IMPL
+reads the beat via connection; rpg supplies base state + the message ref only, staying out of
+message-content reads). Empty delta → stages nothing → no redundant snapshot. Narrator-mint content stays
+`""` (internal state-carrier, not a scene beat). Branch: cheap+writable → tool-names + guidance-ON;
+reliable → no-tools + extraction-at-commit; readonly → no-tools/extraction but the reminder STILL injects
+(no silent downgrade). `setRpgPointer` = the WRITE runtime only (metadata arm/parser/projection were W0).
+**RpgContext seam W1c wires:** `getMembership` · `setPointer`(→`set-rpg-pointer.ts`) · `resolveRoster` ·
+`postNarratorMessage` · `resolveTrackersReadOnly`(pure `deriveTrackersReadOnly` + connection I/O) ·
+`runExtraction`. **W1c gains: run the extraction IMPL** (structured-output schema + connection/model call
+reading the beat by `messageId`) + the tool DEFS + bus + compose + composed-real int test → COMMIT W1.
+
+**🔄 W1c — SPLIT a/b; owner ruled HOLD the single atomic W1 commit until here (not per-stint).**
+**✅ W1c-a DONE — check + full battery GREEN (vitest 7593/0 · CT 1453/0 · 0 flakes), verifier CONFIRMED
+(gate bites its real shape).** Landed: the 7 D48 tool defs (`domain/rpg/tools/`) + the extraction schema
+(`contracts/rpg/extraction.ts`, DERIVED from the tool arg schemas — proven) + the live-only bus
+(`domain/rpg/bus.ts` module singleton + `contracts/rpg/bus.ts` union/belt + `transport/trpc/routers/rpg.ts`
+`rpg.stream` + client `RPG_BUS_FILTERS`). NEW gate `rpg-bus-coverage` (count 150→151) with the full ritual:
+inline proof + registry row + `__g_rpgbus.ts` STALE fixture (all 5 members DEFERRED → producers land in
+W1c-b). `rpg.stream` EXEMPT in the cross-tenant sweep (subscription, per-yield chat-membership gate,
+`chat.streamMessages` precedent). **LESSON: gate-file + transport-proc adds red the BATTERY not `check`
+(`check-gates.int` + `cross-tenant-sweep.suite` ride `pnpm test`) — verify gate/proc waves with `pnpm test`.**
+**✅ W1 VERTICAL CODE-COMPLETE + FULLY VERIFIED + LEDGER LANDED — COMMIT STAGED, HELD FOR OWNER GO
+(hold-for-W1c ruling; NEVER push).** Final state: whole-tree check GREEN + battery GREEN (vitest 7608/0
+· CT 1453/0/0-flaky) · verifier CONFIRMED all 4 stickler fixes · stickler IDOR class CLEAN. **Ledger
+landed** (`Core-Path-Registry.md`): **D86 re-minted VERBATIM** from legacy-main (reserved-range survivor,
+domain returned) + **D108 minted** (the retro lite carve + the extraction delivery-model amendment + the
+5 carve rulings) + header/blurb/reserved-note bumped + `d-citation-integrity` re-verify in flight.
+**Spec** got a no-born-seed change-log note (→ D108). **proposed/INDEX.md NOT touched** — per
+[[proposed-is-rebuild-reference-not-our-plan]], proposed/ is frozen main-era reference; D108 + this
+workboard are the retro authority. **CP-doc `Context-Panel-Program.md` §5 amendments DEFERRED to W3**
+(the CP-4 client wave — edit that blueprint when the client is built + mockup-converged + side-eye'd,
+not as part of a server commit; decisions already captured in D108 + spec change-log). **NEXT: on owner
+GO → single atomic W1 commit** (server code + tests + ledger + spec note + this workboard; Co-Authored-By
+trailer; commit-only, never push). Then W2 transport. — Stickler audit trail (now closed):
+Report: `reports/stickler/2026-07-26-w1-rpg-lite-vertical.md`.
+IDOR/cross-tenant class = CLEAN (the W1b game-scoping held; a real 2-game exploit drive reads victim rows
+back). The 3 confirmed (fixes dispatched to the warm domain executor, task #10; memory
+[[rpg-lite-state-loop-gotchas]] banked): **F1 HIGH** — `tools/apply.ts:105` fresh-pool mint `max=delta`
+→ a negative pool delta (`-3`) mints `max:-3` (contract `max>=1`), row COMMITS then read throws forever
+= canon poisoned (fix: sane mint `max(value,1)` + **validate-before-insert errors-as-data backstop**);
+**F2 HIGH** — `resolveActor` mints `cast:<name>` but `tracker-view.ts:94` reads roster refs → party
+writes are silent dead writes (fix: resolve name→roster key at apply time); **F3 MED** —
+`compose/rpg.ts:79` `hostUserIdOf` picks first-by-joinSeq not `role==="host"` → post-handoff resolves the
+wrong human's creds for the reliable extraction (D19 funding) (fix: resolve by role). MISSING TEST CLASS
+(the real gap): a flush→`getTrackerView` ROUND-TRIP w/ a negative delta + a roster-actor write — added
+in the fix. After fix → scoped-verify → re-run whole-tree check+battery → THEN ledger + commit.
+**Ledger/doc land (drafted: scratchpad `d108-draft.md`, gate-safe):** D86 verbatim re-mint + D108 mint +
+§5 CP-doc + proposed/INDEX.md → single atomic W1 commit (owner: hold-for-W1c, NEVER push, Co-Authored-By).
+Landed in W1c-b: **`entry/compose/rpg.ts`** (`buildRpg` → RpgContext
+[db · clock/ids/dice · the chat ops · emitBus→publishRpgEvent · resolveTrackersReadOnly · runExtraction] →
+createRpgService → {service, chatOps}; 7 tools registered into `toolUse`; wired in `services.ts` AFTER chat
+via a forward-ref delegate [crew precedent] so `input.rpg` reaches the live service). **`runExtraction` IMPL**
+= resolve host chat-role connection (`resolveHostPrincipal` + `connection.resolveRole({role:"chat"})`) →
+`executor.summarize` with `responseFormat = projectJsonSchema(rpgExtractionSchema)` → parse →
+`extractionToStateDelta` (reuses cheap appliers); non-conforming → empty delta (errors-as-data); FAKE
+executor/connection in tests, NO live model. **All 5 emits WIRED** → `deferred:{}` emptied →
+**`rpg-bus-coverage` MOVED to `UNFIXTURABLE_GATES` + `__g_rpgbus.ts` DELETED** (bus-coverage twin posture;
+STALE stays proven by user-bus-coverage). **NEW chat op built: `resolveRoster`** (`domain/chat/verbs/
+resolve-rpg-roster.ts` — the 4th op RpgContext needs; compose-wiring silently required a new chat verb, the
+tell was rpgChatOps exposing only 3/4). **Composed-real int test** (`tests/server/entry/compose/rpg.int.test.ts`):
+cheap turn (REAL createServices → real `update_scene` via `app.toolUse` → real flush → state + bus emit through
+the real `publishRpgEvent`) + reliable turn (real `runExtraction` w/ fake executor → parse → stage → flush).
+`rpg` added to the `Services` bundle (W2 router reachability). **NEXT after verify: ORCHESTRATOR lands the
+ledger/doc deltas** (D86 re-mint · D108+ from the RULINGS below · §5 CP-doc amendments · proposed/INDEX.md rpg
+row) → then the single atomic W1 commit (owner: hold-for-W1c). The 7 plane shapes authored ONCE, exposed two ways — D48 tool defs (cheap) + the extraction
+structured-output schema (reliable) — + bus (re-land the union WITH its belt set, G11) + compose (wire the
+injected ops + `runExtraction` + the connection/model call) + the **composed-real int test** (the proof)
+→ **COMMIT W1** (re-mint D86 verbatim; mint **D108+** for the carve + amendment rulings; apply the §5
+CP-doc deltas). Then W2 transport (EVERY proc cross-tenant-sweep PROBED) → W3 the CP-4 lite takeover
+client (Context-Panel program, mockup-first vs `reports/design-refs/rpg-shell-mockup-v2.html`, side-eye
+AFTER convergence).
+
+**═══ THE DELIVERY-MODEL AMENDMENT (owner sign-off 2026-07-26 — in the spec change log) ═══**
+State extraction is a turn SEPARATE from narration, KNOB-gated: `config.extractionMode:
+"reliable"(default) | "cheap"`. **reliable** = a dedicated post-narration structured-output extraction
+turn (state PROVEN to land — the program thesis). **cheap** = inline state-tools on the character turn,
+best-effort, honestly labeled (dodges the agent-sdk parallel-tool loss, pain-points §5). Honest-arms keys
+on the RESOLVED mode's capability (cheap→`tools`, reliable→`output.structured`); absent → warn +
+**manual-steering** (host hand-edits every plane; still steers via the injection; NO silent
+mode-downgrade). W1a invariant; W1b branches the gather; W1c authors the plane shapes once, two ways.
+
+**═══ RULINGS THIS SESSION (record at W1 land / the D108+ mint) ═══**
+- **No-born-seed:** `createGame` stores NO snapshot; the reads synthesize the default from config when the
+  ladder returns undefined — keeps `rpg_snapshots.message/variant` FKs non-nullable (no schema change, no
+  baseline regen). Amends spec §2.4/§4.4 ("seeds the born snapshot" → "rung-4 synthesizes the
+  born-default"). Pinned by a no-drift byte-identity test.
+- **Cross-tenant write-boundary rule:** by-id host verbs MUST re-scope the id to the resolved game
+  (`gameId` predicate), NotFound-not-Forbidden — copy `restoreCheckpoint`'s pattern (the IDOR class; a
+  90-test-green suite missed it — the security lens caught it).
+- **Turnless narrator-mint:** a hand-edit on a turnless game mints a narrator slot to key the first
+  snapshot; content currently `""` vs restoreCheckpoint's `"— scene restored —"` — a W1b-integration UX call.
+- **Verb/test structure:** group subdirs + per-verb mirror tests; `.suite` only for cross-cutting.
+- **Loop reminder:** stints verify SCOPED; the ORCHESTRATOR runs the whole-tree check (it catches what
+  scoped lanes can't — the IDOR, verb-naming, cross-graph types, inline-types all surfaced there, never in
+  the lane). Two lenses on the load-bearing stint: `security-executor` (authz/trust boundary) + `verifier`.
 
 **Already landed for this program:** the CP-3 tracker block kit — commit `afb3d383` — seven blocks
 (`client/src/components/tracker-blocks/`, editable-in-place is the DEFAULT posture, read-only arm =

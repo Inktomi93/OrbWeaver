@@ -34,6 +34,8 @@ import type {
   PresenceReadOp,
   PromptTransformRegistry,
   RequestTurnOp,
+  ResolveRpgRoster,
+  SetRpgPointer,
   TurnMessage,
   TurnRequest,
   TurnStreamChunk,
@@ -48,6 +50,8 @@ import {
   createGetPendingUserText,
   createPostNarratorMessage,
   createPromptTransformRegistry,
+  createResolveRpgRoster,
+  createSetRpgPointer,
   getGroupConfig,
   getRoomOverrides,
   parseChatMetadata,
@@ -202,6 +206,14 @@ export interface ChatComposeResult {
     readonly getMembership: GetMembership;
     readonly postNarratorMessage: PostNarratorMessage;
     readonly getPendingUserText: GetPendingUserText;
+    /** The opaque pointer write (rpg-design/05 §3.1) — `createGame` calls it once. */
+    readonly setRpgPointer: SetRpgPointer;
+    /** The roster projection (rpg-design/05 §4.3) — the tracker view's roster ∪ sheets source. */
+    readonly resolveRpgRoster: ResolveRpgRoster;
+    /** The chat's PRESENT host userId (role='host', D19) — the human the reliable extraction resolves its
+     *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
+     *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
+    readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
   };
   /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
    *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -891,6 +903,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       getMembership: createGetMembership(chatCtx),
       postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent }),
       getPendingUserText: createGetPendingUserText(chatCtx),
+      setRpgPointer: createSetRpgPointer(chatCtx),
+      resolveRpgRoster: createResolveRpgRoster(chatCtx),
+      resolveHostUserId: resolveChatHostUserId,
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
