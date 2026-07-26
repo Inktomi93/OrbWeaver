@@ -1,0 +1,147 @@
+// Composition seam for the imagery domain (chat-facing image gen, prompt-template modes, `/imagine`). Owns no
+// business logic — it wires imagery's injected ops onto the already-built sibling front doors (connection role
+// resolve, the infra executor, assets store/read, character card reads over a synthetic host principal, the
+// summarize role client) and registers the D48 `generate_image` tool into the ONE tool-use registry.
+//
+// FORWARD-REF: `resolveViewerVisibility` is built AFTER chat (the keystone's chat compose block) but is
+// forward-referenced by the `extractQuiet` membrane gate here. It is threaded as a late-bound getter (the
+// keystone hands a thunk that derefs the const once chat has composed) — the same late-bind discipline the
+// keystone's `materializeBackground`/`enqueueEmbedReindex` holders use to break a genuine construction cycle.
+
+import type { Principal } from "@orb/contracts/identity";
+import type { BatchStmt, Db } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
+import type { AssetsService } from "#domain/assets";
+import type { CharacterService } from "#domain/character";
+import type { ResolveViewerVisibility } from "#domain/chat";
+import { createExtractQuiet } from "#domain/chat";
+import type { ConnectionService } from "#domain/connection";
+import type { ImageryService, ImageryWarning } from "#domain/imagery";
+import { createImageryService, imageryToolDefinitions } from "#domain/imagery";
+import { applyStatsDelta } from "#domain/stats";
+import type { ToolUseService } from "#domain/tool-use";
+import { fetchImageBytes } from "#infra/network";
+import type { ProviderExecutor, RoleClientsWithSignal } from "#infra/providers";
+import { minter } from "./minter";
+
+/** The infra `WarningCode` members that are imagery's concern (mapped onto `ImageryWarning` at the generateImage
+ *  op): the whole edit strip (`image_edit_dropped`). The resolve-chat knob codes (sampling/effort/etc.) are not
+ *  imagery's and drop. A guard (not a bare `Set.has`) so `w.code` narrows to `ImageryWarning["code"]` — the
+ *  mapped result then satisfies the domain result type. */
+const IMAGERY_WARNING_CODES = new Set<string>(["image_edit_dropped"]);
+function isImageryWarningCode(code: string): code is ImageryWarning["code"] {
+  return IMAGERY_WARNING_CODES.has(code);
+}
+
+/** What the imagery seam needs from the composition root. `resolveViewerVisibility` is the late-bound
+ *  forward-ref (built after chat); the keystone threads it as a getter so the cycle stays broken. */
+export interface ImageryComposeDeps {
+  readonly db: Db;
+  readonly now: () => number;
+  readonly connection: Pick<ConnectionService, "resolveRole">;
+  readonly executor: Pick<ProviderExecutor, "generateImage">;
+  readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes">;
+  readonly character: Pick<CharacterService, "getCard" | "get">;
+  readonly roleClients: Pick<RoleClientsWithSignal, "summarize">;
+  readonly maxImageBytes: () => number;
+  /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
+   *  `extractQuiet` gate — never during boot. */
+  readonly resolveViewerVisibility: ResolveViewerVisibility;
+  readonly toolUse: Pick<ToolUseService, "register">;
+}
+
+export function buildImagery(deps: ImageryComposeDeps): ImageryService {
+  const { db, now, connection, executor, assets, character, roleClients } = deps;
+
+  // The synthetic host principal for the extraction shaper's card reads (the chat.ts hostPrincipal precedent —
+  // role-irrelevant getCard reads under the room host's ownership).
+  const imageryCardPrincipal = (userId: UserId): Principal => ({ userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" });
+
+  const imagery = createImageryService({
+    db,
+    now,
+    newGenerationId: minter(ID_PREFIX.imageryGeneration),
+    resolveGenerateImage: async (caller) => {
+      const conn = await connection.resolveRole({ role: "generateImage", principal: caller });
+      return { connection: conn, capability: conn.capability };
+    },
+    generateImage: async (req) => {
+      const result = await executor.generateImage(req);
+      // Map the infra runner's edit-strip belt warnings (`ResolvedWarning{code,message}`) onto the domain's
+      // `ImageryWarning{code,detail}` — imagery never imports `#infra` types. The image concern is the whole
+      // edit strip (`image_edit_dropped`); the resolve-chat knob codes (sampling/effort/etc.) are not imagery's
+      // and drop.
+      return {
+        images: result.images,
+        model: result.model,
+        usage: result.usage,
+        warnings: result.warnings.flatMap((w) => (isImageryWarningCode(w.code) ? [{ code: w.code, detail: w.message }] : [])),
+      };
+    },
+    // The provider URL is attacker-influenceable; safeFetch's total deadline bounds the body read (no
+    // unbounded slow-loris). `fetchImageBytes` accepts an optional caller/workload signal (3rd arg) — none
+    // flows through the imagery `fetchImage(url)` port today (it can't ride the zod wire params); threading
+    // a per-turn signal is a follow-up in the imagery/chat contracts.
+    fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
+    storeAsset: (caller, bytes, kind, mime) => assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
+    // The chat-owned quiet extraction shaper (imagery I1, doc 02 §2): chat windows recent canon + resolves
+    // {{char}}/{{user}}, then runs the summarize side-LLM. getCard adapts the ownerId shape via a synthetic
+    // host principal (the chat.ts hostPrincipal precedent — cards read under the room host's ownership).
+    // MEMBERSHIP GATE (cross-tenant-sweep-enforced): the shaper reads the chat's canon history, and
+    // `imagery.extractPrompt` is a CHAT-scoped op with no asset-owner join to gate on (unlike editImage/
+    // readProvenance) — so a non-member caller is refused with a leak-free NOT_FOUND BEFORE any history read.
+    extractQuiet: (() => {
+      const base = createExtractQuiet({
+        db,
+        summarize: roleClients.summarize,
+        getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
+      });
+      return async ({ caller, ...rest }) => {
+        // MEMBERSHIP *AND* THE FLOOR — one op, one answer. The old gate was `loadPresentRole !== null`
+        // (membership only), which admitted a `from-join`-clamped member and then let the extractor read the
+        // room's last rows unfloored: `imagery.extractPrompt` hands the model's distillation of those rows
+        // straight back on the wire, so a clamped caller could read a summary of canon their own
+        // `listMessages` withholds. `null` ⇒ the same leak-free NOT_FOUND as before.
+        const visibility = await deps.resolveViewerVisibility(rest.chatId, caller.userId);
+        if (visibility === null) {
+          throw new DomainNotFoundError("chat", rest.chatId);
+        }
+        return base({ ...rest, historyFloorSeq: visibility.historyFloorSeq });
+      };
+    })(),
+    // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
+    // lane (IC-B: runSummarize forwards images as multimodal content parts).
+    captionImage: async ({ instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
+      const res = await roleClients.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }]);
+      const item = res.items[0];
+      return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
+    },
+    // EC-B owner-gated byte read (the caller owns the asset it references).
+    readAsset: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId),
+
+    // character.get under the CALLER's ownership (imagery passes a real Principal) — the full CharacterDetail
+    // (avatarAssetId for B3/caption + the row's contentHash for the I3 identity hash). Throws
+    // CharacterNotFoundError on missing/foreign; imagery does not re-gate.
+    getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
+    recordStats: async (delta): Promise<void> => {
+      const batch: BatchStmt[] = [];
+      applyStatsDelta(batch, db, delta);
+      if (batch.length > 0) {
+        await db.batch(batchMany(batch));
+      }
+    },
+  });
+
+  // The D48 `generate_image` tool (imagery-design/04 §1) — registered into the SAME one registry buddy joined
+  // above (additive; rpg registers its own tools later). The handler closes over `imagery.generatePicture` and
+  // reads the acting principal + chat from the per-turn exec context. The automation arm (A6) is a separate
+  // consumer of the same op + schema.
+  for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
+    deps.toolUse.register(def);
+  }
+
+  return imagery;
+}

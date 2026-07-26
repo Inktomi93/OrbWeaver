@@ -170,7 +170,28 @@ lockstep · no live path-keyed gates). Runs SOLO like the chat/index split. God-
 recorded: turn.ts 1720 = one lifecycle, LEAVE; engine.ts 1303 = golden-tested product, LEAVE;
 preset/index 1407 = audit-ruled defensibly-one-module, leave until it hurts.
 
-**THEN:** F1 comment-drift sweep (after G2 lands — both touch contracts prose/code).
+**✅ THE services.ts SPLIT LANDED (all 5 nets green):** keystone 527 lines (over-target ACCEPTED —
+honest wiring beats indirection) + 8 seam files + shared minter.ts; automation+plugin MERGED (one
+file — plugin reuses automation's live op objects + the shared subscriber registry); mirror test
+STAYED byte-identical (every test exercises createServices through the front door — subject didn't
+move); all three late-bind threads timing-verified; the compatible-type wrong-binding hunt came up
+EMPTY. Mid-flight rewrite drift was course-corrected live (derive-never-hand-roll · zero incidental
+rewrites · ugly-threading = wrong carve); the lane then caught/reverted its own randomUUID
+substitutions. Stickler (report: reports/stickler/2026-07-25-services-split-review.md) confirmed
+region-by-region equivalence with 3 findings, ALL RESOLVED pre-commit: knip'd PortabilityChatSlice
+un-exported · the inline import() type → top-level import · the two undeclared world-info wrappers
+DELETED (HEAD-form direct factory calls restored). Bar: check green · vitest 7279/0 · CT 1378/0
+ZERO flakes (both root-fixes held again).
+
+**CLOSING QUEUE (the last workboard items before the LITE-RPG + POLISH program):** ① tsx →
+devDependencies (the Gemini "favor" at package.json:70, commit 4f5073ec — a runtime dep the private
+monorepo root cannot need) + a root-deps-must-be-empty check so the class dies ② F1 comment-drift
+sweep (contracts prose describing purged domains as live — mech sweep, purge list in hand) ③ G3
+sibling-deep-import depcruise arm (audit F9; PROBE FIRST — legal intra-contracts sibling imports
+must not trip) ④ STREAM_SCROLL_MODES re-home to kit (G2's reach-guard tension) ⑤ the jscpd
+kit-candidates LENS (owner concept: low-threshold CPD, server↔client cross-corpus pairs only,
+advisory-never-gate, hits classified contracts-candidate vs kit-candidate; devDependency; first-run
+report committed as a cited record).
 
 **PUSH POSTURE (owner, 2026-07-25): commit-only — do not push; don't ask again.** Nothing pending
 on the owner right now.
