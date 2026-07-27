@@ -9,7 +9,7 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useAuthConfig, useInvalidation, useUserBus } from "#data";
+import { useAuthConfig, useInvalidation, useRpgBus, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
@@ -42,6 +42,14 @@ export function AppRoot(): ReactElement {
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
   const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+
+  // The per-game live event stream (Context-Panel-Program §4.9), mounted here (never in a feature, which
+  // could unmount and drop the freshness driver) and keyed to the active committed chat. `null` (a draft or
+  // no chat) detaches; a non-game chat's stream is an idle member-gated relay (no rpg events ever fire).
+  useRpgBus(activeChatId, {
+    invalidateRpg: invalidation.invalidateRpg,
+    gapHealRpg: invalidation.gapHealRpg,
+  });
 
   const routeAnnouncement = ((): string => {
     if (activeSection === "chats") {

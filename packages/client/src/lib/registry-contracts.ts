@@ -16,6 +16,12 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
 
+/** Which of the two-strip bracket a CONTEXT tab belongs to (Context-Panel-Program §4.2). `"game"` = the
+ *  state row ABOVE the viewport; `"meta"` = the administration row BELOW it. The bracket renders ONLY when
+ *  ≥1 resolved tab is `"game"` — a set with all `"meta"` tabs (every standard section today) is the single
+ *  top strip, byte-identical to the pre-bracket panel (§4.2 last bullet, the backward-compat floor). */
+export type ContextTabStrip = "game" | "meta";
+
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
  *  published by the host (never `any`/`unknown`/a loose index signature; O5 strict). A `void` host has
  *  no shared context state, so `when`/`body` take no argument. */
@@ -30,14 +36,39 @@ export interface ContextTabDef<S> {
   /** Absent = always visible. THE dynamic axis — subsumes chat's isHost/group/member conditionals. */
   readonly when?: (state: S) => boolean;
   readonly body: (state: S) => ReactNode;
+  /** The bracket assignment (Context-Panel-Program §4.2). Absent ⇒ `"meta"` (the bottom/administration
+   *  strip) — so an untouched section stays single-strip. Only a `"game"` tab summons the bracket. */
+  readonly strip?: ContextTabStrip;
+  /** A changed-since-viewed marker (§4.6): a truthy boolean ⇒ a corner dot; a number \> 0 ⇒ a count. `null`
+   *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
+   *  the active tab (the strip suppresses it). */
+  readonly badge?: (state: S) => number | boolean | null;
+  /** PHASE disable-with-reason (§4.6): a non-null string ⇒ the tab renders `aria-disabled` + `title=<reason>`
+   *  + a lock glyph + reduced opacity, but stays focusable-discoverable (never `disabled`). `null` ⇒ enabled.
+   *  Resolved at resolve-time against `S` (same as `when`). */
+  readonly disabledReason?: (state: S) => string | null;
+  /** The CONTEXT-panel BAND identity a CONTRIBUTOR supplies (Context-Panel-Program §4.2/§4.11 #3) — the
+   *  scene-banner + pool-orbs header that must ride the `.shell-panel-header` band ABOVE both strips, NOT
+   *  inside a tab body. A contributor (rpg) can't reach the host's `spec.header`, so it declares its band
+   *  content HERE, gated by this tab's OWN `when` (the same game-ness gate as the tab). At resolve time the
+   *  FIRST `when`-passing contributor tab that carries a `header` supplies `ResolvedContextTabs.header`,
+   *  overriding the host's own header while the takeover is active (a game chat's own chat header is the
+   *  neutral band by CP-1 de-dup, so nothing is lost). Self-contained: the body reads its own domain data,
+   *  exactly like {@link ContextTabDef.body}. Absent ⇒ this tab contributes no band content. */
+  readonly header?: (state: S) => ReactNode;
 }
 
-/** What the shell renders for one tab — `S` already applied. */
+/** What the shell renders for one tab — `S` already applied. `strip` is always present (defaulted to
+ *  `"meta"` at resolve time); `badge`/`disabledReason` carry the RESOLVED values (`badge(state)` /
+ *  `disabledReason(state)` already called), so the renderer is state-blind. */
 export interface ResolvedContextTab {
   readonly id: string;
   readonly label: string;
   readonly icon?: LucideIcon;
   readonly node: ReactNode;
+  readonly strip: ContextTabStrip;
+  readonly badge: number | boolean | null;
+  readonly disabledReason: string | null;
 }
 
 /** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order.
@@ -84,16 +115,21 @@ export interface ContextTabsSpec<S> {
  *  declared order, mapped to the already-applied `ResolvedContextTab` shape. Exported for the unit test
  *  (M3.3) — `S` is confined to this one parametric function. */
 export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): ResolvedContextTabs {
-  const own = spec.tabs;
-  const contributed = spec.contributors?.list() ?? [];
-  const all = [...own, ...contributed];
-  const tabs: ResolvedContextTab[] = [];
-  for (const tab of all) {
-    if (tab.when?.(state) ?? true) {
-      tabs.push({ id: tab.id, label: tab.label, node: tab.body(state), ...(tab.icon === undefined ? {} : { icon: tab.icon }) });
-    }
-  }
-  return { tabs, actions: spec.actions?.(state), header: spec.header?.(state) };
+  const active = [...spec.tabs, ...(spec.contributors?.list() ?? [])].filter((tab) => tab.when?.(state) ?? true);
+  const tabs: readonly ResolvedContextTab[] = active.map((tab) => ({
+    id: tab.id,
+    label: tab.label,
+    node: tab.body(state),
+    strip: tab.strip ?? "meta",
+    badge: tab.badge?.(state) ?? null,
+    disabledReason: tab.disabledReason?.(state) ?? null,
+    ...(tab.icon === undefined ? {} : { icon: tab.icon }),
+  }));
+  // The host's own band identity is the baseline; a `when`-passing CONTRIBUTOR header (rpg's scene banner)
+  // OVERRIDES it while active (§4.2/§4.11 #3 — the takeover owns the band). First active contributor header
+  // wins; the host header shows when none is active (a game chat's own chat header is the neutral band).
+  const contributedHeader = active.find((tab) => tab.header !== undefined)?.header?.(state);
+  return { tabs, actions: spec.actions?.(state), header: contributedHeader ?? spec.header?.(state) };
 }
 
 /** THE mint (§6b) — pairs a projection hook with its tabs/contributors, closed over by a named

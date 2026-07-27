@@ -283,11 +283,11 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
 });
 
 // ── The RPG-bus half (§4.9 feature-root game bus): the THIRD exhaustive event→filter contract ─────
-// LIVE-ONLY like the user bus. In W1c-a every `RPG_BUS_FILTERS` handler returns `[]` — the rpg VERB tRPC
-// procs (`trpc.rpg.getTrackerView`/…) land in W2, so the map's SHAPE is what ships now (the G11 consumer-
-// exhaustiveness belt); the real filters wire in W2. This pins: the map is EXHAUSTIVE over `RpgBusEvent["type"]`
-// (a new member fails tsc in `RPG_BUS_FILTERS` until it names its reads), `invalidateRpg` dispatches every
-// member without throwing, and — the W2 forward-seam — nothing is invalidated yet (the honest `[]`).
+// LIVE-ONLY like the user bus. W3b WIRED the `RPG_BUS_FILTERS` handlers to the real rpg reads (`trpc.rpg.
+// getTrackerView`/`getGame`/`getConfigView`/`listJournal`), so this pins: the map is EXHAUSTIVE over
+// `RpgBusEvent["type"]` (a new member fails tsc in `RPG_BUS_FILTERS` until it names its reads), `invalidateRpg`
+// dispatches every member without throwing, and each event marks its own reads stale (snapshotPatched→tracker,
+// gameChanged→game+config). `gapHealRpg` (the reconnect blanket) marks every read the open game covers.
 // A REAL minimal `RpgBusEvent` per type — no cast, no fabrication (the members carry only `type` + `chatId` +
 // an optional/required branded id, so a real literal satisfies the type exactly). Total over the union: a new
 // member fails `tsc` here until it names a real event, mirroring the `RPG_BUS_FILTERS` mapped type.
@@ -299,6 +299,18 @@ const RPG_EVENTS: Record<RpgBusEvent["type"], RpgBusEvent> = {
   journalChanged: { type: "journalChanged", chatId: CHAT_ID },
 };
 
+// The rpg reads any `RPG_BUS_FILTERS` entry can touch (one per read the map names). EXHAUSTIVE over
+// `RpgBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it invalidates.
+const RPG_TRACKED_KEYS = ["game", "tracker", "config", "journal"] as const;
+type RpgTrackedKey = (typeof RPG_TRACKED_KEYS)[number];
+const RPG_EXPECTED: Record<RpgBusEvent["type"], readonly RpgTrackedKey[]> = {
+  gameChanged: ["game", "config"],
+  snapshotPatched: ["tracker"],
+  sheetChanged: ["tracker"],
+  questChanged: ["tracker"],
+  journalChanged: ["journal"],
+};
+
 describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
   test("invalidateRpg dispatches EVERY RpgBusEvent type without throwing (the belt is total)", () => {
     const { invalidateRpg } = setup();
@@ -307,16 +319,47 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
     }
   });
 
-  test("W1c-a forward-seam: the rpg filters are empty (the verb procs land in W2), so nothing is marked stale", () => {
-    const { invalidateRpg, queryClient, trpc } = setup();
-    // A chat read the rpg panel does NOT drive yet — proving the rpg bus touches nothing in W1c-a. No seed is
-    // needed: an unseeded query reports `isInvalidated: false`, and every rpg filter returning `[]` means the
-    // dispatch marks nothing, so the read stays un-invalidated regardless.
-    const chatGet = trpc.chat.getChat.queryKey({ chatId: CHAT_ID });
+  test("the event→reads contract holds for EVERY RpgBusEvent type", () => {
+    const actual: Record<string, readonly RpgTrackedKey[]> = {};
     for (const type of RPG_BUS_EVENT_TYPES) {
+      // Fresh client per event so `isInvalidated` reflects THIS event, not a prior one's marks.
+      const { invalidateRpg, queryClient, trpc } = setup();
+      const keys: Record<RpgTrackedKey, readonly unknown[]> = {
+        game: trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
+        tracker: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
+        config: trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
+        journal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID }),
+      };
+      // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
+      // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
+      for (const key of Object.values(keys)) {
+        queryClient.setQueryData([...key], [] as never);
+      }
+
       invalidateRpg(RPG_EVENTS[type]);
+
+      actual[type] = RPG_TRACKED_KEYS.filter((k) => isInvalidated(queryClient, keys[k])).sort();
     }
-    expect(isInvalidated(queryClient, chatGet)).toBe(false);
+    const expected = Object.fromEntries(Object.entries(RPG_EXPECTED).map(([type, ks]) => [type, [...ks].sort()]));
+    expect(actual).toEqual(expected);
+  });
+
+  test("gapHealRpg (the reconnect blanket) marks every read the open game covers stale", () => {
+    const { gapHealRpg, queryClient, trpc } = setup();
+    const keys = [
+      trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
+      trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
+      trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
+    ];
+    for (const key of keys) {
+      queryClient.setQueryData([...key], [] as never);
+    }
+
+    gapHealRpg(CHAT_ID);
+
+    for (const key of keys) {
+      expect(isInvalidated(queryClient, key)).toBe(true);
+    }
   });
 });
 

@@ -18,6 +18,7 @@
   "packages/client/src/features/preset/components/guided-actions-section.tsx": 2,
   "packages/client/src/features/preset/components/preset-rename-dialog.tsx": 1,
   "packages/client/src/features/preset/components/variable-editor-dialog.tsx": 1,
+  "packages/client/src/features/rpg/components/rpg-scene-tab.tsx": 1,
   "packages/client/src/features/settings/lib/theme-contrast.ts": 1,
   "packages/client/src/features/workloads/lib/workloads-model.ts": 2,
   "packages/client/src/features/world-info/components/book-details-dialog.tsx": 1,

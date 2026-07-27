@@ -23,7 +23,7 @@ import type { ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
-import { Eye, FlaskConical, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect } from "react";
 import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel";
@@ -216,15 +216,21 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
 // BOTH (aria-label). A `showTrackers` flag adds the 5th tab (the Trackers-ceiling headroom pin); a fake
 // icon-LESS contributor tab proves an icon-less tab keeps its word unconditionally (never a nameless tab).
 
+/** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
+ *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */
+function resolvedTab(partial: Partial<ResolvedContextTab> & Pick<ResolvedContextTab, "id" | "label" | "node">): ResolvedContextTab {
+  return { strip: "meta", badge: null, disabledReason: null, ...partial };
+}
+
 const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [
-  { id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div> },
-  { id: "settings", label: "Settings", icon: Settings, node: <div>settings</div> },
-  { id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> },
-  { id: "injections", label: "Injections", icon: FlaskConical, node: <div>injections</div> },
+  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div> }),
+  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div>settings</div> }),
+  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> }),
+  resolvedTab({ id: "injections", label: "Injections", icon: FlaskConical, node: <div>injections</div> }),
 ];
-const CTX_TRACKERS_TAB: ResolvedContextTab = { id: "trackers", label: "Trackers", icon: MessagesSquare, node: <div>trackers</div> };
+const CTX_TRACKERS_TAB: ResolvedContextTab = resolvedTab({ id: "trackers", label: "Trackers", icon: MessagesSquare, node: <div>trackers</div> });
 // A contributor that set NO icon — must keep its word label at every container width (can't compress).
-const CTX_ICONLESS_TAB: ResolvedContextTab = { id: "iconless", label: "Iconless", node: <div>iconless</div> };
+const CTX_ICONLESS_TAB: ResolvedContextTab = resolvedTab({ id: "iconless", label: "Iconless", node: <div>iconless</div> });
 
 export interface ContextTabStripStoryProps {
   /** The container width (px) the strip's @container resolves against. */
@@ -246,6 +252,42 @@ export function ContextTabStripStory({ width, showTrackers = false, withIconless
   return (
     <div style={{ width }} data-testid="ctx-strip-container">
       <ContextTabsPanel tabs={tabs} />
+    </div>
+  );
+}
+
+// ── The two-strip bracket (context-tabs-panel.tsx, Context-Panel-Program §4.2/§4.6 — W3a) ────────────
+// A synthetic GAME+META tab set proves the generic bracket: two `.ctx-tab-strip` TabsLists (one root, one
+// selection crossing both), the §4.6 badge (dot + count, never on the active tab), and the §4.6 PHASE
+// disable-with-reason (aria-disabled + title, focusable-discoverable). No rpg import — the mechanism is
+// generic (W3b/W3c graft the real rpg tabs). A meta-only variant re-proves the single-strip backward-compat.
+
+const CTX_BRACKET_TABS: readonly ResolvedContextTab[] = [
+  // GAME strip (state, above the viewport).
+  resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game" }),
+  // A game tab carrying a boolean badge (the 6px changed-dot).
+  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game", badge: true }),
+  // A game tab carrying a COUNT badge (pending-proposals idiom).
+  resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div data-testid="ctx-body-game">game</div>, strip: "game", badge: 3 }),
+  // A PHASE-disabled game tab (the OSRS locked-tab pattern — the Map/MA-3 shape).
+  resolvedTab({
+    id: "rpg.map",
+    label: "Map",
+    icon: Flag,
+    node: <div data-testid="ctx-body-map">map</div>,
+    strip: "game",
+    disabledReason: "Maps unlock with the map arc (MA-3)",
+  }),
+  // META strip (administration, below the viewport).
+  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
+  resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
+];
+
+/** The bracket at a fixed width — two strips, one selection, badges + a disabled tab. */
+export function ContextBracketStory({ width = 291 }: { readonly width?: number }): ReactElement {
+  return (
+    <div style={{ width }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={CTX_BRACKET_TABS} />
     </div>
   );
 }

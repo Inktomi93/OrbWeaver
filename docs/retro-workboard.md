@@ -129,9 +129,65 @@ existence oracle** (BAD_REQUEST to a NON-member) → split to leak-free NOT_FOUN
 (non-host member), matching `guard.ts` doctrine — a behavior change to committed W1 code, hence the
 verifier lens on it. New `contracts/rpg/inputs.ts` (DERIVED wire schemas) + mirror test; `| undefined`
 param/patch widening for exactOptionalPropertyTypes (drizzle `.set()` skips undefined = runtime-neutral,
-verifier confirming). `invalidation.ts` untouched (W3). **✅ W2 DONE — 3-lens green (check ✓ · battery
-7613/0 + CT 1453/0 ✓ · verifier CONFIRMED all 4 parts incl. the createGame leak-fix leak-free +
-guard.ts-consistent + drizzle undefined-skip proven at source). Committing now → then W3.**
+verifier confirming). `invalidation.ts` untouched (W3). **✅ W2 DONE + COMMITTED `9f9f15ce`** — 3-lens green
+(check ✓ · battery 7613/0 + CT 1453/0 ✓ · verifier CONFIRMED all 4 parts incl. the createGame leak-fix).
+
+**═══ W3 — CP-4 LITE CLIENT (IN FLIGHT) ═══** Orchestrator READ FIRST-HAND (owner-corrected 2026-07-26):
+full CP-doc `docs/architecture/Context-Panel-Program.md` §4 · the cohesion game plan `reports/rpg-lite-
+and-full-cohesion-game-plan.md` (D86 argument) · the mockup `reports/design-refs/rpg-shell-mockup-v2.png`
+(SEEN) · OSRS `osrs-fixed-interface.png` (SEEN). **The docs ALREADY decide what I nearly asked: §4.2 KEEP
+THE BRACKET (two strips, one selection — single-strip rejected); §3.2 EVERY BLOCK EDITABLE-IN-PLACE (read-
+only-first is the named "lite died" failure).** VERIFIED W2 IS TO SPEC — `views.ts` maps every §4.4 lite
+tab (Status/Sheet/Inventory/Scene→getTrackerView actors/ambient/cast/quests/widgets/recentBeats/poolOrbs/
+trackersReadOnly; mode→getGame; host editor→getConfigView incl. extractionMode; edit→15 mutations); the
+view contract itself cites §4.3/§4.5/§4.6. **Stints:** W3a = the shared §4.11 two-strip mechanism
+(`ContextTabDef.strip`+badge+disabledReason · `ContextTabsPanel` bracket · BACKWARD-COMPAT single-strip
+byte-identical) [✅ DONE scoped: 8/8 new CT + 96/96 no-regress, tc+biome green; whole-tree battery batched
+w/ W3b] → W3b = the FUNCTIONAL panel: `useRpgContextState` (gate `chat.rpg!==null`) + rpg game-strip
+contribution (4 lite tabs via `chatContextContributors` — MAY be first-of-kind, executor flags) + header
+banner/orbs + editable-in-place (CP-3 onEdit→mutations) + `use-rpg-bus.ts`→wire RPG_BUS_FILTERS [🔄
+executor `ae79bd06b9f218dbf`] — [🔧 FIX ROUND in flight: (A) ARCHITECTURE — rpg contributor must be
+SELF-CONTAINED, read pointer via cache-first `trpc.chat.getChat` (§12/line 43/163/268 lockdown law); REVERT
+the `CommittedChatContext.rpg` coupling; keep `ChatDetail.rpg` server view. (B) 6 gate reds scoped-lane
+missed: eslint rpg-scene-tab:50 · ct-no-oneshot-live-read-assert · feature-owns-definition · no-inline-types
+· no-test-fabrication ×4 invalidation.test · suppressions rpg-scene-tab:198] →
+**W3c = LAYOUT CONVERGENCE (owner feedback 2026-07-26 + §4.2 anatomy, snap-driven):** (1) PIN THE BRACKET —
+header+game-strip+viewport+bottom-strip; ONLY the VIEWPORT scrolls internally (`flex-1 min-h-0
+overflow-y-auto`, brackets `shrink-0`) — bottom meta strip must NOT get pushed off / scrolled-to (current
+bug; W3a CT ran in a fixed-height box so overflow never showed). (2) HEADER-BAND SEAM — scene banner+orbs
+ABOVE both strips (§4.2), not inside each tab body (needs a header-contributor mechanism extension, W3a-class).
+[✅ W3c BUILT + snaps reviewed by orch: header band above strips · bottom strip pinned · viewport scrolls
+· bigger OSRS cells · un-clipped meters · single-strip indicator fixed · backward-compat single-strip ·
+three-dots de-dup (removed Settings/Preview/Injections/Invite/Handoff/Leave — all have panel homes) · NO
+filler (grep-audited). Header-band SEAM = `ContextTabDef.header?` supplies `ResolvedContextTabs.header`
+(symmetric w/ owner slot, self-contained, no chat import) — orch APPROVED. **P1 RULING (owner 2026-07-26:
+"i think its fine"): ACCEPT the taller context vitals band on game chats — breaks north-star P1 "one shared
+horizon" for the takeover, scoped to `[data-panel-side=context]`; consistent w/ CP-doc §4.5 2-line band.**
+2 whole-tree reds in fix (motion-token-purity shell.css:342 · 2 stale chat-options-topbar CTs from the
+de-dup) → then final battery → side-eye → COMMIT W3.] (3) BIGGER/NICER OSRS tab buttons. (4) pixel convergence to
+`rpg-shell-mockup-v2.png`. (5) IA DE-DUP (owner rule 2026-07-26): if an option exists in the context
+panel it does NOT belong in the chat's three-dots/overflow menu — the PANEL is the one home. Audit the
+chat topbar "..." menu; strip anything duplicated as a panel tab/section (Members/Settings/Injections/
+Preview/Game/…). Applies to ALL chats (the standard panel has those tabs too), not just game chats.
+→ side-eye AFTER. + the OLD lite panel bodies (CP-3 kit:
+Status/Sheet/Inventory/Scene + header orbs + editable-in-place + read-only pill; MOCKUP-CONVERGED) → W3d =
+snap-vs-mockup converge + side-eye. **Deferred CP-doc §5 reconciliation rides W3** (§3.1 pointer mode-free
+· §6 Q6 wallet=first-class-built · my "6-tab" note was WRONG → 4 lite tabs). Open §6 owner items (surface
+as hit): grimstone theme ship/skip · orb pinning. **W4 (task #13, blocked by W3): exhaustive full-stack E2E driving REAL inference.**
+SHAPE (scout `a0c70d1ad6919610e`): NOT a new rig — new `@live`-tagged specs under `tests/e2e/**`, opt-in
+`E2E_LIVE=1 pnpm e2e <spec>` (default battery excludes `@live` via `grepInvert`), mirroring
+`tests/e2e/start-chat-with-character.spec.ts`. Drive the loop through the DOM (createGame → send msg →
+extraction/tools → CP-4 panel asserts) + cross-check SERVER TRUTH per hop via the `/api/_debug/*`
+observability surface (`packages/server/src/foundation/observability/debug/routes.ts`, admin-cookie or
+`x-debug-token`): **`/api/_debug/rpg/traces?chatId=&turnId=`** (the rpg flight recorder, gate `RPG_TRACE=on`)
+· `wire/captures` (raw LLM prompt bodies, gate `WIRE_CAPTURE=on`) · `db/chat/:id` · `traces` · `logs`.
+**GAP to close in W4:** `RPG_TRACE=on`/`WIRE_CAPTURE=on` are NOT in the e2e `stackEnv` (`playwright.config.ts:27-33`)
+— add them or the trace observability is silently starved. Engines LAZY/human-supervised launch
+(`stack.sh restart`); generation roles never fall back (real engine or honest fail) — CHECK engine status
+before a live spec. **SEED RULE (owner 2026-07-26): do NOT include the "Mara" character in any test that
+drives REAL inference — she destabilizes the model (weird output → flaky asserts). Use other characters
+for `@live` seeds. (Mara in a UI-render-only seed is fine — no inference.)** Loop-hop→observe map lives in the scout report. **COMMIT W3 first (checkpoint before
+contentious live-inference work).**
 
 _↓ W1c-b historical detail (committed in a9052b54) ↓_
 
@@ -217,6 +273,20 @@ role="meter" a11y model — co-homed so the tension stays visible; never mix), t
 
 ## ═══ THE LOOP (standing law) ═══
 
+**UI-STINT ADDENDUM (owner directive 2026-07-26):** a CT proves behavior in an isolated fixed-width box —
+it does NOT prove the thing renders in our real context pane / geometry, or that it isn't reinventing a
+panel outside our system. EVERY UI stint (W3b/W3c/…) verifies LIVE with `pnpm snap <route> --out <name>`
+against the up stack (:5173 uncommitted): confirm (a) it's inside the REAL `ContextTabsPanel` bracket +
+fixed-width CONTEXT column + header slot (not bespoke/off-grid), (b) DEADCSS scan CLEAN (off-namespace
+utils = built outside our tokens), (c) structurally matches `reports/design-refs/rpg-shell-mockup-v2.png`.
+Orchestrator VIEWS the snap PNGs (`reports/snaps/`), not just the report. side-eye does the after-audit
+(live geometry/a11y/fugliness). To snap the rpg panel a game must exist (`chat.rpg!==null`) — seed via
+`createGame` on a demo chat. **NO PLACEHOLDER/FILLER CONTENT (owner 2026-07-26): every rendered datum
+flows from the live tRPC read — ZERO hardcoded names/numbers/beats/mock arrays to make a snap match the
+pretty mockup; empty planes show the HONEST empty state, never padded rows. The mockup is a LAYOUT target,
+not a content target. Audit: grep the components for content-literals-masquerading-as-code; whatever the
+mockup shows must come from EXTENDING THE SEED, not a literal.**
+
 Lane verifies SCOPED (its tests + per-package tsc + biome on its files; whole-tree gates are
 BANNED in lanes) → the orchestrator runs `pnpm check` + `pnpm test` on the QUIESCED tree and READS
 the artifacts (`reports/verify.json` · `test-report.json` · `ct-report.json` · `ct-flaky.json` —
@@ -225,6 +295,15 @@ check-gates.int / check:structure while the battery runs — the `__g_` fixture 
 [shared-tree-contention-protocol] rule 10) → findings route back to the WARM lane → commit on
 green → next wave. Commit messages end with the Co-Authored-By trailer. **Commit-only; NEVER push;
 never ask about pushing.**
+
+## ═══ AUTONOMY PROTOCOL (owner 2026-07-26: "keep driving and refining") ═══
+- **Autonomous refine mode:** drive rpg-lite to completion + continually test/improve; observe EVERY part.
+- **LLM engines NOW USABLE** (ComfyUI GPU work done) — tests may drive REAL model inference (extraction turns,
+  the tool loop). W4 E2E becomes genuinely full-stack (frontend+backend+LLM), not UI-only.
+- **Use the EXISTING full-stack-observability E2E tool** (find it — NOT a from-scratch Playwright rig).
+- **Hard questions → ask `fable` (Fable-5 agent) or check docs** — don't stall on the owner.
+- **COMMIT as a checkpoint BEFORE anything possibly contentious, then do it** (safe restore point).
+- **Keep THIS doc updated as work proceeds** (compact-safety).
 
 ## ═══ STANDING FACTS & ENVIRONMENT ═══
 

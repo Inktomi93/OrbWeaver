@@ -38,6 +38,7 @@ import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
+import { makeRpgContextTabs } from "#features/rpg";
 import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
@@ -100,10 +101,20 @@ globalThis.addEventListener("vite:preloadError", () => {
 
 const queryClient = createAppQueryClient();
 const trpcClient = createTrpcClient();
+// The door's `trpc` OPTIONS proxy — the cross-domain read channel a contributor is injected (§12): it lets
+// rpg read `chat.getChat` CACHE-FIRST (game-ness) without importing chat's client (used by the agent bridge
+// below too).
+const trpcProxy = createTrpcProxy(trpcClient, queryClient);
 
-// The chat-context contributor seam (§6c): EMPTY but typed at M3 — the door → factory → mint → resolve
-// → render path is compiled and exercised with zero contributions; M8 only appends array members.
-const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
+// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs (Context-Panel-Program
+// §4.4) — the FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
+// ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
+// the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
+// `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
+const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>(
+  "chat-context",
+  makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
+);
 
 // The chat-surface contributor seam (§6c/M8): EMPTY but typed — the door → factory → 3 anchors path is
 // compiled and exercised with zero contributions; rpg/crew append array members later.
@@ -287,4 +298,4 @@ createRoot(rootEl).render(
 
 // Installed after render so the query cache exists and the readiness check observes the initial reads.
 installAppReadySignal(queryClient);
-installAgentDebugHandle(queryClient, buildAgentNav(createTrpcProxy(trpcClient, queryClient), queryClient));
+installAgentDebugHandle(queryClient, buildAgentNav(trpcProxy, queryClient));

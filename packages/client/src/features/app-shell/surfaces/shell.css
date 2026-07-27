@@ -293,9 +293,25 @@
 }
 /* Content↔Context binding (north-star §4 N4 / P4): the Context band carries a 2px ember top edge as an
  * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
- * border drop. Rides --color-primary, so a custom/seed theme retints it. */
+ * border drop. Rides --color-primary, so a custom/seed theme retints it.
+ *
+ * The CONTEXT band GROWS to fit a rich header (Context-Panel-Program §4.5 — the takeover's scene banner +
+ * pool orbs are two lines): `min-height` (not the fixed `height`) keeps the chrome-row horizon as the FLOOR
+ * for a normal chat's one-line band, but lets a game's banner+orbs stack expand. `align-items: stretch` +
+ * `block` padding frame the taller content; a normal single-line header still centers via the child's own
+ * layout. Scoped to the context side, so the LIST band + topbar keep the exact shared horizon (P1). */
 .shell-panel[data-panel-side="context"] .shell-panel-header {
   box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+  height: auto;
+  min-height: var(--dimension-chrome-row);
+  align-items: stretch;
+  padding-block: var(--spacing-row);
+}
+/* The context header's content fills the band width and stacks (the takeover header is a vertical Stack;
+ * a normal chat's neutral "Details" label is a single line — both lay out from the start edge). */
+.shell-panel[data-panel-side="context"] .shell-panel-header > * {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 /* Container-responsive CONTEXT tab strip (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 progressive
  * disclosure · §4b axis-1 @container — NEVER a viewport @media). The strip is the query CONTAINER; each
@@ -310,6 +326,29 @@
  * one-off. A tab with NO icon can't compress, so it keeps its label unconditionally (data-has-icon). */
 .ctx-tab-strip {
   container-type: inline-size;
+}
+/* OSRS icon cells (Context-Panel-Program §4.0/§4.7 — "chunky clickable icon cells", ≥32px tap targets).
+ * In the shell the strip is always icon-mode, so each tab is a chunky SQUARE cell with a resting surface,
+ * a clear hover fill, and an ember-tinted active fill (the OSRS active-tab tint) — not a bare underline.
+ * The cells sit flush in a row with a small gap; the sliding underline indicator still rides beneath.
+ * Overrides the tabs variant's `h-control-sm px-block` with a square control-md box. */
+.ctx-tab-strip [data-slot="tabs-tab"] {
+  block-size: var(--spacing-control-md);
+  /* A square floor in icon-mode (min = the box); in label-mode the revealed word grows the cell past it. */
+  min-inline-size: var(--spacing-control-md);
+  padding-inline: var(--spacing-field);
+  border-radius: var(--radius-control);
+  background: color-mix(in oklab, var(--color-sidebar-accent) 55%, transparent);
+  transition:
+    background var(--motion-fast) var(--ease-out-expo),
+    color var(--motion-fast) var(--ease-out-expo);
+}
+.ctx-tab-strip [data-slot="tabs-tab"]:hover {
+  background: var(--color-sidebar-accent);
+}
+.ctx-tab-strip [data-slot="tabs-tab"][data-active] {
+  background: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-accent));
+  color: var(--color-foreground);
 }
 /* Icon-mode floor: hide compressible labels; the icon carries the tab, tooltip/title + aria-label carry
  * the name. Labels of icon-less tabs (a contributor that set none) always show — never a nameless tab. */
@@ -348,6 +387,23 @@
 /* 5 = the Trackers ceiling (CP-1's max, never 6). ~35rem label-mode need. */
 .ctx-tab-strip[data-tab-count="5"] {
   @container (min-width: 35rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+/* 6–7 = the CP-4 bracket safety envelope (Context-Panel-Program §4.11 #5). A takeover GAME strip can carry
+ * up to 7 tabs; at the 26rem panel max it is ALWAYS icon-mode, so these thresholds (mirroring the +7rem/tab
+ * cadence) only reveal words in a wider game panel or a test container — never in the shell. */
+.ctx-tab-strip[data-tab-count="6"] {
+  @container (min-width: 42rem) {
+    [data-slot="tabs-tab"] .ctx-tab-label {
+      display: revert;
+    }
+  }
+}
+.ctx-tab-strip[data-tab-count="7"] {
+  @container (min-width: 49rem) {
     [data-slot="tabs-tab"] .ctx-tab-label {
       display: revert;
     }
