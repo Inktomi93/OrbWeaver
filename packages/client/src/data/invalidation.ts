@@ -6,6 +6,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
+import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
 import type { Trpc } from "./trpc";
@@ -28,6 +29,8 @@ export interface Invalidation {
   /** The rpg-bus half — routes an `RpgBusEvent` through `RPG_BUS_FILTERS` (the feature-root game bus,
    *  `rpg.stream`). Fire-and-forget. */
   readonly invalidateRpg: (event: RpgBusEvent) => void;
+  /** Gap-heal — on rpg-bus (re)connect for an open game, blanket-invalidate every read that game covers. */
+  readonly gapHealRpg: (chatId: ChatId) => void;
   /** Gap-heal — on user-bus (re)connect, blanket-invalidate every filter the user map covers. */
   readonly invalidateAllUserRoots: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
@@ -149,17 +152,31 @@ type RpgBusFilterMap = {
 };
 
 const RPG_BUS_FILTERS: RpgBusFilterMap = {
-  // → trpc.rpg.getGame + getConfigView (the takeover mode read + the host editor).
-  gameChanged: nothing,
-  // → trpc.rpg.getTrackerView (the whole panel re-resolves against the new resolved-current snapshot).
-  snapshotPatched: nothing,
-  // → trpc.rpg.getTrackerView (the Status/Sheet tabs).
-  sheetChanged: nothing,
-  // → trpc.rpg.getTrackerView (the Quests tab).
-  questChanged: nothing,
-  // → trpc.rpg.listJournal (the paged, lineage-filtered archive).
-  journalChanged: nothing,
+  // The game row itself changed (create/config/knob/mode) — the takeover mode read + the host editor refetch.
+  gameChanged: (e, trpc) => [trpc.rpg.getGame.queryFilter({ chatId: e.chatId }), trpc.rpg.getConfigView.queryFilter({ chatId: e.chatId })],
+  // A swipe-volatile snapshot was written — the WHOLE panel re-resolves against the new resolved-current
+  // snapshot (§4.9), so the single tracker aggregate refetches (every tab reads it).
+  snapshotPatched: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
+  // A per-actor identity sheet changed — the Status/Sheet tabs ride the same tracker aggregate.
+  sheetChanged: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
+  // The snapshot-resident quest plane changed — the Scene tab's goal lines ride the tracker aggregate.
+  questChanged: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
+  // A journal entry landed/changed — the paged, lineage-filtered archive refetches (Journal is full-only,
+  // but the listJournal read still invalidates for parity + the future lite→full graduation). Path-level (all
+  // pages) — the read is paged, so a page-keyed queryFilter would miss the other pages.
+  journalChanged: (_e, trpc) => [trpc.rpg.listJournal.pathFilter()],
 };
+
+/** Every rpg filter, for the (re)connect gap-heal (the `use-rpg-bus.ts` blanket invalidate) — the game +
+ *  tracker + config + journal reads for one open game, derived so a new read can't drift the heal set. */
+function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
+  return [
+    trpc.rpg.getGame.queryFilter({ chatId }),
+    trpc.rpg.getTrackerView.queryFilter({ chatId }),
+    trpc.rpg.getConfigView.queryFilter({ chatId }),
+    trpc.rpg.listJournal.pathFilter(),
+  ];
+}
 
 /** Every filter the user map covers — derived so a new member can't drift the gap-heal set. */
 function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
@@ -206,6 +223,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
     },
     invalidateAllUserRoots: (): void => {
       invalidateFilters(allUserRootFilters(deps.trpc));
+    },
+    gapHealRpg: (chatId): void => {
+      invalidateFilters(allRpgGameFilters(deps.trpc, chatId));
     },
     invalidateFilters,
   };

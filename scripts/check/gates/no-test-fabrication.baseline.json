@@ -1,5 +1,5 @@
 {
-  "tests/client/data/invalidation.test.ts": 6,
+  "tests/client/data/invalidation.test.ts": 8,
   "tests/client/features/settings/surfaces/settings-shell-surface.ct.tsx": 3,
   "tests/client/forms/create-saved-entity-form.test.ts": 1,
   "tests/db/schema/buddy.int.test.ts": 3,

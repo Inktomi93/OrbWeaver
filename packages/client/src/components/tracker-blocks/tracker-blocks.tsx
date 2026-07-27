@@ -53,7 +53,11 @@ export function MeterRow({ label, value, max, color = 1, dangerBelow, onEditValu
             {value}/{max}
           </Text>
         ) : (
-          <Row gap="field" align="baseline" className="w-avatar-hero">
+          // The value field sizes to ITSELF (a fixed `w-avatar-lg`, not `w-full` inside a fixed box — that
+          // collapsed the flex input to ~14px and clipped a 2-digit value's LEADING digit). `px-field` (over
+          // FIELD_CONTROL's wider `px-block`) + `text-right` hug the `/max` suffix without clipping. `shrink-0`
+          // on the whole cluster keeps the label from stealing its width (the W3c input-clip fix).
+          <Row gap="field" align="baseline" className="shrink-0">
             <TrackerValue
               ariaLabel={`${label} value`}
               display={String(value)}
@@ -64,7 +68,7 @@ export function MeterRow({ label, value, max, color = 1, dangerBelow, onEditValu
                   onEditValue(n);
                 }
               }}
-              className="w-full"
+              className="!w-avatar-lg px-field text-right tabular-nums"
             />
             <Text as="span" size="label" tone="muted" className="tabular-nums">
               /{max}

@@ -7,5 +7,7 @@ export { markTurnStopping, useChatBusDeps } from "./chat-bus-writes";
 export type { ChatEventSeqGuard } from "./chat-event-seq-guard";
 export { createChatEventSeqGuard } from "./chat-event-seq-guard";
 export { useChatBus } from "./use-chat-bus";
+export type { RpgBusDeps } from "./use-rpg-bus";
+export { useRpgBus } from "./use-rpg-bus";
 export type { UserBusDeps } from "./use-user-bus";
 export { useUserBus } from "./use-user-bus";

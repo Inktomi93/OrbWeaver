@@ -7,7 +7,7 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useAuthConfig, useTRPC } from "#data";
+import { useTRPC } from "#data";
 import { isCommitted, isLanding, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
 import { filterCharacters } from "../lib/roster";
 import { ChatOptionsMenu } from "./chat-options-menu";
@@ -33,21 +33,12 @@ export function ChatOptionsTopbar(): ReactElement | null {
  *  download, membership) renders DISABLED via `committed={false}`. */
 function DraftChatOptionsMenu({ draftKey }: { readonly draftKey: string }): ReactElement {
   const trpc = useTRPC();
-  const { data: authConfig } = useAuthConfig();
   const draftSeed = useActiveDraftSeed();
   const draftConfig = useDraftConfig(draftKey);
   const characterIds: readonly CharacterId[] = [...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])];
   const results = useQueries({ queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })) });
   const characters = results.flatMap((r) => (r.data === undefined ? [] : [{ characterId: r.data.id, name: r.data.name }]));
-  return (
-    <ChatOptionsMenu
-      committed={false}
-      title={draftSeed?.title ?? null}
-      characters={characters}
-      isHost={true}
-      multiHumanCapable={authConfig?.multiHumanCapable === true}
-    />
-  );
+  return <ChatOptionsMenu committed={false} title={draftSeed?.title ?? null} characters={characters} />;
 }
 
 /** Resolves the active chat's roster + server host gate (`viewerIsHost`) from the shared getChat query and
@@ -55,15 +46,6 @@ function DraftChatOptionsMenu({ draftKey }: { readonly draftKey: string }): Reac
 export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const { data: authConfig } = useAuthConfig();
   const characters = filterCharacters(chat?.participants ?? []).map((c) => ({ characterId: c.characterId, name: c.displayName }));
-  return (
-    <ChatOptionsMenu
-      chatId={chatId}
-      title={chat?.title ?? null}
-      characters={characters}
-      isHost={chat?.viewerIsHost === true}
-      multiHumanCapable={authConfig?.multiHumanCapable === true}
-    />
-  );
+  return <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={characters} />;
 }

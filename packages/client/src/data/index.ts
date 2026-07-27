@@ -6,8 +6,8 @@ export type { AuthMe } from "./auth-bootstrap";
 export { AUTH_ME_KEY, fetchAuthMe, login, logout } from "./auth-bootstrap";
 export type { AuthConfig } from "./auth-config";
 export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig, useUploadCaps } from "./auth-config";
-export type { ChatBusDeps, UserBusDeps } from "./bus/index";
-export { applyChatBusEvent, markTurnStopping, useChatBus, useChatBusDeps, useUserBus } from "./bus/index";
+export type { ChatBusDeps, RpgBusDeps, UserBusDeps } from "./bus/index";
+export { applyChatBusEvent, markTurnStopping, useChatBus, useChatBusDeps, useRpgBus, useUserBus } from "./bus/index";
 export type {
   CollectionSelection,
   CollectionSurface,
@@ -25,6 +25,7 @@ export type { TreeImportStarted } from "./import-tree";
 export { importTree, relativePathOf } from "./import-tree";
 export type { InvalidateFilter, Invalidation } from "./invalidation";
 export { createInvalidation } from "./invalidation";
+export { peekQueryData } from "./peek-query";
 export type { QueryBoundaryProps } from "./query-boundary";
 export { QueryBoundary } from "./query-boundary";
 export type { AppMeta } from "./query-client";

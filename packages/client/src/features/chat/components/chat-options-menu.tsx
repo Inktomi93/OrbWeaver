@@ -17,21 +17,18 @@
 // item still receives pointer/hover — verified in chat-options-menu.ct.tsx.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Crown, Download, Icon, Images, LogOut, MessagesSquare, Pencil, Trash2, UserPlus, X } from "@orb/ui/icons";
+import { Download, Icon, Images, MessagesSquare, Pencil, Trash2, X } from "@orb/ui/icons";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, RowActionsMenu } from "#components";
+import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import type { ChatContextTabId } from "#lib";
 import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY } from "#lib";
-import { committedChat, draftChat, enterSelectionMode, goToLanding, setContextTab, setPanelMode, startNewChat } from "#state";
+import { committedChat, draftChat, enterSelectionMode, goToLanding, startNewChat } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
-import { useSelfLeave } from "../hooks/use-membership-mutations";
 import { ImpersonateSubmenu } from "./impersonate-submenu";
-import { InviteDialog } from "./invite-dialog";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
 interface ChatOptionsCastMember {
@@ -47,24 +44,18 @@ export interface ChatOptionsMenuProps {
   readonly title: string | null;
   /** Seeds "New chat with same cast" and the per-character gallery entries. */
   readonly characters: readonly ChatOptionsCastMember[];
-  readonly isHost: boolean;
-  /** Gates the membership rows; single-user installs render none of them. */
-  readonly multiHumanCapable?: boolean;
 }
 
-export function ChatOptionsMenu({ chatId, committed = true, title, characters, isHost, multiHumanCapable = false }: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, committed = true, title, characters }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
-  const selfLeave = useSelfLeave({ trpc, invalidation });
   // A draft has no chatId; the guided fires early-return on a null chatId, so the menu items disable anyway.
   const guided = useGuidedActions({ handle: chatId === undefined ? draftChat("chat-options-draft") : committedChat(chatId) });
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [leaveOpen, setLeaveOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
 
   const characterIds = characters.map((c) => c.characterId);
@@ -90,19 +81,6 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
     updateTitle.mutate({ chatId, title: trimmed === "" ? null : trimmed });
     setRenameOpen(false);
   };
-  const confirmLeave = (): void => {
-    if (chatId === undefined) {
-      return;
-    }
-    void (async (): Promise<void> => {
-      try {
-        await selfLeave.mutateAsync({ chatId });
-        goToLanding();
-      } catch {
-        // The mutation's own errorToast already surfaced it; stay in the chat.
-      }
-    })();
-  };
   const confirmDelete = (): void => {
     if (chatId === undefined) {
       return;
@@ -116,11 +94,6 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
       }
     })();
   };
-  const openContextTab = (tab: ChatContextTabId): void => {
-    setContextTab(tab);
-    setPanelMode("context", "docked");
-  };
-
   return (
     <>
       <RowActionsMenu
@@ -180,45 +153,19 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
         <ImpersonateSubmenu disabled={!committed} reason={draftReason} onPick={(person): void => guided.fireImpersonate("", person)} />
 
         <MenuSeparator />
-        <MembershipItems
-          isHost={isHost}
-          multiHumanCapable={multiHumanCapable}
-          disabled={!committed}
-          reason={draftReason}
-          onInvite={(): void => setInviteOpen(true)}
-          onHandOff={(): void => openContextTab("members")}
-          onLeave={(): void => setLeaveOpen(true)}
-        />
-        {multiHumanCapable ? <MenuSeparator /> : null}
-        {/* Message selection needs canon rows — disabled on a draft. Overrides/Injections edit the DRAFT
-            config pre-commit (the context tabs are the unified draft twin), so they stay live either phase. */}
+        {/* IA de-dup (owner rule: an option that has a CONTEXT-panel home does NOT belong in the three dots).
+            Removed here because each is already a context-panel tab/section: Chat settings (Settings tab),
+            Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host / Leave
+            (all in the Members tab's roster admin). Message selection has NO panel home, so it stays. */}
         <MenuItem disabled={!committed} title={draftReason} onClick={enterSelectionMode}>
           Select messages…
         </MenuItem>
-        <MenuItem onClick={(): void => openContextTab("settings")}>Chat settings…</MenuItem>
-        {isHost ? (
-          <MenuItem disabled={!committed} title={draftReason} onClick={(): void => openContextTab("preview")}>
-            Preview request…
-          </MenuItem>
-        ) : null}
-        <MenuItem onClick={(): void => openContextTab("injections")}>Injections…</MenuItem>
 
         <MenuSeparator />
         <TrailingItems committed={committed} chatId={chatId} reason={draftReason} onRename={openRename} />
       </RowActionsMenu>
 
       <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
-
-      <ConfirmDialog
-        open={leaveOpen}
-        onOpenChange={setLeaveOpen}
-        title="Leave this chat?"
-        description="You'll lose access until someone invites you again. Your messages stay."
-        confirmLabel="Leave"
-        onConfirm={confirmLeave}
-      />
-
-      {isHost && multiHumanCapable && chatId !== undefined ? <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} /> : null}
 
       {galleryFor === null ? null : (
         <CharacterGalleryDialog
@@ -232,47 +179,6 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, i
           characterName={galleryFor.name}
         />
       )}
-    </>
-  );
-}
-
-interface MembershipItemsProps {
-  readonly isHost: boolean;
-  readonly multiHumanCapable: boolean;
-  /** Disabled (with a reason) on a draft — membership acts on a committed room. */
-  readonly disabled: boolean;
-  readonly reason: string | undefined;
-  readonly onInvite: () => void;
-  readonly onHandOff: () => void;
-  readonly onLeave: () => void;
-}
-
-/** The multi-human membership rows (invite / hand-off host / leave), extracted so the parent menu stays
- *  under the complexity ceiling. Single-user installs render none of them (`multiHumanCapable` false). */
-function MembershipItems({ isHost, multiHumanCapable, disabled, reason, onInvite, onHandOff, onLeave }: MembershipItemsProps): ReactElement | null {
-  if (!multiHumanCapable) {
-    return null;
-  }
-  return (
-    <>
-      {isHost ? (
-        <MenuItem disabled={disabled} title={reason} onClick={onInvite}>
-          <Icon icon={UserPlus} size="sm" />
-          Invite people…
-        </MenuItem>
-      ) : null}
-      {isHost ? (
-        <MenuItem disabled={disabled} title={reason} onClick={onHandOff}>
-          <Icon icon={Crown} size="sm" />
-          Hand off host…
-        </MenuItem>
-      ) : null}
-      {!isHost ? (
-        <MenuItem disabled={disabled} title={reason} onClick={onLeave}>
-          <Icon icon={LogOut} size="sm" />
-          Leave chat
-        </MenuItem>
-      ) : null}
     </>
   );
 }

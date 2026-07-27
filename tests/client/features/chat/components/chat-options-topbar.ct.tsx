@@ -1,11 +1,15 @@
 // CT: the active-chat options ⋯ as it renders at the END of the topbar TRAIL (chat-options-topbar.tsx).
-// Drives the production path over the stubbed network (routeTrpc): `chat.getChat` supplies the roster + the
-// server-resolved host gate (`viewerIsHost`). Asserts the host gate on the menu's host-only "Preview
-// request…" item: a member sees NO host affordance, a host does.
+// Drives the production path over the stubbed network (routeTrpc): `chat.getChat` supplies the roster.
 //
-// The host gate is the server-resolved, per-viewer `ChatDetail.viewerIsHost` — NOT the retired
-// first-human-seat proxy, which mis-granted host UI to a non-host member once a 2nd human was seated. The
-// member case seats a host FIRST to trip that old proxy and prove the server field wins.
+// IA de-dup (owner rule, W3c): every option that has a CONTEXT-PANEL home is GONE from the ⋯ menu —
+// Chat settings (Settings tab), Preview request (Preview tab), Injections (Injections tab), and Invite /
+// Hand off host / Leave (all in the Members tab). The menu therefore carries NO host-gated affordance
+// anymore: it renders the IDENTICAL item set to a host and a member (the host gate moved WITH the
+// affordances to the panel). The former host-gate assertion here (host-only "Preview request…", and the
+// server-`viewerIsHost`-wins-over-first-seat-proxy probe that used it) is now covered where the affordance
+// lives — `chats-section.ct.tsx` ("member loses the Preview tab" + "migrated tabs obey the server host
+// field, NOT the first-seat proxy (member behind a host seat sees no host UI)"). This CT now pins that the
+// TOPBAR menu is host-agnostic post-de-dup and renders the same set either way.
 //
 // The trigger button is component-scoped; the menu POPUP renders through a Base UI Portal, so every
 // menu-item assertion uses the PAGE locator (the chat-options-menu.ct.tsx precedent).
@@ -19,48 +23,33 @@ import { makeMessagesPage } from "../fixtures";
 /** A human seat — `role` seats a host/member (the roster shape). The host gate is the separate
  *  server-resolved `viewerIsHost` field, NOT this seat's role. */
 function human(role: ParticipantRole): Record<string, unknown> {
-  return {
-    id: `participant_${role}`,
-    kind: "human",
-    role,
-    userId: `user_${role}`,
-    characterId: null,
-    leftSeq: null,
-  };
+  return { id: `participant_${role}`, kind: "human", role, userId: `user_${role}`, characterId: null, leftSeq: null };
 }
 
-test("a member behind a host seat sees NO host affordance (server viewerIsHost wins over the seat)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    // The FIRST human seat is a host, so the retired first-seat proxy would return TRUE and mis-grant the
-    // host-only Preview item. The server-resolved `viewerIsHost:false` says THIS viewer is a member.
-    "chat.getChat": () => ({
-      title: "Council of Two",
-      participants: [human("host"), human("member")],
-      viewerIsHost: false,
-    }),
-    "chat.listMessages": () => makeMessagesPage([]),
-  });
+function chatDetail(viewerIsHost: boolean): unknown {
+  return { title: "Council of Two", participants: [human("host"), human("member")], viewerIsHost };
+}
 
+// The panel-homed options that must NEVER reappear in the topbar ⋯ menu (the de-dup regression guard).
+const PANEL_HOMED_ITEMS = ["Chat settings…", "Preview request…", "Injections…", "Invite people…", "Hand off host…", "Leave chat"];
+
+test("the topbar ⋯ menu carries NONE of the panel-homed options (IA de-dup) — for a HOST", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": () => chatDetail(true), "chat.listMessages": () => makeMessagesPage([]) });
   const component = await mount(<ChatOptionsTopbarStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
-  // The menu opened (a non-host item is present), but the host-only Preview jump is absent.
-  await expect(page.getByRole("menuitem", { name: "Chat settings…" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Preview request…" })).toHaveCount(0);
+  // The menu opened (a panel-less item is present) but every panel-homed option is absent.
+  await expect(page.getByRole("menuitem", { name: "Continue" })).toBeVisible();
+  await Promise.all(PANEL_HOMED_ITEMS.map((label) => expect(page.getByRole("menuitem", { name: label })).toHaveCount(0)));
 });
 
-test("a host sees the host-only Preview affordance", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": () => ({
-      title: "Council of Two",
-      participants: [human("host"), human("member")],
-      viewerIsHost: true,
-    }),
-    "chat.listMessages": () => makeMessagesPage([]),
-  });
-
+test("the topbar ⋯ menu is host-agnostic post-de-dup — a MEMBER sees the IDENTICAL panel-less set", async ({ mount, page }) => {
+  // A member behind a host-first seat (the case the retired first-seat proxy would mis-grant host UI to) —
+  // the menu has no host-gated item to leak, so it renders the same set as the host case above.
+  await routeTrpc(page, { "chat.getChat": () => chatDetail(false), "chat.listMessages": () => makeMessagesPage([]) });
   const component = await mount(<ChatOptionsTopbarStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
-  await expect(page.getByRole("menuitem", { name: "Preview request…" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Continue" })).toBeVisible();
+  await Promise.all(PANEL_HOMED_ITEMS.map((label) => expect(page.getByRole("menuitem", { name: label })).toHaveCount(0)));
 });

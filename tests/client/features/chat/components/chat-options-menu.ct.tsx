@@ -74,17 +74,15 @@ test("header-menu Impersonate fires chat.impersonate with NO guided object (pers
 // are flipped ON PURPOSE — those items now RENDER disabled. ────────────────────────────────────────────
 
 // The full row label set the ⋯ menu renders (committed + draft, character-gated rows included via withCast).
+// IA de-dup (owner rule, W3c): items with a CONTEXT-panel home are GONE from the ⋯ menu — Chat settings
+// (Settings tab), Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host /
+// Leave (all in the Members tab). Only actions with NO panel home remain (Select messages has none).
 const FULL_ITEM_SET = [
   "New chat with same cast",
   "Continue",
   "Regenerate",
   "Impersonate",
-  "Invite people…",
-  "Hand off host…",
   "Select messages…",
-  "Chat settings…",
-  "Preview request…",
-  "Injections…",
   "Rename",
   "Download transcript",
   "Close chat",
@@ -92,27 +90,16 @@ const FULL_ITEM_SET = [
 ];
 
 // The items DISABLED on a draft (everything that needs a committed server row / canon), each with a reason.
-const DRAFT_DISABLED = [
-  "Continue",
-  "Regenerate",
-  "Impersonate",
-  "Invite people…",
-  "Hand off host…",
-  "Select messages…",
-  "Preview request…",
-  "Rename",
-  "Download transcript",
-  "Delete chat",
-];
-// The items that stay LIVE on a draft (canon-less: the unified draft context-config tabs + navigation).
-const DRAFT_ENABLED = ["New chat with same cast", "Chat settings…", "Injections…", "Close chat"];
+const DRAFT_DISABLED = ["Continue", "Regenerate", "Impersonate", "Select messages…", "Rename", "Download transcript", "Delete chat"];
+// The items that stay LIVE on a draft (canon-less: cast-based new-chat + navigation).
+const DRAFT_ENABLED = ["New chat with same cast", "Close chat"];
 // The unlock-condition reason must NAME when it becomes available, not just say "unavailable".
 const UNLOCK_REASON = /send|assistant reply/u;
 const ASSISTANT_REPLY_UNLOCK = /assistant reply/u;
 const FIRST_SEND_UNLOCK = /send the first message/u;
 
 test("#8: a DRAFT renders the IDENTICAL item set — nothing hidden, canon-requiring items disabled", async ({ mount, page }) => {
-  const component = await mount(<ChatOptionsMenuStory committed={false} multiHumanCapable={true} withCast={true} />);
+  const component = await mount(<ChatOptionsMenuStory committed={false} withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
   // Every row is present (no item HIDDEN on a draft) — the identical set a committed chat shows.
@@ -123,7 +110,7 @@ test("#8: a DRAFT renders the IDENTICAL item set — nothing hidden, canon-requi
 });
 
 test("#8: every DRAFT-disabled item carries a hover reason that names the unlock condition", async ({ mount, page }) => {
-  const component = await mount(<ChatOptionsMenuStory committed={false} multiHumanCapable={true} withCast={true} />);
+  const component = await mount(<ChatOptionsMenuStory committed={false} withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
   // Base UI renders a disabled menu item as div[role=menuitem] aria-disabled (NOT native-disabled), so it

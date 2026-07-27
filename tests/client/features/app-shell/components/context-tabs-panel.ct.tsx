@@ -9,7 +9,7 @@
 // pins the React contract + the CSS collapse behavior.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ContextTabStripStory } from "../_ct-stories";
+import { ContextBracketStory, ContextTabStripStory } from "../_ct-stories";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
@@ -62,4 +62,84 @@ test("an icon-LESS tab keeps its word label unconditionally (never compressed to
   await expect(iconlessLabel).toHaveText("Iconless");
   // Meanwhile an icon tab in the SAME strip is collapsed — the two coexist correctly.
   await expect(component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label")).toHaveCSS("display", "none");
+});
+
+// ── The two-strip bracket (Context-Panel-Program §4.2/§4.6 — W3a generic mechanism) ──────────────────
+
+test("backward-compat: a meta-only tab set renders ONE strip, no bracket (byte-identical to today)", async ({ mount }) => {
+  // Every standard section's tabs default strip:"meta" — the existing story is all meta, so it must stay
+  // a SINGLE tablist. The bracket appears ONLY when a game tab exists.
+  const component = await mount(<ContextTabStripStory width={291} />);
+  await expect(component.getByRole("tablist")).toHaveCount(1);
+  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
+});
+
+test("game+meta: TWO labeled strips, ONE selection crossing both", async ({ mount }) => {
+  const component = await mount(<ContextBracketStory />);
+
+  // Two strips, each its own a11y group.
+  const gameStrip = component.getByRole("tablist", { name: "Game" });
+  const chatStrip = component.getByRole("tablist", { name: "Chat" });
+  await expect(gameStrip).toBeVisible();
+  await expect(chatStrip).toBeVisible();
+  // The game tabs live in the game strip; the meta tabs in the chat strip.
+  await expect(gameStrip.getByRole("tab", { name: "Status" })).toBeVisible();
+  await expect(chatStrip.getByRole("tab", { name: "Members" })).toBeVisible();
+
+  // One selection: activate a GAME tab → its panel shows, only it is selected.
+  await gameStrip.getByRole("tab", { name: "Status" }).click();
+  await expect(component.getByTestId("ctx-body-status")).toBeVisible();
+  await expect(gameStrip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+
+  // Now activate a META tab (the other strip) → viewport follows, the game tab deselects.
+  await chatStrip.getByRole("tab", { name: "Settings" }).click();
+  await expect(component.getByTestId("ctx-body-settings")).toBeVisible();
+  await expect(chatStrip.getByRole("tab", { name: "Settings" })).toHaveAttribute("aria-selected", "true");
+  await expect(gameStrip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
+  // Exactly one tab is selected across BOTH strips.
+  await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
+});
+
+test("indicator: exactly ONE underline, in the strip that holds the active tab (never a spurious twin)", async ({ mount }) => {
+  // Both strips share the one Tabs.Root value, so a naive per-strip <TabsIndicator/> parks the OTHER strip's
+  // indicator at position 0 — a second underline on the wrong strip. The fix renders the indicator ONLY in
+  // the strip that contains the active tab (§4.2 "exactly ONE tab selected across both strips").
+  const component = await mount(<ContextBracketStory />);
+  const gameStrip = component.getByRole("tablist", { name: "Game" });
+  const chatStrip = component.getByRole("tablist", { name: "Chat" });
+  const indicator = component.locator('[data-slot="tabs-indicator"]');
+
+  // Activate a GAME tab → the underline lives in the GAME strip only, none in the Chat strip.
+  await gameStrip.getByRole("tab", { name: "Status" }).click();
+  await expect(indicator).toHaveCount(1);
+  await expect(gameStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(1);
+  await expect(chatStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
+
+  // Activate a META tab → the underline moves to the CHAT strip only, none in the Game strip.
+  await chatStrip.getByRole("tab", { name: "Settings" }).click();
+  await expect(indicator).toHaveCount(1);
+  await expect(chatStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(1);
+  await expect(gameStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
+});
+
+test("PHASE disabled: aria-disabled + reason on title, focusable-discoverable (not `disabled`)", async ({ mount }) => {
+  const component = await mount(<ContextBracketStory />);
+  const map = component.getByRole("tab", { name: "Map" });
+  await expect(map).toHaveAttribute("aria-disabled", "true");
+  await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  // Discoverable, not removed from the a11y tree — the reason stays reachable (the OSRS locked-tab pattern).
+  await expect(map).toBeVisible();
+});
+
+test("badge: a boolean dot + a count, never on the active tab", async ({ mount }) => {
+  const component = await mount(<ContextBracketStory />);
+  // The count badge (badge:3 on Game) renders its number.
+  await expect(component.getByRole("tab", { name: "Game" }).getByText("3")).toBeVisible();
+  // The boolean-badge tab (Scene) shows the corner dot.
+  await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toBeVisible();
+
+  // Activating a badged tab drops its badge (never on the active tab).
+  await component.getByRole("tab", { name: "Scene" }).click();
+  await expect(component.getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toHaveCount(0);
 });
