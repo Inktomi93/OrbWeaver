@@ -132,7 +132,17 @@ param/patch widening for exactOptionalPropertyTypes (drizzle `.set()` skips unde
 verifier confirming). `invalidation.ts` untouched (W3). **✅ W2 DONE + COMMITTED `9f9f15ce`** — 3-lens green
 (check ✓ · battery 7613/0 + CT 1453/0 ✓ · verifier CONFIRMED all 4 parts incl. the createGame leak-fix).
 
-**═══ W3 — CP-4 LITE CLIENT (IN FLIGHT) ═══** Orchestrator READ FIRST-HAND (owner-corrected 2026-07-26):
+**═══ W3 — CP-4 LITE CLIENT ✅ COMMITTED `4843f0aa` (side-eye SHIP 0 P0/P1 + battery green) ═══**
+W1/W2/W3 rpg-lite vertical all committed (main, ahead origin ~28, NEVER pushed). Side-eye taste follow-ups
+(non-blocking, TODO): game chats should land on Status tab not Members (seed `contextTab:"rpg.status"`);
+Scene "Date" empty input wants a placeholder.
+**🔬 LLM CONFIG AUDIT (owner ask 2026-07-26, task #14, mech-exec `afadce255a3b05883`):** gen model =
+`Qwen/Qwen3-VL-8B-Instruct`. Wire snake_case VERIFIED correct. Bugs vs the model card (temp0.7/top_p0.8/
+top_k20/rep_pen1.0/presence1.5): **rep_pen was 1.05 (double-penalty w/ presence 1.5 → weird output) → 1.0**,
+and **top_p/top_k had no base default** (silent preset → vLLM's 1.0/off → Qwen incoherence) → put the full
+VL rec into the gen `--override-generation-config` base (presets still override per-request). Verify=argv
+snapshot ONLY, no live launch. **NEXT: config fix lands → commit → W4 live E2E (engines usable now).**
+**═══ W3 — CP-4 LITE CLIENT (history) ═══** Orchestrator READ FIRST-HAND (owner-corrected 2026-07-26):
 full CP-doc `docs/architecture/Context-Panel-Program.md` §4 · the cohesion game plan `reports/rpg-lite-
 and-full-cohesion-game-plan.md` (D86 argument) · the mockup `reports/design-refs/rpg-shell-mockup-v2.png`
 (SEEN) · OSRS `osrs-fixed-interface.png` (SEEN). **The docs ALREADY decide what I nearly asked: §4.2 KEEP
