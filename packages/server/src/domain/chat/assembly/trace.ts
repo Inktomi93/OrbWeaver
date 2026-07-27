@@ -12,16 +12,20 @@
 // `@orb/contracts/chat` (the wire home); THIS builder maps the internal SHAPE stages onto it.
 
 import type { ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
+import type { MessageRole } from "@orb/kit/message-role";
 
 /** The content-free SHAPE stage shape `buildShapeTrace` reads (structurally compatible with shape()'s
  *  `stages`). File-local: the internal builder input (the wire projection is `@orb/contracts/chat`'s
  *  `ShapeTrace`). */
 interface ShapeStages {
   multiCharacter: boolean;
-  withTail: readonly { role: "user" | "assistant" }[];
-  injected: readonly { role: "user" | "assistant" }[];
-  squashed: readonly { role: "user" | "assistant" }[];
-  named: readonly { role: "user" | "assistant" }[];
+  // `withTail` is the pre-splice canon subset (never `system`); the post-splice stages carry the full
+  // `MessageRole` axis (`system` = a capability-kept depth-0 injection, `turns.midConversationSystem`).
+  // Both DERIVED from the homed `MessageRole` tuple, never re-spelled.
+  withTail: readonly { role: Exclude<MessageRole, "system"> }[];
+  injected: readonly { role: MessageRole }[];
+  squashed: readonly { role: MessageRole }[];
+  named: readonly { role: MessageRole }[];
 }
 
 /**

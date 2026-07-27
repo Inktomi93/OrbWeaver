@@ -25,7 +25,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import type { DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
+import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnConnection } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
@@ -556,9 +556,17 @@ function fireExpressionClassify(ctx: ChatContext, view: MessageView): void {
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
  *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3). */
-function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId): void {
+function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnConnection): void {
   if (ctx.rpg !== null) {
-    void ctx.rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId).catch(() => undefined);
+    // Fire-and-forget still (a background flush must NEVER turn a committed reply into an abort), but LOG the
+    // failure — a silent `.catch(() => undefined)` made a broken rpg flush/extraction invisible in prod (the
+    // diagnosis that surfaced the routing bug). The reply already landed; this only records that the state
+    // write behind it failed. `turn` carries THIS turn's ALREADY-RESOLVED connection + enforced owner-consent
+    // verdict so the rpg state round runs on the exact same route/consent the engine gated — never a second
+    // hand-rolled resolve/consent path (stickler F1).
+    void ctx.rpg
+      .onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn)
+      .catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)"));
   }
 }
 
@@ -1168,7 +1176,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     fireManagedCompaction(deps, prep, { result, canonAll });
 
     fireExpressionClassify(ctx, view);
-    fireRpgTurnCompleted(ctx, view, turnId);
+    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented });
 
     return committedOutcome([view]);
   } catch (err) {

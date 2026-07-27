@@ -13,12 +13,15 @@
 
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
 
 /** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
  *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
 interface HistoryTurn {
-  readonly role: "user" | "assistant";
+  /** The delivered wire-row role — the full `MessageRole` axis (`system` appears only as a capability-kept
+   *  depth-0 injection row, `turns.midConversationSystem`; role-agnostic here). Derived, never re-spelled. */
+  readonly role: MessageRole;
   readonly content: string;
   readonly name?: string;
   readonly messageId?: MessageId | undefined;

@@ -21,6 +21,11 @@ export interface RpgGameView {
   readonly status: RpgGameStatus;
   /** Derived per-turn from connection capability (§4.6) — never stored. `true` ⇒ the read-only pill. */
   readonly trackersReadOnly: boolean;
+  /** The delivery-model knob (not host-secret — it governs the WHOLE game's freshness posture, so the
+   *  panel needs it to render the state-freshness indicator honestly). `reliable` ⇒ the tracker lags one
+   *  beat by construction (extraction runs AFTER the character turn commits — §4.9 amendment); `cheap` ⇒
+   *  the tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
+  readonly extractionMode: RpgGameConfig["extractionMode"];
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note. */
   readonly publicConfig: { readonly statProfile: RpgGameConfig["statProfile"] };
 }

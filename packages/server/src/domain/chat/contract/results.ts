@@ -130,6 +130,15 @@ export interface TurnRequest {
   /** Absent (never []) on a tool-less turn, so the request stays byte-identical to pre-tools. */
   readonly tools?: readonly WireTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;
+  /** The in-process MCP tool server for a STATEFUL (agent-sdk) tool turn — built by the pipeline via
+   *  `ChatToolOps.toAgentToolServer` when tools ride an agent-sdk connection (the array wires carry
+   *  `tools`/`toolChoice` instead; the SDK owns its own loop and executes through the ONE
+   *  `executeToolCalls` path). Opaque (`unknown`) — only the agent-sdk backend narrows it. Absent on
+   *  every other turn (byte-identical pre-existing shape). */
+  readonly agentToolServer?: unknown;
+  /** The stateful arm's tool-loop round ceiling (mirrors `toolRecurseLimit`; the SDK owns the loop).
+   *  Present only alongside `agentToolServer`. */
+  readonly agentToolTurnLimit?: number | undefined;
   /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;

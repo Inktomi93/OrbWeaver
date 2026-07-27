@@ -11,6 +11,7 @@
 // preserve — so two adjacent rows with distinct `name` fields are left un-merged.
 
 import type { RoleHandling } from "@orb/contracts/connection";
+import type { MessageRole } from "@orb/kit/message-role";
 
 const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {
   none: 0,
@@ -31,8 +32,9 @@ export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHan
 /** Squash adjacent same-role messages into one by concatenating content with a blank-line separator.
  *  Drops empty/whitespace-only items before squashing. The first row of a same-role run keeps its extra
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
- *  `name` fields are not merged. */
-export function squashSameRole<T extends { role: "user" | "assistant"; content: string; name?: string }>(history: readonly T[]): T[] {
+ *  `name` fields are not merged. `system` rows (capability-kept depth-0 injections) merge only with each
+ *  other — a system row never folds into a user/assistant neighbor. */
+export function squashSameRole<T extends { role: MessageRole; content: string; name?: string }>(history: readonly T[]): T[] {
   const result: T[] = [];
   for (const msg of history) {
     if (msg.content.trim().length === 0) {

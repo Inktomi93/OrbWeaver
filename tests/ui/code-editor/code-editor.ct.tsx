@@ -192,9 +192,26 @@ test("typing a matching prefix opens the autocomplete tooltip listing the comple
 test("accepting a completion inserts the FULL themeable var name into the document", async ({ mount }) => {
   const component = await mount(<CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />);
   const content = component.locator(".cm-content");
+  const tooltip = component.locator(".cm-tooltip-autocomplete");
   await content.click();
   await content.pressSequentially("--color-p");
-  await expect(component.locator(".cm-tooltip-autocomplete")).toBeVisible();
-  await content.press("Enter");
-  await expect(content).toHaveText("--color-primary");
+  await expect(tooltip).toBeVisible();
+  // CM6's acceptCompletion no-ops if Enter lands within ~75ms of the tooltip opening (CM6
+  // internal readiness, not our code) — re-press while the tooltip is still open until the
+  // completion actually lands. Re-pressing after acceptance is a no-op guard: it only re-fires
+  // while the doc doesn't yet contain the full var name, so an already-accepted completion never
+  // gets a stray newline. Intervals stay >=100ms so each re-press clears the 75ms readiness
+  // window even under heavy parallel-worker CPU contention (a tighter poll can keep landing
+  // inside a freshly-reset window and starve).
+  await expect
+    .poll(
+      async () => {
+        if (!(await content.textContent())?.includes("--color-primary")) {
+          await content.press("Enter");
+        }
+        return content.textContent();
+      },
+      { intervals: [100, 150, 250], timeout: 15_000 },
+    )
+    .toBe("--color-primary");
 });

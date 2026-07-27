@@ -29,6 +29,13 @@ const stackEnv = {
   SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
   CREDENTIALS_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   LOCAL_INITIAL_PASSWORD: "orbweaver-dev-password",
+  // The rpg-lite @live spec (rpg-lite-loop.spec.ts) reads the provider request body back off
+  // /api/_debug/wire/captures to prove the extraction/turn prompt was well-formed — the recorder is a no-op
+  // unless enabled here (WIRE_CAPTURE=on wires the sink into the backends; off ⇒ the ring is never written,
+  // /api/_debug/wire/captures returns []). NOTE: RPG_TRACE is deliberately NOT set — the rpg flight recorder
+  // (R-OBS) is an unbuilt seam (contract-only) and would be inert; lite's every hop RESULT is observable from
+  // getTrackerView + wire-captures + canon, so the internal per-hop trace is neither present nor needed here.
+  WIRE_CAPTURE: "on",
 };
 
 export default defineConfig({

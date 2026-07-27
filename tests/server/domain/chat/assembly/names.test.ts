@@ -72,3 +72,13 @@ describe("applyNamesBehavior", () => {
     ]);
   });
 });
+
+describe("applyNamesBehavior — system rows are the operator channel, never labeled", () => {
+  const h = [{ role: "system" as const, content: "GM note" }];
+  test("every mode passes a system row through untouched (no prefix, no completion name)", () => {
+    expect(applyNamesBehavior(h, "content", SPEAKERS)).toEqual([{ role: "system", content: "GM note" }]);
+    expect(applyNamesBehavior(h, "completion", SPEAKERS)).toEqual([{ role: "system", content: "GM note" }]);
+    expect(applyNamesBehavior(h, "none", SPEAKERS)).toEqual([{ role: "system", content: "GM note" }]);
+    expect(applyNamesBehavior(h, "default", SPEAKERS)).toEqual([{ role: "system", content: "GM note" }]);
+  });
+});

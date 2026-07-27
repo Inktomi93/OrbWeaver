@@ -14,8 +14,13 @@ import { applyNamesBehavior } from "./names";
 import { clampRoleHandling, squashSameRole } from "./role-squash";
 import { hasMultipleCharacters } from "./speaker-stamp";
 
-/** The wire-history role axis (derive-don't-respell the non-system subset; system is converted at splice). */
+/** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
+ *  system — `toShapeCanon` drops them). */
 type WireRole = "user" | "assistant";
+
+/** The DELIVERED wire-row role axis: canon roles plus the capability-gated `system` a depth-0 splice can
+ *  emit when the model declares `turns.midConversationSystem` (see `assembly/injections`). */
+type DeliveredRole = WireRole | "system";
 
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
  *  `authorName` = the stored authoring name (persona on user rows, character on assistant rows);
@@ -30,7 +35,7 @@ interface CanonRow {
 
 /** A name-stamped wire row (the SHAPE output row). */
 interface WireRow {
-  role: WireRole;
+  role: DeliveredRole;
   content: string;
   name?: string;
   messageId?: MessageId | undefined;
@@ -57,6 +62,10 @@ interface ShapeInput {
   /** Model accepts a delivered trailing-assistant message as response prefill: `true` ⇒ deliver verbatim
    *  (no continuation nudge); `false` (default) ⇒ nudge a trailing-assistant to a user tail. */
   assistantPrefill?: boolean;
+  /** The resolved `turns.midConversationSystem`: `true` ⇒ a depth-0 in_chat system injection delivers as a
+   *  REAL system wire row (the model honors a tail system-authority channel); `false`/absent (the
+   *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `[Note from system: …]` user note. */
+  midConversationSystem?: boolean;
   /** The user role-handling knob (from preset `params.advanced.roleHandling`); clamped against the floor. */
   roleHandling?: RoleHandling | undefined;
   /** The model/wire adjacent-same-role floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
@@ -75,8 +84,8 @@ interface ShapeOutput {
   stages: {
     multiCharacter: boolean;
     withTail: CanonRow[];
-    injected: (CanonRow | { role: WireRole; content: string })[];
-    squashed: (CanonRow | { role: WireRole; content: string })[];
+    injected: (CanonRow | { role: DeliveredRole; content: string })[];
+    squashed: (CanonRow | { role: DeliveredRole; content: string })[];
     named: WireRow[];
   };
 }
@@ -108,9 +117,9 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
  *  rows are derived per-turn (target can change mid-round) so a collapsed scoped prefix has no stable
  *  breakpoint; group-canon merges are committed messages, so they do. */
 export function computeHistoryBreakpoint(
-  withTail: readonly { role: WireRole; content: string }[],
-  injected: readonly { role: WireRole; content: string }[],
-  finalHistory: readonly { role: WireRole; content: string }[],
+  withTail: readonly { role: DeliveredRole; content: string }[],
+  injected: readonly { role: DeliveredRole; content: string }[],
+  finalHistory: readonly { role: DeliveredRole; content: string }[],
   opts: {
     readonly injections: readonly { position: string; depth: number }[] | undefined;
     readonly scopedFold?: boolean;
@@ -179,7 +188,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   const prefixDisrupted = (input.injections ?? []).some((i) => i.position === "in_chat" && i.depth >= 2);
   const prefixBoundaryLen = stableCount >= 1 && !prefixDisrupted ? stableCount : undefined;
 
-  const runSquash = <T extends { role: WireRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
+  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
     merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
 
   // 2. splice in_chat by depth → 3. name-stamp → 4. squash same-role.
@@ -188,6 +197,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   // `squashed` stage stays the pre-name squash (labels are role-adjacency-neutral annotations).
   const injected = spliceInChatInjections(withTail, input.injections, resolveContent, {
     allowAssistantPrefill: input.assistantPrefill === true,
+    allowMidConversationSystem: input.midConversationSystem === true,
     prefixBoundaryLen,
     squashSystemMessages: input.squashSystemMessages === true,
   });
@@ -198,7 +208,11 @@ export function shape(input: ShapeInput): ShapeOutput {
   // force/auto/empty-opening round that would otherwise end on assistant gets CONTINUATION_NUDGE. Either
   // is a second volatile tail → the breakpoint aborts for the round.
   const nudge = input.groupNudge;
-  const endsOnAssistant = named.length === 0 || named.at(-1)?.role === "assistant";
+  // A capability-kept trailing SYSTEM row is neither prefill nor a user turn — the ends-on-user invariant
+  // reads the last NON-SYSTEM row, so a canon ending on assistant still gets its user tail (appended after
+  // the system row; on the agent-sdk arm the system rows fold out of the prompt tail into the hook channel).
+  const lastNonSystem = named.findLast((r) => r.role !== "system");
+  const endsOnAssistant = lastNonSystem === undefined || lastNonSystem.role === "assistant";
   const needsContinuation = endsOnAssistant && input.assistantPrefill !== true;
   const tailUser = nudge ?? (needsContinuation ? CONTINUATION_NUDGE : null);
   const history = tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;

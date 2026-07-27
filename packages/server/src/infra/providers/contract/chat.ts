@@ -15,8 +15,12 @@ import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
 export type { ResponseFormat } from "@orb/contracts/role-clients";
 
 // Deliberately not kit MESSAGE_ROLES: `tool` exists only between the engine request seam and a translator
-// (never a persisted slot role); `system` rides `systemPrompt`, not history.
-export const HISTORY_ROLES = ["user", "assistant", "tool"] as const;
+// (never a persisted slot role). `system` normally rides `systemPrompt`, not history — the ONE exception
+// is a capability-kept mid-conversation system injection row (`turns.midConversationSystem`, depth-0 at
+// the tail), which each translator delivers over its wire's own system-authority channel: a real
+// `system` message on the array-shaped wires; folded into the dynamic-context hook on the agent-sdk arm
+// (the compose split extracts it — see `entry/compose/chat.ts`).
+export const HISTORY_ROLES = ["user", "assistant", "tool", "system"] as const;
 export type HistoryRole = (typeof HISTORY_ROLES)[number];
 
 /** One assembled history turn (OpenAI-spec shape). `name` carries the per-participant label the view-builder stamped. */
@@ -97,6 +101,17 @@ export type ChatRequest = ChatRequestCommon &
         /** Model-visible transcript before this turn, for canon-derived session seeding (resumes the
          *  cached session when it still matches; reseeds on divergence). Absent ⇒ falls back to the bare per-chat resume cache. */
         readonly seed?: readonly AgentSeedTurn[] | undefined;
+        /** The in-process MCP tool server (the domain's resolved tool set projected via
+         *  `toAgentToolServer`) — the STATEFUL wire's tool channel: the SDK owns the loop and invokes the
+         *  wrapped handlers in-process (the ONE executeToolCalls path). Absent ⇒ the tool-less firewall
+         *  base (`mcpServers:{}` + `maxTurns:1`) — byte-identical to pre-tools. The cowork denylist
+         *  (`disallowedTools`) holds regardless. */
+        readonly toolServer?: unknown;
+        /** Tool-loop round ceiling when `toolServer` rides (maxTurns = rounds + the final reply). */
+        readonly toolTurnLimit?: number | undefined;
+        /** Structured output via the SDK's own `outputFormat: json_schema` (schema bound-stripped for the
+         *  Anthropic wire) — honored on both agent-sdk skins (sub / OR skin). Absent ⇒ prose. */
+        readonly responseFormat?: ResponseFormat | undefined;
       }
     | {
         readonly api: "chat-completions";
@@ -118,8 +133,8 @@ export type ChatRequest = ChatRequestCommon &
         readonly responseFormat?: ResponseFormat | undefined;
       }
   );
-// The agent-sdk arm carries no tools/toolChoice/responseFormat: tools ride mcpServers via project-mcp
-// (the SDK owns its own loop), and no committed agent-sdk consumer requests structured output.
+// The agent-sdk arm carries no wire `tools[]`/`toolChoice`: its tool channel is `toolServer` (the MCP
+// projection — the SDK owns its own loop and never reads an OpenAI-shaped tools array).
 
 /** Narrowed per-api shapes the sealed backends consume — a backend takes its own arm directly. */
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };

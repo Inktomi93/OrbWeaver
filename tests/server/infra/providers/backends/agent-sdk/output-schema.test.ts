@@ -123,3 +123,23 @@ test("passes allOf through (z.intersection — live-probed ACCEPTED by the sonne
   expect(keys.has("maxLength")).toBe(false);
   expect(keys.has("allOf")).toBe(true);
 });
+
+test("strips the top-level `$schema`/`$id` meta keys (the SDK --json-schema validator can't resolve the 2020-12 meta ref, D93)", () => {
+  // `z.toJSONSchema` (via projectJsonSchema) stamps `$schema: "https://json-schema.org/draft/2020-12/schema"`;
+  // the bundled runtime's validator has no meta-schema under that ref → "not a valid JSON Schema" (live-caught
+  // 2026-07-27, agent-sdk × vLLM, the rpgExtractionSchema round-trip). Stripping it changes no CONSTRAINT.
+  const projected = projectJsonSchema(z.object({ a: z.string() }));
+  expect(projected["$schema"]).toBeDefined(); // the projector DOES stamp it (the source of the bug)
+  const clean = sanitizeAnthropicOutputSchema({ ...projected, $id: "urn:x" }, MODEL) as Record<string, unknown>;
+  expect(clean["$schema"]).toBeUndefined();
+  expect(clean["$id"]).toBeUndefined();
+  // The real schema body survives.
+  expect(clean["type"]).toBe("object");
+  expect((clean["properties"] as Record<string, unknown>)["a"]).toBeDefined();
+});
+
+test("a field literally NAMED `$schema` under properties survives (meta-strip is keyword-position-aware)", () => {
+  const schema = { type: "object", properties: { $schema: { type: "string" } } };
+  const clean = sanitizeAnthropicOutputSchema(schema, MODEL) as { properties: Record<string, unknown> };
+  expect(clean.properties["$schema"]).toEqual({ type: "string" });
+});

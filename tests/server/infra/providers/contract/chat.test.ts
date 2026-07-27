@@ -45,14 +45,15 @@ describe("normalizeFinishReason — the cross-backend finish-reason map", () => 
 });
 
 describe("HISTORY_ROLES — the D48 wire-axis role tuple (tool-use-design/02 §1)", () => {
-  test("is exactly user/assistant/tool — the tool role exists ONLY on the wire axis", () => {
-    expect([...HISTORY_ROLES]).toStrictEqual(["user", "assistant", "tool"]);
+  test("is exactly user/assistant/tool/system — tool + wire-system exist ONLY on the wire axis", () => {
+    // `system` joined the tuple with the capability-gated mid-conversation system injection
+    // (`turns.midConversationSystem`) — a depth-0 splice row each translator delivers over its wire's
+    // own system-authority channel. `systemPrompt` remains the home of the system PROMPT.
+    expect([...HISTORY_ROLES]).toStrictEqual(["user", "assistant", "tool", "system"]);
   });
 
-  test("stays a DISTINCT axis from kit MESSAGE_ROLES (persisted roles gain no 'tool'; wire gains no 'system')", () => {
-    // The two tuples deliberately diverge on both sides: `system` rides `systemPrompt`, never
-    // history; `tool` is a materialized wire message, never a persisted slot role (D48).
+  test("stays a DISTINCT axis from kit MESSAGE_ROLES (persisted roles gain no 'tool')", () => {
+    // `tool` is a materialized wire message, never a persisted slot role (D48).
     expect(MESSAGE_ROLES).not.toContain("tool");
-    expect(HISTORY_ROLES).not.toContain("system");
   });
 });

@@ -5,12 +5,14 @@ import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 
 /** The `DomainOperationError.code` discriminators connection verbs throw. One home for the strings. */
 const CONNECTION_OP_CODES = {
-  /** An incoherent `(api, source)` pairing the role resolver can't map (e.g. a chat-completions api with a
-   *  source that is neither openrouter/vllm/custom_openai). */
+  /** An incoherent `(api, source)` pairing the role resolver can't map (e.g. a chat-completions api with
+   *  `source:'max-pro-sub'`, which is agent-sdk-only; or `agent-sdk` with `source:'vllm'`, retired 2026-07-27
+   *  — local vLLM is chat-completions-only). */
   routingIncoherent: "connection_routing_incoherent",
   /** An `agent-sdk` source reached the model heal with no explicit arm — the fail-LOUD guard that replaced
-   *  the silent Claude-default catch-all (owner ruling: a source-blind fallthrough to opus masked the
-   *  vLLM 404 two layers down). A new agent-sdk source must add its heal arm, not silently become opus. */
+   *  the silent Claude-default catch-all (owner ruling: a source-blind fallthrough to opus was the
+   *  silent-failure antipattern). agent-sdk admits only max-pro-sub + openrouter now; any other source is
+   *  rejected by assertCoherent before the heal, and reaching here is a routing bug — never silently opus. */
   agentModelHealUnhandled: "connection_agent_model_heal_unhandled",
 } as const;
 
@@ -28,9 +30,10 @@ export class ConnectionRoutingError extends DomainOperationError {
 
 /**
  * An `agent-sdk` source reached `healModel` with no explicit arm. Fail-LOUD by design: the previous
- * source-blind fallthrough silently healed EVERY agent-sdk source to a Claude default (opus), which for
- * `vllm` 404'd the loopback and crashed Claude Code two layers down. A new coherent agent-sdk source must be
- * given its own heal arm here. HTTP 400-shaped (a resolution the server can't map, surfaced not swallowed).
+ * source-blind fallthrough silently healed EVERY agent-sdk source to a Claude default (opus) — the
+ * silent-failure antipattern. agent-sdk admits only max-pro-sub + openrouter (vllm was retired 2026-07-27,
+ * local vLLM is chat-completions-only), and assertCoherent rejects everything else BEFORE the heal, so
+ * reaching here is a routing bug. HTTP 400-shaped (a resolution the server can't map, surfaced not swallowed).
  */
 export class AgentModelHealError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.agentModelHealUnhandled;

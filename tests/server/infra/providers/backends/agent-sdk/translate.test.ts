@@ -3,9 +3,10 @@
 //
 // disciplineOptions — THE FIREWALL BASE + the credential-source → env-builder DISPATCH (providers.md
 // §7.1 / Esoteric §1). The load-bearing guarantee: `credential.source` selects the RIGHT env builder
-// (sub vs OR-skin vs vLLM) and an ineligible source FAILS CLOSED — a wrong dispatch is how a Max-sub
-// OAuth token could land on a paid endpoint. We don't re-test the builders' internals here (env.test.ts
-// owns those); we lock that the SWITCH routes each source to its builder and throws on the rest.
+// (sub vs OR-skin) and an ineligible source FAILS CLOSED — a wrong dispatch is how a Max-sub OAuth token
+// could land on a paid endpoint. vLLM was RETIRED from agent-sdk (owner ruling 2026-07-27): it now fails
+// closed like every other non-Claude-runtime source. We don't re-test the builders' internals here
+// (env.test.ts owns those); we lock that the SWITCH routes each source to its builder and throws on the rest.
 
 import { SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
 import type { ModelCapability } from "@orb/contracts/connection";
@@ -24,14 +25,12 @@ import { expect, test } from "../../../../../support/fixtures";
 
 const OR_KEY = "sk-or-translate-test";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
-const VLLM_TOKEN = "local-vllm";
 // The derived tier→slug map the connection domain supplies for a mode-2 (openrouter) dispatch.
 const TIER_MODELS = {
   opus: "anthropic/claude-opus-4.8",
   sonnet: "anthropic/claude-sonnet-5",
   haiku: "anthropic/claude-haiku-4.5",
 } as const;
-const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 // The exact cowork bundle `tools:[]` does NOT remove — must be stripped on EVERY spawn (translate.ts).
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 
@@ -51,7 +50,7 @@ const CUSTOM_CRED = cred({
 
 describe("disciplineOptions — the leak-proof firewall base", () => {
   test("every spawn gets no built-in tools, the cowork denylist, strict MCP, and no settings", () => {
-    const opts = disciplineOptions(VLLM_CRED, undefined);
+    const opts = disciplineOptions(SUB_CRED, undefined);
     expect(opts.tools).toStrictEqual([]);
     expect(opts.disallowedTools).toStrictEqual(COWORK_DENYLIST);
     expect(opts.mcpServers).toStrictEqual({});
@@ -86,10 +85,18 @@ describe("disciplineOptions — credential.source DISPATCHES the env builder (th
     expect((caught as ProviderError).retryable).toBe(false);
   });
 
-  test("vllm → the loopback builder: keyless placeholder token at a 127.0.0.1 base", () => {
-    const opts = disciplineOptions(VLLM_CRED, undefined);
-    expect(opts.env["ANTHROPIC_AUTH_TOKEN"]).toBe(VLLM_TOKEN);
-    expect(opts.env["ANTHROPIC_BASE_URL"]).toMatch(LOOPBACK_BASE_RE);
+  test("vllm FAILS CLOSED — the loopback agent skin was RETIRED (owner ruling 2026-07-27; local vLLM is chat-completions-only)", () => {
+    // disciplineOptions no longer builds a vLLM env (buildClaudeVllmEnv deleted); a vllm credential on the
+    // agent-sdk wire is now an ineligible-source refusal, not a 127.0.0.1 loopback env.
+    let caught: unknown;
+    try {
+      disciplineOptions(VLLM_CRED, undefined);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    expect((caught as ProviderError).kind).toBe("invalid");
+    expect((caught as ProviderError).retryable).toBe(false);
   });
 
   test("max-pro-sub → the sub builder: no auth token / base url, CLAUDE.md injection killed", () => {
@@ -118,7 +125,7 @@ describe("disciplineOptions — credential.source DISPATCHES the env builder (th
 
 describe("disciplineOptions — runtime overrides thread through to the builder", () => {
   test("a maxOutputTokens override lands on the spawn env", () => {
-    const opts = disciplineOptions(VLLM_CRED, undefined, { maxOutputTokens: 256 });
+    const opts = disciplineOptions(SUB_CRED, undefined, { maxOutputTokens: 256 });
     expect(opts.env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"]).toBe("256");
   });
 });

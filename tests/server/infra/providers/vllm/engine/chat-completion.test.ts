@@ -19,16 +19,20 @@ interface WireMsg {
   content: unknown;
 }
 
-function fakeClient(): { client: VllmEngineClient; bodies: Record<string, unknown>[] } {
+// The default fake /v1/chat/completions response (the summary turn). A caller overrides it to exercise a
+// different `finish_reason`/usage without a second hand-cast fake.
+const DEFAULT_FAKE_RESPONSE = {
+  choices: [{ message: { content: "the summary" } }],
+  // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
+  usage: { prompt_tokens: 12, completion_tokens: 4 },
+};
+
+function fakeClient(response: Record<string, unknown> = DEFAULT_FAKE_RESPONSE): { client: VllmEngineClient; bodies: Record<string, unknown>[] } {
   const bodies: Record<string, unknown>[] = [];
   const client: VllmEngineClient = {
     enginePost: <T>(_engine: unknown, _path: string, body: unknown): Promise<T> => {
       bodies.push(body as Record<string, unknown>);
-      return Promise.resolve({
-        choices: [{ message: { content: "the summary" } }],
-        // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
-        usage: { prompt_tokens: 12, completion_tokens: 4 },
-      } as T);
+      return Promise.resolve(response as T);
     },
     engineStream: () => Promise.reject(new Error("chat-completion does not stream")),
     baseUrl: () => "http://127.0.0.1:0",
@@ -47,10 +51,35 @@ describe("runVllmChatCompletion", () => {
       ],
     });
 
-    expect(res).toEqual({ text: "the summary", tokensIn: 12, tokensOut: 4 });
+    // finishReason is null when the engine response omits `choices[0].finish_reason` (this fake does).
+    expect(res).toEqual({ text: "the summary", tokensIn: 12, tokensOut: 4, finishReason: null });
     const msgs = need(bodies[0])["messages"] as WireMsg[];
     expect(need(msgs[0])).toEqual({ role: "system", content: "be terse" });
     expect(need(msgs[1])).toEqual({ role: "user", content: "summarize this" });
+  });
+
+  test("surfaces the engine's finish_reason (observability parity — the summarize surface logs it)", async () => {
+    const { client } = fakeClient({
+      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
+      choices: [{ message: { content: "done" }, finish_reason: "length" }],
+      // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
+      usage: { prompt_tokens: 3, completion_tokens: 9 },
+    });
+    const res = await runVllmChatCompletion(client, { model: "gen-model", messages: [{ role: "user", text: "x" }] });
+    expect(res.finishReason).toBe("length");
+  });
+
+  test("threads the onWireBody hook with the LITERAL request body (the summarize wire-capture seam)", async () => {
+    const { client } = fakeClient();
+    const captured: Record<string, unknown>[] = [];
+    await runVllmChatCompletion(
+      client,
+      { model: "gen-model", messages: [{ role: "user", text: "hi" }], responseFormat: { name: "s", schema: { type: "object" } } },
+      (body) => captured.push(body),
+    );
+    expect(captured).toHaveLength(1);
+    expect(need(captured[0])["model"]).toBe("gen-model");
+    expect(need(captured[0])["response_format"]).toBeDefined();
   });
 
   test("a vision turn becomes image_url data-URI content parts (image first, then text)", async () => {

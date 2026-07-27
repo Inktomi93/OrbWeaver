@@ -14,7 +14,7 @@
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgGatherResult, ChatRpgOps } from "../../chat";
+import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnConnection } from "../../chat";
 import type { RpgContext } from "../contract/service";
 import { findGameByChat } from "../persistence/games";
 import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots";
@@ -50,13 +50,35 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
 
   // Post-turn FLUSH (§2.4-2.5 + §4.6): cheap = take + write the staged tool writes; reliable = run the
   // extraction into the accumulator first, then take + write. Keyed by `turnId`. Non-game = no-op.
-  async function onTurnCompleted(chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatRpgOnTurnCompletedTurnId): Promise<void> {
-    const game = await findGameByChat(ctx.db, chatId);
-    if (game === undefined) {
-      return;
-    }
-    const mode: RpgExtractionMode = game.config.extractionMode;
-    await flushTurn(ctx, game, mode, { turnId, messageId, variantId });
+  //
+  // FLUSH BARRIER (the race fix): the flush is fire-and-forget (engine.ts — a background write must never abort
+  // a committed reply), but with the dedicated state round it takes 0.8-2.9s, so a fast re-send could assemble
+  // the next reminder off STALE state. The barrier register MUST be SYNCHRONOUS — before ANY await — or a
+  // scripted immediate re-send beats the `findGameByChat` await, `awaitInFlight` sees no entry, and it
+  // assembles stale (LIVE-CAUGHT: ex2 read empty while ex1's flush was in flight). So `runFlush` (which does
+  // the game lookup + flush INSIDE) is registered on the barrier as a promise on the very first synchronous
+  // line — the in-flight entry exists the instant `onTurnCompleted` is called, before it yields.
+  // biome-ignore lint/complexity/useMaxParams: the signature is the injected `ChatRpgOps.onTurnCompleted` contract (chat's front door) — chat calls it positionally; it is not this impl's to reshape.
+  function onTurnCompleted(
+    chatId: ChatId,
+    messageId: MessageId,
+    variantId: MessageVariantId,
+    turnId: ChatRpgOnTurnCompletedTurnId,
+    turn: RpgTurnConnection,
+  ): Promise<void> {
+    const runFlush = async (): Promise<void> => {
+      const game = await findGameByChat(ctx.db, chatId);
+      if (game === undefined) {
+        return;
+      }
+      const mode: RpgExtractionMode = game.config.extractionMode;
+      // `turn` is the narration turn's already-resolved route + consent verdict — the state round rides it
+      // (F1: no second `resolveRole`, no force-stamped consent; F2: the readonly gate reads this capability).
+      await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn });
+    };
+    const flush = runFlush();
+    ctx.flushBarrier.register(chatId, flush); // synchronous — the entry exists before this fn yields
+    return flush;
   }
 
   return {

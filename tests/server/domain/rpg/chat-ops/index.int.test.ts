@@ -6,7 +6,7 @@ import type { ChatTurnId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
-import { emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test } from "../_support";
+import { emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_c1");
 
@@ -34,7 +34,7 @@ test("onUserCommit locks in the assistant snapshot the user was replying to (com
   const { messageId: aMsg, variantId: aVar } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.ctx.staging.ensure(TURN, emptyState());
   h.ctx.staging.stage(TURN, { location: "the ford" });
-  await h.chatOps.onTurnCompleted(chatId, aMsg, aVar, TURN);
+  await h.chatOps.onTurnCompleted(chatId, aMsg, aVar, TURN, turnConnection());
   expect((await findSnapshotByVariant(db, aVar))?.committed).toBe(0);
 
   // The user sends the NEXT message → onUserCommit locks in the prior assistant snapshot.
@@ -63,7 +63,7 @@ test("onTurnAborted CLEARS the turn bucket — a dead turn never flushes into th
   h.ctx.staging.stage(TURN, { location: "ghost location" });
   await h.chatOps.onTurnAborted(chatId, TURN, "user");
   // A completion on the same turn now finds nothing staged → no snapshot written.
-  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN);
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
 });
 

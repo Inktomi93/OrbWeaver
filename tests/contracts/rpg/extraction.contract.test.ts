@@ -3,7 +3,15 @@
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
 
-import { rpgExtractionSchema, updatePartyArgsSchema } from "@orb/contracts/rpg";
+import {
+  constrainExtractionSchema,
+  RPG_NO_CHANGES_TOOL,
+  RPG_TOOL_ROUND_TOOL_NAMES,
+  rpgExtractionSchema,
+  toolCallsToExtraction,
+  updatePartyArgsSchema,
+} from "@orb/contracts/rpg";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures";
 
@@ -44,4 +52,102 @@ test("the full 7-plane delta parses as one object", () => {
   expect(parsed.inventory[0]?.walletDeltas).toEqual([{ name: "gold", delta: 25 }]);
   expect(parsed.quests[0]?.action).toBe("create");
   expect(parsed.journal[0]?.type).toBe("event");
+});
+
+// ── constrainExtractionSchema (R1 — the per-call ref constraint that kills the mis-target class) ────────
+function refEnum(schema: Record<string, unknown>, path: readonly string[]): unknown {
+  let node: unknown = schema;
+  for (const key of path) {
+    node = node !== null && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined;
+  }
+  return node;
+}
+
+test("constrain injects the actorRefs enum on party/inventory targetRef + scene.presentRemove", () => {
+  const base = projectJsonSchema(rpgExtractionSchema);
+  const constrained = constrainExtractionSchema(base, { actorRefs: ["You", "Bramwell"], widgetRefs: [] });
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
+  expect(refEnum(constrained, ["properties", "inventory", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
+  expect(refEnum(constrained, ["properties", "scene", "properties", "presentRemove", "items", "enum"])).toEqual(["You", "Bramwell"]);
+});
+
+test("constrain injects the widgetRefs enum on widgets.widgetRef", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: ["Corruption", "Torch Fuel"] });
+  expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toEqual(["Corruption", "Torch Fuel"]);
+});
+
+test("an EMPTY ref list leaves the field unconstrained (never an impossible empty enum — the fresh-game arm)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [] });
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toBeUndefined();
+  expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toBeUndefined();
+});
+
+test("constrain does NOT mutate the input schema (the cached projection also feeds other wires)", () => {
+  const base = projectJsonSchema(rpgExtractionSchema);
+  const snapshot = JSON.stringify(base);
+  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"] });
+  expect(JSON.stringify(base)).toBe(snapshot);
+});
+
+test("a constrained schema still PROJECTS clean (enum is plain JSON Schema every backend enforces)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: ["You"], widgetRefs: [] });
+  // The enum lives on a leaf string node — valid JSON Schema, no throw, portable to vLLM xgrammar + OR strict.
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You"]);
+});
+
+// ── toolCallsToExtraction (the cheap TOOL ROUND fold — parallel tool calls → an RpgExtraction) ──────────
+
+test("RPG_TOOL_ROUND_TOOL_NAMES = the 6 state tools + no_changes (roll_dice excluded — zero state)", () => {
+  expect([...RPG_TOOL_ROUND_TOOL_NAMES]).toEqual([
+    "update_party",
+    "update_inventory",
+    "update_scene",
+    "set_widget_value",
+    "upsert_quest",
+    "add_journal_entry",
+    RPG_NO_CHANGES_TOOL,
+  ]);
+  expect(RPG_TOOL_ROUND_TOOL_NAMES).not.toContain("roll_dice");
+});
+
+test("folds PARALLEL calls into one extraction (same-plane calls accumulate, scene is last-wins)", () => {
+  const ex = toolCallsToExtraction([
+    { name: "update_party", arguments: JSON.stringify({ targetRef: "player", status: "wounded" }) },
+    { name: "update_party", arguments: JSON.stringify({ targetRef: "Kael", hpDelta: -3 }) },
+    { name: "update_scene", arguments: JSON.stringify({ location: "the bridge" }) },
+    { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", title: "Fight", content: "A brawl." }) },
+  ]);
+  expect(ex.party).toHaveLength(2); // both update_party calls accumulate
+  expect(ex.party.map((p) => p.targetRef)).toEqual(["player", "Kael"]);
+  expect(ex.scene?.location).toBe("the bridge");
+  expect(ex.journal).toHaveLength(1);
+});
+
+test("no_changes (and any unknown tool) contributes nothing — the quiet-turn no-op", () => {
+  const ex = toolCallsToExtraction([{ name: RPG_NO_CHANGES_TOOL, arguments: "{}" }]);
+  expect(ex.party).toEqual([]);
+  expect(ex.inventory).toEqual([]);
+  expect(ex.scene).toBeUndefined();
+  expect(ex.widgets).toEqual([]);
+  expect(ex.quests).toEqual([]);
+  expect(ex.journal).toEqual([]);
+});
+
+test("a malformed args string is DROPPED (errors-as-data — never a throw into the flush)", () => {
+  const ex = toolCallsToExtraction([
+    { name: "update_party", arguments: "not json{" },
+    { name: "update_party", arguments: JSON.stringify({ targetRef: "player" }) },
+  ]);
+  expect(ex.party).toHaveLength(1); // only the valid call survives
+  expect(ex.party[0]?.targetRef).toBe("player");
+});
+
+test("a schema-INVALID call is dropped (a tool call missing its required arg never writes)", () => {
+  const ex = toolCallsToExtraction([
+    { name: "add_journal_entry", arguments: JSON.stringify({ title: "no type or content" }) }, // missing required fields
+    { name: "update_scene", arguments: JSON.stringify({ location: "valid" }) },
+  ]);
+  expect(ex.journal).toEqual([]); // the invalid journal call dropped
+  expect(ex.scene?.location).toBe("valid");
 });

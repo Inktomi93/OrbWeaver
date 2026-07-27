@@ -5,7 +5,7 @@
 
 import type { Options, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import type { SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract";
+import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { NormalizeImageBytes } from "../kit";
 import { toAnthImageBlock } from "../kit";
@@ -14,6 +14,12 @@ import { sanitizeAnthropicOutputSchema } from "./output-schema";
 import { disciplineOptions, observabilityOptions } from "./translate";
 import type { AgentSdkDeps } from "./types";
 import { assertInitFrameShape } from "./verify";
+
+// The agent-sdk sub summarizer accepts BOTH role requests: plain `summarize` (prose) + `structured` (schema).
+// `responseFormat` is present only on the structured arm (the union narrows it optional). agent-sdk stays OUT
+// of the `structured` ROLE at the dispatcher (its structured channel is the chat outputFormat path); this impl
+// just keeps the sub-as-schema-summarizer capability when a caller hands it a StructuredRequest directly.
+type SubBatchRequest = SummarizeRequest | StructuredRequest;
 
 const SDK_TITLE_SUMMARIZE = "orbweaver-summarize";
 const SUMMARIZE_ITEM_TIMEOUT_MS = 120_000;
@@ -125,7 +131,7 @@ async function reduceSummarizeStream(stream: AsyncIterable<SDKMessage>): Promise
   return { ...acc };
 }
 
-async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestItem, deps: AgentSdkDeps): Promise<SummarizeTurnResult> {
+async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem, deps: AgentSdkDeps): Promise<SummarizeTurnResult> {
   const abortController = new AbortController();
   if (req.signal !== undefined) {
     if (req.signal.aborted) {
@@ -149,10 +155,9 @@ async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestIte
     }, SUMMARIZE_ITEM_TIMEOUT_MS);
     timer.unref();
   });
+  const responseFormat = "responseFormat" in req ? req.responseFormat : undefined;
   const outputFormat: Pick<Options, "outputFormat"> =
-    req.responseFormat !== undefined
-      ? { outputFormat: { type: "json_schema", schema: sanitizeAnthropicOutputSchema(req.responseFormat.schema, req.model) } }
-      : {};
+    responseFormat !== undefined ? { outputFormat: { type: "json_schema", schema: sanitizeAnthropicOutputSchema(responseFormat.schema, req.model) } } : {};
   // MA-10: images ride the streaming-input prompt as Anthropic content blocks (the pin at doc 05 §IC-B is
   // LIFTED — the SDK prompt IS `string | AsyncIterable<SDKUserMessage>`, and `SDKUserMessage.message` is a full
   // `MessageParam` that carries image blocks). Text-only items keep the byte-identical plain-string prompt.
@@ -193,7 +198,7 @@ async function runSummarizeItem(req: SummarizeRequest, item: SummarizeRequestIte
   }
 }
 
-export async function summarize(req: SummarizeRequest, deps: AgentSdkDeps): Promise<SummarizeResult> {
+export async function summarize(req: SubBatchRequest, deps: AgentSdkDeps): Promise<SummarizeResult> {
   if (req.credential.source !== "max-pro-sub") {
     throw new ProviderError({
       kind: "invalid",
@@ -206,7 +211,8 @@ export async function summarize(req: SummarizeRequest, deps: AgentSdkDeps): Prom
   await deps.refreshHostSubToken();
 
   const startedAt = deps.now();
-  const hadSchema = req.responseFormat !== undefined;
+  // `responseFormat` is present only on the StructuredRequest arm of the union (where it's required).
+  const hadSchema = "responseFormat" in req;
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);
   let ok = 0;
   let fail = 0;

@@ -32,6 +32,9 @@ export interface VllmChatCompletionResult {
   readonly text: string;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
+  /** The engine's `choices[0].finish_reason` (stop/length/tool_calls/…), or null when absent — surfaced so
+   *  the summarize surface can log the turn's stop reason (observability parity with the chat surfaces). */
+  readonly finishReason: string | null;
 }
 
 // JSON-Schema annotation keywords a strict structured-output endpoint chokes on (dropped on clone);
@@ -95,7 +98,7 @@ interface ChatCompletionsUsage {
   readonly completion_tokens?: number;
 }
 interface ChatCompletionsResponse {
-  readonly choices: ReadonlyArray<{ readonly message: { readonly content: string | null } }>;
+  readonly choices: ReadonlyArray<{ readonly message: { readonly content: string | null }; readonly finish_reason?: string | null }>;
   readonly usage?: ChatCompletionsUsage | undefined;
 }
 
@@ -120,12 +123,22 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
   // biome-ignore-end lint/style/useNamingConvention: OpenAI/vLLM wire field names (snake_case).
 }
 
-export async function runVllmChatCompletion(client: VllmEngineClient, req: VllmChatCompletionRequest): Promise<VllmChatCompletionResult> {
+/** `onWireBody` fires with the LITERAL /v1/chat/completions body right before it goes on the wire — the
+ *  summarize surface threads its `captureWire` sink through it (parity with the chat surface's capture),
+ *  gated by WIRE_CAPTURE at the compose root. Absent ⇒ no capture, zero cost. */
+export async function runVllmChatCompletion(
+  client: VllmEngineClient,
+  req: VllmChatCompletionRequest,
+  onWireBody?: (body: Record<string, unknown>) => void,
+): Promise<VllmChatCompletionResult> {
   const messages = await Promise.all(req.messages.map(toWireMessage));
-  const response = await client.enginePost<ChatCompletionsResponse>("gen", "/v1/chat/completions", buildBody(req, messages), req.signal);
+  const body = buildBody(req, messages);
+  onWireBody?.(body);
+  const response = await client.enginePost<ChatCompletionsResponse>("gen", "/v1/chat/completions", body, req.signal);
   return {
     text: response.choices[0]?.message.content ?? "",
     tokensIn: response.usage?.prompt_tokens ?? null,
     tokensOut: response.usage?.completion_tokens ?? null,
+    finishReason: response.choices[0]?.finish_reason ?? null,
   };
 }

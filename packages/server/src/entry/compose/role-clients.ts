@@ -67,21 +67,27 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         model: imageEmbedConn.model,
         input: req,
       }),
-    summarize: (inputs: SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> =>
-      deps.executor.summarize({
+    // ONE facade, TWO wire roles (owner ruling 2026-07-27 — summarize is summarization, structured is
+    // schema-constrained generation). A caller passing `responseFormat` genuinely wants CONSTRAINED output →
+    // route it to the `structured` role; a plain call is real summarization → `summarize`. Callers are
+    // unchanged (the facade name stays `summarize`), but the WIRE role + its observability tag + its firewall
+    // row are now HONEST — a debugging session filters `provider.structured-item` for constrained calls.
+    // The caller's cancellation (a chat turn's active-turn handle) rides straight onto either role's request.
+    summarize: (inputs: SummarizeInput[], opts?: SummarizeCallOptions): Promise<SummarizeResult> => {
+      const common = {
         credential: summarizeConn.credential,
         model: summarizeConn.model,
         inputs,
-        // The caller's cancellation (a chat turn's active-turn handle) rides straight onto the provider
-        // request — every summarize-serving backend honors `SummarizeRequest.signal`, so a non-responsive
-        // box can be cut loose instead of hanging the caller forever.
         ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
         ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
         ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
         ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-        ...(opts?.responseFormat !== undefined ? { responseFormat: opts.responseFormat } : {}),
         ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
-      }),
+      };
+      return opts?.responseFormat !== undefined
+        ? deps.executor.structured({ ...common, responseFormat: opts.responseFormat })
+        : deps.executor.summarize(common);
+    },
     embedModel: embedConn.model,
     rerankModel: rerankConn.model,
     imageEmbedModel: imageEmbedConn.model,

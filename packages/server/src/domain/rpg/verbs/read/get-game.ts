@@ -16,6 +16,7 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       mode: game.mode,
       status: game.status,
       trackersReadOnly,
+      extractionMode: game.config.extractionMode,
       publicConfig: { statProfile: game.config.statProfile },
     };
   }

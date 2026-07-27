@@ -89,3 +89,40 @@ export function logProviderCapability(backend: string, entry: ProviderCapability
     droppedWarnings: [...entry.droppedWarnings],
   });
 }
+
+// The per-ITEM batch turn for the `summarize` + `structured` roles — the observability parity `logProviderTurn`
+// gives a chat turn, but for a batch of independent gen calls. Emitted by EVERY surface (vLLM + OpenRouter) for
+// BOTH success and failure and TAGGED BY `role` (`summarize` vs `structured` — owner ruling 2026-07-27), so a
+// diagnosis of an rpg extraction never again greps "summarize". Metadata only — never the prompt or the
+// summary/extraction text. `hasResponseFormat` records that the item was a structured-output call.
+export interface ProviderSummarizeItemLog {
+  /** Which role emitted this — `summarize` (summarization) or `structured` (schema-constrained generation). */
+  readonly role: "summarize" | "structured";
+  readonly model: string;
+  readonly index: number;
+  readonly durationMs: number;
+  readonly ok: boolean;
+  readonly tokensIn: number | null;
+  readonly tokensOut: number | null;
+  readonly finishReason: string | null;
+  readonly hasResponseFormat: boolean;
+  /** Present only on a failed item — the classified error kind (never the message/body). */
+  readonly errorKind?: string;
+}
+
+export function logProviderSummarizeItem(backend: string, entry: ProviderSummarizeItemLog): void {
+  // The event name carries the role so a grep filters cleanly: `provider.summarize-item` vs
+  // `provider.structured-item`.
+  providerLog(backend, entry.ok ? "info" : "warn", `provider.${entry.role}-item`, {
+    role: entry.role,
+    model: entry.model,
+    index: entry.index,
+    durationMs: entry.durationMs,
+    ok: entry.ok,
+    tokensIn: entry.tokensIn,
+    tokensOut: entry.tokensOut,
+    finishReason: entry.finishReason,
+    hasResponseFormat: entry.hasResponseFormat,
+    ...(entry.errorKind !== undefined ? { errorKind: entry.errorKind } : {}),
+  });
+}

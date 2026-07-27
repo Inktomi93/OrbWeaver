@@ -43,12 +43,14 @@ export type {
   ProviderCapabilityLog,
   ProviderSamplingDrop,
   ProviderSamplingLog,
+  ProviderSummarizeItemLog,
   ProviderTurnUsage,
 } from "./provider-log";
 export {
   logProviderCache,
   logProviderCapability,
   logProviderSampling,
+  logProviderSummarizeItem,
   PROVIDER_LOG_LEVELS,
   providerLog,
 } from "./provider-log";

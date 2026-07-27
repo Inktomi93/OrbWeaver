@@ -3,7 +3,7 @@
 // throws ConnectionRoutingError on an incoherent (api, source) selection.
 
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
-import { env, vllmAgentModelAlias } from "@orb/server/foundation/env";
+import { env } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -92,15 +92,16 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
-  test("agent-sdk × vllm is COHERENT (U0 local loopback agent path) — resolves, no throw", async () => {
+  // agent-sdk × vllm was REMOVED (owner ruling 2026-07-27): the local vLLM loopback agent skin is retired —
+  // local vLLM chat runs on the chat-completions surface ONLY. assertCoherent now REJECTS the pair (the same
+  // ConnectionRoutingError an incoherent selection throws), so a stored agent-sdk+vllm connection surfaces a
+  // loud resolve-time error naming the fix — never a silent rewrite.
+  test("agent-sdk × vllm is INCOHERENT (skin retired) — throws ConnectionRoutingError, no silent heal", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
-
-    expect(conn.api).toBe("agent-sdk");
-    expect(conn.credential.source).toBe("vllm");
+    await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
   // The OR skin: `agent-sdk × openrouter` legitimately runs Claude models — assertCoherent admits the pair,
@@ -118,38 +119,20 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     expect(conn.credential.source).toBe("openrouter");
   });
 
-  // The model-heal gap: `agent-sdk × vllm` runs Claude Code against the LOCAL vLLM engine, which serves ONLY
-  // the slash-free alias (`vllmAgentModelAlias()` = env.VLLM_GEN_MODEL's leaf). Before this fix healModel's
-  // source-blind agent-sdk arm returned claude-opus-4-8 (healToChatDefault) → the loopback 404s → the turn
-  // crashes (exit 1). It must resolve the vLLM alias, NEVER a Claude default.
-  test("agent-sdk × vllm heals to the local vLLM ALIAS, NOT a Claude default (the RPG-on-vLLM crash fix)", async () => {
-    const h = makeConnHarness(await freshDb());
-    h.setRoleDefaults({ chat: { api: "agent-sdk", source: "vllm" } });
-    const svc = createConnectionService(h.ctx);
-
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
-
-    // The slash-free leaf of env.VLLM_GEN_MODEL (default "Qwen/Qwen3-VL-8B-Instruct" → "Qwen3-VL-8B-Instruct")
-    // — the alias buildClaudeVllmEnv sets as ANTHROPIC_DEFAULT_*_MODEL. Derived from the ONE shared helper.
-    expect(conn.model).toBe(vllmAgentModelAlias());
-    expect(conn.model).not.toContain("/"); // Claude Code can't resolve a slash-containing id
-    expect(conn.model).not.toBe("claude-opus-4-8"); // the pre-fix wrong default
-  });
-
-  // The heal is now EXPLICIT + EXHAUSTIVE + FAIL-LOUD (owner ruling: the source-blind fallthrough to a Claude
-  // default WAS the silent-failure antipattern). max-pro-sub keeps healToChatDefault; vllm gets the alias
-  // (above); a new/unhandled agent-sdk source THROWS AgentModelHealError instead of silently becoming opus.
+  // The heal is EXPLICIT + EXHAUSTIVE + FAIL-LOUD (owner ruling: the source-blind fallthrough to a Claude
+  // default WAS the silent-failure antipattern). max-pro-sub + openrouter keep healToChatDefault; every other
+  // agent-sdk source (incl. the now-retired vllm) is rejected by assertCoherent before the heal.
   test("no regression: agent-sdk on the SUB heals to a Claude curated default (Claude models keep healToChatDefault)", async () => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
     // The owner's unconfigured chat defaults to agent-sdk × max-pro-sub — a real Claude source, so it heals
-    // to the curated Claude default (a `/`-free curated id), NOT the vLLM alias.
+    // to the curated Claude default (a `/`-free curated id).
     const conn = await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
 
     expect(conn.credential.source).toBe("max-pro-sub");
-    expect(conn.model).not.toBe(vllmAgentModelAlias());
     expect(conn.model.startsWith("claude")).toBe(true);
+    expect(conn.model).not.toContain("/");
   });
 });
 

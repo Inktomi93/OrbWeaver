@@ -345,6 +345,10 @@ function mapResponsesToTurnResult(
   const { final } = drain;
   const rawFinish = final?.incompleteDetails?.reason ?? final?.status ?? null;
   const toolCalls = extractResponsesToolCalls(final);
+  // The Responses wire has NO tool finish reason — a tool-calling turn terminates `status:"completed"`
+  // (→ "stop"), the tool intent being the PRESENCE of `function_call` output items. Normalizing from
+  // status alone left the domain recurse loop's `finishReason === "tool"` pivot dead on this route
+  // (live-proven 2026-07-27); surfaced calls ARE the finish signal. `stopReason` keeps the raw provenance.
   return {
     reply: drain.reply.length > 0 ? drain.reply : flattenResponsesOutput(final),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
@@ -352,7 +356,7 @@ function mapResponsesToTurnResult(
     reasoningRedacted: false,
     stopReason: rawFinish,
     terminalReason: null,
-    finishReason: normalizeFinishReason(rawFinish),
+    finishReason: toolCalls !== undefined ? "tool" : normalizeFinishReason(rawFinish),
     ttftMs: null,
     warmSpareClaimed: null,
     durationApiMs: ctx.now - ctx.startedAt,

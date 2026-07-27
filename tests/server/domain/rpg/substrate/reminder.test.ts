@@ -1,6 +1,7 @@
 // tests/server/domain/rpg/substrate/reminder — the lite steering-injection assembler (rpg-design/05 §4.7).
 // Pure string-building, so a unit test over hand-built tracker views: the state block per entity, the versioned
-// license, the update-guidance gated on tool-capability, and `steeringNote` LAST.
+// license, and `steeringNote` LAST. The char turn is tool-less (owner ruling 2026-07-27) — the reminder carries
+// NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
 import type { RpgTrackerView } from "@orb/contracts/rpg";
 import { buildLiteReminder, RPG_STEERING_LICENSE } from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
@@ -22,8 +23,26 @@ function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
 }
 
 test("a fresh game reminder is just the license (no phantom empty headers)", () => {
-  const out = buildLiteReminder({ view: emptyView(), toolCapable: false, steeringNote: "" });
+  const out = buildLiteReminder({ view: emptyView(), steeringNote: "" });
   expect(out).toBe(RPG_STEERING_LICENSE);
+});
+
+test("the reminder NEVER carries tool-update guidance (the char turn is tool-less; F7)", () => {
+  // The dead UPDATE_GUIDANCE block was removed — the reminder is state flavor + license + note only. A
+  // tool name appearing here would mean the dead block came back (the maintenance-trap the stickler flagged).
+  const view = emptyView({
+    actors: [
+      {
+        actorRef: { kind: "cast", castKey: "k" },
+        name: "K",
+        sheet: { className: "", attributes: {}, poolDefs: [], maxHp: null },
+        volatile: null,
+      },
+    ],
+  });
+  const out = buildLiteReminder({ view, steeringNote: "" });
+  expect(out).not.toContain("update_party");
+  expect(out).not.toContain("MUST record");
 });
 
 test("the state block reports each plane, label-as-mini-prompt", () => {
@@ -48,7 +67,7 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
     quests: [{ id: "q1", name: "Find the ledger", status: "active", description: "", objectives: [{ id: "o1", text: "search the office", completed: false }] }],
     recentBeats: ["The door slammed shut."],
   });
-  const out = buildLiteReminder({ view, toolCapable: true, steeringNote: "" });
+  const out = buildLiteReminder({ view, steeringNote: "" });
   // Ambient (time-of-day derived from hour 21 → "night"), the actor line, quest + open objective, beat.
   expect(out).toContain("The Rusty Anchor");
   expect(out).toContain("night");
@@ -63,17 +82,10 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("The door slammed shut.");
 });
 
-test("update-guidance rides ONLY a tool-capable turn (the designed honest degrade)", () => {
-  const withTools = buildLiteReminder({ view: emptyView(), toolCapable: true, steeringNote: "" });
-  const withoutTools = buildLiteReminder({ view: emptyView(), toolCapable: false, steeringNote: "" });
-  expect(withTools).toContain("update_party");
-  expect(withoutTools).not.toContain("update_party");
-});
-
 test("the steering note is the always-wins tail (LAST)", () => {
-  const out = buildLiteReminder({ view: emptyView(), toolCapable: true, steeringNote: "Keep it grim." });
+  const out = buildLiteReminder({ view: emptyView(), steeringNote: "Keep it grim." });
   expect(out.endsWith("Keep it grim.")).toBe(true);
-  // It sits after the license and the guidance.
+  // It sits after the license.
   expect(out.indexOf("Keep it grim.")).toBeGreaterThan(out.indexOf(RPG_STEERING_LICENSE));
 });
 
@@ -84,7 +96,7 @@ test("an active-only quest filter (completed quests never clutter the reminder)"
       { id: "q2", name: "Done quest", status: "completed", description: "", objectives: [] },
     ],
   });
-  const out = buildLiteReminder({ view, toolCapable: false, steeringNote: "" });
+  const out = buildLiteReminder({ view, steeringNote: "" });
   expect(out).toContain("Open quest");
   expect(out).not.toContain("Done quest");
 });

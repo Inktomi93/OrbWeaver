@@ -137,3 +137,35 @@ describe("spliceInChatInjections", () => {
     });
   });
 });
+
+describe("spliceInChatInjections — allowMidConversationSystem (turns.midConversationSystem)", () => {
+  test("allowed: a depth-0 system injection delivers as a REAL system row (bare content, no note framing)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
+    expect(out.at(-1)).toEqual({ role: "system", content: "sys" });
+  });
+
+  test("allowed: depth > 0 STILL demotes (the wire-tested channel is tail-only; never a mid-history system row)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 1, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
+    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from system: sys]" });
+  });
+
+  test("absent/false: the demote path is byte-identical to the pre-capability behavior (regression pin)", () => {
+    const off = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
+    const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: false });
+    expect(off.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]" });
+    expect(explicitOff).toEqual(off);
+  });
+
+  test("allowed + squashSystemMessages: a depth-0 run merges to ONE bare system row (blank-line join)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "a" }), inj({ depth: 0, role: "system", content: "b" })], (c) => c, {
+      allowMidConversationSystem: true,
+      squashSystemMessages: true,
+    });
+    expect(out.at(-1)).toEqual({ role: "system", content: "a\n\nb" });
+  });
+
+  test("allowed: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "user", content: "u" })], (c) => c, { allowMidConversationSystem: true });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]" });
+  });
+});

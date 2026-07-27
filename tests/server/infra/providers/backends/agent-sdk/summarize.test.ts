@@ -15,7 +15,7 @@
 //   • whole-batch-on-first-error: one failed item rejects the whole batch (the vLLM/OR convention).
 //   • the per-item watchdog aborts a hung turn (fake timers).
 
-import type { SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
+import type { StructuredRequest, SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
@@ -31,24 +31,48 @@ const HOSTED_HINT_RE = /openrouter/u;
 
 /** The wired summarize fn (the backend always sets it; the cast drops the contract's `| undefined`). */
 type SummarizeFn = (req: SummarizeRequest) => Promise<SummarizeResult>;
+type StructuredFn = (req: StructuredRequest) => Promise<SummarizeResult>;
 
-function backendOf(query: unknown, summarizeConcurrency?: () => number): SummarizeFn {
-  const backend = createAgentSdkBackend({
+function newBackend(query: unknown, summarizeConcurrency?: () => number): ReturnType<typeof createAgentSdkBackend> {
+  return createAgentSdkBackend({
     now: () => 0,
     query: query as never,
     refreshHostSubToken: () => Promise.resolve(false),
     ...(summarizeConcurrency !== undefined ? { summarizeConcurrency } : {}),
   });
-  return backend.summarize as SummarizeFn;
 }
 
-/** A request over a single (system,user) item — the common shape. */
+function backendOf(query: unknown, summarizeConcurrency?: () => number): SummarizeFn {
+  return newBackend(query, summarizeConcurrency).summarize as SummarizeFn;
+}
+
+// The `structured` role method (owner ruling 2026-07-27 — the sub's schema-output path; agent-sdk stays out
+// of the structured ROLE at the dispatcher, but the backend method exists + is pinned).
+function structuredOf(query: unknown): StructuredFn {
+  const structured = newBackend(query).structured;
+  if (structured === undefined) {
+    throw new Error("agent-sdk backend must implement structured");
+  }
+  return structured as StructuredFn;
+}
+
+/** A summarize request over a single (system,user) item — the common prose shape. */
 function reqOf(overrides: Partial<SummarizeRequest> = {}): SummarizeRequest {
   return {
     credential: SUB_CRED,
     model: MODEL as SummarizeRequest["model"],
     inputs: [{ systemPrompt: "Summarize tersely.", userPrompt: "The quick brown fox." }],
     ...overrides,
+  };
+}
+
+/** A structured request over a single item — carries the required `responseFormat`. */
+function structReqOf(responseFormat: StructuredRequest["responseFormat"]): StructuredRequest {
+  return {
+    credential: SUB_CRED,
+    model: MODEL as StructuredRequest["model"],
+    inputs: [{ systemPrompt: "Extract.", userPrompt: "The quick brown fox." }],
+    responseFormat,
   };
 }
 
@@ -139,9 +163,9 @@ describe("agent-sdk summarize", () => {
     };
     const structured = { topic: "fox", sentiment: "neutral" };
     const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(structuredTurn(structured)));
-    const summarize = backendOf(fakeQuery);
+    const structuredRun = structuredOf(fakeQuery);
 
-    const result = await summarize(reqOf({ responseFormat: { name: "result", schema } }));
+    const result = await structuredRun(structReqOf({ name: "result", schema }));
 
     // The item text is the COMPACT JSON serialization — exactly what a vLLM guided-decoding completion
     // string would carry (JSON.stringify, no indent), so a consumer can't tell the backends apart.
@@ -169,9 +193,9 @@ describe("agent-sdk summarize", () => {
         },
       ]),
     );
-    const summarize = backendOf(fakeQuery);
+    const structuredRun = structuredOf(fakeQuery);
 
-    await expect(summarize(reqOf({ responseFormat: { name: "result", schema: { type: "object" } } }))).rejects.toMatchObject({
+    await expect(structuredRun(structReqOf({ name: "result", schema: { type: "object" } }))).rejects.toMatchObject({
       kind: "invalid",
     });
   });

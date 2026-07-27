@@ -60,14 +60,18 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
   if (!isGame || gameQuery === undefined || trackerQuery === undefined) {
     return null;
   }
-  const game = gameQuery.data;
+  // Annotate the two game reads: the dynamic-array `useSuspenseQueries` idiom (a conditionally-sized query
+  // array) can't infer element types, so `.data` degrades to `any` — pin them to their contract types so
+  // `game.trackersReadOnly` is a real boolean (strict-boolean-expressions) and the panel state stays typed.
+  const game: RpgGameView = gameQuery.data;
+  const tracker: RpgTrackerView = trackerQuery.data;
   const isHost = chat.viewerIsHost === true;
   return {
     chatId,
     viewerUserId: chat.viewerUserId,
     isHost,
     game,
-    tracker: trackerQuery.data,
+    tracker,
     canEditShared: isHost && !game.trackersReadOnly,
   };
 }

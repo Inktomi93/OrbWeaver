@@ -6,9 +6,13 @@
 // Assembly order (§4.7): (1) the STATE BLOCK per entity — label-as-mini-prompt throughout (each roster actor,
 // each cast row, each custom widget, the ambient line, active quests + open objectives, the recent journal
 // beats); (2) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour, acknowledge
-// changes, never recite the numbers); (3) UPDATE GUIDANCE — tool-capable turns ONLY (which tool maintains which
-// plane; the honest degrade on a non-tool turn is DESIGNED, §4.6); (4) `config.lite.steeringNote` — the
-// always-wins user slot, LAST.
+// changes, never recite the numbers); (3) `config.lite.steeringNote` — the always-wins user slot, LAST.
+//
+// NO tool-update guidance here (owner ruling 2026-07-27): the character turn is ALWAYS tool-less prose — state
+// is captured by a DEDICATED post-commit round (`runToolRound`/`runExtraction`), so this reminder never asks the
+// narration turn to call a tool. The "call every applicable tool" checklist now lives in the TOOL ROUND's own
+// prompt (`toolRoundSystem`, entry/compose/rpg.ts), where the tools actually fire. This reminder injects the
+// tracked state as FLAVOR the character reacts off — steering, not writing.
 //
 // The license + state-block prose are ARGUED NO-KNOB v1 (§4.11 #4): `steeringNote` IS the designed tuning slot
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
@@ -130,21 +134,9 @@ function questLine(quest: RpgTrackerView["quests"][number]): string {
   return `${head}\n${open.map((o) => `  ○ ${o.text}`).join("\n")}`;
 }
 
-/** The tool→plane guidance lines (§4.7 #3) — emitted only on a tool-capable turn (a non-tool turn is never
- *  asked to write what it can't). */
-const UPDATE_GUIDANCE = [
-  "Maintain the tracked state as the story moves, using these tools:",
-  "- update_party — HP, pools, conditions, status on any actor",
-  "- update_inventory — items and wallet",
-  "- update_scene — location, time, weather, present cast",
-  "- set_widget_value — custom trackers",
-  "- upsert_quest — quest goals and objectives",
-  "- add_journal_entry — log a notable beat",
-].join("\n");
-
 /** Build the lite steering reminder (§4.7). Returns the assembled block; the gather wraps it as ONE depth-0
  *  `role:"system"` `ChatInjection`. Empty sections are omitted so a fresh game's reminder is just the license
- *  (+ guidance/note) — no phantom empty headers. */
+ *  (+ note) — no phantom empty headers. No tool guidance: the char turn is tool-less (see the file header). */
 export function buildLiteReminder(input: LiteReminderInput): string {
   const { view } = input;
   const blocks: string[] = [];
@@ -182,10 +174,6 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
 
   blocks.push(RPG_STEERING_LICENSE);
-
-  if (input.toolCapable) {
-    blocks.push(UPDATE_GUIDANCE);
-  }
 
   const note = input.steeringNote.trim();
   if (note !== "") {

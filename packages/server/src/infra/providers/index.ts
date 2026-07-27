@@ -22,6 +22,7 @@ import { createEmbedRole } from "./roles/embed";
 import { createGenerateImageRole } from "./roles/generate-image";
 import { createImageEmbedRole } from "./roles/image-embed";
 import { createRerankRole } from "./roles/rerank";
+import { createStructuredRole } from "./roles/structured";
 import { createSummarizeRole } from "./roles/summarize";
 import type { VllmBackendDeps, VllmEngineHandle } from "./vllm";
 import { createVllmBackend } from "./vllm";
@@ -34,6 +35,7 @@ export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
     rerank: createRerankRole(deps),
     imageEmbed: createImageEmbedRole(deps),
     summarize: createSummarizeRole(deps),
+    structured: createStructuredRole(deps),
     generateImage: createGenerateImageRole(deps),
   };
 }
@@ -160,6 +162,7 @@ export { assertCredentialAllowed } from "./roles/firewall";
 export { createGenerateImageRole } from "./roles/generate-image";
 export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
+export { createStructuredRole } from "./roles/structured";
 export { createSummarizeRole } from "./roles/summarize";
 export type { EngineDeploymentFacts, VllmEngineHandle } from "./vllm";
 export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm";

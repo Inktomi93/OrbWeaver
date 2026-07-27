@@ -24,9 +24,19 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
       switch (source) {
         case "max-pro-sub":
         case "openrouter":
-        case "vllm":
-          // Sub, OR skin, local loopback all run through the one stateful agent-sdk backend.
+          // The sub + the OR-Anthropic skin — the two Claude-runtime skins — run through the one stateful
+          // agent-sdk backend.
           return "agent-sdk";
+        case "vllm":
+          // REMOVED 2026-07-27 (owner ruling): the local vLLM loopback agent skin is retired — the small
+          // local model hung on real structured-output schemas over the SDK wire, while the SAME engine's
+          // chat-completions surface handles everything. Local vLLM is chat-completions-ONLY. The loopback
+          // env builder (buildClaudeVllmEnv) is deleted; a would-be agent-sdk×vllm turn fails LOUD here.
+          throw new ProviderError({
+            kind: "invalid",
+            retryable: false,
+            message: 'the local "vllm" engine serves chat only through the chat-completions api (the agent-sdk loopback skin was retired)',
+          });
         case "local-light":
           throw new ProviderError({
             kind: "invalid",

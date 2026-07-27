@@ -40,6 +40,31 @@ describe("enginePost", () => {
     expect((err as ProviderError).kind).toBe("server");
     expect((err as ProviderError).message).toContain("not reachable");
   });
+
+  // F6 — the hung-socket bound: enginePost ALWAYS passes a signal to fetch (the default request-timeout composed
+  // with any caller signal), so a black-holed engine can't leak an unsettled promise (→ a permanent barrier-entry
+  // leak downstream). Pinned here at the source: the request is always abort-armed.
+  test("enginePost ALWAYS fetches with an abort signal (the default timeout — no unbounded hang)", async () => {
+    let seenSignal: AbortSignal | undefined;
+    vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+      seenSignal = init.signal ?? undefined;
+      return Promise.resolve(new Response(JSON.stringify({ ok: 1 }), { status: 200 }));
+    });
+    await client.enginePost("gen", "/v1/chat/completions", {});
+    expect(seenSignal).toBeInstanceOf(AbortSignal); // never undefined — the bound is unconditional
+  });
+
+  // F6 — the hung flush SETTLES: when the bound fires, fetch rejects with a TimeoutError DOMException; that maps
+  // to a RETRYABLE server ProviderError (not a raw DOMException), so the rpg flush promise settles → the
+  // flush-barrier `.finally` runs → the entry clears (no permanent per-chat 15s tax).
+  test("a request-timeout abort maps to a retryable server ProviderError (the flush settles, barrier clears)", async () => {
+    vi.stubGlobal("fetch", () => Promise.reject(new DOMException("The operation timed out.", "TimeoutError")));
+    const err = await client.enginePost("gen", "/v1/chat/completions", {}).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ProviderError);
+    expect((err as ProviderError).kind).toBe("server");
+    expect((err as ProviderError).retryable).toBe(true);
+    expect((err as ProviderError).message).toContain("bound");
+  });
 });
 
 describe("engineStream", () => {

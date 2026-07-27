@@ -400,3 +400,32 @@ describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
     });
   });
 });
+
+describe("shape — midConversationSystem gates the depth-0 system-injection delivery", () => {
+  const sysInj = inChat({ role: "system", content: "GM note" });
+
+  test("capable: the injection rides as a REAL trailing system row; the breakpoint still pins (offset counts it)", () => {
+    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true }));
+    expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
+    expect(out.history.at(-2)).toEqual({ role: "user", content: "u2 volatile" });
+    // The stable prefix is untouched (depth 0 lands after the volatile tail): squashed prefix 3 of 5 rows.
+    expect(out.cacheBreakpointFromEnd).toBe(2);
+  });
+
+  test("not capable (default): byte-identical demote — the note folds into the adjacent user tail (regression pin)", () => {
+    const out = shape(soloInput({ injections: [sysInj] }));
+    expect(out.history.at(-1)?.role).toBe("user");
+    expect(out.history.at(-1)?.content).toBe("u2 volatile\n\n[Note from system: GM note]");
+  });
+
+  test("capable + no user tail on an assistant-final canon: the CONTINUATION_NUDGE still lands (ends-on-user reads past system rows)", () => {
+    const out = shape(soloInput({ appendUserTurn: null, injections: [sysInj], midConversationSystem: true }));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
+    expect(out.history.at(-2)).toEqual({ role: "system", content: "GM note" });
+  });
+
+  test("capable: the names pass never labels the system row (namesBehavior content)", () => {
+    const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, namesBehavior: "content" }));
+    expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
+  });
+});

@@ -6,10 +6,12 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatRequest, EmbedRequest, ProviderBackend, SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
+import { logger } from "@orb/server/foundation/observability";
+import type { ChatRequest, EmbedRequest, ProviderBackend, StructuredRequest, SummarizeRequest, SummarizeResult } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/server/infra/providers";
 import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -42,8 +44,12 @@ interface Tracker {
 }
 
 // A backend wired with an injected `getClient` that records the API key it was handed and returns a fake
-// whose chat.send replies (non-streaming) for the summarize shaper.
-function backendWith(reply: (n: number) => unknown): {
+// whose chat.send replies (non-streaming) for the summarize shaper. `reply` may THROW (return a rejecting
+// promise) to exercise the failure-observability path. `captureWire` opts in the wire-capture sink.
+function backendWith(
+  reply: (n: number) => unknown,
+  captureWire?: Parameters<typeof createOpenRouterBackend>[0]["captureWire"],
+): {
   backend: ProviderBackend;
   tracker: Tracker;
 } {
@@ -60,7 +66,11 @@ function backendWith(reply: (n: number) => unknown): {
       },
     } as unknown as OrClient;
   };
-  const backend = createOpenRouterBackend({ now: (): number => FIXED_NOW, getClient });
+  const backend = createOpenRouterBackend({
+    now: (): number => FIXED_NOW,
+    getClient,
+    ...(captureWire !== undefined ? { captureWire } : {}),
+  });
   return { backend, tracker };
 }
 
@@ -69,6 +79,15 @@ function callSummarize(backend: ProviderBackend, req: SummarizeRequest): Promise
   const fn = backend.summarize;
   if (fn === undefined) {
     throw new Error("openrouter backend must implement summarize");
+  }
+  return fn(req);
+}
+
+// The `structured` role method (owner ruling 2026-07-27 — split from summarize; `responseFormat` required).
+function callStructured(backend: ProviderBackend, req: StructuredRequest): Promise<SummarizeResult> {
+  const fn = backend.structured;
+  if (fn === undefined) {
+    throw new Error("openrouter backend must implement structured");
   }
   return fn(req);
 }
@@ -137,7 +156,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       properties: { genre: { type: "string" } },
       required: ["genre"],
     };
-    await callSummarize(backend, {
+    await callStructured(backend, {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
@@ -151,6 +170,22 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       type: "json_schema",
       jsonSchema: { name: "result", schema, strict: true },
     });
+  });
+
+  // S3 — the structured role does NOT strip `<think>`: a literal `<think>…</think>` inside a JSON string value
+  // (constrained output — e.g. journal content quoting the tag) is legitimate and must survive; stripping it
+  // would corrupt the JSON / lose content. The prose (summarize) role still strips (pinned above).
+  test("S3: a literal <think> inside a structured JSON string value SURVIVES (no strip on the structured role)", async () => {
+    const jsonWithThink = '{"journal":[{"type":"note","content":"He said <think>plan</think> aloud."}]}';
+    const { backend } = backendWith(() => summarizeReply(jsonWithThink));
+    const result = await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema: { type: "object" } },
+    });
+    expect(result?.items[0]?.text).toBe(jsonWithThink); // <think> preserved verbatim
+    expect(() => JSON.parse(result?.items[0]?.text ?? "")).not.toThrow(); // JSON intact
   });
 
   test("omits response_format entirely when no jsonSchema is supplied (byte-identical to pre-change)", async () => {
@@ -200,5 +235,69 @@ describe("createOpenRouterBackend — summarize shaper", () => {
         { type: "image_url", imageUrl: { url: "https://cdn.example/a.jpg" } },
       ],
     });
+  });
+});
+
+// OBSERVABILITY parity with the vLLM summarize surface (the black-hole fix): the OR summarize path captures
+// the wire body + emits a per-item provider.summarize-item turn log for BOTH success and failure.
+describe("createOpenRouterBackend — summarize observability (wire capture + provider.summarize-item log)", () => {
+  const haikuModel = castId<ModelId>("anthropic/claude-haiku-4-5");
+
+  test("captures the outbound-schema'd wire body per item under the 'summarize' api tag", async () => {
+    const captured: { api: string; backend: string; model: string; body: Record<string, unknown> }[] = [];
+    const { backend } = backendWith(
+      (n) => summarizeReply(`S${n}`),
+      (e) => captured.push({ api: e.api, backend: e.backend, model: e.model, body: e.body }),
+    );
+    await callSummarize(backend, {
+      credential: CRED,
+      model: haikuModel,
+      inputs: [
+        { systemPrompt: "sys", userPrompt: "a" },
+        { systemPrompt: "sys", userPrompt: "b" },
+      ],
+    });
+    expect(captured).toHaveLength(2);
+    expect(captured.map((c) => c.api)).toEqual(["summarize", "summarize"]);
+    expect(captured.map((c) => c.backend)).toEqual(["openrouter", "openrouter"]);
+    // The captured body is the snake_case wire the SDK actually sends.
+    expect(captured[0]?.body["model"]).toBe(haikuModel);
+    expect(captured[0]?.body["messages"]).toBeDefined();
+  });
+
+  test("emits provider.summarize-item ok:true per item with tokens + finishReason + responseFormat presence", async () => {
+    const spy = vi.spyOn(logger, "info");
+    const { backend } = backendWith((n) => summarizeReply(`S${n}`));
+    await callStructured(backend, {
+      credential: CRED,
+      model: haikuModel,
+      inputs: [{ systemPrompt: "sys", userPrompt: "a" }],
+      responseFormat: { name: "rpg_state", schema: { type: "object" } },
+    });
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.structured-item");
+    expect(line).toBeDefined();
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["backend"]).toBe("openrouter");
+    expect(fields["ok"]).toBe(true);
+    expect(fields["index"]).toBe(0);
+    expect(fields["tokensIn"]).toBe(5);
+    expect(fields["tokensOut"]).toBe(2);
+    expect(fields["finishReason"]).toBe("stop");
+    expect(fields["hasResponseFormat"]).toBe(true);
+  });
+
+  test("emits provider.summarize-item ok:false with errorKind on a failing item — and still re-throws", async () => {
+    const spy = vi.spyOn(logger, "warn");
+    const { backend } = backendWith(() => {
+      throw new ProviderError({ kind: "rate_limit", retryable: true, message: "429" });
+    });
+    await expect(callSummarize(backend, { credential: CRED, model: haikuModel, inputs: [{ systemPrompt: "sys", userPrompt: "a" }] })).rejects.toBeInstanceOf(
+      ProviderError,
+    );
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.summarize-item");
+    expect(line).toBeDefined();
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["ok"]).toBe(false);
+    expect(fields["errorKind"]).toBe("rate_limit");
   });
 });

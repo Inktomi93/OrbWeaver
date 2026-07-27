@@ -30,6 +30,7 @@ export type {
   ResolveRpgRoster,
   ResolveViewerVisibility,
   RpgRosterActor,
+  RpgTurnConnection,
   SetRpgPointer,
   ViewerVisibility,
 } from "./contract/context";

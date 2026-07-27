@@ -94,8 +94,13 @@ function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[]
 }
 
 // A text-less assistant tool-call turn is kept (the calls ARE its content).
+// A `system` row is a capability-kept mid-conversation system injection (`turns.midConversationSystem`)
+// — delivered as a REAL system message on this wire (legal OpenAI vocab), never coerced to user.
 function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
   const text = chatHistoryText(turn.content);
+  if (turn.role === "system") {
+    return text.trim().length > 0 ? { role: SYSTEM_ROLE, content: text } : null;
+  }
   const toolCalls = turn.role === "assistant" ? historyToolCalls(turn.content) : undefined;
   if (text.trim().length === 0 && toolCalls === undefined) {
     return null;

@@ -334,3 +334,35 @@ describe("runResponsesTurn — stream reduce → ChatResult", () => {
     });
   });
 });
+
+describe("runResponsesTurn — the tool finish signal (the Responses wire has NO tool finish reason)", () => {
+  // A completed tool-calling turn: status:"completed" with function_call OUTPUT items — the calls'
+  // presence IS the finish signal (live-proven 2026-07-27; a status-only normalize left the domain
+  // recurse loop's finishReason:"tool" pivot dead on this route).
+  const toolEvents: readonly Record<string, unknown>[] = [
+    {
+      type: "response.completed",
+      response: {
+        status: "completed",
+        incompleteDetails: null,
+        outputText: "",
+        output: [{ type: "function_call", id: "fc_1", callId: "call_1", name: "roll_dice", arguments: '{"sides":20}' }],
+        usage: { inputTokens: 5, outputTokens: 2, totalTokens: 7, inputTokensDetails: { cachedTokens: 0 }, outputTokensDetails: { reasoningTokens: 0 } },
+      },
+    },
+  ];
+
+  test("surfaced function_call items force finishReason 'tool'; stopReason keeps the raw provenance", async () => {
+    const { client } = streamingClient(toolEvents);
+    const result = await runResponsesTurn(client, makeRequest(), DEPS);
+    expect(result.finishReason).toBe("tool");
+    expect(result.stopReason).toBe("completed");
+    expect(result.toolCalls).toEqual([{ toolCallId: "call_1", name: "roll_dice", arguments: '{"sides":20}' }]);
+  });
+
+  test("a call-less completed turn stays finishReason 'stop' (no false pivot)", async () => {
+    const { client } = streamingClient(OK_EVENTS);
+    const result = await runResponsesTurn(client, makeRequest(), DEPS);
+    expect(result.finishReason).toBe("stop");
+  });
+});

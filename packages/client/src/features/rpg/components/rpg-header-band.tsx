@@ -8,6 +8,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { isLiveTurnPhase, useTurnPhase } from "#state";
 import { useRpgContextState } from "../hooks/use-rpg-context-state";
 import { RpgTakeoverHeader } from "./rpg-takeover-header";
 
@@ -15,11 +16,22 @@ export interface RpgHeaderBandProps {
   readonly chatId: ChatId;
 }
 
-/** Resolve the panel state and render the scene banner + orbs into the header band. */
+/** Resolve the panel state and render the scene banner + orbs into the header band. The freshness transient
+ *  rides the CHAT turn phase (`#state`, the shared composition tier — NOT `features/chat`): a live turn is the
+ *  reliable-mode extraction window where this beat's state is still being written, so the indicator pulses. */
 export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | null {
   const state = useRpgContextState(chatId);
+  const turnLive = isLiveTurnPhase(useTurnPhase(chatId));
   if (state === null) {
     return null;
   }
-  return <RpgTakeoverHeader ambient={state.tracker.ambient} poolOrbs={state.tracker.poolOrbs} trackersReadOnly={state.tracker.trackersReadOnly} />;
+  return (
+    <RpgTakeoverHeader
+      ambient={state.tracker.ambient}
+      poolOrbs={state.tracker.poolOrbs}
+      trackersReadOnly={state.tracker.trackersReadOnly}
+      extractionMode={state.game.extractionMode}
+      freshnessPending={turnLive}
+    />
+  );
 }

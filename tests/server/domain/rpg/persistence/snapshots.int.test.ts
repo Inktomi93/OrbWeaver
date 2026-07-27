@@ -18,6 +18,7 @@ import { freshDb } from "../../../../support/db";
 import { addVariant, emptyState, expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support";
 
 const CORRUPT_TABLE_RE = /rpg_snapshots/;
+const POOLS_MAX_RE = /pools|max/i;
 
 let db: Db;
 beforeEach(async () => {
@@ -123,11 +124,13 @@ describe("clone-forward + the committed lifecycle", () => {
     const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
     const state = { ...emptyState(), location: "forwarded", quests: [], recentEvents: ["a beat"] };
-    // A valid state writes — `undefined` only on a contract-INVALID state (the F1 structural backstop).
+    // A valid state writes — `{ok:false}` only on a contract-INVALID state (the F1 structural backstop).
     const written = await writeStagedSnapshot(db, state, target({ gameId, chatId, seq: 1, variantId, key: "fwd" }));
-    expect(written?.location).toBe("forwarded");
-    expect(written?.recentEvents).toEqual(["a beat"]);
-    expect(written?.committed).toBe(0);
+    expect(written.ok).toBe(true);
+    const row = written.ok ? written.row : undefined;
+    expect(row?.location).toBe("forwarded");
+    expect(row?.recentEvents).toEqual(["a beat"]);
+    expect(row?.committed).toBe(0);
 
     // onUserCommit locks it in (0 → 1).
     await commitSnapshotForVariant(db, variantId);
@@ -142,7 +145,7 @@ describe("clone-forward + the committed lifecycle", () => {
     const state = { ...emptyState(), location: "x", fieldLocks: { location: true as const } };
 
     const written = await writeStagedSnapshot(db, state, target({ gameId, chatId, seq: 1, variantId, key: "fwd" }));
-    expect(written?.fieldLocks).toEqual({ location: true });
+    expect(written.ok ? written.row.fieldLocks : undefined).toEqual({ location: true });
   });
 });
 
@@ -163,7 +166,7 @@ describe("parse-on-read corruption belt", () => {
 });
 
 describe("write-boundary structural backstop (stickler F1)", () => {
-  test("writeStagedSnapshot REFUSES a contract-invalid state (returns undefined, commits nothing)", async () => {
+  test("writeStagedSnapshot REFUSES a contract-invalid state (returns {ok:false} WITH a reason, commits nothing)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -186,7 +189,10 @@ describe("write-boundary structural backstop (stickler F1)", () => {
 
     const written = await writeStagedSnapshot(db, invalid, target({ gameId, chatId, seq: 1, variantId, key: "bad" }));
 
-    expect(written).toBeUndefined(); // refused
+    expect(written.ok).toBe(false); // refused
+    // The drop is NEVER silent: the result carries the field-level reason so the flush can log WHY (the
+    // visibility fix — a state round that produced applicable output must not vanish without a signal).
+    expect(written.ok ? "" : written.reason).toMatch(POOLS_MAX_RE);
     expect(await findSnapshotByVariant(db, variantId)).toBeUndefined(); // NOTHING committed — canon uncorrupted
   });
 
@@ -210,6 +216,6 @@ describe("write-boundary structural backstop (stickler F1)", () => {
     };
 
     const written = await writeStagedSnapshot(db, valid, target({ gameId, chatId, seq: 1, variantId, key: "ok" }));
-    expect(written?.actorState?.[0]?.pools).toEqual([{ name: "mana", value: 0, max: 1 }]);
+    expect(written.ok ? written.row.actorState?.[0]?.pools : undefined).toEqual([{ name: "mana", value: 0, max: 1 }]);
   });
 });

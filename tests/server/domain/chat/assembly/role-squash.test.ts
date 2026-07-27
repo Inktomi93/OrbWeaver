@@ -96,3 +96,18 @@ describe("clampRoleHandling (the SHAPE floor-clamp, every (floor, knob) pair)", 
     expect(clampRoleHandling("semi-strict", "merge")).toBe("semi-strict");
   });
 });
+
+describe("squashSameRole — system rows (capability-kept depth-0 injections)", () => {
+  test("adjacent system rows merge; a system row never folds into a user/assistant neighbor", () => {
+    expect(
+      squashSameRole([
+        { role: "user", content: "u" },
+        { role: "system", content: "a" },
+        { role: "system", content: "b" },
+      ]),
+    ).toEqual([
+      { role: "user", content: "u" },
+      { role: "system", content: "a\n\nb" },
+    ]);
+  });
+});

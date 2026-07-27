@@ -15,7 +15,7 @@ import type { AgentToolServer, AgentTurnRequest, ChatResult } from "@orb/server/
 import type { consumeTurnStream } from "@orb/server/infra/providers/backends/agent-sdk";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
-import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
+import { makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
@@ -28,8 +28,10 @@ const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTri
 const DEFAULT_MAX_TURNS = 8;
 const DEFAULT_MAX_OUTPUT = "2048";
 
-/** A vLLM (keyless, loopback) credential — keeps the firewall env deterministic + host-free. */
-const VLLM_CRED = makeResolvedCredential("vllm");
+// The OR-skin (mode-2) credential — a VALID agent-sdk source whose firewall env is deterministic + host-free
+// (empty isolated config dir). Replaces the retired vllm loopback credential (owner ruling 2026-07-27:
+// agent-sdk×vllm is gone; disciplineOptions no longer builds a vLLM env).
+const AGENT_CRED = makeOpenRouterCredential({ apiKey: "sk-or-test" });
 /** An opaque MCP tool server sentinel — the core treats it as `unknown`; we assert identity passthrough. */
 const FAKE_MCP: AgentToolServer = { __sentinel: "mcp-server" };
 
@@ -96,11 +98,13 @@ const successResult = {
 
 function buildReq(extra: Partial<AgentTurnRequest> = {}): AgentTurnRequest {
   return {
-    credential: VLLM_CRED,
+    credential: AGENT_CRED,
     model: castId<ModelId>(MODEL),
     systemPrompt: SYSTEM_PROMPT,
     prompt: "use the tool",
     mcpServer: FAKE_MCP,
+    // The OR-skin (mode-2) firewall requires the derived tier→slug map (connection supplies it live).
+    orSkinTierModels: { opus: "o", sonnet: "s", haiku: "h" },
     ...extra,
   };
 }
@@ -129,10 +133,11 @@ describe("runAgentTurn — the firewall base survives into agent mode", () => {
     expect(opts?.strictMcpConfig).toBe(true);
   });
 
-  test("the credential-scoped env is the vLLM firewall env (loopback, keyless)", async () => {
+  test("the credential-scoped env is the OR-skin (mode-2) firewall env — the OR key rides ANTHROPIC_AUTH_TOKEN, base points at OpenRouter", async () => {
     const { run, lastOptions } = harness();
     await run(buildReq());
-    expect(lastOptions()?.env?.["ANTHROPIC_AUTH_TOKEN"]).toBe("local-vllm");
+    expect(lastOptions()?.env?.["ANTHROPIC_AUTH_TOKEN"]).toBe("sk-or-test");
+    expect(lastOptions()?.env?.["ANTHROPIC_BASE_URL"]).toBe("https://openrouter.ai/api");
   });
 });
 

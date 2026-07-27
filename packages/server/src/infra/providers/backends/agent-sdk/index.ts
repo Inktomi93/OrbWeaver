@@ -3,8 +3,9 @@
 // tests import (deep imports into `backends/agent-sdk/<file>` are RED for everyone else by the
 // `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
 
-// The stateful chat backend: the Max sub (mode-1) + the OpenRouter-Anthropic skin (mode-2) + the local
-// vLLM agent path (mode-3) + agent mode. Sealed: the SDK is its private dep, never leaks upward.
+// The stateful chat backend: the Max sub (mode-1) + the OpenRouter-Anthropic skin (mode-2) + agent mode.
+// The local vLLM agent path (mode-3) was RETIRED 2026-07-27 (owner ruling): local vLLM chat runs on the
+// chat-completions surface only. Sealed: the SDK is its private dep, never leaks upward.
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/connection";
@@ -17,6 +18,7 @@ import type {
   ChatResult,
   FetchAgentSdkModelsRequest,
   ProviderBackend,
+  StructuredRequest,
   SummarizeRequest,
   SummarizeResult,
   VerifyAuthRequest,
@@ -37,7 +39,6 @@ export {
   buildClaudeAnthEnv,
   buildClaudeOpenRouterEnv,
   buildClaudeSdkEnv,
-  buildClaudeVllmEnv,
   RESERVED_CLAUDE_ENV_KEYS,
 } from "./env";
 export {
@@ -110,8 +111,13 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
     },
     runAgentTurn: (req: AgentTurnRequest): Promise<ChatResult> => runAgentTurn(req, resolved),
     // The Max sub as a selectable summarizer (mode-1 only; a non-sub credential fails closed pointing at the
-    // hosted OpenRouter path). Schema-validated output on sub quota — byte-parity with the vLLM/OR twins.
+    // hosted OpenRouter path). PROSE summarization — the schema path is the `structured` method below.
     summarize: (req: SummarizeRequest): Promise<SummarizeResult> => summarize(req, resolved),
+    // The `structured` role for the sub — the SAME impl, given a schema (byte-parity with the vLLM/OR twins:
+    // compact JSON output). agent-sdk stays OUT of the structured ROLE at the dispatcher (its structured
+    // channel for a real turn is the chat outputFormat path); this method exists so the sub's schema-output
+    // capability is reachable + pinned (mirrors `summarize` existing though the firewall excludes the sub).
+    structured: (req: StructuredRequest): Promise<SummarizeResult> => summarize(req, resolved),
     // The host-Claude auth verify (connection.testClaudeAuth) — a tiny turn through the SAME firewall a
     // real turn uses; no session resume (a health probe never touches the prompt-cache lineage).
     verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved),

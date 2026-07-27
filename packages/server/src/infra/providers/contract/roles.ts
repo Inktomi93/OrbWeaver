@@ -58,7 +58,10 @@ export interface SummarizeRequestItem {
   readonly images?: readonly ImageInput[] | undefined;
 }
 
-/** Cross-family summarization request, always batch-shaped (single → `[item]`). */
+/** Cross-family summarization request, always batch-shaped (single → `[item]`). SUMMARIZE IS SUMMARIZATION —
+ *  a prose consumer role. One-shot SCHEMA-CONSTRAINED generation (rpg extraction, discovery narratives, any
+ *  probe) is the DISTINCT `structured` role ({@link StructuredRequest}) — owner ruling 2026-07-27: `summarize`
+ *  and structured output are separate concerns and must not be conflated on one role. */
 export interface SummarizeRequest extends RoleRequestCommon {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly maxTokens?: number | undefined;
@@ -66,9 +69,22 @@ export interface SummarizeRequest extends RoleRequestCommon {
   /** Min-p nucleus floor (vLLM family). */
   readonly minP?: number | undefined;
   readonly repetitionDetection?: RepetitionDetection | undefined;
-  /** Structured output (D79) — vLLM enforces via guided decoding; the agent-sdk via its native output
-   *  format. Realized per backend; a family that can't honor it drops it. */
-  readonly responseFormat?: ResponseFormat | undefined;
+}
+
+/** The `structured` role's request — the one-shot SCHEMA-CONSTRAINED generation PRIMITIVE (owner ruling
+ *  2026-07-27, split out of `summarize`). Same batch shape as summarize (reuse: single → `[item]`), but
+ *  `responseFormat` is REQUIRED — this role EXISTS to produce schema-conforming JSON. Consumers: rpg reliable
+ *  extraction, discovery analyze/distill narratives, capability probes — anything that summarizes NOTHING but
+ *  needs constrained output. Backends realize it over the SAME chat-completion core `summarize` uses, with
+ *  `response_format` on the wire (vLLM guided decoding / OR strict json_schema). The result reuses
+ *  {@link SummarizeResult} — each item's `text` is the JSON string the caller parses. */
+export interface StructuredRequest extends RoleRequestCommon {
+  readonly inputs: readonly SummarizeRequestItem[];
+  readonly responseFormat: ResponseFormat;
+  readonly maxTokens?: number | undefined;
+  readonly temperature?: number | undefined;
+  readonly minP?: number | undefined;
+  readonly repetitionDetection?: RepetitionDetection | undefined;
 }
 
 /** The `RoleClients.summarize` CALL options as the SERVER sees them: the isomorphic contracts vocabulary plus
