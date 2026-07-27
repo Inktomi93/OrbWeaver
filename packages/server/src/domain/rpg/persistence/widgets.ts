@@ -60,7 +60,9 @@ export async function updateWidget(
   db: Db,
   gameId: RpgGameId,
   id: RpgWidgetId,
-  patch: Partial<Pick<NewRpgWidget, "type" | "label" | "icon" | "position" | "accent" | "sort" | "binding">>,
+  // Per-field `| undefined` (the transport wire patch the W2 verb spreads in): a `.set()` skips undefined keys,
+  // and `exactOptionalPropertyTypes` needs the explicit undefined for the zod-`.partial()` wire shape to assign.
+  patch: { [K in "type" | "label" | "icon" | "position" | "accent" | "sort" | "binding"]?: NewRpgWidget[K] | undefined },
 ): Promise<boolean> {
   const rows = await db
     .update(rpgHudWidgets)

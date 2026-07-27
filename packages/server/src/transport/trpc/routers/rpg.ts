@@ -1,6 +1,18 @@
-// transport/trpc/routers/rpg — the rpg-game transport surface. W1c-a lands ONLY the `stream` subscription
-// (the feature-root rpg bus's transport half, rpg-design/05 §4.9); the verb procs (createGame/updateConfig/
-// the reads/…) land in W2 with the cross-tenant sweep classification (every proc PROBED).
+// transport/trpc/routers/rpg — the rpg-game transport surface. Thin: validate → `ctx.services.rpg.<verb>`
+// ({ principal: ctx.auth, ...input }) — the `chat.ts` router shape. W1c-a landed the `stream` subscription
+// (the feature-root rpg bus's transport half, rpg-design/05 §4.9); W2 exposes the FULL verb surface.
+//
+// AUTHZ IS ENTIRELY INSIDE THE VERBS (never a router-tier gate). rpg has NO `ownerId` — a game's authority
+// derives `rpg_games.chatId → chat_participants` (D18/D20), resolved by the injected `getMembership` op at
+// `domain/rpg/guard.ts`. Every gated verb collapses a non-member to ONE leak-free `DomainNotFound` → NOT_FOUND
+// (indistinguishable from a no-game chat — the cross-tenant trust boundary), and a present non-host member
+// reaching a host-only plane to `DomainForbidden` → FORBIDDEN (the action, not the chat, is gated). So EVERY
+// verb proc here is a chatId-scoped, cross-tenant-sensitive surface: the cross-tenant sweep classifies each
+// PROBED (a stranger passing a foreign chatId must see NOT_FOUND), never EXEMPT. `createGame` gates on the
+// caller's OWN membership directly (the game row doesn't exist yet) with the SAME leak-free collapse.
+//
+// Wire input schemas are DERIVED from `@orb/contracts/rpg` (`inputs.ts` — the actor/widget unions + enums are
+// reused, never re-spelled at the transport edge, §5.5); the router only wires them to the verbs.
 //
 // `stream` — the per-game LIVE event subscription the client's tracker/journal invalidation tails. LIVE-ONLY:
 // no `lastEventId`, no durable replay (the rpg bus has no durable half — `domain/rpg/bus.ts`); it attaches the
@@ -17,6 +29,25 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
+import {
+  rpgAddJournalEntryInputSchema,
+  rpgCreateCheckpointInputSchema,
+  rpgCreateGameInputSchema,
+  rpgCreateWidgetInputSchema,
+  rpgDeleteJournalEntryInputSchema,
+  rpgDeleteQuestInputSchema,
+  rpgDeleteWidgetInputSchema,
+  rpgEditJournalEntryInputSchema,
+  rpgEditSnapshotInputSchema,
+  rpgListJournalInputSchema,
+  rpgPatchSheetInputSchema,
+  rpgReadGameInputSchema,
+  rpgRestoreCheckpointInputSchema,
+  rpgRollDiceInputSchema,
+  rpgUpdateConfigInputSchema,
+  rpgUpdateWidgetInputSchema,
+  rpgUpsertQuestInputSchema,
+} from "@orb/contracts/rpg";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -28,6 +59,50 @@ import { authedProcedure, t } from "../trpc";
 const streamSchema = z.object({ chatId: brandedId<ChatId>() });
 
 export const rpgRouter = t.router({
+  // ── writes (host-gated shared planes + member own-row writes; authz INSIDE each verb) ──────────────────
+  createGame: authedProcedure.input(rpgCreateGameInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.createGame({ principal: ctx.auth, ...input })),
+  updateConfig: authedProcedure
+    .input(rpgUpdateConfigInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.updateConfig({ principal: ctx.auth, ...input })),
+  patchSheet: authedProcedure.input(rpgPatchSheetInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.patchSheet({ principal: ctx.auth, ...input })),
+  editSnapshot: authedProcedure
+    .input(rpgEditSnapshotInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.editSnapshot({ principal: ctx.auth, ...input })),
+  createWidget: authedProcedure
+    .input(rpgCreateWidgetInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.createWidget({ principal: ctx.auth, ...input })),
+  updateWidget: authedProcedure
+    .input(rpgUpdateWidgetInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.updateWidget({ principal: ctx.auth, ...input })),
+  deleteWidget: authedProcedure
+    .input(rpgDeleteWidgetInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.deleteWidget({ principal: ctx.auth, ...input })),
+  upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
+  deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
+  addJournalEntry: authedProcedure
+    .input(rpgAddJournalEntryInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.addJournalEntry({ principal: ctx.auth, ...input })),
+  editJournalEntry: authedProcedure
+    .input(rpgEditJournalEntryInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.editJournalEntry({ principal: ctx.auth, ...input })),
+  deleteJournalEntry: authedProcedure
+    .input(rpgDeleteJournalEntryInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.deleteJournalEntry({ principal: ctx.auth, ...input })),
+  createCheckpoint: authedProcedure
+    .input(rpgCreateCheckpointInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.createCheckpoint({ principal: ctx.auth, ...input })),
+  restoreCheckpoint: authedProcedure
+    .input(rpgRestoreCheckpointInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.restoreCheckpoint({ principal: ctx.auth, ...input })),
+  rollDice: authedProcedure.input(rpgRollDiceInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.rollDice({ principal: ctx.auth, ...input })),
+
+  // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
+  getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),
+  getTrackerView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getTrackerView({ principal: ctx.auth, ...input })),
+  listJournal: authedProcedure.input(rpgListJournalInputSchema).query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
+  getConfigView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getConfigView({ principal: ctx.auth, ...input })),
+  listCheckpoints: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.listCheckpoints({ principal: ctx.auth, ...input })),
+
   // The per-game live event stream (see the file header for the shape + the chat-membership gate).
   stream: authedProcedure.input(streamSchema).subscription(({ ctx, input, signal }) =>
     rpgEventStream({

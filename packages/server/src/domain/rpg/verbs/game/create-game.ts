@@ -5,7 +5,7 @@
 
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_GAME_MODES, RPG_PROFILE_FREEFORM, rpgGameConfigSchema } from "@orb/contracts/rpg";
-import { DomainOperationError } from "@orb/kit/errors";
+import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { RpgModeUnbuiltError } from "../../contract/errors";
 import type { CreateGameParams } from "../../contract/params";
 import type { CreateGameResult } from "../../contract/results";
@@ -29,10 +29,17 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
       throw new RpgModeUnbuiltError();
     }
     // Host authority through the roster — but a game does not exist yet, so gate on membership directly (the
-    // create precedes the game row). A non-host member is FORBIDDEN; a non-member gets nothing.
+    // create precedes the game row). The refusals mirror `guard.ts`'s leak-free collapse: a NON-MEMBER learns
+    // nothing (the same `DomainNotFound` a no-game chat gives — a foreigner must not discover the chat exists,
+    // the cross-tenant trust boundary), while a present non-host member is FORBIDDEN (they legitimately know the
+    // chat exists — the action, not the chat, is gated). A single BAD_REQUEST for both would hand a foreigner a
+    // distinguishable "real chat, just not host" oracle.
     const membership = await ctx.getMembership(params.chatId, params.principal.userId);
-    if (membership === null || membership.role !== "host") {
-      throw new DomainOperationError("rpg_create_forbidden", "host authority required to create a game");
+    if (membership === null) {
+      throw new DomainNotFoundError("game", params.chatId);
+    }
+    if (membership.role !== "host") {
+      throw new DomainForbiddenError("host authority required to create a game");
     }
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).
     if (await findGameByChat(ctx.db, params.chatId)) {

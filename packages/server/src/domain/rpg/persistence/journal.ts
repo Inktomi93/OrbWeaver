@@ -57,7 +57,9 @@ export async function updateJournalEntry(
   db: Db,
   gameId: RpgGameId,
   id: RpgJournalId,
-  patch: Partial<Pick<NewRpgJournal, "type" | "title" | "content">>,
+  // Per-field `| undefined` (the transport wire patch the W2 verb spreads in): a `.set()` skips undefined keys,
+  // and `exactOptionalPropertyTypes` needs the explicit undefined for the zod-optional wire shape to assign.
+  patch: { [K in "type" | "title" | "content"]?: NewRpgJournal[K] | undefined },
 ): Promise<boolean> {
   const rows = await db
     .update(rpgJournal)
