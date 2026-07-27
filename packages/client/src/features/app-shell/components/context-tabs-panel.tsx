@@ -4,7 +4,8 @@
 // above the strip. A new domain grafts a context tab inside its OWN section definition, never here.
 //
 // Tab selection rides the shared #state contextTab seam; resolved against the visible ids so a
-// foreign/absent value falls back to the first tab instead of selecting nothing.
+// foreign/absent value falls back to a tab instead of selecting nothing — a `defaultTab`-flagged tab
+// (rpg.status for a game chat, §4.1) if one is present, else the first visible tab.
 //
 // THE BRACKET (Context-Panel-Program §4.2, CP-4): when ≥1 resolved tab is `strip:"game"`, the panel splits
 // into TWO strips inside ONE `Tabs` root — a GAME TabsList ABOVE the viewport (state), a META TabsList
@@ -61,7 +62,10 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   const hasBracket = gameTabs.length > 0;
 
   const visible = new Set(entries.map((entry) => entry.id));
-  const first = entries[0]?.id ?? null;
+  // Fallback default (Context-Panel-Program §4.1): a tab that flags `defaultTab` (rpg.status for a game
+  // chat) wins the empty/foreign-selection landing over the declared-order first — so a game chat lands on
+  // Status, not the roster's Members. A stored, still-visible `contextTab` always wins first (continuity).
+  const first = (entries.find((entry) => entry.defaultTab) ?? entries[0])?.id ?? null;
   const activeTab = contextTab !== null && visible.has(contextTab) ? contextTab : first;
 
   return (

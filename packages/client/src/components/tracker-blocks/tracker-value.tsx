@@ -23,11 +23,23 @@ export interface TrackerValueProps {
   readonly ariaLabel: string;
   /** Text tone for the read-only display (the value is foreground by default; muted for secondary). */
   readonly tone?: ComponentProps<typeof Text>["tone"];
+  /** Placeholder shown in the editable input when the value is empty — so an empty-but-editable field reads
+   *  as intentionally-blank, not unfinished (§3.2). Ignored in the read-only arm (no input to hint). */
+  readonly placeholder?: string;
   readonly className?: string;
 }
 
 /** The value cell: an inline editor when `onEdit` is set, else static datum text. */
-export function TrackerValue({ display, editValue, onEdit, kind = "text", ariaLabel, tone = "default", className }: TrackerValueProps): ReactElement {
+export function TrackerValue({
+  display,
+  editValue,
+  onEdit,
+  kind = "text",
+  ariaLabel,
+  tone = "default",
+  placeholder,
+  className,
+}: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   // Controlled echo of the external value, resettable while the user types. The prop wins on any external
   // change — done by tracking the previous source and resetting DURING render (never a setState-in-effect,
@@ -60,6 +72,7 @@ export function TrackerValue({ display, editValue, onEdit, kind = "text", ariaLa
       {...(className === undefined ? {} : { className })}
       data-slot="tracker-value-edit"
       inputMode={kind === "numeric" ? "numeric" : "text"}
+      {...(placeholder === undefined ? {} : { placeholder })}
       onBlur={commit}
       onKeyDown={(e): void => {
         if (e.key === "Enter") {

@@ -273,6 +273,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField }
               <TrackerValue
                 ariaLabel={`${label} value`}
                 display={value ?? ""}
+                placeholder="—"
                 onEdit={(next): void => onEditField(key, next)}
                 className="h-control-sm w-avatar-lg"
               />

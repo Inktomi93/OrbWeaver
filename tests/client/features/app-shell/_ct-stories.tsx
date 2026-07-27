@@ -219,7 +219,7 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
 /** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
  *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */
 function resolvedTab(partial: Partial<ResolvedContextTab> & Pick<ResolvedContextTab, "id" | "label" | "node">): ResolvedContextTab {
-  return { strip: "meta", badge: null, disabledReason: null, ...partial };
+  return { strip: "meta", badge: null, disabledReason: null, defaultTab: false, ...partial };
 }
 
 const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [
@@ -288,6 +288,25 @@ export function ContextBracketStory({ width = 291 }: { readonly width?: number }
   return (
     <div style={{ width }} data-testid="ctx-strip-container">
       <ContextTabsPanel tabs={CTX_BRACKET_TABS} />
+    </div>
+  );
+}
+
+// A production-shaped game set: the META `members` tab is FIRST in declared order (chat's own tab, before
+// the rpg contributor game tabs), and `rpg.status` carries the §4.1 `defaultTab` flag. This is exactly the
+// shape that regresses without the flag — a fresh panel (no stored contextTab) would land on `members`.
+const CTX_DEFAULT_TAB_TABS: readonly ResolvedContextTab[] = [
+  resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
+  resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game", defaultTab: true }),
+  resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game" }),
+];
+
+/** The §4.1 preferred-default landing: `members` is the declared-order first, but `rpg.status` flags
+ *  `defaultTab`, so a fresh panel (no stored contextTab) must land on Status, not Members. */
+export function ContextDefaultTabStory({ width = 291 }: { readonly width?: number }): ReactElement {
+  return (
+    <div style={{ width }} data-testid="ctx-strip-container">
+      <ContextTabsPanel tabs={CTX_DEFAULT_TAB_TABS} />
     </div>
   );
 }

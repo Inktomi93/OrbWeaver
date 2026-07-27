@@ -38,6 +38,18 @@ describe("resolveContextTabs", () => {
     expect(resolved.tabs.map((t) => t.id)).toEqual(["b", "a", "z", "y"]);
   });
 
+  test("resolves defaultTab against state (false when absent) — the §4.1 preferred-landing flag", () => {
+    const spec: ContextTabsSpec<State> = {
+      useContextState: () => ({ n: 2 }),
+      tabs: [tab("a"), { id: "b", label: "b", body: (s) => s.n, defaultTab: (s) => s.n >= 2 }],
+    };
+    const resolved = resolveContextTabs(spec, { n: 2 });
+    expect(resolved.tabs.map((t) => ({ id: t.id, defaultTab: t.defaultTab }))).toEqual([
+      { id: "a", defaultTab: false },
+      { id: "b", defaultTab: true },
+    ]);
+  });
+
   test("binds actions against the same state", () => {
     const spec: ContextTabsSpec<State> = {
       useContextState: () => ({ n: 5 }),
