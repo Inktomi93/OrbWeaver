@@ -44,9 +44,10 @@ const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
 // generation_config.json repetition_penalty=1.0 (no repeat penalty → the agent-sdk /v1/messages path
 // loops to the output cap → api_error, live turn_127). The Anthropic Messages wire carries NO per-request
 // penalty, so the sdk path can't self-correct — it MUST be a LAUNCH default baked into the serve command.
-// 1.05 is the Qwen-card-recommended value that fixed the loop live. ONE home for the literal; env-layered
-// so an admin can retune + restart.
-const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.05;
+// 1.0 is the Qwen3-VL-8B-Instruct model-card value (huggingface.co/Qwen/Qwen3-VL-8B-Instruct) — the
+// loop is fixed by pairing this base with the card's presence_penalty 1.5 (applied per-request), not by
+// over-penalizing repetition. ONE home for the literal; env-layered so an admin can retune + restart.
+const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.0;
 // The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
 // silent (Phase B ⑩ item 7). 1.5 = the former hardcoded CARD_DEFAULT_PRESENCE_PENALTY (Qwen3-VL card), now
 // env-layered ⊕ AppSettings override so an admin can retune the per-launched-model default. OpenAI range -2..2.

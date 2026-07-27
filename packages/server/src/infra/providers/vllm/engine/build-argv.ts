@@ -191,13 +191,15 @@ function genModelAlias(genModel: string): string {
 /** The per-engine `--override-generation-config` payload (#23) — vLLM merges this over the model's shipped
  *  generation_config.json at serve time, so it applies to EVERY request regardless of the wire (the fix for
  *  the sampler-less agent-sdk /v1/messages path, which can't carry a per-request penalty). Keyed per engine
- *  so embed/rerank could gain their own overrides; only `gen` needs one today (Qwen3-VL's repetition_penalty
- *  1.0 → output-cap loop). `null` = no override flag emitted for that engine. */
+ *  so embed/rerank could gain their own overrides; only `gen` needs one today. temperature/top_p/top_k are
+ *  the Qwen3-VL-8B-Instruct model-card recommended VL base (0.7/0.8/20) — static card constants, not admin
+ *  knobs — inlined here as the launch-time base a silent preset falls back to; an explicit per-request
+ *  sampler value still overrides this base. `null` = no override flag emitted for that engine. */
 function generationConfigOverrides(config: EngineLaunchConfig): Record<VllmEngine, Record<string, number> | null> {
   return {
     embed: null,
     rerank: null,
-    gen: { repetition_penalty: config.genRepetitionPenalty },
+    gen: { temperature: 0.7, top_p: 0.8, top_k: 20, repetition_penalty: config.genRepetitionPenalty },
   };
 }
 
@@ -228,6 +230,10 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     String(util),
     "--max-model-len",
     String(config.genMaxModelLen),
+    // Qwen3-VL-8B-Instruct is bf16-native; the deployment guide recommends explicit --dtype bfloat16 to
+    // guard against vLLM's --dtype auto ever resolving to an fp16 fallback (numerical garbage on this model).
+    "--dtype",
+    "bfloat16",
     "--enable-auto-tool-choice",
     "--tool-call-parser",
     "hermes",
