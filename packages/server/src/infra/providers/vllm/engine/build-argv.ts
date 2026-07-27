@@ -234,6 +234,22 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     // guard against vLLM's --dtype auto ever resolving to an fp16 fallback (numerical garbage on this model).
     "--dtype",
     "bfloat16",
+    // ── THINKING-CHECKPOINT SWAP PLAYBOOK (dormant on this Qwen3-VL-8B-INSTRUCT; the WHOLE recipe for a
+    //    route-2 swap, one home — memory [[agent-sdk-usage-cap-gotchas]] #7). Our model is Qwen3-VL and
+    //    `hermes` below is CORRECT + live-proven; the notes fire only on a swap to a Thinking/other checkpoint.
+    //    A Qwen3-VL-THINKING (likely route-2) swap requires ALL of:
+    //    (a) `--reasoning-parser qwen3` — routes reasoning into a SEPARATE field (this is the real mechanism;
+    //        it SUPERSEDES the THINK_BLOCK_RE strip, which becomes a fallback).
+    //    (b) `--structured-outputs-config.enable_in_reasoning=True` — else xgrammar SKIPS constraining whenever
+    //        reasoning is present, and the whole extraction/tool layer (json_schema + tool_choice) dies INVISIBLY
+    //        (valid-looking prose, zero enforcement). MANDATORY on any thinking checkpoint.
+    //    (c) tool-parser re-check: `hermes` holds for Qwen3-VL (current); a Qwen3-CODER variant needs
+    //        `--tool-call-parser qwen3_xml` instead — conditional future landmine, NOT current.
+    //    (d) optional `--reasoning-config` + a per-request `thinking_token_budget` — the runaway guard; may
+    //        differ per call class (generous for extraction, tight for prose).
+    //    (e) `--default-chat-template-kwargs enable_thinking:false` + per-request enable via `reasoning_effort`
+    //        — ONE engine, thinking bought selectively per call rather than always-on.
+    //    (f) `include_reasoning:false` on the wire — reasoning-field hygiene (don't ship the scratchpad).
     "--enable-auto-tool-choice",
     "--tool-call-parser",
     "hermes",

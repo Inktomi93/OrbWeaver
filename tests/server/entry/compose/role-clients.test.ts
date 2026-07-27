@@ -15,15 +15,22 @@ import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import { bindRoleClientsForUser } from "@orb/server/entry/compose";
-import type { EmbedRequest, ProviderExecutor, SummarizeRequest } from "@orb/server/infra/providers";
+import type { EmbedRequest, ProviderExecutor, StructuredRequest, SummarizeRequest } from "@orb/server/infra/providers";
 import { expect, test } from "../../../support/fixtures";
 
 const OWNER = castId<UserId>("u_owner");
 
-/** A `ProviderExecutor` that records every `embed` call; the other roles are inert (never exercised here). */
-function recordingExecutor(): { executor: ProviderExecutor; embedCalls: EmbedRequest[]; summarizeCalls: SummarizeRequest[] } {
+/** A `ProviderExecutor` that records `embed` + the two batch roles; the rest are inert. The `summarize` vs
+ *  `structured` split lets a test assert the facade routes a `responseFormat` call to the structured role. */
+function recordingExecutor(): {
+  executor: ProviderExecutor;
+  embedCalls: EmbedRequest[];
+  summarizeCalls: SummarizeRequest[];
+  structuredCalls: StructuredRequest[];
+} {
   const embedCalls: EmbedRequest[] = [];
   const summarizeCalls: SummarizeRequest[] = [];
+  const structuredCalls: StructuredRequest[] = [];
   const executor: ProviderExecutor = {
     embed: (req) => {
       embedCalls.push(req);
@@ -35,11 +42,16 @@ function recordingExecutor(): { executor: ProviderExecutor; embedCalls: EmbedReq
       summarizeCalls.push(req);
       return Promise.resolve({} as unknown as SummarizeResult);
     },
+    structured: (req) => {
+      structuredCalls.push(req);
+      // A REAL minimal SummarizeResult (the split-routing pin reads only which role fired, not the payload).
+      return Promise.resolve({ items: [], model: req.model } satisfies SummarizeResult);
+    },
     runChatTurn: () => Promise.reject(new Error("unused")),
     runAgentTurn: () => Promise.reject(new Error("unused")),
     generateImage: () => Promise.reject(new Error("unused")),
   };
-  return { executor, embedCalls, summarizeCalls };
+  return { executor, embedCalls, summarizeCalls, structuredCalls };
 }
 
 /** A `resolveRole` that returns a distinct `model-<role>` + a marker credential per role. */
@@ -102,4 +114,28 @@ test("a summarize call with no signal sends none (no fabricated controller)", as
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
 
   expect(summarizeCalls[0]?.signal).toBeUndefined();
+});
+
+// The role SPLIT (owner ruling 2026-07-27): the `summarize` facade routes by intent — a plain call is real
+// summarization (→ the `summarize` role); a `responseFormat` call is schema-constrained generation (→ the
+// `structured` role). Callers are unchanged; the WIRE role + its observability + firewall are now honest.
+test("a summarize call with responseFormat routes to the STRUCTURED role, NOT summarize", async () => {
+  const { executor, summarizeCalls, structuredCalls } = recordingExecutor();
+  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor }, OWNER);
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+
+  expect(structuredCalls).toHaveLength(1);
+  expect(structuredCalls[0]?.responseFormat).toEqual({ name: "x", schema: { type: "object" } });
+  expect(summarizeCalls).toHaveLength(0); // the summarize role did NOT fire
+});
+
+test("a plain summarize call (no responseFormat) stays on the SUMMARIZE role", async () => {
+  const { executor, summarizeCalls, structuredCalls } = recordingExecutor();
+  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor }, OWNER);
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+
+  expect(summarizeCalls).toHaveLength(1);
+  expect(structuredCalls).toHaveLength(0);
 });

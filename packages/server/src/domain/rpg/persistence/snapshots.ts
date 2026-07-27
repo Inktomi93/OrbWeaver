@@ -31,7 +31,7 @@ import { and, desc, eq, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors";
 import type { ForwardSnapshotTarget, ResolveSnapshotOpts, SnapshotGameRef } from "../contract/params";
-import type { NewRpgSnapshot, RpgSnapshotRow } from "../contract/service";
+import type { NewRpgSnapshot, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 
 const LIMIT_ONE = 1;
@@ -113,8 +113,10 @@ async function regenSiblingSnapshot(db: Db, regenMessageId: MessageId, excludeVa
 
 /** The resolution base for a turn (rpg-design/05 §2.4). Walks the ladder: (1) regen/swipe → the message's
  *  currently-selected sibling (≠ the new variant); (2) the last visible assistant selected variant; (3)
- *  latest committed by `createdAt`; (4) latest any. `undefined` only for a game with no snapshots yet
- *  (createGame seeds one — W1b — so rung 4 is unreachable in practice). */
+ *  latest committed by `createdAt`; (4) latest any. Returns `undefined` for a game with no snapshot rows yet
+ *  (D108 no-born-seed: createGame stores NO snapshot; a turnless game has zero rows). The caller synthesizes
+ *  the born-default from config on `undefined` (`extractionBase`/`getTrackerView` → `defaultSnapshotState`) —
+ *  so rung 4's undefined is the LIVE born-default path, not a dead branch. */
 export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef, opts: ResolveSnapshotOpts = {}): Promise<RpgSnapshotRow | undefined> {
   if (opts.regenMessageId !== undefined) {
     const sibling = await regenSiblingSnapshot(db, opts.regenMessageId, opts.excludeVariantId);
@@ -185,27 +187,27 @@ function snapshotInsertFrom(
   };
 }
 
-/** The STRUCTURAL canon-corruption backstop (stickler F1): validate a to-be-written state against the FULL
- *  contract schema BEFORE the durable insert. The parse-on-read belt fires AFTER `insertSnapshot` commits, so
- *  an applier bug (present OR future) that produces a contract-violating state would poison the row permanently
- *  and brick every later read. This gate makes "canon NEVER corrupted" STRUCTURAL, not a per-applier promise:
- *  any state that would fail parse-on-read is refused at the write boundary. `true` = safe to insert.
- *  Module-private — the ONLY consumer is `writeStagedSnapshot` below; tests drive that PUBLIC boundary. */
-function snapshotStateWritable(state: RpgSnapshotState): boolean {
-  return rpgSnapshotStateSchema.safeParse(state).success;
-}
-
 /** The Option-A turn flush: write the turn's accumulated effective state as a NEW snapshot keyed to the
  *  COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). The
  *  state arrives locks-honored (the accumulator applied `applyLockedPatch` at stage time); `fieldLocks`
  *  carry forward on the state (tools never author locks — only `editSnapshot` does, W1b).
  *
- *  Returns `undefined` when the state is contract-INVALID (the F1 structural backstop) — the caller DROPS the
- *  delta (errors-as-data, mirroring reliable-mode's non-conforming empty-delta path), never commits a poisoned
- *  row. Fix (1) — the sane pool mint — keeps legit writes valid; this belt guarantees no applier bug can ever
- *  commit a row parse-on-read would reject. */
-export function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: ForwardSnapshotTarget): Promise<RpgSnapshotRow> | undefined {
-  return snapshotStateWritable(state) ? insertSnapshot(db, snapshotInsertFrom(state, state.fieldLocks, UNCOMMITTED, target)) : undefined;
+ *  STRUCTURAL canon-corruption backstop (stickler F1): validate the to-be-written state against the FULL
+ *  contract schema BEFORE the durable insert. The parse-on-read belt fires AFTER `insertSnapshot` commits, so
+ *  an applier bug (present OR future) producing a contract-violating state would poison the row permanently
+ *  and brick every later read. This gate makes "canon NEVER corrupted" STRUCTURAL, not a per-applier promise.
+ *
+ *  Returns `{ok:false, reason}` when the state is contract-INVALID — the caller DROPS the delta (errors-as-data,
+ *  mirroring reliable-mode's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
+ *  reason (the drop is observable, never silent). */
+export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: ForwardSnapshotTarget): Promise<WriteStagedSnapshotResult> {
+  const parsed = rpgSnapshotStateSchema.safeParse(state);
+  if (!parsed.success) {
+    // The full field-path + reason (e.g. `actorState.0.pools.0.max: expected >= 1`) — the drop's WHY.
+    return { ok: false, reason: parsed.error.message };
+  }
+  const row = await insertSnapshot(db, snapshotInsertFrom(state, state.fieldLocks, UNCOMMITTED, target));
+  return { ok: true, row };
 }
 
 /** Checkpoint restore: clone a pointed snapshot onto a fresh narrator message, BORN COMMITTED (locks

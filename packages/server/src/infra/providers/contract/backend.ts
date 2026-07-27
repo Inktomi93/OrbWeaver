@@ -25,7 +25,7 @@ import type {
   ProbeRequest,
   VerifyAuthRequest,
 } from "./diagnostics";
-import type { EmbedRequest, ImageEmbedRequest, ImageGenerateRequest, ImageGenerateResult, RerankRequest, SummarizeRequest } from "./roles";
+import type { EmbedRequest, ImageEmbedRequest, ImageGenerateRequest, ImageGenerateResult, RerankRequest, StructuredRequest, SummarizeRequest } from "./roles";
 
 // --- The sealed backend-key axis (the `runner`) ------------------------------
 /** The sealed backend keys a role dispatches to. `custom-openai` (hyphen) is the runner key; the
@@ -35,8 +35,10 @@ export const BACKEND_KEYS = ["agent-sdk", "openrouter", "vllm", "local-light", "
 export type BackendKey = (typeof BACKEND_KEYS)[number];
 
 // --- The inference-role axis -------------------------------------------------
-/** The 7 inference roles `connection.resolveRole` resolves and the firewall gates. */
-export const PROVIDER_ROLES = ["chat", "agent", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;
+/** The inference roles `connection.resolveRole` resolves and the firewall gates. `structured` is the one-shot
+ *  schema-constrained generation PRIMITIVE, split from `summarize` (owner ruling 2026-07-27) — summarize is
+ *  summarization, structured is constrained output. */
+export const PROVIDER_ROLES = ["chat", "agent", "embed", "rerank", "imageEmbed", "summarize", "structured", "generateImage"] as const;
 export type ProviderRole = (typeof PROVIDER_ROLES)[number];
 
 // --- The sealed-backend contract ---------------------------------------------
@@ -60,6 +62,10 @@ export interface ProviderBackend {
   readonly rerank?: ((req: RerankRequest) => Promise<RerankResult>) | undefined;
   readonly imageEmbed?: ((req: ImageEmbedRequest) => Promise<ImageEmbedResult>) | undefined;
   readonly summarize?: ((req: SummarizeRequest) => Promise<SummarizeResult>) | undefined;
+  /** The one-shot schema-constrained generation primitive (`structured` role). Returns the SAME
+   *  {@link SummarizeResult} — each item's `text` is the schema-conforming JSON. Backends that can't
+   *  constrain output don't implement it (dispatch fail-closes). */
+  readonly structured?: ((req: StructuredRequest) => Promise<SummarizeResult>) | undefined;
   readonly generateImage?: ((req: ImageGenerateRequest) => Promise<ImageGenerateResult>) | undefined;
   // ── Diagnostics (the family-agnostic credential surfaces; a backend implements only what it serves) ──
   readonly probe?: ((req: ProbeRequest) => Promise<CredentialHealth>) | undefined;
@@ -117,6 +123,8 @@ export interface ProviderExecutor {
   readonly rerank: (req: RerankRequest) => Promise<RerankResult>;
   readonly imageEmbed: (req: ImageEmbedRequest) => Promise<ImageEmbedResult>;
   readonly summarize: (req: SummarizeRequest) => Promise<SummarizeResult>;
+  /** The one-shot schema-constrained generation primitive (split from `summarize` — owner ruling). */
+  readonly structured: (req: StructuredRequest) => Promise<SummarizeResult>;
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
 }
 

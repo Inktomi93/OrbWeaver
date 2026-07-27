@@ -8,6 +8,7 @@
 // `trackersReadOnly`. The roster/view stubs return only what the panel reads (a partial shape, the chats-
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
+import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
@@ -28,14 +29,16 @@ function gameChat(): unknown {
   };
 }
 
-// A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate).
-function gameView(trackersReadOnly: boolean): unknown {
+// A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate) + the delivery-model
+// knob (the freshness-indicator driver). Defaults `reliable` (the create default) unless overridden.
+function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "reliable"): unknown {
   return {
     id: GAME_ID,
     chatId: "chat_ct_keystone",
     mode: "lite",
     status: "active",
     trackersReadOnly,
+    extractionMode,
     publicConfig: {
       statProfile: {
         attributes: [],
@@ -122,6 +125,9 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   // `.shell-panel-header` BAND above both strips (the W3c header-contributor seam), not the tab body.
   await expect(component.getByText("The Rusted Lantern — Common Room")).toBeVisible();
   await expect(component.getByText("Vitality 24/30")).toBeVisible();
+  // The freshness indicator rides the same band — the getGame stub defaults `reliable` with no live turn,
+  // so the accepted one-beat-lag label is surfaced (the honest freshness posture, in real panel geometry).
+  await expect(component.getByText("As of last beat")).toBeVisible();
   // The roster row: name + className + the pool MeterRow value text + the condition chip.
   await expect(component.getByText("Mara")).toBeVisible();
   await expect(component.getByText("Warden")).toBeVisible();

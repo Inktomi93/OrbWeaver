@@ -4,6 +4,7 @@
 
 import {
   addJournalEntryArgsSchema,
+  journalTitleFor,
   RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
   setWidgetValueArgsSchema,
@@ -64,4 +65,27 @@ test("update_scene customFields ride an array-of-pairs (the D79 additionalProper
 test("upsert_quest bounds action to create/update/complete/fail", () => {
   expect(upsertQuestArgsSchema.safeParse({ name: "Q", action: "complete" }).success).toBe(true);
   expect(upsertQuestArgsSchema.safeParse({ name: "Q", action: "delete" }).success).toBe(false);
+});
+
+// THE RELIABLE BLOCKER FIX (ruling #10, LIVE-MEASURED 2026-07-27): an 8B dropped the nested-required
+// `journal[].title` in 5/8 reliable extractions (xgrammar does not enforce `required` on nested array items),
+// failing the WHOLE `safeParse` and silently dropping the turn's state. `title` is now OPTIONAL + derived.
+test("add_journal_entry: a title-LESS entry now PARSES (the blocker fix — title is optional)", () => {
+  const parsed = addJournalEntryArgsSchema.safeParse({ type: "combat", content: "The troll fell." });
+  expect(parsed.success).toBe(true);
+  expect(parsed.success && parsed.data.title).toBeUndefined();
+});
+
+test("journalTitleFor: model title wins; absent → derived from the content head, capped", () => {
+  // Model supplied a title — used verbatim.
+  expect(journalTitleFor({ title: "Troll Fight", content: "x" })).toBe("Troll Fight");
+  // Title absent — derive the first sentence of the content head.
+  expect(journalTitleFor({ content: "They reached the tower. It was tall." })).toBe("They reached the tower.");
+  // Title absent, single long line — capped with an ellipsis.
+  const long = "a".repeat(80);
+  const derived = journalTitleFor({ content: long });
+  expect(derived.endsWith("…")).toBe(true);
+  expect(derived.length).toBeLessThanOrEqual(61); // 60 chars + the ellipsis
+  // Empty (title-less AND content-less) — "" (the caller drops it).
+  expect(journalTitleFor({ content: "" })).toBe("");
 });

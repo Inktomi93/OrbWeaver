@@ -1062,6 +1062,7 @@ function fakeToolOps(executed: string[][], failWith?: string): ChatToolOps {
   return {
     resolveTools: (names) => ({ marker: "resolved-set", names }),
     toWireTools: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" } }],
+    toAgentToolServer: () => Promise.resolve({ marker: "mcp-server" }),
     executeToolCalls: (_set, calls): Promise<ToolCallRecord[]> => {
       executed.push(calls.map((c) => c.name));
       return Promise.resolve(
@@ -1229,5 +1230,56 @@ describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
     const result = await runTurnPipeline(args);
     expect(requests[0]).not.toHaveProperty("responseFormat");
     expect(result.structuredOutputUnsupported).toBe(false);
+  });
+});
+
+describe("runTurnPipeline — the STATEFUL (agent-sdk) tool channel (MCP toolServer)", () => {
+  const agentConnection: ResolvedConnection = { ...TOOL_CONNECTION, api: "agent-sdk" };
+
+  test("tools mount as the MCP toolServer (no wire tools[]); records ride the onRecord side-channel", async () => {
+    const requests: TurnRequest[] = [];
+    let onRecord: ((r: ToolCallRecord) => void) | undefined;
+    const server = { marker: "mcp-server" };
+    const ops: ChatToolOps = {
+      ...fakeToolOps([]),
+      toAgentToolServer: (_set, _frame, cb): Promise<unknown> => {
+        onRecord = cb;
+        return Promise.resolve(server);
+      },
+    };
+    const { args } = baseArgs({
+      connection: agentConnection,
+      tools: ops,
+      attachedToolNames: ["tick_clock"],
+      toolRecurseLimit: 3,
+      runChatTurn: (req): AsyncIterable<TurnStreamChunk> => {
+        requests.push(req);
+        // Simulate the SDK invoking a wrapped MCP handler mid-turn: the record lands via the side-channel.
+        onRecord?.({ toolCallId: "mcp_tick_clock_1", name: "tick_clock", arguments: "{}", result: "{}", isError: false, durationMs: 1 });
+        return scriptedTurn([doneFinal("done")])(req);
+      },
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.agentToolServer).toBe(server);
+    expect(requests[0]?.agentToolTurnLimit).toBe(3);
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(requests[0]).not.toHaveProperty("toolChoice");
+    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
+    expect(result.toolsUnsupported).toBe(false);
+    expect(result.content).toBe("done");
+  });
+
+  test("array wires are untouched: chat-completions gets wire tools, never a toolServer", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps([]),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths([[doneFinal("x")]], requests),
+    });
+    await runTurnPipeline(args);
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
+    expect(requests[0]).not.toHaveProperty("agentToolServer");
   });
 });

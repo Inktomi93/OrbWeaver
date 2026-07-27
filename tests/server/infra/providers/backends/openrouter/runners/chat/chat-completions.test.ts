@@ -592,3 +592,16 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
     expect(cacheLine).toBeUndefined();
   });
 });
+
+describe("a capability-kept system history row rides the wire as a REAL system message", () => {
+  test("role system passes through to the messages array (never coerced to user)", async () => {
+    const { client, captured } = streamingClient(OK_STREAM);
+    const history: OpenRouterChatRequest["history"] = [
+      { role: "user", content: [{ type: "text", text: "hi" }] },
+      { role: "system", content: [{ type: "text", text: "GM note" }] },
+    ];
+    await runChatCompletionTurn(client, makeRequest({ history }), DEPS);
+    const messages = captured.chatRequest?.["messages"] as Array<{ role: string; content: unknown }>;
+    expect(messages.at(-1)).toEqual({ role: "system", content: "GM note" });
+  });
+});

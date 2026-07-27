@@ -547,3 +547,55 @@ export async function tailAssistant(chatId: string): Promise<CanonMessage | unde
   const tail = rows.at(-1);
   return tail?.role === "assistant" ? tail : undefined;
 }
+
+// ── RPG-LITE loop support (rpg-lite-loop.spec.ts). Every hop's RESULT is read as SERVER truth through these:
+// `createLiteGame` births the game (host-gated — single-user AUTH_MODE is the host), and `getTrackerView` is
+// the persisted-snapshot projection (the flush/snapshot RESULT the CP-4 panel renders). The wire subset shapes
+// are declared locally (the e2e support tree stays import-free of the package trees — the `CanonMessage`
+// posture); the enum axes (`mode`, `status`, weather `type`) stay `string` (the no-inline-union-redecl gate
+// bans re-spelling the homed tuples here, and the spec compares to literals). ──
+
+interface CreatedGame {
+  readonly gameId: string;
+}
+
+/** Birth a LITE freeform rpg game on an existing chat (`rpg.createGame`, host-gated — single-user is the host).
+ *  Writes the `chats.metadata.rpg` pointer that flips the client's CP-4 takeover on. Freeform ⇒ the snapshot
+ *  starts empty (no born row) and the first state-changing turn writes the first snapshot. */
+export async function createLiteGame(chatId: string): Promise<string> {
+  const created = await trpcMutation<CreatedGame>("rpg.createGame", { chatId, mode: "lite" });
+  return created.gameId;
+}
+
+/** One actor's volatile pool (the Status-tab meter datum). */
+interface TrackerPool {
+  readonly name: string;
+  readonly value: number;
+  readonly max: number;
+}
+
+/** One actor row in the tracker view — the roster ∪ sheets projection (subset of `RpgActorView`). `volatile`
+ *  is null until a snapshot carries this actor's state; `pools`/`conditions` are the Status-tab data. */
+interface TrackerActor {
+  readonly name: string;
+  readonly volatile: {
+    readonly pools: readonly TrackerPool[];
+    readonly conditions: readonly { readonly name: string }[];
+  } | null;
+}
+
+/** The persisted-snapshot projection `rpg.getTrackerView` returns (subset — the fields this spec asserts on).
+ *  This IS the flush/snapshot RESULT: `ambient`/`actors`/`recentBeats` reflect the current snapshot the model's
+ *  extraction/tool write produced. Every plane reads the same resolved-current snapshot (swipe-consistent). */
+export interface TrackerView {
+  readonly ambient: { readonly location: string; readonly weather: { readonly type: string } | null } | null;
+  readonly actors: readonly TrackerActor[];
+  readonly recentBeats: readonly string[];
+  readonly trackersReadOnly: boolean;
+}
+
+/** Read a game's persisted tracker view (`rpg.getTrackerView`, member-gated — single-user is a member/host).
+ *  The SERVER-truth cross-check for the CP-4 panel: what the flush/snapshot actually wrote. */
+export function getTrackerView(chatId: string): Promise<TrackerView> {
+  return trpcQuery<TrackerView>("rpg.getTrackerView", { chatId });
+}

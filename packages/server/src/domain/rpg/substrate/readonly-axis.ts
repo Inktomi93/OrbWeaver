@@ -6,8 +6,8 @@
 //
 // The axis differs by RESOLVED mode (the amendment §4.6 — NO silent mode-downgrade; the knob is the host's
 // deliberate lever, never secretly re-routed):
-//   • cheap    — needs `capability.tools` (in-turn state tools ride the character turn).
-//   • reliable — needs `capability.output.structured` (a dedicated structured-output extraction turn).
+//   • cheap    — needs `capability.tools` (a dedicated TOOL round: parallel state-tool calls, post-commit).
+//   • reliable — needs `capability.output.structured` (a dedicated structured-output extraction round).
 // ABSENT (or an unresolved capability) ⇒ readonly = manual-steering: the model gets NO write path, the host
 // hand-edits every plane, and those hand values STILL steer via the gather injection (not inert). A caller warns
 // on this verdict; the derivation itself is silent truth.

@@ -1,11 +1,14 @@
 // domain/rpg/chat-ops/flush — the turn-completion FLUSH (rpg-design/05 §2.4-2.5 + the delivery-model amendment
 // §4.6). At `onTurnCompleted` the turn's staged state + journal are written as a clone-forward snapshot keyed to
 // the COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). BOTH
-// delivery modes funnel through ONE flush tail:
-//   • cheap    — the §4.5 tools staged into the accumulator DURING the turn; the flush just takes + writes.
-//   • reliable — NO in-turn tools; the flush FIRST runs the injected `runExtraction` op (a dedicated
-//     structured-output turn over the resolution-ladder base), stages its delta into the SAME accumulator, THEN
-//     takes + writes. Identical durable outcome — the accumulator is the one flush home (W1a invariant).
+// delivery modes run a DEDICATED post-commit STATE ROUND (owner ruling 2026-07-27 — the char turn is always
+// tool-less prose; state is captured by its own request), then funnel through ONE flush tail:
+//   • reliable — the flush runs `runExtraction` (a dedicated structured-output turn over the resolution-ladder
+//     base), stages its delta into the accumulator, THEN takes + writes.
+//   • cheap    — the flush runs `runToolRound` (a dedicated tool round: parallel tool calls, `tool_choice`
+//     "required" + a no_changes escape), whose parsed calls fold to the SAME delta shape, stages, THEN writes.
+//   Identical durable outcome — the accumulator is the one flush home (W1a invariant); the two rounds share the
+//   `stageStateRound` signature (input ids + base → delta).
 //
 // A turn that staged NOTHING (no tools fired, extraction returned an empty delta) writes NO snapshot — the take
 // is `undefined` and the flush is a no-op (a byte-identical non-writing turn). Journal entries stamp the
@@ -14,18 +17,22 @@
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { RpgTurnConnection } from "../../chat";
 import type { StagedTurnFlush } from "../contract/params";
-import type { RpgContext, RpgGameRow } from "../contract/service";
+import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
 import { resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
+import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
 
-/** The committed assistant slot a completed turn flushes onto (the snapshot key + the journal lineage stamp). */
+/** The committed assistant slot a completed turn flushes onto (the snapshot key + the journal lineage stamp)
+ *  PLUS the narration turn's already-resolved route + consent verdict the state round rides (F1/F2). */
 interface CompletedTurn {
   readonly turnId: ChatTurnId;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
+  readonly turnConnection: RpgTurnConnection;
 }
 
 /** Resolve the reliable-mode extraction BASE — the resolution-ladder head for this turn (or the synthesized
@@ -35,19 +42,24 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
   return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
 }
 
-/** Reliable mode: run the extraction over the base, then stage its delta into the turn's accumulator (the SAME
- *  path cheap-mode tools use — ensure the bucket, overlay the state patch, append the journal entries). An EMPTY
- *  delta (no state keys, no journal) stages NOTHING — a "nothing changed this turn" extraction must not write a
- *  redundant clone-forward snapshot (the take then stays `undefined`, byte-identical to a non-writing turn). */
-async function stageReliableExtraction(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn): Promise<void> {
+/** Stage a state DELTA (from either dedicated state round — reliable's extraction OR cheap's tool round) into
+ *  the turn's accumulator: ensure the bucket from the resolution-ladder base, overlay the state patch, append
+ *  the journal entries. An EMPTY delta (no state keys, no journal) stages NOTHING — a "nothing changed this
+ *  turn" round must not write a redundant clone-forward snapshot (the take then stays `undefined`,
+ *  byte-identical to a non-writing turn). The delta is resolved by the mode's injected op below. */
+// `runRound` is the mode's injected op — `RpgRunExtraction` (reliable) or `RpgRunToolRound` (cheap); they
+// share this exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
+// (the narration turn's already-resolved route + consent verdict) is threaded straight through to the round.
+async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
   const baseState = await extractionBase(ctx, game);
-  const delta = await ctx.runExtraction({
+  const delta = await runRound({
     chatId: game.chatId,
     gameId: game.id,
     turnId: turn.turnId,
     messageId: turn.messageId,
     variantId: turn.variantId,
     baseState,
+    turnConnection: turn.turnConnection,
   });
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
@@ -65,11 +77,12 @@ async function stageReliableExtraction(ctx: RpgContext, game: RpgGameRow, turn: 
 /** Write a taken flush: the clone-forward snapshot keyed to the committed variant + the staged journal entries
  *  stamped with that variant (§2.5). `now`/`snapshot id` are injected (determinism).
  *
- *  STRUCTURAL BACKSTOP (stickler F1): `writeStagedSnapshot` returns `undefined` when the assembled state is
- *  contract-INVALID (a `max <= 0` pool from a buggy applier, present or future). On refusal the ENTIRE flush is
- *  DROPPED — no snapshot, no journal, no bus emits — errors-as-data, mirroring reliable-mode's non-conforming
- *  empty-delta path. The journal rides the SAME atomic drop: an entry keyed to a snapshot that never landed
- *  would be an orphan beat referencing a state the panel can't resolve. Canon stays uncorrupted by construction. */
+ *  STRUCTURAL BACKSTOP (stickler F1): `writeStagedSnapshot` returns `{ok:false, reason}` when the assembled
+ *  state is contract-INVALID (a `max <= 0` pool from a buggy applier, present or future). On refusal the ENTIRE
+ *  flush is DROPPED — no snapshot, no journal, no bus emits — errors-as-data, mirroring reliable-mode's
+ *  non-conforming empty-delta path — AND the drop is LOGGED with the field-level reason (never silent). The
+ *  journal rides the SAME atomic drop: an entry keyed to a snapshot that never landed would be an orphan beat
+ *  referencing a state the panel can't resolve. Canon stays uncorrupted by construction. */
 async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFlush, turn: CompletedTurn): Promise<void> {
   const snapshotId = ctx.ids.snapshot();
   const written = await writeStagedSnapshot(ctx.db, flush.state, {
@@ -79,8 +92,13 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     variantId: turn.variantId,
     now: ctx.now(),
   });
-  if (written === undefined) {
-    return; // the state was contract-invalid — drop the whole flush (no snapshot, no journal, no emits)
+  if (!written.ok) {
+    // The state was contract-invalid — drop the whole flush (no snapshot, no journal, no emits). SURFACE the
+    // drop (the F1 backstop staying silent is the exact visibility violation this program kills): the model
+    // fired, produced applicable output, and it vanished — the log names WHICH field the write contract
+    // rejected so the mismatch is root-causable from the provider trail, not a dark panel with no signal.
+    ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: turn.variantId, reason: written.reason });
+    return;
   }
   await Promise.all(
     flush.journal.map((entry) =>
@@ -107,12 +125,24 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
   }
 }
 
-/** The turn-completion flush (§2.4-2.5). Reliable mode runs the extraction into the accumulator first; then BOTH
- *  modes take + write. A turn that staged nothing is a no-op. */
+/** The turn-completion flush (§2.4-2.5). BOTH write modes run a DEDICATED STATE ROUND post-commit (owner
+ *  ruling 2026-07-27 — cheap + reliable are structurally symmetric): reliable → `runExtraction` (schema),
+ *  cheap → `runToolRound` (parallel tool calls). Each stages its delta into the accumulator; then take + write.
+ *  A turn that staged nothing (empty delta / readonly / no-op) is a byte-identical non-writing turn.
+ *
+ *  READONLY GATE (stickler F2): a game whose RESOLVED connection has no write path for its mode
+ *  (`cheap` needs `tools`, `reliable` needs `output.structured`) runs NO round — a per-turn model call that
+ *  would predictably fail (`rpg.extraction.*`/`rpg.toolround.failed`) and, on hosted creds, cost real spend for
+ *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
+ *  narration turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
+ *  ("a game whose model has no writer capability never reaches here", compose/rpg.ts) is now ENFORCED here. */
 export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
-  if (mode === "reliable") {
-    await stageReliableExtraction(ctx, game, turn);
+  if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
+    return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
   }
+  // `RpgExtractionMode` is exactly {reliable, cheap} — the else IS cheap (no redundant re-check).
+  const round = mode === "reliable" ? ctx.runExtraction : ctx.runToolRound;
+  await stageStateRound(ctx, game, turn, round);
   const flush = ctx.staging.take(turn.turnId);
   if (flush === undefined) {
     return; // nothing staged — a byte-identical non-writing turn

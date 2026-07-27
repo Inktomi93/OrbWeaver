@@ -99,6 +99,12 @@ export interface ChatToolOps {
   readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
   /** The one execute path — sequential, errors-as-data; never throws per-call. */
   readonly executeToolCalls: (set: ChatToolSet, calls: readonly ToolCallInput[], frame: ChatToolExecFrame) => Promise<readonly ToolCallRecord[]>;
+  /** The SECOND projection (D48) for the STATEFUL agent-sdk wire: wrap the resolved set as an in-process
+   *  MCP tool server (the opaque `AgentToolServer`, typed `unknown` here — chat never narrows it). The SDK
+   *  owns the tool loop; every invocation still runs the ONE `executeToolCalls` path, and `onRecord` fires
+   *  per completed invocation so the pipeline persists the SAME `ToolCallRecord`s the array-wire recurse
+   *  loop produces. */
+  readonly toAgentToolServer: (set: ChatToolSet, frame: ChatToolExecFrame, onRecord: (record: ToolCallRecord) => void) => Promise<unknown>;
 }
 
 /** Resolve `{api, model, credential, capability}` for a turn under the frozen `runAsUserId` (never the caller). */
@@ -424,6 +430,21 @@ interface ChatCrewOps {
  *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
  *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
  *  the override; rpg-design/02 §1.1 #1). */
+/** The narration turn's RESOLVED route + consent verdict, handed to {@link ChatRpgOps.onTurnCompleted} so the
+ *  post-commit rpg state round rides the EXACT connection + owner-consent the engine already resolved + enforced
+ *  for THIS turn — the [foreign-inputs-seam] shape (an already-resolved value threaded IN, never re-derived).
+ *  This is the F1 fix: without it the state round resolved the host's GLOBAL chat default (`resolveRole`) and
+ *  force-stamped `ownerConsented:true`, so a room pinned to vllm could fire a metered-sub round the turn's
+ *  consent belt never approved. `connection.capability` also gates the round's readonly verdict (F2). */
+export interface RpgTurnConnection {
+  /** The narration turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
+   *  round connection; the state round runs on THIS, never a re-resolve. */
+  readonly connection: ResolvedConnection;
+  /** The engine's enforced owner-consent verdict for this turn (`resolveOwnerConsented`, engine.ts) — the state
+   *  round inherits it rather than force-stamping `true`; a metered-sub round is by-proxy-safe by construction. */
+  readonly ownerConsented: boolean;
+}
+
 export interface ChatRpgOps {
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
@@ -441,8 +462,12 @@ export interface ChatRpgOps {
   readonly markDicePreRollEligible: (turnId: ChatTurnId) => void;
   /** SEND path, after the user row commits — fires the snapshot COMMIT (+ consumes queued dice rolls). */
   readonly onUserCommit: (chatId: ChatId, messageId: MessageId) => Promise<void>;
-  /** Post-turn (commit): FLUSH the turn's staged tool writes onto the committed variant, keyed by `turnId`. */
-  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId) => Promise<void>;
+  /** Post-turn (commit): FLUSH the turn's staged tool writes onto the committed variant, keyed by `turnId`.
+   *  `turn` carries the NARRATION turn's ALREADY-RESOLVED route + consent verdict (see {@link RpgTurnConnection})
+   *  so the rpg state round rides the EXACT connection + consent the engine enforced — never a second hand-rolled
+   *  resolve/consent path (stickler F1: a state round must not resolve the host's global default nor force-stamp
+   *  consent; a room on vllm runs its round on vllm, a metered-sub round inherits the turn's owner-consent). */
+  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnConnection) => Promise<void>;
   /** Turn abort/failure: CLEAR the turn's staged tool writes so a dead turn never flushes into the next turn. */
   readonly onTurnAborted: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
   /** The GM seat holder's FK-derived KIND for the game rooted at this chat (agent-principal-design/05 §2 AP4a),

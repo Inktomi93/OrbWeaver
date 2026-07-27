@@ -11,11 +11,17 @@ import { ProviderError } from "../contract";
 // Exhaustive over ProviderRole (a new role without an entry is a tsc error). A source not listed is denied.
 const ROLE_SOURCE_POLICY: Record<ProviderRole, readonly CredentialSource[]> = {
   chat: ["max-pro-sub", "openrouter", "vllm", "custom_openai"],
-  agent: ["max-pro-sub", "openrouter", "vllm"],
+  // agent-sdk drives ONLY the two Claude-runtime skins (sub + OR-Anthropic); vLLM was REMOVED from the
+  // agent-sdk api (owner ruling 2026-07-27 — `assertCoherent`/`disciplineOptions` reject it), so the firewall
+  // row no longer advertises a pairing the sealed backend can never serve (stickler F8).
+  agent: ["max-pro-sub", "openrouter"],
   embed: ["openrouter", "vllm", "local-light"],
   rerank: ["openrouter", "vllm", "local-light"],
   imageEmbed: ["openrouter", "vllm", "local-light"],
   summarize: ["openrouter", "vllm"],
+  // The structured-output primitive — same posture as summarize (openrouter|vllm; the metered sub is
+  // reached only through the chat outputFormat path, never this role). Owner ruling 2026-07-27 split.
+  structured: ["openrouter", "vllm"],
   generateImage: ["openrouter"],
 };
 

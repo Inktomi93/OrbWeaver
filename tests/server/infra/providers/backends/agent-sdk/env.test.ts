@@ -6,14 +6,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { vllmAgentModelAlias } from "@orb/server/foundation/env";
-import {
-  buildClaudeAnthEnv,
-  buildClaudeOpenRouterEnv,
-  buildClaudeSdkEnv,
-  buildClaudeVllmEnv,
-  RESERVED_CLAUDE_ENV_KEYS,
-} from "@orb/server/infra/providers/backends/agent-sdk";
+import { buildClaudeAnthEnv, buildClaudeOpenRouterEnv, buildClaudeSdkEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
@@ -22,7 +15,6 @@ const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
 const KEY_REQUIRED_RE = /OpenRouter API key is required/u;
 const ANTH_KEY_REQUIRED_RE = /Anthropic API key is required/u;
-const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 // The derived tier→slug map the caller (connection) now supplies — the firewall carries NO hardcoded map.
 const TIER_MODELS = {
   opus: "anthropic/claude-opus-4.8",
@@ -162,28 +154,8 @@ describe("mode-1 (Max sub) firewall", () => {
   });
 });
 
-describe("mode-3 (local vLLM) firewall", () => {
-  test("loopback base URL + keyless throwaway + every host credential nulled", () => {
-    vi.stubEnv("CLAUDE_CODE_OAUTH_TOKEN", FAKE_SUB_TOKEN);
-    const env = buildClaudeVllmEnv();
-    expect(env["ANTHROPIC_BASE_URL"]).toMatch(LOOPBACK_BASE_RE);
-    expect(env["ANTHROPIC_AUTH_TOKEN"]).toBe("local-vllm");
-    expect(env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
-    expect(Object.values(env)).not.toContain(FAKE_SUB_TOKEN);
-  });
-
-  test("the default model env is the SHARED slash-free alias (the same helper healModel resolves)", () => {
-    // The alias env the loopback engine serves must equal `vllmAgentModelAlias()` — the ONE derivation the
-    // connection heal ALSO reads, so the runner env and the resolved requestedModel can't drift (the
-    // RPG-on-vLLM 404 crash was exactly this divergence).
-    const env = buildClaudeVllmEnv();
-    const alias = vllmAgentModelAlias();
-    expect(alias).not.toContain("/"); // Claude Code can't resolve a slash-containing id
-    expect(env["ANTHROPIC_DEFAULT_OPUS_MODEL"]).toBe(alias);
-    expect(env["ANTHROPIC_DEFAULT_SONNET_MODEL"]).toBe(alias);
-    expect(env["ANTHROPIC_DEFAULT_HAIKU_MODEL"]).toBe(alias);
-  });
-});
+// mode-3 (local vLLM loopback agent) was RETIRED 2026-07-27 (owner ruling): `buildClaudeVllmEnv` is deleted
+// — local vLLM chat runs on the chat-completions surface only. There is no agent-sdk×vllm env to firewall.
 
 const ANTH_KEY = "sk-ant-first-party-SECRET";
 
@@ -251,9 +223,7 @@ describe("byte-stability — cache-buster tripwires (a nondeterministic env bust
     );
   });
 
-  test("mode-3 env is deep-equal across calls", () => {
-    expect(buildClaudeVllmEnv()).toStrictEqual(buildClaudeVllmEnv());
-  });
+  // mode-3 (local vLLM loopback) retired 2026-07-27 — no builder to byte-check.
 
   test("mode-4 env is deep-equal across calls with the same key + overrides", () => {
     expect(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 })).toStrictEqual(buildClaudeAnthEnv("sk-ant-x", { maxContextTokens: 100_000 }));
@@ -282,6 +252,9 @@ const GUARDED_ENV_NAMES = [
   "CLAUDE_CODE_DISABLE_THINKING",
 ] as const;
 
+/** The prefix-cache-hygiene pin's bundled-runtime name (hoisted — top-level-regex lint). */
+const ATTRIBUTION_HEADER_RE = /\bCLAUDE_CODE_ATTRIBUTION_HEADER\b/;
+
 describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)", () => {
   test("every guarded env name is a real key in the bundled claude runtime", () => {
     for (const name of GUARDED_ENV_NAMES) {
@@ -290,6 +263,19 @@ describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)",
         new RegExp(`\\b${name}\\b`),
       );
     }
+  });
+
+  test("the attribution header is pinned OFF on both live skins (prefix-cache hygiene tripwire)", () => {
+    // Claude Code can inject a per-request git-attribution hash into the system prompt, churning it every
+    // request and defeating Anthropic/OR prefix caching (vLLM Claude-Code-integration doc). We pin it OFF so
+    // a future SDK bump can't re-enable a churning default and quietly tax every turn on the sub + OR skins.
+    // (a) both LIVE builders emit `CLAUDE_CODE_ATTRIBUTION_HEADER="0"`.
+    expect(buildClaudeSdkEnv({})["CLAUDE_CODE_ATTRIBUTION_HEADER"]).toBe("0");
+    expect(buildClaudeOpenRouterEnv("sk-or-x", TIER_MODELS, {})["CLAUDE_CODE_ATTRIBUTION_HEADER"]).toBe("0");
+    // (b) the name is a REAL key in the bundled runtime (a rename would make the pin a silent no-op).
+    expect(bridgeSource, "CLAUDE_CODE_ATTRIBUTION_HEADER vanished from the bundled runtime — an SDK bump renamed it (the pin is now a no-op)").toMatch(
+      ATTRIBUTION_HEADER_RE,
+    );
   });
 
   test("the builder actually emits the compaction-disable + pct-override keys when asked", () => {

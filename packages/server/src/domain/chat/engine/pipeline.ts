@@ -351,6 +351,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
     assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
+    // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
+    // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
+    midConversationSystem: args.connection.capability.turns?.midConversationSystem === true,
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
@@ -393,7 +396,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
-  const attach = attachTools(args, baseRequest);
+  const attach = await attachTools(args, baseRequest);
   const structured = attachResponseFormat(args, attach.request);
   const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
@@ -409,7 +412,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     fitUsedTokens,
     fitCeilingTokens: fitted.ceilingTokens,
     imageDropped,
-    toolRecords: loop.records,
+    // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
+    // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
+    toolRecords: [...loop.records, ...attach.mcpRecords],
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
@@ -419,17 +424,35 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
-// request carries no tools field.
-function attachTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; set: ChatToolSet | null; unsupported: boolean } {
+// request carries no tools field. Per-wire delivery: the ARRAY wires (chat-completions/responses) carry
+// `tools`/`toolChoice` and recurse in `runRecurseLoop`; the STATEFUL agent-sdk wire mounts the resolved set
+// as an in-process MCP server (`agentToolServer`) — the SDK owns the loop, every invocation runs the ONE
+// `executeToolCalls` path, and `mcpRecords` accumulates the SAME ToolCallRecords the recurse loop would.
+async function attachTools(
+  args: RunTurnPipelineArgs,
+  baseRequest: TurnRequest,
+): Promise<{ request: TurnRequest; set: ChatToolSet | null; unsupported: boolean; mcpRecords: readonly ToolCallRecord[] }> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = args.connection.capability.tools !== undefined;
+  // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
-    return { request: baseRequest, set: null, unsupported: false };
+    return { request: baseRequest, set: null, unsupported: false, mcpRecords: [] };
   }
   if (!toolsSupported) {
-    return { request: baseRequest, set: null, unsupported: true };
+    return { request: baseRequest, set: null, unsupported: true, mcpRecords: [] };
   }
   const set = args.tools.resolveTools(args.attachedToolNames);
+  if (args.connection.api === "agent-sdk") {
+    const mcpRecords: ToolCallRecord[] = [];
+    const server = await args.tools.toAgentToolServer(set, args.toolExecFrame, (record) => mcpRecords.push(record));
+    return {
+      request: { ...baseRequest, agentToolServer: server, agentToolTurnLimit: args.toolRecurseLimit },
+      // The SDK owns the loop — runRecurseLoop never pivots (no finishReason:"tool" on this arm).
+      set,
+      unsupported: false,
+      mcpRecords,
+    };
+  }
   return {
     request: {
       ...baseRequest,
@@ -438,6 +461,7 @@ function attachTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { req
     },
     set,
     unsupported: false,
+    mcpRecords: [],
   };
 }
 

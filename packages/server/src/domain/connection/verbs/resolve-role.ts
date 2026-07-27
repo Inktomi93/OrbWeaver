@@ -6,7 +6,7 @@ import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCa
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { env, vllmAgentModelAlias } from "#foundation/env";
+import { env } from "#foundation/env";
 import type { ConnectionContext } from "../context";
 import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
 import type { ResolveChatCapabilityParams, ResolveRoleParams, RouteOverride } from "../contract/params";
@@ -101,10 +101,11 @@ function applyVllmFallback(role: ResolveRoleParams["role"], selection: RouteSele
 /** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
 function assertCoherent(api: ChatApi, source: CredentialSource): void {
   if (api === "agent-sdk") {
-    // The sub + the OR skin both drive the agent-sdk backend, and vllm joins them via the local loopback
-    // agent path (buildClaudeVllmEnv → 127.0.0.1:VLLM_GEN_PORT /v1/messages — deriveRunner + firewall
-    // already route/allow it for the agent role); every other source is incoherent on this api.
-    if (source !== "max-pro-sub" && source !== "openrouter" && source !== "vllm") {
+    // agent-sdk drives ONLY the two Claude-runtime skins: the sub + the OR-Anthropic skin. vLLM was REMOVED
+    // from this api (owner ruling 2026-07-27): the loopback agent skin hung the small local model on real
+    // structured-output schemas, while the SAME engine's chat-completions surface (guided decoding + hermes
+    // parallel tools) handles everything — so local vLLM is chat-completions-ONLY (the strictly-better wire).
+    if (source !== "max-pro-sub" && source !== "openrouter") {
       throw new ConnectionRoutingError(api, source);
     }
     return;
@@ -117,22 +118,20 @@ function assertCoherent(api: ChatApi, source: CredentialSource): void {
 
 /** Resolve the model id for an `agent-sdk` chat selection — EXPLICIT + EXHAUSTIVE + FAIL-LOUD (owner ruling).
  *  The prior source-blind `return healToChatDefault(model)` silently healed EVERY agent-sdk source to a Claude
- *  default (opus); for `vllm` that 404'd the loopback and crashed Claude Code two layers down — the exact
- *  silent-failure antipattern that masked the bug. Only the three sources `assertCoherent` admits on this api
- *  can reach here; a new/unexpected one THROWS at resolution instead of becoming opus. */
+ *  default (opus). Only the two Claude-runtime sources `assertCoherent` admits on this api can reach here; a
+ *  new/unexpected one (incl. `vllm`, which is chat-completions-only since 2026-07-27) THROWS at resolution
+ *  instead of becoming opus. */
 function healAgentSdkModel(source: CredentialSource, model: string | null): ModelId {
   switch (source) {
     // Sub / OR skin legitimately run Claude models → the curated Claude heal.
     case "max-pro-sub":
     case "openrouter":
       return healToChatDefault(model);
-    // U0 local loopback agent path: Claude Code runs against the LOCAL vLLM engine, which serves ONLY the
-    // slash-free alias (buildClaudeVllmEnv's ANTHROPIC_DEFAULT_*_MODEL). A Claude default id would 404 it.
-    case "vllm":
-      return castId<ModelId>(vllmAgentModelAlias());
     // Incoherent on agent-sdk (assertCoherent rejects them upstream); reaching here is a routing bug —
-    // fail LOUD, never silently emit opus. Exhaustive: a NEW CredentialSource member is a lint error
-    // here until its heal arm is decided.
+    // fail LOUD, never silently emit opus. `vllm` is now chat-completions-only (owner ruling): an agent-sdk
+    // selection with source=vllm is rejected by `assertCoherent` before this point. Exhaustive: a NEW
+    // CredentialSource member is a lint error here until its heal arm is decided.
+    case "vllm":
     case "local-light":
     case "custom_openai":
       throw new AgentModelHealError(source);

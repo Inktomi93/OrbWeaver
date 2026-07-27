@@ -11,7 +11,7 @@
 // contributor header into `ResolvedContextTabs.header`, and `RpgHeaderBand` (the header-contributor host)
 // re-resolves the same panel state and renders this component into the real band. rpg never imports chat.
 
-import type { RpgClockTime, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Compass, Icon, Lock } from "@orb/ui/icons";
@@ -20,6 +20,7 @@ import { RingGauge } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { trackColor } from "../lib/track-color";
+import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 
 // The header shows up to 3 pool orbs (§4.5), each on the next track-ramp step (categorical, by pool order).
 const MAX_ORBS = 3;
@@ -59,10 +60,14 @@ export interface RpgTakeoverHeaderProps {
   readonly ambient: RpgTrackerView["ambient"];
   readonly poolOrbs: readonly RpgPoolOrb[];
   readonly trackersReadOnly: boolean;
+  /** The game's delivery-model knob — drives the freshness indicator's honest posture (§4.5, the ruling). */
+  readonly extractionMode: RpgExtractionMode;
+  /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
+  readonly freshnessPending: boolean;
 }
 
-/** The scene banner + pool orbs + read-only pill (§4.5). */
-export function RpgTakeoverHeader({ ambient, poolOrbs, trackersReadOnly }: RpgTakeoverHeaderProps): ReactElement {
+/** The scene banner + pool orbs + read-only pill + freshness indicator (§4.5). */
+export function RpgTakeoverHeader({ ambient, poolOrbs, trackersReadOnly, extractionMode, freshnessPending }: RpgTakeoverHeaderProps): ReactElement {
   const when = ambient === null ? "" : whenLine(ambient);
   return (
     <Stack gap="block" data-slot="rpg-takeover-header">
@@ -84,14 +89,17 @@ export function RpgTakeoverHeader({ ambient, poolOrbs, trackersReadOnly }: RpgTa
         </Row>
       ) : null}
 
-      {trackersReadOnly ? (
-        <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
-          <Icon icon={Lock} size="xs" />
-          <Text as="span" size="micro" weight="medium">
-            Trackers read-only
-          </Text>
-        </Badge>
-      ) : null}
+      <Row gap="field" align="center" className="flex-wrap">
+        <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
+        {trackersReadOnly ? (
+          <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
+            <Icon icon={Lock} size="xs" />
+            <Text as="span" size="micro" weight="medium">
+              Trackers read-only
+            </Text>
+          </Badge>
+        ) : null}
+      </Row>
 
       {poolOrbs.length === 0 ? null : (
         <Row gap="block" align="center" className="flex-wrap">

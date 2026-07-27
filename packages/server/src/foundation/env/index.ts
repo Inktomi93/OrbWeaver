@@ -34,7 +34,12 @@ const VLLM_RERANK_MAX_MODEL_LEN_DEFAULT = 8192;
 const VLLM_EMBED_GPU_UTIL_DEFAULT = 0.14;
 const VLLM_RERANK_GPU_UTIL_MULTI_DEFAULT = 0.16;
 const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.22;
-const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.28;
+// 0.28 was the ComfyUI-coexistence floor: it left the gen engine 45,328 KV tokens = 1.38x concurrency at
+// the 32,768 max-model-len (vLLM's own boot math, 2026-07-27) — ONE in-flight chat-sized request, so any
+// slow turn starved every other. ComfyUI's GPU residency ended; gen claims the freed VRAM for KV headroom
+// (~6x full-context concurrency on 2×A6000). Owner-directed re-provision — drop back toward 0.28 if a
+// ComfyUI-class GPU tenant returns.
+const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.55;
 const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
@@ -371,13 +376,4 @@ export function engineDeploymentEnv(): {
     hfHome: env.HF_HOME,
     vllmCacheRoot: env.VLLM_CACHE_ROOT,
   };
-}
-
-/** The slash-free vLLM gen-model alias the local gen engine serves via `--served-model-name`. Claude Code
- *  can't resolve a model id containing "/", so an `agent-sdk × vllm` turn (mode-3) must name this leaf, NOT a
- *  Claude default. ONE home for the derivation: BOTH the agent-sdk env firewall (buildClaudeVllmEnv's
- *  ANTHROPIC_DEFAULT_*_MODEL) and the connection model-heal (healModel's agent-sdk+vllm arm) read it here, so
- *  the runner env and the resolved requestedModel can't drift on the alias. */
-export function vllmAgentModelAlias(): string {
-  return env.VLLM_GEN_MODEL.split("/").pop() ?? env.VLLM_GEN_MODEL;
 }

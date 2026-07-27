@@ -14,11 +14,15 @@ import type { OrSkinTierModels, ResolvedChatKnobs, ResolvedReasoning, ResolvedWa
 import { ProviderError } from "../../contract";
 import { resolveChat } from "../../resolve-chat";
 import type { ClaudeRuntimeOverrides } from "./env";
-import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv } from "./env";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv } from "./env";
 import type { DisciplineOptions } from "./types";
 
 // tools:[] alone does NOT remove the cowork bundle (leaks in regardless of env/settingSources); disallowedTools does.
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"] as const;
+
+/** The in-process MCP server namespace — the ONE name both the agent runner's `mcpServers` mount and the
+ *  chat runner's tool mount key on (`allowedTools: mcp__<ns>__*`). */
+export const MCP_NAMESPACE = "orbweaver";
 const PCT_SCALE = 100;
 
 // Env-free discipline shape shared by disciplineOptions and the mode-1 model-discovery spawn (catalog.ts).
@@ -54,16 +58,17 @@ export function disciplineOptions(
         ...base,
         env: buildClaudeOpenRouterEnv(credential.apiKey, orSkinTierModels, overrides),
       };
-    case "vllm":
-      return { ...base, env: buildClaudeVllmEnv(overrides) };
 
+    case "vllm":
     case "local-light":
     case "custom_openai":
-      // Never a Claude-runtime source — refuse like every other non-agent-sdk source.
+      // Not a Claude-runtime source. `vllm` was RETIRED from agent-sdk (owner ruling 2026-07-27): local
+      // vLLM chat runs on the chat-completions surface only. Every other source refuses here as before —
+      // the agent-sdk backend serves only the sub + the OR-Anthropic skin.
       throw new ProviderError({
         kind: "invalid",
         retryable: false,
-        message: `agent-sdk: unsupported credential source "${credential.source}" (sub/openrouter/vllm/anthropic only)`,
+        message: `agent-sdk: unsupported credential source "${credential.source}" (max-pro-sub / openrouter skin only)`,
       });
   }
 }

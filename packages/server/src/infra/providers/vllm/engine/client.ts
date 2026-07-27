@@ -17,6 +17,24 @@ const HTTP_SERVER_ERROR_FLOOR = 500;
 // Cap the upstream error text we echo into a ProviderError message (operator-facing; not secret-bearing).
 const ERROR_TEXT_CAP = 500;
 
+// DEFAULT REQUEST TIMEOUT (F6): a non-streaming engine POST (summarize/structured/tool-round — the rpg state
+// round's vehicle) has NO natural bound today, so a hung/black-holed socket leaves the caller's promise
+// UNSETTLED forever. Downstream that means the rpg flush promise never settles → the flush-barrier entry never
+// clears → every later turn on that chat eats the full 15s `awaitInFlight` bound until process restart (the
+// permanent per-chat leak the stickler flagged). A bounded default makes an engine POST ALWAYS settle (as a
+// retryable timeout error), so the flush promise settles and the barrier entry self-clears. The BOUND: 120s —
+// matching the agent-sdk summarize watchdog precedent (`summarize.ts`). A state-round generation is normally
+// seconds; 120s is generous headroom for a busy GPU while still being finite (never infinite). It composes with
+// any caller-supplied signal (`AbortSignal.any`), so a real abort still cancels earlier.
+const DEFAULT_ENGINE_TIMEOUT_MS = 120_000;
+
+/** Compose the caller's optional signal with the default request-timeout signal — whichever aborts first wins.
+ *  Always returns a live signal (the timeout is unconditional), so no engine POST/stream-open can hang forever. */
+function withTimeout(signal: AbortSignal | undefined): AbortSignal {
+  const timeout = AbortSignal.timeout(DEFAULT_ENGINE_TIMEOUT_MS);
+  return signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
+}
+
 const PORTS: Record<VllmEngine, number> = {
   embed: env.VLLM_EMBED_PORT,
   rerank: env.VLLM_RERANK_PORT,
@@ -36,8 +54,18 @@ export interface VllmEngineClient {
   readonly baseUrl: (engine: VllmEngine) => string;
 }
 
-// Build the actionable "engine not reachable" error from the supervisor's known status (if any).
+// Build the actionable "engine not reachable" error from the supervisor's known status (if any). A
+// TimeoutError (the default-bound `AbortSignal.timeout` fired — the socket hung past DEFAULT_ENGINE_TIMEOUT_MS)
+// is a distinct, retryable story: the engine was reachable enough to connect but never answered in the bound.
 function unreachable(engine: VllmEngine, url: string, cause: unknown): ProviderError {
+  if (cause instanceof DOMException && cause.name === "TimeoutError") {
+    return new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: `vllm ${engine} request at ${url} exceeded the ${DEFAULT_ENGINE_TIMEOUT_MS}ms bound (hung/slow engine) — aborted so the caller's promise settles.`,
+      cause,
+    });
+  }
   const known = getEngineStatus(engine);
   const story =
     known !== undefined ? `supervisor says '${known.status}'${known.detail.length > 0 ? ` (${known.detail})` : ""}` : "still warming, or engines disabled?";
@@ -73,7 +101,9 @@ async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, si
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      ...(signal !== undefined ? { signal } : {}),
+      // ALWAYS signalled (F6): the default request-timeout composed with any caller signal, so a hung socket
+      // aborts at the bound and the caller's promise settles instead of leaking forever.
+      signal: withTimeout(signal),
     });
   } catch (cause) {
     throw unreachable(engine, url, cause);
@@ -93,6 +123,11 @@ async function engineStream(engine: VllmEngine, path: string, body: unknown, sig
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      // NO default timeout on the STREAM path (deliberately, unlike enginePost): an `AbortSignal.timeout` here
+      // would abort the whole response INCLUDING an in-flight body stream, cutting a legitimately-long chat
+      // generation mid-token. A stream's lifetime is the turn's — the caller threads the turn's abort `signal`,
+      // and the SSE reducer owns per-chunk idle handling. The F6 leak is the non-streaming `enginePost` path
+      // (the rpg state round); the streaming chat path is already turn-abortable.
       ...(signal !== undefined ? { signal } : {}),
     });
   } catch (cause) {

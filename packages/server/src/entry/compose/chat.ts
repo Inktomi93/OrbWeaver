@@ -72,7 +72,7 @@ import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
 import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
-import { AGENT_PROMPT_TAIL_JOINER } from "#infra/providers";
+import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 import { publishNotification } from "../../transport/trpc";
@@ -98,12 +98,57 @@ function agentRowText(m: TurnMessage): string {
   return m.name !== undefined && m.name.length > 0 ? `${m.name}: ${text}` : text;
 }
 
+/**
+ * Lift the capability-kept `system` rows near the tail (depth-0 mid-conversation system injections — SHAPE
+ * emits them only when `turns.midConversationSystem`) off the shaped history. On the agent-sdk wire-shape
+ * the honest system-authority channel is the dynamic-context hook (`routeDynamicContext` "message-tail"),
+ * not a transcript row: the caller joins the extracted text onto `systemPrompt.dynamic`, and the remaining
+ * history keeps a clean user prompt — the volatile injection never enters the recorded transcript, so the
+ * session↔seed comparator still matches next turn (resume, not reseed).
+ *
+ * NOT strictly tail-FINAL (F3 fix): SHAPE appends the group/CONTINUATION nudge as a trailing USER row AFTER
+ * the depth-0 system row (`shape.ts` `[...named, {role:"user", nudge}]`), so the real shape is
+ * `[…canon…, system, user-nudge]` — a system row with a nudge tail AFTER it, not a tail-final run. A pure
+ * trailing-run scan misses it and leaves the reminder to fall bare into the prompt tail (unframed system-
+ * authority text reaching the model as user content + entering the transcript → reseed churn). So we scan for
+ * a contiguous SYSTEM run and lift it even when NON-system (nudge) rows trail it; those trailing rows stay in
+ * `rows` (the nudge is a legitimate user turn — only the system row folds into the hook). A system run inside
+ * canon (a non-injection system row, if one ever existed) is NOT reachable here — the splice only ever emits
+ * depth-0 system at/after the last canon assistant, so the run we find is always the injection band. Exported
+ * for bridge tests only — not a composition surface.
+ */
+export function extractTrailingSystemRows(history: readonly TurnMessage[]): { rows: readonly TurnMessage[]; systemText: string | null } {
+  // Walk back past a trailing NON-system tail (the appended nudge — at most a short user run) to find the end
+  // of the system band, then past the system run to its start. `[…, system, user-nudge]` → sysStart..sysEnd
+  // brackets the system rows; everything else (canon head + the nudge tail) stays in `rows`.
+  let sysEnd = history.length;
+  while (sysEnd > 0 && history[sysEnd - 1]?.role !== "system") {
+    sysEnd -= 1; // skip the trailing nudge (non-system) rows
+  }
+  let sysStart = sysEnd;
+  while (sysStart > 0 && history[sysStart - 1]?.role === "system") {
+    sysStart -= 1; // the contiguous system run
+  }
+  if (sysStart === sysEnd) {
+    return { rows: history, systemText: null }; // no system rows to lift
+  }
+  const text = history
+    .slice(sysStart, sysEnd)
+    .map(agentRowText)
+    .filter((t) => t.length > 0)
+    .join(AGENT_PROMPT_TAIL_JOINER);
+  // Drop the system band; keep the canon head AND the nudge tail (the nudge is a real user turn).
+  const rows = [...history.slice(0, sysStart), ...history.slice(sysEnd)];
+  return { rows, systemText: text.length > 0 ? text : null };
+}
+
 /** The legacy flatten (no-seed fallback): the whole history as one role-labeled blob. Exported for bridge
  *  tests only — not a composition surface. */
 export function flattenAgentHistory(history: readonly TurnMessage[]): string {
+  const labels: Partial<Record<TurnMessage["role"], string>> = { assistant: "Assistant", system: "System" };
   return history
     .map((m) => {
-      const prefix = m.role === "assistant" ? "Assistant" : "User";
+      const prefix = labels[m.role] ?? "User";
       const name = m.name !== undefined && m.name.length > 0 ? ` (${m.name})` : "";
       const text = m.content.map((c) => (c.type === "text" ? c.text : "[Image]")).join("");
       return `${prefix}${name}: ${text}`;
@@ -256,6 +301,23 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
         turnId: frame.turnId,
         ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
       }),
+    // The stateful-arm projection: the SAME resolved set + exec frame, wrapped as an in-process MCP server
+    // (project-mcp funnels every SDK invocation back through executeToolCalls — one execute path, two
+    // projections). The D47 SDK factory is injected HERE so tool-use never imports infra.
+    toAgentToolServer: async (set, frame, onRecord) =>
+      toolUse.toAgentToolServer(
+        asResolvedSet(set),
+        {
+          principal: await resolveHostPrincipal(frame.runAsUserId),
+          triggeredBy: frame.triggeredBy,
+          chatId: frame.chatId,
+          roster: frame.roster,
+          turnId: frame.turnId,
+          ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+        },
+        { createAgentToolServer },
+        onRecord,
+      ),
   };
 }
 
@@ -283,7 +345,14 @@ export function createRunChatTurnBridge(deps: {
       }
     };
 
-    const agentSplit = req.connection.api === "agent-sdk" ? splitAgentHistory(req.history) : null;
+    // agent-sdk only: capability-kept trailing system rows (depth-0 mid-conversation system injections)
+    // leave the transcript and ride the dynamic-context hook channel instead — joined onto the dynamic
+    // system half below. Array-shaped wires deliver them as real `system` history rows and skip this.
+    const agentExtract = req.connection.api === "agent-sdk" ? extractTrailingSystemRows(req.history) : null;
+    const agentSplit = agentExtract !== null ? splitAgentHistory(agentExtract.rows) : null;
+    const extractedSystem = agentExtract !== null ? agentExtract.systemText : null;
+    const agentDynamic =
+      extractedSystem !== null ? [req.prompt.dynamic, extractedSystem].filter((s) => s.trim().length > 0).join(AGENT_PROMPT_TAIL_JOINER) : req.prompt.dynamic;
     // The OR-skin tier→slug map the mode-2 firewall needs, derived from connection's live catalogs
     // (never throws — cold catalog degrades to a curated shortlist).
     const orSkinTierModels = req.connection.api === "agent-sdk" ? await deps.getOrSkinTierModels() : undefined;
@@ -295,10 +364,19 @@ export function createRunChatTurnBridge(deps: {
             credential: req.connection.credential,
             capability: req.connection.capability,
             params: req.intent,
-            systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+            // `dynamic` carries the extracted trailing system injections — they ride the resolved
+            // dynamic-context channel (the hook on a midConversationSystem model) as real system authority.
+            systemPrompt: { static: req.prompt.static, dynamic: agentDynamic },
             orSkinTierModels,
             ownerConsented: req.ownerConsented,
-            ...(agentSplit !== null ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt } : { prompt: flattenAgentHistory(req.history) }),
+            // The stateful tool + structured-output channels (the array wires spread tools/responseFormat
+            // on their own arm below): the MCP server mounts the domain's resolved set; responseFormat
+            // rides the SDK's own outputFormat (json_schema) — never silently dropped.
+            ...(req.agentToolServer !== undefined ? { toolServer: req.agentToolServer, toolTurnLimit: req.agentToolTurnLimit } : {}),
+            ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+            ...(agentSplit !== null
+              ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
+              : { prompt: flattenAgentHistory(agentExtract?.rows ?? req.history) }),
             onDelta,
             signal: req.signal,
           }

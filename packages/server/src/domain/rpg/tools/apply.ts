@@ -25,7 +25,7 @@ import type {
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { actorRefKey, journalTitleFor, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { StagedJournalEntry } from "../contract/params";
 import type { RpgStateDelta } from "../contract/service";
@@ -37,9 +37,27 @@ import type { RpgStateDelta } from "../contract/service";
  *  the steering reminder read (stickler F2), never an orphan `cast:<name>` the panel can't render. */
 export type RosterRefIndex = ReadonlyMap<string, RpgActorRef>;
 
-/** Build the name→ref index from resolved roster actors (name lowercased — the model's free-text ref). */
+/** The universal self-aliases a model reaches for when it means the human player — resolved to the player
+ *  (user-kind) roster actor so a "player"/"you"/"self" targetRef lands on the real ref, never a phantom
+ *  `cast:player`. Belt-and-suspenders alongside the schema-level enum constraint (R2, the mis-target fix). */
+const PLAYER_SELF_ALIASES = ["player", "you", "self", "me", "the player"] as const;
+
+/** Build the name→ref index from resolved roster actors (name lowercased — the model's free-text ref). The
+ *  player (user-kind) actor ALSO answers to the universal self-aliases (`player`/`you`/`self`/…), so a model
+ *  that targets "player" when the roster name is "You" still resolves to the real ref (never a `cast:player`
+ *  phantom the panel can't render). An explicit roster name always wins over an alias (aliases fill only
+ *  gaps the roster didn't already claim). */
 export function buildRosterRefIndex(roster: readonly { readonly actorRef: RpgActorRef; readonly name: string }[]): RosterRefIndex {
-  return new Map(roster.map((r) => [r.name.toLowerCase(), r.actorRef]));
+  const index = new Map<string, RpgActorRef>(roster.map((r) => [r.name.toLowerCase(), r.actorRef]));
+  const player = roster.find((r) => r.actorRef.kind === "user");
+  if (player !== undefined) {
+    for (const alias of PLAYER_SELF_ALIASES) {
+      if (!index.has(alias)) {
+        index.set(alias, player.actorRef);
+      }
+    }
+  }
+  return index;
 }
 
 /** A minimal actor identity keyed by `ref` — either a roster ref (`character`/`user`, F2) or a fresh `cast`. */
@@ -348,9 +366,11 @@ export function applyUpsertQuest(
   return { quests };
 }
 
-/** `add_journal_entry` → a staged journal entry (flushed at commit stamped with the committed variant, §2.5). */
+/** `add_journal_entry` → a staged journal entry (flushed at commit stamped with the committed variant, §2.5).
+ *  `title` is DERIVED from the content head when the model omitted it (`journalTitleFor` — the small-model-robust
+ *  arm, ruling #10: an 8B dropping the nested-required `title` used to fail the whole extraction `safeParse`). */
 export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEntry {
-  return { type: args.type, title: args.title, content: args.content };
+  return { type: args.type, title: journalTitleFor(args), content: args.content };
 }
 
 /** The id mints the extraction fold needs (inventory item ids + quest/objective ids) — injected for
@@ -405,5 +425,8 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
       statePatch[key] = state[key];
     }
   }
-  return { statePatch, journal: extraction.journal.map(toStagedJournalEntry) };
+  // Drop a genuinely-empty beat (no content AND no title — nothing to log); a content-full but title-less
+  // entry is KEPT (title derived from the content head — the small-model-robust arm, ruling #10).
+  const journal = extraction.journal.filter((e) => e.content.trim().length > 0 || (e.title?.trim().length ?? 0) > 0).map(toStagedJournalEntry);
+  return { statePatch, journal };
 }

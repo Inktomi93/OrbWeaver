@@ -114,6 +114,7 @@ export type {
   ImageGenerateResult,
   RerankRequest,
   RoleClientsWithSignal,
+  StructuredRequest,
   SummarizeCallOptions,
   SummarizeRequest,
   SummarizeRequestItem,

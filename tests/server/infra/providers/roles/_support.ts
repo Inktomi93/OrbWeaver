@@ -25,7 +25,7 @@ import { expect, test } from "../../../../support/fixtures";
 
 /** The five roles this runner covers; the method name is BOTH the ProviderBackend impl key and the spy
  *  tag. Single-home tuple + derived union (no inline re-decl, Spine-TypeScript §7.5). */
-const EMBED_SHAPED_METHODS = ["embed", "rerank", "summarize", "generateImage", "imageEmbed"] as const;
+const EMBED_SHAPED_METHODS = ["embed", "rerank", "summarize", "structured", "generateImage", "imageEmbed"] as const;
 type EmbedShapedMethod = (typeof EMBED_SHAPED_METHODS)[number];
 
 export interface EmbedShapedRoleSpec {

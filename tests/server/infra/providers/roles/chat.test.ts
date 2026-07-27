@@ -66,13 +66,9 @@ describe("createChatRole — (api, source) → the sealed backend", () => {
     expect(co).toEqual(["custom-openai:chat"]);
   });
 
-  test("agent-sdk api: the OR skin and local vllm both route to the ONE agent-sdk backend", async () => {
-    const [skin, loopback] = await Promise.all([
-      route({ api: "agent-sdk", credential: cred("openrouter") }),
-      route({ api: "agent-sdk", credential: cred("vllm") }),
-    ]);
+  test("agent-sdk api: the OR skin routes to the ONE agent-sdk backend", async () => {
+    const skin = await route({ api: "agent-sdk", credential: cred("openrouter") });
     expect(skin).toEqual(["agent-sdk:chat"]);
-    expect(loopback).toEqual(["agent-sdk:chat"]);
   });
 
   test("agent-sdk + max-pro-sub WITH owner consent routes to the agent-sdk backend", async () => {
@@ -111,6 +107,15 @@ describe("createChatRole — fail-closed (firewall + sealed dispatch)", () => {
     const calls: string[] = [];
     const role = createChatRole({ backends: allBackends(calls) });
     await expect(role(chatReq({ api: "chat-completions", credential: cred("max-pro-sub"), ownerConsented: true }))).rejects.toBeInstanceOf(ProviderError);
+    expect(calls).toEqual([]);
+  });
+
+  test("agent-sdk × vllm (loopback skin RETIRED) passes the chat firewall but fail-closes at deriveRunner", async () => {
+    // The chat source policy still admits vllm (its chat-completions turns are valid), but the agent-sdk
+    // loopback skin was retired (owner ruling 2026-07-27) — deriveRunner rejects the pair, no backend runs.
+    const calls: string[] = [];
+    const role = createChatRole({ backends: allBackends(calls) });
+    await expect(role(chatReq({ api: "agent-sdk", credential: cred("vllm") }))).rejects.toBeInstanceOf(ProviderError);
     expect(calls).toEqual([]);
   });
 

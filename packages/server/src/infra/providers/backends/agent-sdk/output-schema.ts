@@ -39,6 +39,14 @@ const BOUND_KEYWORDS: ReadonlySet<string> = new Set<string>([
 // Keys whose VALUE is a `{ name → schema }` map — the names are data, never keywords.
 const NAME_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["properties", "$defs", "definitions"]);
 
+// Meta-annotation keys that carry no VALIDATION semantics but break the bundled runtime's `--json-schema`
+// validator: `z.toJSONSchema` stamps `$schema: "https://json-schema.org/draft/2020-12/schema"`, and the
+// SDK's validator has no meta-schema registered under that ref → "not a valid JSON Schema: no schema with
+// key or ref …" (live-caught 2026-07-27, agent-sdk × vLLM, the rpgExtractionSchema round-trip). Stripping
+// them changes no constraint — the wire infers the dialect. vLLM guided decoding accepts `$schema`, so this
+// strip is correctly agent-sdk-scoped (it lives in this backend's D93 module, never the shared projector).
+const META_KEYWORDS: ReadonlySet<string> = new Set<string>(["$schema", "$id"]);
+
 function walk(node: unknown, model: string): unknown {
   if (Array.isArray(node)) {
     return node.map((item) => walk(item, model));
@@ -59,7 +67,7 @@ function walk(node: unknown, model: string): unknown {
         model,
       });
     }
-    if (BOUND_KEYWORDS.has(key)) {
+    if (BOUND_KEYWORDS.has(key) || META_KEYWORDS.has(key)) {
       continue;
     }
     out[key] = NAME_MAP_KEYWORDS.has(key) ? walkNameMap(value, model) : walk(value, model);
@@ -87,4 +95,12 @@ function walkNameMap(node: unknown, model: string): unknown {
  */
 export function sanitizeAnthropicOutputSchema(schema: Record<string, unknown>, model: string): Record<string, unknown> {
   return walk(schema, model) as Record<string, unknown>;
+}
+
+/** ResponseFormat → the SDK's `outputFormat` option. Only schema crosses — name/strict/description are the
+ *  caller's own OpenAI-path validator metadata (no SDK slot). Bound-stripped for the Anthropic wire (D93);
+ *  the bounds still ride the caller's post-parse belt. Shared by the AGENT runner and the CHAT runner's
+ *  structured-output mount — one mapping, every skin. */
+export function toSdkOutputFormat(rf: { readonly schema: Record<string, unknown> }, model: string): { type: "json_schema"; schema: Record<string, unknown> } {
+  return { type: "json_schema", schema: sanitizeAnthropicOutputSchema(rf.schema, model) };
 }

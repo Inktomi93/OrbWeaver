@@ -9,22 +9,20 @@ import type {
   McpServerConfig,
   McpServerStatus,
   Options,
-  OutputFormat,
   Query,
   UserDialogRequest,
   UserDialogResult,
 } from "@anthropic-ai/claude-agent-sdk";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
-import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult, ResponseFormat } from "../../contract";
+import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult } from "../../contract";
 import { ProviderError } from "../../contract";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
 import { logProviderDialog, logProviderMcp } from "./log";
-import { sanitizeAnthropicOutputSchema } from "./output-schema";
+import { toSdkOutputFormat } from "./output-schema";
 import { consumeTurnStream } from "./runner";
-import { disciplineOptions, observabilityOptions } from "./translate";
+import { disciplineOptions, MCP_NAMESPACE, observabilityOptions } from "./translate";
 import type { AgentSdkDeps } from "./types";
 
-const MCP_NAMESPACE = "orbweaver";
 const DEFAULT_AGENT_MAX_TURNS = 8;
 // Aligned to the preset contract's DEFAULT_MAX_OUTPUT_TOKENS (2048) — the exact pattern the vllm chat
 // surface uses one backend over — so the whole codebase has one default output-token floor. Dormant path
@@ -79,12 +77,6 @@ function toSdkExternalServers(specs: Readonly<Record<string, AgentMcpServerSpec>
     out[name] = toSdkExternalServer(spec);
   }
   return out;
-}
-
-// Only schema crosses — name/strict/description are the caller's own OpenAI-path validator metadata (no SDK slot).
-// The schema is bound-stripped for the Anthropic wire (D93); the bounds still ride the caller's post-parse belt.
-function toSdkOutputFormat(rf: ResponseFormat, model: string): OutputFormat {
-  return { type: "json_schema", schema: sanitizeAnthropicOutputSchema(rf.schema, model) };
 }
 
 function toServerHealth(status: McpServerStatus): AgentMcpServerHealth {

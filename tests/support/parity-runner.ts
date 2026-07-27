@@ -26,7 +26,10 @@ import { shape } from "../../packages/server/src/domain/chat/assembly/shape";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PARITY_DIR = join(HERE, "fixtures", "parity");
 
-export type Role = "user" | "assistant";
+/** The delivered wire-row role = the homed `MessageRole` axis (derived, never re-spelled). Parity fixtures
+ *  themselves are user/assistant; `system` = a capability-kept depth-0 injection (`turns.midConversationSystem`)
+ *  a shape() stage can now carry. */
+export type Role = MessageRole;
 
 export interface Msg {
   role: Role;
@@ -119,13 +122,22 @@ export const UNSKIP_WHEN = "UNSKIP when chat assembly lands (Phase 5 step 2 — 
  * Until assembly lands this throws — the test is `describe.skip`'d, so it never runs. When you wire
  * it, import orbweaver's shaper and map case → its inputs here, then unskip the test.
  */
+// Parity CANON rows are user/assistant only (shape()'s canon input never carries system; only its
+// post-splice stages can). Loud on a bad fixture, never a silent coercion.
+function asCanonRole(role: Role): "user" | "assistant" {
+  if (role === "system") {
+    throw new Error("parity canon rows are user/assistant only");
+  }
+  return role;
+}
+
 export function runOrbweaverShape(c: ShapeCase): ShapeResult {
   const out = shape({
     // Preserve EXACT key presence from the fixture (a user row carries authorName but NO characterId;
     // an assistant row carries both). `toEqual` treats an explicit `null` as a real property — so a
     // synthesized `characterId: null` would diverge from neo's absent key. castId is a runtime no-op.
     canon: c.canon.map((m) => ({
-      role: m.role,
+      role: asCanonRole(m.role),
       content: m.content,
       ...(m.authorName !== undefined ? { authorName: m.authorName } : {}),
       ...(m.characterId !== undefined && m.characterId !== null ? { characterId: castId<CharacterId>(m.characterId) } : {}),

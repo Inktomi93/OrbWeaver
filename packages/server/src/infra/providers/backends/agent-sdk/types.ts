@@ -56,4 +56,8 @@ export interface TurnStreamContext {
   readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;
   /** Bounded CLI-stderr tail, read only on a spawn-death error. */
   readonly stderrTail?: (() => string) | undefined;
+  /** True when the request carried a `responseFormat` (`outputFormat: json_schema` mounted): the reducer
+   *  then surfaces the success frame's `structured_output` as the reply (compact JSON — the vLLM
+   *  guided-decoding convention, so a consumer can't tell the backends apart). */
+  readonly expectStructured?: boolean | undefined;
 }

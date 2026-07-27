@@ -7,14 +7,20 @@ import { backendForSource, deriveRunner, ProviderError, requireBackend, requireR
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
+// The agent-sdk×vllm rejection message (loopback skin retired) — hoisted for the callback-regex lint.
+const VLLM_AGENT_RETIRED_RE = /chat-completions api|retired/i;
+
 describe("deriveRunner — ChatApi × CredentialSource → the sealed backend key", () => {
-  test("agent-sdk api: the sub, the OpenRouter skin, and local vllm all map to the agent-sdk backend", () => {
+  test("agent-sdk api: the sub + the OpenRouter skin map to the agent-sdk backend (the two Claude-runtime skins)", () => {
     expect(deriveRunner("agent-sdk", "max-pro-sub")).toBe("agent-sdk");
     expect(deriveRunner("agent-sdk", "openrouter")).toBe("agent-sdk");
-    expect(deriveRunner("agent-sdk", "vllm")).toBe("agent-sdk");
   });
 
-  test("agent-sdk api does NOT serve a custom_openai credential (fail-closed)", () => {
+  test("agent-sdk api does NOT serve vllm (loopback skin RETIRED 2026-07-27) or custom_openai (fail-closed)", () => {
+    // vLLM is chat-completions-only (owner ruling): the SDK loopback skin hung the small local model on real
+    // structured schemas while chat-completions handles it. A would-be agent-sdk×vllm turn fails LOUD here.
+    expect(() => deriveRunner("agent-sdk", "vllm")).toThrow(ProviderError);
+    expect(() => deriveRunner("agent-sdk", "vllm")).toThrow(VLLM_AGENT_RETIRED_RE);
     expect(() => deriveRunner("agent-sdk", "custom_openai")).toThrow(ProviderError);
   });
 

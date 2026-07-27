@@ -23,7 +23,7 @@ import { createVllmChat } from "./surfaces/chat";
 import { createVllmEmbed } from "./surfaces/embed";
 import { createVllmImageEmbed } from "./surfaces/image-embed";
 import { createVllmRerank } from "./surfaces/rerank";
-import { createVllmSummarize } from "./surfaces/summarize";
+import { createVllmStructured, createVllmSummarize } from "./surfaces/summarize";
 
 // Boot GPU-presence probe — re-exported for entry; the supervisor reads the same home (one `nvidia-smi`
 // probe in the codebase). resolveEngineDeploymentFacts is re-exported for the admin-panel wiring seam.
@@ -33,7 +33,7 @@ export { createVllmChat } from "./surfaces/chat";
 export { createVllmEmbed } from "./surfaces/embed";
 export { createVllmImageEmbed } from "./surfaces/image-embed";
 export { createVllmRerank } from "./surfaces/rerank";
-export { createVllmSummarize } from "./surfaces/summarize";
+export { createVllmStructured, createVllmSummarize } from "./surfaces/summarize";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
@@ -139,7 +139,19 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
     embed: createVllmEmbed({ client, embedDim, chunkSize, concurrency: embedConcurrency, requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS }),
     rerank: createVllmRerank({ client }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),
-    summarize: createVllmSummarize({ client, concurrency: summarizeConcurrency }),
+    summarize: createVllmSummarize({
+      client,
+      concurrency: summarizeConcurrency,
+      now: deps.now,
+      ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    }),
+    // The structured-output primitive — same engine core + concurrency; `response_format` rides guided decoding.
+    structured: createVllmStructured({
+      client,
+      concurrency: summarizeConcurrency,
+      now: deps.now,
+      ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    }),
     engine,
   };
 }

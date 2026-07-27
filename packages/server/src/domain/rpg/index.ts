@@ -18,11 +18,14 @@ export type {
   RpgResolveTrackersReadOnly,
   RpgRosterActor,
   RpgRunExtraction,
+  RpgRunToolRound,
   RpgService,
   RpgSetPointer,
   RpgStagingStore,
   RpgStateDelta,
 } from "./contract/service";
+// The per-chat flush barrier (the race fix): the compose mints it as a singleton, the gather awaits it.
+export { createRpgFlushBarrier } from "./flush-barrier";
 // The game-row read (by chatId) compose's honest-arms + extraction wiring needs to reach the game's mode/config
 // (the connection-capability resolve keys on `extractionMode`). A thin persistence read exposed for the
 // composition root — the tracker-readonly + runExtraction ops it wires close over it.

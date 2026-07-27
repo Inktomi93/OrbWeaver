@@ -4,7 +4,7 @@
 // mapping, quest create-vs-flip, and item add/remove.
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
-import type { CharacterId, RpgQuestId } from "@orb/kit/ids";
+import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   applySetWidgetValue,
@@ -163,4 +163,44 @@ test("upsert_quest create mints a quest; a later flip addresses it by name", () 
   );
   expect(flipped.quests[0]?.id).toBe("q_1"); // same quest, addressed by name
   expect(flipped.quests[0]?.status).toBe("completed");
+});
+
+// ── buildRosterRefIndex — the player self-alias (R2, belt-and-suspenders with the schema enum constraint) ──
+test("the player (user-kind) actor answers to the universal self-aliases (player/you/self/me)", () => {
+  const userId = castId<UserId>("user_nate");
+  const idx = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "Alex" }]);
+  // The roster name AND each self-alias resolve to the SAME user ref — never a phantom cast:player.
+  for (const key of ["alex", "player", "you", "self", "me", "the player"]) {
+    expect(idx.get(key)).toEqual({ kind: "user", userId });
+  }
+});
+
+test('a "player" targetRef on a user-roster game lands on the user ref — NOT a cast:player phantom (R2)', () => {
+  const userId = castId<UserId>("user_p");
+  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, roster);
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    throw new Error("expected ok");
+  }
+  expect(result.patch.actorState[0]?.actorRef).toEqual({ kind: "user", userId });
+});
+
+test("an explicit roster name that collides with an alias WINS (aliases fill only gaps)", () => {
+  const userId = castId<UserId>("user_pl");
+  const charId = castId<CharacterId>("character_you_npc");
+  // A character literally named "You" — the roster mapping for "you" must stay the character, not the alias.
+  const idx = buildRosterRefIndex([
+    { actorRef: { kind: "character", characterId: charId }, name: "You" },
+    { actorRef: { kind: "user", userId }, name: "Player One" },
+  ]);
+  expect(idx.get("you")).toEqual({ kind: "character", characterId: charId }); // explicit name wins
+  expect(idx.get("player")).toEqual({ kind: "user", userId }); // alias fills the remaining gap
+});
+
+test("no user-kind actor in the roster → no self-alias entries (a character-only game mints nothing phantom)", () => {
+  const charId = castId<CharacterId>("character_only");
+  const idx = buildRosterRefIndex([{ actorRef: { kind: "character", characterId: charId }, name: "Kael" }]);
+  expect(idx.get("player")).toBeUndefined();
+  expect(idx.get("you")).toBeUndefined();
 });

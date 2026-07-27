@@ -1,7 +1,8 @@
 // createAgentRole — the `agent` role dispatcher. Agent mode is ALWAYS the agent-sdk backend (the key is
-// fixed, not derived from source), but the firewall still gates the source (sub/skin/vllm, never BYO)
-// and the D17 owner-consent belt. This mirror asserts: every eligible source lands on agent-sdk's
-// runAgentTurn (NOT on an openrouter/vllm backend), and every fail-closed path of THIS dispatcher.
+// fixed, not derived from source), but the firewall still gates the source (the two Claude-runtime skins:
+// sub / OR-Anthropic — vLLM is NOT agent-sdk-eligible since 2026-07-27, stickler F8; BYO never) and the D17
+// owner-consent belt. This mirror asserts: every eligible source lands on agent-sdk's runAgentTurn (NOT on an
+// openrouter/vllm backend), a vLLM source is fail-closed at the firewall, and every fail-closed path here.
 
 import type { AgentTurnRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createAgentRole, ProviderError } from "@orb/server/infra/providers";
@@ -35,9 +36,12 @@ function allBackends(calls: string[]): Map<ProviderBackend["key"], ProviderBacke
   ]);
 }
 
+// The default credential is an agent-sdk-eligible source (the OR-Anthropic skin) so the sealed-dispatch
+// fail-closed cases exercise the DISPATCH failure, not the firewall (a vllm default would be firewall-denied
+// first — stickler F8). `ownerConsented` defaults undefined; the consent cases set it explicitly.
 function agentReq(over: Partial<AgentTurnRequest>): AgentTurnRequest {
   return {
-    credential: cred("vllm"),
+    credential: cred("openrouter"),
     model: "m",
     systemPrompt: "",
     prompt: "hi",
@@ -47,15 +51,17 @@ function agentReq(over: Partial<AgentTurnRequest>): AgentTurnRequest {
 }
 
 describe("createAgentRole — the agent-sdk-eligible sources all land on the agent-sdk backend", () => {
-  test("the OR skin and local vllm route to agent-sdk (the fixed key), not their own backend", async () => {
+  test("the OR-Anthropic skin routes to agent-sdk (the fixed key), not its own backend", async () => {
     const skin: string[] = [];
-    const loopback: string[] = [];
-    await Promise.all([
-      createAgentRole({ backends: allBackends(skin) })(agentReq({ credential: cred("openrouter") })),
-      createAgentRole({ backends: allBackends(loopback) })(agentReq({ credential: cred("vllm") })),
-    ]);
+    await createAgentRole({ backends: allBackends(skin) })(agentReq({ credential: cred("openrouter") }));
     expect(skin).toEqual(["agent-sdk:agent"]);
-    expect(loopback).toEqual(["agent-sdk:agent"]);
+  });
+
+  test("a vLLM source is fail-closed at the firewall (NOT agent-sdk-eligible since 2026-07-27, F8)", async () => {
+    const calls: string[] = [];
+    const role = createAgentRole({ backends: allBackends(calls) });
+    await expect(role(agentReq({ credential: cred("vllm") }))).rejects.toBeInstanceOf(ProviderError);
+    expect(calls).toEqual([]); // denied before any backend runs
   });
 
   test("max-pro-sub WITH owner consent routes to agent-sdk", async () => {
@@ -89,12 +95,13 @@ describe("createAgentRole — fail-closed (firewall + sealed dispatch)", () => {
   });
 
   test("an UNWIRED agent-sdk backend fail-closes (a missing composition-root wire)", async () => {
+    // An agent-sdk-eligible source (OR skin) so this isolates the DISPATCH failure, not the firewall.
     const role = createAgentRole({ backends: new Map() });
-    await expect(role(agentReq({ credential: cred("vllm") }))).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(agentReq({ credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("an agent-sdk backend that doesn't implement runAgentTurn fail-closes", async () => {
     const role = createAgentRole({ backends: new Map([["agent-sdk", { key: "agent-sdk" }]]) });
-    await expect(role(agentReq({ credential: cred("vllm") }))).rejects.toBeInstanceOf(ProviderError);
+    await expect(role(agentReq({ credential: cred("openrouter") }))).rejects.toBeInstanceOf(ProviderError);
   });
 });

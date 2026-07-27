@@ -11,8 +11,10 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
-/** The `user | assistant` subset of the canonical `MessageRole` (system never reaches the wire history). */
-type WireRole = Exclude<MessageRole, "system">;
+/** The delivered wire-row role axis. `system` rows exist only as capability-kept depth-0 injections
+ *  (`turns.midConversationSystem`) — they are the operator/system channel, not a speaker, so every
+ *  names mode passes them through untouched (no prefix, no completion `name`). */
+type WireRole = MessageRole;
 
 interface NamedRow {
   role: WireRole;
@@ -37,19 +39,35 @@ export function applyNamesBehavior(
     return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
   return history.map((m): NamedRow => {
+    // System rows carry no speaker — never label them (a `Name:` prefix or a completion `name` field
+    // would misattribute the system channel to a participant).
+    if (m.role === "system") {
+      return { role: m.role, content: m.content, messageId: m.messageId };
+    }
     const author = m.authorName ?? (m.role === "user" ? speakers.user : speakers.assistant);
     if (mode === "default") {
-      if (m.role === "user" && author !== speakers.user) {
-        return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
-      }
-      if (m.role === "assistant" && multiCharacter && m.authorName !== null && m.authorName !== undefined) {
-        return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
-      }
-      return { role: m.role, content: m.content, messageId: m.messageId };
+      return defaultModeRow(m, author, speakers, multiCharacter);
     }
     if (mode === "content") {
       return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
     }
     return { role: m.role, content: m.content, name: author, messageId: m.messageId };
   });
+}
+
+// The "default" mode rule: prefix a user turn whose author differs from the active persona, and — in a
+// multi-character room — an assistant turn with its character's name; otherwise untouched.
+function defaultModeRow(
+  m: { role: WireRole; content: string; authorName?: string | null; messageId?: MessageId | undefined },
+  author: string,
+  speakers: { user: string; assistant: string },
+  multiCharacter: boolean,
+): NamedRow {
+  if (m.role === "user" && author !== speakers.user) {
+    return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
+  }
+  if (m.role === "assistant" && multiCharacter && m.authorName !== null && m.authorName !== undefined) {
+    return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
+  }
+  return { role: m.role, content: m.content, messageId: m.messageId };
 }

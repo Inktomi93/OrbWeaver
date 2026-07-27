@@ -51,6 +51,16 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
     }
   });
 
+  test("structured (the split-out primitive) mirrors summarize: openrouter + vllm; the metered sub is denied", () => {
+    // Owner ruling 2026-07-27 — structured is a distinct role; same source posture as summarize. The sub
+    // reaches structured output only through the chat outputFormat path, never this role.
+    expect(() => assertCredentialAllowed({ role: "structured", source: "openrouter" })).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "structured", source: "vllm" })).not.toThrow();
+    for (const source of ["local-light", "max-pro-sub", "custom_openai"] as const) {
+      expect(() => assertCredentialAllowed({ role: "structured", source })).toThrow(ProviderError);
+    }
+  });
+
   test("generateImage is hosted-only: openrouter passes, every other source is denied", () => {
     const allowed: readonly CredentialSource[] = ["openrouter"];
     for (const source of allowed) {
@@ -61,8 +71,8 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
     }
   });
 
-  test("agent mode permits the agent-sdk-eligible sources (sub/skin/vllm) but never a BYO endpoint", () => {
-    for (const source of ["max-pro-sub", "openrouter", "vllm"] as const) {
+  test("agent mode permits the two Claude-runtime skins (sub / OR-Anthropic) but never vLLM or a BYO endpoint", () => {
+    for (const source of ["max-pro-sub", "openrouter"] as const) {
       // max-pro-sub needs consent (asserted below); pass it here so this case isolates source policy.
       expect(() =>
         assertCredentialAllowed({
@@ -73,6 +83,9 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
         }),
       ).not.toThrow();
     }
+    // vLLM was REMOVED from the agent-sdk api (owner ruling 2026-07-27 — stickler F8); the firewall now denies
+    // it too, so the sealed backend never receives a pairing it can't serve.
+    expect(() => assertCredentialAllowed({ role: "agent", source: "vllm", api: "agent-sdk", ownerConsented: true })).toThrow(ProviderError);
     expect(() => assertCredentialAllowed({ role: "agent", source: "custom_openai", api: "agent-sdk" })).toThrow(ProviderError);
   });
 

@@ -208,7 +208,8 @@ function buildShaped(canon: readonly WireRow[], tailQuestion: string, injection:
     throw new Error("probe canon must end with a user tail (assistant-final shape is continue-mode)");
   }
   const prompt = tail.map((r) => r.content).join(AGENT_PROMPT_TAIL_JOINER);
-  const seed = shaped.slice(0, lastAssistant + 1).map((r): SeedTurn => ({ role: r.role, content: r.content }));
+  // This probe never injects system-role rows; drop any (capability-kept splice output is typed wider).
+  const seed = shaped.slice(0, lastAssistant + 1).flatMap((r): SeedTurn[] => (r.role === "system" ? [] : [{ role: r.role, content: r.content }]));
   return { seed, prompt };
 }
 

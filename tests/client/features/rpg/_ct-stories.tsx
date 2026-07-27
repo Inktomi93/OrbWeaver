@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useMemo } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
+import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID } from "../chat/fixtures";
 
@@ -66,4 +67,23 @@ export function RpgTakeoverStory(): ReactElement {
       <RpgTakeoverHarness />
     </CtDataProviders>
   );
+}
+
+// The freshness indicator in isolation — a pure component (no providers/network), so its three honest states
+// mount directly. This proves the label datum + a11y model per state without driving a live turn over SSE.
+
+/** Reliable mode, idle — the accepted one-beat lag surfaced ("As of last beat"). */
+export function RpgFreshnessReliableIdleStory(): ReactElement {
+  return <RpgFreshnessIndicator extractionMode="reliable" pending={false} />;
+}
+
+/** Reliable mode, extraction window open — the transient "Updating…" (the pulse is aria-hidden). */
+export function RpgFreshnessReliablePendingStory(): ReactElement {
+  return <RpgFreshnessIndicator extractionMode="reliable" pending={true} />;
+}
+
+/** Cheap mode — current-beat fresh at commit; a minimal "Live" affordance, never a fake lag label. `pending`
+ *  is ignored in cheap mode, so it is set true to prove it does NOT flip the label to "Updating…". */
+export function RpgFreshnessCheapStory(): ReactElement {
+  return <RpgFreshnessIndicator extractionMode="cheap" pending={true} />;
 }

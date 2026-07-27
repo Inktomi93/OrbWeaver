@@ -15,7 +15,7 @@ import { ProviderError } from "@orb/server/infra/providers";
 import { consumeTurnStream, createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
-import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
+import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
@@ -34,8 +34,10 @@ const MISSING_SESSION_ID_RE = /missing session_id/u;
 /** The reducer's stream param type, named without importing the SDK (its private to the backend). */
 type MessageStream = Parameters<typeof consumeTurnStream>[0];
 
-/** A vLLM (keyless, loopback) credential — avoids touching host `.claude`. */
-const VLLM_CRED = makeResolvedCredential("vllm");
+// The OR-skin (mode-2) credential — a VALID agent-sdk source whose env builder uses the EMPTY isolated
+// config dir (never reads host `.claude`), so these source-agnostic runner tests stay hermetic. (vllm was
+// retired from agent-sdk 2026-07-27, so it can no longer serve as the keyless test credential here.)
+const AGENT_CRED = makeOpenRouterCredential({ apiKey: "sk-or-test" });
 
 const CAPABILITY = makeModelCapability({
   output: { maxTokens: { min: 1, max: 4096 } },
@@ -536,7 +538,7 @@ describe("createAgentSdkBackend", () => {
     return {
       api: "agent-sdk",
       prompt: "hi",
-      credential: VLLM_CRED,
+      credential: AGENT_CRED,
       model: castId<ModelId>(MODEL),
       capability: CAPABILITY,
       params: {},
@@ -782,7 +784,7 @@ describe("provider.* observability taxonomy", () => {
     return {
       api: "agent-sdk",
       prompt: "hi",
-      credential: VLLM_CRED,
+      credential: AGENT_CRED,
       model: castId<ModelId>(MODEL),
       capability: CAPABILITY,
       params: {},
@@ -985,5 +987,79 @@ describe("provider.* observability taxonomy", () => {
     });
     await (healthy.runChatTurn as ChatTurn)(buildReq("chat-ok"));
     expect(providerLines(error, "provider.error")).toHaveLength(0);
+  });
+});
+
+describe("the chat runner's stateful tool + structured channels", () => {
+  interface CapturedOptions {
+    mcpServers?: Record<string, unknown>;
+    allowedTools?: string[];
+    maxTurns?: number;
+    outputFormat?: { type: string; schema: Record<string, unknown> };
+    disallowedTools?: string[];
+  }
+  function backendWith(fakeQuery: ReturnType<typeof vi.fn>): ChatTurn {
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
+    return backend.runChatTurn as ChatTurn;
+  }
+  const capture = (): ReturnType<typeof vi.fn> => vi.fn((_args: { options?: CapturedOptions }) => streamOf([initMsg, assistantMsg, successResult]));
+
+  function buildToolReq(chatId: string): AgentSdkChatRequest {
+    return {
+      api: "agent-sdk",
+      prompt: "hi",
+      credential: AGENT_CRED,
+      model: castId<ModelId>(MODEL),
+      capability: CAPABILITY,
+      params: {},
+      systemPrompt: { static: "", dynamic: "" },
+      orSkinTierModels: { opus: "o", sonnet: "s", haiku: "h" },
+      chatId,
+    };
+  }
+
+  test("a mounted toolServer rides mcpServers.orbweaver + the namespaced allowlist; maxTurns lifts to rounds+1", async () => {
+    const fakeQuery = capture();
+    const run = backendWith(fakeQuery);
+    const server = { marker: "mcp-server" };
+    await run({ ...buildToolReq("chat-tools"), toolServer: server, toolTurnLimit: 3 });
+    const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
+    expect(opts?.mcpServers).toEqual({ orbweaver: server });
+    expect(opts?.allowedTools).toEqual(["mcp__orbweaver__*"]);
+    expect(opts?.maxTurns).toBe(4);
+    // The cowork denylist (the REAL safety boundary) holds regardless of the mount.
+    expect(opts?.disallowedTools).toEqual(["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"]);
+  });
+
+  test("a tool-less turn keeps the firewall base: mcpServers {} + maxTurns 1 (byte-identical pre-tools)", async () => {
+    const fakeQuery = capture();
+    const run = backendWith(fakeQuery);
+    await run(buildToolReq("chat-plain"));
+    const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
+    expect(opts?.mcpServers).toEqual({});
+    expect(opts?.allowedTools).toBeUndefined();
+    expect(opts?.maxTurns).toBe(1);
+    expect(opts?.outputFormat).toBeUndefined();
+  });
+
+  test("responseFormat maps to the SDK's outputFormat json_schema (bound-stripped) with the 2-turn validation floor", async () => {
+    const fakeQuery = capture();
+    const run = backendWith(fakeQuery);
+    await run({
+      ...buildToolReq("chat-structured"),
+      responseFormat: {
+        name: "extraction",
+        schema: { type: "object", properties: { hp: { type: "number", minimum: 0 } } },
+      },
+    });
+    const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
+    expect(opts?.outputFormat?.type).toBe("json_schema");
+    // The Anthropic wire refuses bound keywords — sanitize strips `minimum` (D93); zod re-imposes post-parse.
+    expect(opts?.outputFormat?.schema).toEqual({ type: "object", properties: { hp: { type: "number" } } });
+    expect(opts?.maxTurns).toBe(2);
   });
 });

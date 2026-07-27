@@ -39,6 +39,7 @@ import type {
   RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
+import type { RpgTurnConnection } from "../../chat";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -68,6 +69,13 @@ export type NewRpgGame = typeof rpgGames.$inferInsert;
 
 export type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 export type NewRpgSnapshot = typeof rpgSnapshots.$inferInsert;
+
+/** The outcome of the F1 write-boundary backstop (`writeStagedSnapshot`, `persistence/snapshots.ts`). `ok:true`
+ *  carries the inserted row; `ok:false` carries the human-readable schema failure (which field / why) so the
+ *  DROP is never silent — the flush logs it (the visibility violation the parity-plus program exists to kill:
+ *  a backstop that refuses in silence). Homed here — a type has no home in the persistence I/O file
+ *  (substrate-not-a-type-home). */
+export type WriteStagedSnapshotResult = { readonly ok: true; readonly row: RpgSnapshotRow } | { readonly ok: false; readonly reason: string };
 
 export type RpgSheetRow = typeof rpgSheets.$inferSelect;
 
@@ -124,6 +132,24 @@ export interface RpgStagingStore {
   readonly clear: (turnId: ChatTurnId) => void;
 }
 
+/** The flush barrier's injected timeout observer (impl: the feature-root `flush-barrier.ts` singleton — a
+ *  STATEFUL in-memory collaborator, the `staging.ts` precedent). Called when a chat's in-flight flush did NOT
+ *  settle within the bound and the next turn proceeded on last-known state. Homed here (substrate-not-a-type-home). */
+export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
+
+/** The per-chat FLUSH BARRIER's public interface (impl: `flush-barrier.ts`). `onTurnCompleted` REGISTERS its
+ *  in-flight flush; the gather AWAITS it before assembling the reminder, so a fast re-send reads the
+ *  just-committed state, not stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung
+ *  flush releases the barrier + logs, never a deadlocked turn. */
+export interface RpgFlushBarrier {
+  /** Record a chat's in-flight flush promise. Tracks the LATEST flush per chat; `awaitInFlight` races it against
+   *  the bound. A rejection is swallowed here (the flush's own error handling logs it — the barrier only GATES). */
+  readonly register: (chatId: ChatId, flush: Promise<void>) => void;
+  /** Block until this chat's in-flight flush settles OR the bound elapses (whichever first). Resolves either
+   *  way — never throws, never hangs past the bound. No in-flight flush ⇒ resolves immediately. */
+  readonly awaitInFlight: (chatId: ChatId) => Promise<void>;
+}
+
 // ── the injected cross-feature ops (§0/§3 — wired at compose, W1b-integration/W1c) ───────────────────────
 
 /** The narrow membership read (chat's `GetMembership` op, `domain/chat/contract/context.ts`). rpg gates EVERY
@@ -168,14 +194,35 @@ export type RpgResolveTrackersReadOnly = (chatId: ChatId) => Promise<boolean>;
  *  content-reading — the boundary the injected-op pattern draws). `baseState` is the resolution-ladder head the
  *  extraction reasons against (never re-resolved by the op). A game whose model has NO structured-output writer
  *  capability never reaches here (readonly/manual-steering; §4.6). */
-export type RpgRunExtraction = (input: {
+export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
+
+/** CHEAP mode's DEDICATED TOOL ROUND (owner ruling 2026-07-27) — the SIBLING of `runExtraction`, structurally
+ *  symmetric: a state-only request (NOT tools on the narration turn) that reads the committed beat + base state
+ *  and emits its writes as PARALLEL tool calls (`tool_choice:"required"` + a `no_changes` escape). The parsed
+ *  calls fold to the SAME `RpgStateDelta` the flush stages + writes — the shared-plane proof (a tool round IS
+ *  "the batch of tool calls the model would otherwise have made"). Same input/output as `runExtraction`; the
+ *  vehicle differs (tools vs schema). A game whose model has no `tools` capability never reaches here
+ *  (readonly/manual-steering; §4.6). */
+export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
+
+/** The shared input BOTH dedicated state rounds consume (reliable extraction + cheap tool round). Carries the
+ *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
+ *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
+ *  verdict (`RpgTurnConnection`, chat's front door). The round runs on THAT connection with THAT consent — the
+ *  F1 fix: no second `resolveRole` (a room on vllm runs its round on vllm), no force-stamped `ownerConsented`
+ *  (a metered-sub round inherits the turn's belt verdict). `turnConnection.connection.capability` also gates
+ *  the flush's readonly verdict (F2 — no round on a capability-absent connection). */
+/** Non-exported: the two exported op aliases (`RpgRunExtraction`/`RpgRunToolRound`) ARE the public surface;
+ *  nothing names this shape directly outside this file (knip). */
+interface RpgStateRoundInput {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   readonly turnId: ChatTurnId;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly baseState: RpgSnapshotState;
-}) => Promise<RpgStateDelta>;
+  readonly turnConnection: RpgTurnConnection;
+}
 
 /** What a reliable-mode extraction returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
  *  [merge-clear] contract — staged via `applyLockedPatch` exactly like a tool write) + the journal entries to
@@ -212,6 +259,7 @@ export interface RpgContext {
   readonly postNarratorMessage: RpgPostNarratorMessage;
   readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
   readonly runExtraction: RpgRunExtraction;
+  readonly runToolRound: RpgRunToolRound;
   /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
    *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
    *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. A fake
@@ -220,6 +268,27 @@ export interface RpgContext {
   /** A uniform int in `[0, max)` — the dice CSPRNG (injected: `crypto.randomInt` at compose, a seeded fake in
    *  tests). Bake-once; the roll is server-authoritative, a client-supplied seed is never honored (§4.4). */
   readonly randomInt: (max: number) => number;
+  /** The per-chat FLUSH BARRIER (`flush-barrier.ts`): `onTurnCompleted` REGISTERS its in-flight flush promise;
+   *  the gather AWAITS it before assembling the reminder, so a fast re-send reads the just-committed state, not
+   *  stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung flush never deadlocks a turn. */
+  readonly flushBarrier: RpgFlushBarrier;
+  /** OBSERVABILITY: the flush's write-boundary DROP hook (the F1 backstop refusing a contract-invalid state).
+   *  Called with the schema failure reason when `writeStagedSnapshot` refuses — so the drop is never silent
+   *  (a state extraction fired, produced applicable output, and vanished at the backstop is the exact
+   *  visibility violation this program kills). Wired at compose to the `rpg.flush.dropped` warn log; a fake
+   *  recorder asserts it fired in tests. Fire-and-forget (`void`) — a logging failure never breaks a turn. */
+  readonly onFlushDropped: (info: FlushDropInfo) => void;
+}
+
+/** The write-boundary drop signal (the F1 backstop refused a contract-invalid state at flush). Carries the id
+ *  context + the schema failure reason (which field / why) so the drop is diagnosable from the provider trail.
+ *  Non-exported: reachable only through `RpgContext.onFlushDropped`'s signature — no consumer names it (knip). */
+interface FlushDropInfo {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly variantId: MessageVariantId;
+  /** The `rpgSnapshotStateSchema` parse failure — the field path(s) + reason the state was refused. */
+  readonly reason: string;
 }
 
 /** What the composition root supplies to build the ctx — a pass-through of `RpgContext`'s members (the builder

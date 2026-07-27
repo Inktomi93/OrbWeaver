@@ -17,10 +17,12 @@ export function chatHistoryText(content: readonly ChatContentPart[]): string {
 /** FLAG[PD-54] — the T1→T2 bridge. The wire contract carries the `tool` role (D48), but each translator's
  *  dialect mapping for a tool exchange lands with T2; NO producer exists until the recurse loop (T4), so a
  *  tool-role turn reaching a translator today is a sequencing bug, not a degradable input — throw, never
- *  silently reshape. T2 deletes this call at each site as it lands the real mapping. */
+ *  silently reshape. T2 deletes this call at each site as it lands the real mapping. A `system` row
+ *  (capability-kept mid-conversation injection) likewise must be mapped by the translator's OWN system
+ *  arm, never coerced through this user/assistant bridge. */
 export function assertMappedHistoryRole(role: HistoryRole): "user" | "assistant" {
-  if (role === "tool") {
-    throw new Error("tool-role history turn reached a translator before its T2 mapping (PD-54)");
+  if (role === "tool" || role === "system") {
+    throw new Error(`${role}-role history turn reached a translator without its dialect mapping (PD-54)`);
   }
   return role;
 }

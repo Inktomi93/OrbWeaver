@@ -1,9 +1,10 @@
-// tests/server/domain/rpg/chat-ops/gather — the game turn's GATHER + the extractionMode branch (rpg-design/05
-// §4.6-4.7). Drives the real `gatherTurnContext` through the harness's `chatOps`: a non-game chat is
-// byte-identical null; a game contributes the depth-0 reminder injection; the tool set branches on
-// resolved mode (cheap-with-tools attaches names; reliable / readonly attaches none).
+// tests/server/domain/rpg/chat-ops/gather — the game turn's GATHER (rpg-design/05 §4.6-4.7 + the owner ruling
+// 2026-07-27). Drives the real `gatherTurnContext` through the harness's `chatOps`: a non-game chat is
+// byte-identical null; a game contributes the depth-0 reminder injection. THE CHARACTER TURN IS ALWAYS
+// TOOL-LESS PROSE in every mode — state is captured by a DEDICATED STATE ROUND post-commit (cheap = a tool
+// round, reliable = an extraction), so the gather NEVER returns tools + the char-turn reminder omits the
+// update-guidance (the char turn is never asked to call a tool).
 
-import { RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
 import { freshDb } from "../../../../support/db";
 import { expect, principal, seedChat, seedLiteGame, test } from "../_support";
 
@@ -28,26 +29,28 @@ test("a game contributes ONE depth-0 system reminder injection, no macros", asyn
   expect(inj?.role).toBe("system");
 });
 
-test("reliable mode attaches NO tools (the extraction fires post-turn)", async () => {
+test("reliable mode: the char turn is tool-less, guidance omitted (state round fires post-turn)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db); // seedLiteGame defaults to reliable
   const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
   expect(out?.tools).toEqual([]);
-  // Guidance omitted on a non-tool turn.
   expect(out?.injections[0]?.content).not.toContain("update_party");
 });
 
-test("cheap mode attaches the 7 lite tool names + update-guidance", async () => {
+test("cheap mode: the char turn is ALSO tool-less (owner ruling — the dedicated tool round runs post-commit)", async () => {
   const db = await freshDb();
-  const { chatId, gameId, h } = await seedLiteGame(db);
+  const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  void gameId;
   const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
-  expect(out?.tools).toEqual([...RPG_LITE_TOOL_NAMES]);
-  expect(out?.injections[0]?.content).toContain("update_party");
+  // The char turn NEVER mounts tools — cheap captures state in the dedicated tool round, not on the narration.
+  expect(out?.tools).toEqual([]);
+  expect(out?.injections[0]?.content).not.toContain("update_party");
+  // The reminder still injects the tracked state as flavor (the depth-0 system injection is always present).
+  expect(out?.injections).toHaveLength(1);
+  expect(out?.injections[0]?.role).toBe("system");
 });
 
-test("readonly (manual-steering) attaches NO tools even in cheap mode — the honest degrade", async () => {
+test("readonly (manual-steering): tool-less char turn + the reminder still steers via hand-edited state", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });

@@ -54,11 +54,15 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    `encounter-commit.ts` (the ONE durable "commit a resolved encounter round" path — the encounter row
  *    read/write + terminal side-effect writes — shared by the post-turn FLUSH and the human-GM CONSOLE arms so
  *    a tool-path and console-path terminal round produce byte-equivalent durable state; the `turn-staging.ts`
- *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT). */
+ *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT),
+ *    `flush-barrier.ts` (the per-chat in-flight-flush BARRIER singleton — an in-memory Map the post-turn flush
+ *    registers into + the next turn's gather awaits, so a fast re-send reads the just-committed state, not stale
+ *    state; the `staging.ts`/`bus.ts` in-memory-singleton precedent; the dedicated state round made the flush a
+ *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
   crew: ["bus.ts"],
-  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts"],
+  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts", "flush-barrier.ts"],
   preset: ["constants.ts", "seed.ts"],
   "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],

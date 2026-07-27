@@ -113,13 +113,41 @@ export const upsertQuestArgsSchema = z.object({
 });
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
-/** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5). */
+/** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5).
+ *
+ *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — ruling #10 graceful-degrade). WHY:
+ *  the projected json_schema DOES mark `title` required, but xgrammar/some backends do NOT enforce `required`
+ *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED 2026-07-27: an 8B dropped `journal[].title`
+ *  in 5/8 reliable extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
+ *  dropping the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES; `journalTitleFor`
+ *  derives a title from the content head when the model omitted it. `content` stays required (an entry with no
+ *  content is genuinely empty); a required `content` an backend also may not enforce, but a content-less entry
+ *  is dropped harmlessly at the fold, where a title-less-but-content-full entry is the valuable beat we must keep. */
 export const addJournalEntryArgsSchema = z.object({
   type: z.enum(RPG_JOURNAL_TYPES),
-  title: z.string().min(1),
+  title: z.string().min(1).optional(),
   content: z.string(),
 });
 export type AddJournalEntryArgs = z.infer<typeof addJournalEntryArgsSchema>;
+
+/** The journal title cap for a derived title (a short head of the content when the model omitted `title`). */
+const DERIVED_TITLE_MAX = 60;
+/** First-sentence boundary (a terminator followed by whitespace) — hoisted (top-level-regex lint). */
+const SENTENCE_BOUNDARY = /(?<=[.!?])\s/;
+
+/** Resolve a journal entry's title: the model's `title` if present, else DERIVED from the content head (first
+ *  line / first sentence, capped) — the small-model-robust arm (ruling #10). A content-less-AND-title-less
+ *  entry yields `""` (the caller drops it — a genuinely empty beat). */
+export function journalTitleFor(args: { readonly title?: string | undefined; readonly content: string }): string {
+  const title = args.title?.trim();
+  if (title !== undefined && title.length > 0) {
+    return title;
+  }
+  // Derive from the content head: the first line, then the first sentence, capped — a legible beat label.
+  const firstLine = args.content.split("\n", 1)[0]?.trim() ?? "";
+  const head = firstLine.split(SENTENCE_BOUNDARY, 1)[0]?.trim() ?? firstLine;
+  return head.length > DERIVED_TITLE_MAX ? `${head.slice(0, DERIVED_TITLE_MAX).trimEnd()}…` : head;
+}
 
 /** `roll_dice` — bake-once, zero state (the ToolCallRecord on the variant IS the canon stamp). */
 export const rollDiceArgsSchema = z.object({

@@ -1,7 +1,14 @@
 // SDK-message-stream → {@link ChatResult} reducer plus chat-turn orchestration (spawn + per-chat resume).
 // `consumeTurnStream` is isolated from the spawn so it's unit-testable with a hand-built stream.
 
-import type { Query, SDKAssistantMessageError, SDKControlGetContextUsageResponse, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  McpSdkServerConfigWithInstance,
+  Options,
+  Query,
+  SDKAssistantMessageError,
+  SDKControlGetContextUsageResponse,
+  SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
@@ -23,8 +30,9 @@ import {
   logProviderSession,
   logProviderTurn,
 } from "./log";
+import { toSdkOutputFormat } from "./output-schema";
 import type { SeededSessionDecision, SessionCache } from "./session";
-import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, observabilityOptions, toSdkGeneration } from "./translate";
+import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate";
 import type { AgentSdkDeps, TurnStreamContext } from "./types";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify";
 
@@ -35,6 +43,36 @@ function sdkChatTitle(chatId: string | undefined): string {
 const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
 const ANTHROPIC_PREFIX_RE = /^anthropic\//;
 const STDERR_TAIL_BYTES = 2048;
+// Tool-loop round fallback when the caller mounts a tool server without a limit (the pipeline always sets one).
+const DEFAULT_CHAT_TOOL_ROUNDS = 4;
+// A structured turn floors at 2: the runtime's own schema-validation retry consumes a turn (agent-runner parity).
+const STRUCTURED_MIN_TURNS = 2;
+
+/** The chat turn's SDK turn ceiling: 1 for the plain roleplay turn (the firewall base); a mounted tool
+ *  server lifts it to rounds + the final reply (the SDK owns the loop); a structured turn floors at 2. */
+function chatMaxTurns(req: AgentSdkChatRequest): number {
+  const toolTurns = req.toolServer !== undefined ? 1 + (req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS) : 1;
+  const structuredFloor = req.responseFormat !== undefined ? STRUCTURED_MIN_TURNS : 1;
+  return Math.max(toolTurns, structuredFloor);
+}
+
+/** Mount the domain's in-process MCP tool server (the STATEFUL tool channel) — overrides the firewall
+ *  base's `mcpServers:{}` (spread AFTER discipline); the cowork denylist (`disallowedTools`) still holds,
+ *  and the `permission_leak` tripwire stays armed for anything outside the namespaced allowlist. Logged so
+ *  a tool-riding turn is never silent. */
+function chatToolOptions(req: AgentSdkChatRequest, turnId: string): Pick<Options, "mcpServers" | "allowedTools"> | Record<string, never> {
+  if (req.toolServer === undefined) {
+    return {};
+  }
+  getLog().info(
+    { turnId, mcpNamespace: MCP_NAMESPACE, toolTurnLimit: req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS },
+    "agent-sdk: chat turn mounts the in-process tool server",
+  );
+  return {
+    mcpServers: { [MCP_NAMESPACE]: req.toolServer as McpSdkServerConfigWithInstance },
+    allowedTools: [`mcp__${MCP_NAMESPACE}__*`],
+  };
+}
 
 /** Bounded last-N-bytes tail of the CLI subprocess stderr for one turn. */
 class StderrTail {
@@ -96,9 +134,14 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       ...observabilityOptions(),
       ...gen.options,
       ...dynamicHook,
+      // The stateful tool + structured channels (both absent on a plain roleplay turn — byte-identical):
+      // the MCP mount overrides the firewall base's mcpServers:{}; outputFormat is the SDK's own
+      // json_schema mode (bound-stripped, agent-runner parity) — honored on every skin.
+      ...chatToolOptions(req, gen.turnId),
+      ...(req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat, req.model) } : {}),
       includePartialMessages: req.onDelta !== undefined,
       model: req.model,
-      maxTurns: 1,
+      maxTurns: chatMaxTurns(req),
       sessionStore: sessions.store,
       stderr: (data: string): void => stderrTail.append(data),
       ...(resume !== undefined ? { resume } : {}),
@@ -114,6 +157,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     resumed: resume !== undefined,
     disposition,
     now: deps.now,
+    expectStructured: req.responseFormat !== undefined,
     stderrTail: () => stderrTail.tail(),
     probeContextUsage: () => probeContextUsage(stream),
     ...(chatId !== undefined ? { chatId } : {}),
@@ -148,6 +192,11 @@ function captureAgentSdkWire(
       maxTokens: ctx.gen.envOverrides.maxOutputTokens ?? null,
       maxContextTokens: ctx.gen.envOverrides.maxContextTokens ?? null,
       disableAutoCompact: ctx.gen.envOverrides.disableAutoCompact ?? false,
+      // The stateful tool/structured channels — captured so a tool-mounting or structured turn is
+      // observable in the wire record (the visibility floor: nothing rides silently).
+      toolsMounted: req.toolServer !== undefined,
+      maxTurns: chatMaxTurns(req),
+      structuredOutput: req.responseFormat !== undefined,
     },
   });
 }
@@ -308,6 +357,9 @@ type Narrow<K extends SDKMessage["type"]> = Extract<SDKMessage, { type: K }>;
 /** Owns all turn-local state; `finish()`/`finishWithError()` are the only exits. */
 class TurnAccumulator {
   reply = "";
+  // The success frame's `structured_output` — surfaced as the reply when the request mounted an
+  // outputFormat (ctx.expectStructured); undefined otherwise.
+  structuredOutput: unknown;
   // Accumulated ONLY from the final assistant message — the thinking_delta stream path is UI-only, not re-accumulated here.
   reasoning = "";
   sessionId = "";
@@ -397,8 +449,12 @@ class TurnAccumulator {
 
   finish(contextUsage?: ContextUsage): ChatResult {
     this.logTurn(true, contextUsage);
+    // Structured turns reply with the validated structured_output as compact JSON (the vLLM
+    // guided-decoding convention); absent structured_output on a structured turn falls back to the
+    // assistant text (the caller's schema parse is the belt that catches a non-conforming turn).
+    const structuredReply = this.ctx.expectStructured === true && this.structuredOutput !== undefined ? JSON.stringify(this.structuredOutput) : undefined;
     return {
-      reply: this.reply.trim(),
+      reply: structuredReply ?? this.reply.trim(),
       reasoning: this.reasoning,
       reasoningRedacted: this.redactedThinkingBlocks > 0,
       stopReason: this.stopReason,
@@ -685,6 +741,7 @@ function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
   checkPermissionDenials(acc, message);
 
   if (message.subtype === "success") {
+    acc.structuredOutput = message.structured_output;
     acc.ttftMs = message.ttft_ms ?? null;
     acc.durationApiMs = message.duration_api_ms;
     acc.apiErrorStatus = message.api_error_status ?? null;

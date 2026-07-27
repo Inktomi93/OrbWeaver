@@ -1,12 +1,14 @@
-// THE CREDENTIAL FIREWALL. Three per-turn subprocess-env builders (mode-1 Max sub / mode-2 OpenRouter
-// skin / mode-3 local vLLM). Ordering is the security: host baseline → runtime knobs → escape hatch
+// THE CREDENTIAL FIREWALL. The per-turn subprocess-env builders: mode-1 Max sub + mode-2 OpenRouter skin
+// (both LIVE) + mode-4 first-party Anthropic (buildClaudeAnthEnv, dormant W11 agent-principal path). mode-3
+// local vLLM was RETIRED 2026-07-27 (owner ruling — see the note where buildClaudeVllmEnv was). Ordering is
+// the security: host baseline → runtime knobs → escape hatch
 // (RESERVED_CLAUDE_ENV_KEYS filtered first) → auth firewall applied LAST so nothing above can override it.
 
 import { existsSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { env, processEnvSnapshot, vllmAgentModelAlias } from "#foundation/env";
+import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract";
 
 // Non-Claude-namespaced app secrets the child has no business seeing (the Claude/Anthropic namespace is stripped wholesale below).
@@ -72,6 +74,14 @@ const ISOLATION_PINS: Readonly<Record<string, string>> = {
   CLAUDE_CODE_DISABLE_ADVISOR_TOOL: "1",
   CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY: "1",
   CLAUDE_CODE_DISABLE_AGENT_VIEW: "1",
+  // PREFIX-CACHE HYGIENE (vLLM Claude-Code-integration doc, 2026-07-27): Claude Code can inject a
+  // per-request "attribution header" (a git-repo-context hash) into the system prompt, which CHURNS the
+  // prompt every request and defeats Anthropic/OR prefix caching — quietly taxing every turn on the
+  // surviving sub + OR skins (undermining the breakpoint/tail-placement/reseed-churn cache discipline).
+  // `SIMPLE_SYSTEM_PROMPT=1` + `DISABLE_GIT_INSTRUCTIONS=1` (above) + the empty isolated config dir already
+  // suppress it, but this pins it EXPLICITLY OFF so a future SDK bump can't re-enable a churning default.
+  // Recognized env var in the bundled runtime (`CLAUDE_CODE_ATTRIBUTION_HEADER`, verified in sdk.mjs/bridge.mjs).
+  CLAUDE_CODE_ATTRIBUTION_HEADER: "0",
 };
 
 // Keys a preset's escape hatch can never set or unset — auth, credential isolation, OR-skin routing.
@@ -92,8 +102,6 @@ export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
 
 const DISABLE_CLAUDE_MDS = "true";
 const OPENROUTER_ANTHROPIC_BASE_URL = "https://openrouter.ai/api";
-const LOOPBACK_HOST = "127.0.0.1";
-const VLLM_PLACEHOLDER_TOKEN = "local-vllm";
 
 // Every knob set EXPLICITLY (value or undefined), never inherited from the host shell, so a stray
 // dev-session CLAUDE_EFFORT can't steer a turn.
@@ -157,7 +165,7 @@ function mode1IsolatedConfigDir(): string | undefined {
   return mode1IsolatedDir ?? undefined;
 }
 
-// mode-2/3 ephemeral CLAUDE_CONFIG_DIR is EMPTY (no symlink) — the asymmetry with mode-1 IS the firewall.
+// mode-2/4 ephemeral CLAUDE_CONFIG_DIR is EMPTY (no symlink) — the asymmetry with mode-1 IS the firewall.
 let mode2IsolatedDir: string | undefined;
 function emptyIsolatedConfigDir(): string {
   if (mode2IsolatedDir === undefined) {
@@ -221,7 +229,7 @@ export function buildClaudeOpenRouterEnv(
 // ANTHROPIC_BASE_URL is deliberately NOT set, so the runtime talks to api.anthropic.com directly (its
 // default). Ambient-credential discipline: every OAuth/identity/
 // service-account knob is pinned to `undefined` so no config-file/profile/OAuth resolution can fire, and the
-// EMPTY isolated config dir (the mode-2/3 asymmetry) keeps the host `~/.claude` sub out of the spawn.
+// EMPTY isolated config dir (the mode-2/4 asymmetry) keeps the host `~/.claude` sub out of the spawn.
 export function buildClaudeAnthEnv(anthropicApiKey: string, overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
   if (anthropicApiKey.length === 0) {
     throw new Error("buildClaudeAnthEnv: an Anthropic API key is required for the first-party agent path (mode-4).");
@@ -244,29 +252,9 @@ export function buildClaudeAnthEnv(anthropicApiKey: string, overrides: ClaudeRun
   };
 }
 
-// mode-3: agent-sdk runtime pointed at the local vLLM gen engine (loopback-only, so no SSRF/egress concern).
-export function buildClaudeVllmEnv(overrides: ClaudeRuntimeOverrides = {}): Record<string, string | undefined> {
-  const configDir = emptyIsolatedConfigDir();
-  const baseUrl = `http://${LOOPBACK_HOST}:${env.VLLM_GEN_PORT}`;
-  // Claude Code can't resolve model ids containing "/" — the engine serves this slash-free alias via
-  // --served-model-name. Shared with healModel (the connection heal) so the env + the resolved model agree.
-  const model = vllmAgentModelAlias();
-  return {
-    ...hostEnvForClaudeChild(),
-    CLAUDE_CODE_DISABLE_CLAUDE_MDS: DISABLE_CLAUDE_MDS,
-    ...claudeRuntimeEnv(overrides),
-    ...claudeUserEnv(overrides.userEnv),
-    ANTHROPIC_API_KEY: "",
-    ANTHROPIC_BASE_URL: baseUrl,
-    ANTHROPIC_AUTH_TOKEN: VLLM_PLACEHOLDER_TOKEN,
-    ANTHROPIC_DEFAULT_OPUS_MODEL: model,
-    ANTHROPIC_DEFAULT_SONNET_MODEL: model,
-    ANTHROPIC_DEFAULT_HAIKU_MODEL: model,
-    CLAUDE_CONFIG_DIR: configDir,
-    ANTHROPIC_CONFIG_DIR: configDir,
-    CLAUDE_CODE_OAUTH_TOKEN: undefined,
-    ANTHROPIC_IDENTITY_TOKEN: undefined,
-    ANTHROPIC_IDENTITY_TOKEN_FILE: undefined,
-    ANTHROPIC_SERVICE_ACCOUNT_ID: undefined,
-  };
-}
+// The mode-3 local vLLM loopback agent env (buildClaudeVllmEnv) was DELETED 2026-07-27 (owner ruling): the
+// agent-sdk×vllm skin is retired — local vLLM chat runs on the chat-completions surface only (guided
+// decoding + hermes parallel tools handle everything the SDK loopback did, without hanging the small model
+// on structured schemas). `deriveRunner`/`disciplineOptions`/`assertCoherent` all reject agent-sdk×vllm now.
+// If a future local Claude-runtime skin is ever wanted, re-add a builder here as a deliberate documented
+// doorway — this is a retirement, not leftover wiring.

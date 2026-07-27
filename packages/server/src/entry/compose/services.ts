@@ -451,7 +451,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     gatherTurnContext: (chatId, pending, responds) => rpgOps().gatherTurnContext(chatId, pending, responds),
     markDicePreRollEligible: (turnId) => rpgOps().markDicePreRollEligible(turnId),
     onUserCommit: (chatId, messageId) => rpgOps().onUserCommit(chatId, messageId),
-    onTurnCompleted: (chatId, messageId, variantId, turnId) => rpgOps().onTurnCompleted(chatId, messageId, variantId, turnId),
+    // biome-ignore lint/complexity/useMaxParams: mirrors the injected `ChatRpgOps.onTurnCompleted` contract signature (positional delegate).
+    onTurnCompleted: (chatId, messageId, variantId, turnId, turn) => rpgOps().onTurnCompleted(chatId, messageId, variantId, turnId, turn),
     onTurnAborted: (chatId, turnId, reason) => rpgOps().onTurnAborted(chatId, turnId, reason),
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
   };

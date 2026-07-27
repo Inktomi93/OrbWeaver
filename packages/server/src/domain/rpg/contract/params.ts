@@ -247,11 +247,10 @@ export interface RpgGatherResult {
   readonly tools: readonly string[];
 }
 
-/** The `buildLiteReminder` inputs the gather resolves and hands in (§4.7). `toolCapable` is the RESOLVED tool
- *  attachment for this turn (false on a read-only/reliable turn) — its presence gates the update-guidance
- *  block. `steeringNote` is `config.lite.steeringNote` (the always-wins tail). */
+/** The `buildLiteReminder` inputs the gather resolves and hands in (§4.7). `steeringNote` is
+ *  `config.lite.steeringNote` (the always-wins tail). No tool-capability input: the char turn is always
+ *  tool-less prose (owner ruling 2026-07-27), so the reminder never carries tool-update guidance. */
 export interface LiteReminderInput {
   readonly view: RpgTrackerView;
-  readonly toolCapable: boolean;
   readonly steeringNote: string;
 }
