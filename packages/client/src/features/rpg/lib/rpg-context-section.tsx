@@ -72,6 +72,9 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       icon: HeartPulse,
       strip: "game",
       when: isGameChat,
+      // A game chat lands on Status (the game-state centerpiece) — not the roster's Members, the
+      // declared-order first (Context-Panel-Program §4.1). A stored prior selection still wins.
+      defaultTab: isGameChat,
       body: gameTab("Status", (state) => <RpgStatusTab state={state} />),
       // The scene banner + pool orbs ride the `.shell-panel-header` BAND slot ABOVE both strips (§4.2/§4.11
       // #3), NOT a tab body — supplied on this (always-present) game tab via the W3c header-contributor seam,

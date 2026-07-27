@@ -9,7 +9,7 @@
 // pins the React contract + the CSS collapse behavior.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ContextBracketStory, ContextTabStripStory } from "../_ct-stories";
+import { ContextBracketStory, ContextDefaultTabStory, ContextTabStripStory } from "../_ct-stories";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
@@ -98,6 +98,20 @@ test("game+meta: TWO labeled strips, ONE selection crossing both", async ({ moun
   await expect(gameStrip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
   // Exactly one tab is selected across BOTH strips.
   await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
+});
+
+test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declared-order first", async ({ mount }) => {
+  // `members` is first in declared order, but `rpg.status` flags `defaultTab` — a game chat must land on
+  // Status (the game-state centerpiece), not the roster's Members. No stored contextTab ⇒ the flag decides.
+  const component = await mount(<ContextDefaultTabStory />);
+  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.getByRole("tab", { name: "Members" })).toHaveAttribute("aria-selected", "false");
+  await expect(component.getByTestId("ctx-body-status")).toBeVisible();
+
+  // Continuity holds: an explicit selection of a DIFFERENT visible tab still wins over the default.
+  await component.getByRole("tab", { name: "Members" }).click();
+  await expect(component.getByRole("tab", { name: "Members" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
 });
 
 test("indicator: exactly ONE underline, in the strip that holds the active tab (never a spurious twin)", async ({ mount }) => {

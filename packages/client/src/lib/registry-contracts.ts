@@ -47,6 +47,12 @@ export interface ContextTabDef<S> {
    *  + a lock glyph + reduced opacity, but stays focusable-discoverable (never `disabled`). `null` ⇒ enabled.
    *  Resolved at resolve-time against `S` (same as `when`). */
   readonly disabledReason?: (state: S) => string | null;
+  /** Preferred-default marker (Context-Panel-Program §4.1) — when TRUE and no stored `contextTab` is visible,
+   *  the panel lands on THIS tab instead of the declared-order first (a game chat lands on `rpg.status`, not
+   *  the roster's Members). Resolved at resolve-time against `S` (same as `when`). A stored, still-visible
+   *  `contextTab` always wins (continuity is untouched); when no tab flags it, the first visible tab is the
+   *  default (backward-compat). The FIRST resolved tab whose flag is true supplies the default. */
+  readonly defaultTab?: (state: S) => boolean;
   /** The CONTEXT-panel BAND identity a CONTRIBUTOR supplies (Context-Panel-Program §4.2/§4.11 #3) — the
    *  scene-banner + pool-orbs header that must ride the `.shell-panel-header` band ABOVE both strips, NOT
    *  inside a tab body. A contributor (rpg) can't reach the host's `spec.header`, so it declares its band
@@ -69,6 +75,9 @@ export interface ResolvedContextTab {
   readonly strip: ContextTabStrip;
   readonly badge: number | boolean | null;
   readonly disabledReason: string | null;
+  /** RESOLVED preferred-default flag (Context-Panel-Program §4.1): `true` ⇒ the panel lands here when no
+   *  stored `contextTab` is visible. First `true` tab wins; all-`false` ⇒ the declared-order first (today). */
+  readonly defaultTab: boolean;
 }
 
 /** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order.
@@ -123,6 +132,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
     strip: tab.strip ?? "meta",
     badge: tab.badge?.(state) ?? null,
     disabledReason: tab.disabledReason?.(state) ?? null,
+    defaultTab: tab.defaultTab?.(state) ?? false,
     ...(tab.icon === undefined ? {} : { icon: tab.icon }),
   }));
   // The host's own band identity is the baseline; a `when`-passing CONTRIBUTOR header (rpg's scene banner)

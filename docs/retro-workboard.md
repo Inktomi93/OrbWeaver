@@ -141,7 +141,34 @@ Scene "Date" empty input wants a placeholder.
 top_k20/rep_pen1.0/presence1.5): **rep_pen was 1.05 (double-penalty w/ presence 1.5 → weird output) → 1.0**,
 and **top_p/top_k had no base default** (silent preset → vLLM's 1.0/off → Qwen incoherence) → put the full
 VL rec into the gen `--override-generation-config` base (presets still override per-request). Verify=argv
-snapshot ONLY, no live launch. **NEXT: config fix lands → commit → W4 live E2E (engines usable now).**
+snapshot ONLY, no live launch. **✅ CONFIG FIX COMMITTED `36221388`** (sampling rep_pen→1.0 + top_p/top_k/
+temp base in the gen override + `--dtype bfloat16`; check green). Launch args otherwise CORRECT (tool-parser
+hermes · max-model-len 32768 in-native-window no-rope-needed · mm max_pixels · model's own chat template).
+**ENGINES CURRENTLY DOWN** (8701/2/3 unresponsive) — the fix applies on the NEXT supervised
+`stack.sh restart`/`pnpm engines` (human-supervised; I never hand-launch). **ROUTE-2 CONTINGENCY (owner):
+if STILL weird after route-1 + a live observe → swap to a suitable Qwen 3.5 model wired per their guide.**
+**🔬 W4 FOUNDATION BUILDING (exec `a35051138928fbc01`):** extend `tests/e2e/` — wire `RPG_TRACE=on`/
+`WIRE_CAPTURE=on` into the e2e stackEnv + a `@live` `rpg-lite-loop.spec.ts` (Mara-EXCLUDED seed) driving the
+full loop through the DOM + cross-checking server truth per hop via `/api/_debug/rpg/traces` · `db/chat/:id`
+· `wire/captures`. Structurally verified now; LIVE RUN gated on engine-up. **The live run both validates the
+spec AND observes whether route-1 fixed the weirdness.**
+**FINDING (W4 exec):** `/api/_debug/rpg/traces` (R-OBS rpg flight recorder) is SCAFFOLDED-BUT-UNBUILT —
+env `RPG_TRACE`, `ServicesDeps.rpgTrace`, the `RpgTraceInspector` port (`recent(filter)→object[]`, mirrors
+`wire-capture.ts`) + the route registrar all exist, but NOTHING emits trace events / consumes the flag /
+passes the inspector to `app.ts` → the route 404s even with `RPG_TRACE=on`. `wire/captures` IS fully wired;
+`db/chat/:id` carries NO rpg snapshot state (snapshot truth = `rpg.getTrackerView`). **OWNER RULING
+2026-07-27: PATH B — lite has no internal resolution machinery needing hop-level trace; observe every hop's
+RESULT via getTrackerView + wire/captures + DOM + messages. R-OBS DEFERRED to full-mode (its real use).**
+[✅ W4 Path B BUILT — `tests/e2e/rpg-lite-loop.spec.ts` (@live) + `WIRE_CAPTURE=on` env + trpc helpers;
+typecheck:tests-dom/tests-membership/biome green; `--list` default="No tests found", `E2E_LIVE=1`=1 test
+(gate both ways). Observes every hop's RESULT: createGame→turn(DOM+listMessages)→wire(wire/captures agent-sdk)
+→extraction/flush/snapshot(getTrackerView empty→populated)→re-render(Scene DOM = exact server-truth string).
+Mara-excluded (mints "Thornwick"). **HELD UNCOMMITTED — validate on first `E2E_LIVE=1` run.** Deferred-risk:
+(1 highest) does that narration make the model WRITE on a freeform empty base? (2) re-render/bus timing (3)
+agent-sdk wire chatId-correlation (4) game-tab helpers. **GATE = supervised engine restart → run validates
+spec + observes weird-response fix.**]
+**W3 TASTE POLISH in flight (exec `a2e30469c13ef560a`, snap-verified no-inference):** game chats land on
+Status tab not Members (side-eye's top note) + Scene "Date" empty-input placeholder. → small W3-polish commit.
 **═══ W3 — CP-4 LITE CLIENT (history) ═══** Orchestrator READ FIRST-HAND (owner-corrected 2026-07-26):
 full CP-doc `docs/architecture/Context-Panel-Program.md` §4 · the cohesion game plan `reports/rpg-lite-
 and-full-cohesion-game-plan.md` (D86 argument) · the mockup `reports/design-refs/rpg-shell-mockup-v2.png`
