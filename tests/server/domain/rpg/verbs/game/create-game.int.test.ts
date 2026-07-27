@@ -4,6 +4,7 @@
 
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../../packages/server/src/domain/rpg/persistence/games";
 import { freshDb } from "../../../../../support/db";
@@ -56,12 +57,15 @@ describe("createGame", () => {
     expect(game?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
   });
 
-  test("a non-host member cannot create; a non-member gets nothing", async () => {
+  test("a non-host member is FORBIDDEN; a non-member gets the leak-free NOT-FOUND collapse", async () => {
     const chatId = await seedChat(db, "a");
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_member", "member");
-    await expect(service.createGame({ principal: principal("member"), chatId, mode: "lite" })).rejects.toThrow();
-    await expect(service.createGame({ principal: principal("stranger"), chatId, mode: "lite" })).rejects.toThrow();
+    // A present member reaching the host-only create is FORBIDDEN (they know the chat exists — the action is gated).
+    await expect(service.createGame({ principal: principal("member"), chatId, mode: "lite" })).rejects.toThrow(DomainForbiddenError);
+    // A NON-MEMBER collapses to the SAME leak-free NOT-FOUND a no-game chat gives (guard.ts's cross-tenant boundary —
+    // never a distinguishable BAD_REQUEST that would confirm the chat is real). Mirrors the authority.suite ghost arms.
+    await expect(service.createGame({ principal: principal("stranger"), chatId, mode: "lite" })).rejects.toThrow(DomainNotFoundError);
     expect(await findGameByChat(db, chatId)).toBeUndefined();
   });
 

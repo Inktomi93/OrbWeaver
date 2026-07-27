@@ -112,8 +112,30 @@ inline proof + registry row + `__g_rpgbus.ts` STALE fixture (all 5 members DEFER
 W1c-b). `rpg.stream` EXEMPT in the cross-tenant sweep (subscription, per-yield chat-membership gate,
 `chat.streamMessages` precedent). **LESSON: gate-file + transport-proc adds red the BATTERY not `check`
 (`check-gates.int` + `cross-tenant-sweep.suite` ride `pnpm test`) — verify gate/proc waves with `pnpm test`.**
-**✅ W1 VERTICAL CODE-COMPLETE + FULLY VERIFIED + LEDGER LANDED — COMMIT STAGED, HELD FOR OWNER GO
-(hold-for-W1c ruling; NEVER push).** Final state: whole-tree check GREEN + battery GREEN (vitest 7608/0
+**✅✅ W1 VERTICAL COMMITTED — `a9052b54` (on main, ahead origin 26, NEVER pushed). W2 TRANSPORT NOW IN
+FLIGHT.** W1 = the whole rpg-lite domain: 6-table substrate + staging/locks + CRUD/read verbs + gather +
+chat ops + 7 plane shapes (two ways) + bus/gate + compose/runExtraction + composed-real int test. Verified
+3 lenses (stickler found 3 bugs → fixed → verifier CONFIRMED; IDOR clean). Ledger D86 re-mint + D108 mint
+landed. CP-doc §5 amendments DEFERRED to W3; proposed/INDEX untouched (frozen ref). ——— **W2 = expose rpg
+via tRPC, EVERY proc cross-tenant-sweep PROBED/EXEMPT** ([[new-router-needs-sweep-classification]]); a
+minimal `transport/trpc/routers/rpg.ts` reachability stub already rode W1 (stickler-judged legit) — W2 is
+the FULL proc surface. Mirror chat's router; auth via the chat FK chain (no ownerId). Then W3 CP-4 client.
+**🔄 W2 BUILT (security-executor) + VERIFYING (whole-tree check+battery `bivrp6nuj` + verifier
+`ac85a73df37c2aa08`).** 20 verb procs added to `routers/rpg.ts` (15 mut + 5 query, thin
+`{principal,...input}` pass-throughs mirroring chat), all PROBED in the cross-tenant sweep (only
+`rpg.stream` EXEMPT); `seedOwnerWorld` seeds a MARKED owner-A game; teeth-proven (broke `getTrackerView`
+gate → sweep RED naming the proc → restored). **Security fix the sweep surfaced: `createGame` was a weak
+existence oracle** (BAD_REQUEST to a NON-member) → split to leak-free NOT_FOUND (non-member) / FORBIDDEN
+(non-host member), matching `guard.ts` doctrine — a behavior change to committed W1 code, hence the
+verifier lens on it. New `contracts/rpg/inputs.ts` (DERIVED wire schemas) + mirror test; `| undefined`
+param/patch widening for exactOptionalPropertyTypes (drizzle `.set()` skips undefined = runtime-neutral,
+verifier confirming). `invalidation.ts` untouched (W3). **✅ W2 DONE — 3-lens green (check ✓ · battery
+7613/0 + CT 1453/0 ✓ · verifier CONFIRMED all 4 parts incl. the createGame leak-fix leak-free +
+guard.ts-consistent + drizzle undefined-skip proven at source). Committing now → then W3.**
+
+_↓ W1c-b historical detail (committed in a9052b54) ↓_
+
+**W1 VERTICAL — COMMITTED a9052b54.** Final state: whole-tree check GREEN + battery GREEN (vitest 7608/0
 · CT 1453/0/0-flaky) · verifier CONFIRMED all 4 stickler fixes · stickler IDOR class CLEAN. **Ledger
 landed** (`Core-Path-Registry.md`): **D86 re-minted VERBATIM** from legacy-main (reserved-range survivor,
 domain returned) + **D108 minted** (the retro lite carve + the extraction delivery-model amendment + the

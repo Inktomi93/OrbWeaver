@@ -65,6 +65,9 @@ export interface StagedJournalEntry {
 // ── verb-layer params (W1b) ─────────────────────────────────────────────────────────────────────────────
 // Every verb carries the caller's `Principal` (the authority the verb resolves through `getMembership`) plus
 // the target `chatId` (game-ness + authority both resolve through the chat FK chain — no `ownerId`, D23).
+// The optional fields the W2 `rpg.*` router SPREADS from a zod-`.optional()` wire schema are typed
+// `?: T | undefined` (the `ListMessagesParams` chat precedent) — under `exactOptionalPropertyTypes` a bare
+// `?: T` rejects the explicit `undefined` a zod-optional infers, and the transport pass-through spreads it.
 
 /** `createGame` — the host-gated create. `mode ∈ RPG_GAME_MODES`; `"full"` throws `RpgModeUnbuiltError`.
  *  `profile` is the caller-picked packaged/imported statProfile (omit ⇒ `freeform`, lite's default). */
@@ -72,7 +75,7 @@ export interface CreateGameParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly mode: string;
-  readonly profile?: RpgStatProfile;
+  readonly profile?: RpgStatProfile | undefined;
 }
 
 /** `updateConfig` — the ONE config write door (host). `patch` carries the profile mutability matrix + the
@@ -81,12 +84,14 @@ export interface CreateGameParams {
 export interface UpdateConfigParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly patch?: {
-    readonly statProfile?: RpgStatProfile;
-    readonly steeringNote?: string;
-  };
-  readonly gmPresetId?: PresetId | null;
-  readonly extractionMode?: string;
+  readonly patch?:
+    | {
+        readonly statProfile?: RpgStatProfile | undefined;
+        readonly steeringNote?: string | undefined;
+      }
+    | undefined;
+  readonly gmPresetId?: PresetId | null | undefined;
+  readonly extractionMode?: string | undefined;
 }
 
 /** `patchSheet` — write an actor's identity sheet (host any; a member their own `user` ref). MA-4 patch: every
@@ -97,11 +102,11 @@ export interface PatchSheetParams {
   readonly chatId: ChatId;
   readonly actorRef: RpgActorRef;
   readonly patch: {
-    readonly className?: string;
-    readonly attributes?: Readonly<Record<string, number>>;
-    readonly poolDefs?: readonly { readonly name: string; readonly max: number }[];
-    readonly maxHp?: number | null;
-    readonly flavor?: string;
+    readonly className?: string | undefined;
+    readonly attributes?: Readonly<Record<string, number>> | undefined;
+    readonly poolDefs?: readonly { readonly name: string; readonly max: number }[] | undefined;
+    readonly maxHp?: number | null | undefined;
+    readonly flavor?: string | undefined;
   };
 }
 
@@ -126,7 +131,9 @@ export interface UpdateWidgetParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly widgetId: RpgWidgetId;
-  readonly patch: Partial<RpgWidgetDef>;
+  // A per-field-optional widget def patch; `| undefined` per field so the zod-`.partial()` wire shape the W2
+  // router spreads is assignable under `exactOptionalPropertyTypes` (a bare `Partial<>` rejects the undefined).
+  readonly patch: { readonly [K in keyof RpgWidgetDef]?: RpgWidgetDef[K] | undefined };
 }
 
 /** `deleteWidget` — remove a HUD widget definition (host). */
@@ -142,11 +149,11 @@ export interface DeleteWidgetParams {
 export interface UpsertQuestParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly questId?: RpgQuestId;
+  readonly questId?: RpgQuestId | undefined;
   readonly name: string;
-  readonly status?: RpgQuestStatus;
-  readonly description?: string;
-  readonly objectives?: readonly { readonly id?: string; readonly text: string; readonly completed?: boolean }[];
+  readonly status?: RpgQuestStatus | undefined;
+  readonly description?: string | undefined;
+  readonly objectives?: readonly { readonly id?: string | undefined; readonly text: string; readonly completed?: boolean | undefined }[] | undefined;
 }
 
 /** `deleteQuest` — remove a quest from the current resolved snapshot's array (host). */
@@ -171,9 +178,9 @@ export interface EditJournalEntryParams {
   readonly chatId: ChatId;
   readonly entryId: RpgJournalId;
   readonly patch: {
-    readonly type?: RpgJournalType;
-    readonly title?: string;
-    readonly content?: string;
+    readonly type?: RpgJournalType | undefined;
+    readonly title?: string | undefined;
+    readonly content?: string | undefined;
   };
 }
 
@@ -222,8 +229,8 @@ export interface ReadGameParams {
 export interface ListJournalParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly limit?: number;
-  readonly offset?: number;
+  readonly limit?: number | undefined;
+  readonly offset?: number | undefined;
 }
 
 // ── chat-ops-layer shapes (W1b-integration) ─────────────────────────────────────────────────────────────

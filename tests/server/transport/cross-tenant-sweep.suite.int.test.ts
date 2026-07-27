@@ -43,6 +43,17 @@ const MARK = {
   // A host-authored automation rule's NAME bound to A's chat — leaks via a broken `automation.listRules`
   // host gate (the RuleView carries `name` verbatim).
   automationRule: "AlphaSecretRule",
+  // ── rpg (W2): a game on A's chat, markers on every READABLE surface — a stranger's read probe would echo
+  //    one back if the game-scoping regressed (rpg has NO ownerId; authority is chat-FK-derived, D18/D20).
+  //    `rpgSteering` = the host-only `getConfigView.steeringNote`; `rpgWidget` = a HUD widget label
+  //    (`getTrackerView.widgets[].def.label`); `rpgQuest` = a quest name (`getTrackerView.quests[].name`);
+  //    `rpgJournal` = a journal entry title/content (`listJournal[]`); `rpgCheckpoint` = a checkpoint label
+  //    (`listCheckpoints[]`). getGame carries no free-text, so its teeth are the NOT_FOUND collapse alone. ──
+  rpgSteering: "AlphaSecretSteering",
+  rpgWidget: "AlphaSecretWidget",
+  rpgQuest: "AlphaSecretQuest",
+  rpgJournal: "AlphaSecretJournal",
+  rpgCheckpoint: "AlphaSecretCheckpoint",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -63,6 +74,12 @@ interface OwnerIds {
   messageId: string;
   documentId: DocumentId;
   automationRuleId: string;
+  // rpg (W2) — A's real game-scoped ids, fed to the rpg write probes so a dropped `gameId`/membership predicate
+  // on a foreign id would touch A's row (the W1b IDOR class this domain already hid once).
+  rpgWidgetId: string;
+  rpgQuestId: string;
+  rpgJournalId: string;
+  rpgCheckpointId: string;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -711,6 +728,50 @@ const PROBES: readonly Probe[] = [
   //    snippet ever runs (no read, no write, no execution against A's chat). Leak-free by the loadPresentRole
   //    compose-gate semantics. ──
   { path: "plugin.runSnippet", call: (c, i) => c.plugin.runSnippet({ chatId: i.chatId, code: "orb.host(1).log.info('probe');" }) },
+
+  // ── rpg (W2): EVERY verb is chatId-scoped with NO ownerId — game-ness + authority both derive
+  //    `rpg_games.chatId → chat_participants` (D18/D20), resolved by the injected `getMembership` at
+  //    `domain/rpg/guard.ts`. A NON-MEMBER stranger passing A's chatId collapses to ONE leak-free
+  //    `DomainNotFound` → NOT_FOUND (indistinguishable from a no-game chat — a foreigner never learns the
+  //    chat is a game), for reads AND writes alike. The READS carry A's markers (steering note / widget label
+  //    / quest name / journal entry / checkpoint label), so a regressed game-scoping would ECHO one on a
+  //    stranger's result; the WRITES take A's REAL rule-scoped ids so a dropped `gameId` predicate would touch
+  //    A's row (the W1b IDOR class — the post-sweep integrity re-read below proves nothing mutated). `createGame`
+  //    gates on the STRANGER's OWN membership directly (the game row doesn't exist yet): a non-member gets the
+  //    SAME leak-free NOT_FOUND collapse (never a distinguishable BAD_REQUEST that would confirm A's chat is real). ──
+  { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
+  { path: "rpg.updateConfig", call: (c, i) => c.rpg.updateConfig({ chatId: i.chatId, patch: { steeringNote: "hacked" } }) },
+  {
+    path: "rpg.patchSheet",
+    call: (c, i) => c.rpg.patchSheet({ chatId: i.chatId, actorRef: { kind: "user", userId: OWNER_USER_ID }, patch: { className: "hacked" } }),
+  },
+  { path: "rpg.editSnapshot", call: (c, i) => c.rpg.editSnapshot({ chatId: i.chatId, patch: { location: "hacked" } }) },
+  {
+    path: "rpg.createWidget",
+    call: (c, i) =>
+      c.rpg.createWidget({
+        chatId: i.chatId,
+        def: { type: "meter", label: "hacked", icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: null } },
+      }),
+  },
+  { path: "rpg.updateWidget", call: (c, i) => c.rpg.updateWidget({ chatId: i.chatId, widgetId: i.rpgWidgetId, patch: { label: "hacked" } }) },
+  { path: "rpg.deleteWidget", call: (c, i) => c.rpg.deleteWidget({ chatId: i.chatId, widgetId: i.rpgWidgetId }) },
+  { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
+  { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
+  { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },
+  {
+    path: "rpg.editJournalEntry",
+    call: (c, i) => c.rpg.editJournalEntry({ chatId: i.chatId, entryId: i.rpgJournalId, patch: { title: "hacked" } }),
+  },
+  { path: "rpg.deleteJournalEntry", call: (c, i) => c.rpg.deleteJournalEntry({ chatId: i.chatId, entryId: i.rpgJournalId }) },
+  { path: "rpg.createCheckpoint", call: (c, i) => c.rpg.createCheckpoint({ chatId: i.chatId, label: "hacked" }) },
+  { path: "rpg.restoreCheckpoint", call: (c, i) => c.rpg.restoreCheckpoint({ chatId: i.chatId, checkpointId: i.rpgCheckpointId }) },
+  { path: "rpg.rollDice", call: (c, i) => c.rpg.rollDice({ chatId: i.chatId, notation: "1d20" }) },
+  { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
+  { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
+  { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
+  { path: "rpg.getConfigView", call: (c, i) => c.rpg.getConfigView({ chatId: i.chatId }) },
+  { path: "rpg.listCheckpoints", call: (c, i) => c.rpg.listCheckpoints({ chatId: i.chatId }) },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
@@ -1019,6 +1080,26 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // would delete THIS row; the post-sweep integrity re-read asserts it survived the stranger's probe.
     await db.insert(characterDocuments).values({ characterId: character.id, documentId });
 
+    // ── An rpg GAME on A's chat (front door — A is the chat's host). rpg has NO ownerId: game-ness + authority
+    //    derive `rpg_games.chatId → chat_participants` (D18/D20), so a stranger passing A's chatId to ANY rpg
+    //    verb must collapse to a leak-free NOT_FOUND. Markers stamp every readable surface (config steering note,
+    //    a widget label, a quest name, a journal entry, a checkpoint label) so a regressed game-scoping would
+    //    ECHO one back on a stranger's getTrackerView/getConfigView/listJournal/listCheckpoints probe. The
+    //    rule-scoped write ids (widget/quest/journal/checkpoint) are A's REAL ids — a dropped `gameId`/membership
+    //    predicate on a foreign id would touch A's row (the W1b IDOR class this domain already hid once). ──
+    await owner.rpg.createGame({ chatId, mode: "lite" });
+    // The host-only config write door — steeringNote is A's marker (getConfigView.steeringNote, host-read).
+    await owner.rpg.updateConfig({ chatId, patch: { steeringNote: MARK.rpgSteering } });
+    const rpgWidgetId = await owner.rpg.createWidget({
+      chatId,
+      def: { type: "meter", label: MARK.rpgWidget, icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: null } },
+    });
+    // upsertQuest clone-forwards off the turnless game's default state → mints the FIRST snapshot (the narrator
+    // slot), so the subsequent createCheckpoint has a resolved head to label.
+    const rpgQuestId = await owner.rpg.upsertQuest({ chatId, name: MARK.rpgQuest });
+    const rpgJournalId = await owner.rpg.addJournalEntry({ chatId, type: "note", title: MARK.rpgJournal, content: `${MARK.rpgJournal} — owned by A` });
+    const rpgCheckpointId = await owner.rpg.createCheckpoint({ chatId, label: MARK.rpgCheckpoint });
+
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -1050,6 +1131,10 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       messageId,
       documentId,
       automationRuleId: automationRule.id,
+      rpgWidgetId,
+      rpgQuestId,
+      rpgJournalId,
+      rpgCheckpointId,
     };
   }
 
@@ -1085,5 +1170,15 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(rulesStill).toHaveLength(1); // the stranger's createRule enqueued no rule into A's chat
     expect(rulesStill[0]?.name).toBe(MARK.automationRule); // untouched by the stranger's automation.updateRule probe
     expect(rulesStill[0]?.enabled).toBe(false); // born disabled — untouched by the stranger's setRuleEnabled probe
+    // rpg: A's game surfaces survived the stranger's write probes (updateConfig/patchSheet/upsert/delete/restore).
+    const rpgConfigStill = await ownerCaller.rpg.getConfigView({ chatId: ids.chatId });
+    expect(rpgConfigStill.steeringNote).toBe(MARK.rpgSteering); // untouched by the stranger's rpg.updateConfig probe
+    const rpgTrackerStill = await ownerCaller.rpg.getTrackerView({ chatId: ids.chatId });
+    expect(rpgTrackerStill.widgets.map((w) => w.def.label)).toContain(MARK.rpgWidget); // widget survived deleteWidget
+    expect(rpgTrackerStill.quests.map((q) => q.name)).toContain(MARK.rpgQuest); // quest survived deleteQuest
+    const rpgJournalStill = await ownerCaller.rpg.listJournal({ chatId: ids.chatId });
+    expect(rpgJournalStill.map((j) => j.title)).toContain(MARK.rpgJournal); // entry survived deleteJournalEntry
+    const rpgCheckpointsStill = await ownerCaller.rpg.listCheckpoints({ chatId: ids.chatId });
+    expect(rpgCheckpointsStill.map((cp) => cp.label)).toContain(MARK.rpgCheckpoint); // checkpoint survived (stranger never reached it)
   });
 });
