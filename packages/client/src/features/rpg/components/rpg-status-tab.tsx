@@ -11,8 +11,13 @@
 // shell renders NOTHING (the honest empty plane — no filler). The section + crown-gold grammar land here
 // because secrets are game-state about the roster (the same lens this tab already is).
 //
-// EDIT-in-place (§3.2): a pool value edits through `editSnapshot` — host-only in v1 (`canEditShared`).
-// The patch is a WHOLE-`actorState`-array overlay ([merge-clear]: an array leaf replaces wholesale).
+// EDIT-in-place (§3.2): a pool VALUE edits through `editSnapshot` (the volatile plane) — host-only in v1
+// (`canEditShared`); the patch is a WHOLE-`actorState`-array overlay ([merge-clear]: an array leaf replaces
+// wholesale). A pool MAX edits through `patchSheet` (the sheet `poolDefs` plane) — the SINGLE authoritative
+// home for the max (`chat-ops/tracker-view.resolveVolatile` projects the displayed max FROM poolDefs), so a
+// Status max-edit and a Sheet max-edit are the SAME write and never drift. The §12.3 lower-max-drags-value
+// tell rides BOTH writes in one gesture: patchSheet lowers the def max, editSnapshot drags the volatile
+// value down to it.
 
 import type { RpgActorView, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
@@ -26,7 +31,7 @@ import { useState } from "react";
 import { MeterRow, RelationshipBadge, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
 import { resolveConditionGlyph } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
 import { RpgFieldLock } from "./rpg-field-lock";
@@ -140,6 +145,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
+  const patchSheet = usePatchSheet({ trpc, invalidation });
 
   if (tracker.actors.length === 0) {
     return <Text tone="muted">No one on the roster yet — add characters in Members.</Text>;
@@ -160,12 +166,21 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       onEditPoolMax: (poolName, nextMax): { readonly draggedTo: number } | null => {
         const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (§12.3 Tier-1)
         const pool = actor.volatile?.pools.find((p) => p.name === poolName);
-        // Lowering below the value drags the value down in the SAME commit (never a silent truncate).
+        // The MAX is a SHEET datum (poolDefs — the single source): write it via patchSheet, not the volatile.
+        // The def is upserted (a Status-minted volatile pool the host never defined gets its def created here,
+        // so the max has a durable home from the first edit). Whole-`poolDefs` replace (the wire shape).
+        const defs = actor.sheet.poolDefs;
+        const hasDef = defs.some((d) => d.name === poolName);
+        const nextDefs = hasDef
+          ? defs.map((d) => (d.name === poolName ? { ...d, max: clampedMax } : d))
+          : [...defs, { name: poolName, max: clampedMax, color: null }];
+        patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: nextDefs } });
+        // Lowering below the value drags the volatile VALUE down in the SAME gesture (never a silent truncate);
+        // the read-side clamp (`resolveVolatile`) also enforces this, but writing it keeps the durable value honest.
         const drag = pool !== undefined && pool.value > clampedMax;
-        patch(key, (v) => ({
-          ...v,
-          pools: v.pools.map((p) => (p.name === poolName ? { ...p, max: clampedMax, value: Math.min(p.value, clampedMax) } : p)),
-        }));
+        if (drag) {
+          patch(key, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: clampedMax } : p)) }));
+        }
         return drag ? { draggedTo: clampedMax } : null;
       },
       onAddCondition: (name): void =>

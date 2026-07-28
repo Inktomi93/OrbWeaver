@@ -169,6 +169,7 @@ function stubTakeover(
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
+    "rpg.patchSheet": () => undefined,
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
     "rpg.getConfigView": () => configView(),
@@ -376,20 +377,24 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
   await expect(rail).toContainText("○ III");
 });
 
-test("lowering a pool max below its value drags the value + fires editSnapshot (§12.3 max-drag)", async ({ mount, page }) => {
+test("a pool max edit writes the SHEET def (patchSheet — the single max home) + drags the volatile value (§12.3)", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // The pool max is editable display-at-rest (host) — click reveals the field. Lower Vitality's max (30)
-  // below its value (24) → the value drags to 20 in the same editSnapshot commit + a microline states it.
+  // The pool max is a SHEET datum (poolDefs — the single source; the Status meter reads the def-resolved max).
+  // Editing it here fires `patchSheet` (the def write, so a Sheet-tab read sees the SAME max — no drift), and
+  // because the new max (20) is below the value (24) it ALSO fires `editSnapshot` to drag the volatile value.
   const maxRest = component.getByRole("button", { name: "Vitality max" });
   await expect(maxRest).toBeVisible();
   await maxRest.click();
   const maxField = component.getByRole("textbox", { name: "Vitality max" });
   await maxField.fill("20");
   await maxField.blur();
+  // The MAX write lands on the sheet def (the authoritative home) — this is what keeps Status ↔ Sheet in sync.
+  await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // The value-drag rides editSnapshot in the same gesture (max 20 < value 24 ⇒ a drag).
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // The clamp-and-tell microline (§12.3) — the value dragged to the new max.
   await expect(component.getByText("Vitality 24 → 20 — max lowered")).toBeVisible();
