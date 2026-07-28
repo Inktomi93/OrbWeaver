@@ -79,6 +79,14 @@ export interface ExtractionRefs {
    *  Empty (no cast-fields configured) leaves the pair name unconstrained (the opaque-record behavior is gone
    *  only when a schema is defined — an empty schema means the feature is off, so no constraint to apply). */
   readonly castFieldKeys: readonly string[];
+  /** ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (in the enforced grammar) ONLY while the current scene
+   *  hasn't set them yet. Derived per-call from the base snapshot: a FRESH game is forced to establish the
+   *  scene from the first beat, but once a field is set it returns to the optional omit=keep patch — no
+   *  re-emit churn/drift on ongoing turns. This is what makes a weak 8B populate the scene (live-proven on
+   *  Qwen3-VL-8B: an all-optional scene is skipped; the forced one fills location/time/weather + a present-cast
+   *  entry with mood/thoughts/relationship). `location`/`timeOfDay` ⟵ `location === ""` / `clock === null`;
+   *  `presentCast` (forces `presentUpsert` non-empty) ⟵ `presentCharacters.length === 0`. */
+  readonly establishScene: { readonly location: boolean; readonly timeOfDay: boolean; readonly presentCast: boolean };
 }
 
 // A projected JSON-schema node (the `projectJsonSchema` output shape — a plain object tree).
@@ -119,6 +127,22 @@ function constrainArrayItemRef(root: JsonSchemaNode, arrayField: string, refProp
   constrainStringProperty(refNode, values);
 }
 
+// Add `field` to an object schema node's `required` list IN PLACE (creating the list if absent). Idempotent.
+// Under a schema-enforcing backend (xgrammar/`strict`) a required field is one the model MUST emit — the lever
+// that makes an otherwise-skippable field populate. No-op on a missing/non-object node.
+function requireField(node: unknown, field: string): void {
+  if (node === null || typeof node !== "object" || propsOf(node)?.[field] === undefined) {
+    return; // never require a field the schema doesn't define (a projection drift would make the grammar impossible)
+  }
+  const n = node as JsonSchemaNode;
+  const req = n["required"];
+  const list = Array.isArray(req) ? (req as string[]) : [];
+  if (!list.includes(field)) {
+    list.push(field);
+  }
+  n["required"] = list;
+}
+
 /**
  * Constrain the projected extraction schema's REF fields to the actual per-call refs (R1). Returns a fresh
  * schema (never mutates the cached `projectJsonSchema` output — the same object also feeds other wires).
@@ -148,6 +172,34 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
   const customFieldsItem = upsertItem !== undefined ? itemsOf(propsOf(upsertItem)?.["customFields"]) : undefined;
   const nameNode = customFieldsItem !== undefined ? propsOf(customFieldsItem)?.["name"] : undefined;
   constrainStringProperty(nameNode, refs.castFieldKeys);
+  // ESTABLISH-WHEN-UNSET (2026-07-28, the sad-path fix): the projected schema leaves `scene` OPTIONAL with
+  // every inner field optional, so under xgrammar/`strict` a weak 8B legally OMITS the scene — and it did, so a
+  // fresh game never established its location/time and the panel stayed empty (`rpg.extraction.empty`). Force
+  // the ambient anchor REQUIRED, but ONLY while the current scene hasn't set it (`establishAmbient`, derived
+  // from the base snapshot): a fresh game is guaranteed to establish location/time from the first beat, while
+  // ongoing turns keep the optional omit=keep patch — no re-emit churn or drift on a standing scene. Same
+  // per-call, state-dependent shaping as the ref enums above (the zod stays the loose superset; the grammar
+  // tightens per call). [[plan-for-small-hardware]] — the enforced schema, not the prompt, is the xgrammar lever.
+  const sceneNode = propsOf(clone)?.["scene"];
+  if (refs.establishScene.location) {
+    requireField(clone, "scene");
+    requireField(sceneNode, "location");
+  }
+  if (refs.establishScene.timeOfDay) {
+    requireField(clone, "scene");
+    requireField(sceneNode, "timeOfDay");
+  }
+  if (refs.establishScene.presentCast) {
+    // Force a NON-EMPTY present cast on a fresh scene: an optional presentUpsert is skipped by a weak 8B (the
+    // "No one on stage" gap), so require the array AND minItems:1 (xgrammar enforces both — live-proven). The
+    // model then lists each present character with mood/thoughts/relationship. Once the cast is set, unforced.
+    requireField(clone, "scene");
+    requireField(sceneNode, "presentUpsert");
+    const presentUpsert = propsOf(sceneNode)?.["presentUpsert"];
+    if (presentUpsert !== null && typeof presentUpsert === "object") {
+      (presentUpsert as JsonSchemaNode)["minItems"] = 1;
+    }
+  }
   return clone;
 }
 
