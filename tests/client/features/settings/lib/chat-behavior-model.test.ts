@@ -9,6 +9,7 @@ import { expect, test } from "../../../../support/fixtures";
 const populated: ChatSettings = {
   enterSends: false,
   continueOnSend: false,
+  generateOnEmptySend: false,
   autoContinue: true,
   autoContinueRounds: 1,
   autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 1 },
@@ -23,6 +24,7 @@ test("projectChatForm flattens the nest and newline-joins the two list fields", 
   expect(projectChatForm(populated)).toEqual({
     enterSends: false,
     continueOnSend: false,
+    generateOnEmptySend: false,
     autoContinue: true,
     autoSwipeEnabled: true,
     autoSwipeMinLength: 120,

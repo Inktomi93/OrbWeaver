@@ -33,11 +33,19 @@ function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): un
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 
 test("Send is disabled on an empty draft", async ({ mount }) => {
-  const component = await mount(<ComposerStory />);
+  // A DRAFT (no committed chat) — the keyboard generate arm (W-E) is committed-only, so an empty draft has
+  // nothing to send/continue/generate and Send stays disabled. (On a committed empty chat, generate-on-empty
+  // makes Send the "prompt a reply" affordance — covered by the W-E tests.)
+  const component = await mount(<ComposerStory committed={false} />);
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 });
 
 // ── imagery I5 base slice: the in-chat AI generate-image affordance ─────────────────────────────────────
+// Wand v2: the image controls (attach + generate-from-text) moved OFF the composer bar and INTO the ✨ utility
+// menu (owner). Generate-image is now a menu ITEM — open the ✨ menu (the composerUtility trigger), then act on
+// the portalled row via the PAGE locator (the menu.ct portal split).
+const UTILITY_TRIGGER = { name: "Message tools" } as const;
+
 test("generate-image is gated on typed text, then fires chat.generateImage (mode free, the text as prompt)", async ({ mount, page }) => {
   let genBody: string | null = null;
   await routeTrpc(page, {});
@@ -49,17 +57,21 @@ test("generate-image is gated on typed text, then fires chat.generateImage (mode
       return;
     }
     genBody = req.postData();
-    // Hold it in flight — the button drives the loading state; the posted message rides the bus.
+    // Hold it in flight — the item drives the loading state; the posted message rides the bus.
     await new Promise<void>(() => undefined);
   });
 
   const component = await mount(<ComposerStory />);
-  const generate = component.getByRole("button", { name: "Generate image from text" });
-  // Empty composer → the generate action is disabled (free mode needs a prompt).
-  await expect(generate).toBeDisabled();
+  // Empty composer → the generate item is disabled (free mode needs a prompt).
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await expect(page.getByRole("menuitem", { name: "Generate image from text" })).toBeDisabled();
+  // Close the menu (Escape) before typing — a MenuItem's disabled row can't be clicked; type, reopen.
+  await page.keyboard.press("Escape");
 
   const textarea = component.getByLabel("Message", { exact: true });
   await textarea.fill("a neon city at dusk");
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  const generate = page.getByRole("menuitem", { name: "Generate image from text" });
   await expect(generate).toBeEnabled();
   await generate.click();
 
@@ -77,15 +89,12 @@ test("a generate-image that FAILS keeps the typed prompt for retry (never cleare
   await routeTrpc(page, { "chat.generateImage": () => trpcError({ message: "gen boom" }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
-  const generate = component.getByRole("button", { name: "Generate image from text" });
 
   await textarea.fill("a neon city at dusk");
-  await expect(generate).toBeEnabled();
-  await generate.click();
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.getByRole("menuitem", { name: "Generate image from text" }).click();
 
-  // The generate settles as a failure (the button is actionable again, not stuck loading) and the prompt
-  // is INTACT — the data-loss bug would have wiped it to "".
-  await expect(generate).toBeEnabled();
+  // The generate settles as a failure and the prompt is INTACT — the data-loss bug would have wiped it to "".
   await expect(textarea).toHaveValue("a neon city at dusk");
 });
 
@@ -93,60 +102,54 @@ test("a generate-image that SUCCEEDS clears the typed prompt (clear-on-success)"
   await routeTrpc(page, { "chat.generateImage": () => ({ ok: true }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
-  const generate = component.getByRole("button", { name: "Generate image from text" });
 
   await textarea.fill("a neon city at dusk");
-  await generate.click();
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.getByRole("menuitem", { name: "Generate image from text" }).click();
 
   // On a green settle the composer clears (the prompt became the posted image message).
   await expect(textarea).toHaveValue("");
 });
 
-// ── #8 grey-out (side-eye P2): the composer's two secondary disabled buttons explain themselves on hover ──
-// The empty composer is the FIRST thing a user sees on a fresh draft. The wand trigger + the generate-image
-// button were native-disabled (title:null) — zero hover feedback. They now render `focusableWhenDisabled`
-// (Base UI ⇒ aria-disabled, NOT native `disabled`), so the button stays HOVERABLE and its `title` reason
-// surfaces, while the click stays a guarded no-op. These pin BOTH the mechanism (aria-disabled + a title
-// that names the unlock) AND hoverability + activation-prevention — the same bar as the chat-options menu CT.
+// ── #8 grey-out (side-eye P2): the disabled generate-image ITEM explains itself with a reason ────────────
+// Now a ✨-menu item: a disabled Base UI MenuItem renders aria-disabled with its `title` reason (the
+// base-ui-disabled-menuitem-title idiom — never a tooltip wrap). Pins the reason surfaces per phase.
 const TYPE_TO_UNLOCK = /type a message/iu;
 const SEND_TO_UNLOCK = /send the first message/iu;
-// Matches any attribute value — used to assert the NATIVE `disabled` attribute is ABSENT (the button is
-// aria-disabled instead, so it stays hoverable and its `title` reason surfaces).
-const ANY_VALUE = /.*/u;
 
-test("#8: the generate-image button (committed, empty) is aria-disabled (hoverable) with a 'type a message' reason", async ({ mount }) => {
+test("#8: the generate-image item (committed, empty) is disabled with a 'type a message' reason", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />); // committed by default, empty composer
-  const generate = component.getByRole("button", { name: "Generate image from text" });
-
-  // The mechanism (verified from the live DOM): the button is aria-disabled="true", NOT native
-  // `disabled` — so it is NOT pointer-events:none and its `title` reason surfaces on hover (a native
-  // disabled button would swallow the hover). Playwright treats aria-disabled as "disabled" for
-  // toBeDisabled() (activation is prevented), while the missing native attr keeps it hoverable.
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  const generate = page.getByRole("menuitem", { name: "Generate image from text" });
   await expect(generate).toBeDisabled();
-  await expect(generate).toHaveAttribute("aria-disabled", "true");
-  await expect(generate).not.toHaveAttribute("disabled", ANY_VALUE);
   await expect(generate).toHaveAttribute("title", TYPE_TO_UNLOCK);
 });
 
-test("#8: the generate-image button (DRAFT) names the send-first unlock (image gen needs a committed chat)", async ({ mount }) => {
+test("#8: the generate-image item (DRAFT) names the send-first unlock (image gen needs a committed chat)", async ({ mount, page }) => {
   const component = await mount(<ComposerStory committed={false} />);
   const textarea = component.getByLabel("Message", { exact: true });
   // Even WITH text, a draft can't generate — it has no chat to post into. The reason names that unlock.
   await textarea.fill("a neon city at dusk");
-  const generate = component.getByRole("button", { name: "Generate image from text" });
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  const generate = page.getByRole("menuitem", { name: "Generate image from text" });
   await expect(generate).toBeDisabled();
-  await expect(generate).toHaveAttribute("aria-disabled", "true");
   await expect(generate).toHaveAttribute("title", SEND_TO_UNLOCK);
 });
 
-test("the guided cluster shows all four icons on an empty committed composer; Response is always live (W-D)", async ({ mount }) => {
+test("wand v2: Attach images lives in the ✨ menu (image controls re-homed off the bar)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  // The attach row is present in the menu (the sanctioned FileDropzone picker), off the composer bar.
+  await expect(page.getByRole("menuitem", { name: "Attach images" })).toBeVisible();
+});
+
+test("the guided cluster shows all four icons on an empty committed composer; Response is always live (wand v2)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // empty composer, committed handle
-  // W-D: the four dual-mode icons ALWAYS render (never a single text-gated wand trigger). Response is never
-  // disabled — an empty committed composer fires a plain generate reply (the composer-guided-cluster.ct
-  // drives the fire paths; here we only pin the composer wiring shows the cluster).
+  // The four dual-mode icons ALWAYS render on the top row. Response is never disabled — an empty committed
+  // composer fires a plain generate reply. The ⟳ icon is now labeled "Swipe" (Regenerate moved to the ✨ menu).
   await expect(component.getByRole("button", { name: "Generate reply" })).toBeEnabled();
   await expect(component.getByRole("button", { name: "Impersonate" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Regenerate" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Swipe" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Continue" })).toBeVisible();
 });
 
@@ -316,17 +319,22 @@ const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
 
 const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
 
-test("picking an image shows a removable preview and enables Send on an empty draft", async ({ mount }) => {
-  const component = await mount(<ComposerStory />);
+test("picking an image shows a removable preview and enables Send on an empty draft", async ({ mount, page }) => {
+  // The attach control is now inside the ✨ menu (wand v2) — open it, then set files on the portalled dropzone
+  // input (the FileDropzone's `closeOnClick={false}` keeps the menu open through the OS picker).
+  const component = await mount(<ComposerStory committed={false} />);
   // Empty draft → Send disabled to start.
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 
-  await component.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
 
   // The pending preview appears and an attachment-only draft is now sendable.
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(1);
   await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
 
+  // Close the ✨ menu (it stayed open through the picker) before touching the preview strip below it.
+  await page.keyboard.press("Escape");
   // Remove-before-send drops the preview and re-disables Send.
   await component.getByRole("button", { name: REMOVE_BTN }).click();
   await expect(component.locator(ATTACHMENT_PREVIEW)).toHaveCount(0);
@@ -357,7 +365,10 @@ test("sending with an attachment uploads it to CAS and includes the asset id on 
   });
 
   const component = await mount(<ComposerStory />);
-  await component.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "cat.png", mimeType: "image/png", buffer: PNG_1PX });
+  // Close the ✨ menu before clicking Send (its inert backdrop would otherwise intercept the click).
+  await page.keyboard.press("Escape");
   await component.getByRole("button", { name: "Send message" }).click();
 
   await expect.poll(() => uploadCalled, { intervals: [20, 50, 100] }).toBe(1);
@@ -432,4 +443,33 @@ test("continueOnSend: an empty Send on an assistant tail fires chat.continueTurn
 
   await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.lastInput("chat.continueTurn")).toMatchObject({ chatId: COMPOSER_CHAT_ID, messageId: TAIL_ASSISTANT_ID });
+});
+
+// ── W-E: generate-on-empty-send (generateOnEmptySend) ──────────────────────────────────────────────────
+test("generateOnEmptySend: an empty Send on a USER tail fires chat.generate (the fork-at-user-tail arm)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: true }),
+    "chat.generate": () => ({ ok: true }),
+  });
+  // Committed chat, USER tail, empty composer → Send prompts a reply (no assistant tail to continue).
+  const component = await mount(<ComposerStory tailRole="user" />);
+  await expect.poll(() => trpc.count("settings.getUserSettings"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  const send = component.getByRole("button", { name: "Send message" });
+  await expect(send).toBeEnabled();
+  await send.click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.generate")).toMatchObject({ chatId: COMPOSER_CHAT_ID });
+});
+
+test("generateOnEmptySend OFF: an empty Send on a USER tail is a no-op (Send disabled, no generate)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => settingsWith({ generateOnEmptySend: false, continueOnSend: false }),
+    "chat.generate": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory tailRole="user" />);
+  await expect.poll(() => trpc.count("settings.getUserSettings"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  // Nothing to send/continue/generate → Send stays disabled; the ▷ Response icon remains the explicit path.
+  await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(0);
 });

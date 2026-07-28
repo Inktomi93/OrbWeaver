@@ -54,6 +54,13 @@ test("Send-continues-the-reply patches continueOnSend", async ({ mount, page }) 
   await expect.poll(() => lastPatch(trpc)?.["continueOnSend"], { intervals: [20, 50, 100] }).toBe(false);
 });
 
+test("Empty-Enter-generates patches generateOnEmptySend (W-E)", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<ChatBehaviorSettingsStory />);
+  await page.getByRole("switch", { name: "Empty Enter generates a reply" }).click();
+  await expect.poll(() => lastPatch(trpc)?.["generateOnEmptySend"], { intervals: [20, 50, 100] }).toBe(false);
+});
+
 test("custom stopping strings: newline text projects back to a string[] patch", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatBehaviorSettingsStory />);
