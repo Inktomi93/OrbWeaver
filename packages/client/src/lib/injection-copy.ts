@@ -42,3 +42,24 @@ export const CHOICE_WAIT_FOR_TURN = "Wait for the current reply to finish, then 
 
 /** A choice button in a surface with no send capability (a preview / read-only mount). */
 export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
+
+// The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is
+// never hidden or swapped ([[no-separate-reduced-modes]]); a phase-unavailable icon renders aria-disabled
+// with its reason LEGIBLE + touch-surfaced (not hover-only). Named unlocks, plain language, no jargon.
+
+/** Impersonate on a DRAFT — it needs the turn machinery a committed chat has (it writes a USER line, so it
+ *  is valid on BOTH committed phases; only a draft lacks the chat to write into). */
+export const IMPERSONATE_NEEDS_CHAT = "Send your first message to impersonate a reply.";
+
+/** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a draft, or a user-tail chat, has none). */
+export const SWIPE_NEEDS_REPLY = "Needs a reply to regenerate.";
+
+/** Continue — needs an assistant reply to extend (a draft, or a user-tail chat, has none). */
+export const CONTINUE_NEEDS_REPLY = "Needs a reply to continue.";
+
+/** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
+ *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */
+export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
+export const STEER_CUE_SWIPE = "Uses your typed text to steer the reroll";
+export const STEER_CUE_CONTINUE = "Uses your typed text to steer the continuation";
+export const STEER_CUE_IMPERSONATE = "Uses your typed text as impersonation direction";

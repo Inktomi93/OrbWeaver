@@ -164,6 +164,16 @@ export interface SendParams extends ChatScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
+/** `commitMessage` — the "Simple Send" / post-without-generate lever (D56): commit a user message WITHOUT
+ *  firing the AI turn. `SendParams` MINUS `intent`/`guided` (no generation ⇒ no gen-config, no steer). */
+export interface CommitMessageParams extends ChatScopedParams {
+  readonly content: string;
+  readonly personaId?: PersonaId | null | undefined;
+  readonly blocks?: readonly MessageContentBlock[] | undefined;
+  /** The inline images the user attached; each must be owned by the actor (the send trust boundary). */
+  readonly attachmentAssetIds?: readonly AssetId[] | undefined;
+}
+
 /** `swipe` — appends a fresh variant to an assistant slot (a reroll; slot attribution unchanged). */
 export interface SwipeParams extends MessageScopedParams {
   readonly intent?: UserIntent | undefined;
@@ -182,6 +192,12 @@ export interface GenerateParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
+  /** The wand's Response icon sets this when the tail canon row is an ASSISTANT turn (it already resolves
+   *  `tailAssistantMessageId`): a reply generated after the model's OWN last line needs the `responseNudge`
+   *  trailing-user turn to have something to respond to. A Response on a USER tail (the common empty-send-
+   *  generate case — a fresh fork at your own message) omits it: the user message is the prompt. Absent ⇒ no
+   *  nudge (byte-identical to pre-wand `generate`). */
+  readonly afterAssistant?: boolean | undefined;
 }
 
 /** `continueTurn` — extends the tail assistant message in place. */

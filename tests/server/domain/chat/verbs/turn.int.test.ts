@@ -299,6 +299,74 @@ describe("send — the solo path (roster-of-1)", () => {
   });
 });
 
+// `commitMessage` — the D56 "Simple Send" / post-without-generate lever: `send`'s COMMIT half (trust
+// boundaries + persist + first-user-turn greeting freeze + rpg user-commit) with NO AI round. The verb shares
+// the exact `commitUserTurn` helper `send` calls, so these pins guard that shared front-half AND the "no turn
+// follows" contract.
+describe("commitMessage — post-without-generate (D56)", () => {
+  test("commits the user row + emits messageCommitted; NO assistant row generated", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    let generations = 0;
+    const h = harness(db, names, {
+      onChatRequest: () => {
+        generations += 1;
+      },
+    });
+
+    const outcome = await h.turn.commitMessage({ principal: principal(host), chatId, content: "hello" });
+
+    expect(outcome.aborted).toBe(false);
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("user");
+    expect(outcome.messages[0]?.content).toBe("hello");
+    expect(outcome.messages[0]?.authorUserId).toBe(host);
+
+    // Canon holds exactly the one user row — no assistant follows, no generation fired.
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.map((m) => m.role)).toEqual(["user"]);
+    expect(generations).toBe(0);
+    const types = h.events.map((e) => e.type);
+    expect(types).toContain("messageCommitted");
+    expect(types).not.toContain("turnStarted");
+    expect(types).not.toContain("turnCompleted");
+  });
+
+  test("the first-user-turn greeting-volatile FREEZE still runs ({{roll}} baked, {{user}} raw)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    await h.turn.commitMessage({ principal: principal(host), chatId, content: "I roll {{roll:d20}} and {{user}} smiles" });
+
+    const stored = (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
+    expect(stored.match(FROZEN_ROLL_RE)).not.toBeNull();
+    expect(stored).toContain("{{user}}");
+    expect(stored).not.toContain("{{roll");
+  });
+
+  test("an EXPLICIT foreign personaId is refused not_persona_owner — nothing committed (the trust boundary)", async () => {
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, "member");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const stranger = await seedUser(db, "stranger");
+    const foreignPersona = await seedPersona(stranger, "stranger_pov");
+    const h = harness(db, names);
+
+    await expect(h.turn.commitMessage({ principal: principal(member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
+      code: "not_persona_owner",
+    });
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
+  });
+
+  test("a non-member is refused (leak-free NOT_FOUND — the membership gate)", async () => {
+    const { chatId, names } = await seedRoom("natural", ["aria"]);
+    const stranger = await seedUser(db, "stranger");
+    const h = harness(db, names);
+
+    await expect(h.turn.commitMessage({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
+    expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
+  });
+});
+
 describe("send — a caller-cancelled turn RETURNS aborted (the return-based abort reaches the verb)", () => {
   test("aborted:true + reason reach the send return; the user row still committed, no assistant row", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
@@ -1438,6 +1506,39 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
 
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.characterId).toBe(chars[1]);
+  });
+
+  // W-D: the wand Response icon on an ASSISTANT tail needs the `responseNudge` trailing-user turn so the
+  // reply isn't rudderless; a Response on a USER tail (or without the flag) appends nothing.
+  test("afterAssistant:true appends the responseNudge trailing-user turn; omitted appends none", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    // Seed an assistant tail (the model's own last line — what a Response would reply after).
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "The tavern is quiet." });
+
+    const lastUserText = (req: unknown): string => {
+      const history = (req as { history: readonly { role: string; content: readonly { type: string; text?: string }[] }[] }).history;
+      const lastUser = [...history].reverse().find((m) => m.role === "user");
+      return (lastUser?.content ?? []).map((p) => (p.type === "text" ? (p.text ?? "") : "")).join("");
+    };
+
+    let withFlag = "";
+    const h1 = harness(db, names, {
+      onChatRequest: (req) => {
+        withFlag = lastUserText(req);
+      },
+    });
+    await h1.turn.generate({ principal: principal(host), chatId, afterAssistant: true });
+    expect(withFlag).toContain("write the next reply"); // the DEFAULT_FORMAT_STRINGS.responseNudge text
+
+    let withoutFlag = "sentinel";
+    const h2 = harness(db, names, {
+      onChatRequest: (req) => {
+        withoutFlag = lastUserText(req);
+      },
+    });
+    await h2.turn.generate({ principal: principal(host), chatId });
+    expect(withoutFlag).not.toContain("write the next reply"); // no nudge without the flag
   });
 });
 

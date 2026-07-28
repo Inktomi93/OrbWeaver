@@ -49,7 +49,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "message-row-parts": { coveredBy: "message-row", why: "the row parts render only inside MessageRow; message-row.ct mounts the real row." },
   "message-row-bubble": { coveredBy: "message-row", why: "the bubble is a message-row-parts sub-part, covered through message-row.ct." },
   "greeting-actions-row": { coveredBy: "message-row", why: "the draft greeting actions render inside a MessageRow greeting slot (message-row.ct)." },
-  "impersonate-submenu": { coveredBy: "composer-wand", why: "the shared submenu is driven through the real wand menu in composer-wand.ct." },
+  "composer-utility-menu": {
+    coveredBy: "composer-guided-cluster",
+    why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",
+  },
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
   "add-member-popover": { coveredBy: "chat-cast-bar", why: "the add-member popover anchors on the cast bar; chat-cast-bar.ct drives it." },
   "chat-content": { coveredBy: "chat-room-surface", why: "ChatContent is the room-surface body; chat-room-surface.ct mounts it." },

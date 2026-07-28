@@ -37,7 +37,13 @@ export const TEST_IDS = {
   credentialClearRevoked: "credential-clear-revoked",
   composer: "composer",
   composerSend: "composer-send",
-  composerWand: "composer-wand",
+  // W-D — the guided cluster's four dual-mode icons + the ✨ utility menu (replaces the old composer-wand).
+  composerGuidedImpersonate: "composer-guided-impersonate",
+  composerGuidedSwipe: "composer-guided-swipe",
+  composerGuidedResponse: "composer-guided-response",
+  composerGuidedContinue: "composer-guided-continue",
+  composerGuidedGameSteer: "composer-guided-game-steer",
+  composerUtility: "composer-utility",
   // P5 CYOA — one `:::choices` option button in a message body (click sends the option as the user turn).
   messageChoiceOption: "message-choice-option",
   composerGenerateImage: "composer-generate-image",

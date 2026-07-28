@@ -139,18 +139,15 @@ test("#8: the generate-image button (DRAFT) names the send-first unlock (image g
   await expect(generate).toHaveAttribute("title", SEND_TO_UNLOCK);
 });
 
-test("the wand trigger OPENS on an empty committed composer (#41 — it hosts the text-optional turn actions)", async ({ mount, page }) => {
+test("the guided cluster shows all four icons on an empty committed composer; Response is always live (W-D)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // empty composer, committed handle
-  const wand = component.getByRole("button", { name: "Guided generations" });
-
-  // Owner ruling (the #41 consolidation): the wand opens TEXT-LESSLY — Continue/Regenerate/Impersonate
-  // live here with the composer text optional. The text-gated item ("Guided response") still explains
-  // itself: disabled with the type-a-message reason until a steer is typed.
-  await expect(wand).toBeEnabled();
-  await wand.click();
-  const primary = page.getByRole("menuitem", { name: "Guided response" });
-  await expect(primary).toBeDisabled();
-  await expect(primary).toHaveAttribute("title", TYPE_TO_UNLOCK);
+  // W-D: the four dual-mode icons ALWAYS render (never a single text-gated wand trigger). Response is never
+  // disabled — an empty committed composer fires a plain generate reply (the composer-guided-cluster.ct
+  // drives the fire paths; here we only pin the composer wiring shows the cluster).
+  await expect(component.getByRole("button", { name: "Generate reply" })).toBeEnabled();
+  await expect(component.getByRole("button", { name: "Impersonate" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Regenerate" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Continue" })).toBeVisible();
 });
 
 test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({ mount, page }) => {
@@ -387,15 +384,16 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
 
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
-  const wand = component.getByRole("button", { name: "Guided generations" });
+  const response = component.getByRole("button", { name: "Generate reply" });
 
-  // With a draft typed and no send in flight, the wand is available.
+  // With a draft typed and no send in flight, the guided cluster is available.
   await textarea.fill("steer it");
-  await expect(wand).toBeEnabled();
+  await expect(response).toBeEnabled();
 
-  // Fire Send — it stays in flight (held) → the wand disables even though the draft is still populated.
+  // Fire Send — it stays in flight (held) → the cluster idles (busy={sendMessage.isPending}) even though
+  // the draft is still populated, so a guided icon can't fire against the pre-commit draft.
   await component.getByRole("button", { name: "Send message" }).click();
-  await expect(wand).toBeDisabled();
+  await expect(response).toBeDisabled();
 });
 
 // ── PD-146: enterSends ─────────────────────────────────────────────────────────────────────────────────

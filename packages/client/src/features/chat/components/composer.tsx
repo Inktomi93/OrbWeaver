@@ -38,8 +38,8 @@ import { useStopTurn } from "../hooks/use-stop-turn";
 import { shouldSendOnEnter } from "../lib/composer-send-keys";
 import { resolveContinueTarget } from "../lib/continue-on-empty";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command";
+import { ComposerGuidedCluster } from "./composer-guided-cluster";
 import { ComposerSlashStrip } from "./composer-slash-strip";
-import { ComposerWand } from "./composer-wand";
 import { SpeakAsSelect } from "./speak-as-select";
 
 // The composer's glue for the OPEN slash strip's combobox keys — kept at module scope (not a closure in the
@@ -332,16 +332,6 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
           className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
-          <ComposerWand
-            handle={handle}
-            value={value}
-            onChange={onChange}
-            draftSeed={draftSeed}
-            onCommitted={onCommitted}
-            // Disabled while a send is in flight: the draft stays populated pre-commit, so the wand
-            // could otherwise fire a guided action against it (one send OR one guided action at a time).
-            busy={sendMessage.isPending}
-          />
           {/* A raw <input type=file> is gate-banned in features; FileDropzone is the sanctioned picker,
               laid invisibly over a ghost icon-button skin. */}
           <Row
@@ -403,6 +393,18 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
             disabled={sendMessage.isPending}
             className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             rows={1}
+          />
+          {/* The guided cluster (W-D): four always-visible dual-mode icons (impersonate·swipe·response·
+              continue) + the ✨ utility menu (Recover input · Corrections · Undo/Revert · Clear · Simple
+              send). Sits between the textarea and Send — the composer text is the steer when present. */}
+          <ComposerGuidedCluster
+            handle={handle}
+            value={value}
+            onChange={onChange}
+            draftSeed={draftSeed}
+            onCommitted={onCommitted}
+            busy={sendMessage.isPending}
+            tailIsAssistant={tailRole === "assistant"}
           />
           {showStop ? (
             <Button

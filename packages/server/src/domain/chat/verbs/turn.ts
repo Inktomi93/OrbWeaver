@@ -30,6 +30,7 @@ import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory";
 import type {
   AbortParams,
+  CommitMessageParams,
   ContinueTurnParams,
   ForceCharacterTurnParams,
   GenerateParams,
@@ -97,7 +98,17 @@ interface TurnDeps {
 /** The turn-running slice of `ChatService` this grouped file owns. */
 type TurnVerbs = Pick<
   ChatService,
-  "send" | "forceCharacterTurn" | "abort" | "swipe" | "continueTurn" | "impersonate" | "generate" | "undoContinue" | "revertContinue" | "drainDeferredTurns"
+  | "send"
+  | "commitMessage"
+  | "forceCharacterTurn"
+  | "abort"
+  | "swipe"
+  | "continueTurn"
+  | "impersonate"
+  | "generate"
+  | "undoContinue"
+  | "revertContinue"
+  | "drainDeferredTurns"
 >;
 
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
@@ -120,10 +131,13 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
   return trimmed.length > 0 ? `${text}\n\n${refs}` : refs;
 }
 
-/** Synthetic trailing-user nudges: the unsteered continue/impersonate baseline, riding `appendUserTurn`. A
- *  `guided` steer composes with these. Resolved from the turn's own resolved preset (`formatStrings`) so an
- *  editable/ST-imported nudge actually steers the turn; an absent field falls back to `DEFAULT_FORMAT_STRINGS`. */
-const nudgeOf = (assembleContext: AssembleContext, key: "continueNudge" | "impersonateNudge"): string =>
+/** Synthetic trailing-user nudges: the unsteered continue/impersonate/response baseline, riding
+ *  `appendUserTurn`. A `guided` steer composes with these. Resolved from the turn's own resolved preset
+ *  (`formatStrings`) so an editable/ST-imported nudge actually steers the turn; an absent field falls back to
+ *  `DEFAULT_FORMAT_STRINGS`. `responseNudge` rides a `generate` that fires on an ASSISTANT tail (the wand's
+ *  Response icon / empty-send-generate) — a reply after the model's own last line, which needs something to
+ *  respond to; a Response on a USER tail appends no nudge (the user message is the prompt). */
+const nudgeOf = (assembleContext: AssembleContext, key: "continueNudge" | "impersonateNudge" | "responseNudge"): string =>
   assembleContext.promptConfig.formatStrings?.[key] ?? DEFAULT_FORMAT_STRINGS[key];
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
@@ -1061,32 +1075,121 @@ function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageI
   }
 }
 
+/** The resolved COMMIT half shared by `send` and `commitMessage`: the trust-boundary-cleared, persisted user
+ *  row plus every round-input local the send's downstream (defer / round / auto-behavior) reads. Factored so
+ *  the persist + first-user-turn greeting freeze + rpg user-commit fire from ONE home (D56's "the commit half
+ *  has one home" — `send` and `commitMessage` cannot drift on the trust boundary or the freeze). */
+interface CommittedUserTurn {
+  readonly membership: Awaited<ReturnType<typeof requireParticipant>>;
+  readonly room: Room;
+  readonly identity: ReturnType<typeof resolveTurnIdentityVia>;
+  readonly connection: ResolvedConnection;
+  readonly group: GroupConfig;
+  readonly userView: MessageView;
+  readonly built: BuiltTurnContext;
+}
+
+/** Steps 1-6 of a user-message commit (the front half of `send`; the WHOLE of `commitMessage`): the
+ *  membership gate, the attachment + explicit-persona trust boundaries, the room/identity/connection resolve,
+ *  the one assemble ctx (`kind:"send"` — a commit runs a send's GATHER even when no round follows, so a
+ *  `commitMessage` first-user-turn freeze is byte-identical to `send`'s), the persist, the first-user-turn
+ *  greeting-volatile freeze, and the rpg user-commit. Returns the bundle the round path reads next. */
+async function commitUserTurn(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  args: {
+    readonly principal: SendParams["principal"];
+    readonly chatId: ChatId;
+    readonly content: string;
+    readonly personaId?: PersonaId | null | undefined;
+    readonly attachmentAssetIds?: readonly AssetId[] | undefined;
+    readonly guided?: GuidedSteer | undefined;
+  },
+): Promise<CommittedUserTurn> {
+  const { principal, chatId, content, personaId, guided } = args;
+  const membership = await requireParticipant(ctx, principal, chatId);
+  const attachments = args.attachmentAssetIds ?? [];
+  await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
+  // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
+  // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
+  // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
+  await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
+  const room = await loadRoom(ctx, chatId);
+  const identity = resolveTurnIdentityVia({
+    principalUserId: principal.userId,
+    hostUserId: room.hostUserId,
+  });
+  const connection = await deps.resolveConnection({
+    runAsUserId: identity.runAsUserId,
+    chatId,
+  });
+  const group = membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
+
+  // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
+  // canon (including the committed row) for the wire history.
+  const sendOut: SendRegexSink = {};
+  const built = await buildTurnContext(
+    ctx,
+    deps,
+    {
+      chatId,
+      runAsUserId: identity.runAsUserId,
+      model: connection.model,
+      kind: "send",
+      castCharacterIds: room.castCharacterIds,
+
+      mutedSpeakerKeys: room.mutedSpeakerKeys,
+      personaIds: room.personaIds,
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
+      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+      pendingUserText: content,
+      // A send's AI response directly responds to the just-committed user message (rpg-design/05 §6): the
+      // player's queued d20 feeds its first skill check. Always true for a send.
+      respondsToLatestUserTurn: true,
+      guided,
+    },
+    sendOut,
+  );
+
+  // A greeting's volatile macros freeze at the first user turn; detect it before this send commits (no
+  // role:"user" row exists yet), then bake the greetings after the row lands.
+  const priorCanon = await loadCanonHistory(ctx.db, chatId);
+  const isFirstUserTurn = !priorCanon.some((m) => m.role === "user");
+
+  const userView = await persistUserMessage(ctx, deps.emit, {
+    chatId,
+    content: composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments),
+    authorUserId: principal.userId,
+    // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
+    // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
+    personaId: personaId !== undefined ? personaId : membership.activePersonaId,
+    hostUserId: room.hostUserId,
+    attachmentAssetIds: attachments,
+  });
+
+  if (isFirstUserTurn) {
+    await freezeGreetingVolatiles(ctx, deps, { assembleContext: built.assembleContext, priorCanon, freezeRegistry: built.freezeMacroRegistry });
+  }
+
+  fireRpgUserCommit(ctx, chatId, userView.id);
+
+  return { membership, room, identity, connection, group, userView, built };
+}
+
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
  *  the round, then (if autoMode) chain AI→AI, then (PD-146) run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
-    const attachments = attachmentAssetIds ?? [];
-    await assertAttachmentsOwned(ctx, principal.userId, chatId, attachments);
-    // Same trust boundary as impersonate: an EXPLICIT personaId stamped onto the committed user row must be
-    // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
-    // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
-    await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-    const room = await loadRoom(ctx, chatId);
-    const identity = resolveTurnIdentityVia({
-      principalUserId: principal.userId,
-      hostUserId: room.hostUserId,
-    });
-    const connection = await deps.resolveConnection({
-      runAsUserId: identity.runAsUserId,
+    const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
+      principal,
       chatId,
+      content,
+      personaId,
+      attachmentAssetIds,
+      guided,
     });
-    const group = membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-
-    // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
-    // canon (including the committed row) for the wire history.
-    const sendOut: SendRegexSink = {};
     const {
       assembleContext,
       memoryConfig,
@@ -1095,54 +1198,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       attachedToolNames,
       respondsToLatestUserTurn,
       macroRegistry,
-      freezeMacroRegistry,
       userMacroDraws,
       cardKeepLastX,
-    } = await buildTurnContext(
-      ctx,
-      deps,
-      {
-        chatId,
-        runAsUserId: identity.runAsUserId,
-        model: connection.model,
-        kind: "send",
-        castCharacterIds: room.castCharacterIds,
-
-        mutedSpeakerKeys: room.mutedSpeakerKeys,
-        personaIds: room.personaIds,
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
-        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
-        pendingUserText: content,
-        // A send's AI response directly responds to the just-committed user message (rpg-design/05 §6): the
-        // player's queued d20 feeds its first skill check. Always true for a send.
-        respondsToLatestUserTurn: true,
-        guided,
-      },
-      sendOut,
-    );
-
-    // A greeting's volatile macros freeze at the first user turn; detect it before this send commits (no
-    // role:"user" row exists yet), then bake the greetings after the row lands.
-    const priorCanon = await loadCanonHistory(ctx.db, chatId);
-    const isFirstUserTurn = !priorCanon.some((m) => m.role === "user");
-
-    const userView = await persistUserMessage(ctx, deps.emit, {
-      chatId,
-      content: composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments),
-      authorUserId: principal.userId,
-      // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
-      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
-      personaId: personaId !== undefined ? personaId : membership.activePersonaId,
-      hostUserId: room.hostUserId,
-      attachmentAssetIds: attachments,
-    });
-
-    if (isFirstUserTurn) {
-      await freezeGreetingVolatiles(ctx, deps, { assembleContext, priorCanon, freezeRegistry: freezeMacroRegistry });
-    }
-
-    fireRpgUserCommit(ctx, chatId, userView.id);
+    } = built;
 
     // Host-offline → DEFER the AI response (Part III §5): the member's message is durable canon, but the owed
     // AI turn cannot run on the host's dark box, so it queues instead of running. The user row stands alone.
@@ -1198,6 +1256,25 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     } finally {
       handle.release();
     }
+  };
+}
+
+/** `commitMessage` — the "Simple Send" / post-without-generate lever (D56): commit the user row WITHOUT firing
+ *  the AI turn. It is `send`'s COMMIT half (the shared {@link commitUserTurn}: membership gate + trust
+ *  boundaries + persist + first-user-turn greeting freeze + rpg user-commit) and NOTHING more — no
+ *  arbitration, no round, no auto-behaviors, and (there being no owed turn) no host-offline defer. Returns the
+ *  committed user row through the §3.6 return projection (a member's own row carries no hidden/reasoning bytes,
+ *  but strip uniformly). A real user beat: the rpg user-commit locks in the prior assistant's snapshot. */
+function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["commitMessage"] {
+  return async ({ principal, chatId, content, personaId, attachmentAssetIds }: CommitMessageParams): Promise<TurnOutcome> => {
+    const { membership, userView } = await commitUserTurn(ctx, deps, {
+      principal,
+      chatId,
+      content,
+      personaId,
+      attachmentAssetIds,
+    });
+    return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
   };
 }
 
@@ -1598,7 +1675,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 /** `generate` — a lock-free auxiliary assistant generation: runs concurrent with a locked `send`. Commits a
  *  new assistant slot for the named speaker (or the primary character). */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
-  return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const {
       room,
@@ -1659,6 +1736,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: speaker,
       lockFree: true,
+      // A Response fired on an ASSISTANT tail (the wand icon on the model's own last line) rides the
+      // `responseNudge` trailing-user turn so the reply has something to respond to (rudderless otherwise).
+      // A guided steer composes with it (the `guided` injection + this appendUserTurn are independent
+      // channels, exactly like continue/impersonate). A USER-tail Response omits it — the user row is the prompt.
+      ...(afterAssistant === true ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge") } : {}),
       ...(shape !== undefined ? { shape } : {}),
     });
   };
@@ -2005,6 +2087,7 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   const continueTurn = createContinueTurn(ctx, deps);
   return {
     send: createSend(ctx, deps, { swipe, continueTurn }),
+    commitMessage: createCommitMessage(ctx, deps),
     forceCharacterTurn: createForceCharacterTurn(ctx, deps),
     abort: createAbort(ctx, deps),
     swipe,

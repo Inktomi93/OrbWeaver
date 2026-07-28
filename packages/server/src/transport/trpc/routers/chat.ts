@@ -130,6 +130,16 @@ const sendSchema = z.object({
   guided: guidedSteerSchema.optional(),
 });
 
+// `commitMessage` — the D56 "Simple Send" / post-without-generate lever: `sendSchema` MINUS intent/guided (no
+// generation ⇒ no gen-config, no steer). The verb runs `send`'s trust boundaries + persist; no AI round.
+const commitMessageSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  content: z.string(),
+  personaId: brandedId<PersonaId>().nullish(),
+  blocks: z.array(messageContentBlockSchema).optional(),
+  attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
+});
+
 const swipeSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
@@ -176,6 +186,9 @@ const generateSchema = z.object({
   speakerCharacterId: brandedId<CharacterId>().nullish(),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  // The wand Response icon sets this when the tail is an assistant turn — the `responseNudge` gate (a reply
+  // after the model's own line needs something to respond to; a user-tail Response omits it).
+  afterAssistant: z.boolean().optional(),
 });
 
 // The step-BACK verb (task #19 — swipe-strip's left chevron): `ChatService.selectVariant`
@@ -435,6 +448,7 @@ export const chatRouter = t.router({
     .input(listMessageVariantsSchema)
     .query(({ ctx, input }) => ctx.services.chat.listMessageVariants({ principal: ctx.auth, ...input })),
   send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
+  commitMessage: authedProcedure.input(commitMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.commitMessage({ principal: ctx.auth, ...input })),
   swipe: authedProcedure.input(swipeSchema).mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
   selectVariant: authedProcedure.input(selectVariantSchema).mutation(({ ctx, input }) => ctx.services.chat.selectVariant({ principal: ctx.auth, ...input })),
   // The three guided-generations verbs (see the schemas' header note above).

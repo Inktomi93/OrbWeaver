@@ -71,6 +71,13 @@ const ALLOWLIST: ReadonlyMap<string, string> = new Map([
       "shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES " +
       "reach each member through the clamped bus/read paths.",
   ],
+  [
+    "commitMessage:loadCanonHistory",
+    "the D56 post-without-generate verb shares `send`'s COMMIT half (`commitUserTurn`), so it reaches the " +
+      "SAME first-user-turn greeting-freeze probe. Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side " +
+      "greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user " +
+      "row, §3.6-projected). Byte-identical room-plane use to `send:loadCanonHistory` above.",
+  ],
 ]);
 
 const MESSAGE =

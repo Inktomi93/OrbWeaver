@@ -30,6 +30,10 @@ interface GuidedTurnVars {
   /** F5 — a steer + a chosen speaker in ONE `chat.generate` (a targeted nudge in a multi-character room);
    *  null/omitted ⇒ arbitration picks. The verb has always accepted both fields together. */
   readonly speakerCharacterId?: CharacterId | null | undefined;
+  /** The wand Response icon sets this when the tail is an ASSISTANT turn — the server appends the
+   *  `responseNudge` so a reply after the model's OWN last line has something to respond to (a user-tail
+   *  Response omits it: the user message is the prompt). */
+  readonly afterAssistant?: boolean | undefined;
 }
 
 interface GuidedSlotVars {
@@ -114,8 +118,11 @@ export interface UseGuidedActionsResult {
   readonly isPending: boolean;
   /** Null while unknown (a draft, an empty transcript, still loading, or the tail isn't assistant). */
   readonly tailAssistantMessageId: MessageId | null;
-  /** F5 — a chosen speaker rides the response steer in a multi-character room (null ⇒ arbitrate). */
-  readonly fireResponse: (input: string, speakerCharacterId?: CharacterId | null) => void;
+  /** The tail assistant slot has a continue snapshot (D26) — the utility menu's Undo/Revert phase-gate. */
+  readonly tailHasContinuation: boolean;
+  /** F5 — a chosen speaker rides the response steer in a multi-character room (null ⇒ arbitrate). The wand
+   *  passes `afterAssistant` when the tail is an assistant turn (the `responseNudge` gate). */
+  readonly fireResponse: (input: string, opts?: { speakerCharacterId?: CharacterId | null; afterAssistant?: boolean }) => void;
   /** P5 — fire a one-shot GAME steer by KIND (Plot submenu / "Offer choices"). Rides the same
    *  `chat.generate` fire path; NOT recorded in the recent-steers ring (there is no typed text to lose). */
   readonly fireGameSteer: (kind: GuidedGameSteerKind) => void;
@@ -163,6 +170,12 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     const tail = tailQuery.data?.messages.at(-1);
     return tail !== undefined && tail.role === "assistant" ? tail.id : null;
   }, [tailQuery.data]);
+  // The tail assistant slot's continue snapshot (D26 `hasContinuation`) — the utility menu's Undo/Revert
+  // phase-gate (nothing to undo until a continue has run on this reply's shown swipe).
+  const tailHasContinuation = useMemo<boolean>(() => {
+    const tail = tailQuery.data?.messages.at(-1);
+    return tail !== undefined && tail.role === "assistant" && tail.hasContinuation;
+  }, [tailQuery.data]);
 
   const [openingPending, setOpeningPending] = useState(false);
 
@@ -194,15 +207,25 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   return {
     isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonate.isPending || openingPending,
     tailAssistantMessageId,
-    fireResponse: (input, speakerCharacterId): void => {
+    tailHasContinuation,
+    fireResponse: (input, respOpts): void => {
       if (chatId === null) {
         return;
       }
       const guided = steerFor("response", input);
       // F5 — a chosen speaker rides the steer in one `chat.generate` (null/omitted ⇒ arbitration picks).
-      const speaker = speakerCharacterId ?? null;
-      const base: GuidedTurnVars = guided === undefined ? { chatId } : { chatId, guided };
-      generate.mutate(speaker === null ? base : { ...base, speakerCharacterId: speaker }, perFire(input));
+      const speaker = respOpts?.speakerCharacterId ?? null;
+      // The Response icon passes `afterAssistant` when the tail is an assistant turn — the server appends the
+      // `responseNudge` so a reply after the model's own line isn't rudderless (a user-tail Response omits it).
+      const nudgeAfterAssistant = respOpts?.afterAssistant === true;
+      let vars: GuidedTurnVars = guided === undefined ? { chatId } : { chatId, guided };
+      if (speaker !== null) {
+        vars = { ...vars, speakerCharacterId: speaker };
+      }
+      if (nudgeAfterAssistant) {
+        vars = { ...vars, afterAssistant: true };
+      }
+      generate.mutate(vars, perFire(input));
     },
     fireGameSteer: (kind): void => {
       if (chatId === null) {
