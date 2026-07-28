@@ -16,6 +16,8 @@ export interface SandboxFrameProps {
   /** While false, a skeleton renders instead of the frame — a half-rendered flash is worse than a code fence. */
   readonly complete?: boolean;
   readonly heightPx?: number;
+  /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
+  readonly fill?: boolean;
   readonly className?: string;
 }
 
@@ -25,8 +27,17 @@ export interface SandboxFrameProps {
  * CSP blocks any fetch/exfil. Interactivity is doored not walled — a trusted card later flips
  * `allow-scripts`, a one-attribute change here.
  */
-export function SandboxFrame({ html, css, themeTokens, title, complete = true, heightPx = DEFAULT_HEIGHT_PX, className }: SandboxFrameProps): ReactElement {
-  const style: CSSProperties = { height: `${heightPx}px` };
+export function SandboxFrame({
+  html,
+  css,
+  themeTokens,
+  title,
+  complete = true,
+  heightPx = DEFAULT_HEIGHT_PX,
+  fill = false,
+  className,
+}: SandboxFrameProps): ReactElement {
+  const style: CSSProperties | undefined = fill ? undefined : { height: `${heightPx}px` };
 
   if (!complete) {
     return (

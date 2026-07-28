@@ -88,10 +88,16 @@ test("an unknown-directive span projects to NO block (§3.2.1 allowlist-strip �
 
 test("a card span projects to an html-card block — tierB by DEFAULT (fail-closed sandbox), caller-resolved trust threads (§4.3)", () => {
   const span = { kind: "card", title: "Zandik's letter", body: "<div>x</div>", origin: "fence", raw: ":::card\n<div>x</div>\n:::" } as const;
-  expect(contentSpansToBlocks([span])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", title: "Zandik's letter" }]);
-  expect(contentSpansToBlocks([span], { cardTrust: "tierA" })).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierA", title: "Zandik's letter" }]);
+  expect(contentSpansToBlocks([span])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", origin: "fence", title: "Zandik's letter" }]);
+  expect(contentSpansToBlocks([span], { cardTrust: "tierA" })).toEqual([
+    { kind: "html-card", html: "<div>x</div>", trust: "tierA", origin: "fence", title: "Zandik's letter" },
+  ]);
   // A title-less card omits the optional field (exactOptionalPropertyTypes-honest).
-  expect(contentSpansToBlocks([{ ...span, title: null }])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB" }]);
+  expect(contentSpansToBlocks([{ ...span, title: null }])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", origin: "fence" }]);
+  // §4.8 provenance: a lenient-arm card block carries origin "lenient" for the view-raw/debug chrome.
+  expect(contentSpansToBlocks([{ ...span, origin: "lenient" }])).toEqual([
+    { kind: "html-card", html: "<div>x</div>", trust: "tierB", origin: "lenient", title: "Zandik's letter" },
+  ]);
 });
 
 test("a choices span projects to a choices block (buttons are the client arm; the options are the datum)", () => {

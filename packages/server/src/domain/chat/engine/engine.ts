@@ -1073,6 +1073,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       signal: prep.signal,
       tools: ctx.tools,
       attachedToolNames: prep.attachedToolNames ?? [],
+      // The M2 card wire knob (parity-plus §3.5) — a game turn's gather threads it; absent = every card stubs
+      // (the pipeline owns the 0 default).
+      cardKeepLastX: prep.cardKeepLastX,
       toolRecurseLimit: prep.toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT,
       toolExecFrame: {
         runAsUserId: prep.runAsUserId,

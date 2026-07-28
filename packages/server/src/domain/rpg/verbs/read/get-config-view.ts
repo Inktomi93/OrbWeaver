@@ -22,6 +22,9 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       hiddenContentReveal: game.config.features.hiddenContentReveal,
       recentBeatsKeepLast: game.config.features.recentBeatsKeepLast,
       pinnedOrbs: game.config.features.pinnedOrbs,
+      immersiveHtml: game.config.features.immersiveHtml,
+      immersiveHtmlInteractive: game.config.features.immersiveHtmlInteractive,
+      cardKeepLastX: game.config.features.cardKeepLastX,
     };
   }
   return { getConfigView };

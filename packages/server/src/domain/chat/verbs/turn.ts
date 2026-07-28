@@ -266,6 +266,9 @@ interface BuiltTurnContext {
   /** The turn's effective user-macro draw record (frozen ∪ fresh) — persisted onto every committed variant.
    *  `null` ⇒ the turn drew nothing. */
   readonly userMacroDraws: UserMacroDraws | null;
+  /** The M2 card wire knob a game turn's GATHER contributed (parity-plus §3.5) — threaded onto `TurnPrep` →
+   *  `runTurnPipeline.cardKeepLastX`. 0 for a non-game turn (byte-identical: every card stubs, the default). */
+  readonly cardKeepLastX: number;
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -462,6 +465,7 @@ async function buildTurnContext(
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     attachedToolNames: rpg?.tools ?? [],
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
+    cardKeepLastX: rpg?.cardKeepLastX ?? 0,
     ...userMacroFields(userMacros),
   };
 }
@@ -1093,6 +1097,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       macroRegistry,
       freezeMacroRegistry,
       userMacroDraws,
+      cardKeepLastX,
     } = await buildTurnContext(
       ctx,
       deps,
@@ -1168,6 +1173,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       // WAVE MU: the per-turn user-macro registry + the fresh draw record — shared across the round's speakers
@@ -1215,7 +1221,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await buildTurnContext(ctx, deps, {
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, cardKeepLastX } = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
       model: connection.model,
@@ -1241,6 +1247,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
     };
@@ -1295,6 +1302,8 @@ interface TurnBase {
   /** A game turn's gather-contributed tool names (rpg-design/05 §1) — threaded onto each auxiliary prep's
    *  `attachedToolNames`. Empty for a non-game turn / until the rpg registry lands (byte-identical). */
   readonly attachedToolNames: readonly string[];
+  /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. 0 for a non-game turn. */
+  readonly cardKeepLastX: number;
   /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
    *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
   readonly respondsToLatestUserTurn: boolean;
@@ -1347,6 +1356,7 @@ async function resolveTurnBase(
     macroRegistry,
     freezeMacroRegistry,
     userMacroDraws,
+    cardKeepLastX,
   } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
@@ -1375,6 +1385,7 @@ async function resolveTurnBase(
     macroRegistry,
     freezeMacroRegistry,
     userMacroDraws,
+    cardKeepLastX,
   };
 }
 
@@ -1428,18 +1439,29 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
     const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
-      await resolveTurnBase(ctx, deps, {
-        principal,
-        chatId,
-        kind: "swipe",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        respondsToLatestUserTurn,
-        guided,
-        // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
-        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
-      });
+    const {
+      room,
+      identity,
+      connection,
+      assembleContext,
+      memoryConfig,
+      memoryRecall,
+      chatBehavior,
+      attachedToolNames,
+      macroRegistry,
+      userMacroDraws,
+      cardKeepLastX,
+    } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "swipe",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      respondsToLatestUserTurn,
+      guided,
+      // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
+      ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+    });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
@@ -1453,6 +1475,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       ...prepMacroFields(macroRegistry, userMacroDraws),
@@ -1475,17 +1498,28 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
-      await resolveTurnBase(ctx, deps, {
-        principal,
-        chatId,
-        kind: "continue",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        guided,
-        // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
-        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
-      });
+    const {
+      room,
+      identity,
+      connection,
+      assembleContext,
+      memoryConfig,
+      memoryRecall,
+      chatBehavior,
+      attachedToolNames,
+      macroRegistry,
+      userMacroDraws,
+      cardKeepLastX,
+    } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "continue",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      guided,
+      // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
+      ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+    });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(ctx, deps, membership, {
       chatId,
@@ -1499,6 +1533,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
@@ -1522,7 +1557,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
     // persona (server-derived, trusted — no check). A non-owned id is refused notPersonaOwner (same code the
     // re-stamp path returns).
     await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
+    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws, cardKeepLastX } =
       await resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -1544,6 +1579,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: null,
@@ -1564,15 +1600,26 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
-      await resolveTurnBase(ctx, deps, {
-        principal,
-        chatId,
-        kind: "generate",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        triggerPersonaId: membership.activePersonaId,
-        guided,
-      });
+    const {
+      room,
+      identity,
+      connection,
+      assembleContext,
+      memoryConfig,
+      memoryRecall,
+      chatBehavior,
+      attachedToolNames,
+      macroRegistry,
+      userMacroDraws,
+      cardKeepLastX,
+    } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "generate",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      triggerPersonaId: membership.activePersonaId,
+      guided,
+    });
     // An EXPLICIT speaker must be a PRESENT cast member of THIS chat — never trust the branded id from the
     // wire to name any character (a bare `speakerShapeFor` silently returns an undefined shape for an unknown
     // id, so an unvalidated foreign CharacterId would commit an assistant canon row attributed to it and leak
@@ -1607,6 +1654,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: speaker,
@@ -1698,22 +1746,26 @@ async function runDeferredRound(
     chatId: row.chatId,
   });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
-    chatId: row.chatId,
-    runAsUserId: row.runAsUserId,
-    model: connection.model,
-    kind: "send",
-    castCharacterIds: room.castCharacterIds,
+  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn, cardKeepLastX } = await buildTurnContext(
+    ctx,
+    deps,
+    {
+      chatId: row.chatId,
+      runAsUserId: row.runAsUserId,
+      model: connection.model,
+      kind: "send",
+      castCharacterIds: room.castCharacterIds,
 
-    mutedSpeakerKeys: room.mutedSpeakerKeys,
-    personaIds: room.personaIds,
-    anchorPersonaId: chat.anchorPersonaId,
-    // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
-    triggerPersonaId: null,
-    // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
-    // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
-    respondsToLatestUserTurn: true,
-  });
+      mutedSpeakerKeys: room.mutedSpeakerKeys,
+      personaIds: room.personaIds,
+      anchorPersonaId: chat.anchorPersonaId,
+      // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
+      triggerPersonaId: null,
+      // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
+      // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
+      respondsToLatestUserTurn: true,
+    },
+  );
   const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const base: RoundBase = {
     chatId: row.chatId,
@@ -1727,6 +1779,7 @@ async function runDeferredRound(
     memoryConfig,
     ...(memoryRecall !== null ? { memoryRecall } : {}),
     attachedToolNames,
+    cardKeepLastX,
     ...recursePatch(chat.metadata.toolRecurseLimit),
     respondsToLatestUserTurn,
     signal: handle.signal,
@@ -1887,20 +1940,24 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
     const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
     const group = speakerCharacterId !== undefined ? asPerSpeaker(baseGroup) : baseGroup;
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
-      chatId,
-      runAsUserId: identity.runAsUserId,
-      model: connection.model,
-      kind: "auto",
-      castCharacterIds: room.castCharacterIds,
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn, cardKeepLastX } = await buildTurnContext(
+      ctx,
+      deps,
+      {
+        chatId,
+        runAsUserId: identity.runAsUserId,
+        model: connection.model,
+        kind: "auto",
+        castCharacterIds: room.castCharacterIds,
 
-      mutedSpeakerKeys: room.mutedSpeakerKeys,
-      personaIds: room.personaIds,
-      anchorPersonaId: chat.anchorPersonaId,
-      // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
-      triggerPersonaId: null,
-      ...(guided !== undefined ? { guided } : {}),
-    });
+        mutedSpeakerKeys: room.mutedSpeakerKeys,
+        personaIds: room.personaIds,
+        anchorPersonaId: chat.anchorPersonaId,
+        // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
+        triggerPersonaId: null,
+        ...(guided !== undefined ? { guided } : {}),
+      },
+    );
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
@@ -1918,6 +1975,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      cardKeepLastX,
       ...recursePatch(chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
       signal: handle.signal,

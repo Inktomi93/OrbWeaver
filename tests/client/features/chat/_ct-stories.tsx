@@ -364,7 +364,7 @@ export function MessageContentSpansStory({
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
-  return <MessageContent content={content} render={{ trust, allowExternal }} renderContext={renderContext} />;
+  return <MessageContent content={content} render={{ trust, allowExternal, lenientCards: false }} renderContext={renderContext} />;
 }
 
 function GhostRowInner(): ReactElement {

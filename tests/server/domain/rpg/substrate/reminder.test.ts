@@ -3,16 +3,36 @@
 // license, and `steeringNote` LAST. The char turn is tool-less (owner ruling 2026-07-27) — the reminder carries
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
-import type { RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
 import {
   buildLiteReminder,
+  RPG_CARD_TEACH,
+  RPG_CARD_TEACH_STATIC,
   RPG_DECEPTION_TEACH,
   RPG_OFILTER_TEACH,
   RPG_STEERING_LICENSE,
 } from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
 import { expect, test } from "../../../../support/fixtures";
+
+/** The feature-knob slice, defaulted ALL-TEACH-OFF so the pre-feature byte-exact assertions stay stable; the
+ *  teach-composition tests below flip the relevant knobs explicitly. */
+function features(over: Partial<RpgGameFeatures> = {}): RpgGameFeatures {
+  return {
+    castFields: [],
+    relationshipHints: {},
+    deception: false,
+    omniscience: false,
+    hiddenContentReveal: true,
+    recentBeatsKeepLast: 8,
+    pinnedOrbs: [],
+    immersiveHtml: false,
+    immersiveHtmlInteractive: true,
+    cardKeepLastX: 0,
+    ...over,
+  };
+}
 
 /** A minimal empty tracker view (a fresh game — no state to report). */
 function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
@@ -55,7 +75,7 @@ function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
     steeringNote: "",
     curSnapshot: emptyState(),
     prevSnapshot: emptyState(),
-    relationshipHints: {},
+    features: features(),
     rosterNames: {},
     deception: false,
     omniscience: false,
@@ -141,7 +161,7 @@ test("the cast line renders relationship + cast-fields kind-aware (features 1 + 
       { key: "trust", label: "trust", kind: "text" },
     ],
   });
-  const out = buildLiteReminder(input({ view, relationshipHints: { vassal: "sworn to serve but resentful" } }));
+  const out = buildLiteReminder(input({ view, features: features({ relationshipHints: { vassal: "sworn to serve but resentful" } }) }));
   expect(out).toContain("Mari");
   expect(out).toContain("wary");
   expect(out).toContain("vassal (sworn to serve but resentful)"); // M1 hint gloss
@@ -242,4 +262,29 @@ test("the teaching tags are TOKENIZER-VALID self-closing spans the HIDDEN_TAGS r
   const emitted = '<lie character="Mari" type="motive" truth="she wants the gold" reason="greed" />';
   const spans = tokenizeContent(emitted);
   expect(spans.some((s) => s.kind === "hidden" && s.tag === "lie")).toBe(true);
+});
+
+// ── P4 — the card TEACHING block (parity-plus §3.3/§7.5 + M3) ────────────────────────────────────────────
+
+test("immersiveHtml ON composes the card teach AFTER state, BEFORE the license (§3.3 order)", () => {
+  const view = emptyView({ ambient: { location: "The Docks", calendarDate: null, clock: null, weather: null } });
+  const out = buildLiteReminder(input({ view, features: features({ immersiveHtml: true }) }));
+  expect(out).toContain(RPG_CARD_TEACH);
+  expect(out.indexOf("# Game state")).toBeLessThan(out.indexOf(RPG_CARD_TEACH));
+  expect(out.indexOf(RPG_CARD_TEACH)).toBeLessThan(out.indexOf(RPG_STEERING_LICENSE));
+});
+
+test("immersiveHtml OFF emits NO card teach (applicability — absent, not a stub)", () => {
+  const out = buildLiteReminder(input({ features: features({ immersiveHtml: false }) }));
+  expect(out).not.toContain(":::card");
+  expect(out).toBe(RPG_STEERING_LICENSE);
+});
+
+test("M3 interactive OFF swaps the ASK to the static variant (the render is untouched by design)", () => {
+  const out = buildLiteReminder(input({ features: features({ immersiveHtml: true, immersiveHtmlInteractive: false }) }));
+  expect(out).toContain(RPG_CARD_TEACH_STATIC);
+  expect(out).not.toContain(RPG_CARD_TEACH);
+  // The static ask never invites scripts/interactivity.
+  expect(RPG_CARD_TEACH_STATIC).not.toContain("interactive");
+  expect(RPG_CARD_TEACH_STATIC).not.toContain("JS");
 });

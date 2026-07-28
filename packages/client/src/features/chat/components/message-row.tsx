@@ -62,6 +62,9 @@ export interface MessageRowProps {
   /** The viewing principal's user id (render-trust "own input" comparand). Absent/null ⇒ everything
    *  stays untrusted (fail-closed). */
   readonly viewerUserId?: UserId | null | undefined;
+  /** The chat-level §4.8 lenient naked-HTML card-wrap verdict (game chat + `features.immersiveHtml`) —
+   *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
+  readonly lenientHtmlCards?: boolean | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   /** Present ⇒ this row is a pre-commit draft greeting: Edit/Swipe route to the greeting card, and
    *  Fork/Delete/Hide are suppressed (no server row). Body/attribution render identically to committed. */
@@ -128,6 +131,7 @@ export function MessageRow({
   activePersonaId,
   anchorPersonaId,
   viewerUserId,
+  lenientHtmlCards,
   onChatForked,
   greeting,
   autoFixMarkdown,
@@ -160,6 +164,7 @@ export function MessageRow({
     characterId: message.characterId,
     viewerUserId: viewerUserId ?? null,
     participants,
+    lenientHtmlCards,
   });
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.

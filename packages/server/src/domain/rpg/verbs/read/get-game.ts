@@ -17,7 +17,7 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       status: game.status,
       trackersReadOnly,
       extractionMode: game.config.extractionMode,
-      publicConfig: { statProfile: game.config.statProfile },
+      publicConfig: { statProfile: game.config.statProfile, immersiveHtml: game.config.features.immersiveHtml },
     };
   }
   return { getGame };

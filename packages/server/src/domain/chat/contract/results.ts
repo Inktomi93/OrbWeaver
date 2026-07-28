@@ -242,6 +242,9 @@ export interface TurnPrep {
   /** The union of gather-contributed tool names. Absent/empty means no tools ride, and the loop degenerates
    *  to one runChatTurn call. */
   readonly attachedToolNames?: readonly string[] | undefined;
+  /** The M2 card wire knob a game turn's gather contributed (parity-plus §3.5) — threaded to
+   *  `runTurnPipeline.cardKeepLastX`. Absent/0 ⇒ every history card collapses to its stub (the default). */
+  readonly cardKeepLastX?: number | undefined;
   /** rpg-design/05 §6 slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
    *  responds to the latest user message? The engine marks the turn dice-eligible (`ctx.rpg.markDicePreRollEligible`)
    *  after minting `turnId` when true, so the player's queued d20 feeds the FIRST skill check of a send /

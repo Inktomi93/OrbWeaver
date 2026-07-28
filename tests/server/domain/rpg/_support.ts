@@ -59,6 +59,9 @@ export function liteConfig(): RpgGameConfig {
       hiddenContentReveal: true,
       recentBeatsKeepLast: RPG_RECENT_BEATS_KEEP_DEFAULT,
       pinnedOrbs: [],
+      immersiveHtml: true,
+      immersiveHtmlInteractive: true,
+      cardKeepLastX: 0,
     },
     userMacros: [],
   };

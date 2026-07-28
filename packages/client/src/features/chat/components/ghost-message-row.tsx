@@ -3,13 +3,16 @@
 // exfil-shaped markup that a paced reveal would fetch before commit-time sanitization runs) — always
 // rendered `untrusted` regardless of the settled row's per-message trust resolution.
 
+import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
+import { Skeleton } from "@orb/ui/skeleton";
 import { TypingDots, useSmoothText } from "@orb/ui/stream";
+import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
@@ -36,6 +39,22 @@ function ghostFallbackTile(attribution: RowAttribution | undefined): {
   return { hueSeed: attribution.hueSeed, initial: initialsFor(attribution.name) };
 }
 
+// The §4.5 FORMING-CARD placeholder (parity-plus P4, ghost arm only): once a `:::card` OPEN line completes
+// in the ghost text, the accumulating raw HTML is suppressed behind a pretty building-state chip (skeleton
+// shimmer + the title); the real card mounts only at commit (chip → card, one hard cut — NO iframe, NO
+// partial HTML ever renders mid-stream). An aborted stream drops with the ghost row (no false card).
+function FormingCardChip({ title }: { readonly title: string | null }): ReactElement {
+  return (
+    <Stack gap="row" data-slot="forming-card-chip" className="rounded-card border border-border bg-card p-block" aria-busy={true}>
+      <Text size="label" tone="muted">
+        ✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…
+      </Text>
+      <Skeleton className="h-control-md w-full" />
+      <Skeleton variant="text" className="h-control-sm" />
+    </Stack>
+  );
+}
+
 // The bubble's streamed body: typing dots before the first token, else the paced Markdown. Extracted to
 // module scope so `GhostMessageRow` stays under the cognitive-complexity ceiling. The streaming caret is
 // Streamdown's own `caret: "block"` (`mode="streaming"`) `::after` at the true text insertion point;
@@ -45,11 +64,26 @@ function GhostBubbleBody({ held, streaming }: { readonly held: string; readonly 
   if (held.length === 0) {
     return <TypingDots label="Generating a reply…" />;
   }
+  // §4.5: split the accumulating text on completed `:::card` opens — text streams as markdown, a forming
+  // card shows the chip (its body bytes accumulate invisibly behind it). The common no-card path is one
+  // text segment (byte-identical to the pre-P4 render).
+  const segments = scanGhostContent(held);
   return (
     <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
-      <Markdown trust="untrusted" mode={streaming ? "streaming" : "static"}>
-        {held}
-      </Markdown>
+      <Stack gap="row">
+        {segments.map((segment, index) =>
+          segment.kind === "forming-card" ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: segments are positional within one accumulating stream render — no ids exist mid-stream, and the list only ever appends (the recentBeats positional precedent).
+            <FormingCardChip key={index} title={segment.title} />
+          ) : (
+            // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
+            // biome-ignore lint/suspicious/noArrayIndexKey: see above — positional, append-only mid-stream.
+            <Markdown key={index} trust="untrusted" mode={streaming && index === segments.length - 1 ? "streaming" : "static"}>
+              {segment.text}
+            </Markdown>
+          ),
+        )}
+      </Stack>
     </div>
   );
 }

@@ -27,8 +27,10 @@ export interface RpgGameView {
    *  beat by construction (extraction runs AFTER the character turn commits — §4.9 amendment); `cheap` ⇒
    *  the tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
   readonly extractionMode: RpgGameConfig["extractionMode"];
-  /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note. */
-  readonly publicConfig: { readonly statProfile: RpgGameConfig["statProfile"] };
+  /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
+   *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
+   *  the card-archive section per game (member-safe — a play-style option, never a secret). */
+  readonly publicConfig: { readonly statProfile: RpgGameConfig["statProfile"]; readonly immersiveHtml: boolean };
 }
 
 /** An actor row in the tracker view — roster ∪ sheets projection (§4.3). A participant without a sheet row
@@ -129,6 +131,10 @@ export interface RpgConfigView {
   readonly recentBeatsKeepLast: number;
   /** ORB-PINNING (§4.8) — the pool names the host pinned as band orbs beyond the auto-first-3. */
   readonly pinnedOrbs: RpgGameConfig["features"]["pinnedOrbs"];
+  /** The P4 card knobs (parity-plus §9 #7 + M2/M3) — teaching gate, interactivity ASK, keep-last-X wire. */
+  readonly immersiveHtml: boolean;
+  readonly immersiveHtmlInteractive: boolean;
+  readonly cardKeepLastX: number;
 }
 
 /** ONE parsed hidden span from a stored assistant body (parity-plus §3.6 host-reveal). `tag` is the

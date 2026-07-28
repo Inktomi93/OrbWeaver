@@ -14,11 +14,19 @@ import type { ContentSpansToBlocksOptions, MessageContentBlock } from "@orb/cont
 import { contentSpansToBlocks } from "@orb/contracts/chat";
 import { tokenizeContent } from "@orb/kit/content";
 
+/** `toContentBlocks` options — the contracts projection options plus the tokenizer's §4.8 lenient switch. */
+export interface ToContentBlocksOptions extends ContentSpansToBlocksOptions {
+  /** Enable the §4.8 LENIENT-HTML arm (naked block HTML / an html-tagged code fence wraps into an implicit card).
+   *  ON only for a GAME chat with `features.immersiveHtml` (the render policy resolves it); everywhere else
+   *  the tokenizer keeps today's literal-text behavior — a coding chat's HTML stays a code block. */
+  readonly lenientHtml?: boolean | undefined;
+}
+
 /** Project a stored/authored message body into the typed render-block sequence (§12.4). Pure. This is the
  *  READING-SURFACE plane of the parity-plus §3 visibility registry: hidden-class tags and unknown
  *  command-shaped directives project to NO block (the client defense-in-depth arm — the server member-strip
  *  is the trust boundary); `:::card`/`:::choices` fences project to their render blocks. `options.cardTrust`
  *  is the row's resolved render trust (§4.3 — the caller maps `render-trust`'s verdict; default tierB). */
-export function toContentBlocks(content: string, options?: ContentSpansToBlocksOptions): readonly MessageContentBlock[] {
-  return contentSpansToBlocks(tokenizeContent(content), options);
+export function toContentBlocks(content: string, options?: ToContentBlocksOptions): readonly MessageContentBlock[] {
+  return contentSpansToBlocks(tokenizeContent(content, { lenientHtml: options?.lenientHtml }), options);
 }

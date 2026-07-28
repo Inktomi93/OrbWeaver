@@ -34,6 +34,8 @@ const ALLOWLIST: Record<string, string> = {
     "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
   "packages/client/src/features/rpg/components/journal/readable-overlay.tsx":
     "a read-only READING viewer (the C11 §12.2 parchment overlay for a journal item/note) — a content-display species like character-gallery-dialog, not a form/prompt; owns its Dialog root, no bound fields, a single Close.",
+  "packages/client/src/features/rpg/components/rpg-scene-cards.tsx":
+    "the P4 card-archive VIEWER (parity-plus §4.7): opens an archived ImmersiveCard in a lightbox-style dialog — the readable-overlay content-display species, not a form/prompt; no bound fields.",
 };
 
 function rel(path: string): string {

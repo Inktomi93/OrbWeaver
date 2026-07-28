@@ -122,6 +122,13 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
   const viewerUserId = resolveViewerUserId(chatDetail.participants);
+  // The §4.8 lenient-wrap verdict (parity-plus P4): a GAME chat with `features.immersiveHtml` on wraps
+  // naked/```html model HTML into implicit cards. Cross-domain read rides `trpc.rpg.getGame` DIRECTLY
+  // (lockdown §12 — the rpg panel shares this exact cache key), non-suspending: until it settles the
+  // wrap stays off (literal text, today's behavior — never a blocking read for a non-game render path).
+  const isGame = chatDetail.rpg !== null;
+  const gameQuery = useQuery({ ...trpc.rpg.getGame.queryOptions({ chatId }), enabled: isGame });
+  const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();
   const behaviorPrefs = useChatBehaviorPrefs();
   const phase = useTurnPhase(chatId);
@@ -231,6 +238,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         activePersonaId={activePersonaId}
         anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}
+        lenientHtmlCards={lenientHtmlCards}
         onChatForked={onChatForked}
         enterMotion={newArrivalKeys.has(item.view.id)}
         surfaceContributors={surfaceContributors}
