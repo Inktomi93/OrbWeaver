@@ -463,6 +463,16 @@
   gap: var(--spacing-row);
   min-width: 0;
 }
+/* The lead OWNS the fluid remainder and is the row's shrinker: it grows to claim the width the trail
+ * doesn't need, and its title truncates only when genuinely out of room. The trail is intrinsic-width and
+ * never shrinks (flex: none) so its icon cluster keeps full tap targets on a narrow (mobile) row instead
+ * of crowding while the title collapses to two chars. */
+.shell-topbar-lead {
+  flex: 1 1 auto;
+}
+.shell-topbar-trail {
+  flex: none;
+}
 /* The one seam in the trail: separates the bordered ⌘K chip (group 1) from the ghost toggle cluster
  * (group 2) so the topbar reads as exactly two groups (P1/N1). */
 .shell-topbar-divider {

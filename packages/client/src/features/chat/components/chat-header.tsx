@@ -80,7 +80,7 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
   return (
     <>
       {avatars}
-      <Text size="title" weight="semibold" className="truncate">
+      <Text size="title" weight="semibold" className="min-w-0 truncate">
         {title}
       </Text>
     </>
