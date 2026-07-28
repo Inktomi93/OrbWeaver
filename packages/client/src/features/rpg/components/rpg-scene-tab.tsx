@@ -11,13 +11,15 @@
 
 import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot } from "../hooks/use-rpg-mutations";
 import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
 import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
@@ -88,10 +90,11 @@ const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "we
 };
 
 /** The Scene tab's edit callbacks, gated once on `canEditShared` (host on a game — hand edits are NOT
- *  gated by `trackersReadOnly`, D108). Splitting them out keeps the tab body under the complexity gate. */
+ *  gated by `trackersReadOnly`, D108). Splitting them out keeps the tab body under the complexity gate.
+ *  NOTE (#39 dual-homing): goals are NOT edited here — the Quests tab is the quest plane's ONE edit home;
+ *  a Scene goal row NAVIGATES there (`revealContextPanel("rpg.quests")`), never a second editor. */
 interface SceneEditCallbacks {
   readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
-  readonly onEditGoal?: (questId: RpgSceneQuest["id"], next: string) => void;
   readonly castEdit?: SceneCastEdit;
   readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
   /** Release a hand-lock path back to the model (§12.3). Present only for a host (same gate as the edits). */
@@ -103,7 +106,6 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
-  const upsertQuest = useUpsertQuest({ trpc, invalidation });
   if (!canEditShared) {
     return {};
   }
@@ -114,7 +116,6 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
       }
     },
-    onEditGoal: (questId, next): void => upsertQuest.mutate({ chatId, questId, name: next }),
     castEdit: { onEditCast: (patch): void => editSnapshot.mutate({ chatId, patch }) },
     // Widget VALUES ride editSnapshot's `widgetValues` record (keyed by widget label — the value plane's key).
     onEditWidget: (label, current, next): void =>
@@ -160,7 +161,7 @@ function ambientStripProps(
 /** The lite Scene tab — ambient, cast, goals, the live choice echo, widgets, beats. */
 export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   const { tracker } = state;
-  const { onEditAmbient, onEditGoal, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
+  const { onEditAmbient, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
 
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
   const groups = widgetsBySubject(tracker.widgets);
@@ -177,8 +178,8 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
         lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)}
       />
       {/* The Goals section is a filtered ECHO of the quest plane (§12.1.8): ACTIVE only, compact rows —
-          the Quests tab is the plane's home. One datum, two lenses, zero divergent state. */}
-      <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} {...(onEditGoal === undefined ? {} : { onEditGoal })} />
+          the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
+      <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />
       <RpgChoiceEcho state={state} />
       <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} lockPin={sectionLockPin(locked, "widgetValues", onReleaseLock)} />
       <SceneBeats beats={beats} />
@@ -322,15 +323,10 @@ function SceneCast({
   );
 }
 
-type RpgSceneQuest = RpgTrackerView["quests"][number];
-
-function SceneGoals({
-  quests,
-  onEditGoal,
-}: {
-  readonly quests: RpgTrackerView["quests"];
-  readonly onEditGoal?: (questId: RpgSceneQuest["id"], next: string) => void;
-}): ReactElement | null {
+/** The Goals echo (#39 dual-homing): read-only rows that NAVIGATE to the quest plane's ONE edit home
+ *  (the Quests tab) on click — never a second editor, never a dead echo. The row is a real button
+ *  (keyboard-reachable, named "Open <quest> in Quests"); the GoalLine text stays the visible datum. */
+function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): ReactElement | null {
   if (quests.length === 0) {
     return null;
   }
@@ -341,13 +337,18 @@ function SceneGoals({
         const total = quest.objectives.length;
         const filled = quest.objectives.filter((o) => o.completed).length;
         return (
-          <GoalLine
+          <Button
             key={quest.id}
-            text={quest.name}
-            done={quest.status === "completed"}
-            {...(total > 0 ? { clock: { filled, total } } : {})}
-            {...(onEditGoal === undefined ? {} : { onEditText: (next: string): void => onEditGoal(quest.id, next) })}
-          />
+            type="button"
+            intent="ghost"
+            size="sm"
+            aria-label={`Open ${quest.name} in Quests`}
+            title="Open in Quests"
+            onClick={(): void => revealContextPanel("rpg.quests")}
+            className="!h-auto min-h-0 w-full justify-start border border-transparent !px-field !py-0 text-left font-normal"
+          >
+            <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
+          </Button>
         );
       })}
     </Stack>
