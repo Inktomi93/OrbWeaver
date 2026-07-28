@@ -574,28 +574,392 @@ interface TrackerPool {
   readonly max: number;
 }
 
-/** One actor row in the tracker view — the roster ∪ sheets projection (subset of `RpgActorView`). `volatile`
- *  is null until a snapshot carries this actor's state; `pools`/`conditions` are the Status-tab data. */
-interface TrackerActor {
+/** One wallet slot (named-amount array — the STORED wallet, §2.6). */
+interface TrackerWallet {
   readonly name: string;
+  readonly amount: number;
+}
+
+/** One inventory item (subset — the fields the exhaustive spec reads back). */
+interface TrackerItem {
+  readonly name: string;
+  readonly quantity: number;
+}
+
+/** One actor row in the tracker view — the roster ∪ sheets projection (subset of `RpgActorView`). `volatile`
+ *  is null until a snapshot carries this actor's state. `sheet` carries the HAND-plane identity fields
+ *  (className/attributes/maxHp/`level` — level is the hand-only plane, §2.6). The volatile plane carries every
+ *  MODEL/HAND-writable state plane (hp/pools/conditions/wallet/inventory/status) — the exhaustive spec asserts
+ *  each one against the DOM + the DB read. The `actorRef` is the write key `patchSheet`/`editSnapshot` target. */
+export interface TrackerActor {
+  readonly actorRef: { readonly kind: string; readonly characterId?: string; readonly userId?: string; readonly castKey?: string };
+  readonly name: string;
+  readonly sheet: {
+    readonly className: string;
+    readonly attributes: Readonly<Record<string, number>>;
+    readonly poolDefs: readonly { readonly name: string; readonly max: number }[];
+    readonly maxHp: number | null;
+    readonly level: number | null;
+  };
   readonly volatile: {
+    readonly hp: { readonly value: number; readonly max: number } | null;
     readonly pools: readonly TrackerPool[];
     readonly conditions: readonly { readonly name: string }[];
+    readonly wallet: readonly TrackerWallet[];
+    readonly inventory: readonly TrackerItem[];
+    readonly status: string;
   } | null;
 }
 
-/** The persisted-snapshot projection `rpg.getTrackerView` returns (subset — the fields this spec asserts on).
- *  This IS the flush/snapshot RESULT: `ambient`/`actors`/`recentBeats` reflect the current snapshot the model's
- *  extraction/tool write produced. Every plane reads the same resolved-current snapshot (swipe-consistent). */
+/** A present-cast NPC row (the Scene tab's `Present:` band — §2.1). `relationship` is the enum/custom badge,
+ *  `customFields` the host-defined cast-field values joined against `castFields`. */
+interface TrackerCast {
+  readonly name: string;
+  readonly emoji: string;
+  readonly mood: string;
+  readonly relationship: { readonly kind: string; readonly label: string };
+  readonly customFields: Readonly<Record<string, string>>;
+}
+
+/** A host-defined cast-field SCHEMA (§2.8) — the meter/text axis the Scene tab renders each cast row against. */
+export interface TrackerCastField {
+  readonly key: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly max?: number;
+  readonly hint?: string;
+}
+
+/** A widget view — the def + its swipe-volatile value (§4.8). */
+interface TrackerWidget {
+  readonly def: { readonly type: string; readonly label: string };
+  readonly value: { readonly value?: number; readonly max?: number; readonly items?: readonly string[] } | null;
+}
+
+/** A quest view — the goal line + its `n/m` objective completion (§2.5, swipe-consistent). */
+interface TrackerQuest {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly description: string;
+  readonly objectives: readonly { readonly id: string; readonly text: string; readonly completed: boolean }[];
+}
+
+/** One act of the P5 plot spine (act-rail label). */
+interface TrackerPlotAct {
+  readonly title: string;
+  readonly summary: string;
+}
+
+/** The snapshot-resident P5 plot plane (`rpg.getTrackerView.plot`) — the act rail. `act` is 1-based into
+ *  `acts`; null when no plot is authored (the rail renders nothing). Swipe-consistent like every plane. */
+interface TrackerPlot {
+  readonly act: number;
+  readonly title: string;
+  readonly acts: readonly TrackerPlotAct[];
+}
+
+/** The FULL persisted-snapshot projection `rpg.getTrackerView` returns (the exhaustive spec reads every plane
+ *  here). This IS the flush/snapshot RESULT and the persisted-snapshot DB read at once (`getTrackerView` reads
+ *  the `rpg_snapshots` rows live — there is no separate rpg-table debug dump, so this projection is the DB
+ *  witness for every rpg plane). Every plane reads the same resolved-current snapshot (swipe-consistent — a
+ *  swipe re-resolves the WHOLE view on the selected lineage, server writes nothing). */
 export interface TrackerView {
-  readonly ambient: { readonly location: string; readonly weather: { readonly type: string } | null } | null;
+  readonly ambient: {
+    readonly location: string;
+    readonly calendarDate: string | null;
+    readonly clock: { readonly day: number; readonly hour: number } | null;
+    readonly weather: { readonly type: string; readonly description?: string } | null;
+  } | null;
   readonly actors: readonly TrackerActor[];
+  readonly cast: readonly TrackerCast[];
+  readonly castFields: readonly TrackerCastField[];
+  readonly widgets: readonly TrackerWidget[];
+  readonly quests: readonly TrackerQuest[];
+  /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one. */
+  readonly plot: TrackerPlot | null;
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
+  readonly poolOrbs: readonly { readonly label: string; readonly value: number; readonly max: number }[];
+  readonly lockedPaths: readonly string[];
 }
 
 /** Read a game's persisted tracker view (`rpg.getTrackerView`, member-gated — single-user is a member/host).
- *  The SERVER-truth cross-check for the CP-4 panel: what the flush/snapshot actually wrote. */
+ *  The SERVER-truth cross-check for the CP-4 panel: what the flush/snapshot actually wrote AND the persisted
+ *  snapshot DB read (the projection reads the snapshot rows live). */
 export function getTrackerView(chatId: string): Promise<TrackerView> {
   return trpcQuery<TrackerView>("rpg.getTrackerView", { chatId });
+}
+
+/** The member-safe game view (`rpg.getGame`) — the mode/status/extractionMode/read-only read the takeover uses. */
+export interface GameView {
+  readonly id: string;
+  readonly mode: string;
+  readonly status: string;
+  readonly trackersReadOnly: boolean;
+  readonly extractionMode: string;
+}
+
+/** Read the member game view (`rpg.getGame`). The takeover's mode read + the extraction-mode/read-only pills. */
+export function getGame(chatId: string): Promise<GameView> {
+  return trpcQuery<GameView>("rpg.getGame", { chatId });
+}
+
+/** Set the game's delivery model (`rpg.updateConfig` — host). `cheap` = a tool round on commit; `reliable` = a
+ *  structured extraction (default). The exhaustive spec drives BOTH state-round arms. `mode` stays `string` (the
+ *  no-inline-union-redecl gate bans re-spelling the homed RPG_EXTRACTION_MODES tuple here; the spec passes the
+ *  literal). */
+export function setExtractionMode(chatId: string, mode: string): Promise<unknown> {
+  return trpcMutation("rpg.updateConfig", { chatId, extractionMode: mode });
+}
+
+/** Define the host-owned cast-field schemas + custom-relationship hints (`rpg.updateConfig` — host). A passed
+ *  array REPLACES the current list (whole-list edit). The §2.8/§2.1-M1 feature door. */
+export function setGameFeatures(
+  chatId: string,
+  features: { readonly castFields?: readonly TrackerCastField[]; readonly relationshipHints?: Readonly<Record<string, string>> },
+): Promise<unknown> {
+  return trpcMutation("rpg.updateConfig", { chatId, patch: features });
+}
+
+/** The host config-editor read (`rpg.getConfigView`, HOST-gated) — the full statProfile + steeringNote +
+ *  extractionMode + cast-field/relationship-hint feature knobs + the P3/P4/P5 knobs (never on a member view). */
+export interface ConfigView {
+  readonly steeringNote: string;
+  readonly extractionMode: string;
+  readonly castFields: readonly TrackerCastField[];
+  readonly relationshipHints: Readonly<Record<string, string>>;
+  readonly deception: boolean;
+  readonly omniscience: boolean;
+  readonly hiddenContentReveal: boolean;
+  readonly immersiveHtml: boolean;
+  readonly cardKeepLastX: number;
+  readonly cyoa: boolean;
+  readonly plotProgression: boolean;
+}
+
+/** Read the host config-editor view (`rpg.getConfigView`). The "is the host setting real?" read. */
+export function getConfigView(chatId: string): Promise<ConfigView> {
+  return trpcQuery<ConfigView>("rpg.getConfigView", { chatId });
+}
+
+/** Patch the P3/P4/P5 feature knobs (`rpg.updateConfig.patch` — host). The capstone drives deception/cyoa/
+ *  plotProgression from their defaults (deception OFF, cyoa OFF, plotProgression ON) to exercise each wave.
+ *  Omit keeps the current value; a passed scalar REPLACES it (the keep-on-omit contract, §config). */
+export function setFeatureKnobs(
+  chatId: string,
+  knobs: {
+    readonly deception?: boolean;
+    readonly omniscience?: boolean;
+    readonly hiddenContentReveal?: boolean;
+    readonly immersiveHtml?: boolean;
+    readonly cyoa?: boolean;
+    readonly plotProgression?: boolean;
+  },
+): Promise<unknown> {
+  return trpcMutation("rpg.updateConfig", { chatId, patch: knobs });
+}
+
+// ── HAND-PLANE writes (the model-independent backbone). Every rpg plane has a HAND door; the exhaustive spec
+// drives each one over the API, then cross-checks getTrackerView (BE/DB) + the CP-4 panel DOM (FE). These are
+// the deterministic proofs that a landed write is FE=BE=DB consistent for EVERY plane, without depending on the
+// small 8B decomposing that plane (the honest-arms ceiling, plan-for-small-hardware). ──
+
+/** An actor ref as the wire union accepts it (`rpgActorRefSchema`). `kind` stays `string` (no-inline-union-
+ *  redecl posture); the spec passes the homed literal. */
+export type ActorRefInput =
+  | { readonly kind: "character"; readonly characterId: string }
+  | { readonly kind: "user"; readonly userId: string }
+  | { readonly kind: "cast"; readonly castKey: string };
+
+/** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
+ *  className/attributes/poolDefs/maxHp and the hand-only `level` plane (§2.6 — its ONLY write door). */
+export function patchSheet(
+  chatId: string,
+  actorRef: ActorRefInput,
+  patch: {
+    readonly className?: string;
+    readonly attributes?: Readonly<Record<string, number>>;
+    readonly poolDefs?: readonly { readonly name: string; readonly max: number }[];
+    readonly maxHp?: number | null;
+    readonly level?: number | null;
+  },
+): Promise<unknown> {
+  return trpcMutation("rpg.patchSheet", { chatId, actorRef, patch });
+}
+
+/** The hand-edit VOLATILE door (`rpg.editSnapshot` — HOST-only for shared planes). `patch` is a partial
+ *  snapshot-state overlay the domain validates + auto-LOCKS (`fieldLocks`), so a hand edit becomes canon and
+ *  the delta shows the GM tweak next turn (§2.7). The spec drives every plane through here: ambient
+ *  (location/date/clock/weather), presentCharacters (cast + mood + relationship + customFields), actorState
+ *  (hp/pools/wallet/inventory/conditions/status), recentEvents, widgetValues, plot. */
+export function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
+  return trpcMutation("rpg.editSnapshot", { chatId, patch });
+}
+
+/** Upsert a quest (`rpg.upsertQuest` — HOST-only). `questId` absent ⇒ create. The quest-plane HAND door. */
+export function upsertQuest(
+  chatId: string,
+  quest: {
+    readonly questId?: string;
+    readonly name: string;
+    readonly status?: string;
+    readonly description?: string;
+    readonly objectives?: readonly { readonly id?: string; readonly text: string; readonly completed?: boolean }[];
+  },
+): Promise<unknown> {
+  return trpcMutation("rpg.upsertQuest", { chatId, ...quest });
+}
+
+/** Create a HUD widget def (`rpg.createWidget` — host). Returns the created def (with its minted id). */
+export function createWidget(chatId: string, def: Record<string, unknown>): Promise<unknown> {
+  return trpcMutation("rpg.createWidget", { chatId, def });
+}
+
+/** Add a hand journal entry (`rpg.addJournalEntry` — host). */
+export function addJournalEntry(chatId: string, entry: { readonly type: string; readonly title: string; readonly content: string }): Promise<unknown> {
+  return trpcMutation("rpg.addJournalEntry", { chatId, ...entry });
+}
+
+/** One journal entry row in the paged `listJournal` view (subset — lineage-filtered server-side, §2.5). */
+export interface JournalEntry {
+  readonly id: string;
+  readonly type: string;
+  readonly title: string;
+  readonly content: string;
+}
+
+/** Read a game's journal archive (`rpg.listJournal`, member — lineage-projected). The journal-plane DB read. */
+export async function listJournal(chatId: string): Promise<readonly JournalEntry[]> {
+  return await trpcQuery<readonly JournalEntry[]>("rpg.listJournal", { chatId });
+}
+
+/** Label the current resolved snapshot (`rpg.createCheckpoint` — host). Returns the minted checkpoint id. */
+export function createCheckpoint(chatId: string, label: string): Promise<string> {
+  return trpcMutation<string>("rpg.createCheckpoint", { chatId, label });
+}
+
+/** Clone a checkpointed snapshot forward BORN-COMMITTED (`rpg.restoreCheckpoint` — host). The rewind door. */
+export function restoreCheckpoint(chatId: string, checkpointId: string): Promise<unknown> {
+  return trpcMutation("rpg.restoreCheckpoint", { chatId, checkpointId });
+}
+
+/** One checkpoint summary (`rpg.listCheckpoints` — member). */
+export interface CheckpointRow {
+  readonly id: string;
+  readonly label: string;
+}
+
+/** List a game's checkpoints (`rpg.listCheckpoints`). */
+export async function listCheckpoints(chatId: string): Promise<readonly CheckpointRow[]> {
+  return await trpcQuery<readonly CheckpointRow[]>("rpg.listCheckpoints", { chatId });
+}
+
+// ── P3 host-reveal (parity-plus §3.6). `revealHidden` is the HOST-gated eye: it derives the parsed `<lie>`/
+// `<ofilter>` hidden spans out of the STORED assistant bodies — the truth a member never receives at the wire.
+// The capstone plants a `<lie …/>` deterministically via `chat.editMessage` (an 8B won't reliably emit one),
+// then asserts the host reads it here + the standing-lie inventory groups it (FE=BE for the Veiled ledger). ──
+
+/** ONE parsed hidden span (subset of `RpgRevealedSpan`) — the tag + its labelled fields (character/type/
+ *  truth/reason for a lie). */
+interface RevealedSpan {
+  readonly tag: string;
+  readonly revealLabel: string;
+  readonly fields: readonly { readonly key: string; readonly value: string }[];
+}
+
+/** The whole host-reveal read (`rpg.revealHidden`, HOST-gated) — the per-message parsed hidden spans + the
+ *  standing-lie inventory grouped by character. A member never reaches this (leak-free NOT_FOUND). */
+export interface RevealView {
+  readonly messages: readonly { readonly messageId: string; readonly spans: readonly RevealedSpan[] }[];
+  readonly standingLies: readonly {
+    readonly character: string;
+    readonly lies: readonly {
+      readonly character: string;
+      readonly type: string;
+      readonly truth: string;
+      readonly reason: string;
+      readonly messageId: string;
+    }[];
+  }[];
+}
+
+/** Read the host-reveal eye (`rpg.revealHidden`). The BE truth for the P3 Veiled ledger. */
+export function revealHidden(chatId: string): Promise<RevealView> {
+  return trpcQuery<RevealView>("rpg.revealHidden", { chatId });
+}
+
+/** Overwrite an assistant message's stored body (`chat.editMessage` — author-or-host; single-user is host).
+ *  The deterministic P3/P4/P5 content door: plant a `<lie …/>` tag / a `:::card` fence / a `:::choices` fence
+ *  in a real canon row so the render + reveal + strip seams are exercised without depending on the 8B emitting
+ *  the exact grammar. The message stays a real durable row (reveal derives from stored bodies). */
+export function editMessage(chatId: string, messageId: string, content: string): Promise<unknown> {
+  return trpcMutation("chat.editMessage", { chatId, messageId, content });
+}
+
+// ── P5 wand steer (parity-plus §6.2). The composer wand fires a game steer by KIND (`guided.gameSteer=<kind>`);
+// the assembly resolves the kit-homed template through the macro engine, so `{{rpgSceneState}}` resolves live
+// off the game turn's gather feed. The steer injects as a depth-0 SYSTEM injection into the assembled HISTORY,
+// so the honest instrument is the WIRE CAPTURE of a real turn (NOT previewAssembly, whose prefix fields don't
+// carry a depth-0 injection). ──
+
+/** Drive ONE real turn with a wand GAME STEER of `kind` riding the per-send `guided` (the wand's exact fire
+ *  path: `guided.gameSteer` + the required `action: "response"`). A small `maxOutputTokens` buys the cheapest
+ *  committing turn — the steer's RESOLUTION into the provider prompt is the seam under test (read off the wire
+ *  capture), not the model's answer. The gameSteer injects as a depth-0 SYSTEM injection into the assembled
+ *  HISTORY, so it lands in the vLLM `messages` array — NOT the previewAssembly prefix fields (which is why the
+ *  wire capture, not previewAssembly, is the honest instrument for the steer's live-state resolution). */
+export function sendGameSteerTurn(chatId: string, kind: string): Promise<unknown> {
+  return trpcMutation("chat.send", { chatId, content: "Continue.", intent: { maxOutputTokens: 24 }, guided: { action: "response", gameSteer: kind } });
+}
+
+/** Flatten a vLLM wire capture's `messages` array to ONE searchable string (openai-compat content join). */
+export function wireMessagesText(capture: WireCapture): string {
+  const messages = capture.body["messages"];
+  if (!Array.isArray(messages)) {
+    return "";
+  }
+  return (messages as readonly { readonly content?: unknown }[]).map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
+}
+
+// ── The CHAT-side DB witness (`/api/_debug/db/chat/:id` — inspectChatState). rpg has NO raw-table debug dump
+// (the rpg flight recorder is an unbuilt seam, RPG_TRACE off), so getTrackerView is the rpg-plane DB read; THIS
+// is the independent DB witness for the message/event landings the turn produced (canon rows + bus events). ──
+
+/** The chat-inspection subset the exhaustive spec cross-checks against (`/api/_debug/db/chat/:id`). */
+export interface ChatDbInspection {
+  readonly found: boolean;
+  readonly messages: readonly { readonly seq: number; readonly role: string; readonly content: string | null }[];
+  readonly recentEvents: readonly { readonly type: string }[];
+}
+
+/** Read the DB inspection for a chat (`/api/_debug/db/chat/:id`, host-gated debug route). The independent DB
+ *  witness that the turn's rows + bus events landed (distinct from the tRPC read path). */
+export async function inspectChatDb(chatId: string): Promise<ChatDbInspection> {
+  const res = await fetch(`${BASE_URL}/api/_debug/db/chat/${chatId}`);
+  if (!res.ok) {
+    throw new Error(`e2e db/chat read failed (${res.status})`);
+  }
+  return (await res.json()) as ChatDbInspection;
+}
+
+/** The debug error ring (`/api/_debug/errors`) — a non-empty list under a "successful" action is the
+ *  invisible-bug class this repo exists to kill (observability-harness-verify-landings). */
+export async function fetchDebugErrors(): Promise<readonly unknown[]> {
+  const res = await fetch(`${BASE_URL}/api/_debug/errors`);
+  if (!res.ok) {
+    throw new Error(`e2e debug/errors read failed (${res.status})`);
+  }
+  const body = (await res.json()) as { readonly errors?: readonly unknown[] };
+  return body.errors ?? [];
+}
+
+/** Delete message slots (`chat.deleteMessages`) — the sad-path "deleted turn" driver. */
+export function deleteMessages(chatId: string, messageIds: readonly string[]): Promise<unknown> {
+  return trpcMutation("chat.deleteMessages", { chatId, messageIds });
+}
+
+/** Abort the in-flight turn on a chat (`chat.abort`) — the sad-path "cancel mid-turn" driver. */
+export function abortTurn(chatId: string): Promise<unknown> {
+  return trpcMutation("chat.abort", { chatId });
 }
