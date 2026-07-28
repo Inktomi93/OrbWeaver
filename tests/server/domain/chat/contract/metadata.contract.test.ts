@@ -116,7 +116,9 @@ describe("parseChatMetadata", () => {
 
   test("RPG: the opaque {gameId} pointer round-trips (the foreign-schema sync signal, rpg-design/05 §2.1)", () => {
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
-    expect(parseChatMetadata({ rpg: { gameId } }).rpg).toEqual({ gameId });
+    // `engaged` heals to `true` via the schema default (#40 front-door toggle mirror — a pre-toggle pointer
+    // with no `engaged` field reads ENGAGED, mirroring `chatRpgPointerSchema`'s `.default(true)`).
+    expect(parseChatMetadata({ rpg: { gameId } }).rpg).toEqual({ gameId, engaged: true });
   });
 
   test("RPG: a corrupt rpg pointer HEALS to absent WITHOUT nuking its siblings (§6.2)", () => {

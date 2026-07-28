@@ -20,6 +20,8 @@ export type {
   ExtractQuietDeps,
   ExtractQuietParams,
   ExtractQuietResult,
+  ForkGameArgs,
+  ForkGameResult,
   GeneratePictureOp,
   GetMembership,
   GetPendingUserText,

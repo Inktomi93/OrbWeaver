@@ -31,6 +31,7 @@ import type {
   ChatTurnId,
   MessageId,
   MessageVariantId,
+  PresetId,
   RpgCheckpointId,
   RpgGameId,
   RpgJournalId,
@@ -191,6 +192,14 @@ export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
  *  keys to. */
 export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
+/** The preset-ownership gate (fork-clones-the-game §3.2). Is `presetId` SAFE for `userId` to carry as their
+ *  game's `gmPresetId` — i.e. readable BY them (owned OR the shared system default)? The fork clone calls it for
+ *  the source game's `gmPresetId` under the FORKER: a preset the forker cannot read (the source host's private
+ *  preset) must NOT ride into the fork, or `resolvePresetOverride` would feed a cross-tenant preset into the
+ *  forker's own turns the moment they play the copy (the [[injected-op-caller-gate]] class). rpg cannot read
+ *  presets — the impl is wired at compose off the preset front door (the `resolveHostPrincipal` precedent). */
+export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Promise<boolean>;
+
 /** The honest-arms capability verdict (§4.6 — the delivery-model amendment). Resolves the host connection's
  *  writer capability for THIS game's `extractionMode` and returns `trackersReadOnly` (= manual-steering:
  *  the model has no write path). Its VALUE is INTEGRATION-supplied (W1b-integration wires the real connection
@@ -272,6 +281,8 @@ export interface RpgContext {
   readonly setPointer: RpgSetPointer;
   readonly resolveRoster: RpgResolveRoster;
   readonly postNarratorMessage: RpgPostNarratorMessage;
+  /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
+  readonly resolvePresetOwned: RpgResolvePresetOwned;
   readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
   readonly runExtraction: RpgRunExtraction;
   readonly runToolRound: RpgRunToolRound;

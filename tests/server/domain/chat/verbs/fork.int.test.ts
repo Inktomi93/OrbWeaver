@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -505,6 +506,89 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(messages.chatId, castId(chat.id)));
       expect(row?.content).toBe(body);
       expect(row?.content).toContain("traitor");
+    });
+  });
+
+  // FORK CLONES THE GAME (fork-clones-the-game §3.2) — the WIRING proof: `forkChat` hands `ChatRpgOps.forkGame`
+  // the fork's id maps (built from the floor-clamped/throughSeq-truncated copy) + the forker's source-room
+  // posture, AFTER the atomic batch commits, and never fails the fork on a clone error. The rpg-side re-key +
+  // strip rules are proven in `tests/server/domain/rpg/chat-ops/fork-game.int.test.ts`; this proves the seam.
+  describe("§3.2 game-clone wiring", () => {
+    /** A stub `ctx.rpg` capturing the `forkGame` call. `resolveReasoningHostOnly` returns false (non-deception),
+     *  the only OTHER op `forkChat` reaches. Cast — the verb touches just these two ops. */
+    function captureRpg(over: { throwOnFork?: boolean } = {}): { calls: ForkGameArgs[]; rpg: NonNullable<ChatContext["rpg"]> } {
+      const calls: ForkGameArgs[] = [];
+      // FABRICATION-OK: minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly + forkGame.
+      const rpg = {
+        resolveReasoningHostOnly: () => Promise.resolve(false),
+        forkGame: (args: ForkGameArgs) => {
+          calls.push(args);
+          if (over.throwOnFork === true) {
+            return Promise.reject(new Error("clone boom"));
+          }
+          return Promise.resolve({ cloned: true });
+        },
+      } as unknown as NonNullable<ChatContext["rpg"]>;
+      return { calls, rpg };
+    }
+
+    test("a game-fork calls forkGame with the source/new chat ids, the built id maps, and the forker's posture", async () => {
+      const host = await seedUser(db, "host");
+      const charA = await seedCharacter(db, host, "aria");
+      const chatId = await seedChat(db, "gc_src");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const m1 = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "beat" });
+
+      const { calls, rpg } = captureRpg();
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+      expect(calls).toHaveLength(1);
+      const args = calls[0];
+      expect(args?.sourceChatId).toBe(chatId);
+      expect(args?.newChatId).toBe(castId(chat.id));
+      // The map re-keys the SOURCE slot/variant to a FRESH fork id (never the same id — a fork copies).
+      const mappedSlot = args?.slotIdMap.get(m1.messageId);
+      const mappedVariant = args?.variantIdMap.get(m1.variantId);
+      expect(mappedSlot).toBeDefined();
+      expect(mappedSlot).not.toBe(m1.messageId);
+      expect(mappedVariant).toBeDefined();
+      expect(mappedVariant).not.toBe(m1.variantId);
+      // The forker is the host of THIS source room → readsHidden true, userId = the forker.
+      expect(args?.forker).toEqual({ userId: host, readsHidden: true });
+    });
+
+    test("a NON-HOST forker hands forkGame readsHidden:false (the host-secret strip axis)", async () => {
+      const host = await seedUser(db, "host");
+      const member = await seedUser(db, "member");
+      const chatId = await seedChat(db, "gc_member");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+      await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+      const { calls, rpg } = captureRpg();
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      await fork.forkChat({ principal: principal(member), chatId });
+
+      expect(calls[0]?.forker).toEqual({ userId: member, readsHidden: false });
+    });
+
+    test("a clone FAILURE never fails the fork — the fork ships as a valid plain chat", async () => {
+      const host = await seedUser(db, "host");
+      const chatId = await seedChat(db, "gc_boom");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+      const { rpg } = captureRpg({ throwOnFork: true });
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      // The clone throws, but the fork still resolves (degraded-not-broken) with a real forked chat row.
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const [row] = await db
+        .select({ id: chats.id })
+        .from(chats)
+        .where(eq(chats.id, castId(chat.id)));
+      expect(row?.id).toBe(castId(chat.id));
     });
   });
 });
