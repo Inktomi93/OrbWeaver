@@ -74,6 +74,35 @@ const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RELATIVE_HORIZON_DAYS = 7;
 const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;
 
+/** A duration (ms) as compact human text using the two largest non-zero units: `8 minutes`, `1 hour 5 minutes`,
+ *  `2 days 3 hours`, `45 seconds`. The `{{idle_duration}}` macro's time-since-last-activity form (parity-plus
+ *  §12, D6). Returns "" for a non-positive / non-finite span (no elapsed time to report). Locale-independent by
+ *  design — this is prompt text the MODEL reads, not a viewer-facing render (so no `Intl`, no per-locale drift). */
+export function humanizeDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < MS_PER_SECOND) {
+    return "";
+  }
+  const units: readonly (readonly [ms: number, singular: string])[] = [
+    [MS_PER_DAY, "day"],
+    [MS_PER_HOUR, "hour"],
+    [MS_PER_MINUTE, "minute"],
+    [MS_PER_SECOND, "second"],
+  ];
+  const parts: string[] = [];
+  let remaining = Math.trunc(ms);
+  for (const [unitMs, singular] of units) {
+    const n = Math.trunc(remaining / unitMs);
+    if (n > 0) {
+      parts.push(`${n} ${singular}${n === 1 ? "" : "s"}`);
+      remaining -= n * unitMs;
+    }
+    if (parts.length === 2) {
+      break; // the two largest non-zero units — the reminder wants "1 hour 5 minutes", not the second tail
+    }
+  }
+  return parts.join(" ");
+}
+
 export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   const now = config.now ?? ((): number => Date.now());
   const locale = config.locale;

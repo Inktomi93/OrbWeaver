@@ -78,6 +78,10 @@ export const BUILTIN_MACRO_METADATA = {
   rpgmap: meta("rpgMap", "system", "The active RPG map: current + connected locations (empty outside a game)."),
   rpgperception: meta("rpgPerception", "system", "The server-computed RPG passive-perception hints (empty outside a game)."),
   rpgmorale: meta("rpgMorale", "system", "The RPG party-morale tier + prose (empty outside a game)."),
+  rpgquests: meta("rpgQuests", "system", "The active RPG quests + open objectives (empty outside a game)."),
+  rpgdelta: meta("rpgDelta", "system", "The RPG changes-since-last-beat delta line (empty outside a game / on a quiet turn)."),
+  // biome-ignore lint/style/useNamingConvention: {{idle_duration}} is the literal external (snake_case) macro identifier — the registry looks it up by exactly this name.
+  idle_duration: meta("idle_duration", "conversation", "Time since the last chat activity as human text (empty on a fresh chat)."),
   // biome-ignore lint/style/useNamingConvention: {{guided_instruction}} is the literal external (snake_case) ST macro identifier — the registry looks it up by exactly this name.
   guided_instruction: meta("guided_instruction", "system", "The staged guided-generation instruction."),
   if: meta("if", "system", "Conditional block: renders its body when the predicate passes, else the {{else}} branch.", {

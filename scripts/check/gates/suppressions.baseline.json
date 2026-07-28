@@ -42,7 +42,7 @@
   "packages/db/src/schema/plugin.ts": 1,
   "packages/db/src/schema/tag.ts": 1,
   "packages/db/src/schema/world-info.ts": 1,
-  "packages/kit/src/macro/builtin-metadata.ts": 2,
+  "packages/kit/src/macro/builtin-metadata.ts": 3,
   "packages/kit/src/png-card-chunk/index.ts": 2,
   "packages/kit/src/stable-stringify/index.ts": 1,
   "packages/server/src/domain/assets/persistence/asset-refs.ts": 1,

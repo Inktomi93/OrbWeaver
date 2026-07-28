@@ -8,7 +8,7 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, ChatInjection, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, UserMacroValues } from "@orb/contracts/preset";
@@ -23,6 +23,7 @@ import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { TurnUserMacros } from "../contract/assembly-macros";
+import type { ChatRpgGatherResult } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
@@ -341,6 +342,24 @@ function prepMacroFields(
   };
 }
 
+/** The rpg gather-args spread — the macro/injection feed + the game turn's `{{expr::…}}` CEL activation
+ *  (parity-plus §12), each omitted when absent so a non-game turn's args stay byte-identical. A top-level
+ *  helper so these branches stay OUT of `buildTurnContext`'s cognitive-complexity budget. */
+function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
+  rpgMacros?: Readonly<Record<string, string>>;
+  rpgInjections?: readonly ChatInjection[];
+  rpgCelBindings?: Readonly<Record<string, unknown>>;
+} {
+  if (rpg === null) {
+    return {};
+  }
+  return {
+    rpgMacros: rpg.macros,
+    rpgInjections: rpg.injections,
+    ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}),
+  };
+}
+
 /** Builds the one immutable assemble ctx for the round: resolves the foreign half from chat-supplied keys,
  *  then gathers the chat-internal half + builds the pure ctx. Returns the built ctx plus the resolved memory
  *  config so the caller threads the same resolution recall uses. */
@@ -425,7 +444,10 @@ async function buildTurnContext(
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
-      ...(rpg !== null ? { rpgMacros: rpg.macros, rpgInjections: rpg.injections } : {}),
+      // The rpg gather-args: macro/injection feed + the game turn's `{{expr::…}}` CEL activation (parity-plus
+      // §12), each omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical
+      // (⇒ `{{expr::rpg.…}}` errors-to-""). Extracted to keep this fn under the cognitive-complexity budget.
+      ...rpgAssembleFields(rpg),
       ...(crew !== null ? { crewInjections: crew.injections } : {}),
       // The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — absent ⇒ the pure build's singleton fallback.
       ...gatherMacroRegistries(userMacros),

@@ -18,6 +18,7 @@ import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
+import { humanizeDuration } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../context";
 
@@ -97,6 +98,33 @@ interface CanonRow {
   readonly authorUserId: UserId | null;
   readonly personaId: PersonaId | null;
   readonly content: string;
+}
+
+// The `idle_duration` macro value (parity-plus §12, D6) — time since the last chat activity, EXCLUDING the
+// in-flight message (else it always reads ~0, the user just sent). The in-flight turn is either uncommitted
+// (`hasPending` ⇒ the newest canon row IS prior activity, exclude nothing) or already committed at send (⇒ the
+// newest canon row IS the in-flight, exclude it). Idle = `now` − the newest REMAINING row's timestamp; "" when
+// there is no prior activity (a fresh one-message chat, or only the in-flight row). Human text via humanizeDuration.
+function computeIdleDuration(canon: readonly MessageView[], now: number, hasPending: boolean): string {
+  const priorRows = hasPending ? canon : canon.slice(0, -1);
+  const lastActivityAt = priorRows.at(-1)?.createdAt;
+  return lastActivityAt !== undefined ? humanizeDuration(now - lastActivityAt) : "";
+}
+
+/** The parity-plus P6 build-input fields (§12), each present only when it carries a value so a non-game / no-idle
+ *  turn is byte-identical (the honest-empty pin — an omitted field ⇒ the macro / `{{expr}}` resolves ""). Collected
+ *  into one partial so the three omit-when-empty branches live OUTSIDE `gatherAssembleContext`'s complexity budget
+ *  (the `pickMacroRegistries` precedent). */
+function p6Fields(
+  rpgMacros: Readonly<Record<string, string>> | undefined,
+  celBindings: Readonly<Record<string, unknown>> | undefined,
+  idleDuration: string,
+): { rpgMacros?: Readonly<Record<string, string>>; celBindings?: Readonly<Record<string, unknown>>; idleDuration?: string } {
+  return {
+    ...(rpgMacros !== undefined ? { rpgMacros } : {}),
+    ...(celBindings !== undefined ? { celBindings } : {}),
+    ...(idleDuration !== "" ? { idleDuration } : {}),
+  };
 }
 
 /** Resolve the present cast's live cards under the host's ownership — the regex-tier cast source + the
@@ -247,6 +275,9 @@ export async function gatherAssembleContext(
     /** A game turn's GATHER macros (rpg-design/06 §1), keyed by the RpgGatherMacros field names — fed to the
      *  pure build as `rpgMacros`; absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
     readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
+    /** A game turn's `{{expr::…}}` CEL activation (parity-plus §12) — the data-only `{ rpg: <tracker view tree> }`,
+     *  threaded verbatim onto the AssembleContext's `celBindings`. Absent ⇒ `{{expr::rpg.…}}` errors-to-"". */
+    readonly rpgCelBindings?: Readonly<Record<string, unknown>> | undefined;
     /** A game turn's depth-0 format-reminder injection(s) (rpg-design/05 §1) — merged into the chat injection
      *  list (recency-biased, nearest generation via their `depth:0`). Absent ⇒ no rpg injection. */
     readonly rpgInjections?: readonly ChatInjection[] | undefined;
@@ -322,6 +353,9 @@ export async function gatherAssembleContext(
     cast: cast.cards,
   });
 
+  // {{idle_duration}} (§12, D6) — time-since-last-activity as human text; "" when there is no prior activity.
+  const idleDuration = computeIdleDuration(canon, ctx.now(), args.pendingUserText !== undefined);
+
   // WI activation is emergent (no master toggle): the 4-scope pool yields whatever is attached +
   // entry-enabled + present, and an empty pool ⇒ no lore. There is no `worldInfoEnabled` input.
   const roomOverrides = chatRow?.metadata.roomOverrides;
@@ -348,8 +382,9 @@ export async function gatherAssembleContext(
       memory,
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
       ...(databank !== undefined ? { databank } : {}),
-      // Absent (no game / gather null) ⇒ omitted ⇒ every rpg macro resolves empty (byte-identical non-game).
-      ...(args.rpgMacros !== undefined ? { rpgMacros: args.rpgMacros } : {}),
+      // The parity-plus P6 feed (§12): rpg macro map + `{{expr}}` CEL activation + `{{idle_duration}}`. Each field
+      // is omitted when empty/absent ⇒ byte-identical to a non-game / no-idle build (the honest-empty pin).
+      ...p6Fields(args.rpgMacros, args.rpgCelBindings, idleDuration),
       compactSummary: chatRow?.compactSummary ?? null,
       // The coverage stamp so covered turns fall out of the shaped prompt history (full-reset). toShapeCanon gates
       // on a present summary (a stale seq never trims); null/absent ⇒ no exclusion.

@@ -492,6 +492,9 @@ const RPG_DATA_MACROS: readonly (readonly [name: string, key: string])[] = [
   ["rpgmap", "rpgMap"],
   ["rpgperception", "rpgPerception"],
   ["rpgmorale", "rpgMorale"],
+  // parity-plus P6 (§12.2) — the lite-plane additions the gather populates from the tracker view.
+  ["rpgquests", "rpgQuests"],
+  ["rpgdelta", "rpgDelta"],
 ];
 
 export function createDefaultRegistry(): MacroRegistry {
@@ -620,11 +623,15 @@ export function createDefaultRegistry(): MacroRegistry {
   // The 8 rpg* data-fed macros (rpg-design/06 §1) — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
   // value or "". Registered here (the databank/memory precedent) so a preset referencing `{{rpgSceneState}}` in
   // a NON-game chat resolves empty, never an unknown-macro error.
+  // Volatile (parity-plus §12.3): the rpg planes move per turn as state advances, so a preset placing
+  // `{{rpgSceneState}}` in a cached prefix is correctly flagged a cache-buster by `volatileNames()`. They are a
+  // READ mirror (never a write) — the freeze pass (`createVolatileOnlyRegistry`) does NOT register them, so a
+  // stored composer body re-emits `{{rpg*}}` verbatim (never baked), exactly like `{{expr}}`.
   for (const [name, key] of RPG_DATA_MACROS) {
     registry.register(
       name,
       charField((ctx) => ctx.rpgMacros?.[key]),
-      { requires: "chat" },
+      volChat,
     );
   }
 
@@ -673,6 +680,10 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("lowercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toLowerCase() : ""), block);
 
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
+  // {{idle_duration}} (parity-plus §12, D6 fold) — time since the last chat activity as human text, computed at
+  // assembly off the message timestamps (EXCLUDING the in-flight message) and staged on `ctx.idleDuration`. Works
+  // in ANY chat (a context-macro, not rpg-specific); a fresh one-message chat = no prior activity = "". Volatile.
+  registry.register("idle_duration", (_args, ctx) => ctx.idleDuration ?? "", volChat);
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);
   registry.register("lastUserMessage", (_args, ctx) => ctx.lastUserMessage ?? "", volChat);
   registry.register("lastCharMessage", (_args, ctx) => ctx.lastCharMessage ?? "", volChat);

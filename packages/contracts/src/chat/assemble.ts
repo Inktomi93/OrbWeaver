@@ -247,6 +247,20 @@ export interface AssembleContext {
   lastMessage?: string | undefined;
   lastUserMessage?: string | undefined;
   lastCharMessage?: string | undefined;
+  /** The rpg data-fed macro values (`{{rpgSceneState}}`/`{{rpgCast}}`/`{{rpgQuests}}`/`{{rpgDelta}}`/…), keyed by
+   *  the RpgGatherMacros field names — a game turn's GATHER stages this from the tracker view. Absent (non-game /
+   *  gather null) ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
+  rpgMacros?: Readonly<Record<string, string>> | undefined;
+  /** Time since the last chat activity as human text (the `{{idle_duration}}` marker) — computed at GATHER off
+   *  the message timestamps, EXCLUDING the in-flight message. Absent (a fresh one-message chat / no prior
+   *  activity) ⇒ the marker resolves empty (byte-identical to a chat with no idle history). */
+  idleDuration?: string | undefined;
+  // The data-only CEL activation the `{{expr::…}}` macro evaluates against (the `rpg`/etc. bindings tree). A game
+  // turn's GATHER stages an `rpg` binding whose value is the tracker view as a CelValue tree, so
+  // `{{expr::rpg.scene.location}}` reads state; a non-game chat stages nothing ⇒ an `{{expr::rpg.…}}` errors-to-""
+  // (the CEL degrade). Scalars/lists/maps only — NO functions (the `CelBindings` data-only contract). Absent ⇒
+  // `{{expr}}` sees an empty binding (any field reference then errors → "" + an expr-error diagnostic).
+  celBindings?: Readonly<Record<string, unknown>> | undefined;
   /** IANA timezone for `{{time}}`/`{{date}}`. Absent ⇒ server-local. */
   timezone?: string | undefined;
   /** Fixed clock for `{{time}}`/`{{date}}`, epoch-ms UTC. Absent ⇒ live wall clock. */

@@ -60,6 +60,14 @@ test("volatile-only passes var-mutation macros through verbatim (not nondetermin
   expect(out).toBe("{{setvar::x::5}}{{incvar::x}}{{input}}");
 });
 
+// parity-plus P6: the rpg data macros + {{idle_duration}} are `volatile:true` (the cache-buster scan flags them)
+// but they are READ MIRRORS — the freeze pass must NOT bake them into a committed composer body (a staged value
+// would leak into canon). They are re-emitted VERBATIM (like {{input}}), staying raw for the per-turn feed to fill.
+test("volatile-only passes the rpg macros + {{idle_duration}} through verbatim (read mirror, never baked)", () => {
+  const body = "{{rpgSceneState}}{{rpgCast}}{{rpgQuests}}{{rpgDelta}}{{idle_duration}}";
+  expect(processMacros(body, opts({ rpgMacros: { rpgSceneState: "SHOULD-NOT-BAKE" }, idleDuration: "8 minutes" }), REGISTRY)).toBe(body);
+});
+
 // ── passthrough / non-interference ──────────────────────────────────────────────────────────────
 
 test("a no-{{ string is returned byte-identical", () => {
