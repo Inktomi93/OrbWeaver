@@ -32,6 +32,16 @@ test("LEVEL is UNREACHABLE from the model (§2.6 hand-only) — absent from the 
   expect(schemaJson).not.toContain("level");
 });
 
+test("PLOT is MODEL-REACHABLE via scene.plot (P5) — present in the projected schema as the flat patch shape", () => {
+  // Schema-string PRESENCE is the proof the reliable path can write the plane (the same lens that proves
+  // level's absence): the extraction derives from `update_scene` args, so the plot patch rides for free.
+  const schemaJson = JSON.stringify(projectJsonSchema(rpgExtractionSchema));
+  expect(schemaJson).toContain('"plot"');
+  expect(schemaJson).toContain('"actTitle"');
+  const parsed = rpgExtractionSchema.parse({ scene: { plot: { act: 2, title: "The Bone Key", actTitle: "Descent" } } });
+  expect(parsed.scene?.plot).toEqual({ act: 2, title: "The Bone Key", actTitle: "Descent" });
+});
+
 test("the party field DERIVES from update_party args (the shared-plane proof)", () => {
   // The same object that parses as `update_party` args parses as one `party` entry — the extraction is a batch
   // of the tool calls the model would otherwise have made.

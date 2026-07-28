@@ -2,7 +2,14 @@
 // shape (ratification #1: quests fold INTO the snapshot state), the objective `n/m` shape, present-cast,
 // widget binding arms, and the full snapshot state's collection defaults + nullable ambient.
 
-import { rpgFieldLocksSchema, rpgPresentCharacterSchema, rpgQuestSchema, rpgSnapshotStateSchema, rpgWidgetBindingSchema } from "@orb/contracts/rpg";
+import {
+  rpgFieldLocksSchema,
+  rpgPlotSchema,
+  rpgPresentCharacterSchema,
+  rpgQuestSchema,
+  rpgSnapshotStateSchema,
+  rpgWidgetBindingSchema,
+} from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures";
 
 test("a quest is a stable-id object with status + n/m objectives (the snapshot-resident shape)", () => {
@@ -50,4 +57,26 @@ test("present character defaults its display fields and keeps customFields as a 
 test("fieldLocks is a presence-key record of true", () => {
   expect(rpgFieldLocksSchema.safeParse({ "quests.q1": true, location: true }).success).toBe(true);
   expect(rpgFieldLocksSchema.safeParse({ "quests.q1": false }).success).toBe(false);
+});
+
+// ── P5 — the snapshot-resident plot plane ──
+test("plot defaults null (pre-P5 self-heal) and parses the {act,title,acts} shape; act floors at 1", () => {
+  const healed = rpgSnapshotStateSchema.parse({ clock: null, calendarDate: null, weather: null, fieldLocks: null });
+  expect(healed.plot).toBeNull();
+  const state = rpgSnapshotStateSchema.parse({
+    clock: null,
+    calendarDate: null,
+    weather: null,
+    fieldLocks: null,
+    plot: { act: 2, title: "The Bone Key", acts: [{ title: "Arrival" }, { title: "Descent", summary: "down" }] },
+  });
+  expect(state.plot).toEqual({
+    act: 2,
+    title: "The Bone Key",
+    acts: [
+      { title: "Arrival", summary: "" },
+      { title: "Descent", summary: "down" },
+    ],
+  });
+  expect(rpgPlotSchema.safeParse({ act: 0 }).success).toBe(false);
 });

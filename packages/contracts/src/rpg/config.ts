@@ -74,6 +74,15 @@ export const rpgGameFeaturesSchema = z.object({
   // M2 — the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
   // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture — §3.5).
   cardKeepLastX: z.number().int().min(0).default(0),
+  // P5 — CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
+  // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
+  // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
+  // toggle-independent — an emitted fence always renders as buttons (never a stored-content break).
+  cyoa: z.boolean().default(false),
+  // P5 — plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
+  // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
+  // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).
+  plotProgression: z.boolean().default(true),
 });
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
 

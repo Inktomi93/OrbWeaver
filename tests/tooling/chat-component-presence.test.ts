@@ -39,6 +39,14 @@ type Waiver =
 // that mounts the real parent and drives this sub-part through it; that CT must exist (verified below).
 const WAIVERS: Readonly<Record<string, Waiver>> = {
   // Sub-parts driven through a parent's real CT.
+  "message-choices-block": {
+    coveredBy: "message-content",
+    why: "MessageContent renders the choices block; the message-content choices CTs drive render + click-send + the disabled arms.",
+  },
+  "choice-send-provider": {
+    coveredBy: "message-content",
+    why: "a thin context provider (send + busy over useSendMessage); the message-content choices CTs exercise the consumer contract.",
+  },
   "member-row": { coveredBy: "members-panel", why: "MembersPanel renders MemberRow; the members-panel CT drives its rows end-to-end." },
   "member-row-menu": { coveredBy: "members-panel", why: "buildMenuItems is exercised via the real row menu in members-panel.ct." },
   "talkativeness-popover": { coveredBy: "members-panel", why: "the Talkativeness… popover (commit/re-seed/snap-back) is driven through members-panel.ct." },

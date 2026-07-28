@@ -80,3 +80,25 @@ test("recentBeatsKeepLast=0 drops the Recent-beats block entirely (durable log u
   const { game, ctx } = await seedGameWithBeats(db, "nobeats", ["beat 1", "beat 2"], 0);
   expect((await buildTrackerView(ctx, game, false)).recentBeats).toEqual([]);
 });
+
+test("P5: the plot plane rides the tracker view from the resolved snapshot (null for a turnless game)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "plotv");
+  const gameId = await seedGame(db, chatId, "plotv");
+  const ctx = makeRpgService(db, { roster: [] }).ctx;
+  let game = await findGameByChat(db, chatId);
+  if (game === undefined) {
+    throw new Error("game not found");
+  }
+  // Turnless game — the synthesized default carries no plot (the act rail renders nothing).
+  expect((await buildTrackerView(ctx, game, false)).plot).toBeNull();
+  // A staged snapshot carrying a plot surfaces it on the view (the act rail's datum).
+  const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  const plot = { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] };
+  await writeStagedSnapshot(db, { ...emptyState(), plot }, target({ gameId, chatId, seq: 1, variantId, key: "plotv" }));
+  game = await findGameByChat(db, chatId);
+  if (game === undefined) {
+    throw new Error("game not found");
+  }
+  expect((await buildTrackerView(ctx, game, false)).plot).toEqual(plot);
+});

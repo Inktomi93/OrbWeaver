@@ -21,6 +21,7 @@ import type {
   RpgClockTime,
   RpgFieldLocks,
   RpgGameConfig,
+  RpgPlot,
   RpgPresentCharacter,
   RpgQuest,
   RpgSheet,
@@ -141,6 +142,9 @@ export const rpgSnapshots = sqliteTable(
     widgetValues: text("widget_values", { mode: "json" }).$type<Record<string, RpgWidgetValue>>(),
     // The swipe-consistent quest plane (§2.5) — folded into the snapshot, clone-forward like inventory/cast.
     quests: text("quests", { mode: "json" }).$type<readonly RpgQuest[]>().default(sql`'[]'`),
+    // The P5 plot plane (parity-plus — snapshot-resident `{act,title,acts}`, clone-forward like quests;
+    // the act rail's datum). Born nullable: null = no plot authored yet.
+    plot: text("plot", { mode: "json" }).$type<RpgPlot>(),
     // Manual-edit-wins locks — a presence-key record; only `editSnapshot` writes it, tools honor it. Nullable.
     fieldLocks: text("field_locks", { mode: "json" }).$type<RpgFieldLocks>(),
     // Born 0 at flush; the next user send's `onUserCommit` locks it to 1 (the commit lifecycle).

@@ -134,6 +134,9 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     castFields: game.config.features.castFields,
     widgets,
     quests,
+    // The P5 snapshot-resident plot plane (act rail) — swipe-consistent like every plane here; null until
+    // the story authors one (the rail renders nothing — no client-invented acts).
+    plot: state.plot,
     // P3 fold — `state.recentEvents` is an append-only durable log (the journal keeps the full record); the
     // reminder read SLICES it to the last N so the steering injection never bloats the prompt with the whole
     // scene history. `keepLast === 0` drops the block entirely. The tail is the most-recent beats (append order).

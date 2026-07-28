@@ -18,6 +18,7 @@ import {
   rpgActorVolatileSchema,
   rpgClockTimeSchema,
   rpgFieldLocksSchema,
+  rpgPlotSchema,
   rpgPresentCharacterSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
@@ -69,6 +70,7 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
     actorState: field(actorStateSchema, row.actorState ?? [], id, "actorState"),
     widgetValues: field(widgetValuesSchema, row.widgetValues ?? {}, id, "widgetValues"),
     quests: field(questsSchema, row.quests ?? [], id, "quests"),
+    plot: row.plot === null ? null : field(rpgPlotSchema, row.plot, id, "plot"),
     fieldLocks: row.fieldLocks === null ? null : field(rpgFieldLocksSchema, row.fieldLocks, id, "fieldLocks"),
   };
 }
@@ -203,6 +205,7 @@ function snapshotInsertFrom(
     actorState: state.actorState,
     widgetValues: state.widgetValues,
     quests: state.quests,
+    plot: state.plot,
     fieldLocks,
     committed,
     createdAt: target.now,
@@ -272,7 +275,17 @@ export async function updateSnapshotState(
   patch: Partial<
     Pick<
       NewRpgSnapshot,
-      "location" | "calendarDate" | "clock" | "weather" | "presentCharacters" | "recentEvents" | "actorState" | "widgetValues" | "quests" | "fieldLocks"
+      | "location"
+      | "calendarDate"
+      | "clock"
+      | "weather"
+      | "presentCharacters"
+      | "recentEvents"
+      | "actorState"
+      | "widgetValues"
+      | "quests"
+      | "plot"
+      | "fieldLocks"
     >
   >,
 ): Promise<void> {

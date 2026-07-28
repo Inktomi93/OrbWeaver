@@ -61,6 +61,9 @@ export const rpgUpdateConfigInputSchema = z.object({
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
       cardKeepLastX: z.number().int().min(0).optional(),
+      // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the wand Plot submenu gate.
+      cyoa: z.boolean().optional(),
+      plotProgression: z.boolean().optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

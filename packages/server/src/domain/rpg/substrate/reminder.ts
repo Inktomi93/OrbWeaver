@@ -56,6 +56,13 @@ export const RPG_OFILTER_TEACH =
 export const RPG_CARD_TEACH =
   'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Embed everything inline (no external scripts/fonts/images). Do not wrap it in a code fence.';
 
+// The CYOA teaching block (P5 §5.4 feature 5) — a versioned constant (the RPG_STEERING_LICENSE pattern).
+// Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
+// surface renders the options as clickable send-affordances (§5.2-5.3). Composed ONLY when
+// `config.features.cyoa` is on; the wand's one-shot "Offer choices" covers the this-turn-only ask.
+export const RPG_CYOA_TEACH =
+  "CHOICES: end every response with a set of choices for the player. After your narration, add a line containing exactly :::choices then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own. Keep each option one sentence, concrete, and meaningfully different from the others.";
+
 // The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
 // for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
 export const RPG_CARD_TEACH_STATIC =
@@ -201,6 +208,23 @@ function widgetLine(widget: RpgTrackerView["widgets"][number]): string {
   return `- ${widget.def.label}`;
 }
 
+/** The P5 plot one-liner (`<story title> — act 2/3: <act title> — <act summary>`) — empty segments omitted,
+ *  so a bare `{act:1,title:"",acts:[]}` still reads honestly (`act 1/1`). Exported: the macro feed's
+ *  `rpgSceneState` Story line reuses it verbatim (one line grammar, two consumers). */
+export function plotLine(plot: NonNullable<RpgTrackerView["plot"]>): string {
+  const segs: string[] = [];
+  if (plot.title !== "") {
+    segs.push(plot.title);
+  }
+  const current = plot.acts[plot.act - 1];
+  const total = Math.max(plot.acts.length, plot.act);
+  segs.push(current !== undefined && current.title !== "" ? `act ${plot.act}/${total}: ${current.title}` : `act ${plot.act}/${total}`);
+  if (current !== undefined && current.summary !== "") {
+    segs.push(current.summary);
+  }
+  return segs.join(" — ");
+}
+
 function questLine(quest: RpgTrackerView["quests"][number]): string {
   const open = quest.objectives.filter((o) => !o.completed);
   const head = `- ${quest.name} [${quest.status}]`;
@@ -224,6 +248,11 @@ function teachingBlocks(input: LiteReminderInput): string[] {
   if (input.features.immersiveHtml) {
     blocks.push(input.features.immersiveHtmlInteractive ? RPG_CARD_TEACH : RPG_CARD_TEACH_STATIC);
   }
+  // P5 §5.4 — the standing CYOA mode: every turn ends with a `:::choices` set. Off ⇒ no teaching (the
+  // tokenizer still renders an unprompted fence harmlessly; the wand one-shot covers this-turn-only asks).
+  if (input.features.cyoa) {
+    blocks.push(RPG_CYOA_TEACH);
+  }
   return blocks;
 }
 
@@ -240,6 +269,10 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     if (line !== "") {
       stateLines.push(`Scene: ${line}`);
     }
+  }
+  // The P5 plot spine — where the story stands on the campaign scale, so the prose stays on-act.
+  if (view.plot !== null) {
+    stateLines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.actors.length > 0) {
     stateLines.push("Party:");

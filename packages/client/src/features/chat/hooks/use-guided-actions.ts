@@ -5,6 +5,7 @@
 // same listMessages key the surface already reads — one shared cache entry, not a second round-trip.
 
 import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
+import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -16,8 +17,11 @@ import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
 
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;
-  readonly input: string;
+  readonly input?: string | undefined;
   readonly person?: GuidedImpersonatePerson | undefined;
+  /** A P5 one-shot GAME steer KIND (the wand's Plot submenu / "Offer choices") — the server resolves the
+   *  kit template by kind; `input` is ignored on this arm. */
+  readonly gameSteer?: GuidedGameSteerKind | undefined;
 }
 
 interface GuidedTurnVars {
@@ -112,6 +116,9 @@ export interface UseGuidedActionsResult {
   readonly tailAssistantMessageId: MessageId | null;
   /** F5 — a chosen speaker rides the response steer in a multi-character room (null ⇒ arbitrate). */
   readonly fireResponse: (input: string, speakerCharacterId?: CharacterId | null) => void;
+  /** P5 — fire a one-shot GAME steer by KIND (Plot submenu / "Offer choices"). Rides the same
+   *  `chat.generate` fire path; NOT recorded in the recent-steers ring (there is no typed text to lose). */
+  readonly fireGameSteer: (kind: GuidedGameSteerKind) => void;
   readonly fireSwipe: (input: string) => void;
   readonly fireContinue: (input: string) => void;
   /** F1 — rewrite the tail assistant reply out of character (lands as a variant via `chat.swipe`). */
@@ -194,6 +201,13 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       const speaker = speakerCharacterId ?? null;
       const base: GuidedTurnVars = guided === undefined ? { chatId } : { chatId, guided };
       generate.mutate(speaker === null ? base : { ...base, speakerCharacterId: speaker }, perFire(input));
+    },
+    fireGameSteer: (kind): void => {
+      if (chatId === null) {
+        return;
+      }
+      // No perFire: the steer is a picked KIND, not recoverable composer text — nothing to restore/recall.
+      generate.mutate({ chatId, guided: { action: "response", gameSteer: kind } });
     },
     fireSwipe: (input): void => {
       if (chatId === null || tailAssistantMessageId === null) {

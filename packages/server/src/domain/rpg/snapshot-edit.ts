@@ -48,7 +48,7 @@ async function resolveHead(
  *  a new plane is covered without a re-spell. */
 type StateColumns = Pick<
   RpgSnapshotState,
-  "clock" | "calendarDate" | "location" | "weather" | "presentCharacters" | "recentEvents" | "actorState" | "widgetValues" | "quests"
+  "clock" | "calendarDate" | "location" | "weather" | "presentCharacters" | "recentEvents" | "actorState" | "widgetValues" | "quests" | "plot"
 >;
 
 function toColumns(state: RpgSnapshotState): StateColumns {
@@ -62,6 +62,7 @@ function toColumns(state: RpgSnapshotState): StateColumns {
     actorState: state.actorState,
     widgetValues: state.widgetValues,
     quests: state.quests,
+    plot: state.plot,
   };
 }
 

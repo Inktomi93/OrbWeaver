@@ -65,6 +65,7 @@ export {
   KeyRound,
   Leaf,
   Library,
+  ListOrdered,
   Loader2,
   Lock,
   LogOut,

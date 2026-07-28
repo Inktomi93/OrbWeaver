@@ -67,6 +67,68 @@ export function composeRewriteSteer(fragments: readonly string[], freeText: stri
   return `${pieces.map((p) => p.replace(TRAILING_PERIOD, "")).join(". ")}.`;
 }
 
+// ── Game one-shot steers (parity-plus P5 — the wand's Plot submenu + the "Offer choices" one-shot) ──
+//
+// SYSTEM-authored steering templates the composer wand fires by KIND (never by text): the client sends
+// `guided.gameSteer = <kind>` (enum-validated at the wire, `guidedSteerSchema`), and the chat assembly
+// resolves the TEMPLATE below through the normal macro engine — so the rpg data macros ({{rpgSceneState}}
+// / {{rpgQuests}} / {{random}}) resolve against the game turn's gather feed. This is the owner-ruled
+// wand-homing shape: the steers live HERE (guided-actions land), read live rpg state through the P6
+// macro/CEL projection, and carry ZERO rpg-contract coupling (macro NAMES only). The templates ride the
+// TRUSTED template side (never the neutralized `{{input}}` splice — a user cannot smuggle macros: the
+// wire carries only the enum kind). Kit-homed per the axis-home rule (ui-consumed tuple: the wand renders
+// the submenu from the tuple; contracts derives the wire enum; the server reads the templates).
+
+/** The plot-progression steer kinds (parity-plus §6.2 + the act-advance arm) — the wand's Plot submenu
+ *  renders from this tuple; graft #R4: a new steer is a tuple member + a def, the fire path is byte-stable. */
+export const RPG_PLOT_STEER_KINDS = ["natural", "randomized", "twist", "escalate", "deescalate", "advance"] as const;
+export type RpgPlotSteerKind = (typeof RPG_PLOT_STEER_KINDS)[number];
+
+/** Every wand-firable one-shot game steer: the plot kinds + the M5 "Offer choices" CYOA one-shot (same
+ *  guided fire path, its own wand item). The wire enum (`guidedSteerSchema.gameSteer`) derives from this. */
+export const GUIDED_GAME_STEER_KINDS = [...RPG_PLOT_STEER_KINDS, "choices"] as const;
+export type GuidedGameSteerKind = (typeof GUIDED_GAME_STEER_KINDS)[number];
+
+/** One game steer: the wand item's label + the macro-carrying steering template the server resolves. */
+export interface GuidedGameSteerDef {
+  readonly label: string;
+  readonly template: string;
+}
+
+// The state-aware templates. {{rpgSceneState}}/{{rpgQuests}} resolve to the live tracker projection on a
+// game turn (empty strings elsewhere — the macros degrade to "", leaving generic-but-sane steering prose).
+const PLOT_NATURAL_TEMPLATE =
+  "[Story steer: progress the story naturally this turn — advance the current scene toward its next beat, picking up an unresolved thread or pushing toward the party's current goal. Let it grow out of what is already in motion.]";
+const PLOT_RANDOMIZED_TEMPLATE =
+  "[Story steer: weave this unexpected development into the scene naturally this turn: {{random::a stranger arrives with urgent news::something valuable goes missing::an old debt resurfaces::the weather turns suddenly and violently::a hidden rivalry boils over::an unexpected ally offers help — at a price::a secret is accidentally revealed::a message arrives that changes everything}}.]";
+const PLOT_TWIST_TEMPLATE =
+  "[Story steer: introduce a complication grounded in the story's current state.\n{{rpgSceneState}}\nActive quests:\n{{rpgQuests}}\nPick ONE concrete element above — an active quest, a present character (especially a strained or hostile relationship), or a recent beat — and turn it into an immediate complication this turn.]";
+const PLOT_ESCALATE_TEMPLATE =
+  "[Story steer: raise the stakes this turn — sharpen the current tension, make a looming threat concrete, or force a cost onto the path the party is taking. Escalate what is already present; do not reset the scene.]";
+const PLOT_DEESCALATE_TEMPLATE =
+  "[Story steer: lower the intensity this turn — give the scene room to breathe. Let a tension ease, offer a quiet beat, a small comfort, or a moment of reflection before the story moves again.]";
+const PLOT_ADVANCE_TEMPLATE =
+  "[Story steer: the current act has run its course. Bring its open threads to a head and carry the story into the NEXT act — a clear shift in situation, goal, or stakes.\n{{rpgSceneState}}]";
+const OFFER_CHOICES_TEMPLATE =
+  "[For this turn only: end your response with a set of choices for the player. After your narration, add a line containing exactly :::choices then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own.]";
+
+/** The plot steer defs the wand's Plot submenu renders (kind → label + template). */
+export const RPG_PLOT_STEERS: Readonly<Record<RpgPlotSteerKind, GuidedGameSteerDef>> = {
+  natural: { label: "Natural progression", template: PLOT_NATURAL_TEMPLATE },
+  randomized: { label: "Random twist", template: PLOT_RANDOMIZED_TEMPLATE },
+  twist: { label: "Grounded twist", template: PLOT_TWIST_TEMPLATE },
+  escalate: { label: "Escalate", template: PLOT_ESCALATE_TEMPLATE },
+  deescalate: { label: "De-escalate", template: PLOT_DEESCALATE_TEMPLATE },
+  advance: { label: "Advance the act", template: PLOT_ADVANCE_TEMPLATE },
+};
+
+/** Every game steer by kind — the server's resolve map (the wand fires a kind; assembly renders the
+ *  template through the macro engine and injects it depth-0 system, ephemeral). */
+export const GUIDED_GAME_STEERS: Readonly<Record<GuidedGameSteerKind, GuidedGameSteerDef>> = {
+  ...RPG_PLOT_STEERS,
+  choices: { label: "Offer choices", template: OFFER_CHOICES_TEMPLATE },
+};
+
 export function resolveGuidedInstruction(
   promptTemplate: string,
   userInput: string,

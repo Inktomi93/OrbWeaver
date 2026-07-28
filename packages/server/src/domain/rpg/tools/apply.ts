@@ -223,6 +223,7 @@ export interface ScenePatch {
   weather?: RpgSnapshotState["weather"];
   presentCharacters?: RpgSnapshotState["presentCharacters"];
   recentEvents?: readonly string[];
+  plot?: RpgSnapshotState["plot"];
 }
 
 /** Pick the field that WINS a cast merge: the tool's value if provided, else the existing value, else the
@@ -285,6 +286,28 @@ function applyCastPatch(cast: readonly RpgPresentCharacter[], args: UpdateSceneA
   return next;
 }
 
+/** The P5 plot-patch applier: the model's FLAT patch (`act`/`title`/`actTitle`/`actSummary`) onto the
+ *  ABSOLUTE plot plane. The applier maintains the `acts` array — pads untitled acts up to the current act
+ *  (a small model declares "act: 3" without managing a nested list) and writes the current act's
+ *  title/summary in place. A first-ever patch births the plane from the defaults (act 1, empty acts). */
+function applyPlotPatch(current: RpgSnapshotState["plot"], patch: NonNullable<UpdateSceneArgs["plot"]>): NonNullable<RpgSnapshotState["plot"]> {
+  const base = current ?? { act: 1, title: "", acts: [] };
+  const act = patch.act ?? base.act;
+  const acts = base.acts.map((a) => ({ ...a }));
+  while (acts.length < act) {
+    acts.push({ title: "", summary: "" });
+  }
+  const idx = act - 1;
+  const curAct = acts[idx];
+  if (curAct !== undefined) {
+    acts[idx] = {
+      title: patch.actTitle ?? curAct.title,
+      summary: patch.actSummary ?? curAct.summary,
+    };
+  }
+  return { act, title: patch.title ?? base.title, acts };
+}
+
 /** The clock the scene args resolve to (§2.7 — `timeOfDay`/`day` onto the engine `{day,hour,minute}`). */
 function sceneClock(state: RpgSnapshotState, args: UpdateSceneArgs): RpgSnapshotState["clock"] {
   const base = state.clock ?? { day: 1, hour: 0, minute: 0 };
@@ -317,6 +340,9 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs)
   }
   if (args.recentEvent !== undefined) {
     patch.recentEvents = [...state.recentEvents, args.recentEvent];
+  }
+  if (args.plot !== undefined) {
+    patch.plot = applyPlotPatch(state.plot, args.plot);
   }
   return patch;
 }
@@ -436,7 +462,18 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   // extraction stays an empty patch (the byte-identical non-writing turn, `chat-ops/flush.ts`). A plane is
   // included iff its running value diverged from the base (reference-changed by an `overlay`).
   const statePatch: Record<string, unknown> = {};
-  for (const key of ["actorState", "presentCharacters", "recentEvents", "clock", "location", "calendarDate", "weather", "widgetValues", "quests"] as const) {
+  for (const key of [
+    "actorState",
+    "presentCharacters",
+    "recentEvents",
+    "clock",
+    "location",
+    "calendarDate",
+    "weather",
+    "widgetValues",
+    "quests",
+    "plot",
+  ] as const) {
     if (state[key] !== base[key]) {
       statePatch[key] = state[key];
     }

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "37c2fa8d-62a8-42fd-9fcd-fb284dcf1f09",
+  "id": "a99b8f59-550b-4977-a7c6-f59f19429704",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5396,6 +5396,13 @@
           "notNull": false,
           "autoincrement": false,
           "default": "'[]'"
+        },
+        "plot": {
+          "name": "plot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "field_locks": {
           "name": "field_locks",

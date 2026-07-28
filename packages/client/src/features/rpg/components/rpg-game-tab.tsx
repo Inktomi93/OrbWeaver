@@ -91,6 +91,23 @@ function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonl
           </Stack>
 
           <Stack gap="field">
+            <Kicker>Play style</Kicker>
+            <form.AppField name="cyoa">
+              {(field): ReactElement => (
+                <field.SwitchField label="CYOA choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
+              )}
+            </form.AppField>
+            <form.AppField name="plotProgression">
+              {(field): ReactElement => (
+                <field.SwitchField
+                  label="Plot steering"
+                  hint="Adds a Plot submenu to the composer wand — one-shot story steers (twist, escalate, advance the act)."
+                />
+              )}
+            </form.AppField>
+          </Stack>
+
+          <Stack gap="field">
             <Kicker crown={true}>Hidden channels — host only</Kicker>
             <form.AppField name="deception">
               {(field): ReactElement => (

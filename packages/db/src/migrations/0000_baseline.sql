@@ -830,6 +830,7 @@ CREATE TABLE `rpg_snapshots` (
 	`actor_state` text,
 	`widget_values` text,
 	`quests` text DEFAULT '[]',
+	`plot` text,
 	`field_locks` text,
 	`committed` integer DEFAULT 0 NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,

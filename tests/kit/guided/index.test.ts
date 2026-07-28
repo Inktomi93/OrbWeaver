@@ -1,6 +1,14 @@
-import { composeRewriteSteer, neutralizeMacros, resolveGuidedInstruction, ZWSP } from "@orb/kit/guided";
+import {
+  composeRewriteSteer,
+  GUIDED_GAME_STEER_KINDS,
+  GUIDED_GAME_STEERS,
+  neutralizeMacros,
+  RPG_PLOT_STEER_KINDS,
+  resolveGuidedInstruction,
+  ZWSP,
+} from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
-import { createDefaultRegistry, registerUserMacros } from "@orb/kit/macro";
+import { createDefaultRegistry, processMacros, registerUserMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures";
 
 // Fixed macro context — no Date/random, per the determinism gate.
@@ -155,4 +163,37 @@ test("resolveGuidedInstruction resolves a user macro when a per-turn registry is
   // With the registry the user macro resolves; without it (the default) the token passes through verbatim.
   expect(resolveGuidedInstruction("{{input}} — {{vibe}}", "go", macroOpts(), { registry })).toBe("go — electric");
   expect(resolveGuidedInstruction("{{input}} — {{vibe}}", "go", macroOpts())).toBe("go — {{vibe}}");
+});
+
+// ── P5 — the game one-shot steers (the wand's Plot submenu + "Offer choices") ──
+test("every GUIDED_GAME_STEER_KINDS member has a def with a label and a non-empty template", () => {
+  expect(GUIDED_GAME_STEER_KINDS).toEqual([...RPG_PLOT_STEER_KINDS, "choices"]);
+  for (const kind of GUIDED_GAME_STEER_KINDS) {
+    const def = GUIDED_GAME_STEERS[kind];
+    expect(def.label.length).toBeGreaterThan(0);
+    expect(def.template.trim().length).toBeGreaterThan(0);
+  }
+});
+
+test("the state-aware steers read the rpg data macros; choices teaches the exact fence grammar", () => {
+  // twist/advance ground themselves in live state via the P6 macro feed (zero rpg-contract coupling).
+  expect(GUIDED_GAME_STEERS.twist.template).toContain("{{rpgSceneState}}");
+  expect(GUIDED_GAME_STEERS.twist.template).toContain("{{rpgQuests}}");
+  expect(GUIDED_GAME_STEERS.advance.template).toContain("{{rpgSceneState}}");
+  // randomized rides the {{random::…}} macro (a fresh roll per fire).
+  expect(GUIDED_GAME_STEERS.randomized.template).toContain("{{random::");
+  // the one-shot choices steer names the tokenizer's fence open + close markers.
+  expect(GUIDED_GAME_STEERS.choices.template).toContain(":::choices");
+});
+
+test("the game steer templates resolve through the macro engine (rpg macros live, empty off-game)", () => {
+  const withState = processMacros(GUIDED_GAME_STEERS.twist.template, {
+    ...macroOpts(),
+    rpgMacros: { rpgSceneState: "Scene: the tavern", rpgQuests: "- Find it" },
+  });
+  expect(withState).toContain("the tavern");
+  expect(withState).toContain("Find it");
+  // Off-game the rpg macros degrade to "" — the steer stays sane generic prose, never a raw token.
+  const offGame = processMacros(GUIDED_GAME_STEERS.twist.template, macroOpts());
+  expect(offGame).not.toContain("{{rpgSceneState}}");
 });

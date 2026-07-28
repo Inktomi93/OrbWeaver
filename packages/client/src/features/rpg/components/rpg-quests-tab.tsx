@@ -10,13 +10,20 @@
 // EDIT-in-place (host, `canEditShared`): quest name inline (upsertQuest), objective completion via a
 // checkbox (whole-objectives-array replace — the authoring wire shape). Text is the datum everywhere;
 // the ring is aria-hidden geometry (role="meter" is SegmentedClock's own contract).
+//
+// P5 — the ACT RAIL (the plot spine, DESIGN §4 "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III"): renders the
+// snapshot-resident `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act
+// embered (text-highlight), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title"
+// line); the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ NOTHING renders
+// (no client-invented acts, ever — §12.2.6).
 
-import type { RpgQuestView } from "@orb/contracts/rpg";
+import type { RpgPlot, RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
+import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
@@ -26,6 +33,71 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useUpsertQuest } from "../hooks/use-rpg-mutations";
 
 const MIN_CLOCK_SEGMENTS = 2;
+
+// Roman act labels for the rail (acts beyond the table fall back to the arabic number — a 20-act
+// campaign still labels honestly).
+const ROMAN_ACTS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"] as const;
+
+function actNumeral(act: number): string {
+  return ROMAN_ACTS[act - 1] ?? String(act);
+}
+
+// The rail's per-state glyph + tone (a Record over the closed 3-state axis — never a nested ternary).
+const ACT_STATES = ["past", "current", "future"] as const;
+type ActState = (typeof ACT_STATES)[number];
+const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly className: string }>> = {
+  past: { glyph: "●", className: "text-foreground" },
+  current: { glyph: "◉", className: "text-highlight font-semibold" },
+  future: { glyph: "○", className: "text-muted-foreground" },
+};
+
+function actState(act: number, current: number): ActState {
+  if (act === current) {
+    return "current";
+  }
+  return act < current ? "past" : "future";
+}
+
+/** One act stop on the rail — the connector rule (from act 2 on) + the state-toned glyph + numeral. */
+function ActStop({ act, current }: { readonly act: number; readonly current: number }): ReactElement {
+  const style = ACT_STATE_STYLE[actState(act, current)];
+  return (
+    <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
+      {act === 1 ? null : <Separator className="flex-1" />}
+      <Text as="span" size="micro" className={style.className}>
+        {style.glyph} {actNumeral(act)}
+      </Text>
+    </Row>
+  );
+}
+
+/** The P5 act rail — the campaign-scale plot spine above the quest cards. Renders nothing without a plot
+ *  plane. The heading TEXT is the datum (`ACT II — THE BONE KEY`); the dot row is aria-hidden geometry. */
+function RpgActRail({ plot }: { readonly plot: RpgPlot }): ReactElement {
+  const total = Math.max(plot.acts.length, plot.act);
+  const acts = Array.from({ length: total }, (_, i) => i + 1);
+  const currentTitle = plot.acts[plot.act - 1]?.title ?? "";
+  const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
+  return (
+    <Stack gap="field" data-slot="rpg-act-rail" className="rounded-card border border-border bg-card px-block py-row">
+      <Row gap="block" align="baseline" justify="between">
+        <Text size="label" weight="semibold" transform="caps" className="tracking-micro text-highlight">
+          {heading}
+        </Text>
+        {plot.title === "" ? null : (
+          <Text as="span" size="micro" tone="muted" className="truncate">
+            {plot.title}
+          </Text>
+        )}
+      </Row>
+      <Row gap="field" align="center" aria-hidden="true">
+        {acts.map((act) => (
+          <ActStop key={act} act={act} current={plot.act} />
+        ))}
+      </Row>
+    </Stack>
+  );
+}
 
 // A section label — the muted letter-spaced caps idiom (§4.7).
 function SectionLabel({ children }: { readonly children: ReactNode }): ReactElement {
@@ -188,6 +260,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
     // No dead end (§4.3 rule 1): the empty state offers the create affordance to a host, teaches a member.
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
+        {tracker.plot ? <RpgActRail plot={tracker.plot} /> : null}
         <Text tone="muted">No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
         {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
       </Stack>
@@ -196,6 +269,8 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-quests-tab">
+      {/* P5 — the plot spine (campaign scale) leads the tab; absent until the story authors a plot. */}
+      {tracker.plot ? <RpgActRail plot={tracker.plot} /> : null}
       {active.length === 0 ? null : (
         <Stack gap="field">
           <SectionLabel>Active — {active.length}</SectionLabel>

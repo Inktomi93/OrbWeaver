@@ -19,6 +19,7 @@ import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted, migrateComposerDraft, setComposerDraft, useComposerDraft } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
 import { ChatCastBar } from "../components/chat-cast-bar";
+import { ChoiceSendProvider } from "../components/choice-send-provider";
 import { Composer } from "../components/composer";
 import { MessageSelectionBar } from "../components/message-selection-bar";
 import type { DraftSeed } from "../hooks/use-send-message";
@@ -116,14 +117,18 @@ export function ChatRoomSurface({
   const thread = (
     <Stack className="min-h-0 flex-1">
       <MessageThreadAnchor>
-        <MessageListSurface
-          busDeps={busDeps}
-          handle={handle}
-          draftSeed={draftSeed}
-          onChatForked={onChatForked}
-          surfaceContributors={surfaceContributors}
-          toolRenderers={toolRenderers}
-        />
+        {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
+            a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
+        <ChoiceSendProvider handle={handle}>
+          <MessageListSurface
+            busDeps={busDeps}
+            handle={handle}
+            draftSeed={draftSeed}
+            onChatForked={onChatForked}
+            surfaceContributors={surfaceContributors}
+            toolRenderers={toolRenderers}
+          />
+        </ChoiceSendProvider>
       </MessageThreadAnchor>
     </Stack>
   );

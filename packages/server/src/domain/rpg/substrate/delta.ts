@@ -435,6 +435,37 @@ const castFieldRenderer: PlaneDiffRenderer<RpgSnapshotState["presentCharacters"]
   },
 };
 
+/** The plot label the diff names an act by — the act's title, else `act N`. */
+function actLabel(plot: NonNullable<RpgSnapshotState["plot"]>, act: number): string {
+  const title = plot.acts[act - 1]?.title ?? "";
+  return title !== "" ? `act ${act} "${title}"` : `act ${act}`;
+}
+
+/** Plot (P5) — the campaign-scale transitions: the plane appearing (`plot begins`), an act ADVANCE
+ *  (`act 1 → act 2 "The Bone Key"`), and a story retitle. Act title/summary edits within the same act are
+ *  silent (authoring polish, not a beat the prose must land). */
+const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
+  plane: "plot",
+  select: (s) => s.plot,
+  render: (prev, cur) => {
+    if (cur === null) {
+      return [];
+    }
+    const out: string[] = [];
+    if (prev === null) {
+      out.push(cur.title !== "" ? `story begins: "${cur.title}" — ${actLabel(cur, cur.act)}` : `story begins — ${actLabel(cur, cur.act)}`);
+      return out;
+    }
+    if (cur.act !== prev.act) {
+      out.push(`${actLabel(prev, prev.act)} → ${actLabel(cur, cur.act)}`);
+    }
+    if (cur.title !== prev.title && cur.title !== "") {
+      out.push(`story titled "${cur.title}"`);
+    }
+    return out;
+  },
+};
+
 /** The OPEN, ordered per-plane diff registry (§2.7.1). The delta block = the ordered concat of each renderer's
  *  lines over the two snapshots. P1 REGISTERS its relationship + cast-field renderers HERE (they are cast-plane
  *  diffs — the relationship renderer emits `Mari: friend → wary`, which is BOTH this block's steering line AND
@@ -452,6 +483,7 @@ export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
   definePlaneDiff(relationshipRenderer),
   definePlaneDiff(castFieldRenderer),
   definePlaneDiff(questsRenderer),
+  definePlaneDiff(plotRenderer),
   definePlaneDiff(widgetsRenderer),
 ];
 
