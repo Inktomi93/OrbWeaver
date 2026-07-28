@@ -15,6 +15,10 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures";
 
+// The ref bundle's establishment flags. The enum tests below don't force scene population (both false); the
+// establish-when-unset arm is pinned by its own tests further down.
+const NO_ESTABLISH = { location: false, timeOfDay: false, presentCast: false } as const;
+
 test("the extraction schema projects to JSON Schema without throwing (the output_config.format class)", () => {
   expect(() => z.toJSONSchema(rpgExtractionSchema)).not.toThrow();
 });
@@ -83,7 +87,7 @@ function refEnum(schema: Record<string, unknown>, path: readonly string[]): unkn
 
 test("constrain injects the actorRefs enum on party/inventory targetRef + scene.presentRemove", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
-  const constrained = constrainExtractionSchema(base, { actorRefs: ["You", "Bramwell"], widgetRefs: [], castFieldKeys: [] });
+  const constrained = constrainExtractionSchema(base, { actorRefs: ["You", "Bramwell"], widgetRefs: [], castFieldKeys: [], establishScene: NO_ESTABLISH });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "inventory", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "scene", "properties", "presentRemove", "items", "enum"])).toEqual(["You", "Bramwell"]);
@@ -94,12 +98,18 @@ test("constrain injects the widgetRefs enum on widgets.widgetRef", () => {
     actorRefs: [],
     widgetRefs: ["Corruption", "Torch Fuel"],
     castFieldKeys: [],
+    establishScene: NO_ESTABLISH,
   });
   expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toEqual(["Corruption", "Torch Fuel"]);
 });
 
 test("an EMPTY ref list leaves the field unconstrained (never an impossible empty enum — the fresh-game arm)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [], castFieldKeys: [] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: [],
+    castFieldKeys: [],
+    establishScene: NO_ESTABLISH,
+  });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toBeUndefined();
   expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toBeUndefined();
 });
@@ -107,12 +117,17 @@ test("an EMPTY ref list leaves the field unconstrained (never an impossible empt
 test("constrain does NOT mutate the input schema (the cached projection also feeds other wires)", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
   const snapshot = JSON.stringify(base);
-  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"], castFieldKeys: [] });
+  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"], castFieldKeys: [], establishScene: NO_ESTABLISH });
   expect(JSON.stringify(base)).toBe(snapshot);
 });
 
 test("a constrained schema still PROJECTS clean (enum is plain JSON Schema every backend enforces)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: ["You"], widgetRefs: [], castFieldKeys: [] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: ["You"],
+    widgetRefs: [],
+    castFieldKeys: [],
+    establishScene: NO_ESTABLISH,
+  });
   // The enum lives on a leaf string node — valid JSON Schema, no throw, portable to vLLM xgrammar + OR strict.
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You"]);
@@ -123,15 +138,46 @@ test("constrain injects the castFieldKeys enum on scene.presentUpsert[].customFi
     actorRefs: [],
     widgetRefs: [],
     castFieldKeys: ["suspicion", "trust"],
+    establishScene: NO_ESTABLISH,
   });
   const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
   expect(refEnum(constrained, path)).toEqual(["suspicion", "trust"]);
 });
 
 test("an EMPTY castFieldKeys leaves the cast-field name unconstrained (the feature-off arm)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [], castFieldKeys: [] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: [],
+    castFieldKeys: [],
+    establishScene: NO_ESTABLISH,
+  });
   const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
   expect(refEnum(constrained, path)).toBeUndefined();
+});
+
+test("establish-when-unset: an UNSET scene forces location/timeOfDay + a non-empty presentUpsert (the fresh-game arm)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: [],
+    castFieldKeys: [],
+    establishScene: { location: true, timeOfDay: true, presentCast: true },
+  });
+  // xgrammar/`strict` now FORCES the model to emit scene.location + scene.timeOfDay + at least one present character.
+  expect(refEnum(constrained, ["required"])).toContain("scene");
+  expect(refEnum(constrained, ["properties", "scene", "required"])).toEqual(expect.arrayContaining(["location", "timeOfDay", "presentUpsert"]));
+  expect(refEnum(constrained, ["properties", "scene", "properties", "presentUpsert", "minItems"])).toBe(1);
+});
+
+test("establish-when-unset: an already-SET scene stays OPTIONAL (ongoing turn keeps omit=keep, no re-emit churn)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: [],
+    castFieldKeys: [],
+    establishScene: { location: false, timeOfDay: false, presentCast: false },
+  });
+  // Once the scene is established, nothing is forced — the model patches only what the beat moves.
+  expect(refEnum(constrained, ["required"])).not.toContain("scene");
+  expect(refEnum(constrained, ["properties", "scene", "properties", "presentUpsert", "minItems"])).toBeUndefined();
 });
 
 // ── toolCallsToExtraction (the cheap TOOL ROUND fold — parallel tool calls → an RpgExtraction) ──────────

@@ -106,11 +106,34 @@ async function readBeat(db: Db, variantId: MessageVariantId): Promise<string> {
  *  emits the WHOLE state delta as ONE structured object. No user-facing prose — structured output is the fit.
  *  The projected schema marks all five array fields REQUIRED (zod `.default([])` in output mode), so the
  *  "nothing changed" shape is EMPTY ARRAYS, not a literal `{}` (stickler S5 — a bare `{}` fails the Anthropic
- *  runtime's schema validation and burns a retry every quiet turn; enforcing backends force the arrays anyway). */
+ *  runtime's schema validation and burns a retry every quiet turn; enforcing backends force the arrays anyway).
+ *
+ *  ESTABLISH, not just DIFF (2026-07-28, the sad-path fix): the original prompt said "output ONLY the changes …
+ *  never invent" — which on a FRESH game (empty state) + ordinary prose made a weak 8B conclude that nothing
+ *  had changed and that writing the scene would be inventing → the empty object, so the panel never populated
+ *  (`rpg.extraction.empty`, [[plan-for-small-hardware]]). The real lever is the ENFORCED SCHEMA, not this prose:
+ *  `constrainExtractionSchema` now marks `scene` + `scene.location`/`scene.timeOfDay` REQUIRED, so xgrammar/
+ *  `strict` FORCES the model to emit them every beat (a weak model can no longer skip the scene). This prompt's
+ *  job is content QUALITY: read where/when from the beat (or restate the standing scene when unchanged, never
+ *  blank it) and fill the still-optional planes. The R1 ref enums (below) keep targets honest. */
 const EXTRACTION_SYSTEM =
-  "You are a game-state extractor. Read the latest story beat and the current tracked state, then output ONLY " +
-  "the changes this beat made to the game state, as a single structured object matching the schema. When nothing " +
-  "tracked changed, emit the object with every array field EMPTY ([]). Never invent state the beat does not support.";
+  "You keep a role-play game's tracked state in sync with the story. Read the CURRENT STATE and the LATEST BEAT, " +
+  "then output ONE JSON object that updates the tracked state to match what the beat shows. Fill EVERY plane the " +
+  "beat gives you something for — the player sees this as a live character panel, so keep it current and rich.\n" +
+  "SCENE — scene.location + scene.timeOfDay are REQUIRED: WHERE (a tavern, a late-night konbini) and WHEN " +
+  "(dawn, morning, afternoon, evening, night, midnight). When the beat doesn't change them, restate the current " +
+  "values — never blank them. Also set scene.weather when mentioned, scene.calendarDate for a narrated in-world " +
+  "date, and scene.recentEvent = a one-line summary of what just happened.\n" +
+  "WHO IS PRESENT — scene.presentUpsert: one entry per character who speaks or acts (name required). Fill what " +
+  "the beat reveals about each: mood, appearance, outfit, thoughts (their inner state), and relationship toward " +
+  "the player (kind = lover/friend/ally/neutral/enemy/custom) as it shifts. presentRemove a character who leaves.\n" +
+  "WHAT MOVED — party: ONLY mechanical changes — pool changes (poolDeltas), conditions gained/lost " +
+  '(addCondition/removeCondition, e.g. "bleeding", "on edge"), hp (hpDelta), and a short status line (status). ' +
+  "A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here. inventory: items gained or lost " +
+  "(add/remove) and money (walletDeltas). quests: new or advancing quests (name + action create/update/complete/" +
+  "fail, with objectives). journal: one short entry (type + content) for a notable event.\n" +
+  "Recording facts the beat states is NOT inventing — but never fabricate numbers, items, or events the beat " +
+  "does not show. Leave an OPTIONAL plane empty only when the beat truly gives nothing for it.";
 
 /** The one user-turn body both extraction arms send: current state + the latest committed beat. */
 function extractionUserPrompt(stateJson: string, beat: string): string {
@@ -229,8 +252,17 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // §2.8 — the host-defined tracked cast-field KEYS constrain the nested `presentUpsert[].customFields[].name`,
   // so the model can only write DEFINED fields (never invent a junk key). Empty (feature off) leaves it free.
   const castFieldKeys = game?.config.features.castFields.map((f) => f.key) ?? [];
+  // ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (constrainExtractionSchema) ONLY while the current scene
+  // lacks them — a fresh game establishes the scene from the first beat, an ongoing scene keeps the optional
+  // omit=keep patch. `location` defaults to "" (unset), `clock` is null until a timeOfDay lands, and an empty
+  // `presentCharacters` means the cast hasn't been put on stage yet (force a non-empty presentUpsert).
+  const establishScene = {
+    location: baseState.location === "",
+    timeOfDay: baseState.clock === null,
+    presentCast: baseState.presentCharacters.length === 0,
+  };
   return {
-    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys },
+    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, establishScene },
     playerDisplayName: player?.name ?? null,
   };
 }
