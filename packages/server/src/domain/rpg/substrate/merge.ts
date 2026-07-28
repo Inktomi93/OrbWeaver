@@ -20,28 +20,63 @@
 // KEYED-ARRAY LOCK GRAMMAR (§2.5/§4.4 — per-element `<field>.<id>` locks). A tool wholesale-replaces an
 // array (the [merge-clear] replace branch), so a naive merge can never honor an ELEMENT lock: `quests.q_1`
 // would never bite, only the all-or-nothing `quests` prefix. The fix: some arrays are KEYED — each element
-// carries a stable id/key property, and `<field>.<id>` addresses one element. For those, after the tool's
-// wholesale replace, we RE-ASSERT every base element whose `<field>.<id>` is locked back onto the merged
-// array (re-inserting it if the tool dropped it) — so a locked element survives both a tool MODIFY and a
-// tool REMOVAL, while unlocked siblings take the patch. The registry below maps each keyed field to the
-// element property that names its lock segment; a new keyed plane is ONE entry (the extensible shape —
-// KISS/YAGNI suspended here). The bare `<field>` prefix lock still all-or-nothing pins the whole array.
+// carries a stable id/key (a plain property, or a COMPUTED projection like `actorRefKey`), and
+// `<field>.<id>` addresses one element. A keyed merge correlates base↔patch elements by that key and:
+//   • a WHOLE-element lock (`<field>.<id>`) pins the base element over the patch (survives a MODIFY);
+//   • a base element with ANY lock at/under its element path survives a tool REMOVAL (re-inserted);
+//   • a correlated pair with neither DEEP-MERGES per field (the same `mergeAt` walk, path-prefixed
+//     `<field>.<id>`), so a SUB-FIELD lock (`actorState.user:u1.status`, `actorState.user:u1.pools.Mana`)
+//     bites on exactly that value while unlocked sibling fields take the patch — the per-field pin (#10);
+//   • an uncorrelated patch element (a new id) lands as-is.
+// The registry below matches a path's FINAL SEGMENT to the element-key resolver; a new keyed plane is ONE
+// entry (the extensible shape — KISS/YAGNI suspended here). Nested keyed planes (an actor's `pools` /
+// `wallet` / `conditions` / `inventory`) register by the same segment vocabulary, so the grammar recurses.
+// The bare `<field>` prefix lock still all-or-nothing pins the whole array.
 
 import type { RpgFieldLocks } from "@orb/contracts/rpg";
+import { actorRefKey, rpgActorRefSchema } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
 
-/** The keyed snapshot arrays: `field → the element property that names its `<field>.<id>` lock segment`.
- *  `quests` (key `id`) is the spec-committed proven case (§2.5/§4.4). `inventory` (`id`) and
- *  `presentCharacters` (`key`) carry stable minted plain-property keys too, so per-element hand-locks on
- *  those planes bite by the SAME grammar — registered now rather than left to re-spell at their verb wave.
- *  `actorState` is a DOCUMENTED FORWARD-SEAM, NOT registered: its element key is a COMPUTED `actorRefKey`
- *  projection (not a plain property), and how `editSnapshot` addresses a per-actor sub-field is an unfixed
- *  W1b decision — registering a guessed key shape now would be the re-spell the registry exists to avoid. */
-const KEYED_ARRAYS: Readonly<Record<string, string>> = {
-  quests: "id",
-  inventory: "id",
-  presentCharacters: "key",
+/** Resolve a keyed element's stable lock-segment key, or `undefined` when it has none (unaddressable). */
+type ElementKeyResolver = (element: unknown) => string | undefined;
+
+/** A plain-property key resolver (`id` / `key` / `name`). */
+function propKey(prop: string): ElementKeyResolver {
+  return (element) => {
+    const raw = isPlainObject(element) ? element[prop] : undefined;
+    return typeof raw === "string" ? raw : undefined;
+  };
+}
+
+/** The `actorState` element key — the COMPUTED `actorRefKey` projection over the element's `actorRef`
+ *  (`user:<id>` / `character:<id>` / `cast:<key>`), the SAME string every other actor-addressed surface
+ *  uses (the Map/lock/find key, contracts/rpg/actor.ts). A malformed ref resolves no key (unaddressable). */
+function actorStateKey(element: unknown): string | undefined {
+  const ref = isPlainObject(element) ? element["actorRef"] : undefined;
+  const parsed = rpgActorRefSchema.safeParse(ref);
+  return parsed.success ? actorRefKey(parsed.data) : undefined;
+}
+
+/** The keyed snapshot arrays, matched by the path's FINAL SEGMENT: `quests`/`inventory` (key `id`),
+ *  `presentCharacters` (`key`), `actorState` (the computed `actorRefKey` — the #10 per-field-lock wire),
+ *  and the per-actor nested planes `pools`/`wallet`/`conditions` (`name` — the name-addressed vocabulary,
+ *  D86). Segment-matching (over full-path keys) is what lets the nested planes key under ANY actor prefix
+ *  (`actorState.<key>.pools`) without a per-actor registry re-spell. */
+const KEYED_ARRAYS: Readonly<Record<string, ElementKeyResolver>> = {
+  quests: propKey("id"),
+  inventory: propKey("id"),
+  presentCharacters: propKey("key"),
+  actorState: actorStateKey,
+  pools: propKey("name"),
+  wallet: propKey("name"),
+  conditions: propKey("name"),
 };
+
+/** The final dotted segment of a lock path (`actorState.user:u1.pools` → `pools`). */
+function lastSegment(path: string): string {
+  const dot = path.lastIndexOf(".");
+  return dot === -1 ? path : path.slice(dot + 1);
+}
 
 /** Is `path` locked, directly or by a locked ancestor prefix? A lock on `quests` blocks `quests.q_1`. */
 function isPathLocked(path: string, locks: RpgFieldLocks | null): boolean {
@@ -66,52 +101,69 @@ function isPathLocked(path: string, locks: RpgFieldLocks | null): boolean {
 // A sentinel the per-key resolver returns to mean "skip this key" (distinct from a real `undefined` leaf).
 const SKIP = Symbol("skip");
 
-/** The stable lock-segment key of a keyed-array element, or `undefined` if it has none (unaddressable). */
-function elementKey(element: unknown, keyProp: string): string | undefined {
-  const raw = isPlainObject(element) ? element[keyProp] : undefined;
-  return typeof raw === "string" ? raw : undefined;
+/** Does ANY lock sit at or BELOW `path` (`path` itself, or any `path.<deeper>` key)? The removal defense:
+ *  a base element carrying a sub-field lock must survive a tool removal, or the pinned value silently dies
+ *  with its element. */
+function hasLockAtOrBelow(path: string, locks: RpgFieldLocks | null): boolean {
+  if (locks === null) {
+    return false;
+  }
+  if (isPathLocked(path, locks)) {
+    return true;
+  }
+  const prefix = `${path}.`;
+  return Object.keys(locks).some((key) => key.startsWith(prefix));
 }
 
-/** Merge a keyed array under the `<field>.<id>` lock grammar. The tool wholesale-replaces (`args.patchArr`
- *  is the new array); then every BASE element whose `<field>.<id>` is locked is RE-ASSERTED — overwriting
- *  the patch's version of that id (survives a MODIFY) and re-inserting it if the patch dropped it (survives
- *  a REMOVAL). Unlocked siblings take the patch as-is. Order: patch order, with any re-inserted locked base
- *  elements appended (a locked element the tool removed returns, deterministically at the tail). */
+/** Merge a keyed array under the `<field>.<id>` lock grammar (the header's four-rule contract): a
+ *  whole-element lock pins the base element; a correlated pair deep-merges per field (nested locks bite —
+ *  the #10 per-field pin); a base element with any lock at/under its path survives removal (appended at
+ *  the tail, deterministically); an unkeyed/uncorrelated patch element lands as-is. */
 function mergeKeyedArray(args: {
   baseArr: readonly unknown[];
   patchArr: readonly unknown[];
-  keyProp: string;
+  keyOf: ElementKeyResolver;
   locks: RpgFieldLocks | null;
   fieldPath: string;
 }): unknown[] {
-  const { baseArr, patchArr, keyProp, locks, fieldPath } = args;
-  const lockedBaseById = new Map<string, unknown>();
+  const { baseArr, patchArr, keyOf, locks, fieldPath } = args;
+  const baseById = new Map<string, unknown>();
   for (const el of baseArr) {
-    const id = elementKey(el, keyProp);
-    if (id !== undefined && isPathLocked(`${fieldPath}.${id}`, locks)) {
-      lockedBaseById.set(id, el);
+    const id = keyOf(el);
+    if (id !== undefined) {
+      baseById.set(id, el);
     }
-  }
-  if (lockedBaseById.size === 0) {
-    return [...patchArr]; // no element locks — the tool's replace stands
   }
   const seen = new Set<string>();
   const out: unknown[] = [];
   for (const el of patchArr) {
-    const id = elementKey(el, keyProp);
-    if (id !== undefined && lockedBaseById.has(id)) {
-      out.push(lockedBaseById.get(id)); // locked: pin the base value over the tool's edit
-      seen.add(id);
-    } else {
-      out.push(el); // unlocked sibling: take the patch
+    const id = keyOf(el);
+    if (id === undefined) {
+      out.push(el); // an unaddressable element — nothing to correlate or lock against
+      continue;
     }
+    seen.add(id);
+    out.push(resolveKeyedElement(baseById.get(id), el, locks, `${fieldPath}.${id}`));
   }
-  for (const [id, el] of lockedBaseById) {
-    if (!seen.has(id)) {
+  for (const [id, el] of baseById) {
+    if (!seen.has(id) && hasLockAtOrBelow(`${fieldPath}.${id}`, locks)) {
       out.push(el); // the tool dropped a locked element — re-insert it (removal defeated)
     }
   }
   return out;
+}
+
+/** Resolve ONE correlated keyed element: a whole-element lock pins the base (a locked-but-absent base takes
+ *  the patch); a base+patch object pair deep-merges per field under the element path (nested locks bite —
+ *  the #10 per-field pin); anything else takes the patch element as-is. */
+function resolveKeyedElement(base: unknown, el: unknown, locks: RpgFieldLocks | null, elPath: string): unknown {
+  if (isPathLocked(elPath, locks)) {
+    return base ?? el;
+  }
+  if (isPlainObject(base) && isPlainObject(el)) {
+    return mergeAt(base, el, locks, elPath);
+  }
+  return el;
 }
 
 /** Resolve ONE patch value against its base per the [merge-clear] contract (locks handled by the caller). */
@@ -123,9 +175,9 @@ function resolveValue(baseValue: unknown, value: unknown, locks: RpgFieldLocks |
     return null; // explicit null = leaf clear
   }
   if (Array.isArray(value)) {
-    const keyProp = KEYED_ARRAYS[path];
-    if (keyProp !== undefined && Array.isArray(baseValue)) {
-      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, keyProp, locks, fieldPath: path }); // keyed: element-lock grammar
+    const keyOf = KEYED_ARRAYS[lastSegment(path)];
+    if (keyOf !== undefined && Array.isArray(baseValue)) {
+      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, keyOf, locks, fieldPath: path }); // keyed: element-lock grammar
     }
     return value; // unkeyed array = wholesale replace
   }

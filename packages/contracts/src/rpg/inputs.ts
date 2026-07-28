@@ -98,11 +98,14 @@ export const rpgPatchSheetInputSchema = z.object({
  *  `releaseLocks` (§12.3 lock-release) are dotted lock paths to CLEAR from `fieldLocks` — the host's Release
  *  affordance ("let the model write this again"). Clearing rides the SAME verb (not a null on the lock path):
  *  a lock is snapshot-metadata, not a state leaf, so it clears via the `applyHandEdit` lock-DELTA, not a
- *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only). */
+ *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only).
+ *  `lockPaths` (#10 per-field pin) names the FINE dotted paths this edit stamps (the client knows exactly
+ *  which value it edited — `actorState.user:<id>.pools.<name>`); omit ⇒ the coarse top-level-key default. */
 export const rpgEditSnapshotInputSchema = z.object({
   chatId: chatIdField,
   patch: z.record(z.string(), z.unknown()),
   releaseLocks: z.array(z.string().min(1)).optional(),
+  lockPaths: z.array(z.string().min(1)).optional(),
 });
 
 /** `createWidget` — add a HUD widget definition (host). `def` is the DERIVED `rpgWidgetDefSchema`. */

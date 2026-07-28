@@ -9,7 +9,7 @@ import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/c
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games";
 import { resolveSnapshotForTurn } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
-import { expect, makeRpgService, principal, seedChat, test } from "../_support";
+import { actorWithWallet, expect, makeRpgService, principal, seedChat, test } from "../_support";
 
 let db: Db;
 beforeEach(async () => {
@@ -59,5 +59,32 @@ describe("editSnapshot on a turnless game", () => {
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
     expect(snap?.location).toBe("New City");
     expect(snap?.fieldLocks?.["location"]).toBe(true);
+  });
+
+  test("`lockPaths` stamps the FINE per-field pin instead of the coarse top-level key (#10)", async () => {
+    const { chatId, game, service } = await seedGame();
+    await service.editSnapshot({
+      principal: principal("host"),
+      chatId,
+      patch: { actorState: [actorWithWallet("mari", 10, 5)] },
+      lockPaths: ["actorState.cast:mari.pools.focus"],
+    });
+    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+    // The named fine path is locked; the coarse `actorState` default was NOT stamped.
+    expect(snap?.fieldLocks?.["actorState.cast:mari.pools.focus"]).toBe(true);
+    expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
+  });
+
+  test("releaseLocks clears a fine path stamped earlier (release-only call, empty patch)", async () => {
+    const { chatId, game, service } = await seedGame();
+    await service.editSnapshot({
+      principal: principal("host"),
+      chatId,
+      patch: { actorState: [actorWithWallet("mari", 10, 5)] },
+      lockPaths: ["actorState.cast:mari.status"],
+    });
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: {}, releaseLocks: ["actorState.cast:mari.status"] });
+    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+    expect(snap?.fieldLocks?.["actorState.cast:mari.status"]).toBeUndefined();
   });
 });
