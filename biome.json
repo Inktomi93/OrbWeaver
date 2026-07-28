@@ -534,7 +534,7 @@
       }
     },
     {
-      "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts", "tests/e2e/support/global-setup.ts"],
+      "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts", "tests/e2e/support/global-setup.ts", "tests/e2e/support/modes.ts"],
       "linter": {
         "rules": {
           "style": {
