@@ -40,12 +40,26 @@ export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upser
 });
 
 /** `rpg.updateConfig` — the ONE config write door (host): steering note, extraction knob, cast-field
- *  schemas, relationship hints, the deception knobs, and orb-pinning. Repaints BOTH the config view (the
- *  GM console's own read) AND the tracker view (pinnedOrbs changes the band; castFields changes Scene). */
+ *  schemas, relationship hints, the deception knobs, orb-pinning, and the #40 engaged toggle. Repaints
+ *  the config view (the GM console's own read), the tracker view (pinnedOrbs changes the band; castFields
+ *  changes Scene), AND `chat.getChat` (an engaged flip re-writes the pointer MIRROR the takeover gate
+ *  reads — the tabs must appear/vanish on the same commit, not wait for a bus tick). */
 export const useUpdateConfig = createEntityMutation<inferInput<Trpc["rpg"]["updateConfig"]>, unknown>({
   options: (trpc) => trpc.rpg.updateConfig.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.rpg.getConfigView.queryFilter({ chatId: vars.chatId }), trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [
+    trpc.rpg.getConfigView.queryFilter({ chatId: vars.chatId }),
+    trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }),
+    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
+  ],
   errorToast: "Couldn't save the game settings.",
+});
+
+/** `rpg.createGame` — the #40 FRONT DOOR (host): births the lite game + writes the chat pointer. Repaints
+ *  `chat.getChat` (the pointer the takeover gate reads) so the game tabs appear on the same commit. */
+export const useCreateGame = createEntityMutation<inferInput<Trpc["rpg"]["createGame"]>, unknown>({
+  options: (trpc) => trpc.rpg.createGame.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't start the game.",
 });
 
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).

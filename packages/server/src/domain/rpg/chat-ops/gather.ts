@@ -33,8 +33,10 @@ import { buildTrackerView } from "./tracker-view";
 
 export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promise<RpgGatherResult | null> {
   const game: RpgGameRow | undefined = await findGameByChat(ctx.db, chatId);
-  if (game === undefined) {
-    return null; // non-game chat — byte-identical no-op
+  if (game === undefined || !game.config.engaged) {
+    // Non-game chat, or a DISENGAGED game (#40 front-door toggle OFF) — byte-identical no-op: no
+    // reminder, no state block, no steering, no macros/CEL, no tools. The rows are preserved untouched.
+    return null;
   }
 
   // FLUSH BARRIER (the race fix): block until THIS chat's prior post-turn flush has landed before we read the

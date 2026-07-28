@@ -20,6 +20,7 @@
 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { composeRewriteSteer, RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -246,7 +247,8 @@ function useWandRoomFlags(handle: ChatHandle): Pick<WandFlags, "cast" | "isMulti
   const cast = filterCharacters(rosterQuery.data?.participants ?? []);
   const isMultiRoom = committed && cast.length > 1;
 
-  const isGame = committed && (rosterQuery.data?.rpg ?? null) !== null;
+  // #40 — a DISENGAGED game (pointer engaged:false) gates OFF like a non-game chat (one predicate home).
+  const isGame = committed && isRpgEngaged(rosterQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const plotAvailable = isGame && gameQuery.data?.publicConfig.plotProgression === true;
 

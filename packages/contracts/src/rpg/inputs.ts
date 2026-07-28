@@ -66,6 +66,9 @@ export const rpgUpdateConfigInputSchema = z.object({
       cyoa: z.boolean().optional(),
       cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).optional(),
       plotProgression: z.boolean().optional(),
+      // The FRONT-DOOR toggle (#40): `false` disengages the game from the turn assembly + hides the
+      // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.
+      engaged: z.boolean().optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

@@ -31,8 +31,8 @@ describe("setRpgPointer", () => {
   test("writes the opaque {gameId} pointer into metadata.rpg", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
-    await createSetRpgPointer(makeChatContext(db))(chatId, { gameId });
-    expect((await readMetadata(chatId)).rpg).toEqual({ gameId });
+    await createSetRpgPointer(makeChatContext(db))(chatId, { gameId, engaged: true });
+    expect((await readMetadata(chatId)).rpg).toEqual({ engaged: true, gameId });
   });
 
   test("MERGES — a pointer write preserves sibling sub-blobs", async () => {
@@ -43,14 +43,14 @@ describe("setRpgPointer", () => {
       .set({ metadata: { roomOverrides: { scenario: "a haunted keep" } } })
       .where(eq(chats.id, chatId));
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
-    await createSetRpgPointer(makeChatContext(db))(chatId, { gameId });
+    await createSetRpgPointer(makeChatContext(db))(chatId, { gameId, engaged: true });
     const meta = await readMetadata(chatId);
-    expect(meta.rpg).toEqual({ gameId });
+    expect(meta.rpg).toEqual({ engaged: true, gameId });
     expect(meta.roomOverrides?.scenario).toBe("a haunted keep");
   });
 
   test("a racing-deleted chat is a no-op (no throw)", async () => {
-    await createSetRpgPointer(makeChatContext(db))(castId("chat_ghost"), { gameId: mintTypeId(ID_PREFIX.rpgGame) });
+    await createSetRpgPointer(makeChatContext(db))(castId("chat_ghost"), { engaged: true, gameId: mintTypeId(ID_PREFIX.rpgGame) });
     expect(true).toBe(true);
   });
 });

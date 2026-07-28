@@ -68,8 +68,9 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     // `undefined` for such a game (W1a rung 4), and the READ layer SYNTHESIZES the default empty state from
     // `config` — see `substrate/default-state.ts` + `getTrackerView`. The first tool turn writes the first row.
 
-    // The opaque pointer — written ONCE (the client's takeover gate reads it off ChatDetail).
-    await ctx.setPointer(params.chatId, { gameId: game.id });
+    // The opaque pointer — written at birth (the client's takeover gate reads it off ChatDetail); the
+    // #40 engaged flip re-writes the same mirror later (updateConfig). Born engaged.
+    await ctx.setPointer(params.chatId, { gameId: game.id, engaged: true });
 
     // The game row is born — the takeover + config reads refetch (§4.9). Emit AFTER the durable write.
     ctx.emitBus({ type: "gameChanged", chatId: params.chatId });

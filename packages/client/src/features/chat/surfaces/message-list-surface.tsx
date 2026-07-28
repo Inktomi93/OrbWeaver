@@ -7,6 +7,7 @@
 
 import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
@@ -126,7 +127,8 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // naked/```html model HTML into implicit cards. Cross-domain read rides `trpc.rpg.getGame` DIRECTLY
   // (lockdown §12 — the rpg panel shares this exact cache key), non-suspending: until it settles the
   // wrap stays off (literal text, today's behavior — never a blocking read for a non-game render path).
-  const isGame = chatDetail.rpg !== null;
+  // #40 — a DISENGAGED game (pointer engaged:false) reads like a non-game chat (one predicate home).
+  const isGame = isRpgEngaged(chatDetail.rpg ?? null);
   const gameQuery = useQuery({ ...trpc.rpg.getGame.queryOptions({ chatId }), enabled: isGame });
   const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();

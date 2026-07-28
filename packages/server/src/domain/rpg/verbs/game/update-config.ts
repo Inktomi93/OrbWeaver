@@ -74,6 +74,9 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       await assertProfileMutable(ctx, game.id, nextProfile);
     }
     const nextConfig = rpgGameConfigSchema.parse({
+      // The FRONT-DOOR toggle (#40) — keep-on-omit like every sibling (an unrelated config write must
+      // never silently re-engage/disengage the game; [versioned-config-lift-drops-overrides]).
+      engaged: params.patch?.engaged ?? game.config.engaged,
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
@@ -90,6 +93,12 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       ...(params.gmPresetId !== undefined ? { gmPresetId: params.gmPresetId } : {}),
       updatedAt: ctx.now(),
     });
+
+    // #40 — an engaged flip re-writes the chat POINTER MIRROR (`ChatRpgPointer.engaged`) so the client's
+    // sync takeover gate flips off the SAME `ChatDetail` read that gated it on (no rpg round-trip).
+    if (params.patch?.engaged !== undefined && params.patch.engaged !== game.config.engaged) {
+      await ctx.setPointer(params.chatId, { gameId: game.id, engaged: params.patch.engaged });
+    }
 
     // The game row's config/knobs changed — the takeover + config reads refetch (§4.9).
     ctx.emitBus({ type: "gameChanged", chatId: params.chatId });

@@ -63,6 +63,7 @@ test("rpg enum columns mirror their contracts tuples (db derives, never re-spell
 const isConstraint = (e: unknown): boolean => isConstraintViolation(e) !== undefined;
 
 const CONFIG: RpgGameConfig = {
+  engaged: true,
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },
   extractionMode: "reliable",
