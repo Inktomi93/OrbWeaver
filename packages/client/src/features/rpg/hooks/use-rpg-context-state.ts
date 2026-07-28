@@ -29,7 +29,11 @@ export interface RpgPanelState {
   readonly isHost: boolean;
   readonly game: RpgGameView;
   readonly tracker: RpgTrackerView;
-  /** Shared-plane edits are enabled only for a host on a writable game (§4.4 read-only pill = honest arm). */
+  /** Shared-plane HAND edits (snapshot/quest/widget) are enabled for a host — INDEPENDENT of
+   *  `trackersReadOnly` (D108 manual-steering, owner-confirmed 2026-07-28): `trackersReadOnly` gates the
+   *  MODEL-write path ONLY; when the model can't write trackers the host hand-edits every plane (the pill
+   *  "edit them by hand" is the affordance, not a lock). Conflating the two disabled the exact recovery the
+   *  read-only state exists to enable. */
   readonly canEditShared: boolean;
 }
 
@@ -72,6 +76,8 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
     isHost,
     game,
     tracker,
-    canEditShared: isHost && !game.trackersReadOnly,
+    // D108: hand edits are NOT gated by trackersReadOnly (that gates the MODEL write path only) — a host
+    // hand-edits the shared plane whether or not the model can write it.
+    canEditShared: isHost,
   };
 }

@@ -42,6 +42,22 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.features.castFields).toHaveLength(2);
   });
 
+  test("sets the P3 hidden-channel knobs; an OMITTED knob KEEPS its value (deception survives an unrelated edit)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    // Turn deception on + set the recent-beats cap.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { deception: true, recentBeatsKeepLast: 3 } });
+    let game = await findGameByChat(db, chatId);
+    expect(game?.config.features.deception).toBe(true);
+    expect(game?.config.features.recentBeatsKeepLast).toBe(3);
+    // The load-bearing keep-on-omit: a later patch that touches ONLY the steeringNote must NOT reset deception
+    // (or the reasoning-strip that rides it) to its default — the schema `.parse` would otherwise wipe it.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "grim" } });
+    game = await findGameByChat(db, chatId);
+    expect(game?.config.features.deception).toBe(true);
+    expect(game?.config.features.recentBeatsKeepLast).toBe(3);
+    expect(game?.config.features.hiddenContentReveal).toBe(true); // M4 default preserved
+  });
+
   test("an explicit null gmPresetId clears back to augment", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const preset = await seedPreset(db, "x", "pox");

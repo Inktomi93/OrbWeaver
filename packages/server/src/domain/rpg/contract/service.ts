@@ -21,6 +21,7 @@ import type {
   RpgConfigView,
   RpgGameView,
   RpgJournalEntryView,
+  RpgRevealView,
   RpgSnapshotState,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
@@ -87,6 +88,16 @@ export type NewRpgJournal = typeof rpgJournal.$inferInsert;
 
 export type RpgCheckpointRow = typeof rpgCheckpoints.$inferSelect;
 export type NewRpgCheckpoint = typeof rpgCheckpoints.$inferInsert;
+
+/** One assistant slot's selected-variant body for the HOST-REVEAL read (§3.6): the slot id (the reveal eye
+ *  keys per message) + the stored content the tokenizer scans for hidden spans. Chronological (`seq` asc) so
+ *  the standing-lie inventory's most-recent-wins fold reads in emission order. The `persistence/reveal` query
+ *  returns it; the pure `substrate/reveal` projection consumes it. */
+export interface RevealBodyRow {
+  readonly messageId: MessageId;
+  readonly seq: number;
+  readonly content: string;
+}
 
 /** Project a parsed snapshot row onto the composed swipe-volatile STATE (the shape the accumulator overlays).
  *  The row's JSON columns arrive already-parsed by `parseSnapshotRow`; nullable-array columns collapse their
@@ -354,4 +365,9 @@ export interface RpgService {
   readonly listJournal: (params: ListJournalParams) => Promise<readonly RpgJournalEntryView[]>;
   /** HOST. The Stats & Trackers editor surface (full profile + steeringNote + gmPresetId). */
   readonly getConfigView: (params: ReadGameParams) => Promise<RpgConfigView>;
+  /** HOST (§3.6). The reveal "eye": the parsed hidden `<lie>`/`<ofilter>` content of the game's assistant
+   *  transcript + the standing-lie inventory. A READ over the stored bodies (derive-from-bodies, no new table);
+   *  host-gated server-side (a member gets leak-free NOT_FOUND — the truth is a GM-plane secret). Empty when the
+   *  host turned M4 `hiddenContentReveal` off (pure-hidden posture). */
+  readonly revealHidden: (params: ReadGameParams) => Promise<RpgRevealView>;
 }

@@ -27,6 +27,12 @@ import { currentSnapshotState } from "../snapshot-edit";
 
 const POOL_ORB_COUNT = 3;
 
+/** Slice the durable append-only `recentEvents` log to the last N for the reminder (P3 fold — `keepLast === 0`
+ *  drops the block; the durable log is untouched, the journal keeps the full record). */
+function keepLastBeats(beats: readonly string[], keepLast: number): readonly string[] {
+  return keepLast <= 0 ? [] : beats.slice(-keepLast);
+}
+
 /** The default sheet a roster actor with no row renders (§4.3 — a missing row = the default sheet). */
 function defaultSheet(): RpgSheet {
   return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
@@ -115,7 +121,10 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     castFields: game.config.features.castFields,
     widgets,
     quests,
-    recentBeats: state.recentEvents,
+    // P3 fold — `state.recentEvents` is an append-only durable log (the journal keeps the full record); the
+    // reminder read SLICES it to the last N so the steering injection never bloats the prompt with the whole
+    // scene history. `keepLast === 0` drops the block entirely. The tail is the most-recent beats (append order).
+    recentBeats: keepLastBeats(state.recentEvents, game.config.features.recentBeatsKeepLast),
     trackersReadOnly,
     poolOrbs: poolOrbs(actors),
   };

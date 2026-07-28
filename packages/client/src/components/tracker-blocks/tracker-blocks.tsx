@@ -17,62 +17,14 @@
 
 import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
-import { Gauge, Heart, Icon, MapPin, Star, Users, UserX } from "@orb/ui/icons";
+import { Gauge, Icon, MapPin } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { CastMood, CastRelationship } from "./cast-card-slots";
 import { TrackerValue } from "./tracker-value";
-
-type BadgeIntent = NonNullable<ComponentProps<typeof Badge>["intent"]>;
-
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-// RELATIONSHIP BADGE — the five known kinds get a distinct token color + icon; `custom` = a neutral label
-// chip (parity-plus §2.1/§2.5). TEXT is the accessible datum (the tracker-kit a11y model): the badge carries a
-// visible label, the color + icon are decoration. A NEUTRAL default renders nothing (no steering signal to badge).
-// ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-/** The per-kind badge decoration — the intent color + the glyph. `custom` has none (a plain neutral label chip).
- *  Ordered lover→enemy along the warmth axis (§2.1). */
-const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly intent: BadgeIntent; readonly glyph: typeof Heart }>> = {
-  lover: { intent: "primary", glyph: Heart },
-  friend: { intent: "success", glyph: Star },
-  ally: { intent: "info", glyph: Users },
-  neutral: { intent: "neutral", glyph: Users },
-  enemy: { intent: "danger", glyph: UserX },
-};
-
-/** A cast member's relationship badge (§2.1). The five known kinds get a color + icon; a `custom` kind renders
- *  its `label` as a neutral chip. A neutral default is silent (returns null — no badge to clutter). */
-function RelationshipBadge({ relationship }: { readonly relationship: RpgRelationship }): ReactElement | null {
-  if (relationship.kind === "custom") {
-    const label = relationship.label !== "" ? relationship.label : "custom";
-    // A free-text custom label can be arbitrarily long ("disgraced former lieutenant of the crown"); left
-    // unbounded it grew the badge to ~236px and starved the character NAME to 0px. Cap + truncate the label so
-    // the badge yields width to the name (which is `shrink-0` in CastCard), and carry the full text on `title`
-    // for hover. `min-w-0` lets the truncating child actually shrink inside the flex badge.
-    return (
-      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="min-w-0 max-w-control-col" title={label}>
-        <Text as="span" size="micro" weight="medium" className="truncate">
-          {label}
-        </Text>
-      </Badge>
-    );
-  }
-  if (relationship.kind === "neutral") {
-    return null;
-  }
-  const decor = RELATIONSHIP_DECOR[relationship.kind];
-  return (
-    <Badge tone="soft" size="sm" intent={decor.intent} data-slot="relationship-badge">
-      <Icon icon={decor.glyph} size="xs" />
-      <Text as="span" size="micro" weight="medium">
-        {relationship.kind}
-      </Text>
-    </Badge>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 1. METER ROW — pools / per-member meters: `label · value/max` text + a 6px decorative track bar.
@@ -84,6 +36,12 @@ export interface MeterRowProps {
   readonly max: number;
   /** Which `--color-track-N` fills the bar (categorical, by definition order). @defaultValue 1 */
   readonly color?: TrackColor;
+  /** A host-picked color LITERAL (panel-redesign free-hex ruling) overriding the ramp — passed through
+   *  to the decorative `TrackBar` (safe-color-gated there); the value text stays tokened. */
+  readonly customColor?: string;
+  /** An optional leading glyph before the label (aria-hidden decoration — the label text stays the datum;
+   *  the widget-type glyph is the founding consumer). */
+  readonly leading?: ReactNode;
   /** Danger threshold — the bar swaps to the destructive intent below it (never the sole signal). */
   readonly dangerBelow?: number;
   /** Commit a new numeric value — present ⇒ editable-in-place; absent ⇒ read-only. */
@@ -91,13 +49,16 @@ export interface MeterRowProps {
 }
 
 /** A labeled magnitude meter. The `value/max` text is the datum; the bar underneath is decoration. */
-export function MeterRow({ label, value, max, color = 1, dangerBelow, onEditValue }: MeterRowProps): ReactElement {
+export function MeterRow({ label, value, max, color = 1, customColor, leading, dangerBelow, onEditValue }: MeterRowProps): ReactElement {
   return (
     <Stack gap="field" data-slot="meter-row">
       <Row justify="between" align="baseline" gap="block">
-        <Text as="span" size="label" tone="muted">
-          {label}
-        </Text>
+        <Row gap="field" align="center" className="min-w-0">
+          {leading}
+          <Text as="span" size="label" tone="muted" className="truncate">
+            {label}
+          </Text>
+        </Row>
         {onEditValue === undefined ? (
           <Text as="span" size="label" className="tabular-nums">
             {value}/{max}
@@ -126,7 +87,13 @@ export function MeterRow({ label, value, max, color = 1, dangerBelow, onEditValu
           </Row>
         )}
       </Row>
-      <TrackBar value={value} max={max} color={color} {...(dangerBelow === undefined ? {} : { dangerBelow })} />
+      <TrackBar
+        value={value}
+        max={max}
+        color={color}
+        {...(customColor === undefined ? {} : { customColor })}
+        {...(dangerBelow === undefined ? {} : { dangerBelow })}
+      />
     </Stack>
   );
 }
@@ -231,26 +198,46 @@ export interface CastCardProps {
   readonly meters?: ReactNode;
   /** Commit a field value by field name — present ⇒ its chips are editable; absent ⇒ read-only. */
   readonly onEditField?: (fieldName: string, next: string) => void;
+  /** Commit a new mood (free text) — present ⇒ the mood is editable-in-place (§3.2). */
+  readonly onEditMood?: (next: string) => void;
+  /** Commit a new relationship KIND (the closed 6-token vocab — a PICKER, Tier-0 §12.3; off-vocab is
+   *  unconstructable). Present ⇒ the badge becomes a compact kind picker. */
+  readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
+  /** An optional leading relationship glyph (aria-hidden decoration) shown beside the picker in EDIT mode —
+   *  the feature supplies it from its glyph resolver, since the tier-2 kit can't reach a feature lib. In
+   *  read mode the badge carries its own glyph, so this is only used when the picker is shown. */
+  readonly relationshipGlyph?: ReactNode;
 }
 
-/** A present-character card: name · relationship badge · mood · numeric meters · text-field chips. */
-export function CastCard({ name, mood, fields, relationship, meters, onEditField }: CastCardProps): ReactElement {
+/** A present-character card: name · relationship badge/picker · mood · numeric meters · text-field chips. */
+export function CastCard({
+  name,
+  mood,
+  fields,
+  relationship,
+  meters,
+  onEditField,
+  onEditMood,
+  onEditRelationshipKind,
+  relationshipGlyph,
+}: CastCardProps): ReactElement {
   return (
     <Stack gap="block" className="rounded-card border border-border bg-card px-block py-row" data-slot="cast-card">
       <Row justify="between" align="baseline" gap="block">
-        <Row gap="field" align="baseline" className="min-w-0">
+        <Row gap="field" align="center" className="min-w-0">
           {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
               the badge yields width to the name (it truncates), never the reverse. */}
           <Text as="span" size="label" weight="semibold" className="shrink-0">
             {name}
           </Text>
-          {relationship === undefined ? null : <RelationshipBadge relationship={relationship} />}
+          <CastRelationship
+            name={name}
+            {...(relationship === undefined ? {} : { relationship })}
+            {...(onEditRelationshipKind === undefined ? {} : { onEditRelationshipKind })}
+            {...(relationshipGlyph === undefined ? {} : { relationshipGlyph })}
+          />
         </Row>
-        {mood === undefined ? null : (
-          <Text as="span" size="label" tone="muted">
-            mood — {mood}
-          </Text>
-        )}
+        <CastMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
       </Row>
       {meters}
       {fields === undefined || fields.length === 0 ? null : (
@@ -318,12 +305,16 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField }
           return null;
         }
         return (
-          <Row key={key} gap="field" align="baseline">
-            <Text as="span" size="label" tone="muted">
+          // Each pair packs inline (the mock's `flex-wrap; align:baseline` compact card): a label + a
+          // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
+          // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
+          // forcing a full-width row.
+          <Row key={key} gap="field" align="baseline" className="min-w-0">
+            <Text as="span" size="label" tone="muted" className="shrink-0">
               {label}
             </Text>
             {onEditField === undefined ? (
-              <Text as="span" size="label" className="tabular-nums">
+              <Text as="span" size="label" className="truncate tabular-nums">
                 {value}
               </Text>
             ) : (
@@ -332,7 +323,10 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField }
                 display={value ?? ""}
                 placeholder="—"
                 onEdit={(next): void => onEditField(key, next)}
-                className="h-control-sm w-avatar-lg"
+                // Content-sized, capped: `!w-auto` beats FIELD_CONTROL's `w-full` so a short value ("rain")
+                // is a compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full`
+                // + `min-w-0` keep a long location from overflowing the wrapping card (owner density ruling).
+                className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
               />
             )}
           </Row>

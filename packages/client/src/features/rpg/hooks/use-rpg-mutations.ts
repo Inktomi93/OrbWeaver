@@ -31,10 +31,29 @@ export const useEditSnapshot = createEntityMutation<inferInput<Trpc["rpg"]["edit
   errorToast: "Couldn't save the change.",
 });
 
-/** `rpg.upsertQuest` — the hand arm of the quest plane (Scene tab goal lines). `questId` present ⇒ update,
- *  absent ⇒ create. Host-only in v1. Repaints the tracker view (quests ride the snapshot). */
+/** `rpg.upsertQuest` — the hand arm of the quest plane (Quests tab cards + Scene tab goal echo). `questId`
+ *  present ⇒ update, absent ⇒ create. Host-only in v1. Repaints the tracker view (quests ride the snapshot). */
 export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upsertQuest"]>, unknown>({
   options: (trpc) => trpc.rpg.upsertQuest.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the goal.",
+});
+
+/** `rpg.createCheckpoint` — mint a MARK on the current resolved snapshot (Journal → Marks; host). */
+export const useCreateCheckpoint = createEntityMutation<inferInput<Trpc["rpg"]["createCheckpoint"]>, unknown>({
+  options: (trpc) => trpc.rpg.createCheckpoint.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.listCheckpoints.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't create the mark.",
+});
+
+/** `rpg.restoreCheckpoint` — clone a marked snapshot forward onto a fresh slot (Journal → Marks; host).
+ *  Repaints everything (the restore births a new resolved-current snapshot). */
+export const useRestoreCheckpoint = createEntityMutation<inferInput<Trpc["rpg"]["restoreCheckpoint"]>, unknown>({
+  options: (trpc) => trpc.rpg.restoreCheckpoint.mutationOptions(),
+  invalidates: (trpc, vars) => [
+    trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }),
+    trpc.rpg.listCheckpoints.queryFilter({ chatId: vars.chatId }),
+    trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId }),
+  ],
+  errorToast: "Couldn't restore the mark.",
 });

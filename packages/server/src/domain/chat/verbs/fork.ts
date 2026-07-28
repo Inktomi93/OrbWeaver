@@ -69,17 +69,23 @@ function copyVariantStmt(
     readonly newMessageId: MessageId;
     readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
     readonly stripHidden: boolean;
+    readonly stripReasoning: boolean;
   },
 ): BatchStmt {
-  const { variant, newId, newMessageId, slotIdMap, stripHidden } = args;
+  const { variant, newId, newMessageId, slotIdMap, stripHidden, stripReasoning } = args;
   // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the same slotIdMap;
   // a boundary outside the copied range has no entry → null (never a stale cross-chat id).
   const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
   // §3.6 strip for a non-host forker: the live `content` AND the continue-snapshot BODY twins
   // (`preContinueContent`/`lastContinuationContent`) all carry body prose — undo/revert on the fork would
-  // otherwise reconstruct a lie's truth from the snapshot. The `reasoning` twins are left alone (the deliberate
-  // reasoning-channel exclusion). `stripBody` is identity when nothing is hidden / the field is null.
+  // otherwise reconstruct a lie's truth from the snapshot. `stripBody` is identity when nothing is hidden / the
+  // field is null.
   const stripBody = (s: string | null): string | null => (stripHidden && s !== null ? stripHiddenSpans(s).content : s);
+  // P3 §3.6: on a DECEPTION-active source, a non-host forker also loses the REASONING channel (the live
+  // `reasoning` + its continue-snapshot twins) — a deceptive model may spell a lie's truth in its thinking, and
+  // the forker becomes HOST of the copy, so an unstripped reasoning twin would launder that leak past the
+  // member→host transition. `nullReasoning` clears the field when the source game is deception-active.
+  const nullReasoning = (s: string | null): string | null => (stripReasoning ? null : s);
   return batchStmt(
     db.insert(messageVariants).values({
       ...variant,
@@ -88,6 +94,9 @@ function copyVariantStmt(
       content: stripBody(variant.content) ?? variant.content,
       preContinueContent: stripBody(variant.preContinueContent),
       lastContinuationContent: stripBody(variant.lastContinuationContent),
+      reasoning: nullReasoning(variant.reasoning),
+      preContinueReasoning: nullReasoning(variant.preContinueReasoning),
+      lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),
       contextBoundaryMessageId: newBoundaryId,
     }),
   );
@@ -104,6 +113,9 @@ function buildCanonCopy(
      *  the copy) would read the GM-plane secrets verbatim via the fork's host `listMessages`, laundering the
      *  member-strip through the member→host transition. A host forker copies verbatim (they already read it). */
     readonly stripHidden: boolean;
+    /** P3 §3.6: on a DECEPTION-active source room, a non-host forker also loses the REASONING channel in the
+     *  copy (see `copyVariantStmt`). `false` for a host forker / a non-deception source. */
+    readonly stripReasoning: boolean;
   },
 ): BatchStmt[] {
   const db: Db = ctx.db;
@@ -132,7 +144,7 @@ function buildCanonCopy(
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
-      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, stripHidden: args.stripHidden }));
+      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, stripHidden: args.stripHidden, stripReasoning: args.stripReasoning }));
     }
   }
   for (const slot of args.slots) {
@@ -240,6 +252,16 @@ async function resolveOwnedCharacterSeats(
  *  `historyFloorSeq` (`loadMessageSlots`), and the compaction checkpoint only rides along for an UNCLAMPED
  *  forker (the summary covers canon from seq 1, so a clamped forker would carry a distillation of exactly
  *  the rows the floor withheld). `full` forkers are unaffected. */
+/** P3 §3.6: does the fork copy strip the REASONING channel? Only when the forker is a NON-HOST of the source
+ *  AND the source game is DECEPTION-ACTIVE (resolved via the injected rpg op; `false` for a non-game / a host
+ *  forker / a non-deception chat — no regression). Hoisted to keep `createForkChat` under the complexity gate. */
+async function resolveForkStripReasoning(ctx: ChatContext, chatId: ChatId, forkerReadsHidden: boolean): Promise<boolean> {
+  if (forkerReadsHidden) {
+    return false;
+  }
+  return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
+}
+
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -248,6 +270,10 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // bodies keep their hidden-class spans. A non-host member never had host-plane access to the source's GM
     // secrets; the copy must not launder them past the member→host transition (they become the fork's host).
     const forkerReadsHidden = viewerReadsHidden(membership);
+    // P3 §3.6: on a DECEPTION-active source, a NON-HOST forker also loses the reasoning channel in the copy (a
+    // deceptive model can spell a lie's truth in its thinking; the forker becomes HOST of the copy, so an
+    // unstripped reasoning twin would launder that leak past the member→host transition). See `resolveForkStripReasoning`.
+    const stripReasoning = await resolveForkStripReasoning(ctx, chatId, forkerReadsHidden);
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
@@ -330,7 +356,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         }),
       ),
       batchStmt(ctx.db.insert(chatParticipants).values(participantRows)),
-      ...buildCanonCopy(ctx, { newChatId, slots, variants, stripHidden: forkerReadsHidden === false }),
+      ...buildCanonCopy(ctx, { newChatId, slots, variants, stripHidden: forkerReadsHidden === false, stripReasoning }),
       ...injections.map((inj) => batchStmt(ctx.db.insert(chatInjections).values({ ...inj, id: ctx.newInjectionId(), chatId: newChatId }))),
     ];
 

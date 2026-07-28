@@ -13,7 +13,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatBusEvent, ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -94,7 +94,15 @@ import {
 import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
-import { scrubStreamReplayForMember, stripChatEventForMember, stripHiddenForMember } from "../substrate/member-visibility";
+import { projectViewForMember, scrubStreamReplayForMember, stripChatEventForMember } from "../substrate/member-visibility";
+
+/** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
+ *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
+ *  (chat stays rpg-table-blind); `false` when rpg isn't wired / the chat is not a deception-active game — so a
+ *  plain chat is byte-identical to the pre-P3 behavior. Only called on the NON-host path (the host reads verbatim). */
+async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promise<boolean> {
+  return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
+}
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
@@ -367,9 +375,12 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
     // The §3.6 MEMBER-STRIP trust boundary: hidden-class spans never reach a NON-HOST viewer's payload
     // (a client-only hide would leak the truth bytes in the wire). The host reads unstripped — the reveal
-    // eye / standing-lie inventory are host-plane reads over the full body.
+    // eye / standing-lie inventory are host-plane reads over the full body. P3: on a DECEPTION-active game the
+    // member also loses the reasoning channel (resolved once per read via the injected rpg op — `false` for a
+    // non-game / non-deception chat, so no regression).
     const chronological = page.reverse();
-    const messages = membership.role === "host" ? chronological : chronological.map(stripHiddenForMember);
+    const reasoningHostOnly = membership.role === "host" ? false : await resolveReasoningHostOnly(ctx, chatId);
+    const messages = membership.role === "host" ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants, messages });
@@ -635,7 +646,11 @@ function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEv
   return async ({ principal, chatId, afterSeq }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadStreamReplay(ctx.db, chatId, afterSeq, membership.historyFloorSeq);
-    return scrubStreamReplayForMember(rows, membership);
+    // P3 (§3.6): on a deception game a member's replayed REASONING token rows are dropped (host-only reasoning),
+    // the durable twin of the live reasoning-delta drop. Resolved once here; `false` (no drop) for a host / a
+    // non-deception chat.
+    const reasoningHostOnly = membership.role === "host" ? false : await resolveReasoningHostOnly(ctx, chatId);
+    return scrubStreamReplayForMember(rows, membership, reasoningHostOnly);
   };
 }
 
@@ -665,11 +680,20 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
     const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
     // Per-caller, like the D16 floor: the §3.6 member-strip removes hidden-class spans from any replayed
-    // `view` payload for a non-host caller (the live half applies the identical verdict at the transport).
-    const project = membership.role === "host" ? (e: ChatBusEvent): ChatBusEvent => e : stripChatEventForMember;
+    // `view` payload for a non-host caller (the live half applies the identical verdict at the transport). P3:
+    // on a deception game the member also loses the reasoning channel (`view.reasoning` nulled; a durable
+    // `reasoningStreamDone` row WITHHELD — `stripChatEventForMember` returns `null` for it, filtered out here).
+    const isHost = membership.role === "host";
+    const reasoningHostOnly = isHost ? false : await resolveReasoningHostOnly(ctx, chatId);
     return rows
       .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
-      .map(({ seq, payload }) => ({ seq, event: project(payload) }));
+      .flatMap(({ seq, payload }) => {
+        if (isHost) {
+          return [{ seq, event: payload }];
+        }
+        const event = stripChatEventForMember(payload, reasoningHostOnly);
+        return event === null ? [] : [{ seq, event }];
+      });
   };
 }
 
@@ -688,8 +712,13 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
   return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
-    // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller.
-    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: membership.role === "host" };
+    // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller. P3:
+    // `reasoningHostOnly` (the deception-active verdict) rides the same probe so the live fan-out withholds
+    // the reasoning channel for a member of a deception game — resolved server-side, never client-supplied. A
+    // host never has reasoning stripped, so the resolve is skipped on the host path (one fewer read per yield).
+    const isHost = membership.role === "host";
+    const reasoningHostOnly = isHost ? false : await resolveReasoningHostOnly(ctx, chatId);
+    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: isHost, reasoningHostOnly };
   };
 }
 

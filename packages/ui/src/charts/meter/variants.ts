@@ -1,6 +1,17 @@
 // 1-D magnitude skins. The danger state is a token swap (primary -> destructive intent), never a color calculation.
 import { tv } from "#lib";
 
+/** The Waystone's CLOSED weather-overlay vocabulary — the derived TYPE is the seam (the only thing
+ *  consumed); the tuple stays LOCAL (no runtime consumer iterates it, so an exported const would be
+ *  unused). This data module is component-free, so the type homes here, not beside the component. */
+const WAYSTONE_WEATHERS = ["clear", "rain", "storm", "snow", "fog"] as const;
+export type WaystoneWeather = (typeof WAYSTONE_WEATHERS)[number];
+
+/** The Waystone's day-phase vocabulary (derived from the hour, never passed) — same shape: local tuple,
+ *  exported type. */
+const WAYSTONE_PHASES = ["dawn", "day", "dusk", "night"] as const;
+export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
+
 export const meterVariants = tv({
   slots: {
     root: "flex flex-col gap-field",
@@ -109,6 +120,53 @@ export const trackBarVariants = tv({
   variants: {
     danger: { true: { fill: "bg-destructive" } },
   },
+});
+
+/** The coin-disc tint maps (CoinFigure) — `color-mix` recipes over the track ramp (the sanctioned tint
+ *  idiom; tv can't build these from a runtime number, so each is a literal Record like the fills above).
+ *  Fill = a soft wash over the sidebar; stroke = the strong rim; ring = the faint inner engraving. */
+export const COIN_DISC_FILL = {
+  1: "color-mix(in oklab, var(--color-track-1) 22%, var(--color-sidebar))",
+  2: "color-mix(in oklab, var(--color-track-2) 22%, var(--color-sidebar))",
+  3: "color-mix(in oklab, var(--color-track-3) 22%, var(--color-sidebar))",
+  4: "color-mix(in oklab, var(--color-track-4) 22%, var(--color-sidebar))",
+  5: "color-mix(in oklab, var(--color-track-5) 22%, var(--color-sidebar))",
+  6: "color-mix(in oklab, var(--color-track-6) 22%, var(--color-sidebar))",
+} as const;
+
+export const COIN_DISC_STROKE = {
+  1: "color-mix(in oklab, var(--color-track-1) 70%, transparent)",
+  2: "color-mix(in oklab, var(--color-track-2) 70%, transparent)",
+  3: "color-mix(in oklab, var(--color-track-3) 70%, transparent)",
+  4: "color-mix(in oklab, var(--color-track-4) 70%, transparent)",
+  5: "color-mix(in oklab, var(--color-track-5) 70%, transparent)",
+  6: "color-mix(in oklab, var(--color-track-6) 70%, transparent)",
+} as const;
+
+export const COIN_DISC_RING = {
+  1: "color-mix(in oklab, var(--color-track-1) 40%, transparent)",
+  2: "color-mix(in oklab, var(--color-track-2) 40%, transparent)",
+  3: "color-mix(in oklab, var(--color-track-3) 40%, transparent)",
+  4: "color-mix(in oklab, var(--color-track-4) 40%, transparent)",
+  5: "color-mix(in oklab, var(--color-track-5) 40%, transparent)",
+  6: "color-mix(in oklab, var(--color-track-6) 40%, transparent)",
+} as const;
+
+export const waystoneVariants = tv({
+  slots: {
+    // The stone block; the dial track circle strokes `currentColor` off the muted tone (the empty-ring
+    // idiom RingGauge's track shares).
+    root: "block",
+    track: "text-muted",
+  },
+  variants: {
+    // 64px floor stone vs the 76px band stone (the container-driven mobile delta, DESIGN §5).
+    size: {
+      sm: { root: "size-16" },
+      md: { root: "size-19" },
+    },
+  },
+  defaultVariants: { size: "md" },
 });
 
 export const ringGaugeVariants = tv({

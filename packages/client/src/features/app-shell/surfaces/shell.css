@@ -327,6 +327,16 @@
 .ctx-tab-strip {
   container-type: inline-size;
 }
+/* THE BRACKET FILLS ITS ROW (Context-Panel-Program §4.0 OSRS bracket — owner live ruling 2026-07-28): the
+ * strip's cells SPAN the full width as equal columns, so the band reads as a solid bracket framing the
+ * viewport, never bitsy buttons bunched left with dead trailing space. `1fr` per tab = equal cells; the
+ * `overflow-x-auto` safety scroll (label-mode in a wide host) still applies once a revealed word grows a
+ * cell past its share. Icon-mode (the shell floor) = N equal square-ish cells filling the row. */
+.ctx-tab-strip[data-slot="tabs-list"] {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--spacing-control-md), 1fr);
+}
 /* OSRS icon cells (Context-Panel-Program §4.0/§4.7 — "chunky clickable icon cells", ≥32px tap targets).
  * In the shell the strip is always icon-mode, so each tab is a chunky SQUARE cell with a resting surface,
  * a clear hover fill, and an ember-tinted active fill (the OSRS active-tab tint) — not a bare underline.

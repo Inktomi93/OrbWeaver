@@ -13,6 +13,7 @@
 // reliable extraction-then-take). See `./gather` + `./flush`.
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
+import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
 import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnConnection } from "../../chat";
 import type { RpgContext } from "../contract/service";
@@ -99,6 +100,12 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     },
     // No GM seat in lite (`gmUserId` is always NULL) — the seat-kind read is always null (full's seat resolve).
     resolveGmSeatHolderKind: (): ReturnType<ChatRpgOps["resolveGmSeatHolderKind"]> => Promise.resolve(null),
+    // P3 (§3.6): is the game DECEPTION-ACTIVE (`config.features.deception || omniscience`)? Drives the member
+    // reasoning-host-only strip in chat. `false` for a non-game chat (no game row) / a game with neither channel.
+    resolveReasoningHostOnly: async (chatId): Promise<boolean> => {
+      const game = await findGameByChat(ctx.db, chatId);
+      return game !== undefined && isDeceptionActive(game.config.features);
+    },
   };
 }
 

@@ -1,31 +1,33 @@
-// The takeover HEADER (Context-Panel-Program §4.5) — scene banner + pool orbs + the read-only pill. Two
-// lines at the 17rem floor: line 1 = orientation (location · `day N · <time> · <weather>`, from the ambient
-// strip data — mode-agnostic scene DATA, §3.2); line 2 = up to 3 pool-orb ring gauges (`trackerView.poolOrbs`,
-// value inside, label as the visually-hidden datum + a caption tag). The read-only pill (§4.4) shows when
-// `trackersReadOnly` — the honest-arms signal that this model can't write trackers (edit them by hand).
+// The takeover HEADER BAND (panel-redesign DESIGN.md §2 — THE WAYSTONE) — the signature composite where
+// OSRS puts the world orb: the 24h-dial + sky-disc waystone (kit `<Waystone>`, aria-hidden), the location
+// column (location · `day N · <time> · <weather>` · the cues row), then the satellite row — up to 3 pool-orb
+// `<RingGauge>`s + the honest `<CoinFigure>` wallet disc (a max-less quantity never wears an arc, §8.1).
+// Every datum on the composite is decoration; the band's TEXT lines carry it all (tracker-kit a11y model).
 //
-// SEAM (W3c): §4.5 mounts this in the `ResolvedContextTabs.header` band ABOVE both strips. That slot is owned
-// by CHAT's `defineContextTabs<ChatContextState>` and chat may not import rpg — so W3c extended the §6c
-// contributor mechanism with an optional `ContextTabDef.header` (registry-contracts.ts): the rpg contributor
-// supplies this band content on its `rpg.status` tab, `resolveContextTabs` lifts the first `when`-passing
-// contributor header into `ResolvedContextTabs.header`, and `RpgHeaderBand` (the header-contributor host)
-// re-resolves the same panel state and renders this component into the real band. rpg never imports chat.
+// Nullable-honesty (§12.2.1): a null ambient clock ⇒ the unset waystone (neutral ring, no marker, dim sky)
+// and the band text says the story hasn't set the scene yet. Weather resolves through the ONE glyph-resolver
+// weather home (`resolveWeatherOverlay`); an unresolvable type = plain sky, the text still names it.
+// Orb color rides the ONE `resolvePoolColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
+// free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
+// The cues row = freshness (extractionMode, honest) + the read-only pill. The veiled count (P3) has no data
+// plane yet — it joins this row when the deception ledger lands (wired-when-ready; no fake count).
 
 import type { RpgClockTime, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
-import { Compass, Icon, Lock } from "@orb/ui/icons";
+import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { RingGauge } from "@orb/ui/meter";
+import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { trackColor } from "../lib/track-color";
+import { resolveWeatherOverlay } from "../lib/glyphs";
+import { resolvePoolColor, trackColorProps } from "../lib/track-color";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 
-// The header shows up to 3 pool orbs (§4.5), each on the next track-ramp step (categorical, by pool order).
+// The band shows up to 3 pool orbs (§2 — satellites), each on its resolved track color.
 const MAX_ORBS = 3;
-/** The first 4-char uppercase tag the orb caption shows ("VITA"), matching the OSRS glanceable-vitals idiom. */
-const ORB_TAG_LEN = 4;
+/** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
+const ORB_TAG_LEN = 3;
 
 /** Derive the lite time-of-day LABEL back from the stored clock hour (§2.7 — the banner inverts the
  *  `TIME_OF_DAY_HOURS` mapping to the nearest representative hour). */
@@ -42,7 +44,7 @@ function timeOfDayLabel(clock: RpgClockTime): string {
   return best;
 }
 
-/** Line 1's `day N · <time> · <weather>` when/where caption from the ambient strip. Empty segments drop. */
+/** Line 2's `day N · <time> · <weather>` when/where caption from the ambient strip. Empty segments drop. */
 function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>): string {
   const parts: string[] = [];
   if (ambient.clock !== null) {
@@ -56,80 +58,105 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>): string {
   return parts.join(" · ");
 }
 
+/** Join an orb's label back to its defining actor's poolDef row for the host-picked color (the orb list is
+ *  the server first-3 derivation and carries no color itself). First matching def wins. */
+function orbColor(label: string, actors: RpgTrackerView["actors"], ordinal: number): ReturnType<typeof resolvePoolColor> {
+  for (const actor of actors) {
+    const def = actor.sheet.poolDefs.find((d) => d.name === label);
+    if (def !== undefined) {
+      return resolvePoolColor(def.color, ordinal);
+    }
+  }
+  return resolvePoolColor(null, ordinal);
+}
+
+/** The viewer's primary wallet — the FIRST named amount (§12.2.2 ordinal rule); null when unfunded. */
+function primaryWallet(actors: RpgTrackerView["actors"], viewerUserId: string): { readonly name: string; readonly amount: number } | null {
+  const viewer = actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
+  const first = viewer?.volatile?.wallet[0];
+  return first ?? null;
+}
+
 export interface RpgTakeoverHeaderProps {
   readonly ambient: RpgTrackerView["ambient"];
+  readonly actors: RpgTrackerView["actors"];
   readonly poolOrbs: readonly RpgPoolOrb[];
+  readonly viewerUserId: string;
   readonly trackersReadOnly: boolean;
   /** The game's delivery-model knob — drives the freshness indicator's honest posture (§4.5, the ruling). */
   readonly extractionMode: RpgExtractionMode;
   /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
   readonly freshnessPending: boolean;
-  /** The viewer's-actor hand-only progression level (§2.6) — a compact `Lv N` badge; null omits it. */
-  readonly viewerLevel: number | null;
 }
 
-/** The scene banner + pool orbs + read-only pill + freshness indicator (§4.5). */
+/** The waystone band — the signature composite + the text lines that carry its data. */
 export function RpgTakeoverHeader({
   ambient,
+  actors,
   poolOrbs,
+  viewerUserId,
   trackersReadOnly,
   extractionMode,
   freshnessPending,
-  viewerLevel,
 }: RpgTakeoverHeaderProps): ReactElement {
+  const clock = ambient?.clock ?? null;
+  const weatherType = ambient?.weather?.type ?? null;
   const when = ambient === null ? "" : whenLine(ambient);
+  const location = ambient?.location ?? "";
+  const wallet = primaryWallet(actors, viewerUserId);
+
   return (
     <Stack gap="block" data-slot="rpg-takeover-header">
-      {ambient !== null && (ambient.location !== "" || when !== "") ? (
-        <Row gap="field" align="start">
-          <Icon icon={Compass} size="sm" className="text-muted-foreground" />
-          <Stack gap="field" className="min-w-0">
-            {ambient.location === "" ? null : (
-              <Text as="span" size="label" weight="semibold" className="truncate">
-                {ambient.location}
-              </Text>
-            )}
-            {when === "" ? null : (
-              <Text as="span" size="micro" tone="muted" className="tabular-nums">
-                {when}
-              </Text>
-            )}
-          </Stack>
-        </Row>
-      ) : null}
-
-      <Row gap="field" align="center" className="flex-wrap">
-        <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
-        {viewerLevel === null ? null : (
-          <Badge tone="soft" size="sm" title="Your character's level (set it by hand on the Sheet tab).">
-            <Text as="span" size="micro" weight="medium" className="tabular-nums">
-              Lv {viewerLevel}
+      <Row gap="block" align="center">
+        <Waystone
+          hour={clock === null ? null : clock.hour}
+          minute={clock === null ? 0 : clock.minute}
+          weather={weatherType === null ? null : resolveWeatherOverlay(weatherType)}
+          className="@max-md:size-16 shrink-0"
+        />
+        <Stack gap="field" className="min-w-0 flex-1">
+          {location === "" ? (
+            <Text as="span" size="label" tone="muted" className="truncate">
+              No ambient set — the story fills it.
             </Text>
-          </Badge>
-        )}
-        {trackersReadOnly ? (
-          <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
-            <Icon icon={Lock} size="xs" />
-            <Text as="span" size="micro" weight="medium">
-              Trackers read-only
+          ) : (
+            <Text as="span" size="label" weight="semibold" className="truncate">
+              {location}
             </Text>
-          </Badge>
-        ) : null}
+          )}
+          {when === "" ? null : (
+            <Text as="span" size="micro" tone="muted" className="truncate tabular-nums">
+              {when}
+            </Text>
+          )}
+          <Row gap="field" align="center" className="flex-wrap">
+            <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
+            {trackersReadOnly ? (
+              <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
+                <Icon icon={Lock} size="xs" />
+                <Text as="span" size="micro" weight="medium">
+                  Read-only
+                </Text>
+              </Badge>
+            ) : null}
+          </Row>
+        </Stack>
       </Row>
 
-      {poolOrbs.length === 0 ? null : (
-        <Row gap="block" align="center" className="flex-wrap">
+      {poolOrbs.length === 0 && wallet === null ? null : (
+        <Row gap="block" align="start" className="flex-wrap">
           {poolOrbs.slice(0, MAX_ORBS).map((orb, i) => (
             <RingGauge
               key={orb.label}
               value={orb.value}
               max={orb.max}
-              color={trackColor(i)}
+              {...trackColorProps(orbColor(orb.label, actors, i))}
               label={orb.label}
               showCaption={true}
               captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
             />
           ))}
+          {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
         </Row>
       )}
     </Stack>

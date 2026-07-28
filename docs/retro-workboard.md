@@ -40,16 +40,82 @@ track-ramp=data-identity) every future feature inherits. **⚠ BUILD CONSTRAINT 
 OPEN: owner verdict · side-eye a11y pass pre-build · recapture clean OSRS refs (osrs-tabs = rough Bing pages).
 **UNCOMMITTED post-push:** OR-SDK hygiene (@openrouter/sdk→1.1.8 + client.responses + OR_QUANTIZATIONS derive,
 scoped-green) + panel-redesign mocks + this workboard — ride the next commit.
-**✅ MU DONE (W1–W5 + gate-fix, Fable `adfad8a03ac9b9d8f`) — AT THE COMMIT GATE (2026-07-27):** verifier-CONFIRMED
-+ agent green (321 tests, ts7 clean, biome/eslint/depcruise clean). W1–W4 = draws column + per-turn registry threading
-(WeakMap volatile-cache fix) + swipe-replay pin. W5 = NEW sibling column `chats.userMacroValues` + `setUserMacroValues`
-verb + tRPC proc + sweep-PROBED + wired into buildTurnContext (stored pick overrides the draw — proven). ONE baseline
-regen = 2 cols (`macro_draws` + `user_macro_values`). OR-SDK single-replica red annotated by orch. **NOW:** whole-tree
-check `bk26bdbgu` running → battery → **COMMIT W1–W5 + OR-SDK hygiene + panel mocks + workboard as ONE MU commit**
-(commit-only) → **FIRE panel #21 + P3 #22 + P6 #23**. **Client PICKS PANE DEFERRED → task #24** (build-verified: NO
-in-chat picks UI exists anywhere — even ChoiceBlock picks have zero client consumers; it's a net-new chat-panel surface,
-non-blocking — server delivery is complete + proven). [[mu-store-flat-vs-nested-wall]].
-- **~~MU building~~ (superseded by the line above).**
+**═══ ▶▶▶ OVERNIGHT FULL-AUTO IN PROGRESS (2026-07-27 night → 28) — 3 LANES FIRED ═══**
+**✅✅ MU COMMITTED `24df458d`** (W1–W5 + OR-SDK hygiene; pre-commit hook re-ran the full 12-stage gate GREEN; vitest
+8032/0 · CT 1473/0). **✅ panel design mocks COMMITTED `46543e1e`** (force-added past gitignored reports/). Both
+commit-only, NOT pushed. MU delivery: user macros now RESOLVE end-to-end (were built-but-inert — engine+UI existed, zero
+turn consumers); random-pick draws persist per-variant (swipe-replays identical); W5 store = sibling col
+`chats.userMacroValues` + verb + proc + wired. **Client PICKS PANE DEFERRED → task #24** (NO in-chat picks UI exists;
+net-new surface; typed inputs resolve to defaults until it lands; marinara-recon design folded into #24).
+**⚙ OVERNIGHT POSTURE (owner-set 2026-07-27 "prep + set expectations, no repeat of last night"):** scope = **FULL SPINE +
+PANEL**; fork-handling = **SELF-RESOLVE via the escalation ladder + LOG** (never block; incl. the P5 plot-plane detail =
+snapshot-resident `{act,title,acts}`, additive/clone-forward). NEVER push · engines/stack ours (start/restart freely,
+detached) · persona/security-floors sacred · usage-cap recovery known ([[overnight-full-auto-posture]]).
+**🔄 3 LANES RUNNING (disjoint file sets; NO baseline regen in any — color+config are additive JSON-blob schema):**
+- **PANEL BUILD #21 — Fable `a11263612a91abe13`:** the redesign (re-home P1 surfaces + Waystone + orb-pinning + FREE-HEX
+  bar/orb color on `poolDefs[].color` + ward + glyphs + P3/P4/P5 placeholder sections). THEME TOKENS. features/rpg + @orb/ui
+  + contracts/rpg/**sheet.ts** (color). → verifier + side-eye after.
+- **P3 DECEPTION #22 — security-executor `abd06a1b4f4ac92bc`:** teaching + host-reveal read (DERIVE-FROM-BODIES, no table) +
+  member reasoning-strip (deception-active AND viewer≠host → reasoning host-only) + transcript reveal-eye + config knobs +
+  the recentEvents cap+knob folded in. domain/rpg + domain/chat/member-visibility + kit/content + contracts/rpg/**config.ts**.
+- **P6 MACRO FEED #23 — executor `a15e4134551e022db`:** gather populates rpgSceneState/rpgCast/quests/delta + the `rpg` CEL
+  binding + `{{idle_duration}}`. domain/rpg/chat-ops/**gather.ts** + kit/macro + kit/cel.
+**PLAN as each reports → orch runs whole-tree check + battery on the quiesced tree → verifier/side-eye → COMMIT (commit-only).
+THEN sequence P4 (immersive HTML, +security pass on the srcdoc scripts flip) → P5 (CYOA + snapshot plot plane + wand submenu).
+Feature PANEL sections (Veiled/card/choice) wire into the redesigned tabs via SendMessage to the warm panel agent as each
+spine wave lands. Lane collisions → orch integrates. Morning debrief: this block + the OVERNIGHT EVENT LOG below.**
+**─── OVERNIGHT EVENT LOG (append-only, newest last) ───**
+- **P6 flagged NOT-pure-wiring → RE-SCOPED + SEQUENCED after P3 (self-resolved via ladder):** exec `a15e4134551e022db` STOPPED
+  + flagged (the judgment I asked for) — only rpgSceneState/rpgCast are populate-the-seam; `celBindings` has NO chat-turn
+  channel (only automation stages it), `{{idle_duration}}` doesn't exist, rpgQuests/rpgDelta are unregistered → P6 is a
+  MACHINERY build (new cross-domain channel through contracts/chat + turn.ts + assembly/macros.ts). RULING: build the FULL
+  thing but SEQUENCE after P3 (both edit gather.ts = collision); re-engage the warm agent on the P3-committed tree + a fresh
+  verifier. Task #23 now blocked-by #22. [[macro-rpg-feed-seam-third-built]].
+- **EXHAUSTIVE E2E dispatched (owner ask):** exec `a173af5d8c9c97082` in an ISOLATED WORKTREE at HEAD — full FE+BE+DB match
+  proof of EVERY rpg-lite aspect (happy+sad: both modes, all planes, steering, swipe, hand-edits, cancel/deleted/two-in-a-row/
+  readonly/empty-delta/engine-down-refusal, 1:1/multi-char/multi-human). Extends rpg-lite-loop.spec.ts + /api/_debug obs.
+  Engines on/off + its OWN e2e stack authorized (NOT the main dev stack — panel uses it); Mara-excluded seeds. Task #25.
+  → integrate the spec files back + read the proof matrix; any FE≠BE≠DB mismatch = LOUD flag. **SEQUENCING (owner note
+  2026-07-27): this run = BASE checkpoint (proves the committed loop solid before the feature lanes pile on) + it BUILDS the
+  reusable exhaustive suite. The DEFINITIVE "test everything" run is TASK #26 — the SAME suite EXTENDED for P3/P4/P5 + panel
+  (non-lite + mobile), run LAST on the fully-committed quiesced tree. #26 is the final gate before the program is called done.**
+- **PANEL directive added (owner ask):** told Fable `a11263612a91abe13` to (1) snap EACH tab vs its new mockup (layout
+  convergence, content still live-tRPC), (2) verify the NON-lite/standard chat panel isn't degraded by shared-primitive
+  changes, (3) use snap.ts mobile flags — sexy in desktop AND mobile both (the mocks have both frames).
+- **EDITABILITY-GAP AUDIT added to the E2E (owner ask):** `a173af5d8c9c97082` also produces a tracked list of rendered data
+  that ISN'T editable-in-place but SHOULD be per the everything-steerable rpg-lite stance (D108 / §3.2 "read-only-first = lite
+  died" / owner "click any field, hand-edit, it's canon"). Separates real gaps from correctly-derived read-only (delta,
+  freshness, poolOrbs, sums). Baseline = the committed pre-redesign panel; feeds an editability backlog (some closed by the
+  panel redesign #21, rest = new work).
+- **✅ PANEL CHUNK 1+2 LANDED (checkpoint, uncommitted):** Waystone + coin-figure + host pool COLORS (verified purple e2e on
+  orb/bar/swatch) + redesigned Status/Sheet/Inventory/Scene + NEW Quests/Journal + locked Map + glyphs. Verified live (snaps
+  reports/snaps/rpg-*, light+mocha themes, non-game byte-identical, CT 33/33). RULED the readonly tension per D108 (readonly
+  gates MODEL writes only; hand edits stay live). RE-ENGAGED for chunk 3 (CLIENT-ONLY — config.ts held for the P3 verify):
+  strip-fill (owner live feedback: bitsy left-bunched tabs → SPAN the row) + Veiled-ledger wiring (rpg.revealHidden) + GM
+  console (Game tab) + the readonly fix + the editability coverage checklist. Orb-pinning held (needs config.ts, after P3 commit).
+- **✅ BASE E2E DONE + GREEN (`a173af5d8c9c97082`):** 8-spec @live suite, FE=BE=DB proven every plane (matrix all PASS). Spec
+  lives in the worktree → INTEGRATE at commit. Delivered the editability audit (biggest gap: the Scene `CastCard.onEditField`
+  seam is unwired → relationship/mood/cast-fields all read-only — fed to the panel). **LOUD BUG → task #27:** fresh-DB default
+  route = RETIRED agent-sdk×vllm → lite born read-only → state round NEVER fires; fix = default local to chat-completions×vllm.
+  [[fresh-db-retired-route-born-readonly]].
+- **✅ P3 VERIFIED CLEAN (fresh security-exec `a63f3bb06872fec45`):** all 5 claims CONFIRMED, NO leak (reasoning-strip complete
+  every member surface; fork/handoff no-launder; host-gate server-side; no-deception byte-identical; updateConfig keep-on-omit).
+  ONE future-proofing rec: PIN the invariant "model reasoning/hidden spans only on null-author assistant rows" (a test) so the
+  requireAuthorOrHost edit-verbs stay safe — ADD at P3 commit. **P3 done+verified; COMMIT HELD for the next panel-clean-checkpoint**
+  (tree coupled: panel mid-flight in main tree). P6 (#23) waits for the P3 commit. LESSON: should've worktree-isolated panel+P3
+  like the E2E; use worktree isolation for P4/P5/P6 to decouple their commits.
+- **OWNER BATCH RULINGS (2026-07-27 night, from the mobile snap review) — all fed to panel `a11263612a91abe13`:**
+  · **HP is NOT an editability gap** — in LITE health IS a default POOL (D86); the `hp` field is full-mode. Dropped from the audit;
+    don't render/edit `hp` in lite (the health pool e.g. VIT is already editable). · **Orb-pinning = BUILD** (config.ts freed by the
+    P3 verify). · **GM console = SHARED lite+full panel** (full ADDS to it; not lite-only/full-only). · **All 5 deferred §-items = BUILD
+    now** (lock-pin/release · quest-create · inventory last-change ephemeral diff · max-lowering value-drag tell · journal in-world-day
+    grouping — the last needs `rpg_journal.world_day` COLUMN = a baseline regen the ORCH runs at quiesce, so panel builds the real-date
+    arm now). · **Readonly tension = FIXED per D108** (readonly gates MODEL writes only; hand edits stay live). · **SVG theming = NO DEP**
+    — var()/color-mix in SVG PRESENTATION attrs (fill/stroke) is standard + theme-native; a charting dep would fight OKLCH tokens; keep
+    sealed in `@orb/ui/charts` (its home); CONVENTION to document: var() works in color attrs NOT geometry attrs (cx/r/d → CSS/computed).
+  · **MOBILE = uggo + the TOP BAR is awful** (owner) — panel polishes the mobile panel to the mock frame; the top bar (title/members/
+    ⌘K-jump/expand) is likely app-shell chrome OUTSIDE features/rpg — panel flags it back → orch routes a separate app-shell fix.
+**═════════════════════════════════════════════════════════════════════════════════════════**
 - **PANEL REDESIGN ROUND-2 (Fable `afb4223445e98856a`, FRESH — the original a72a3… transcript was GC'd):** grounds
   the design in reality — (1) one-home/generalize hyper-specific (2) READ rpg DB tables (db/schema/rpg.ts + contracts/
   rpg) + shapes (3) DATA-INTEGRITY/ward: hand-TYPED edit+validation states (clamp/error/refusal, D108 merge-clear)

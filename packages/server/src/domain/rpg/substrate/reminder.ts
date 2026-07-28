@@ -31,6 +31,23 @@ import { buildDeltaBlock } from "./delta";
 export const RPG_STEERING_LICENSE =
   "These tracked values are live state for THIS story — let them visibly shape behaviour, dialogue, and the scene as you narrate. When a value changes, let the change land in the fiction. Never recite the raw numbers back at the player; weave them into the prose.";
 
+/** The DECEPTION teaching block (P3 §3.3 feature 3) — a VERSIONED constant (a bump = a legible copy revision;
+ *  the marinara-derived tag grammar the tokenizer's `HIDDEN_TAGS` `lie` registrant recognizes). Teaches the
+ *  self-closing `<lie …/>` tag: it is HIDDEN from the reader but REMEMBERED by you (it rides the wire verbatim),
+ *  so a lie stays consistent across the scene. The attrs (`character type truth reason`) match the reveal
+ *  surface's field order. Composed ONLY when `config.features.deception` is on. */
+export const RPG_DECEPTION_TEACH =
+  'DECEPTION: a character may deceive the player. When a character states something they know to be false, emit — on its own, right after the spoken lie — a self-closing tag recording the truth: <lie character="who is lying" type="the kind of lie" truth="what is actually true" reason="why they lie" />. This tag is INVISIBLE to the player but you REMEMBER it, so keep the deception consistent and let it have consequences later. Never reveal the truth in your prose or narration — only in the tag.';
+
+/** The OMNISCIENCE-FILTER teaching block (P3 §3.3 feature 4) — a VERSIONED constant (the marinara-derived
+ *  `<ofilter …/>` grammar the tokenizer's `ofilter` registrant recognizes). Teaches the perception gate: when
+ *  something happens the player's character could NOT perceive, record it in a hidden tag and narrate only what
+ *  they CAN perceive. The attrs (`event reason`) match the reveal surface. The optional `who` attr (per-player
+ *  perception, graft #V7) is tokenized but v1 hides uniformly — the teach does not mention it. Composed ONLY when
+ *  `config.features.omniscience` is on. */
+export const RPG_OFILTER_TEACH =
+  'PERCEPTION: the player perceives only what their character can. When something happens beyond their perception (offscreen, hidden, a secret another character keeps), emit a self-closing tag recording it: <ofilter event="what happened out of their perception" reason="why they cannot perceive it" />. This tag is INVISIBLE to the player but you REMEMBER it — narrate only what the player CAN perceive, and let the unperceived event shape the world consistently.';
+
 /** Derive the nearest time-of-day label from a stored clock hour (the ONE inverse of `TIME_OF_DAY_HOURS`,
  *  §2.7 — the banner + the reminder both read the label back through this one home). */
 function timeOfDayLabel(clock: RpgClockTime): string {
@@ -229,6 +246,16 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   });
   if (delta !== null) {
     blocks.push(delta);
+  }
+
+  // P3 hidden-channel teaching (§3.3) — composed AFTER the state/delta, BEFORE the license, each gated by its
+  // config knob. Both off ⇒ nothing added (byte-identical to a pre-P3 reminder). The blocks teach the
+  // `<lie …/>`/`<ofilter …/>` grammar the tokenizer's `HIDDEN_TAGS` registry recognizes + server-strips.
+  if (input.deception) {
+    blocks.push(RPG_DECEPTION_TEACH);
+  }
+  if (input.omniscience) {
+    blocks.push(RPG_OFILTER_TEACH);
   }
 
   blocks.push(RPG_STEERING_LICENSE);

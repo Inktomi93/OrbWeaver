@@ -65,7 +65,7 @@ import {
 import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildTurnUserMacros, freezeVolatileMacros } from "../substrate/assembly-access";
-import { stripHiddenForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
+import { projectViewForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
@@ -136,6 +136,28 @@ interface Room {
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
   readonly personaIds: readonly PersonaId[];
+}
+
+/** The §3.6 member RETURN projection for a mutation that hands back ONE `MessageView` (undo/revert continue).
+ *  The host reads verbatim; a non-host member gets the body hidden-strip PLUS — on a deception-active game — the
+ *  reasoning channel withheld (resolved once via the injected rpg op, `false` for a non-game / non-deception
+ *  chat). Mirrors `stripMessagesForViewer` for the single-view return sites. */
+async function projectViewReturn(ctx: ChatContext, view: MessageView, membership: { readonly role: string }): Promise<MessageView> {
+  if (viewerReadsHidden(membership)) {
+    return view;
+  }
+  const reasoningHostOnly = (await ctx.rpg?.resolveReasoningHostOnly(view.chatId)) ?? false;
+  return projectViewForMember(view, reasoningHostOnly);
+}
+
+/** The §3.6 deception-active verdict for a mutation OUTCOME return toward a non-host member. `false` for a host
+ *  (they read verbatim — the resolve is skipped) / a non-game / non-deception chat. Threaded into
+ *  `stripMessagesForViewer` so a member who ran a deception-game turn never receives the reasoning bytes. */
+async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership: { readonly role: string }): Promise<boolean> {
+  if (viewerReadsHidden(membership)) {
+    return false;
+  }
+  return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
 }
 
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under
@@ -1105,9 +1127,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         chatId,
       })
     ) {
-      // The user's own row carries no model-emitted hidden content, but route it through the ONE §3.6 return
-      // projection anyway (host-identity fast-path) so every `send` exit strips uniformly.
-      return stripMessagesForViewer({ messages: [userView], aborted: false }, membership);
+      // The user's own row carries no model-emitted hidden content OR reasoning, but route it through the ONE
+      // §3.6 return projection anyway (host-identity fast-path) so every `send` exit strips uniformly.
+      return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
     }
 
     // Registered before base so the abort signal threads into every round turn + the auto-mode chain.
@@ -1144,7 +1166,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
       // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
       const outcome = await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
-      return stripMessagesForViewer(outcome, membership);
+      return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
     } finally {
       handle.release();
     }
@@ -1338,11 +1360,13 @@ async function resolveTurnBase(
  *  releasing the handle in a `finally`. The outcome is §3.6-projected for the CALLER: a non-host member who
  *  ran the turn (swipe/continue/impersonate/generate) never receives the assistant reply's hidden spans in the
  *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb. */
-async function runRegistered(deps: TurnDeps, triggeredBy: UserId, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
-  const handle = deps.activeTurns.register(prep.chatId, triggeredBy);
+async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
+  const handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
   try {
     const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
-    return stripMessagesForViewer(outcome, viewer);
+    // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
+    // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
+    return stripMessagesForViewer(outcome, viewer, await reasoningHostOnlyFor(ctx, prep.chatId, viewer));
   } finally {
     handle.release();
   }
@@ -1395,7 +1419,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
       });
     const shape = speakerShapeFor(room, target.characterId);
-    return await runRegistered(deps, identity.triggeredBy, membership, {
+    return await runRegistered(ctx, deps, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1441,7 +1465,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
       });
     const shape = speakerShapeFor(room, target.characterId);
-    return await runRegistered(deps, identity.triggeredBy, membership, {
+    return await runRegistered(ctx, deps, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1486,7 +1510,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
         triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
         guided,
       });
-    return await runRegistered(deps, identity.triggeredBy, membership, {
+    return await runRegistered(ctx, deps, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1549,7 +1573,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       speaker = speakerCharacterId;
     }
     const shape = speakerShapeFor(room, speaker);
-    return await runRegistered(deps, identity.triggeredBy, membership, {
+    return await runRegistered(ctx, deps, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1606,7 +1630,7 @@ function createUndoContinue(ctx: ChatContext, deps: TurnDeps): ChatService["undo
   return async ({ principal, chatId, messageId }: UndoContinueParams): Promise<MessageView> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "undo" });
-    return viewerReadsHidden(membership) ? view : stripHiddenForMember(view);
+    return projectViewReturn(ctx, view, membership);
   };
 }
 
@@ -1616,7 +1640,7 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
   return async ({ principal, chatId, messageId }: RevertContinueParams): Promise<MessageView> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "revert" });
-    return viewerReadsHidden(membership) ? view : stripHiddenForMember(view);
+    return projectViewReturn(ctx, view, membership);
   };
 }
 

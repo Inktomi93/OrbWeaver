@@ -1,11 +1,11 @@
-// The rpg CONTEXT-panel SECTION contribution (Context-Panel-Program §4.4 lite trim; client-architecture-
-// lockdown §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
-// feature-owns-definition anchor). Four `ContextTabDef<ChatContextState>` game tabs (Status · Sheet ·
-// Inventory · Scene), each `strip:"game"` (the §4.2 bracket's TOP row). rpg NEVER imports chat: `main.tsx`
-// (the door) calls `makeRpgContextTabs({ trpc, queryClient })` and assembles the result into
-// `createContributorRegistry("chat-context", …)`, which flows to chat's `defineContextTabs` `contributors`
-// arm (one-directional flow holds; `client-features-no-cross` keeps enforcing it). Quests/Journal/Map are lite
-// APPLICABILITY-omitted (§4.4) — not contributed; their doorway is `rpg.game`'s graduation (a later wave).
+// The rpg CONTEXT-panel SECTION contribution (panel-redesign DESIGN.md §4; client-architecture-lockdown
+// §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
+// feature-owns-definition anchor). The TOP-strip game tabs (§4.2 bracket): Status · Sheet · Inventory ·
+// Scene · Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction)
+// + the PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 6 live + 1
+// locked). rpg NEVER imports chat: `main.tsx` (the door) calls `makeRpgContextTabs({ trpc, queryClient })`
+// and assembles the result into `createContributorRegistry("chat-context", …)`, which flows to chat's
+// `defineContextTabs` `contributors` arm (one-directional flow; `client-features-no-cross` enforces it).
 //
 // SELF-CONTAINED cross-domain read (lockdown §12 matrix — a feature reads ANOTHER domain's server entity via
 // a CACHE-FIRST `trpc.*` read, never by importing that feature or widening its projection): the takeover
@@ -15,7 +15,7 @@
 // settles. The door injects the `queryClient` + `trpc` proxy (both singletons it already owns), so this stays
 // a plain function `when` (no hooks) while still reading `#data`'s cross-domain channel — never chat's client.
 
-import { Backpack, Drama, HeartPulse, ScrollText } from "@orb/ui/icons";
+import { Backpack, BookOpen, Drama, Flag, HeartPulse, MapIcon, ScrollText } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -27,6 +27,8 @@ import { RpgErrorState } from "../components/rpg-error-state";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body";
 import { RpgHeaderBand } from "../components/rpg-header-band";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab";
+import { RpgJournalTab } from "../components/rpg-journal-tab";
+import { RpgQuestsTab } from "../components/rpg-quests-tab";
 import { RpgSceneTab } from "../components/rpg-scene-tab";
 import { RpgSheetTab } from "../components/rpg-sheet-tab";
 import { RpgStatusTab } from "../components/rpg-status-tab";
@@ -116,6 +118,34 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       strip: "game",
       when: isGameChat,
       body: gameTab("Scene", (state) => <RpgSceneTab state={state} />),
+    },
+    {
+      id: "rpg.quests",
+      label: "Quests",
+      icon: Flag,
+      strip: "game",
+      when: isGameChat,
+      body: gameTab("Quests", (state) => <RpgQuestsTab state={state} />),
+    },
+    {
+      id: "rpg.journal",
+      label: "Journal",
+      icon: BookOpen,
+      strip: "game",
+      when: isGameChat,
+      body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
+    },
+    {
+      // The ONE PHASE-locked tab (panel-redesign §4 "Map"): visible, aria-disabled with its reason on
+      // title + a lock glyph (the strip's disabledReason mechanics) — the promise visible, the gate
+      // honest. The body is unreachable while locked; MA-3 replaces it with the region map.
+      id: "rpg.map",
+      label: "Map",
+      icon: MapIcon,
+      strip: "game",
+      when: isGameChat,
+      disabledReason: (): string => "Maps unlock with the map arc (MA-3)",
+      body: (): ReactNode => null,
     },
   ];
 }

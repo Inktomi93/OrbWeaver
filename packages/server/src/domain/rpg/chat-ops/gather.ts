@@ -71,6 +71,9 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
     prevSnapshot,
     relationshipHints: game.config.features.relationshipHints,
     rosterNames,
+    // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
+    deception: game.config.features.deception,
+    omniscience: game.config.features.omniscience,
   });
 
   const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: reminder };

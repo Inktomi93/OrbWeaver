@@ -605,12 +605,14 @@ async function resolveLiveYield(args: {
   }
   // Member: a mid-stream `delta` rides its slot's stateful scrubber; any other event at-commit-strips its
   // `view` and retires the finished slot's scrubber (the streaming phase is over — the held tail is dropped,
-  // the authoritative final content is the stripped `view`).
+  // the authoritative final content is the stripped `view`). P3 (§3.6): `gate.reasoningHostOnly` (the
+  // deception-active verdict resolved at the same per-yield probe) withholds the reasoning channel for a
+  // member — reasoning deltas + `reasoningStreamDone` drop to `null`, `view.reasoning` is nulled.
   if (event.type === "delta") {
-    return scrubDeltaEventForMember(event, scrubberFor(deltaScrubbers, event.slotSeq));
+    return scrubDeltaEventForMember(event, scrubberFor(deltaScrubbers, event.slotSeq), gate.reasoningHostOnly);
   }
   retireScrubberOnCommit(deltaScrubbers, event);
-  return stripChatEventForMember(event);
+  return stripChatEventForMember(event, gate.reasoningHostOnly);
 }
 
 /** Get-or-create the per-slot mid-stream scrubber (a member's text-delta stream is stateful per turn). */

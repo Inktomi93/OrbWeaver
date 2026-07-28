@@ -23,8 +23,21 @@
 // FAIL-CLOSED: an in-progress open is withheld; a truncated/aborted open is dropped; the member's authoritative
 // final content is the at-commit-stripped `messageCommitted` view (this module's `stripHiddenForMember`), so
 // dropping a held tail costs nothing — the stream is a best-effort preview, the committed view is the truth.
-// Reasoning-channel deltas pass through unchanged, exactly as the commit strip leaves `view.reasoning` alone
-// (a reasoning leak is model-discipline, not a body-projection concern — the tagged grammar is body prose).
+//
+// THE P3 REASONING-CHANNEL RULE (§3.6, owner-ratified 2026-07-27 — the game-conditional add): the BODY strip
+// above is UNCONDITIONAL (a `<lie>`'s truth is always stripped from a member's payload). The REASONING/thinking
+// channel is different: it is member-visible by default (the P2 body strip left it alone by design), but a
+// deceptive model can spill a lie's truth in its reasoning ("I'll tell them X but secretly Y"). So when a game
+// is DECEPTION-ACTIVE (`config.features.deception || omniscience`, resolved server-side via the injected
+// `ChatRpgOps.resolveReasoningHostOnly`) AND the viewer is NOT the host, the WHOLE reasoning channel goes
+// host-only — the member sees NO reasoning for that game (not a per-tag scrub; the whole-channel cut is the
+// clean threat boundary). This module exposes the reasoning strip as a SEPARATE, composable layer
+// (`stripReasoningFromView` + the `reasoningHostOnly`-gated wrappers): the call site resolves the per-chat
+// deception-active flag once and applies it beside the body strip. Games WITHOUT deception keep reasoning
+// member-visible exactly as today (no regression). It covers EVERY reasoning-carrying member-reachable surface:
+// the committed/edited `MessageView.reasoning` (commit + list + durable replay + the view-carrying bus events
+// incl. `reasoningEdited`/`reasoningCleared`), the live `reasoning`-channel token DELTA, `reasoningStreamDone`,
+// and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
 import type { ChatBusEvent, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
@@ -32,11 +45,29 @@ import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/conte
 import type { ChatStreamReplayEvent } from "../contract/views";
 
 /** Strip hidden-class spans from one message view's content. Identity when nothing is hidden (the common
- *  case allocates nothing). Only `content` carries body prose; `reasoning` is model thinking, not a tagged
- *  channel (a reasoning leak is a model-discipline issue, not a payload projection). */
+ *  case allocates nothing). Only `content` carries body prose; the `reasoning` channel is handled SEPARATELY
+ *  by the P3 game-conditional reasoning strip ({@link stripReasoningFromView}) — a body strip never touches
+ *  reasoning, so a non-deception game's reasoning is unaffected. */
 export function stripHiddenForMember(view: MessageView): MessageView {
   const { content, hadHidden } = stripHiddenSpans(view.content);
   return hadHidden ? { ...view, content } : view;
+}
+
+/** P3 (§3.6): withhold the whole REASONING channel from a member of a deception-active game. Nulls
+ *  `view.reasoning` (identity when it is already null — the common non-reasoning row allocates nothing). The
+ *  BODY is left to {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active. */
+export function stripReasoningFromView(view: MessageView): MessageView {
+  return view.reasoning === null ? view : { ...view, reasoning: null };
+}
+
+/** The FULL member projection of one view (§3.6): the unconditional hidden-span BODY strip, plus — when the
+ *  game is DECEPTION-ACTIVE — the whole reasoning channel withheld. `reasoningHostOnly` is the per-chat verdict
+ *  the caller resolved once (`resolveReasoningHostOnly && viewer !== host`); `false` keeps reasoning exactly as
+ *  today (no regression for a non-deception game). The ONE composed member-view projection every commit / list /
+ *  replay / bus surface routes through, so the two strips never drift apart. */
+export function projectViewForMember(view: MessageView, reasoningHostOnly: boolean): MessageView {
+  const bodyStripped = stripHiddenForMember(view);
+  return reasoningHostOnly ? stripReasoningFromView(bodyStripped) : bodyStripped;
 }
 
 /** A caller's chat role — the §3.6 verdict axis (host reads unstripped; anyone else is a member). Matches the
@@ -54,16 +85,18 @@ export function viewerReadsHidden(viewer: ViewerRole): boolean {
 }
 
 /** Strip the hidden-class spans from EVERY `MessageView` a mutation return hands back to a NON-HOST caller
- *  (§3.6). The turn verbs (`send`/`swipe`/`continueTurn`/`impersonate`/`generate`) resolve a `TurnOutcome`
- *  whose `messages` carry the freshly-committed assistant reply — a member who ran the turn would otherwise
- *  receive the model's `<lie>` truth in the HTTP return payload (a devtools-only leak, exactly the class the
- *  bus/list strips already close). The host reads the outcome verbatim (the reveal-eye plane). Identity for a
- *  host or an all-clean outcome (no per-row churn). */
-export function stripMessagesForViewer<T extends { readonly messages: readonly MessageView[] }>(outcome: T, viewer: ViewerRole): T {
+ *  (§3.6), plus — when the game is DECEPTION-ACTIVE — the reasoning channel. The turn verbs (`send`/`swipe`/
+ *  `continueTurn`/`impersonate`/`generate`) resolve a `TurnOutcome` whose `messages` carry the freshly-committed
+ *  assistant reply — a member who ran the turn would otherwise receive the model's `<lie>` truth (or, on a
+ *  deception game, the reasoning that spells it out) in the HTTP return payload (a devtools-only leak, exactly
+ *  the class the bus/list strips close). The host reads the outcome verbatim (the reveal-eye plane).
+ *  `reasoningHostOnly` is the caller-resolved per-chat verdict (default `false` ⇒ body-only, the pre-P3
+ *  behavior). Identity for a host or an all-clean, non-deception outcome (no per-row churn). */
+export function stripMessagesForViewer<T extends { readonly messages: readonly MessageView[] }>(outcome: T, viewer: ViewerRole, reasoningHostOnly = false): T {
   if (viewerReadsHidden(viewer) || outcome.messages.length === 0) {
     return outcome;
   }
-  return { ...outcome, messages: outcome.messages.map(stripHiddenForMember) };
+  return { ...outcome, messages: outcome.messages.map((v) => projectViewForMember(v, reasoningHostOnly)) };
 }
 
 /** The view-carrying `ChatBusEvent` members — the strip's coverage set, listed explicitly so the boundary
@@ -91,27 +124,41 @@ function isViewCarrying(event: ChatBusEvent): event is ViewCarryingEvent {
   return (VIEW_EVENT_TYPES as readonly string[]).includes(event.type);
 }
 
-/** Strip the `view` payload of a view-carrying bus event for a non-host subscriber. Events without a view
- *  (deltas, lifecycle, warnings) pass through — DELTAs are handled separately by the mid-stream scrubber
- *  (`scrubDeltaEventForMember`); this function is the AT-COMMIT / durable-view arm. */
-export function stripChatEventForMember(event: ChatBusEvent): ChatBusEvent {
+/** Strip a bus event's canon payload for a non-host subscriber (§3.6). A VIEW-carrying event has its `view`
+ *  body-stripped (+ reasoning-stripped when `reasoningHostOnly`); a `reasoningStreamDone` event is DROPPED
+ *  entirely (returns `null`) on a deception game — it is a member-visible signal that a (now-withheld) reasoning
+ *  channel finished, so it must not reach a member of a deception game. All other events (lifecycle, warnings)
+ *  pass through. DELTAs are handled separately by the mid-stream scrubber (`scrubDeltaEventForMember`); this is
+ *  the AT-COMMIT / durable-view arm. `reasoningHostOnly` is the caller-resolved per-chat verdict (default `false`
+ *  ⇒ body-only, the pre-P3 behavior). A `null` return means WITHHOLD (the durable replay / live fan-out skips it). */
+export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly = false): ChatBusEvent | null {
+  if (reasoningHostOnly && event.type === "reasoningStreamDone") {
+    return null;
+  }
   if (!isViewCarrying(event)) {
     return event;
   }
-  return event.view === undefined ? event : { ...event, view: stripHiddenForMember(event.view) };
+  return event.view === undefined ? event : { ...event, view: projectViewForMember(event.view, reasoningHostOnly) };
 }
 
 /** The mid-stream scrubber verdict for one `delta` bus event toward a NON-HOST subscriber (§3.6). The
  *  `text`-channel delta is fed to the caller-owned per-slot scrubber; the returned event carries only the
  *  bytes provably safe this tick (a `null` return = nothing safe emitted → the transport SKIPS the yield, so
- *  the member never sees an empty delta). A `reasoning`-channel delta passes through unchanged (the tagged
- *  hidden grammar is body prose; the commit strip likewise leaves `reasoning` alone). A non-delta event is a
- *  programming error at this seam and returns unchanged. The SCRUBBER is stateful and per-slot — the transport
- *  owns one per `slotSeq` for the subscriber's lifetime and NEVER shares it with a host (a host reads
+ *  the member never sees an empty delta). A `reasoning`-channel delta: on a DECEPTION-active game
+ *  (`reasoningHostOnly`) it is DROPPED (`null` — the whole reasoning channel is host-only, so the live
+ *  reasoning stream never reaches a member); otherwise it passes through unchanged (a non-deception game keeps
+ *  reasoning member-visible, and the hidden BODY grammar rides the text channel, not reasoning). A non-delta
+ *  event is a programming error at this seam and returns unchanged. The SCRUBBER is stateful and per-slot — the
+ *  transport owns one per `slotSeq` for the subscriber's lifetime and NEVER shares it with a host (a host reads
  *  verbatim). */
-export function scrubDeltaEventForMember(event: Extract<ChatBusEvent, { type: "delta" }>, scrubber: HiddenSpanStreamScrubber): ChatBusEvent | null {
+export function scrubDeltaEventForMember(
+  event: Extract<ChatBusEvent, { type: "delta" }>,
+  scrubber: HiddenSpanStreamScrubber,
+  reasoningHostOnly = false,
+): ChatBusEvent | null {
   if (event.delta.kind !== "text") {
-    return event;
+    // A reasoning-channel delta: withheld entirely on a deception game (host-only reasoning); passed on otherwise.
+    return reasoningHostOnly ? null : event;
   }
   const safe = scrubber.push(event.delta.text);
   if (safe.length === 0) {
@@ -128,14 +175,23 @@ export function scrubDeltaEventForMember(event: Extract<ChatBusEvent, { type: "d
  *  DROPPED (it carried only held/hidden bytes). The final held tail is dropped — the caller's authoritative
  *  content is the at-commit-stripped `listMessages`/`replayChatEvents` view, not the token log. Reasoning
  *  rows and a `null` messageId (an unanchored control row) pass through. Identity for a host (verbatim). */
-export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[], viewer: ViewerRole): ChatStreamReplayEvent[] {
+export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatStreamReplayEvent[] {
   if (viewerReadsHidden(viewer)) {
     return [...rows];
   }
   const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
   const out: ChatStreamReplayEvent[] = [];
   for (const row of rows) {
-    if (row.kind !== "text" || row.messageId === null) {
+    // P3 (§3.6): a REASONING replay row is a member-visible thinking-channel byte; DROP it on a deception game
+    // (host-only reasoning), else pass it through.
+    if (row.kind === "reasoning") {
+      if (!reasoningHostOnly) {
+        out.push(row);
+      }
+      continue;
+    }
+    // A `text` row with no slot anchor (an unanchored control row) passes through — it carries no scrubable body.
+    if (row.messageId === null) {
       out.push(row);
       continue;
     }
