@@ -508,3 +508,46 @@ test.describe("FIX 3 — consolidated, announced error region", () => {
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   });
 });
+
+// §3.3 — the DANGLING-POINTER heal. A pointer at a game that no longer exists makes the rpg reads 404. The
+// error region DISCRIMINATES that NOT_FOUND (typed gone-state) from a transient/server error (the Retry arm):
+// a doomed Retry loop is exactly the pre-heal defect. The HOST gets a "Detach game" self-heal; a MEMBER gets
+// the honest copy + nothing (the host owns the heal, PERMISSION-omit).
+test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry loop)", () => {
+  test("a NOT_FOUND read renders the typed gone-state + the HOST's Detach action (no Retry)", async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, {
+      "chat.getChat": () => gameChat(), // viewerIsHost: true
+      // The dangling read: the game row is gone → the verb collapses to the leak-free NOT_FOUND.
+      "rpg.getGame": () => trpcError({ code: "NOT_FOUND", message: "game" }),
+      "rpg.getTrackerView": () => trpcError({ code: "NOT_FOUND", message: "game" }),
+      "rpg.detachDanglingPointer": () => undefined,
+      "chat.listChatInjections": () => [],
+    });
+    const component = await mount(<RpgTakeoverStory />);
+
+    // The typed gone-copy (NOT the transient "Couldn't load the scene" Retry arm).
+    const alert = component.getByRole("alert").filter({ hasText: "This chat points at a game that no longer exists" });
+    await expect(alert).toBeVisible();
+    await expect(component.getByText("Couldn't load the scene.")).toHaveCount(0);
+    await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
+
+    // The host's self-heal fires `rpg.detachDanglingPointer` — the mutation COUNT ([assert-the-mutation-fired]).
+    await alert.getByRole("button", { name: "Detach game" }).click();
+    await expect.poll(() => trpc.count("rpg.detachDanglingPointer"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a MEMBER sees the gone-copy but NO Detach action (PERMISSION-omit — the host owns the heal)", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      // A member viewer (not host) on a chat with a dangling pointer.
+      "chat.getChat": () => ({ ...(gameChat() as Record<string, unknown>), viewerIsHost: false }),
+      "rpg.getGame": () => trpcError({ code: "NOT_FOUND", message: "game" }),
+      "rpg.getTrackerView": () => trpcError({ code: "NOT_FOUND", message: "game" }),
+      "chat.listChatInjections": () => [],
+    });
+    const component = await mount(<RpgTakeoverStory />);
+
+    await expect(component.getByText("This chat points at a game that no longer exists.")).toBeVisible();
+    // No detach action for a member — the host owns the heal.
+    await expect(component.getByRole("button", { name: "Detach game" })).toHaveCount(0);
+  });
+});

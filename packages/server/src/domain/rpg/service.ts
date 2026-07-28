@@ -7,7 +7,7 @@ import { createRpgContext } from "./context";
 import type { RpgContextDeps, RpgService } from "./contract/service";
 import { createCreateCheckpoint, createListCheckpoints, createRestoreCheckpoint } from "./verbs/checkpoint";
 import { createEditSnapshot } from "./verbs/edit-snapshot";
-import { createCreateGame, createUpdateConfig } from "./verbs/game";
+import { createCreateGame, createDetachDanglingPointer, createUpdateConfig } from "./verbs/game";
 import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry } from "./verbs/journal";
 import { createPatchSheet } from "./verbs/patch-sheet";
 import { createDeleteQuest, createUpsertQuest } from "./verbs/quest";
@@ -20,6 +20,7 @@ export function createRpgService(deps: RpgContextDeps): RpgService {
   return {
     ...createCreateGame(ctx),
     ...createUpdateConfig(ctx),
+    ...createDetachDanglingPointer(ctx),
     ...createPatchSheet(ctx),
     ...createEditSnapshot(ctx),
     ...createCreateWidget(ctx),

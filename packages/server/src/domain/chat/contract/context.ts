@@ -309,8 +309,10 @@ export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readon
  *  the client's takeover gate is a sync read off `ChatDetail`. Called ONCE by rpg's `createGame`; chat never
  *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
  *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is
- *  rpg's (`ChatRpgPointer`) — the foreign-schema precedent (chat stores it blind). */
-export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer) => Promise<void>;
+ *  rpg's (`ChatRpgPointer`) — the foreign-schema precedent (chat stores it blind). A `null` pointer DELETES the
+ *  `metadata.rpg` sub-blob (the dangling-pointer heal, fork-clones-the-game §3.3 — `detachDanglingPointer`
+ *  nulls a pointer at a game that no longer exists). */
+export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
 
 /** One present roster participant projected for rpg's tracker view (roster ∪ sheets, rpg-design/05 §4.3): a
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the

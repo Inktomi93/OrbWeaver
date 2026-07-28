@@ -181,6 +181,8 @@ export interface RpgFakes {
   ownedPresets: Set<string>;
   /** Recorders — the tests assert these fired. */
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
+  /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
+  readonly detaches: string[];
   readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
   readonly extractionCalls: { chatId: string; messageId: string; variantId: string }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string }[];
@@ -219,6 +221,7 @@ export function makeRpgService(
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
     ownedPresets: new Set(),
     pointers: [],
+    detaches: [],
     narratorPosts: [],
     extractionCalls: [],
     toolRoundCalls: [],
@@ -270,7 +273,12 @@ export function makeRpgService(
       return Promise.resolve(role === undefined ? null : { role });
     },
     setPointer: (chatId, pointer) => {
-      fakes.pointers.push({ chatId, gameId: pointer.gameId, engaged: pointer.engaged });
+      // A `null` pointer is the §3.3 DETACH heal (the widened op drops the sub-blob); everything else is a write.
+      if (pointer === null) {
+        fakes.detaches.push(chatId);
+      } else {
+        fakes.pointers.push({ chatId, gameId: pointer.gameId, engaged: pointer.engaged });
+      }
       return Promise.resolve();
     },
     resolveRoster,

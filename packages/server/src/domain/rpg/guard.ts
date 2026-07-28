@@ -20,8 +20,10 @@ import type { RpgAuthorized, RpgContext } from "./contract/service";
 import { findGameByChat } from "./persistence/games";
 
 /** The leak-free not-found — indistinguishable across "no such chat", "not a game", and "not a member". A
- *  foreigner never learns the chat's game-ness. Uses `chatId` as the surfaced id (the caller already has it). */
-function notFound(chatId: ChatId): never {
+ *  foreigner never learns the chat's game-ness. Uses `chatId` as the surfaced id (the caller already has it).
+ *  Exported for the ONE verb that gates on membership WITHOUT the game gate (`detachDanglingPointer` — the game
+ *  is gone, so it can't call `resolveMember`, but a non-member must still see the SAME leak-free collapse). */
+export function notFoundGame(chatId: ChatId): never {
   throw new DomainNotFoundError("game", chatId);
 }
 
@@ -30,11 +32,11 @@ function notFound(chatId: ChatId): never {
 export async function resolveMember(ctx: RpgContext, principal: Principal, chatId: ChatId): Promise<RpgAuthorized> {
   const membership = await ctx.getMembership(chatId, principal.userId);
   if (membership === null) {
-    return notFound(chatId);
+    return notFoundGame(chatId);
   }
   const game = await findGameByChat(ctx.db, chatId);
   if (game === undefined) {
-    return notFound(chatId);
+    return notFoundGame(chatId);
   }
   return { game, role: membership.role };
 }

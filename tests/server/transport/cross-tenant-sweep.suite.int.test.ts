@@ -774,6 +774,11 @@ const PROBES: readonly Probe[] = [
   { path: "rpg.createCheckpoint", call: (c, i) => c.rpg.createCheckpoint({ chatId: i.chatId, label: "hacked" }) },
   { path: "rpg.restoreCheckpoint", call: (c, i) => c.rpg.restoreCheckpoint({ chatId: i.chatId, checkpointId: i.rpgCheckpointId }) },
   { path: "rpg.rollDice", call: (c, i) => c.rpg.rollDice({ chatId: i.chatId, notation: "1d20" }) },
+  // §3.3 detach heal — HOST-gated on the chatId via `getMembership` DIRECTLY (the game gate can't run when the
+  // game is gone). A non-member stranger collapses to leak-free NOT_FOUND BEFORE any pointer write; and against
+  // A's LIVE game the verb refuses (rpg_pointer_not_dangling) — either way it never nulls A's real pointer (the
+  // post-sweep chat integrity re-read proves A's game/pointer untouched).
+  { path: "rpg.detachDanglingPointer", call: (c, i) => c.rpg.detachDanglingPointer({ chatId: i.chatId }) },
   { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
   { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
   { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
