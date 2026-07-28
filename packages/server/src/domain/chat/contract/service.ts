@@ -23,6 +23,7 @@ import type {
   ChatEventBoundsParams,
   ClearReasoningParams,
   ClearVariablesParams,
+  CommitMessageParams,
   CompactParams,
   ContinueTurnParams,
   CreateInviteParams,
@@ -176,6 +177,9 @@ export interface ChatService {
   // ── turn-running ──────────────────────────────────────────────────────────────
   /** Persist a user message (SEND-regex applied) then run the AI turn (arbitration → per-speaker/narrator). */
   readonly send: (params: SendParams) => Promise<TurnOutcome>;
+  /** "Simple Send" (D56): commit a user message WITHOUT firing the AI turn — same trust boundaries + first-
+   *  user-turn greeting freeze + rpg user-commit as `send`, but no arbitration/round/defer. Returns the row. */
+  readonly commitMessage: (params: CommitMessageParams) => Promise<TurnOutcome>;
   /** Append a fresh variant to an assistant slot (reroll; slot attribution unchanged). */
   readonly swipe: (params: SwipeParams) => Promise<TurnOutcome>;
   /** Generate a USER-side message as the active persona. */

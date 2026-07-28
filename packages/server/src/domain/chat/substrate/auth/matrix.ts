@@ -61,6 +61,7 @@ export const CHAT_VERB_AUTHORITY = {
   chatEventBounds: "member", // + the SSE per-yield membership gate (a kicked member stops receiving)
   // ── turn-running (run the turn = member; the turn RUNS AS the host via the runAsUserId triple) ──
   send: "member",
+  commitMessage: "member", // D56 "Simple Send" — same membership gate as `send` (post a user row, no AI turn)
   swipe: "member",
   impersonate: "member",
   generate: "member",

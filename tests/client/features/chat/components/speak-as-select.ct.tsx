@@ -4,7 +4,7 @@
 // the item list ("Auto" + one per character), and that a pick dispatches generate with the right speaker.
 //
 // The dropdown POPUP renders through a Base UI Portal, so menu-item assertions use the PAGE locator
-// (`page.getByRole`), never `component` — the composer-wand.ct.tsx precedent.
+// (`page.getByRole`), never `component` — the composer-guided-cluster.ct.tsx precedent.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";

@@ -1565,7 +1565,7 @@ export function ChatOptionsMenuStory({ committed = true, withCast = false }: Cha
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
-          assertions use the PAGE locator, the composer-wand precedent). */}
+          assertions use the PAGE locator, the composer-guided-cluster precedent). */}
       <div>
         <ChatOptionsMenu
           {...(committed ? { chatId: CHAT_ID } : { committed: false, draftKey: "ct-options-draft" })}

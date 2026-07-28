@@ -588,6 +588,7 @@ const PROBES: readonly Probe[] = [
   },
   { path: "chat.abort", call: (c, i) => c.chat.abort({ chatId: i.chatId }) },
   { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi" }) },
+  { path: "chat.commitMessage", call: (c, i) => c.chat.commitMessage({ chatId: i.chatId, content: "hi" }) },
   // ── invites / human-membership (FINAL-Auth-Modes §7 P1 — host/member-gated inside the verbs; the
   //    token-carrying verbs are token-authenticated: a guessed token is a leak-free NOT_FOUND, and a
   //    targeted/foreign invite collapses to the same shape). The fixture context is multi-human capable,

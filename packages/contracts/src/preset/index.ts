@@ -653,6 +653,11 @@ export const DEFAULT_FORMAT_STRINGS = {
   // line). Default = the turn verb's former hardcoded baseline, verbatim, so absent-field presets are
   // byte-identical to pre-wire behavior.
   impersonateNudge: "[Write the next message as the user, in the user's own voice.]",
+  // The trailing user-turn nudge that steers a `generate` (the wand's Response icon / empty-send-generate)
+  // when it fires on an ASSISTANT tail — a reply after the model's own last message needs SOMETHING to
+  // respond to, else it is rudderless (a Response right after a USER message needs no nudge — the user
+  // message is the prompt). The engine appends it ONLY when the tail is assistant (see `createGenerate`).
+  responseNudge: "[Continue the scene: write the next reply, moving the story forward from where it stands. Do not restate or recap.]",
   wiFormat: "{{entry}}",
 } as const;
 
@@ -814,6 +819,7 @@ export const promptConfigSchema = z.object({
     .object({
       continueNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
       impersonateNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+      responseNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
       wiFormat: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
     })
     .optional(),
