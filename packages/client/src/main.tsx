@@ -68,6 +68,7 @@ import {
   SlashCommandRegistryProvider,
 } from "#state";
 import { buildAgentNav } from "./agent-nav";
+import { buildAgentSeed } from "./agent-seed";
 import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { isProbeMode } from "./lib/probe-mode";
 import { router } from "./routes/router";
@@ -298,4 +299,4 @@ createRoot(rootEl).render(
 
 // Installed after render so the query cache exists and the readiness check observes the initial reads.
 installAppReadySignal(queryClient);
-installAgentDebugHandle(queryClient, buildAgentNav(trpcProxy, queryClient));
+installAgentDebugHandle(queryClient, buildAgentNav(trpcProxy, queryClient), buildAgentSeed(trpcClient));
