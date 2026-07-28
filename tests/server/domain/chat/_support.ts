@@ -52,8 +52,16 @@ export async function seedUser(db: Db, handle: string): Promise<UserId> {
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
-export async function seedCharacter(db: Db, ownerId: UserId, key: string, overrides: { readonly avatarAssetId?: AssetId } = {}): Promise<CharacterId> {
-  const id = castId<CharacterId>(`character_${key}`);
+export async function seedCharacter(
+  db: Db,
+  ownerId: UserId,
+  key: string,
+  overrides: { readonly avatarAssetId?: AssetId; readonly id?: CharacterId } = {},
+): Promise<CharacterId> {
+  // Default id is the readable `character_<key>` (the ~all-call-sites form). `overrides.id` accepts a REAL
+  // minted TypeID for the rare test that also puts the id through a contract-schema belt (e.g. an rpg volatile
+  // `actorRef.characterId` re-validated at snapshot-write — a fabricated id would be dropped there).
+  const id = overrides.id ?? castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
     id,
     handle: key,

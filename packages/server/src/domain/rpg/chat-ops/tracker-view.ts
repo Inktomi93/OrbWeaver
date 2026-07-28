@@ -52,15 +52,44 @@ function sheetRef(row: { characterId: CharacterId | null; userId: UserId | null 
   return null;
 }
 
+/** The pool MAX has ONE authoritative home: `sheet.poolDefs[].max` (the mechanical dial the host/player
+ *  edits by hand — §4.3, sheet.ts "the lite-live mechanical dials the volatile plane's VALUES track
+ *  against"). The volatile `pools[].max` is a mint-time cache the model NEVER writes (`update_party` sends
+ *  only `poolDeltas` = name + signed VALUE delta), so it drifts the moment the def max is hand-edited on
+ *  the Sheet tab. This projection makes the def the single source: every displayed pool's `max` is resolved
+ *  from its matching poolDef (by name), and the value is clamped to that max — so the Status meter and the
+ *  Sheet read the SAME number no matter which tab last touched it. A pool with no matching def (an orphan
+ *  from a since-deleted def, or a model-minted pool the host never defined) keeps its own volatile max —
+ *  honest, never a phantom clamp to a max that doesn't exist. */
+function resolveVolatile(volatile: RpgActorVolatile | null, poolDefs: readonly RpgSheet["poolDefs"][number][]): RpgActorVolatile | null {
+  if (volatile === null || volatile.pools.length === 0) {
+    return volatile;
+  }
+  const maxByName = new Map(poolDefs.map((d) => [d.name, d.max]));
+  return {
+    ...volatile,
+    pools: volatile.pools.map((pool) => {
+      const defMax = maxByName.get(pool.name);
+      if (defMax === undefined) {
+        return pool;
+      }
+      // Def wins the max; the value clamps down when a hand-lowered def max fell below it (the §12.3
+      // lower-max-drags-value tell, applied read-side so BOTH edit paths land the same displayed value).
+      return { ...pool, max: defMax, value: Math.min(pool.value, defMax) };
+    }),
+  };
+}
+
 /** Project one roster actor onto the tracker view: its sheet (row or default) paired with its volatile state
- *  (from the resolved snapshot's `actorState`, keyed by `actorRefKey`, or null). */
+ *  (from the resolved snapshot's `actorState`, keyed by `actorRefKey`, or null) — the volatile pools' MAX
+ *  resolved from the sheet's poolDefs (the single source of truth, `resolveVolatile`). */
 function actorView(entry: { actorRef: RpgActorRef; name: string; avatar?: string }, sheet: RpgSheet, volatile: RpgActorVolatile | null): RpgActorView {
   return {
     actorRef: entry.actorRef,
     name: entry.name,
     ...(entry.avatar !== undefined ? { avatar: entry.avatar } : {}),
     sheet: { className: sheet.className, attributes: sheet.attributes, poolDefs: sheet.poolDefs, maxHp: sheet.maxHp, level: sheet.level },
-    volatile,
+    volatile: resolveVolatile(volatile, sheet.poolDefs),
   };
 }
 
