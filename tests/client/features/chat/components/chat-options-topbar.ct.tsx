@@ -38,8 +38,11 @@ test("the topbar ⋯ menu carries NONE of the panel-homed options (IA de-dup) �
   const component = await mount(<ChatOptionsTopbarStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
-  // The menu opened (a panel-less item is present) but every panel-homed option is absent.
-  await expect(page.getByRole("menuitem", { name: "Continue" })).toBeVisible();
+  // The menu opened (a panel-less item is present) but every panel-homed option is absent. "Close chat"
+  // is the sentinel: a canon-less, host-agnostic item that has NO panel/wand home, so it legitimately
+  // stays in the ⋯ menu post-consolidation (#41 moved the turn actions to the composer wand; W3c moved the
+  // panel-homed items to their tabs).
+  await expect(page.getByRole("menuitem", { name: "Close chat" })).toBeVisible();
   await Promise.all(PANEL_HOMED_ITEMS.map((label) => expect(page.getByRole("menuitem", { name: label })).toHaveCount(0)));
 });
 
@@ -50,6 +53,6 @@ test("the topbar ⋯ menu is host-agnostic post-de-dup — a MEMBER sees the IDE
   const component = await mount(<ChatOptionsTopbarStory />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
-  await expect(page.getByRole("menuitem", { name: "Continue" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Close chat" })).toBeVisible();
   await Promise.all(PANEL_HOMED_ITEMS.map((label) => expect(page.getByRole("menuitem", { name: label })).toHaveCount(0)));
 });

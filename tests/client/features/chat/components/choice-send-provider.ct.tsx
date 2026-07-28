@@ -29,8 +29,18 @@ function gameView(behavior: RpgCyoaChoiceBehavior): unknown {
 
 const FIRST_OPTION = "Draw your blade.";
 
+// The provider's game gate (`8eb6e427`) reads `chat.getChat.rpg` through `isRpgEngaged` BEFORE it fires
+// `rpg.getGame` — it only queries the game (and thus honors the `send` knob) on a LIVE game room. So the
+// story's room must present an ENGAGED rpg pointer here, or the provider falls back to `compose` and never
+// sends. (The prod fix that added this gate stopped `rpg.getGame` 404-looping on non-game chats.)
+const engagedRpgPointer = { rpg: { gameId: "rpg_game_ct", engaged: true } };
+
 test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option text; the composer stays empty", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "rpg.getGame": () => gameView("send"), "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => engagedRpgPointer,
+    "rpg.getGame": () => gameView("send"),
+    "chat.send": () => ({ ok: true }),
+  });
   const component = await mount(<ChoiceProviderStory />);
 
   await component.getByRole("button", { name: `1. ${FIRST_OPTION}` }).click();
@@ -43,7 +53,11 @@ test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option
 });
 
 test("cyoaChoiceBehavior:compose — a choice click seeds the composer draft with the option text and fires NO send", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "rpg.getGame": () => gameView("compose"), "chat.send": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => engagedRpgPointer,
+    "rpg.getGame": () => gameView("compose"),
+    "chat.send": () => ({ ok: true }),
+  });
   const component = await mount(<ChoiceProviderStory />);
 
   await component.getByRole("button", { name: `1. ${FIRST_OPTION}` }).click();

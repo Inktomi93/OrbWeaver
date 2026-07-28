@@ -401,8 +401,9 @@ export function MessageContentChoicesStory({ mode = "live" }: MessageContentChoi
   return <MessageContentChoicesStoryInner mode={mode} />;
 }
 
-// P5 §5.4 — the REAL `<ChoiceSendProvider>` wired to the real data layer (routeTrpc stubs `rpg.getGame`
-// + `chat.send`), driving the real choices block AND a real `<Composer>` whose value is the real
+// P5 §5.4 — the REAL `<ChoiceSendProvider>` wired to the real data layer (routeTrpc stubs `chat.getChat`
+// with an engaged rpg pointer so the provider's game gate opens, + `rpg.getGame` + `chat.send`), driving
+// the real choices block AND a real `<Composer>` whose value is the real
 // composer-draft store. This proves the provider's send-vs-compose BRANCH end-to-end: `send` fires
 // `chat.send` (the composer stays empty); `compose` seeds the composer draft (observable in the textarea)
 // and fires NO send. The game knob rides `rpg.getGame.publicConfig.cyoaChoiceBehavior` (the CT stubs it).
