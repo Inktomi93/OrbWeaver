@@ -25,7 +25,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnConnection } from "../contract/context";
+import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
@@ -556,11 +556,41 @@ function fireExpressionClassify(ctx: ChatContext, view: MessageView): void {
   }
 }
 
+/** Resolve a canon row's name-stamp against the engine's per-chat `historyMacroNames` producer (the SAME
+ *  producer the shape mapper uses, so the transcript names match the wire). Assistant → its stamped character
+ *  name; user/narrator → its stamped persona name; system → null. A null/unresolvable stamp yields null (the
+ *  consumer renders "You"/an unnamed speaker). */
+function transcriptSpeakerName(m: MessageView, names: HistoryMacroNames): string | null {
+  if (m.role === "assistant") {
+    return m.characterId !== null ? (names.characterNamesById.get(m.characterId)?.name ?? null) : null;
+  }
+  if (m.role === "user") {
+    return m.personaId !== null ? (names.personaNamesById.get(m.personaId)?.name ?? null) : null;
+  }
+  return null; // system rows carry no speaker
+}
+
+/** Project the turn's loaded canon (`canonAll`) PLUS the just-committed reply (`view`) into the name-stamped,
+ *  token-measured transcript the rpg state round reasons from (crunchy-cluster redesign §1.3). `canonAll` was
+ *  loaded pre-turn so it does NOT carry this reply; append `view` (the latest beat) and drop any stale row with
+ *  the same id (a regenerate replaces the slot). Oldest→newest, hidden spans INTACT (model-plane, D110 §3.6);
+ *  system rows kept (the consumer decides — the knob is rpg's). Zero extra reads — the canon is already in
+ *  scope (§1.4). */
+function projectRpgTranscript(canonAll: readonly MessageView[], view: MessageView, names: HistoryMacroNames): RpgTurnTranscriptMessage[] {
+  const rows = [...canonAll.filter((m) => m.id !== view.id), view];
+  return rows.map((m) => ({
+    role: m.role,
+    speakerName: transcriptSpeakerName(m, names),
+    content: m.content,
+    tokens: estimateTokens(m.content),
+  }));
+}
+
 /** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
  *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3). */
-function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnConnection): void {
+function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
   if (ctx.rpg !== null) {
     // Fire-and-forget still (a background flush must NEVER turn a committed reply into an abort), but LOG the
     // failure — a silent `.catch(() => undefined)` made a broken rpg flush/extraction invisible in prod (the
@@ -1186,7 +1216,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     fireManagedCompaction(deps, prep, { result, canonAll });
 
     fireExpressionClassify(ctx, view);
-    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented });
+    // §1.3 — thread the turn's OWN canon transcript (the story the state round reasons from) alongside the
+    // resolved route + consent verdict. Projected from the canon already in scope (`canonAll` + this reply):
+    // zero extra reads. The rpg consumer slices it to its configured window.
+    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented, transcript: projectRpgTranscript(canonAll, view, historyMacroNames) });
 
     return committedOutcome([view]);
   } catch (err) {

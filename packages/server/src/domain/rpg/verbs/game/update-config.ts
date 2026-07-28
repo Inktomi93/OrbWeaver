@@ -2,7 +2,7 @@
 // profile mutability matrix (§2.3), the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS (§4.11 #1
 // + the delivery-model amendment). Host-gated.
 
-import type { RpgGameFeatures, RpgStatProfile } from "@orb/contracts/rpg";
+import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
@@ -61,6 +61,20 @@ function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatu
   };
 }
 
+/** The §1.3 extraction-depth knobs — keep-on-omit like every top-level sibling ([versioned-config-lift-drops-
+ *  overrides]): an unrelated config write must never reset the depth/cadence a host tuned. Extracted so the
+ *  main parse stays under the cognitive-complexity ceiling. */
+function mergeExtractionKnobs(
+  patch: UpdateConfigParams["patch"],
+  current: RpgGameConfig,
+): Pick<RpgGameConfig, "extractionContext" | "extractionWindowTokens" | "reconcileEveryBeats"> {
+  return {
+    extractionContext: patch?.extractionContext ?? current.extractionContext,
+    extractionWindowTokens: patch?.extractionWindowTokens ?? current.extractionWindowTokens,
+    reconcileEveryBeats: patch?.reconcileEveryBeats ?? current.reconcileEveryBeats,
+  };
+}
+
 export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateConfig"> {
   async function updateConfig(params: UpdateConfigParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
@@ -80,6 +94,8 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
+      // The §1.3 extraction-depth knobs — keep-on-omit (extracted helper for the complexity ceiling).
+      ...mergeExtractionKnobs(params.patch, game.config),
       // #9 — keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]).
       dateMode: params.patch?.dateMode ?? game.config.dateMode,
       // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).

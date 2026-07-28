@@ -3,11 +3,15 @@
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
 
+import type { ExtractionRefs, RpgGameConfig } from "@orb/contracts/rpg";
 import {
+  composePlaneTeaching,
   constrainExtractionSchema,
+  EXTRACTION_PLANE_PROMPTS,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_ROUND_TOOL_NAMES,
   rpgExtractionSchema,
+  rpgGameConfigSchema,
   toolCallsToExtraction,
   updatePartyArgsSchema,
 } from "@orb/contracts/rpg";
@@ -234,4 +238,65 @@ test("a schema-INVALID call is dropped (a tool call missing its required arg nev
   ]);
   expect(ex.journal).toEqual([]); // the invalid journal call dropped
   expect(ex.scene?.location).toBe("valid");
+});
+
+// ── EXTRACTION_PLANE_PROMPTS — the §1.6 per-plane prompt-fragment registry + its RATCHET ─────────────────
+const NO_REFS: ExtractionRefs = { actorRefs: [], widgetRefs: [], castFieldKeys: [], establishScene: NO_ESTABLISH };
+const baseConfig = (): RpgGameConfig => rpgGameConfigSchema.parse({});
+
+test("RATCHET (§1.6): every top-level rpgExtractionSchema key has a registry row (a new writable plane needs a fragment)", () => {
+  // The D50 bus-coverage ratchet discipline applied to prompt teaching: a plane that is schema-writable but has
+  // no registry row would be prompt-SILENT (the exact plane-under-service class the redesign killed). This RED
+  // is the enforcer — add the plane's fragment when this fails, never suppress.
+  const schemaKeys = Object.keys(rpgExtractionSchema.shape).sort();
+  const registryPlanes = EXTRACTION_PLANE_PROMPTS.map((r) => r.plane).sort();
+  expect(registryPlanes).toEqual(schemaKeys);
+});
+
+test("§1.6: the composed teaching prompts the newly-covered planes (plot gate ON, emoji, reconcile, inventory-infer)", () => {
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  expect(teaching).toContain("scene.plot"); // plotProgression defaults ON → the plot clause composes
+  expect(teaching).toContain("emoji"); // the portrait-fallback emoji clause
+  expect(teaching).toContain("RECONCILE"); // the anti-drift doctrine
+  expect(teaching).toContain("INFER"); // the owner's inventory-inference ask
+});
+
+test("§1.6: the plot clause is GATED — plotProgression OFF drops it (applicability, no dead prompt)", () => {
+  const off = rpgGameConfigSchema.parse({ features: { plotProgression: false } });
+  expect(composePlaneTeaching({ config: off, refs: NO_REFS })).not.toContain("scene.plot");
+});
+
+test("§1.6: the widgets fragment is null with no widget refs (feature-off arm) and enumerates live labels when present", () => {
+  // A game with no custom widgets: the widgets plane teaches NOTHING (a fragment returning null is dropped).
+  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("CUSTOM TRACKERS");
+  // With live widget refs, the fragment enumerates them (the reliable-arm gap §1.6 closed).
+  const withWidgets = composePlaneTeaching({ config: baseConfig(), refs: { ...NO_REFS, widgetRefs: ["Corruption", "Torch Fuel"] } });
+  expect(withWidgets).toContain("CUSTOM TRACKERS");
+  expect(withWidgets).toContain("Corruption");
+});
+
+test("§1.6: the cast-fields fragment enumerates host-defined fields with their hints (customFields gap)", () => {
+  const config = rpgGameConfigSchema.parse({
+    features: { castFields: [{ key: "corruption", label: "Corruption", kind: "meter", max: 100, hint: "rises with dark choices" }] },
+  });
+  const teaching = composePlaneTeaching({ config, refs: NO_REFS });
+  expect(teaching).toContain("Corruption");
+  expect(teaching).toContain("0-100");
+  expect(teaching).toContain("rises with dark choices");
+});
+
+test("§1.6: the structured dateMode prompts the day counter; narrated does NOT (mode-aware fragment)", () => {
+  const structured = rpgGameConfigSchema.parse({ dateMode: "structured" });
+  expect(composePlaneTeaching({ config: structured, refs: NO_REFS })).toContain("scene.day");
+  // The default (narrated) mode teaches calendarDate, never the integer day counter.
+  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("scene.day");
+});
+
+test("§1.6 #7 (recommendation A): a deception-active game prefixes the surface-only clause; a plain game does NOT", () => {
+  const deceptive = rpgGameConfigSchema.parse({ features: { deception: true } });
+  const clause = composePlaneTeaching({ config: deceptive, refs: NO_REFS });
+  expect(clause).toContain("Record only the players' SURFACE reality");
+  expect(clause).toContain("Do NOT write a character's secret truth");
+  // A non-deception game is byte-free of the clause (the clause is deception-gated).
+  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("SURFACE reality");
 });

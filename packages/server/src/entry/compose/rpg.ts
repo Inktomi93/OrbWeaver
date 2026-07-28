@@ -11,27 +11,39 @@
 // resolveRpgRoster/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 //
-// THE `runExtraction` IMPL (§4.6 reliable mode — the delivery-model amendment): a DEDICATED structured-output
-// turn. It rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict (`input.turnConnection`,
-// threaded from the engine through the flush — stickler F1), reads the committed beat text, and drives ONE model
-// call with `responseFormat` = the projected `rpgExtractionSchema` (the shared-plane proof: the extraction is "a
-// batch of the tool calls the model would otherwise have made"). It NEVER re-resolves the host's global chat
-// default and NEVER force-stamps consent — a room on vllm runs its round on vllm, a metered-sub round inherits
-// the turn's owner-consent belt verdict. The parsed extraction folds into an `RpgStateDelta` the accumulator
-// flushes exactly like a cheap-mode turn. A game whose resolved connection has no structured-output writer
-// capability is gated OUT by the flush's readonly check (F2) before it reaches here.
+// THE `runExtraction` IMPL (§4.6 reliable mode — the delivery-model amendment + the crunchy-cluster §1.3
+// transcript threading): a DEDICATED structured-output turn. It rides the CHARACTER turn's ALREADY-RESOLVED
+// connection + consent verdict AND its OWN canon transcript (`input.turnConnection`: `RpgTurnContext`, threaded
+// from the engine through the flush — stickler F1 + §1.3), slices that transcript to the game's configured
+// extraction window (`beat`/`window`/`full` — the beat is `transcript.at(-1)`, no DB read), builds the three-
+// block prompt (RECENT STORY · CURRENT TRACKED STATE · LATEST BEAT), composes the per-plane teaching from the
+// §1.6 registry, and drives ONE model call with `responseFormat` = the projected `rpgExtractionSchema` (the
+// shared-plane proof: the extraction is "a batch of the tool calls the model would otherwise have made"). It
+// NEVER re-resolves the host's global chat default and NEVER force-stamps consent — a room on vllm runs its
+// round on vllm, a metered-sub round inherits the turn's owner-consent belt verdict. The `beat` arm is
+// BYTE-COMPATIBLE with the pre-redesign one-beat request (the escape hatch). The parsed extraction folds into
+// an `RpgStateDelta` the accumulator flushes exactly like a cheap-mode turn. A game whose resolved connection
+// has no structured-output writer capability is gated OUT by the flush's readonly check (F2) before it reaches here.
 
 import { randomInt } from "node:crypto";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import type { ExtractionRefs, RpgExtraction, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
-import { constrainExtractionSchema, RPG_NO_CHANGES_TOOL, rpgExtractionSchema, toolCallsToExtraction } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
+import {
+  composePlaneTeaching,
+  constrainExtractionSchema,
+  RPG_NO_CHANGES_TOOL,
+  rpgExtractionSchema,
+  rpgGameConfigSchema,
+  toolCallsToExtraction,
+} from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { chats, messageVariants } from "@orb/db";
-import type { ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
+import { chats } from "@orb/db";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
@@ -101,48 +113,133 @@ export interface RpgComposeResult {
 // order: `acceptHostHandoff` (D64) swaps roles in place, so the first-joined human is NOT the host (stickler F3).
 // Both the reliable extraction (whose human funds the model call) and the capability verdict read it.
 
-/** Read a committed variant's beat text (the extraction reasons against it). Empty for a gone variant. */
-async function readBeat(db: Db, variantId: MessageVariantId): Promise<string> {
-  const rows = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId)).limit(1);
-  return rows.at(0)?.content ?? "";
+/** Render one transcript row as a labeled story line (`Mara: …`, `You: …`, `System: …`). A null speaker
+ *  name renders by role (user → "You", system → "System", assistant → "Narrator") — the model reads coherent
+ *  story attribution without needing the id plumbing. */
+const TRANSCRIPT_ROLE_FALLBACK: Readonly<Record<RpgTurnTranscriptMessage["role"], string>> = { user: "You", system: "System", assistant: "Narrator" };
+function renderTranscriptLine(m: RpgTurnTranscriptMessage): string {
+  return `${m.speakerName ?? TRANSCRIPT_ROLE_FALLBACK[m.role]}: ${m.content}`;
 }
 
-/** The reliable-mode extraction system prompt: the model reads the committed beat + the resolved base state and
- *  emits the WHOLE state delta as ONE structured object. No user-facing prose — structured output is the fit.
- *  The projected schema marks all five array fields REQUIRED (zod `.default([])` in output mode), so the
- *  "nothing changed" shape is EMPTY ARRAYS, not a literal `{}` (stickler S5 — a bare `{}` fails the Anthropic
- *  runtime's schema validation and burns a retry every quiet turn; enforcing backends force the arrays anyway).
- *
- *  ESTABLISH, not just DIFF (2026-07-28, the sad-path fix): the original prompt said "output ONLY the changes …
- *  never invent" — which on a FRESH game (empty state) + ordinary prose made a weak 8B conclude that nothing
- *  had changed and that writing the scene would be inventing → the empty object, so the panel never populated
- *  (`rpg.extraction.empty`, [[plan-for-small-hardware]]). The real lever is the ENFORCED SCHEMA, not this prose:
- *  `constrainExtractionSchema` now marks `scene` + `scene.location`/`scene.timeOfDay` REQUIRED, so xgrammar/
- *  `strict` FORCES the model to emit them every beat (a weak model can no longer skip the scene). This prompt's
- *  job is content QUALITY: read where/when from the beat (or restate the standing scene when unchanged, never
- *  blank it) and fill the still-optional planes. The R1 ref enums (below) keep targets honest. */
-const EXTRACTION_SYSTEM =
-  "You keep a role-play game's tracked state in sync with the story. Read the CURRENT STATE and the LATEST BEAT, " +
-  "then output ONE JSON object that updates the tracked state to match what the beat shows. Fill EVERY plane the " +
-  "beat gives you something for — the player sees this as a live character panel, so keep it current and rich.\n" +
-  "SCENE — scene.location + scene.timeOfDay are REQUIRED: WHERE (a tavern, a late-night konbini) and WHEN " +
-  "(dawn, morning, afternoon, evening, night, midnight). When the beat doesn't change them, restate the current " +
-  "values — never blank them. Also set scene.weather when mentioned, scene.calendarDate for a narrated in-world " +
-  "date, and scene.recentEvent = a one-line summary of what just happened.\n" +
-  "WHO IS PRESENT — scene.presentUpsert: one entry per character who speaks or acts (name required). Fill what " +
-  "the beat reveals about each: mood, appearance, outfit, thoughts (their inner state), and relationship toward " +
-  "the player (kind = lover/friend/ally/neutral/enemy/custom) as it shifts. presentRemove a character who leaves.\n" +
-  "WHAT MOVED — party: ONLY mechanical changes — pool changes (poolDeltas), conditions gained/lost " +
-  '(addCondition/removeCondition, e.g. "bleeding", "on edge"), hp (hpDelta), and a short status line (status). ' +
-  "A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here. inventory: items gained or lost " +
-  "(add/remove) and money (walletDeltas). quests: new or advancing quests (name + action create/update/complete/" +
-  "fail, with objectives). journal: one short entry (type + content) for a notable event.\n" +
-  "Recording facts the beat states is NOT inventing — but never fabricate numbers, items, or events the beat " +
-  "does not show. Leave an OPTIONAL plane empty only when the beat truly gives nothing for it.";
+/** Slice the turn's transcript to the game's configured extraction window (§1.3). The LATEST BEAT is always
+ *  `transcript.at(-1)` (the committed reply — the delta covers exactly it). The RECENT-STORY block is:
+ *    • `beat`   → EMPTY (byte-compatible with the pre-redesign one-beat request — the user prompt drops the
+ *                 RECENT STORY block entirely so the request is identical to today's `{state}\n{beat}`).
+ *    • `window` → newest-first fill up to `extractionWindowTokens`, then reversed to oldest→newest (whole
+ *                 messages — a huge single beat degrades to fewer messages, never truncated mid-utterance).
+ *    • `full`   → the whole transcript (already compaction-bounded by the char turn's loading).
+ *  The beat itself is never double-counted in the story block (it is the newest row, rendered under LATEST
+ *  BEAT). Returns the story lines (oldest→newest) + the latest beat text. */
+function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config: RpgGameConfig): { story: readonly RpgTurnTranscriptMessage[]; beat: string } {
+  const beatRow = transcript.at(-1);
+  const beat = beatRow?.content ?? "";
+  if (config.extractionContext === "beat") {
+    return { story: [], beat };
+  }
+  // The story is every row BEFORE the latest beat (the beat rides its own block).
+  const priorRows = transcript.slice(0, -1);
+  if (config.extractionContext === "full") {
+    return { story: priorRows, beat };
+  }
+  // `window`: newest-first fill up to the token budget, then restore oldest→newest order.
+  const budget = config.extractionWindowTokens;
+  const kept: RpgTurnTranscriptMessage[] = [];
+  let used = 0;
+  for (let i = priorRows.length - 1; i >= 0; i--) {
+    const row = priorRows[i];
+    if (row === undefined) {
+      continue;
+    }
+    if (used + row.tokens > budget && kept.length > 0) {
+      break; // budget spent (always keep at least one prior message so `window` is never empty when story exists)
+    }
+    kept.push(row);
+    used += row.tokens;
+  }
+  kept.reverse();
+  return { story: kept, beat };
+}
 
-/** The one user-turn body both extraction arms send: current state + the latest committed beat. */
-function extractionUserPrompt(stateJson: string, beat: string): string {
-  return `CURRENT STATE:\n${stateJson}\n\nLATEST BEAT:\n${beat}`;
+/** The reliable-mode extraction system prompt HEADER (the arc semantics § the plane teaching composes onto).
+ *  The model reads the RECENT STORY + the CURRENT TRACKED STATE + the LATEST BEAT and emits the WHOLE state
+ *  delta as ONE structured object — no user-facing prose, structured output is the fit. The projected schema
+ *  marks the five array fields REQUIRED (zod `.default([])` in output mode), so "nothing changed" is EMPTY
+ *  ARRAYS, not a literal `{}` (stickler S5 — a bare `{}` fails the Anthropic runtime's schema validation).
+ *
+ *  ARC AWARENESS (crunchy-cluster §1.3): the RECENT STORY is the model's EVIDENCE. The delta it outputs covers
+ *  ONLY the LATEST BEAT, but it may use the whole story to understand it — a relationship warming over several
+ *  turns, an item picked up earlier and still carried, a quest implied across turns. The per-plane teaching
+ *  (below, composed from `EXTRACTION_PLANE_PROMPTS`) carries the RECONCILE + INFER doctrine and the newly-
+ *  covered planes (plot/widgets/customFields/emoji/day — §1.6). ESTABLISH-when-unset stays the ENFORCED-SCHEMA
+ *  lever (`constrainExtractionSchema` marks scene fields REQUIRED on a fresh game); this prompt is the content-
+ *  quality arm. The R1 ref enums (below) keep targets honest. */
+const EXTRACTION_SYSTEM_HEADER =
+  "You keep a role-play game's tracked state in sync with the story. You are given the RECENT STORY (the turns " +
+  "leading up to now), the CURRENT TRACKED STATE (the panel as it stands), and the LATEST BEAT (the newest turn " +
+  "— your delta covers exactly this). Output ONE JSON object that updates the tracked state to match the story. " +
+  "The RECENT STORY is your evidence: use the whole arc to understand the latest beat — a relationship that has " +
+  "warmed over several turns, an item a character picked up earlier and still carries, a quest implied across " +
+  "turns. The player sees this as a live character panel, so keep every plane current and rich.";
+
+/** Compose the full reliable-mode system prompt: the header + the per-plane teaching (from the §1.6 registry,
+ *  config/refs aware — plot/widgets/customFields/emoji/day/deception-clause) + the R1 ref enumeration. The
+ *  registry is the ONE home both the reliable extraction and the cheap tool round teach their planes from. */
+function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null): string {
+  const teaching = composePlaneTeaching({ config, refs });
+  const refLines = refEnumerationLines(refs, playerDisplayName);
+  return refLines.length > 0 ? `${EXTRACTION_SYSTEM_HEADER}\n\n${teaching}\n\n${refLines}` : `${EXTRACTION_SYSTEM_HEADER}\n\n${teaching}`;
+}
+
+/** Strip model-facing PLUMBING from the base state before it rides the CURRENT TRACKED STATE block (§4.4):
+ *   • `fieldLocks` — the lock record is not model data; the model-facing frame renders it as one prose "Locked
+ *     paths" line (so the model honors pins without reading the raw record as noise).
+ *   • quest + objective `id`s — the extractor targets quests by NAME (`upsert_quest`), so the branded ids are
+ *     pure noise that bloat the prompt and can mislead a weak model into echoing an id.
+ *  Returns the projected JSON string + the locked-paths line (empty when nothing is locked). */
+function projectStateForModel(baseState: RpgSnapshotState): { json: string; lockedPathsLine: string } {
+  const { fieldLocks, quests, ...rest } = baseState;
+  const strippedQuests = quests.map(({ id: _id, objectives, ...q }) => ({
+    ...q,
+    objectives: objectives.map(({ id: _oid, ...o }) => o),
+  }));
+  const json = JSON.stringify({ ...rest, quests: strippedQuests });
+  const lockedPaths = fieldLocks !== null ? Object.keys(fieldLocks) : [];
+  const lockedPathsLine = lockedPaths.length > 0 ? `Locked by the players — do not rewrite: ${lockedPaths.join(", ")}.` : "";
+  return { json, lockedPathsLine };
+}
+
+/** The user-turn body both extraction arms send — the three labeled blocks (§1.3). RECENT STORY (oldest first)
+ *  is DROPPED on the `beat` arm so the request is byte-identical to the pre-redesign `{state}\n{beat}` shape
+ *  (the escape hatch's byte-compat contract). The CURRENT TRACKED STATE is the model-projected state (§4.4
+ *  strip); the LATEST BEAT is the newest committed turn (its delta target). */
+function extractionUserPrompt(args: { story: readonly RpgTurnTranscriptMessage[]; stateJson: string; lockedPathsLine: string; beat: string }): string {
+  const stateBlock = args.lockedPathsLine.length > 0 ? `${args.stateJson}\n${args.lockedPathsLine}` : args.stateJson;
+  // `beat` arm: no RECENT STORY block — byte-identical to today's `CURRENT STATE:\n{json}\n\nLATEST BEAT:\n{beat}`.
+  if (args.story.length === 0) {
+    return `CURRENT STATE:\n${stateBlock}\n\nLATEST BEAT:\n${args.beat}`;
+  }
+  const storyLines = args.story.map(renderTranscriptLine).join("\n");
+  return (
+    `RECENT STORY (oldest first):\n${storyLines}\n\n` +
+    `CURRENT TRACKED STATE:\n${stateBlock}\n\n` +
+    `LATEST BEAT (the newest story turn above — your delta covers exactly this):\n${args.beat}`
+  );
+}
+
+/** Build the user-turn body BOTH extraction arms share, from the turn context + base state + config. The ONE
+ *  place that honors the §1.3 byte-compat contract: on the `beat` arm the request is IDENTICAL to the
+ *  pre-redesign shape — the FULL `JSON.stringify(baseState)` (no §4.4 strip) and no RECENT STORY block, so the
+ *  verifier's diff matches today exactly. The `window`/`full` arms slice the turn's transcript and ride the
+ *  model-projected state (locks/ids stripped, §4.4). */
+function buildExtractionUserPrompt(turnContext: RpgTurnContext, baseState: RpgSnapshotState, config: RpgGameConfig): string {
+  const { story, beat } = sliceTranscript(turnContext.transcript, config);
+  // `beat` arm — byte-identical to the pre-redesign request: the raw full state JSON, no strip, no story block.
+  if (config.extractionContext === "beat") {
+    return extractionUserPrompt({ story: [], stateJson: JSON.stringify(baseState), lockedPathsLine: "", beat });
+  }
+  // `window`/`full` — the new behavior: sliced story + the §4.4 model-projected state.
+  const { json, lockedPathsLine } = projectStateForModel(baseState);
+  return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat });
 }
 
 /** Emit the extraction JSON TEXT for a `agent-sdk` host connection via the CHAT role's structured-output
@@ -206,10 +303,13 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
 const PLAYER_SEMANTIC_REF = "player";
 
 /** The resolved ref vocabulary for a call: the enum-able refs + the player's current display name (for the
- *  prompt's `player = X` explainer; null when no user actor). */
+ *  prompt's `player = X` explainer; null when no user actor) + the game config (the plane-teaching + window
+ *  knobs read it — resolved once here, off the game the refs already fetch). A turnless game (no row) folds to
+ *  the all-defaults config so the fresh-game path still teaches every default plane. */
 interface ResolvedRefs {
   readonly refs: ExtractionRefs;
   readonly playerDisplayName: string | null;
+  readonly config: RpgGameConfig;
 }
 
 /** The valid per-call refs the schema constraint + the prompt enumerate. The set MIRRORS what `resolveActor`
@@ -269,14 +369,16 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   return {
     refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, establishScene },
     playerDisplayName: player?.name ?? null,
+    config: game?.config ?? rpgGameConfigSchema.parse({}),
   };
 }
 
-/** Append the valid-ref enumeration to the extraction system prompt (the FALLBACK arm for a model whose
- *  wire can't enforce the schema enum — the schema binds it structurally where the backend supports it, and
- *  the prompt names the valid refs everywhere). The `player` token is explained (= the human's character,
- *  currently shown as X) so the model prefers the stable ref. Empty ⇒ the base prompt (a fresh game). */
-function extractionSystemWithRefs(refs: ExtractionRefs, playerDisplayName: string | null): string {
+/** The valid-ref enumeration block (the FALLBACK arm for a model whose wire can't enforce the schema enum —
+ *  the schema binds it structurally where the backend supports it, and the prompt names the valid refs
+ *  everywhere). The `player` token is explained (= the human's character, currently shown as X) so the model
+ *  prefers the stable ref. Returns "" for a fresh game with no refs (the composer omits the block). Both the
+ *  reliable extraction (`extractionSystem`) and the cheap tool round (`toolRoundSystem`) append this. */
+function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | null): string {
   const lines: string[] = [];
   if (refs.actorRefs.length > 0) {
     lines.push(`Valid targetRef values (use EXACTLY one of these for any party/inventory/scene target): ${refs.actorRefs.join(", ")}.`);
@@ -292,7 +394,7 @@ function extractionSystemWithRefs(refs: ExtractionRefs, playerDisplayName: strin
     lines.push(`Valid widgetRef values (custom trackers — never invent one): ${refs.widgetRefs.join(", ")}.`);
   }
   lines.push("Location goes in scene.location — NEVER in a widget. Never target a name not in the lists above.");
-  return `${EXTRACTION_SYSTEM}\n\n${lines.join("\n")}`;
+  return lines.join("\n");
 }
 
 /** Build the reliable-mode `runExtraction` op (§4.6). Rides the CHARACTER turn's ALREADY-RESOLVED connection +
@@ -302,21 +404,20 @@ function extractionSystemWithRefs(refs: ExtractionRefs, playerDisplayName: strin
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
  *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture). */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
-  return async ({ chatId, variantId, baseState, turnConnection }) => {
+  return async ({ chatId, baseState, turnConnection }) => {
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
-    const beat = await readBeat(deps.db, variantId);
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
     // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + widget labels)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
     // prompt (the fallback arm for a non-enforcing model).
-    const { refs, playerDisplayName } = await resolveExtractionRefs(deps, chatId, baseState);
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState);
     const schema = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs);
     const ctx: ExtractCtx = {
       conn,
       ownerConsented: turnConnection.ownerConsented,
-      systemPrompt: extractionSystemWithRefs(refs, playerDisplayName),
-      userPrompt: extractionUserPrompt(JSON.stringify(baseState), beat),
+      systemPrompt: extractionSystem(config, refs, playerDisplayName),
+      userPrompt: buildExtractionUserPrompt(turnConnection, baseState, config),
       schema,
     };
     // The structured-output extraction can THROW at the backend (e.g. a backend that doesn't honor
@@ -411,16 +512,17 @@ function safeJson(text: string): unknown {
 // routes through the SAME structured-output extraction (identical delta by the shared-plane proof — the
 // honest degrade, capability-keyed: cheap needs `capability.tools`, absent ⇒ readonly upstream).
 
-/** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Reuses the
- *  ref enumeration (R1 fallback arm) + the player-semantic explainer. */
-function toolRoundSystem(refs: ExtractionRefs, playerDisplayName: string | null): string {
+/** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
+ *  SAME per-plane teaching (from the §1.6 registry — plot/widgets/customFields/deception-clause) that the
+ *  reliable arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
+function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null): string {
   // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
   // wrote only ONE plane. So the prompt now walks the model plane-by-plane (a checklist) and gives the concrete
   // multi-call example, forcing it to consider EACH plane independently rather than settling for one call.
   // Bounded attempt ([[plan-for-small-hardware]] — if the 8B ceiling holds, the honest-arms degrade holds).
   const base =
-    "You maintain the tracked game state. Read the current state + the latest story beat, then call a SEPARATE " +
-    "tool for EACH plane the beat changed. Check every plane independently:\n" +
+    "You maintain the tracked game state. Read the RECENT STORY + current state + the latest story beat, then " +
+    "call a SEPARATE tool for EACH plane the beat changed. Check every plane independently:\n" +
     "• Did anyone's HP, pools, conditions, or status change? → update_party (one call PER affected actor)\n" +
     "• Did items or currency move? → update_inventory\n" +
     "• Did the location, time, weather, or present cast change? → update_scene\n" +
@@ -431,8 +533,9 @@ function toolRoundSystem(refs: ExtractionRefs, playerDisplayName: string | null)
     "needs update_party (a Bleeding condition on her) AND update_scene (location → cave), so call BOTH in this " +
     "one turn. Emit every applicable call together. If — and only if — the beat changed NOTHING trackable, call " +
     "no_changes and nothing else. Do not narrate.";
-  const refLines = extractionSystemWithRefs(refs, playerDisplayName).slice(EXTRACTION_SYSTEM.length).trim();
-  return refLines.length > 0 ? `${base}\n\n${refLines}` : base;
+  const teaching = composePlaneTeaching({ config, refs });
+  const refLines = refEnumerationLines(refs, playerDisplayName);
+  return `${base}\n\n${teaching}\n\n${refLines}`;
 }
 
 /** Build the ref-constrained wire tools for the round: each state tool's projected+enum-constrained args +
@@ -473,15 +576,14 @@ function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; descript
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {
-    const { chatId, variantId, baseState, turnConnection } = input;
+    const { chatId, baseState, turnConnection } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction.
     if (conn.api === "agent-sdk") {
       return extract(input);
     }
-    const beat = await readBeat(deps.db, variantId);
-    const { refs, playerDisplayName } = await resolveExtractionRefs(deps, chatId, baseState);
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState);
     let calls: readonly RpgToolCall[];
     try {
       const result = await deps.executor.runChatTurn({
@@ -490,8 +592,8 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         credential: conn.credential,
         capability: conn.capability,
         params: {},
-        systemPrompt: { static: toolRoundSystem(refs, playerDisplayName), dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: extractionUserPrompt(JSON.stringify(baseState), beat) }] }],
+        systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName), dynamic: "" },
+        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection, baseState, config) }] }],
         tools: buildToolRoundWireTools(refs),
         toolChoice: { mode: "required" },
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub

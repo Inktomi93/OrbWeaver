@@ -15,7 +15,7 @@
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnConnection } from "../../chat";
+import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnContext } from "../../chat";
 import type { RpgContext } from "../contract/service";
 import { mintLiteGame } from "../game-mint";
 import { findGameByChat } from "../persistence/games";
@@ -76,7 +76,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     messageId: MessageId,
     variantId: MessageVariantId,
     turnId: ChatRpgOnTurnCompletedTurnId,
-    turn: RpgTurnConnection,
+    turn: RpgTurnContext,
   ): Promise<void> {
     const runFlush = async (): Promise<void> => {
       const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write

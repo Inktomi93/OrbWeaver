@@ -1,13 +1,30 @@
 // @orb/contracts/rpg/config — the rpg_games.config blob (§4.1). Pins: statProfile defaults to freeform,
 // the steeringNote cap, and that an empty blob self-heals to the born-default config.
 
-import { isDeceptionActive, RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT, RPG_STEERING_NOTE_MAX, rpgGameConfigSchema } from "@orb/contracts/rpg";
+import {
+  isDeceptionActive,
+  RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
+  RPG_PROFILE_FREEFORM,
+  RPG_RECENT_BEATS_KEEP_DEFAULT,
+  RPG_RECONCILE_EVERY_BEATS_DEFAULT,
+  RPG_STEERING_NOTE_MAX,
+  rpgGameConfigSchema,
+} from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures";
 
 test("an empty config parses to the born-default (freeform profile, empty steeringNote)", () => {
   const config = rpgGameConfigSchema.parse({});
   expect(config.statProfile).toEqual(RPG_PROFILE_FREEFORM);
   expect(config.lite.steeringNote).toBe("");
+});
+
+// §1.3: the extraction-depth knobs self-heal on a pre-redesign blob — window context (the ratified default),
+// the 4k token budget, reconcile-every-10. Additive defaulted, no version stamp (the extractionMode precedent).
+test("the §1.3 extraction-depth knobs self-heal to their defaults on a pre-redesign blob", () => {
+  const config = rpgGameConfigSchema.parse({});
+  expect(config.extractionContext).toBe("window");
+  expect(config.extractionWindowTokens).toBe(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT);
+  expect(config.reconcileEveryBeats).toBe(RPG_RECONCILE_EVERY_BEATS_DEFAULT);
 });
 
 // P3 §3.3/§3.6: the hidden-channel + recent-beats knobs self-heal (a pre-P3 blob fills the defaults, no version
