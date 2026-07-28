@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactElement } from "react";
 import { buildSrcDoc, SANDBOX_ATTR } from "./srcdoc";
 import { clampSandboxThemeTokens } from "./theme-tokens";
+import { clampSandboxFontFamily } from "./use-sandbox-theme";
 
 // With scripts OFF the frame cannot postMessage its scrollHeight, so height is caller-controlled, not self-measured.
 const DEFAULT_HEIGHT_PX = 320;
@@ -12,6 +13,8 @@ export interface SandboxFrameProps {
   readonly css?: string;
   /** Re-clamped at this boundary via `isSafeColor` regardless of caller — see `theme-tokens.ts`. */
   readonly themeTokens?: Readonly<Record<string, string>>;
+  /** Pre-validated font-family list for the base body rule (see `use-sandbox-theme.ts`); dropped when unsafe. */
+  readonly fontFamily?: string;
   readonly title: string;
   /** While false, a skeleton renders instead of the frame — a half-rendered flash is worse than a code fence. */
   readonly complete?: boolean;
@@ -31,6 +34,7 @@ export function SandboxFrame({
   html,
   css,
   themeTokens,
+  fontFamily,
   title,
   complete = true,
   heightPx = DEFAULT_HEIGHT_PX,
@@ -45,7 +49,7 @@ export function SandboxFrame({
     );
   }
 
-  const srcDoc = buildSrcDoc({ html, css, themeTokens: clampSandboxThemeTokens(themeTokens) });
+  const srcDoc = buildSrcDoc({ html, css, themeTokens: clampSandboxThemeTokens(themeTokens), fontFamily: clampSandboxFontFamily(fontFamily) });
   return (
     <iframe
       sandbox={SANDBOX_ATTR}

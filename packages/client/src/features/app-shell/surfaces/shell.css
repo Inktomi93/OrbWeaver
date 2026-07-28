@@ -514,6 +514,7 @@
 @media (pointer: coarse) {
   .shell-topbar-icon-btn {
     min-width: var(--spacing-touch-target);
+    min-height: var(--spacing-touch-target);
     flex: none;
   }
 }

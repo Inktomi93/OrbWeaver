@@ -156,6 +156,7 @@
   "packages/ui/src/charts/meter/segmented-clock.tsx": 2,
   "packages/ui/src/code-editor/code-editor.tsx": 1,
   "packages/ui/src/content/message-media/message-media.tsx": 1,
+  "packages/ui/src/content/sandbox-frame/use-sandbox-theme.ts": 1,
   "packages/ui/src/fuzzy-search/fuzzy-search.ts": 4,
   "packages/ui/src/lib/portal-container.ts": 1,
   "packages/ui/src/primitives/avatar-stack/avatar-stack.tsx": 2,

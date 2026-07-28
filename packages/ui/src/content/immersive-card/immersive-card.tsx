@@ -5,7 +5,7 @@ import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
 import { Code, Expand, Icon } from "#primitives/icons";
-import { SandboxFrame } from "../sandbox-frame";
+import { SandboxFrame, useSandboxTheme } from "../sandbox-frame";
 import { immersiveCardVariants } from "./variants";
 
 // The inline (collapsed) render height — mirrors the SandboxFrame default; the expand affordance is the
@@ -22,7 +22,6 @@ export interface ImmersiveCardProps {
   readonly title?: string | undefined;
   /** §4.8 provenance: `lenient` cards mark their chrome so an implicit wrap is visibly explainable. */
   readonly origin?: CardSpanOrigin | undefined;
-  readonly themeTokens?: Readonly<Record<string, string>> | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -33,13 +32,14 @@ interface CardBodyProps {
   readonly showRaw: boolean;
   readonly html: string;
   readonly css: string | undefined;
-  readonly themeTokens: Readonly<Record<string, string>> | undefined;
+  readonly themeTokens: Readonly<Record<string, string>>;
+  readonly fontFamily: string | undefined;
   readonly label: string;
   readonly heightPx: number;
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
-function CardBody({ fill, showRaw, html, css, themeTokens, label, heightPx }: CardBodyProps): ReactElement {
+function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
     return (
@@ -56,7 +56,8 @@ function CardBody({ fill, showRaw, html, css, themeTokens, label, heightPx }: Ca
     <SandboxFrame
       html={html}
       {...(css === undefined ? {} : { css })}
-      {...(themeTokens === undefined ? {} : { themeTokens })}
+      themeTokens={themeTokens}
+      {...(fontFamily === undefined ? {} : { fontFamily })}
       title={label}
       {...(fill ? { fill: true } : { heightPx })}
       className={fill ? "min-h-0 w-full flex-1 rounded-card border border-border bg-card" : "w-full rounded-none border-0 bg-card"}
@@ -71,12 +72,15 @@ function CardBody({ fill, showRaw, html, css, themeTokens, label, heightPx }: Ca
  * lightbox at full shell size, labelled by the card title). The security boundary is entirely
  * `SandboxFrame`'s (one sandbox home); this component is chrome + state only.
  */
-export function ImmersiveCard({ html, css, title, origin, themeTokens, heightPx = DEFAULT_HEIGHT_PX, className }: ImmersiveCardProps): ReactElement {
+export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEIGHT_PX, className }: ImmersiveCardProps): ReactElement {
   const [showRaw, setShowRaw] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const slots = immersiveCardVariants();
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
-  const bodyProps = { showRaw, html, css, themeTokens, label, heightPx };
+  // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
+  // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
+  const { themeTokens, fontFamily } = useSandboxTheme();
+  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx };
 
   const rawToggle = (
     <Button

@@ -31,6 +31,25 @@ test("render-on-complete: incomplete shows a skeleton, not the frame", async ({ 
   await expect.poll(() => cmp.evaluate((el) => el.tagName.toLowerCase())).not.toBe("iframe");
 });
 
+test("an unstyled card lands in the theme: the srcdoc carries a token-driven base body rule", async ({ mount }) => {
+  const cmp = await mount(
+    <SandboxFrame html="<p>bare</p>" title="bare" themeTokens={{ "--sandbox-bg": "#101010", "--sandbox-fg": "#eeeeee" }} fontFamily="Geist, sans-serif" />,
+  );
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  // The body USES the injected surface/text vars (not browser-default white/serif) and the UI font list.
+  expect(srcdoc).toContain("--sandbox-bg: #101010");
+  expect(srcdoc).toContain("background: var(--sandbox-bg)");
+  expect(srcdoc).toContain("color: var(--sandbox-fg)");
+  expect(srcdoc).toContain("font-family: Geist, sans-serif");
+});
+
+test("a hostile fontFamily is dropped at the boundary; the base body falls back to sans-serif", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" fontFamily="Geist; } body { background: url(//evil) } /*" />);
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).not.toContain("url(//evil");
+  expect(srcdoc).toContain("font-family: sans-serif");
+});
+
 test("hostile themeTokens are dropped at the boundary, not smuggled into the srcdoc", async ({ mount }) => {
   const cmp = await mount(
     <SandboxFrame
