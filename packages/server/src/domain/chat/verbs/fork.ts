@@ -10,7 +10,7 @@
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null.
 
-import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
@@ -262,6 +262,18 @@ async function resolveForkStripReasoning(ctx: ChatContext, chatId: ChatId, forke
   return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
 }
 
+/** A fork is born a PLAIN chat: strip the rpg game pointer. `rpg_games` is a per-chat row keyed to the SOURCE
+ *  chat, so a copied `metadata.rpg` would DANGLE on the fork (getGame(fork) → NOT_FOUND, which crashed the
+ *  panel header). "Fork clones the game" is a separate, owner-gated feature. Every other metadata field carries. */
+function forkMetadataWithoutGame(meta: ChatMetadata | null): ChatMetadata | null {
+  if (meta === null || meta.rpg === undefined) {
+    return meta;
+  }
+  const { rpg: _droppedGamePointer, ...rest } = meta;
+  void _droppedGamePointer;
+  return rest;
+}
+
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -347,7 +359,10 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           anchorPersonaId: source.anchorPersonaId,
           compactSummary: keepCheckpoint ? source.compactSummary : null,
           compactedAtSeq: keepCheckpoint ? source.compactedAtSeq : null,
-          metadata: source.metadata,
+          // DROP the rpg game pointer on a fork: `rpg_games` is a PER-CHAT row keyed to the source chat, so a
+          // copied pointer would dangle (getGame(fork) → NOT_FOUND → the panel crashed). A fork is born a plain
+          // chat; "fork clones the game" is a separate, owner-gated feature. Everything else in metadata carries.
+          metadata: forkMetadataWithoutGame(source.metadata),
           variableValues: variables,
           runtimeVariables: Object.keys(forkRuntimeCache).length > 0 ? forkRuntimeCache : null,
           standaloneVariableDeltas: forkStandaloneDeltas.length > 0 ? forkStandaloneDeltas : null,
