@@ -25,9 +25,10 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { ChatResult } from "@orb/server/infra/providers";
 import { vi } from "vitest";
-import type { RpgTurnConnection } from "../../../../packages/server/src/domain/chat/index.ts";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -39,7 +40,7 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
  *  `api` selects the round's routed arm (agent-sdk → the structured CHAT path; else the `structured` dispatcher);
  *  the model is "fake-chat-model" so the spy's model assertions still match. Writer-capable (structured + tools)
  *  + consent ON so the flush's F2 gate passes and the round runs. `over` pins the F1 consent/source cases. */
-function tc(api: ChatApi, over: Partial<RpgTurnConnection> = {}): RpgTurnConnection {
+function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
     connection: makeResolvedConnection({
       api,
@@ -47,8 +48,20 @@ function tc(api: ChatApi, over: Partial<RpgTurnConnection> = {}): RpgTurnConnect
       capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
     ownerConsented: true,
+    // Default: an empty transcript (the round fires with an empty beat; the canned fakes ignore prompt
+    // content). The §1.3 window/beat tests below pass a real name-stamped transcript.
+    transcript: [],
     ...over,
   };
+}
+
+/** Build a name-stamped transcript from `(speaker, text)` pairs — the §1.3 story evidence the state round
+ *  reads. `tokens` uses the same char/4 heuristic as the engine's `estimateTokens` (good enough for the
+ *  budget-slice tests; the exact value isn't asserted). Assistant rows get a name; a null speaker is "You". */
+function transcript(
+  rows: readonly { readonly speaker: string | null; readonly text: string; readonly role?: RpgTurnTranscriptMessage["role"] }[],
+): RpgTurnTranscriptMessage[] {
+  return rows.map((r) => ({ role: r.role ?? "assistant", speakerName: r.speaker, content: r.text, tokens: Math.ceil(r.text.length / 4) }));
 }
 
 function hostPrincipal(userId: UserId): Principal {
@@ -151,6 +164,9 @@ interface ExtractionSpy {
   readonly schemas: Record<string, unknown>[];
   /** The system prompts the impl sent — so a test can assert the R1 ref enumeration (the fallback arm). */
   readonly systemPrompts: string[];
+  /** The user prompts the impl sent — so a §1.3 test can assert the RECENT STORY block (window arm) + the
+   *  byte-compat `beat` arm shape. Captured on both routed arms (structured `userPrompt` / agent-sdk `prompt`). */
+  readonly userPrompts: string[];
 }
 
 /** Build an rpg seam over the REAL chat wiring (off `app.chatRpgOps`) + real db, with a FAKE executor/connection
@@ -196,6 +212,7 @@ function buildReliableRpgWithText(args: {
         spy.summarizeModels.push(req.model);
         spy.schemas.push(req.responseFormat.schema);
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
+        spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         return Promise.resolve({
           items: [{ text: cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
@@ -217,6 +234,7 @@ function buildReliableRpgWithText(args: {
         }
         if (req.api === "agent-sdk") {
           spy.systemPrompts.push(req.systemPrompt.static);
+          spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
         }
         // Only `reply` is read by the extraction (the impl parses the JSON out of it); the rest of the
         // ~18-field ChatResult is inert, so a full construction would be noise.
@@ -233,7 +251,7 @@ function buildReliableRpgWithText(args: {
   });
 }
 
-const emptySpy = (): ExtractionSpy => ({ summarizeModels: [], chatTurns: [], schemas: [], systemPrompts: [] });
+const emptySpy = (): ExtractionSpy => ({ summarizeModels: [], chatTurns: [], schemas: [], systemPrompts: [], userPrompts: [] });
 
 test("RELIABLE turn (summarize arm) — a NON-agent-sdk host connection routes through executor.summarize", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "reliable-summ");
@@ -385,6 +403,89 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
   // NO round fired (neither arm) — the readonly gate short-circuited before any model call.
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toEqual([]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// W-B (§1.3) — the state round rides the turn's OWN transcript: window content · beat byte-compat · registry
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+test("§1.3 (window arm): the RECENT STORY block carries the turn's transcript, name-stamped, oldest-first", async ({ app, db }) => {
+  // A game defaults to extractionContext:"window" (§1.3). Thread a multi-beat transcript on the turn context;
+  // the round's user prompt must carry the prior beats as name-stamped story evidence — proving the extraction
+  // is no longer context-blind (it reads the arc, not just one beat).
+  const { chatId, hostId } = await seedHostGameChat(db, "wb-window");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born window (default)
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The dragon lunges." });
+
+  const turn = tc("chat-completions", {
+    transcript: transcript([
+      { speaker: "You", text: "I draw my blade and step into the ruined hall.", role: "user" },
+      { speaker: "Mara", text: "Mara nocks an arrow, whispering: stay behind me." },
+      { speaker: "Mara", text: "The dragon lunges." }, // the latest beat (transcript.at(-1))
+    ]),
+  });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turn);
+
+  const prompt = spy.userPrompts[0] ?? "";
+  // The RECENT STORY block exists and carries the PRIOR beats (the arc), oldest-first, name-stamped.
+  expect(prompt).toContain("RECENT STORY (oldest first):");
+  expect(prompt).toContain("You: I draw my blade and step into the ruined hall.");
+  expect(prompt).toContain("Mara: Mara nocks an arrow, whispering: stay behind me.");
+  // The newest turn rides the LATEST BEAT block, not the story block (the delta target).
+  expect(prompt).toContain("LATEST BEAT (the newest story turn above — your delta covers exactly this):\nThe dragon lunges.");
+  // The three-block structure — CURRENT TRACKED STATE sits between story and beat.
+  expect(prompt).toContain("CURRENT TRACKED STATE:");
+});
+
+test("§1.3 (beat arm): the request is BYTE-IDENTICAL to the pre-redesign shape (CURRENT STATE + one beat, no story, unstripped)", async ({ app, db }) => {
+  // The escape hatch's byte-compat contract: extractionContext:"beat" reproduces today's request EXACTLY — the
+  // full unstripped state JSON, no RECENT STORY block, no §4.4 strip. The verifier's diff is this equality.
+  const { chatId, hostId } = await seedHostGameChat(db, "wb-beat");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, patch: { extractionContext: "beat" } });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
+
+  const turn = tc("chat-completions", {
+    transcript: transcript([
+      { speaker: "You", text: "prior beat that must NOT appear on the beat arm", role: "user" },
+      { speaker: "Mara", text: "They cross the bridge." },
+    ]),
+  });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turn);
+
+  // A fresh game's base is the default snapshot state — the round reasons against it. The beat arm's user prompt
+  // is byte-identical to the pre-redesign `CURRENT STATE:\n${JSON.stringify(base)}\n\nLATEST BEAT:\n${beat}`.
+  const expected = `CURRENT STATE:\n${JSON.stringify(defaultSnapshotState())}\n\nLATEST BEAT:\nThey cross the bridge.`;
+  expect(spy.userPrompts[0]).toBe(expected);
+  // No transcript leakage on the beat arm — the prior beat and the new-block labels are ABSENT.
+  expect(spy.userPrompts[0]).not.toContain("RECENT STORY");
+  expect(spy.userPrompts[0]).not.toContain("prior beat that must NOT appear");
+});
+
+test("§1.6 (plane registry): the reliable system prompt teaches the newly-covered planes (plot + emoji + reconcile)", async ({ app, db }) => {
+  // The plane-under-service gap (§1.6): plot/emoji/reconcile were schema-writable but prompt-silent. The registry
+  // now composes them into the system prompt. plotProgression defaults ON, so the plot clause must appear.
+  const { chatId, hostId } = await seedHostGameChat(db, "wb-registry");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A new act dawns." });
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    tc("chat-completions", { transcript: transcript([{ speaker: "Narrator", text: "A new act dawns." }]) }),
+  );
+
+  const sys = spy.systemPrompts[0] ?? "";
+  expect(sys).toContain("scene.plot"); // §1.6 gap — the plot act rail (plotProgression ON by default)
+  expect(sys).toContain("emoji"); // §1.6 gap — the portrait-fallback emoji clause
+  expect(sys).toContain("RECONCILE"); // the anti-drift doctrine composed by the registry
 });
 
 // ── F4: the per-call enum includes existing scene-cast + cast-actor keys (removal + cast-actor reach) ────

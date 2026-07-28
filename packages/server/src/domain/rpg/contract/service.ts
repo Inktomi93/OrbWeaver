@@ -41,7 +41,7 @@ import type {
   RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
-import type { RpgTurnConnection } from "../../chat";
+import type { RpgTurnContext } from "../../chat";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -236,7 +236,8 @@ export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDel
 /** The shared input BOTH dedicated state rounds consume (reliable extraction + cheap tool round). Carries the
  *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
  *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
- *  verdict (`RpgTurnConnection`, chat's front door). The round runs on THAT connection with THAT consent — the
+ *  verdict + its OWN canon transcript (`RpgTurnContext`, chat's front door). The round runs on THAT connection
+ *  with THAT consent AND reasons from `turnConnection.transcript` (§1.3) — the
  *  F1 fix: no second `resolveRole` (a room on vllm runs its round on vllm), no force-stamped `ownerConsented`
  *  (a metered-sub round inherits the turn's belt verdict). `turnConnection.connection.capability` also gates
  *  the flush's readonly verdict (F2 — no round on a capability-absent connection). */
@@ -249,7 +250,7 @@ interface RpgStateRoundInput {
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly baseState: RpgSnapshotState;
-  readonly turnConnection: RpgTurnConnection;
+  readonly turnConnection: RpgTurnContext;
 }
 
 /** What a reliable-mode extraction returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
