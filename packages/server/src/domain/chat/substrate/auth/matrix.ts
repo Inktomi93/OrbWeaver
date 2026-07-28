@@ -83,7 +83,7 @@ export const CHAT_VERB_AUTHORITY = {
   clearReasoning: "author-or-host",
   moveMessage: "host", // re-stamps canon ORDER (the §11 "reorder" host-only entry)
   duplicateMessage: "author-or-host",
-  forkChat: "member", // a member may fork the source; the fork is a new chat where the forker is host (inv §16)
+  forkChat: "host", // fork is HOST-authority (owner policy 2026-07-28) — the fork is a new chat where the forker is host; a non-host may fork ONLY a SOLO room (they are the sole present human — nothing to launder), a documented in-verb widening of this `host` floor
   // ── injections (room-wide prompt content — write is a one-shot room jailbreak surface → host; read → member) ──
   setChatInjection: "host",
   listChatInjections: "member",

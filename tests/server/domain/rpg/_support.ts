@@ -170,6 +170,9 @@ export interface RpgFakes {
   /** OPTIONAL gate the fake `runExtraction` awaits before resolving — the flush-barrier race test sets it to a
    *  deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
   extractionGate?: Promise<void>;
+  /** The preset-ownership fake (§3.2 fork). `${presetId}:${userId}` keys the presets a user may READ (owned or
+   *  the shared default); `resolvePresetOwned` returns membership. Empty (default) ⇒ every preset is foreign. */
+  ownedPresets: Set<string>;
   /** Recorders — the tests assert these fired. */
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
   readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
@@ -208,6 +211,7 @@ export function makeRpgService(
     dice: [...(over.dice ?? [])],
     extractionDelta: over.extractionDelta ?? { statePatch: {}, journal: [] },
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
+    ownedPresets: new Set(),
     pointers: [],
     narratorPosts: [],
     extractionCalls: [],
@@ -265,6 +269,7 @@ export function makeRpgService(
     },
     resolveRoster,
     postNarratorMessage,
+    resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
     resolveTrackersReadOnly: () => Promise.resolve(fakes.trackersReadOnly),
     runExtraction,
     runToolRound,

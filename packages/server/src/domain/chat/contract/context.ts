@@ -514,6 +514,44 @@ export interface ChatRpgOps {
    *  BODY hidden-span strip is unconditional (a lie is always stripped for members); THIS gate is the ADDITIONAL,
    *  game-conditional reasoning cut P3 adds beside it. */
   readonly resolveReasoningHostOnly: (chatId: ChatId) => Promise<boolean>;
+  /** FORK CLONES THE GAME (fork-clones-the-game §3.2). Called by `forkChat` AFTER its atomic fork batch commits:
+   *  rpg re-keys its whole 6-table vertical from the source game onto the fork through the fork's id maps and
+   *  writes the fork's `metadata.rpg` pointer LAST (crash safety — a mid-clone failure leaves the fork a valid
+   *  PLAIN chat, the `8306a2b9`/`forkMetadataWithoutGame` stopgap as the structural fallback). The maps ENCODE
+   *  the fork horizon: a snapshot/journal row whose variant was not copied (truncated past the fork's `throughSeq`,
+   *  or withheld below the forker's D106 join-floor) has no `variantIdMap` entry and is dropped by construction —
+   *  no separate horizon param. `forker` drives the host-secret strip: a NON-`readsHidden` forker becomes HOST of
+   *  the copy, so anything host-only in the source (config `steeringNote`, a foreign `gmPresetId`, hidden-span
+   *  tracker prose) must not launder into their new host view (the §3.6 member→host boundary — the SAME transition
+   *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
+   *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
+  readonly forkGame: (args: ForkGameArgs) => Promise<ForkGameResult>;
+}
+
+/** The `forkChat`→rpg clone call args (§3.2). Chat OWNS this shape (rpg satisfies it, the one-directional-flow
+ *  front-door type-import rule already governing `ChatRpgOps`). Carries the fork's id remaps (snapshots/journal
+ *  re-key THROUGH them — an entry off the map is dropped) + the forker's source-room posture (drives the
+ *  host-secret strip). No `throughSeq`: the maps already exclude every row past the fork horizon (the maps are
+ *  built from the floor-clamped, throughSeq-truncated slot/variant set `buildCanonCopy` copies). */
+export interface ForkGameArgs {
+  readonly sourceChatId: ChatId;
+  readonly newChatId: ChatId;
+  /** The fork's slot remap (source `messages.id` → fork id). journal `sourceMessageId` re-keys through it. */
+  readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
+  /** The fork's variant remap (source `messageVariants.id` → fork id). snapshots (UNIQUE variantId) and model
+   *  journal entries re-key THROUGH it; a variant with no entry (past the horizon) drops its rpg rows. */
+  readonly variantIdMap: ReadonlyMap<MessageVariantId, MessageVariantId>;
+  /** The forker's SOURCE-room posture. `readsHidden` = the source-room host verdict (`viewerReadsHidden`): a
+   *  non-host forker never had host-plane access to the source's secrets, so the clone strips them (the
+   *  member→host laundering rule, §3.6). `userId` is the ownership axis for the `gmPresetId` carry gate. */
+  readonly forker: { readonly userId: UserId; readonly readsHidden: boolean };
+}
+
+/** The clone outcome. `cloned:false` = a non-game source (or rpg unwired) ⇒ the fork ships plain, no pointer
+ *  (the stopgap's `forkMetadataWithoutGame` already dropped the copied pointer, so this is the correct steady
+ *  state). `cloned:true` = the game rows exist and the fork's pointer is live. */
+export interface ForkGameResult {
+  readonly cloned: boolean;
 }
 
 /** The GM seat's resolved holder kind (agent-principal-design/05 §2 AP4a) — mirrors rpg's FK-derived-kind shape
