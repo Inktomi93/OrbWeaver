@@ -24,10 +24,12 @@ import { useState } from "react";
 import { StatCell, TrackerChip, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { usePatchSheet } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
 import { actorKey } from "../lib/actor-key";
 import { resolvePoolColor } from "../lib/track-color";
+import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
+import { RpgFieldLock } from "./rpg-field-lock";
 import { RpgSubjectSelect } from "./rpg-subject-select";
 
 const DEFAULT_POOL_MAX = 10;
@@ -124,6 +126,53 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
   );
 }
 
+/** One wallet chip — `<amount> <name>` (#2 wallet editability). The AMOUNT is click-to-edit for the host
+ *  (`editSnapshot` on the volatile wallet plane — a hand plane, host-only in v1); a pinned currency
+ *  (`…wallet.<name>` locked, #10) carries the pin + Release inside the chip. Read-only renders the plain
+ *  badge (the honest-arms arm). */
+function WalletChip({
+  coin,
+  locked,
+  onEditAmount,
+  onRelease,
+}: {
+  readonly coin: { readonly name: string; readonly amount: number };
+  readonly locked?: boolean;
+  readonly onEditAmount?: (next: number) => void;
+  readonly onRelease?: () => void;
+}): ReactElement {
+  return (
+    <Badge tone="soft" size="sm" data-slot="sheet-wallet-chip">
+      {onEditAmount === undefined ? (
+        <Text as="span" size="micro" weight="medium" className="tabular-nums">
+          {coin.amount} {coin.name}
+        </Text>
+      ) : (
+        <Row gap="field" align="center">
+          <TrackerValue
+            ariaLabel={`${coin.name} amount`}
+            display={String(coin.amount)}
+            kind="numeric"
+            size="micro"
+            onEdit={(next): void => {
+              const n = Number.parseInt(next, 10);
+              if (!Number.isNaN(n)) {
+                onEditAmount(n);
+              }
+            }}
+            className="!w-avatar-md px-field text-right tabular-nums"
+            restClassName="tabular-nums"
+          />
+          <Text as="span" size="micro" weight="medium">
+            {coin.name}
+          </Text>
+          {locked === true && onRelease !== undefined ? <RpgFieldLock onRelease={onRelease} /> : null}
+        </Row>
+      )}
+    </Badge>
+  );
+}
+
 /** Row key for a pool def — name is the identity (names are the pool address everywhere else too). */
 function poolRowKey(def: RpgPoolDef, i: number): string {
   return def.name === "" ? `pool-${i}` : def.name;
@@ -132,12 +181,15 @@ function poolRowKey(def: RpgPoolDef, i: number): string {
 interface PoolDefsEditorProps {
   readonly poolDefs: readonly RpgPoolDef[];
   readonly onCommit: (next: readonly RpgPoolDef[]) => void;
+  /** A RENAME commit (#11 rename-carry): the caller rewrites the matching VOLATILE pool name in the same
+   *  gesture (same dial, new label — the value survives). Falls back to `onCommit` when absent. */
+  readonly onRename?: (oldName: string, next: readonly RpgPoolDef[]) => void;
 }
 
 /** The pool-definition rows (name · max · the free-hex color picker) + "Add meter". Every commit is the
  *  WHOLE `poolDefs` array (the wire shape). Colors ride the swatch's `ColorField`; only a strict
  *  hex/OKLCH value commits (the contract grammar); the picker's clear (`""`) writes null ⇒ ordinal ramp. */
-function PoolDefsEditor({ poolDefs, onCommit }: PoolDefsEditorProps): ReactElement {
+function PoolDefsEditor({ poolDefs, onCommit, onRename }: PoolDefsEditorProps): ReactElement {
   const replaceAt = (i: number, patch: Partial<RpgPoolDef>): readonly RpgPoolDef[] => poolDefs.map((d, j) => (j === i ? { ...d, ...patch } : d));
 
   return (
@@ -168,8 +220,9 @@ function PoolDefsEditor({ poolDefs, onCommit }: PoolDefsEditorProps): ReactEleme
               onEdit={(next): void => {
                 const trimmed = next.trim();
                 // Tier-2 refusal (§12.3): an empty pool name is never sent (min(1) on the wire).
-                if (trimmed !== "") {
-                  onCommit(replaceAt(i, { name: trimmed }));
+                if (trimmed !== "" && trimmed !== def.name) {
+                  // A RENAME rides the carry path (#11) so the volatile pool follows its def.
+                  (onRename ?? ((_old: string, defs: readonly RpgPoolDef[]): void => onCommit(defs)))(def.name, replaceAt(i, { name: trimmed }));
                 }
               }}
               className="flex-1"
@@ -217,10 +270,11 @@ export interface RpgSheetTabProps {
 
 /** The Sheet tab — member selector · identity line · attribute grid · pool definitions. */
 export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
-  const { tracker, game, viewerUserId, isHost, chatId } = state;
+  const { tracker, game, viewerUserId, isHost, chatId, canEditShared } = state;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const patchSheet = usePatchSheet({ trpc, invalidation });
+  const editSnapshot = useEditSnapshot({ trpc, invalidation });
 
   const fallback = viewerActor(tracker.actors, viewerUserId);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -267,11 +321,25 @@ export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
                 : {})}
             />
             {wallet.map((coin) => (
-              <Badge key={coin.name} tone="soft" size="sm">
-                <Text as="span" size="micro" weight="medium" className="tabular-nums">
-                  {coin.amount} {coin.name}
-                </Text>
-              </Badge>
+              <WalletChip
+                key={coin.name}
+                coin={coin}
+                {...(canEditShared
+                  ? {
+                      locked: tracker.lockedPaths.includes(`${actorLockBase(actor.actorRef)}.wallet.${coin.name}`),
+                      onEditAmount: (next: number): void =>
+                        editSnapshot.mutate({
+                          chatId,
+                          patch: actorStatePatch(tracker.actors, actor.actorRef, (v) => ({
+                            ...v,
+                            wallet: v.wallet.map((w) => (w.name === coin.name ? { ...w, amount: next } : w)),
+                          })),
+                          lockPaths: [`${actorLockBase(actor.actorRef)}.wallet.${coin.name}`],
+                        }),
+                      onRelease: (): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [`${actorLockBase(actor.actorRef)}.wallet.${coin.name}`] }),
+                    }
+                  : {})}
+              />
             ))}
           </Row>
         </Stack>
@@ -317,6 +385,28 @@ export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
               poolDefs={actor.sheet.poolDefs}
               onCommit={(next): void => {
                 patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: [...next] } });
+              }}
+              onRename={(oldName, next): void => {
+                // #11 RENAME-CARRY: the def rename + the matching VOLATILE pool rename land in ONE gesture
+                // (same dial, new label — the value survives; matched-by-name would otherwise orphan it).
+                patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: [...next] } });
+                const renamed = next.find((d) => !actor.sheet.poolDefs.some((p) => p.name === d.name));
+                const newName = renamed?.name;
+                if (newName === undefined || actor.volatile?.pools.some((p) => p.name === oldName) !== true) {
+                  return; // no volatile pool to carry — the def rename alone suffices
+                }
+                // Carry a per-pool pin (#10) with its pool: release the old path, stamp the new one.
+                const oldLock = `${actorLockBase(actor.actorRef)}.pools.${oldName}`;
+                const wasLocked = tracker.lockedPaths.includes(oldLock);
+                editSnapshot.mutate({
+                  chatId,
+                  patch: actorStatePatch(tracker.actors, actor.actorRef, (v) => ({
+                    ...v,
+                    pools: v.pools.map((p) => (p.name === oldName ? { ...p, name: newName } : p)),
+                  })),
+                  lockPaths: wasLocked ? [`${actorLockBase(actor.actorRef)}.pools.${newName}`] : [],
+                  ...(wasLocked ? { releaseLocks: [oldLock] } : {}),
+                });
               }}
             />
           ) : (

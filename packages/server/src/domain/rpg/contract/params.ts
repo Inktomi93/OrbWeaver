@@ -154,6 +154,10 @@ export interface EditSnapshotParams {
   readonly patch: Record<string, unknown>;
   /** Dotted lock paths to CLEAR from `fieldLocks` (§12.3 lock-release) — the host's Release affordance. */
   readonly releaseLocks?: readonly string[] | undefined;
+  /** The FINE lock paths this hand edit stamps (#10 per-field manual-edit-wins) — the caller names exactly
+   *  which values it touched (`actorState.user:<id>.pools.<name>`, `…status`), so the pin lands on the
+   *  SPECIFIC datum, not the whole plane. Omit ⇒ the coarse default (every top-level patch key). */
+  readonly lockPaths?: readonly string[] | undefined;
 }
 
 /** `createWidget` — add a HUD widget definition (host). */

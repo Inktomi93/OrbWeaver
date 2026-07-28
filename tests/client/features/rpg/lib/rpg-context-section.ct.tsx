@@ -368,8 +368,12 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
 
   const rail = component.locator('[data-slot="rpg-act-rail"]');
   await expect(rail).toBeVisible();
-  // The TEXT is the datum: the current act's heading + the story title chip.
-  await expect(rail).toContainText("Act II — Descent");
+  // The TEXT is the datum — now EDITABLE-in-place for the host (#2): the act number rests as the mock's
+  // ROMAN numeral on a real click-to-edit button, the current act's title beside it, the story title chip
+  // trailing. (The old static "Act II — Descent" heading is the read-only member arm.)
+  await expect(rail).toContainText("Act");
+  await expect(rail.getByRole("button", { name: "Current act number" })).toHaveText("II");
+  await expect(rail.getByRole("button", { name: "Act 2 title" })).toHaveText("Descent");
   await expect(rail).toContainText("The Bone Key");
   // Three act stops on the (aria-hidden) dot row — past, current (embered ◉), future.
   await expect(rail).toContainText("◉ II");

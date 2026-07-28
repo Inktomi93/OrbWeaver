@@ -12,14 +12,20 @@
 // because secrets are game-state about the roster (the same lens this tab already is).
 //
 // EDIT-in-place (§3.2): a pool VALUE edits through `editSnapshot` (the volatile plane) — host-only in v1
-// (`canEditShared`); the patch is a WHOLE-`actorState`-array overlay ([merge-clear]: an array leaf replaces
-// wholesale). A pool MAX edits through `patchSheet` (the sheet `poolDefs` plane) — the SINGLE authoritative
-// home for the max (`chat-ops/tracker-view.resolveVolatile` projects the displayed max FROM poolDefs), so a
-// Status max-edit and a Sheet max-edit are the SAME write and never drift. The §12.3 lower-max-drags-value
-// tell rides BOTH writes in one gesture: patchSheet lowers the def max, editSnapshot drags the volatile
-// value down to it.
+// (`canEditShared`); the patch is a WHOLE-`actorState`-array overlay ([merge-clear] keyed-array grammar —
+// the server correlates by `actorRefKey`). A pool MAX edits through `patchSheet` (the sheet `poolDefs`
+// plane) — the SINGLE authoritative home for the max (`chat-ops/tracker-view.resolveVolatile` projects the
+// displayed max FROM poolDefs), so a Status max-edit and a Sheet max-edit are the SAME write and never
+// drift. The §12.3 lower-max-drags-value tell rides BOTH writes in one gesture: patchSheet lowers the def
+// max, editSnapshot drags the volatile value down to it.
+//
+// PER-FIELD PINS (#10): every volatile hand edit stamps its FINE lock path (`actorState.<refKey>.status`,
+// `…pools.<name>`, `…conditions`) via `lockPaths`, and the pin glyph renders ON the locked value (a pool
+// row's leading slot, the status line, the condition row) — model-writable fields only; hand-only planes
+// (poolDefs max/color, level, title) never lock, so they never pin. The legacy section-scoped `actorState`
+// lock keeps its section pin + Release.
 
-import type { RpgActorView, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -34,26 +40,12 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
 import { resolveConditionGlyph } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
+import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
 import { RpgVeiledSection } from "./rpg-veiled-section";
 
 type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
-
-/** Build the whole `actorState` overlay for `editSnapshot` with ONE actor's volatile mutated. Every actor
- *  with volatile is re-sent (the array is a full replace under [merge-clear]); the target actor's volatile
- *  runs through `mutate`, everything else rides forward unchanged. One home for every Status hand-edit
- *  (pool value, HP, conditions). */
-function actorStatePatch(
-  actors: readonly RpgActorView[],
-  actorKey: string,
-  mutate: (v: ActorVolatile) => ActorVolatile,
-): { readonly actorState: RpgSnapshotState["actorState"] } {
-  const actorState = actors
-    .filter((a): a is RpgActorView & { volatile: ActorVolatile } => a.volatile !== null)
-    .map((a) => (`${a.actorRef.kind}:${a.name}` === actorKey ? mutate(a.volatile) : a.volatile));
-  return { actorState };
-}
 
 /** The Status hand-edit callbacks for one card — all whole-`actorState` overlays (host only, D108: NOT
  *  gated by `trackersReadOnly`). Clamps values to `≥ 0` (§12.3 Tier-1; over-max is representable fiction).
@@ -67,6 +59,12 @@ interface StatusCardEdit {
   readonly onEditPoolMax: (poolName: string, nextMax: number) => { readonly draggedTo: number } | null;
   readonly onAddCondition: (name: string) => void;
   readonly onRemoveCondition: (name: string) => void;
+  /** Edit the volatile status line (free text — "on edge"). */
+  readonly onEditStatus: (next: string) => void;
+  /** Is this actor's fine lock path pinned (#10)? `sub` appends to the actor's lock base. */
+  readonly isLocked: (sub: string) => boolean;
+  /** Release a fine lock path (`sub` as above) — "let the model write it again". */
+  readonly onRelease: (sub: string) => void;
 }
 
 /** The scene-cast row this roster actor also stands in (the §12.2.3 relationship join) — or undefined.
@@ -81,7 +79,8 @@ type ActorPool = ActorVolatile["pools"][number];
 /** One editable pool meter with the §12.3 max-lowering value-drag TELL: lowering the max below the value
  *  drags the value down (in `onEditPoolMax`'s one commit) and shows a transient microline ("Vitality 24 →
  *  20 — max lowered"); an overfull value (value above max) reads in warning tone. The note clears on the next
- *  server render (the pool prop changes) — a purely local, ephemeral consequence line. */
+ *  server render (the pool prop changes) — a purely local, ephemeral consequence line. A pinned pool
+ *  (`…pools.<name>` locked, #10) leads with the pin glyph + its Release. */
 function StatusPoolMeter({
   pool,
   ordinal,
@@ -101,6 +100,8 @@ function StatusPoolMeter({
     setSeen(key);
     setNote(null);
   }
+  const lockSub = `.pools.${pool.name}`;
+  const release = edit === undefined || !edit.isLocked(lockSub) ? undefined : (): void => edit.onRelease(lockSub);
   return (
     <MeterRow
       label={pool.name}
@@ -108,6 +109,7 @@ function StatusPoolMeter({
       max={pool.max}
       valueWarning={pool.value > pool.max}
       {...trackColorProps(resolvePoolColor(color, ordinal))}
+      {...(release === undefined ? {} : { leading: <RpgFieldLock onRelease={release} /> })}
       {...(edit === undefined
         ? {}
         : {
@@ -151,18 +153,20 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
     return <Text tone="muted">No one on the roster yet — add characters in Members.</Text>;
   }
 
-  // One patch-and-mutate for a target actor's volatile ([merge-clear] whole-array replace). Host only.
-  const patch = (actorKey: string, mutate: (v: ActorVolatile) => ActorVolatile): void =>
-    editSnapshot.mutate({ chatId, patch: actorStatePatch(tracker.actors, actorKey, mutate) });
+  // One patch-and-mutate for a target actor's volatile (whole-array overlay, keyed server-side by
+  // `actorRefKey`). Every write stamps its FINE lock path (#10 — `lockSub` appends to the actor's base).
+  const patch = (ref: RpgActorRef, lockSub: string, mutate: (v: ActorVolatile) => ActorVolatile): void =>
+    editSnapshot.mutate({ chatId, patch: actorStatePatch(tracker.actors, ref, mutate), lockPaths: [`${actorLockBase(ref)}${lockSub}`] });
 
   const editFor = (actor: RpgActorView): StatusCardEdit | undefined => {
     if (!canEditShared) {
       return;
     }
-    const key = `${actor.actorRef.kind}:${actor.name}`;
+    const ref = actor.actorRef;
+    const base = actorLockBase(ref);
     return {
       onEditPool: (poolName, next): void =>
-        patch(key, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: Math.max(0, next) } : p)) })),
+        patch(ref, `.pools.${poolName}`, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: Math.max(0, next) } : p)) })),
       onEditPoolMax: (poolName, nextMax): { readonly draggedTo: number } | null => {
         const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (§12.3 Tier-1)
         const pool = actor.volatile?.pools.find((p) => p.name === poolName);
@@ -174,20 +178,23 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
         const nextDefs = hasDef
           ? defs.map((d) => (d.name === poolName ? { ...d, max: clampedMax } : d))
           : [...defs, { name: poolName, max: clampedMax, color: null }];
-        patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: nextDefs } });
+        patchSheet.mutate({ chatId, actorRef: ref, patch: { poolDefs: nextDefs } });
         // Lowering below the value drags the volatile VALUE down in the SAME gesture (never a silent truncate);
         // the read-side clamp (`resolveVolatile`) also enforces this, but writing it keeps the durable value honest.
         const drag = pool !== undefined && pool.value > clampedMax;
         if (drag) {
-          patch(key, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: clampedMax } : p)) }));
+          patch(ref, `.pools.${poolName}`, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: clampedMax } : p)) }));
         }
         return drag ? { draggedTo: clampedMax } : null;
       },
       onAddCondition: (name): void =>
-        patch(key, (v) =>
+        patch(ref, ".conditions", (v) =>
           v.conditions.some((c) => c.name === name) ? v : { ...v, conditions: [...v.conditions, { name, stat: null, modifier: 0, turnsLeft: null }] },
         ),
-      onRemoveCondition: (name): void => patch(key, (v) => ({ ...v, conditions: v.conditions.filter((c) => c.name !== name) })),
+      onRemoveCondition: (name): void => patch(ref, ".conditions", (v) => ({ ...v, conditions: v.conditions.filter((c) => c.name !== name) })),
+      onEditStatus: (next): void => patch(ref, ".status", (v) => ({ ...v, status: next.trim() })),
+      isLocked: (sub): boolean => tracker.lockedPaths.includes(`${base}${sub}`),
+      onRelease: (sub): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [`${base}${sub}`] }),
     };
   };
 
@@ -241,11 +248,7 @@ function RpgStatusCard({ actor, cast, edit }: RpgStatusCardProps): ReactElement 
               </Text>
               {castRow === undefined ? null : <RelationshipBadge relationship={castRow.relationship} />}
             </Row>
-            {volatile === null || volatile.status === "" ? null : (
-              <Text as="span" size="micro" tone="muted" className="truncate">
-                {volatile.status}
-              </Text>
-            )}
+            <StatusLine status={volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
           </Stack>
         </Row>
         {actor.sheet.className === "" ? null : (
@@ -259,28 +262,61 @@ function RpgStatusCard({ actor, cast, edit }: RpgStatusCardProps): ReactElement 
 
       <ConditionChips
         conditions={volatile?.conditions ?? []}
-        {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition })}
+        {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })}
       />
     </Stack>
   );
 }
 
+/** The quiet volatile STATUS line (free text — "on edge"). Editable-in-place for the host (#2); a pinned
+ *  status (`…status` locked, #10) carries the pin + Release beside the value. Read-only + empty ⇒ nothing. */
+function StatusLine({ status, edit }: { readonly status: string; readonly edit?: StatusCardEdit }): ReactElement | null {
+  if (edit === undefined) {
+    if (status === "") {
+      return null;
+    }
+    return (
+      <Text as="span" size="micro" tone="muted" className="truncate">
+        {status}
+      </Text>
+    );
+  }
+  return (
+    <Row gap="field" align="center" className="min-w-0">
+      <TrackerValue
+        ariaLabel="Status line"
+        display={status}
+        placeholder="status…"
+        tone="muted"
+        size="micro"
+        onEdit={edit.onEditStatus}
+        className="!w-auto min-w-0 max-w-full field-sizing-content"
+      />
+      {edit.isLocked(".status") ? <RpgFieldLock onRelease={(): void => edit.onRelease(".status")} /> : null}
+    </Row>
+  );
+}
+
 /** Condition chips: lit danger badges (glyph + name). Editable ⇒ each chip removes on click (× affordance)
- *  and an "add condition" input appends (§12.3 Tier-2: an empty/duplicate name never sends). */
+ *  and an "add condition" input appends (§12.3 Tier-2: an empty/duplicate name never sends). A pinned
+ *  conditions plane (`…conditions` locked, #10) leads with the pin + Release. */
 function ConditionChips({
   conditions,
   onAdd,
   onRemove,
+  edit,
 }: {
   readonly conditions: ActorVolatile["conditions"];
   readonly onAdd?: (name: string) => void;
   readonly onRemove?: (name: string) => void;
+  readonly edit?: StatusCardEdit;
 }): ReactElement | null {
   if (conditions.length === 0 && onAdd === undefined) {
     return null;
   }
   return (
     <Row gap="field" className="flex-wrap" data-slot="rpg-conditions">
+      {edit === undefined || !edit.isLocked(".conditions") ? null : <RpgFieldLock onRelease={(): void => edit.onRelease(".conditions")} />}
       {conditions.map((cond) => (
         <Badge key={cond.name} tone="soft" size="sm" intent="danger">
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />

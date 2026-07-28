@@ -5,7 +5,7 @@
 
 import { describe } from "vitest";
 import { applyLockedPatch } from "../../../../../packages/server/src/domain/rpg/substrate/merge";
-import { expect, quest, questId, test } from "../_support";
+import { actorWithWallet, expect, quest, questId, test } from "../_support";
 
 describe("the [merge-clear] contract", () => {
   test("undefined at a key = skip (omit preserves)", () => {
@@ -97,6 +97,76 @@ describe("lock-honoring (manual-edit-wins)", () => {
     const outQuests = out.quests as { id: string; status: string }[];
     expect(outQuests.find((q) => q.id === mainId)?.status).toBe("active"); // survived removal
     expect(outQuests.find((q) => q.id === questId("side"))?.status).toBe("completed");
+  });
+
+  test("a per-actor SUB-FIELD lock (actorState.<key>.status) pins that value while sibling fields take the patch", () => {
+    // The #10 per-field pin: the whole-array tool overlay correlates actors by `actorRefKey`; the locked
+    // `status` survives while the SAME actor's pools take the tool's write — never a whole-roster pin.
+    const base = { actorState: [actorWithWallet("mari", 10, 5)] };
+    const patched = { ...actorWithWallet("mari", 10, 2), status: "tool-set" };
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.status": true });
+    const actors = out.actorState as { status: string; pools: { value: number }[] }[];
+    expect(actors[0]?.status).toBe(""); // locked — the hand value (empty) survives
+    expect(actors[0]?.pools[0]?.value).toBe(2); // unlocked sibling field took the patch
+  });
+
+  test("a nested pool lock (actorState.<key>.pools.<name>) pins ONE pool while its siblings take the patch", () => {
+    const base = {
+      actorState: [
+        {
+          ...actorWithWallet("mari", 10, 5),
+          pools: [
+            { name: "focus", value: 5, max: 100 },
+            { name: "mana", value: 8, max: 10 },
+          ],
+        },
+      ],
+    };
+    const patched = {
+      ...actorWithWallet("mari", 10, 5),
+      pools: [
+        { name: "focus", value: 1, max: 100 },
+        { name: "mana", value: 0, max: 10 },
+      ],
+    };
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.pools.mana": true });
+    const pools = (out.actorState as { pools: { name: string; value: number }[] }[])[0]?.pools ?? [];
+    expect(pools.find((p) => p.name === "mana")?.value).toBe(8); // pinned
+    expect(pools.find((p) => p.name === "focus")?.value).toBe(1); // took the patch
+  });
+
+  test("an actor carrying a sub-field lock survives a tool that drops the actor (removal defense)", () => {
+    const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
+    const patch = { actorState: [actorWithWallet("zan", 3, 1)] }; // mari dropped
+    const out = applyLockedPatch(base, patch, { "actorState.cast:mari.wallet.gold": true });
+    const keys = (out.actorState as { actorRef: { castKey: string } }[]).map((a) => a.actorRef.castKey);
+    expect(keys).toContain("mari"); // re-inserted — the pinned wallet never silently dies with its row
+    expect(keys).toContain("zan");
+  });
+
+  test("a wallet-entry lock (…wallet.<name>) pins one currency while another takes the patch", () => {
+    const base = {
+      actorState: [
+        {
+          ...actorWithWallet("mari", 10, 5),
+          wallet: [
+            { name: "gold", amount: 10 },
+            { name: "silver", amount: 4 },
+          ],
+        },
+      ],
+    };
+    const patched = {
+      ...actorWithWallet("mari", 10, 5),
+      wallet: [
+        { name: "gold", amount: 0 },
+        { name: "silver", amount: 9 },
+      ],
+    };
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.wallet.gold": true });
+    const wallet = (out.actorState as { wallet: { name: string; amount: number }[] }[])[0]?.wallet ?? [];
+    expect(wallet.find((w) => w.name === "gold")?.amount).toBe(10); // pinned
+    expect(wallet.find((w) => w.name === "silver")?.amount).toBe(9); // took the patch
   });
 
   test("keyed-element locks generalize — an inventory item lock (inventory.<id>) survives removal too", () => {

@@ -17,98 +17,117 @@
 // line); the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ NOTHING renders
 // (no client-invented acts, ever — §12.2.6).
 
-import type { RpgPlot, RpgQuestView } from "@orb/contracts/rpg";
+import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Icon, Plus } from "@orb/ui/icons";
+import { Icon, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
-import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useUpsertQuest } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
+import { buildPlotEdit } from "../lib/plot-edit";
+import { RpgActRail } from "./rpg-act-rail";
 import { Kicker } from "./rpg-kicker";
 
 const MIN_CLOCK_SEGMENTS = 2;
 
-// Roman act labels for the rail (acts beyond the table fall back to the arabic number — a 20-act
-// campaign still labels honestly).
-const ROMAN_ACTS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"] as const;
-
-function actNumeral(act: number): string {
-  return ROMAN_ACTS[act - 1] ?? String(act);
-}
-
-// The rail's per-state glyph + tone (a Record over the closed 3-state axis — never a nested ternary).
-const ACT_STATES = ["past", "current", "future"] as const;
-type ActState = (typeof ACT_STATES)[number];
-const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly className: string }>> = {
-  past: { glyph: "●", className: "text-foreground" },
-  current: { glyph: "◉", className: "text-highlight font-semibold" },
-  future: { glyph: "○", className: "text-muted-foreground" },
-};
-
-function actState(act: number, current: number): ActState {
-  if (act === current) {
-    return "current";
-  }
-  return act < current ? "past" : "future";
-}
-
-/** One act stop on the rail — the connector rule (from act 2 on) + the state-toned glyph + numeral. */
-function ActStop({ act, current }: { readonly act: number; readonly current: number }): ReactElement {
-  const style = ACT_STATE_STYLE[actState(act, current)];
-  return (
-    <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
-      {act === 1 ? null : <Separator className="flex-1" />}
-      <Text as="span" size="micro" className={style.className}>
-        {style.glyph} {actNumeral(act)}
-      </Text>
-    </Row>
-  );
-}
-
-/** The P5 act rail — the campaign-scale plot spine above the quest cards. Renders nothing without a plot
- *  plane. The heading TEXT is the datum (`ACT II — THE BONE KEY`); the dot row is aria-hidden geometry. */
-function RpgActRail({ plot }: { readonly plot: RpgPlot }): ReactElement {
-  const total = Math.max(plot.acts.length, plot.act);
-  const acts = Array.from({ length: total }, (_, i) => i + 1);
-  const currentTitle = plot.acts[plot.act - 1]?.title ?? "";
-  const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
-  return (
-    <Stack gap="field" data-slot="rpg-act-rail" className="rounded-card border border-border bg-card px-block py-row">
-      <Row gap="block" align="baseline" justify="between">
-        <Text size="label" weight="semibold" transform="caps" className="tracking-micro text-highlight">
-          {heading}
-        </Text>
-        {plot.title === "" ? null : (
-          <Text as="span" size="micro" tone="muted" className="truncate">
-            {plot.title}
-          </Text>
-        )}
-      </Row>
-      <Row gap="field" align="center" aria-hidden="true">
-        {acts.map((act) => (
-          <ActStop key={act} act={act} current={plot.act} />
-        ))}
-      </Row>
-    </Stack>
-  );
-}
-
 interface QuestEdit {
   readonly onEditName: (quest: RpgQuestView, next: string) => void;
+  readonly onEditDescription: (quest: RpgQuestView, next: string) => void;
   readonly onToggleObjective: (quest: RpgQuestView, objectiveId: string, next: boolean) => void;
+  /** ADD a fresh objective line (#2 — id minted server-side by the upsert). */
+  readonly onAddObjective: (quest: RpgQuestView, text: string) => void;
+  /** REMOVE an objective line (#2 — whole-objectives-array replace, the authoring wire shape). */
+  readonly onRemoveObjective: (quest: RpgQuestView, objectiveId: string) => void;
 }
 
 interface QuestCardProps {
   readonly quest: RpgQuestView;
   readonly edit?: QuestEdit;
+}
+
+/** The quest DESCRIPTION line — click-to-edit for the host on a live quest (#2); a settled quest reads
+ *  struck-through; an empty read-only description renders nothing. */
+function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; readonly dim: boolean; readonly edit?: QuestEdit }): ReactElement | null {
+  if (edit !== undefined && !dim) {
+    return (
+      <TrackerValue
+        ariaLabel={`${quest.name} description`}
+        display={quest.description}
+        placeholder="description…"
+        tone="muted"
+        size="micro"
+        onEdit={(next): void => edit.onEditDescription(quest, next)}
+        className="w-full"
+      />
+    );
+  }
+  if (quest.description === "") {
+    return null;
+  }
+  return (
+    <Text size="micro" tone="muted" className={dim ? "line-through" : undefined}>
+      {quest.description}
+    </Text>
+  );
+}
+
+/** The objective checklist: check-off toggles + REMOVE per line + an ADD field (#2 — the wire is the
+ *  whole-objectives-array authoring replace). Read-only / settled quests render the plain list. */
+function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; readonly dim: boolean; readonly edit?: QuestEdit }): ReactElement | null {
+  const editable = edit !== undefined && !dim;
+  if (quest.objectives.length === 0 && !editable) {
+    return null;
+  }
+  return (
+    <Stack gap="field">
+      {quest.objectives.map((o) => (
+        <Row key={o.id} gap="field" align="center">
+          {editable ? (
+            <Checkbox
+              checked={o.completed}
+              onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next === true)}
+              aria-label={`${o.text} — completed`}
+            />
+          ) : null}
+          <Text as="span" size="label" tone={o.completed ? "muted" : undefined} className={o.completed ? "min-w-0 flex-1 line-through" : "min-w-0 flex-1"}>
+            {o.text}
+          </Text>
+          {editable ? (
+            <Button
+              intent="ghost"
+              size="sm"
+              className="!size-5 !p-0 shrink-0"
+              onClick={(): void => edit.onRemoveObjective(quest, o.id)}
+              title={`Remove objective: ${o.text}`}
+            >
+              <Icon icon={X} size="xs" />
+            </Button>
+          ) : null}
+        </Row>
+      ))}
+      {editable ? (
+        <TrackerValue
+          ariaLabel={`Add objective to ${quest.name}`}
+          display=""
+          placeholder="+ objective"
+          onEdit={(next): void => {
+            const trimmed = next.trim();
+            if (trimmed !== "") {
+              edit.onAddObjective(quest, trimmed);
+            }
+          }}
+          className="w-control-col"
+        />
+      ) : null}
+    </Stack>
+  );
 }
 
 /** One quest card: clock ring (segments = objectives) · name · description · objective checklist. */
@@ -147,32 +166,11 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
               </Text>
             ) : null}
           </Row>
-          {quest.description === "" ? null : (
-            <Text size="micro" tone="muted" className={dim ? "line-through" : undefined}>
-              {quest.description}
-            </Text>
-          )}
+          <QuestDescription quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
         </Stack>
       </Row>
 
-      {total === 0 ? null : (
-        <Stack gap="field">
-          {quest.objectives.map((o) => (
-            <Row key={o.id} gap="field" align="center">
-              {edit === undefined || dim ? null : (
-                <Checkbox
-                  checked={o.completed}
-                  onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next === true)}
-                  aria-label={`${o.text} — completed`}
-                />
-              )}
-              <Text as="span" size="label" tone={o.completed ? "muted" : undefined} className={o.completed ? "line-through" : undefined}>
-                {o.text}
-              </Text>
-            </Row>
-          ))}
-        </Stack>
-      )}
+      <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
 
       {done ? (
         <Text size="micro" tone="muted">
@@ -218,43 +216,70 @@ function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): 
   );
 }
 
+/** Build the quest hand-edit callbacks (host) — name/description via a keep-on-omit upsert; objectives as
+ *  the whole-array authoring replace (a fresh line rides id-less, the verb mints). */
+function buildQuestEdit(chatId: RpgPanelState["chatId"], upsertQuest: ReturnType<typeof useUpsertQuest>): QuestEdit {
+  return {
+    onEditName: (quest, next): void => {
+      const trimmed = next.trim();
+      // Tier-2 refusal (§12.3): an empty quest name is never sent — the plane requires min(1).
+      if (trimmed !== "") {
+        upsertQuest.mutate({ chatId, questId: quest.id, name: trimmed });
+      }
+    },
+    onEditDescription: (quest, next): void => {
+      upsertQuest.mutate({ chatId, questId: quest.id, name: quest.name, description: next.trim() });
+    },
+    onToggleObjective: (quest, objectiveId, next): void => {
+      upsertQuest.mutate({
+        chatId,
+        questId: quest.id,
+        name: quest.name,
+        objectives: quest.objectives.map((o) => ({ id: o.id, text: o.text, completed: o.id === objectiveId ? next : o.completed })),
+      });
+    },
+    onAddObjective: (quest, text): void => {
+      upsertQuest.mutate({
+        chatId,
+        questId: quest.id,
+        name: quest.name,
+        objectives: [...quest.objectives.map((o) => ({ id: o.id, text: o.text, completed: o.completed })), { text, completed: false }],
+      });
+    },
+    onRemoveObjective: (quest, objectiveId): void => {
+      upsertQuest.mutate({
+        chatId,
+        questId: quest.id,
+        name: quest.name,
+        objectives: quest.objectives.filter((o) => o.id !== objectiveId).map((o) => ({ id: o.id, text: o.text, completed: o.completed })),
+      });
+    },
+  };
+}
+
 /** The Quests tab — active clock-ring cards + the dimmed done/failed archive + the host New-quest affordance. */
 export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const { tracker, canEditShared, chatId } = state;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const upsertQuest = useUpsertQuest({ trpc, invalidation });
+  const editSnapshot = useEditSnapshot({ trpc, invalidation });
 
   const active = tracker.quests.filter((q) => q.status === "active");
   const settled = tracker.quests.filter((q) => q.status !== "active");
 
   const onCreate = (name: string): void => upsertQuest.mutate({ chatId, name });
 
-  const edit: QuestEdit | undefined = canEditShared
-    ? {
-        onEditName: (quest, next): void => {
-          const trimmed = next.trim();
-          // Tier-2 refusal (§12.3): an empty quest name is never sent — the plane requires min(1).
-          if (trimmed !== "") {
-            upsertQuest.mutate({ chatId, questId: quest.id, name: trimmed });
-          }
-        },
-        onToggleObjective: (quest, objectiveId, next): void => {
-          upsertQuest.mutate({
-            chatId,
-            questId: quest.id,
-            name: quest.name,
-            objectives: quest.objectives.map((o) => ({ id: o.id, text: o.text, completed: o.id === objectiveId ? next : o.completed })),
-          });
-        },
-      }
-    : undefined;
+  const plotEdit = canEditShared && tracker.plot !== null ? buildPlotEdit(state, editSnapshot) : undefined;
+  const edit = canEditShared ? buildQuestEdit(chatId, upsertQuest) : undefined;
+  // P5 — the plot spine (campaign scale) leads the tab; absent until the story authors a plot.
+  const rail = tracker.plot === null ? null : <RpgActRail plot={tracker.plot} {...(plotEdit === undefined ? {} : { edit: plotEdit })} />;
 
   if (tracker.quests.length === 0) {
     // No dead end (§4.3 rule 1): the empty state offers the create affordance to a host, teaches a member.
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
-        {tracker.plot ? <RpgActRail plot={tracker.plot} /> : null}
+        {rail}
         <Text tone="muted">No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
         {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
       </Stack>
@@ -263,25 +288,33 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-quests-tab">
-      {/* P5 — the plot spine (campaign scale) leads the tab; absent until the story authors a plot. */}
-      {tracker.plot ? <RpgActRail plot={tracker.plot} /> : null}
-      {active.length === 0 ? null : (
-        <Stack gap="field">
-          <Kicker>Active — {active.length}</Kicker>
-          {active.map((quest) => (
-            <QuestCard key={quest.id} quest={quest} {...(edit === undefined ? {} : { edit })} />
-          ))}
-        </Stack>
-      )}
-      {settled.length === 0 ? null : (
-        <Stack gap="field">
-          <Kicker>Done — {settled.length}</Kicker>
-          {settled.map((quest) => (
-            <QuestCard key={quest.id} quest={quest} {...(edit === undefined ? {} : { edit })} />
-          ))}
-        </Stack>
-      )}
+      {rail}
+      <QuestSection heading={`Active — ${active.length}`} quests={active} {...(edit === undefined ? {} : { edit })} />
+      <QuestSection heading={`Done — ${settled.length}`} quests={settled} {...(edit === undefined ? {} : { edit })} />
       {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
+    </Stack>
+  );
+}
+
+/** One kicker-led quest-card section (Active / Done) — renders nothing when empty. */
+function QuestSection({
+  heading,
+  quests,
+  edit,
+}: {
+  readonly heading: string;
+  readonly quests: readonly RpgQuestView[];
+  readonly edit?: QuestEdit;
+}): ReactElement | null {
+  if (quests.length === 0) {
+    return null;
+  }
+  return (
+    <Stack gap="field">
+      <Kicker>{heading}</Kicker>
+      {quests.map((quest) => (
+        <QuestCard key={quest.id} quest={quest} {...(edit === undefined ? {} : { edit })} />
+      ))}
     </Stack>
   );
 }
