@@ -9,8 +9,13 @@
 
 import { prefersReducedMotionNow } from "@orb/ui/lib";
 
+interface VtTransition {
+  readonly ready?: Promise<unknown>;
+  readonly finished?: Promise<unknown>;
+  readonly updateCallbackDone?: Promise<unknown>;
+}
 interface VtDocument {
-  readonly startViewTransition?: (update: () => void) => unknown;
+  readonly startViewTransition?: (update: () => void) => VtTransition | undefined;
 }
 interface VtGlobals {
   readonly document?: VtDocument;
@@ -20,6 +25,13 @@ interface VtGlobals {
  * Run a view-state update inside a View Transition when the platform supports it (and the user
  * hasn't asked for reduced motion) — otherwise apply the update directly. Fire-and-forget: the
  * caller never awaits the transition.
+ *
+ * A SUPERSEDED transition (a second one starting before the first settles — e.g. the draft→committed
+ * promotion swapping the active chat while the context panel re-renders) rejects the ViewTransition's
+ * `ready`/`finished`/`updateCallbackDone` promises with `AbortError: Transition was skipped`. That is
+ * BENIGN — the update callback itself still ran — but the discarded promises would surface as UNCAUGHT
+ * rejections (a red console error on a perfectly normal rapid pane swap). Swallow them HERE, the one
+ * legal wrapper, so no call site re-derives the handling.
  */
 export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
@@ -29,5 +41,8 @@ export function withViewTransition(update: () => void): void {
     update();
     return;
   }
-  start.call(g.document, update);
+  const transition = start.call(g.document, update);
+  for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
+    settled?.catch(() => undefined); // skipped-transition AbortError — benign, never an uncaught rejection
+  }
 }
