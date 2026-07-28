@@ -52,7 +52,7 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
           disabled={disabled}
           title={reason}
           data-testid={testId("messageChoiceOption")}
-          className="h-auto justify-start whitespace-normal py-field text-left"
+          className="h-auto min-h-touch-target justify-start whitespace-normal py-field text-left"
           onClick={(): void => {
             if (choiceSend !== null && !choiceSend.busy) {
               choiceSend.send(option);
