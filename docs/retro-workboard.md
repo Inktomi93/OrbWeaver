@@ -51,7 +51,11 @@ net-new surface; typed inputs resolve to defaults until it lands; marinara-recon
 PANEL**; fork-handling = **SELF-RESOLVE via the escalation ladder + LOG** (never block; incl. the P5 plot-plane detail =
 snapshot-resident `{act,title,acts}`, additive/clone-forward). NEVER push · engines/stack ours (start/restart freely,
 detached) · persona/security-floors sacred · usage-cap recovery known ([[overnight-full-auto-posture]]).
-**🔄 3 LANES RUNNING (disjoint file sets; NO baseline regen in any — color+config are additive JSON-blob schema):**
+**⚠⚠ EVERYTHING FROM HERE DOWN TO THE `COMPACT-SAFE SNAPSHOT` IS THE ORIGINAL OVERNIGHT DISPATCH = HISTORY. The
+CURRENT authoritative state is the `COMPACT-SAFE SNAPSHOT (2026-07-28)` further below (search it) — P3 is DONE+COMMITTED
+(`0e1bd920`), the panel is past 2 checkpoints (`0e1bd920` + `11132712`, now on deferred-§items+mobile), and P6 was
+re-dispatched to a WORKTREE (`a306da5f57b915a1f`, DONE, awaiting merge+verify). Read the snapshot for truth. ⚠⚠**
+**🔄 3 LANES (ORIGINAL dispatch — superseded, see snapshot):**
 - **PANEL BUILD #21 — Fable `a11263612a91abe13`:** the redesign (re-home P1 surfaces + Waystone + orb-pinning + FREE-HEX
   bar/orb color on `poolDefs[].color` + ward + glyphs + P3/P4/P5 placeholder sections). THEME TOKENS. features/rpg + @orb/ui
   + contracts/rpg/**sheet.ts** (color). → verifier + side-eye after.
@@ -126,15 +130,19 @@ spine wave lands. Lane collisions → orch integrates. Morning debrief: this blo
   the P3 invariant-pin test · boot-seed route fix #27 · the world_day column+regen (journal in-world grouping) · the transcript
   reveal-eye (features/chat) · the app-shell mobile topbar #28. LESSON APPLIED: worktree-isolate concurrent big lanes (P6 now) —
   the panel+P3 main-tree coupling forced the commit to wait + serialized the gate-fix rounds.
-- **═══ COMPACT-SAFE SNAPSHOT (2026-07-28, ~90% ctx — READ THIS FIRST on resume) ═══**
-  **COMMITTED (main, ahead origin, NEVER pushed):** MU `24df458d` · design mocks `46543e1e` · P3 + panel-chunk-1-3 `0e1bd920`.
-  **IN-FLIGHT / IDLE-HOLDING:**
-  · **PANEL `a11263612a91abe13`** — chunk #1 orb-pinning + #2 GM console (shared lite+full) + #5 icon-weight-seal (absoluteStrokeWidth+1.75) DONE + eslint-fixed, **HOLDING** for the checkpoint commit. After commit → green-light **#3 deferred §-items** (lock-pin/release · quest-create · inventory ephemeral diff · max-lowering drag tell) + **#4 mobile polish**.
-  · **P6 `a306da5f57b915a1f` DONE in a WORKTREE** (`.claude/worktrees/agent-a306da5f57b915a1f`, branch `worktree-agent-a306da5f57b915a1f`) — the celBindings CHAT-TURN CHANNEL + idle_duration + rpgQuests/rpgDelta + fixed a dead rpgMacros half-seam; scoped-green. **AWAITING: integrate the branch into main (MERGE — contracts/rpg/params.ts OVERLAPS orb-pinning, resolve carefully) + a fresh VERIFIER.**
-  **ORCH DOING RIGHT NOW:** re-gate `bfbuza2um` → battery → COMMIT the panel checkpoint (#1/#2/#5 + the Core-Laws index fix + my 2 pinnedOrbs fixture fixes) → green-light panel #3/#4 → integrate+verify P6.
-  **UNCOMMITTED (main):** panel #1/#2/#5 + `Core-Laws-and-Precedents.md §7` stale-index fix (was "D106–D109" → now D106–D110; D110 was minted in ecf98497 but the index never bumped — the doc-debt that confused the P6 builder) + 2 `pinnedOrbs` fixture fixes.
-  **PENDING FOLLOW-UPS (tasks):** #27 fresh-DB retired-route bug (lite born read-only) · #28 app-shell mobile topbar · #24 MU picks pane · #26 FINAL full-system E2E (LAST gate) · base-E2E spec integration (worktree `agent-a173af5d8c9c97082`) · the P3 invariant-pin test · world_day column+regen · the transcript reveal-eye (features/chat).
-  **NEXT WAVES (after panel+P6 land):** P4 (immersive HTML — `:::card` fence + lenient arm + view-raw + forming placeholder + the srcdoc scripts-flip, security-executor pass) → P5 (CYOA `:::choices` + snapshot-resident plot plane + wand submenu). SEQUENCED on the shared content-render seam; **worktree-isolate them** (the coupling lesson). Overnight posture: FULL SPINE + PANEL, self-resolve forks via the ladder + log, NEVER push. [[overnight-full-auto-posture]].
+- **═══ COMPACT-SAFE SNAPSHOT (2026-07-28 ~04:00, post-P5 — READ THIS FIRST on resume) ═══**
+  **PARITY-PLUS FEATURE PROGRAM = BUILT + TEST-GREEN.** All landed on main (ahead of origin, NEVER pushed):
+  · Panel redesign `db17d2c3` (lock-pin/release · quest-create · inventory diff · max-drag tell · mobile)
+  · P6 macro×rpg feed `5d6f4773` (celBindings chat-turn channel + idle_duration/rpgQuests/rpgDelta; verifier CONFIRMED)
+  · #27 fresh-DB route `82cbd9b2` (E2E-seed fix; PROD was always fine — see [[fresh-db-retired-route-born-readonly]])
+  · #28 mobile topbar `4d2baf82`→`ba8605e7` (title min-6ch floor + shed member-chip/⌘K-label + 44px tap targets)
+  · P4 immersive HTML `d2b48fc2` (:::card lifecycle + lenient arm + Scene card archive + tierB scripts-OFF sandbox; security-executor CLEAR)
+  · P5 CYOA+plot+wand `5d27cd99` (:::choices click-send + snapshot `plot:{act,title,acts}` plane + wand Plot submenu via `gameSteer` enum — ruling-#9 zero-coupling)
+  Merged-main proof: whole-tree `pnpm check` (12 stages) green + battery **8109 vitest/0 + 1493 CT/0**. D110 minted (waves-landed addendum). All worktrees retired.
+  **STACK STATE:** dev DB **RESEEDED fresh** 2026-07-28 (has the P5 `plot` column; `pnpm seed:demo --fresh`) · stack UP on :5173 (server healthz ok) · **`VLLM_DISABLED=true`** (no model engine — the capstone needs it woken: VLLM_DISABLED=false + `pnpm stack restart`).
+  **ORCH NEXT — THE REMAINING GATE = task #26 CAPSTONE:** live full-system E2E (FE=BE=DB with REAL turns — EXTEND the existing `tests/e2e` suite for P3/P4/P5/panel) + a comprehensive **side-eye** taste pass over every new surface (P4 cards · P5 choices/act-rail/wand · the topbar long-title debt I still owe). Needs vLLM woken. THEN parity-plus (#15) is DONE.
+  **PENDING (smaller):** #24 MU picks pane (deferred client) · base-E2E worktree `agent-a173af5d8c9c97082` (stale @`ecf98497` — reconcile INTO #26, don't merge standalone) · P3 invariant-pin test · world_day column+regen · transcript reveal-eye (features/chat).
+  **POSTURE:** overnight full-auto, self-resolve forks + log, NEVER push. Worktree lanes MUST commit before reporting done, and they branch from origin(=stale `ecf98497`) so ALWAYS expect a rebase-onto-main. [[worktree-isolate-concurrent-lanes]] · [[overnight-full-auto-posture]].
   **═══════════════════════════════════════════════════════════════════════════════════**
 **═════════════════════════════════════════════════════════════════════════════════════════**
 - **PANEL REDESIGN ROUND-2 (Fable `afb4223445e98856a`, FRESH — the original a72a3… transcript was GC'd):** grounds
