@@ -1,9 +1,10 @@
 // E2E: the real "start a chat with a character" flow, end-to-end against the full running stack — the
 // proof that this seam makes the app actually generate. single-user AUTH_MODE auto-resolves the owner
 // (no login form); globalSetup (support/global-setup.ts) guarantees ≥1 character card. roleDefaults.chat =
-// agent-sdk/max-pro-sub + consent are live, so with a character in the room the turn WILL generate + stream.
+// chat-completions/vllm (the D109 local wire globalSetup pins) + consent are live, so with a character in
+// the room the turn WILL generate + stream.
 //
-// OPT-IN (`@live`): this is the ONE spec that fires a real Agent-SDK subprocess turn (up to ~120s of live
+// OPT-IN (`@live`): this is the ONE spec that fires a real local vLLM chat turn (up to ~120s of live
 // generation), so it is SKIPPED by default and only runs under `E2E_LIVE=1` — routine `pnpm e2e` (and the
 // CI smoke gate, which excludes `@live`) never hits live model credits. Run it explicitly with:
 //   E2E_LIVE=1 pnpm e2e start-chat-with-character.spec.ts
@@ -66,7 +67,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // reply streams back as a real canonical row with non-empty content. (We assert on the landed reply,
   // not the transient Stop-button/ghost window — the Stop affordance is a ~ttft-length flash that races
   // the SSE-subscribe-vs-turnStarted timing; the reply appearing is the robust, deterministic proof the
-  // turn actually generated, corroborated by the server's `agent-sdk: turn complete` log.)
+  // turn actually generated, corroborated by the local vLLM gen engine's message-POST log.)
   const assistantRow = page.locator('[data-slot="message-row"][data-role="assistant"]');
   await expect(assistantRow.first()).toBeVisible({ timeout: 120_000 });
   await expect(assistantRow.first()).toContainText(NON_WHITESPACE, { timeout: 120_000 });

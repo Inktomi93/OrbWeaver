@@ -1,5 +1,8 @@
-// E2E (@live): MANAGED COMPACTION end-to-end + SWAP CONTINUITY (workboard #9). The agent-sdk chat (the e2e
-// default — global-setup pins roleDefaults.chat to agent-sdk/vLLM) accrues history under a tiny per-send
+// E2E (@live): MANAGED COMPACTION end-to-end + SWAP CONTINUITY (workboard #9). Managed compaction is
+// agent-sdk-ONLY (engine gates the generation on `connection.api === "agent-sdk"`), and since D109 retired
+// the agent-sdk × vllm loopback the only agent-sdk route is HOSTED — so each test PINS its own
+// `agent-sdk × max-pro-sub` chat route (snapshot → set → RESTORE in a finally), never the global default
+// (global-setup now pins the local chat-completions × vllm wire). The chat accrues history under a tiny
 // maxContextTokens with `compaction.mode:"managed"`; the post-turn hook rebuilds the LINEAR marker via the
 // chat's OWN local model (quietGenerate → runChatTurn), stores it on `chats.compactSummary` + `compactedAtSeq`,
 // and the present-tense divider gains the MEMORY FACT ("older messages compacted into memory") + a PEEK popup
@@ -17,17 +20,24 @@
 
 import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./support/chat-room";
+import type { ChatRoute } from "./support/trpc";
 import {
+  getChatRoute,
   getUserSettings,
   listCanon,
   mintFreshCharacter,
   previewContextFit,
   removeCharacter,
   sendTurn,
+  setChatRoute,
   startChat,
   trpcMutation,
   trpcQuery,
 } from "./support/trpc";
+
+// Managed compaction is agent-sdk-only; since the agent-sdk × vllm skin retired (D109), the only agent-sdk
+// route is the owner's hosted Claude subscription. Each test pins this and restores the prior route.
+const AGENT_SDK_ROUTE: ChatRoute = { api: "agent-sdk", source: "max-pro-sub" };
 
 const TINY_CEILING = 220; // small enough that the fit drops older turns → a boundary → the reactive trigger
 const STABLE_CEILING = 1500; // the STABLE preset cap for the resume leg — small enough the DOMAIN fit trims (→ marker
@@ -41,6 +51,8 @@ test("managed compaction fires on the local model, the divider carries the memor
   test.setTimeout(240_000);
 
   const characterId = await mintFreshCharacter("e2e-managed-compaction", "Compactor", "Hello — let us begin a long, detailed saga together.");
+  const priorRoute = await getChatRoute();
+  await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)
   try {
     // ── Seed history under managed compaction + a tiny ceiling so the fit drops rows and the hook fires. ──
     const chatId = await startChat([characterId]);
@@ -100,6 +112,9 @@ test("managed compaction fires on the local model, the divider carries the memor
     const boundaryIdx = postCanon.findIndex((m) => m.id === stampedTurn?.contextBoundaryMessageId);
     expect(boundaryIdx).toBeGreaterThan(0);
   } finally {
+    if (priorRoute !== undefined) {
+      await setChatRoute(priorRoute).catch(() => null);
+    }
     await removeCharacter(characterId);
   }
 });
@@ -135,6 +150,8 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
 
   const characterId = await mintFreshCharacter("e2e-compaction-resume", "Resumer", "Hello — a long saga begins, resumed turn to turn.");
   const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
+  const priorRoute = await getChatRoute();
+  await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)
   const tinyPreset = await trpcMutation<{ readonly id: string }>("preset.create", { name: "e2e-managed-stable", kind: "chat" });
   try {
     // Point the user default at a preset carrying a STABLE maxContextTokens (no per-send override → a stable cap
@@ -192,6 +209,9 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
   } finally {
     await trpcMutation("settings.updateUserSettingsSection", { section: "seeds", patch: { defaultPresetId: priorDefaultPresetId ?? null } });
     await trpcMutation("preset.remove", { id: tinyPreset.id });
+    if (priorRoute !== undefined) {
+      await setChatRoute(priorRoute).catch(() => null);
+    }
     await removeCharacter(characterId);
   }
 });

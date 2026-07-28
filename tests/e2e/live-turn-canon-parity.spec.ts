@@ -13,11 +13,11 @@
 //       bus-devlog.ts §"Pure-transient events never reach here"), so they are NOT in this ring — we pin the
 //       real invalidating order, not an invented one.
 //   (d) ENGINE HONESTY — the local gen engine log (.cache/stack/vllm-gen.log) gained ≥1
-//       `POST /v1/messages` during the turn, AND the new assistant canon row's `model` is the LOCAL leaf
+//       `POST /v1/chat/completions` during the turn, AND the new assistant canon row's `model` is the LOCAL leaf
 //       alias "Qwen3-VL-8B-Instruct" (the served-model-name leaf, vllm-engine.sh) — never a hosted id.
 //
 // OPT-IN (`@live`): fires a real turn on the warm local 8B (~3-6s), skipped unless E2E_LIVE=1 (config
-// grepInvert) so routine `pnpm e2e` spends no model traffic. globalSetup pins routing.chat = agent-sdk/vllm.
+// grepInvert) so routine `pnpm e2e` spends no model traffic. globalSetup pins routing.chat = chat-completions/vllm.
 //
 // SELF-SEEDING: reuses globalSetup's guaranteed committed chat (openOrCreateChat). The open chat is
 // listChats()[0]: the list is desc(updatedAt) and the room opens rows.first(), and this turn bumps
@@ -32,7 +32,7 @@ import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStrea
 import { listCanon, listCharacters, startChat } from "./support/trpc";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
-const GEN_POST_MARKER = "POST /v1/messages";
+const GEN_POST_MARKER = "POST /v1/chat/completions";
 const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
 const USER_PROMPT = "Reply with exactly: parity-probe-ok";
 const NON_WS = /\S/u;
