@@ -16,7 +16,17 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId, RpgWi
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorRefSchema } from "./actor";
-import { RPG_DATE_MODES, RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
+import {
+  RPG_DATE_MODES,
+  RPG_EXTRACTION_CONTEXTS,
+  RPG_EXTRACTION_MODES,
+  RPG_EXTRACTION_WINDOW_TOKENS_MAX,
+  RPG_EXTRACTION_WINDOW_TOKENS_MIN,
+  RPG_HINT_MAX,
+  RPG_RECONCILE_EVERY_BEATS_MAX,
+  RPG_STEERING_NOTE_MAX,
+  rpgCastFieldSchema,
+} from "./config";
 import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
 import { rpgPoolDefSchema } from "./sheet";
@@ -71,6 +81,11 @@ export const rpgUpdateConfigInputSchema = z.object({
       engaged: z.boolean().optional(),
       // The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
       dateMode: z.enum(RPG_DATE_MODES).optional(),
+      // The §1.3 extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
+      // `window` arm's token budget, and the reconcile cadence. Bounds mirror the config schema. Omit keeps.
+      extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).optional(),
+      extractionWindowTokens: z.number().int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
+      reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

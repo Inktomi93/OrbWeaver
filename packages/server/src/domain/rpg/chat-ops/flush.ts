@@ -17,7 +17,7 @@
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
-import type { RpgTurnConnection } from "../../chat";
+import type { RpgTurnContext } from "../../chat";
 import type { StagedTurnFlush } from "../contract/params";
 import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
@@ -32,7 +32,7 @@ interface CompletedTurn {
   readonly turnId: ChatTurnId;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
-  readonly turnConnection: RpgTurnConnection;
+  readonly turnConnection: RpgTurnContext;
 }
 
 /** Resolve the reliable-mode extraction BASE — the resolution-ladder head for this turn (or the synthesized

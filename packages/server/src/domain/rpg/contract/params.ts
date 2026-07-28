@@ -10,6 +10,7 @@ import type {
   RpgActorRef,
   RpgCastField,
   RpgDateMode,
+  RpgExtractionContext,
   RpgGameFeatures,
   RpgJournalType,
   RpgPoolDef,
@@ -127,6 +128,11 @@ export interface UpdateConfigParams {
         readonly engaged?: boolean | undefined;
         // The #9 ambient-date mode (`narrated` | `structured`) — omit keeps.
         readonly dateMode?: RpgDateMode | undefined;
+        // The §1.3 extraction-depth knobs (how much story the state round reads + its token budget + the
+        // reconcile cadence) — omit keeps (MA-4 patch semantics).
+        readonly extractionContext?: RpgExtractionContext | undefined;
+        readonly extractionWindowTokens?: number | undefined;
+        readonly reconcileEveryBeats?: number | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;

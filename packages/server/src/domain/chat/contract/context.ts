@@ -48,6 +48,7 @@ import type {
   PresetId,
   UserId,
 } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { AuditEntry } from "#foundation/observability";
@@ -452,19 +453,42 @@ interface ChatCrewOps {
  *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
  *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
  *  the override; rpg-design/02 §1.1 #1). */
-/** The character turn's RESOLVED route + consent verdict, handed to {@link ChatRpgOps.onTurnCompleted} so the
- *  post-commit rpg state round rides the EXACT connection + owner-consent the engine already resolved + enforced
- *  for THIS turn — the [foreign-inputs-seam] shape (an already-resolved value threaded IN, never re-derived).
- *  This is the F1 fix: without it the state round resolved the host's GLOBAL chat default (`resolveRole`) and
- *  force-stamped `ownerConsented:true`, so a room pinned to vllm could fire a metered-sub round the turn's
- *  consent belt never approved. `connection.capability` also gates the round's readonly verdict (F2). */
-export interface RpgTurnConnection {
+/** One name-stamped canon row the state round reads as story evidence (crunchy-cluster redesign §1.3). The
+ *  ENGINE projects it from the canon it already loaded; rpg receives STORY TEXT AS DATA and reads no chat
+ *  table (§2 one-directional flow). `tokens` (an `estimateTokens` of the content) lets the consumer
+ *  budget-slice its window cheaply. Hidden-class spans are INTACT — the round is model-plane, the model always
+ *  reads its own lies (D110 §3.6). */
+export interface RpgTurnTranscriptMessage {
+  /** The canon row's role (derived from `MESSAGE_ROLES` — never a re-spelled inline union, §7.5). */
+  readonly role: MessageRole;
+  /** Resolved via the engine's `historyMacroNames` ("Mara", "You (Aldric)"); `null` for a system row. */
+  readonly speakerName: string | null;
+  /** The stored body (post-freeze canon, macro-raw identity ok — the state round reads the raw story). */
+  readonly content: string;
+  readonly tokens: number;
+}
+
+/** The character turn's RESOLVED route + consent verdict + its OWN canon transcript, handed to
+ *  {@link ChatRpgOps.onTurnCompleted} so the post-commit rpg state round rides the EXACT connection +
+ *  owner-consent the engine already resolved + enforced for THIS turn AND reasons from the story it just
+ *  told — the [foreign-inputs-seam] shape (already-resolved values threaded IN, never re-derived).
+ *  The connection/consent are the F1 fix: without them the state round resolved the host's GLOBAL chat default
+ *  (`resolveRole`) and force-stamped `ownerConsented:true`, so a room pinned to vllm could fire a metered-sub
+ *  round the turn's consent belt never approved. `connection.capability` also gates the round's readonly
+ *  verdict (F2). The `transcript` is the §1.3 fix: the extraction was CONTEXT-BLIND (state JSON + one beat), so
+ *  deep in a story it forgot fields and never reconciled inventory/quests against what happened — now it rides
+ *  the turn's own loaded canon (zero extra model reads, §1.4). */
+export interface RpgTurnContext {
   /** The character turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
    *  round connection; the state round runs on THIS, never a re-resolve. */
   readonly connection: ResolvedConnection;
   /** The engine's enforced owner-consent verdict for this turn (`resolveOwnerConsented`, engine.ts) — the state
    *  round inherits it rather than force-stamping `true`; a metered-sub round is by-proxy-safe by construction. */
   readonly ownerConsented: boolean;
+  /** The selected-lineage canon UP TO AND INCLUDING the committed reply, oldest→newest, name-stamped — the FULL
+   *  loaded canon; the CONSUMER slices to its window (the knob is rpg config, not chat's business). Projected by
+   *  the ENGINE (`fireRpgTurnCompleted`) from `canonAll ∪ {the committed reply}`. */
+  readonly transcript: readonly RpgTurnTranscriptMessage[];
 }
 
 export interface ChatRpgOps {
@@ -492,11 +516,12 @@ export interface ChatRpgOps {
   /** SEND path, after the user row commits — fires the snapshot COMMIT (+ consumes queued dice rolls). */
   readonly onUserCommit: (chatId: ChatId, messageId: MessageId) => Promise<void>;
   /** Post-turn (commit): FLUSH the turn's staged tool writes onto the committed variant, keyed by `turnId`.
-   *  `turn` carries the NARRATION turn's ALREADY-RESOLVED route + consent verdict (see {@link RpgTurnConnection})
-   *  so the rpg state round rides the EXACT connection + consent the engine enforced — never a second hand-rolled
-   *  resolve/consent path (stickler F1: a state round must not resolve the host's global default nor force-stamp
-   *  consent; a room on vllm runs its round on vllm, a metered-sub round inherits the turn's owner-consent). */
-  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnConnection) => Promise<void>;
+   *  `turn` carries the NARRATION turn's ALREADY-RESOLVED route + consent verdict + its OWN canon transcript
+   *  (see {@link RpgTurnContext}) so the rpg state round rides the EXACT connection + consent the engine
+   *  enforced — never a second hand-rolled resolve/consent path (stickler F1: a state round must not resolve the
+   *  host's global default nor force-stamp consent; a room on vllm runs its round on vllm, a metered-sub round
+   *  inherits the turn's owner-consent) — AND reasons from the story it just told (§1.3 transcript threading). */
+  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext) => Promise<void>;
   /** Turn abort/failure: CLEAR the turn's staged tool writes so a dead turn never flushes into the next turn. */
   readonly onTurnAborted: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
   /** The GM seat holder's FK-derived KIND for the game rooted at this chat (agent-principal-design/05 §2 AP4a),

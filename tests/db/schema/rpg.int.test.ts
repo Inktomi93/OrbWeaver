@@ -68,6 +68,9 @@ const CONFIG: RpgGameConfig = {
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },
   extractionMode: "reliable",
+  extractionContext: "window",
+  extractionWindowTokens: 4096,
+  reconcileEveryBeats: 10,
   features: {
     castFields: [],
     relationshipHints: {},
