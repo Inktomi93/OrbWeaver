@@ -186,9 +186,13 @@ export interface RpgRosterActor {
 }
 export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
 
-/** Mint a fresh narrator message slot (chat's `postNarratorMessage`, §3.2). `restoreCheckpoint` posts one to
- *  carry the clone-forwarded snapshot; returns the committed `{messageId, variantId}` the restored snapshot
- *  keys to. */
+/** Mint a fresh narrator message slot (chat's `postNarratorMessage`, §3.2). `restoreCheckpoint` posts a
+ *  VISIBLE line (the restore notice); a between-turns hand-edit / resync clone-forward posts an EMPTY body —
+ *  a silent STATE-ANCHOR slot that exists only to key the clone-forwarded snapshot. No flag: an empty-content
+ *  slot is already dropped from the assembled prompt (the shape-stage empty-row filter) and hidden by the
+ *  client message list, so a hand edit never mints a blank bubble that also pollutes the prompt, while the
+ *  slot stays prompt-visibility-normal so the snapshot-resolution ladder still finds it. Returns the
+ *  committed `{messageId, variantId}` the clone-forwarded snapshot keys to. */
 export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
 /** The honest-arms capability verdict (§4.6 — the delivery-model amendment). Resolves the host connection's

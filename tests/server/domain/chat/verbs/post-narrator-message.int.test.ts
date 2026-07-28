@@ -110,6 +110,26 @@ describe("postNarratorMessage", () => {
     expect(rows[0]?.automationDepth).toBe(1);
   });
 
+  test("a state-anchor mint (empty body) stays prompt-visibility-normal — the shape stage drops the empty row, the ladder still finds it", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const groupChar = await seedCharacter(db, host, "narrator");
+
+    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+
+    // The rpg between-turns hand-edit / resync clone-forward mints an anchor with an EMPTY body. It carries NO
+    // `excludedFromPrompt` flag — the empty content is dropped from the wire prompt by the shape-stage empty-row
+    // filter, and the client list hides it by content — while the slot stays visibility-normal so the rpg
+    // snapshot-resolution ladder (which keys on `excludedFromPrompt=false`) still resolves its snapshot as head.
+    const { messageId } = await postNarratorMessage(chatId, "");
+    const rows = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(rows[0]?.excludedFromPrompt).toBe(false);
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants[0]?.content).toBe("");
+  });
+
   test("a chat with no host cannot mint the narrator identity", async () => {
     const chatId = await seedChat(db, "a");
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.reject(new Error("should not mint")) });

@@ -172,7 +172,7 @@ export interface RpgFakes {
   extractionGate?: Promise<void>;
   /** Recorders — the tests assert these fired. */
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
-  readonly narratorPosts: { chatId: string; content: string }[];
+  readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
   readonly extractionCalls: { chatId: string; messageId: string; variantId: string }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
@@ -219,7 +219,10 @@ export function makeRpgService(
 
   let narratorSeq = 1000;
   const postNarratorMessage: RpgPostNarratorMessage = async (chatId, content) => {
-    fakes.narratorPosts.push({ chatId, content });
+    // A state-anchor mint (the hand-edit / resync clone-forward) posts an EMPTY body; it carries no flag and
+    // stays prompt-visibility-normal (`excludedFromPrompt` false) so the snapshot-resolution ladder still finds
+    // it — the empty content alone is what the shape stage + the client list drop. Record it for assertions.
+    fakes.narratorPosts.push({ chatId, content, anchor: content === "" });
     // Mint a REAL message + variant so the forward-write FKs resolve (the narrator slot the snapshot keys to).
     const { messageId, variantId } = await seedMessage(db, chatId, narratorSeq++, { role: "assistant", content });
     return { messageId, variantId };

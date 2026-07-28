@@ -91,6 +91,9 @@ export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Re
   }
   // A COMMITTED head (or a turnless game) must NOT be edited in place — that would corrupt a locked-in past
   // (a checkpoint's frozen state, a past swipe). CLONE FORWARD onto a fresh narrator slot, born committed.
+  // The slot is a silent STATE ANCHOR: its EMPTY body is dropped from the assembled prompt (the shape-stage
+  // empty-row filter) and hidden by the client message list — so a hand edit never mints a blank "Group"
+  // bubble that also pollutes the prompt, while the slot stays ladder-visible so its snapshot resolves.
   const posted = await ctx.postNarratorMessage(game.chatId, "");
   const snapshotId = ctx.ids.snapshot();
   await insertSnapshot(ctx.db, {

@@ -276,7 +276,15 @@ export interface QuietGenerateDeps {
  *  byte-identical. Only the automation `generate_image` non-quiet post passes it — stamping the posted image's
  *  slot with `initiator:"automation"` + the firing rule's cascade depth (≥1), so the resulting
  *  `messageCommitted` fact resolves at depth ≥ 1 and `runGates` cascade-suppresses a non-opted re-fire (closes
- *  the F1 self-loop; the F5 mechanism on this write path). */
+ *  the F1 self-loop; the F5 mechanism on this write path).
+ *
+ *  STATE-ANCHOR slots (rpg between-turns hand-edit / resync clone-forward) are posted with EMPTY `content` —
+ *  they exist only to key a snapshot (`rpg_snapshots.variantId` UNIQUE needs a real committed variant). No
+ *  flag is needed: an empty-content assistant row is ALREADY dropped from the assembled prompt by the SHAPE
+ *  stage's empty-row filter (`assembly/shape.ts` `runSquash`/`squashSameRole`), and the client message list
+ *  hides an empty-content committed slot — so a hand edit never renders a blank bubble nor pollutes the prompt.
+ *  Critically, the slot stays prompt-VISIBILITY-normal (`excludedFromPrompt` false) so the rpg snapshot-
+ *  resolution ladder still finds its snapshot as a state head (the ladder keys on `excludedFromPrompt=false`). */
 export type PostNarratorMessage = (
   chatId: ChatId,
   content: string,
