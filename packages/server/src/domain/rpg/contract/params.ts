@@ -10,6 +10,7 @@ import type {
   RpgActorRef,
   RpgCastField,
   RpgJournalType,
+  RpgPoolDef,
   RpgQuestStatus,
   RpgSnapshotState,
   RpgStatProfile,
@@ -99,6 +100,14 @@ export interface UpdateConfigParams {
         readonly steeringNote?: string | undefined;
         readonly castFields?: readonly RpgCastField[] | undefined;
         readonly relationshipHints?: Readonly<Record<string, string>> | undefined;
+        // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value
+        // (MA-4 patch semantics) — the verb reads the game's existing value on omit, so a toggle survives an
+        // unrelated config edit (never reset to default). `deception`/`omniscience` = the teach + reasoning-strip
+        // gates; `hiddenContentReveal` = M4 host-eye offer; `recentBeatsKeepLast` = the reminder slice.
+        readonly deception?: boolean | undefined;
+        readonly omniscience?: boolean | undefined;
+        readonly hiddenContentReveal?: boolean | undefined;
+        readonly recentBeatsKeepLast?: number | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;
@@ -115,7 +124,8 @@ export interface PatchSheetParams {
   readonly patch: {
     readonly className?: string | undefined;
     readonly attributes?: Readonly<Record<string, number>> | undefined;
-    readonly poolDefs?: readonly { readonly name: string; readonly max: number }[] | undefined;
+    // DERIVED from the one pool-def home (`RpgPoolDef` — name/max + the host-pickable `color`), never a re-spell.
+    readonly poolDefs?: readonly RpgPoolDef[] | undefined;
     readonly maxHp?: number | null | undefined;
     readonly flavor?: string | undefined;
     readonly level?: number | null | undefined;
@@ -281,4 +291,10 @@ export interface LiteReminderInput {
    *  roster actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveRoster`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
   readonly rosterNames: Readonly<Record<string, string>>;
+  /** P3 hidden-channel teaching gates (§3.3) — `config.features.deception`/`omniscience`. Each `true` composes its
+   *  teaching block (`RPG_DECEPTION_TEACH`/`RPG_OFILTER_TEACH`) into the reminder, after the state/delta and before
+   *  the license; both default false ⇒ no block (byte-identical to a pre-P3 reminder). The blocks teach the
+   *  `<lie …/>`/`<ofilter …/>` tag grammar the tokenizer's `HIDDEN_TAGS` registry recognizes. */
+  readonly deception: boolean;
+  readonly omniscience: boolean;
 }

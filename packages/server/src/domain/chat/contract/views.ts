@@ -235,4 +235,10 @@ export interface ChatEventAttach extends StreamEventBounds {
    *  The live fan-out applies the §3.6 hidden-content member-strip (`stripChatEventForMember`) when false,
    *  mirroring the per-caller strip the durable replay applies. Never client-supplied. */
   readonly viewerIsHost: boolean;
+  /** P3 (§3.6): is the game rooted at this chat DECEPTION-ACTIVE (`config.features.deception || omniscience`)?
+   *  Resolved once at attach via the injected `ChatRpgOps.resolveReasoningHostOnly` (chat stays rpg-table-blind).
+   *  When true AND the subscriber is NOT the host, the live fan-out withholds the whole reasoning channel for
+   *  that member (reasoning deltas + `reasoningStreamDone` dropped, `view.reasoning` nulled). `false` for a
+   *  non-game / non-deception chat — the pre-P3 live behavior (reasoning member-visible). Never client-supplied. */
+  readonly reasoningHostOnly: boolean;
 }

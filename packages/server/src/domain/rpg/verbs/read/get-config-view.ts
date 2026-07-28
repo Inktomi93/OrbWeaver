@@ -17,6 +17,10 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       extractionMode: game.config.extractionMode,
       castFields: game.config.features.castFields,
       relationshipHints: game.config.features.relationshipHints,
+      deception: game.config.features.deception,
+      omniscience: game.config.features.omniscience,
+      hiddenContentReveal: game.config.features.hiddenContentReveal,
+      recentBeatsKeepLast: game.config.features.recentBeatsKeepLast,
     };
   }
   return { getConfigView };

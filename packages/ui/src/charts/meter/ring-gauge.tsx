@@ -6,7 +6,7 @@
 // counts read as notification badges (§4.5). Homed in charts/meter/ (the magnitude-display family;
 // inline data-viz svg is legal only in charts/**, §13.7 — the sibling of <Meter kind="arc">).
 import type { ReactElement } from "react";
-import { cn } from "#lib";
+import { cn, isSafeColor } from "#lib";
 import type { TrackColor } from "./track-bar";
 import { RING_STROKE, ringGaugeVariants } from "./variants";
 
@@ -37,6 +37,10 @@ export interface RingGaugeProps {
   showCaption?: boolean;
   /** Short caption label when `showCaption` (the compact orb tag, e.g. "HP"); falls back to `label`. */
   captionLabel?: string;
+  /** A host-picked CSS color LITERAL (the panel-redesign free-hex ruling) that overrides the ramp step.
+   *  Applied as inline data only when it passes `isSafeColor` (unsafe ⇒ ramp fallback); the arc is
+   *  aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
+  customColor?: string;
   /** Below-value it swaps to the destructive intent (never the sole signal — the datum still reads). */
   dangerBelow?: number;
   className?: string;
@@ -57,6 +61,7 @@ export function RingGauge({
   label,
   showCaption = false,
   captionLabel,
+  customColor,
   dangerBelow,
   className,
 }: RingGaugeProps): ReactElement {
@@ -64,6 +69,9 @@ export function RingGauge({
   const slots = ringGaugeVariants();
   const filled = clampFraction(value, max) * CIRCUMFERENCE;
   const rotate = `rotate(-90 ${CENTER} ${CENTER})`;
+  // The host-picked color literal rides `currentColor` via an inline style (data, safe-color-gated).
+  const custom = !danger && customColor !== undefined && isSafeColor(customColor) ? customColor : undefined;
+  const fillClass = custom === undefined ? RING_STROKE[color] : undefined;
 
   return (
     <div className={cn(slots.root(), className)} data-slot="ring-gauge">
@@ -71,13 +79,14 @@ export function RingGauge({
       <svg aria-hidden={true} className={slots.svg()} data-slot="ring-gauge-svg" viewBox={`0 0 ${SIZE} ${SIZE}`}>
         <circle className={slots.track()} cx={CENTER} cy={CENTER} fill="none" r={RADIUS} stroke="currentColor" strokeWidth={STROKE} />
         <circle
-          className={danger ? "text-destructive" : RING_STROKE[color]}
+          className={danger ? "text-destructive" : fillClass}
           cx={CENTER}
           cy={CENTER}
           data-slot="ring-gauge-fill"
           fill="none"
           r={RADIUS}
           stroke="currentColor"
+          {...(custom === undefined ? {} : { style: { color: custom } })}
           strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
           strokeLinecap="round"
           strokeWidth={STROKE}

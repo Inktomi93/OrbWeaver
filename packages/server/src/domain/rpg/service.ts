@@ -11,7 +11,7 @@ import { createCreateGame, createUpdateConfig } from "./verbs/game";
 import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry } from "./verbs/journal";
 import { createPatchSheet } from "./verbs/patch-sheet";
 import { createDeleteQuest, createUpsertQuest } from "./verbs/quest";
-import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal } from "./verbs/read";
+import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal, createRevealHidden } from "./verbs/read";
 import { createRollDice } from "./verbs/roll-dice";
 import { createCreateWidget, createDeleteWidget, createUpdateWidget } from "./verbs/widget";
 
@@ -38,5 +38,6 @@ export function createRpgService(deps: RpgContextDeps): RpgService {
     ...createGetTrackerView(ctx),
     ...createListJournal(ctx),
     ...createGetConfigView(ctx),
+    ...createRevealHidden(ctx),
   };
 }

@@ -6,7 +6,7 @@
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RpgActorVolatile, RpgBusEvent, RpgGameConfig, RpgQuest, RpgSnapshotState } from "@orb/contracts/rpg";
-import { RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
+import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
@@ -51,7 +51,14 @@ export function liteConfig(): RpgGameConfig {
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
     extractionMode: "reliable",
-    features: { castFields: [], relationshipHints: {} },
+    features: {
+      castFields: [],
+      relationshipHints: {},
+      deception: false,
+      omniscience: false,
+      hiddenContentReveal: true,
+      recentBeatsKeepLast: RPG_RECENT_BEATS_KEEP_DEFAULT,
+    },
     userMacros: [],
   };
 }

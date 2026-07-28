@@ -481,6 +481,15 @@ export interface ChatRpgOps {
    *  (unseat the agent GM first — else a player-character turn would carry GM tools). Chat stays rpg-table-blind
    *  — this ONE injected read mirrors rpg's `resolvePartyActorKind` shape; chat branches only on `agent`. */
   readonly resolveGmSeatHolderKind: (chatId: ChatId) => Promise<GmSeatHolderKind | null>;
+  /** Is the game rooted at this chat DECEPTION-ACTIVE (parity-plus §3.6 — deception OR omniscience config on)?
+   *  `false` for a non-game chat / a game with neither hidden channel on. This is the SERVER-side
+   *  gate for the member REASONING-STRIP: when true AND the viewer is not the room host, the whole reasoning/
+   *  thinking channel is withheld from that member (a deceptive model can spill a lie's truth in its reasoning —
+   *  the whole-channel host-only cut is the clean threat boundary, §3.6). Chat stays rpg-table-blind — this ONE
+   *  injected read mirrors `resolveGmSeatHolderKind`'s FK-derived shape; chat branches only on the boolean. The
+   *  BODY hidden-span strip is unconditional (a lie is always stripped for members); THIS gate is the ADDITIONAL,
+   *  game-conditional reasoning cut P3 adds beside it. */
+  readonly resolveReasoningHostOnly: (chatId: ChatId) => Promise<boolean>;
 }
 
 /** The GM seat's resolved holder kind (agent-principal-design/05 §2 AP4a) — mirrors rpg's FK-derived-kind shape

@@ -2,7 +2,7 @@
 // profile mutability matrix (§2.3), the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS (§4.11 #1
 // + the delivery-model amendment). Host-gated.
 
-import type { RpgStatProfile } from "@orb/contracts/rpg";
+import type { RpgGameFeatures, RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
@@ -33,6 +33,22 @@ async function assertProfileMutable(ctx: RpgContext, gameId: RpgGameId, next: Rp
   }
 }
 
+/** Merge the parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — omit keeps the EXISTING value (a passed
+ *  array/record/scalar REPLACES; the host owns these authoritatively). Threading EVERY field explicitly is
+ *  load-bearing: the `rpgGameConfigSchema.parse` in the caller would otherwise reset an OMITTED field to its
+ *  default, so a host who turned deception on and then edits the steeringNote must NOT silently lose deception
+ *  (or the reasoning-host-only strip that rides it). `?? current` = MA-4 keep-on-omit. */
+function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatures): RpgGameFeatures {
+  return {
+    castFields: [...(patch?.castFields ?? current.castFields)],
+    relationshipHints: patch?.relationshipHints ?? current.relationshipHints,
+    deception: patch?.deception ?? current.deception,
+    omniscience: patch?.omniscience ?? current.omniscience,
+    hiddenContentReveal: patch?.hiddenContentReveal ?? current.hiddenContentReveal,
+    recentBeatsKeepLast: patch?.recentBeatsKeepLast ?? current.recentBeatsKeepLast,
+  };
+}
+
 export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateConfig"> {
   async function updateConfig(params: UpdateConfigParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
@@ -49,12 +65,8 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
-      // The parity-plus feature knobs (§2.8/§2.1 M1) — omit keeps, a passed array/record REPLACES (whole-list
-      // edit; the host owns the cast-field schema + relationship hints authoritatively).
-      features: {
-        castFields: params.patch?.castFields ?? game.config.features.castFields,
-        relationshipHints: params.patch?.relationshipHints ?? game.config.features.relationshipHints,
-      },
+      // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — merged with keep-on-omit (see mergeFeatures).
+      features: mergeFeatures(params.patch, game.config.features),
     });
 
     await updateGame(ctx.db, game.id, {

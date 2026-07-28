@@ -459,6 +459,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     onTurnCompleted: (chatId, messageId, variantId, turnId, turn) => rpgOps().onTurnCompleted(chatId, messageId, variantId, turnId, turn),
     onTurnAborted: (chatId, turnId, reason) => rpgOps().onTurnAborted(chatId, turnId, reason),
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
+    resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
   };
   const chatCompose = buildChatService({
     toolUse,

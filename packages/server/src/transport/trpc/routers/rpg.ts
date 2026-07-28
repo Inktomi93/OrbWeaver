@@ -101,6 +101,8 @@ export const rpgRouter = t.router({
   getTrackerView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getTrackerView({ principal: ctx.auth, ...input })),
   listJournal: authedProcedure.input(rpgListJournalInputSchema).query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
   getConfigView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getConfigView({ principal: ctx.auth, ...input })),
+  // §3.6 HOST-reveal read — the eye + standing-lie inventory (host-gated; leak-free NOT_FOUND for a member INSIDE the verb).
+  revealHidden: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.revealHidden({ principal: ctx.auth, ...input })),
   listCheckpoints: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.listCheckpoints({ principal: ctx.auth, ...input })),
 
   // The per-game live event stream (see the file header for the shape + the chat-membership gate).

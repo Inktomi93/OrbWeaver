@@ -1,68 +1,122 @@
-// The Inventory tab (Context-Panel-Program §4.4 lite trim, §4.3) — a currency line (wallet) pinned ABOVE a
-// dense item grid (the OSRS inventory idiom: square cells, qty in the corner, item name on `title`). Wallet +
-// inventory are first-class on EVERY actor (§2.6); this tab reads the viewer's own actor. No capacity /
-// encumbrance UI (not modeled — do not invent). Items are display-only in W3b (the item-CRUD authoring door
-// is the Game editor, deferred); the wallet is the reserved currency SLOT (§6 Q6), shown when present.
+// The INVENTORY tab (panel-redesign DESIGN.md §4 "Inventory" — the PACK): the pinned currency line above
+// the OSRS item grid. The pinned line is the PARTY TOTAL derivation (§12.2 — no purse entity exists; totals
+// SUM per-actor wallets, "party total — N carried by <viewer>"), the Sheet chip and band coin being the
+// other two zoom levels of the same number. Grid cells: resolved glyph (the §12.5 keyword resolver —
+// aria-hidden; the NAME is the datum on the cell + `title`), qty in the corner, quest-bound = the ember
+// dot (keys off the model-written `type` matching /quest/ — §12.2; no quest link exists on items), plus
+// ONE dashed ghost socket (growth affordance — never a fake 28-slot pack; no encumbrance UI, not modeled).
+// The "last change" provenance line is DEFERRED (§12.2.8 — no per-item provenance datum exists; the honest
+// arm is a client-side ephemeral snapshot diff, a follow-up seam).
 
-import type { RpgActorView } from "@orb/contracts/rpg";
+import type { RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
 import { Coins, Icon } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
+import { resolveItemGlyph } from "../lib/glyphs";
+
+/** The quest-bound tell — the model-written item `type` naming the quest taxonomy (§12.2). */
+const QUEST_TYPE_RE = /quest/i;
 
 /** The viewer's own `user` actor, or the first roster actor as a fallback. */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
 
+/** Party totals per currency name, summed across every actor's wallet (§12.2 — a purse is a SUM). */
+function partyTotals(actors: RpgTrackerView["actors"]): ReadonlyMap<string, number> {
+  const totals = new Map<string, number>();
+  for (const actor of actors) {
+    for (const coin of actor.volatile?.wallet ?? []) {
+      totals.set(coin.name, (totals.get(coin.name) ?? 0) + coin.amount);
+    }
+  }
+  return totals;
+}
+
 export interface RpgInventoryTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The lite Inventory tab — the wallet currency line + the item grid. */
+/** The Inventory tab — the pinned party-purse line + the glyph item grid + one ghost socket. */
 export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const actor = viewerActor(state.tracker.actors, state.viewerUserId);
   const volatile = actor?.volatile ?? null;
-  const wallet = volatile?.wallet ?? [];
   const items = volatile?.inventory ?? [];
+  const totals = partyTotals(state.tracker.actors);
+  const carried = volatile?.wallet ?? [];
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
-      {wallet.length === 0 ? null : (
-        <Row gap="field" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row">
-          <Icon icon={Coins} size="sm" label="Wallet" />
-          {wallet.map((coin) => (
-            <Text key={coin.name} as="span" size="label" className="tabular-nums">
-              {coin.amount} {coin.name}
-            </Text>
-          ))}
+      {totals.size === 0 ? null : (
+        <Row gap="field" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="rpg-purse-line">
+          <Icon icon={Coins} size="sm" label="Party purse" />
+          {[...totals.entries()].map(([name, total]) => {
+            const own = carried.find((c) => c.name === name)?.amount ?? 0;
+            const carriedNote = actor !== undefined && own > 0 && own !== total ? ` — ${own} on ${actor.name}` : "";
+            return (
+              <Text key={name} as="span" size="label" className="tabular-nums">
+                {total} {name}
+                {carriedNote === "" ? null : (
+                  <Text as="span" size="micro" tone="muted">
+                    {carriedNote}
+                  </Text>
+                )}
+              </Text>
+            );
+          })}
         </Row>
       )}
 
       {items.length === 0 ? (
         <Text tone="muted">Empty pack — the story fills it.</Text>
       ) : (
-        <Grid cols="tile" gap="field">
-          {items.map((item) => (
+        <Stack gap="field">
+          <Text size="label" tone="muted" transform="caps" className="tracking-micro">
+            Pack — {items.length}
+          </Text>
+          <Grid cols="tile" gap="field">
+            {items.map((item) => {
+              const questBound = QUEST_TYPE_RE.test(item.type);
+              return (
+                <Stack
+                  key={item.id}
+                  gap="field"
+                  align="center"
+                  className="relative aspect-square justify-center rounded-card border border-border bg-card px-field py-field text-center"
+                  data-slot="rpg-pack-cell"
+                  title={item.description === "" ? item.name : `${item.name} — ${item.description}`}
+                >
+                  {item.quantity > 1 ? (
+                    <Text as="span" size="micro" tone="muted" className="absolute right-field top-field tabular-nums">
+                      {item.quantity}
+                    </Text>
+                  ) : null}
+                  {questBound ? (
+                    // The ember quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on
+                    // title carries the datum (never color-alone).
+                    <Text as="span" aria-hidden={true} className="absolute left-field top-field text-primary" size="micro" title="quest item">
+                      ●
+                    </Text>
+                  ) : null}
+                  <Icon icon={resolveItemGlyph(item.name, item.type)} size="md" className="text-muted-foreground" />
+                  <Text as="span" size="micro" className="line-clamp-2">
+                    {item.name}
+                  </Text>
+                </Stack>
+              );
+            })}
+            {/* ONE dashed ghost socket — the pack's growth affordance (never a fake capacity grid). */}
             <Stack
-              key={item.id}
+              aria-hidden={true}
               gap="field"
               align="center"
-              className="relative aspect-square justify-center rounded-card border border-border bg-card px-field py-field text-center"
-              title={item.description === "" ? item.name : `${item.name} — ${item.description}`}
-            >
-              {item.quantity > 1 ? (
-                <Text as="span" size="micro" tone="muted" className="absolute right-field top-field tabular-nums">
-                  {item.quantity}
-                </Text>
-              ) : null}
-              <Text as="span" size="micro" className="line-clamp-2">
-                {item.name}
-              </Text>
-            </Stack>
-          ))}
-        </Grid>
+              className="aspect-square justify-center rounded-card border border-dashed border-border px-field py-field"
+              data-slot="rpg-pack-ghost"
+            />
+          </Grid>
+        </Stack>
       )}
     </Stack>
   );

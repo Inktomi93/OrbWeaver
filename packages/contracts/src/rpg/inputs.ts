@@ -19,6 +19,7 @@ import { rpgActorRefSchema } from "./actor";
 import { RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
 import { rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
+import { rpgPoolDefSchema } from "./sheet";
 import { rpgWidgetDefSchema } from "./snapshot";
 
 /** The shared chatId trust-boundary field — game-ness + authority BOTH resolve through it (no `ownerId`, D23). */
@@ -46,6 +47,13 @@ export const rpgUpdateConfigInputSchema = z.object({
       // (whole-list edit, the host owns the schema authoritatively).
       castFields: z.array(rpgCastFieldSchema).optional(),
       relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
+      // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value; a
+      // passed scalar REPLACES it. `deception`/`omniscience` gate the teaching block + the member reasoning-strip;
+      // `hiddenContentReveal` (M4) governs the host's reveal eye; `recentBeatsKeepLast` bounds the reminder slice.
+      deception: z.boolean().optional(),
+      omniscience: z.boolean().optional(),
+      hiddenContentReveal: z.boolean().optional(),
+      recentBeatsKeepLast: z.number().int().min(0).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),
@@ -61,7 +69,9 @@ export const rpgPatchSheetInputSchema = z.object({
   patch: z.object({
     className: z.string().optional(),
     attributes: z.record(z.string(), z.number().int()).optional(),
-    poolDefs: z.array(z.object({ name: z.string().min(1), max: z.number().int().min(1) })).optional(),
+    // DERIVED from the one pool-def home (`rpgPoolDefSchema`) — carries the host-pickable `color` (strict
+    // hex/OKLCH grammar at the wire; the parse fills `color: null` for an untouched def).
+    poolDefs: z.array(rpgPoolDefSchema).optional(),
     maxHp: z.number().int().nullable().optional(),
     flavor: z.string().optional(),
     // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). It is NOT a

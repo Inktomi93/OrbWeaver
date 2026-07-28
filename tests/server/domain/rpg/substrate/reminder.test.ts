@@ -4,8 +4,14 @@
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
 import type { RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import { tokenizeContent } from "@orb/kit/content";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
-import { buildLiteReminder, RPG_STEERING_LICENSE } from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
+import {
+  buildLiteReminder,
+  RPG_DECEPTION_TEACH,
+  RPG_OFILTER_TEACH,
+  RPG_STEERING_LICENSE,
+} from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
 import { expect, test } from "../../../../support/fixtures";
 
 /** A minimal empty tracker view (a fresh game — no state to report). */
@@ -43,7 +49,17 @@ function emptyState(): RpgSnapshotState {
 
 /** A reminder input with the delta pair defaulted to a no-change (omitted-block) pair. */
 function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
-  return { view: emptyView(), steeringNote: "", curSnapshot: emptyState(), prevSnapshot: emptyState(), relationshipHints: {}, rosterNames: {}, ...over };
+  return {
+    view: emptyView(),
+    steeringNote: "",
+    curSnapshot: emptyState(),
+    prevSnapshot: emptyState(),
+    relationshipHints: {},
+    rosterNames: {},
+    deception: false,
+    omniscience: false,
+    ...over,
+  };
 }
 
 test("a fresh game reminder is just the license (no phantom empty headers; no-change delta omitted)", () => {
@@ -189,4 +205,40 @@ test("the first-snapshot delta labels the born state as SCENE OPENS (not everyth
   expect(out).toContain("SCENE OPENS");
   expect(out).toContain("The Rusty Anchor");
   expect(out).not.toContain("CHANGES SINCE LAST BEAT");
+});
+
+// ── P3 §3.3: the hidden-channel teaching blocks compose config-gated, before the license ──
+
+test("both hidden channels OFF ⇒ no teaching block (byte-identical to a pre-P3 reminder)", () => {
+  const out = buildLiteReminder(input({ deception: false, omniscience: false }));
+  expect(out).toBe(RPG_STEERING_LICENSE);
+  expect(out).not.toContain("<lie");
+  expect(out).not.toContain("<ofilter");
+});
+
+test("deception ON composes RPG_DECEPTION_TEACH before the license; omniscience OFF ⇒ no ofilter teach", () => {
+  const out = buildLiteReminder(input({ deception: true, omniscience: false }));
+  expect(out).toContain(RPG_DECEPTION_TEACH);
+  expect(out.indexOf(RPG_DECEPTION_TEACH)).toBeLessThan(out.indexOf(RPG_STEERING_LICENSE));
+  expect(out).not.toContain(RPG_OFILTER_TEACH);
+  // The teach shows the self-closing tag grammar the tokenizer recognizes.
+  expect(out).toContain("<lie ");
+});
+
+test("omniscience ON composes RPG_OFILTER_TEACH; both ON compose both, in order", () => {
+  const ofilterOnly = buildLiteReminder(input({ deception: false, omniscience: true }));
+  expect(ofilterOnly).toContain(RPG_OFILTER_TEACH);
+  expect(ofilterOnly).not.toContain(RPG_DECEPTION_TEACH);
+
+  const both = buildLiteReminder(input({ deception: true, omniscience: true }));
+  expect(both.indexOf(RPG_DECEPTION_TEACH)).toBeLessThan(both.indexOf(RPG_OFILTER_TEACH));
+  expect(both.indexOf(RPG_OFILTER_TEACH)).toBeLessThan(both.indexOf(RPG_STEERING_LICENSE));
+});
+
+test("the teaching tags are TOKENIZER-VALID self-closing spans the HIDDEN_TAGS registry recognizes", () => {
+  // The teach strings SHOW the model the exact grammar; a malformed example would train malformed output. Prove
+  // an emitted lie in that shape tokenizes to a hidden span (so the member-strip + reveal will catch it live).
+  const emitted = '<lie character="Mari" type="motive" truth="she wants the gold" reason="greed" />';
+  const spans = tokenizeContent(emitted);
+  expect(spans.some((s) => s.kind === "hidden" && s.tag === "lie")).toBe(true);
 });

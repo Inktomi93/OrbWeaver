@@ -1,3 +1,4 @@
+export { RelationshipBadge } from "./relationship-badge";
 export type {
   AmbientStripProps,
   BeatLineProps,

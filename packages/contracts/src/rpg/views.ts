@@ -9,6 +9,7 @@ import type { RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
 import type { RpgCastField, RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
+import type { RpgPoolDef } from "./sheet";
 import type { RpgPresentCharacter, RpgWidgetDef } from "./snapshot";
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
@@ -39,7 +40,8 @@ export interface RpgActorView {
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    readonly poolDefs: readonly { readonly name: string; readonly max: number }[];
+    /** DERIVED from the one pool-def home — carries the host-pickable `color` (null ⇒ ordinal ramp). */
+    readonly poolDefs: readonly RpgPoolDef[];
     readonly maxHp: number | null;
     /** The hand-only progression level (§2.6) — null renders nothing (nullable-honesty, no phantom "Level 0"). */
     readonly level: number | null;
@@ -113,4 +115,49 @@ export interface RpgConfigView {
    *  per-custom-relationship-kind steering hints on this editor surface. */
   readonly castFields: RpgGameConfig["features"]["castFields"];
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
+  /** The P3 hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
+   *  teaching + the member reasoning-strip; `hiddenContentReveal` (M4) governs the host's reveal eye;
+   *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice (the P3 fold). */
+  readonly deception: boolean;
+  readonly omniscience: boolean;
+  readonly hiddenContentReveal: boolean;
+  readonly recentBeatsKeepLast: number;
+}
+
+/** ONE parsed hidden span from a stored assistant body (parity-plus §3.6 host-reveal). `tag` is the
+ *  `HIDDEN_TAGS` registrant (`lie`/`ofilter`); `fields` is the tag's declared attrs projected in registry order
+ *  (`character/type/truth/reason` for a lie; `event/reason` for an ofilter) so the reveal panel renders labelled
+ *  fields without re-deriving the field set. A missing attr projects `""` (the model omitted it). */
+export interface RpgRevealedSpan {
+  readonly tag: string;
+  readonly revealLabel: string;
+  readonly fields: readonly { readonly key: string; readonly value: string }[];
+}
+
+/** The per-message reveal payload (§3.6 the "eye") — the hidden spans tokenized out of ONE assistant slot's
+ *  stored (selected-variant) body, in emission order. Host-gated server-side; a member never receives this. */
+export interface RpgRevealedMessage {
+  readonly messageId: string;
+  readonly spans: readonly RpgRevealedSpan[];
+}
+
+/** ONE character's STANDING lie in the inventory (§3.6, BEYOND marinara) — the most-recent lie per
+ *  (character, truth) across the visible selected-variant transcript. `messageId` anchors where it was told so
+ *  the host can jump to it. */
+export interface RpgStandingLie {
+  readonly character: string;
+  readonly type: string;
+  readonly truth: string;
+  readonly reason: string;
+  readonly messageId: string;
+}
+
+/** `revealHidden` (HOST-gated, §3.6) — the whole host-reveal read for a game: the per-message parsed hidden
+ *  content (the eye's data) PLUS the standing-lie inventory grouped by character. A READ over the stored bodies
+ *  (no new table); a member never reaches this verb (leak-free NOT_FOUND). Empty (`messages: []`,
+ *  `standingLies: []`) when the game has no hidden content — a clean host-plane read. */
+export interface RpgRevealView {
+  readonly messages: readonly RpgRevealedMessage[];
+  /** The standing lies grouped by character (each character's active lies, most-recent-wins per truth). */
+  readonly standingLies: readonly { readonly character: string; readonly lies: readonly RpgStandingLie[] }[];
 }

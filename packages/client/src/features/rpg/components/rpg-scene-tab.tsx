@@ -1,7 +1,9 @@
-// The Scene tab (Context-Panel-Program §4.4 — lite's CENTERPIECE): AmbientStrip → present-cast CastCards →
-// GoalLines → subjectName-grouped custom widgets → last-3 BeatLines ("Just now"). Scene = NOW; Journal = the
-// record (window vs archive — Journal is APPLICABILITY-omitted in lite, §4.4). This is where the CP-3 tracker
-// blocks live once the chat is a game.
+// The SCENE tab (panel-redesign DESIGN.md §4 "Scene" — the NOW window): AmbientStrip → present-cast
+// CastCards → GOALS (a PROJECTION of the quest plane — active-only compact echo of the SAME `quests` rows
+// the Quests tab homes, §12.1.8; one datum, two lenses) → subjectName-grouped custom widgets (accent rides
+// the §12.1.2 ward: a stored `widget.accent` must pass the strict hex/OKLCH grammar, else it heals to the
+// ordinal ramp) → the P5 CHOICE-echo shell (wired-when-ready — no choice plane exists; renders nothing
+// until CYOA lands) → last-3 BeatLines ("Just now"). Scene = window; Journal = archive.
 //
 // EDIT-in-place (§3.2), all host-only in v1 (`canEditShared`, which also folds the read-only pill's honest
 // arm): ambient fields + widget values ride `editSnapshot` (whole-array/record overlay under [merge-clear]);
@@ -9,6 +11,7 @@
 
 import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -16,7 +19,9 @@ import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#component
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
-import { trackColor } from "../lib/track-color";
+import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
+import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
+import { RpgDoorwayLine } from "./rpg-doorway-line";
 
 const RECENT_BEATS = 3;
 
@@ -69,25 +74,46 @@ export interface RpgSceneTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The lite Scene tab — ambient, cast, goals, widgets, beats. */
-export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
+/** The Scene tab's edit callbacks, gated once on `canEditShared` (host on a game — hand edits are NOT
+ *  gated by `trackersReadOnly`, D108). Splitting them out keeps the tab body under the complexity gate. */
+interface SceneEditCallbacks {
+  readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
+  readonly onEditGoal?: (questId: RpgSceneQuest["id"], next: string) => void;
+  readonly castEdit?: SceneCastEdit;
+  readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
+}
+
+function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   const { tracker, canEditShared, chatId } = state;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
   const upsertQuest = useUpsertQuest({ trpc, invalidation });
+  if (!canEditShared) {
+    return {};
+  }
+  return {
+    onEditAmbient: (field, next): void => {
+      const patch = ambientPatch(field, next, tracker.ambient?.clock?.day ?? 1);
+      if (patch !== null) {
+        editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
+      }
+    },
+    onEditGoal: (questId, next): void => upsertQuest.mutate({ chatId, questId, name: next }),
+    castEdit: { onEditCast: (patch): void => editSnapshot.mutate({ chatId, patch }) },
+    // Widget VALUES ride editSnapshot's `widgetValues` record (keyed by widget label — the value plane's key).
+    onEditWidget: (label, current, next): void =>
+      editSnapshot.mutate({ chatId, patch: { widgetValues: { [label]: { ...(current ?? {}), value: Math.max(0, next) } } } }),
+  };
+}
+
+/** The lite Scene tab — ambient, cast, goals, widgets, beats. */
+export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
+  const { tracker } = state;
+  const { onEditAmbient, onEditGoal, castEdit, onEditWidget } = useSceneEdits(state);
 
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
   const groups = widgetsBySubject(tracker.widgets);
-
-  const onEditAmbient = canEditShared
-    ? (field: "location" | "date" | "timeOfDay" | "weather", next: string): void => {
-        const patch = ambientPatch(field, next, tracker.ambient?.clock?.day ?? 1);
-        if (patch !== null) {
-          editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
-        }
-      }
-    : undefined;
 
   const ambient = tracker.ambient;
   const ambientProps: Parameters<typeof AmbientStrip>[0] = {
@@ -98,14 +124,15 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
     ...(onEditAmbient === undefined ? {} : { onEditField: onEditAmbient }),
   };
 
-  const onEditGoal = canEditShared ? (questId: RpgSceneQuest["id"], next: string): void => upsertQuest.mutate({ chatId, questId, name: next }) : undefined;
-
   return (
     <Stack gap="section" data-slot="rpg-scene-tab">
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientProps} />}
-      <SceneCast cast={tracker.cast} castFields={tracker.castFields} />
-      <SceneGoals quests={tracker.quests} {...(onEditGoal === undefined ? {} : { onEditGoal })} />
-      <SceneWidgets groups={groups} />
+      <SceneCast cast={tracker.cast} castFields={tracker.castFields} {...(castEdit === undefined ? {} : { edit: castEdit })} />
+      {/* The Goals section is a filtered ECHO of the quest plane (§12.1.8): ACTIVE only, compact rows —
+          the Quests tab is the plane's home. One datum, two lenses, zero divergent state. */}
+      <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} {...(onEditGoal === undefined ? {} : { onEditGoal })} />
+      <RpgChoiceEcho choices={[]} />
+      <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} />
       <SceneBeats beats={beats} />
     </Stack>
   );
@@ -144,15 +171,57 @@ function castFieldViews(
   return { meters, texts };
 }
 
-function SceneCast({ cast, castFields }: { readonly cast: RpgTrackerView["cast"]; readonly castFields: RpgTrackerView["castFields"] }): ReactElement {
+/** The whole-`presentCharacters` overlay for one cast member's one-field change ([merge-clear]: the array
+ *  is a full replace, rebuilt from the live cast with the target member patched). Used by every cast edit
+ *  (mood, relationship kind, cast-field value) so all cast writes share one patch shape. */
+function castPatch(
+  cast: RpgTrackerView["cast"],
+  key: string,
+  mutate: (m: RpgTrackerView["cast"][number]) => RpgTrackerView["cast"][number],
+): Record<string, unknown> {
+  return { presentCharacters: cast.map((m) => (m.key === key ? mutate(m) : m)) };
+}
+
+interface SceneCastEdit {
+  readonly onEditCast: (patch: Record<string, unknown>) => void;
+}
+
+function SceneCast({
+  cast,
+  castFields,
+  edit,
+}: {
+  readonly cast: RpgTrackerView["cast"];
+  readonly castFields: RpgTrackerView["castFields"];
+  readonly edit?: SceneCastEdit;
+}): ReactElement {
   if (cast.length === 0) {
-    return <Text tone="muted">No one on stage yet.</Text>;
+    // The honest empty-cast doorway (§12.1.5): the scene fills from the story; nothing to author by hand here.
+    return <RpgDoorwayLine>No one on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
+  // Label→key map for cast-field text chips (chips carry the LABEL; customFields keys by field KEY).
+  const keyByLabel = new Map(castFields.map((f) => [f.label, f.key]));
   return (
     <Stack gap="field">
       <SectionLabel>On stage — {cast.length}</SectionLabel>
       {cast.map((member) => {
         const { meters, texts } = castFieldViews(member.customFields, castFields);
+        const editProps =
+          edit === undefined
+            ? {}
+            : {
+                onEditMood: (next: string): void => edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, mood: next }))),
+                onEditRelationshipKind: (next: RpgTrackerView["cast"][number]["relationship"]["kind"]): void =>
+                  edit.onEditCast(
+                    castPatch(cast, member.key, (m) => ({ ...m, relationship: { kind: next, label: next === "custom" ? m.relationship.label : "" } })),
+                  ),
+                onEditField: (label: string, next: string): void => {
+                  const fieldKey = keyByLabel.get(label);
+                  if (fieldKey !== undefined) {
+                    edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, customFields: { ...m.customFields, [fieldKey]: next } })));
+                  }
+                },
+              };
         return (
           <CastCard
             key={member.key}
@@ -160,10 +229,35 @@ function SceneCast({ cast, castFields }: { readonly cast: RpgTrackerView["cast"]
             {...(member.mood === "" ? {} : { mood: member.mood })}
             relationship={member.relationship}
             fields={texts}
+            // The relationship KIND glyph (the §12.5.5 closed-vocab Record) leads the edit-mode picker.
+            relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[member.relationship.kind]} size="xs" className="shrink-0 text-muted-foreground" />}
+            {...editProps}
             {...(meters.length === 0
               ? {}
               : {
-                  meters: meters.map((m, i) => <MeterRow key={m.key} label={m.label} value={m.value} max={m.max} color={trackColor(i)} />),
+                  meters: meters.map((m, i) => {
+                    const fieldKey = keyByLabel.get(m.label);
+                    return (
+                      <MeterRow
+                        key={m.key}
+                        label={m.label}
+                        value={m.value}
+                        max={m.max}
+                        color={trackColor(i)}
+                        {...(edit === undefined || fieldKey === undefined
+                          ? {}
+                          : {
+                              onEditValue: (next: number): void =>
+                                edit.onEditCast(
+                                  castPatch(cast, member.key, (mem) => ({
+                                    ...mem,
+                                    customFields: { ...mem.customFields, [fieldKey]: String(Math.max(0, next)) },
+                                  })),
+                                ),
+                            })}
+                      />
+                    );
+                  }),
                 })}
           />
         );
@@ -204,7 +298,13 @@ function SceneGoals({
   );
 }
 
-function SceneWidgets({ groups }: { readonly groups: ReadonlyMap<string, readonly RpgWidgetView[]> }): ReactElement | null {
+function SceneWidgets({
+  groups,
+  onEditWidget,
+}: {
+  readonly groups: ReadonlyMap<string, readonly RpgWidgetView[]>;
+  readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
+}): ReactElement | null {
   if (groups.size === 0) {
     return null;
   }
@@ -214,11 +314,56 @@ function SceneWidgets({ groups }: { readonly groups: ReadonlyMap<string, readonl
         <Stack key={subject} gap="field">
           <SectionLabel>{subject}</SectionLabel>
           {subjectWidgets.map((widget, i) => (
-            <MeterRow key={widget.def.label} label={widget.def.label} value={widget.value?.value ?? 0} max={widget.value?.max ?? 0} color={trackColor(i)} />
+            <MeterRow
+              key={widget.def.label}
+              label={widget.def.label}
+              value={widget.value?.value ?? 0}
+              max={widget.value?.max ?? 0}
+              // The widget's TYPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden
+              // decoration; the label stays the datum).
+              leading={<Icon icon={WIDGET_TYPE_GLYPHS[widget.def.type]} size="xs" className="shrink-0 text-muted-foreground" />}
+              // The accent WARD (§12.1.2): a stored accent renders only when it passes the strict
+              // hex/OKLCH grammar; anything else heals to the ordinal ramp.
+              {...trackColorProps(resolveAccentColor(widget.def.accent, i))}
+              {...(onEditWidget === undefined ? {} : { onEditValue: (next: number): void => onEditWidget(widget.def.label, widget.value, next) })}
+            />
           ))}
         </Stack>
       ))}
     </>
+  );
+}
+
+// ─── The P5 CHOICE echo — the wired-when-ready shell (info-blue voice) ───────────────────────────
+
+/**
+ * One offered choice — the P5 (CYOA) forward-seam shape the choice plane will supply.
+ * @public P5 forward-seam (panel-redesign DESIGN.md §6 P5) — unwired ≠ worthless; the CYOA lane fills it.
+ */
+export interface RpgSceneChoice {
+  readonly id: string;
+  readonly text: string;
+}
+
+/** The "Choice on the table" block (§6 P5 — moment-scale CYOA; info blue, numbered). Renders NOTHING
+ *  until the choice plane exists — the honest empty plane, never filler. LOCAL (rendered in-file with an
+ *  empty list today); the P5 lane wires real `choices` (+ the pick verb; the wand owns the send — this
+ *  block is the echo). The `RpgSceneChoice` prop type stays exported as the seam's published shape. */
+function RpgChoiceEcho({ choices }: { readonly choices: readonly RpgSceneChoice[] }): ReactElement | null {
+  if (choices.length === 0) {
+    return null;
+  }
+  return (
+    <Stack gap="field" data-slot="rpg-choice-echo" className="rounded-card border border-info bg-card px-block py-row">
+      <Text size="label" transform="caps" className="tracking-micro text-info">
+        Choice on the table
+      </Text>
+      {choices.map((choice, i) => (
+        <Text key={choice.id} size="label">
+          {i + 1}. {choice.text}
+        </Text>
+      ))}
+    </Stack>
   );
 }
 

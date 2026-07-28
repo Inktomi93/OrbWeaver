@@ -6,6 +6,24 @@
 
 import { z } from "zod";
 
+/** The strict pool-color grammar (panel-redesign, owner-ruled FREE HEX): a 3/6-digit hex or a numeric
+ *  `oklch(L C H)` (optional `deg` hue + `/ alpha`) — a COLOR literal, never raw CSS (no `var()`, no
+ *  `color-mix()`, no url/expression vector). Free hex deliberately does NOT theme-adapt — accepted: the
+ *  bar/orb geometry is decorative (aria-hidden), the value TEXT rides theme tokens. ASCII match, no `u`. */
+export const RPG_POOL_COLOR_RE = /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|oklch\(\s*\d+(\.\d+)?%?\s+\d+(\.\d+)?\s+\d+(\.\d+)?(deg)?\s*(\/\s*\d+(\.\d+)?%?\s*)?\))$/;
+
+/** A single pool DEFINITION — the mechanical dial (name + max) plus the host-pickable display `color`
+ *  (nullable; null ⇒ the ordinal track-ramp derivation `trackColor(i)`, panel-redesign §12.1.2). ONE schema
+ *  home: the sheet blob, the `patchSheet` wire input, and the view projection all derive from THIS (never
+ *  re-spell). `color` is hand-only (absent from the extraction schema + every tool arg — unwritable by the
+ *  model); a pre-redesign blob heals to null at the parse seam via the `.default`. */
+export const rpgPoolDefSchema = z.object({
+  name: z.string().min(1),
+  max: z.number().int().min(1),
+  color: z.string().regex(RPG_POOL_COLOR_RE).nullable().default(null),
+});
+export type RpgPoolDef = z.infer<typeof rpgPoolDefSchema>;
+
 /** The per-actor character sheet — identity-plane data. `attributes` keys off the game's `statProfile`
  *  vocabulary (an int per attribute); `poolDefs`/`maxHp` are the lite-live mechanical dials the volatile
  *  plane's values track against. `className` is flavor prose. Full ADDS skills/abilities/strengths/
@@ -13,7 +31,7 @@ import { z } from "zod";
 export const rpgSheetSchema = z.object({
   className: z.string().default(""),
   attributes: z.record(z.string(), z.number().int()).default({}),
-  poolDefs: z.array(z.object({ name: z.string().min(1), max: z.number().int().min(1) })).default([]),
+  poolDefs: z.array(rpgPoolDefSchema).default([]),
   maxHp: z.number().int().min(1).nullable(),
   flavor: z.string().default(""),
   // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:

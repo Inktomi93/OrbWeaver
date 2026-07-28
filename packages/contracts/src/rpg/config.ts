@@ -16,6 +16,12 @@ export const RPG_STEERING_NOTE_MAX = 500;
 /** The steering-hint cap — a short prose gloss (M1 relationship hints + §2.8 cast-field hints). */
 export const RPG_HINT_MAX = 120;
 
+/** The recent-beats keep-last default (P3 fold): `snapshot.recentEvents` is an append-only durable log (the
+ *  journal keeps the full record); the REMINDER read slices it to the last N so the steering injection never
+ *  bloats the prompt with the whole scene history. A sane floor — enough beats for continuity, bounded for
+ *  budget/cache. `0` = keep none (the reminder drops the "Recent beats" block); the durable log is untouched. */
+export const RPG_RECENT_BEATS_KEEP_DEFAULT = 8;
+
 /** A host-DEFINED tracked cast-field schema (parity-plus §2.8). The host declares which fields cast members
  *  carry per game; the model writes DEFINED keys only (enum-constrained at projection, §2.3). `meter` renders a
  *  0-max `TrackBar` and diffs numerically; `text` is a free chip diffed as a transition. First-class beats the
@@ -35,12 +41,33 @@ export type RpgCastField = z.infer<typeof rpgCastFieldSchema>;
  *  column). `castFields` empty = the cast-field feature is OFF (no half-state — a defined field or nothing).
  *  `relationshipHints` maps a custom relationship `label` → a steering gloss (M1: a bare custom label steers as
  *  precisely as the five built-ins when the host glosses it; the hint is a property of the VOCAB, one home, not
- *  duplicated per cast row). */
+ *  duplicated per cast row).
+ *
+ *  P3 hidden-channel knobs (§3.3/§3.6): `deception` teaches `<lie …/>`, `omniscience` teaches `<ofilter …/>` —
+ *  both default OFF (opt-in mechanics). EITHER on = the game is DECEPTION-ACTIVE, which (a) composes the teaching
+ *  block into the reminder and (b) flips the REASONING channel HOST-ONLY for members (a deceptive model can spill
+ *  a lie's truth in the thinking channel — the whole-channel host-only gate is the clean threat boundary, §3.6).
+ *  `hiddenContentReveal` (M4, default ON) governs whether the HOST is offered the reveal eye at all — off = the
+ *  host runs PURE hidden (no peek even for themselves); it NEVER changes the member-strip (a member never reads
+ *  hidden bytes regardless) nor the wire (the model always remembers). `recentBeatsKeepLast` caps the reminder's
+ *  Recent-beats slice (the P3 fold — the durable log stays append-only). */
 export const rpgGameFeaturesSchema = z.object({
   castFields: z.array(rpgCastFieldSchema).default([]),
   relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
+  deception: z.boolean().default(false),
+  omniscience: z.boolean().default(false),
+  hiddenContentReveal: z.boolean().default(true),
+  recentBeatsKeepLast: z.number().int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
 });
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
+
+/** Is a game's config DECEPTION-ACTIVE (parity-plus §3.6)? True when either hidden channel is on — the ONE
+ *  predicate that (a) gates the teaching-block composition and (b) drives the member reasoning-host-only strip.
+ *  Homed here so the injected chat op (`resolveReasoningHostOnly`) and the reminder assembler agree on ONE
+ *  definition — a drift between "teach deception" and "strip reasoning" would leak the thinking channel. */
+export function isDeceptionActive(features: RpgGameFeatures): boolean {
+  return features.deception || features.omniscience;
+}
 
 /** The delivery-model knob (the 2026-07-26 amendment). `reliable` = a dedicated structured-output extraction
  *  turn proves state landed; `cheap` = the state tools ride the character turn, best-effort. An ADDITIVE
@@ -60,9 +87,11 @@ export const rpgGameConfigSchema = z.object({
     })
     .default({ steeringNote: "" }),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).default("reliable"),
-  // The parity-plus feature knobs (§2.8/§2.1 M1) — additive, self-healing at the parse seam (a pre-P1 blob
-  // fills the defaults: no cast-fields, no relationship hints).
-  features: rpgGameFeaturesSchema.default({ castFields: [], relationshipHints: {} }),
+  // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — additive, self-healing at the parse seam (a
+  // pre-feature blob absent from a stored config parses to the all-defaults features via the sub-schema, so the
+  // P3 knobs heal in without a version stamp). The function default parses `{}` through the sub-schema so EVERY
+  // inner default fills (a bare `{}` object literal wouldn't satisfy the fully-required output type).
+  features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
   // WAVE MU (§12A.5 M5, owner ruling #20): GAME-authored user macros — the game half of the two-home
   // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
   // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source

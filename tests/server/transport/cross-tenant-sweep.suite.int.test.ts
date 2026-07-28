@@ -777,6 +777,8 @@ const PROBES: readonly Probe[] = [
   { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
   { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
   { path: "rpg.getConfigView", call: (c, i) => c.rpg.getConfigView({ chatId: i.chatId }) },
+  // §3.6 host-reveal read — a foreign chatId must collapse to leak-free NOT_FOUND (host gate inside the verb).
+  { path: "rpg.revealHidden", call: (c, i) => c.rpg.revealHidden({ chatId: i.chatId }) },
   { path: "rpg.listCheckpoints", call: (c, i) => c.rpg.listCheckpoints({ chatId: i.chatId }) },
 ];
 

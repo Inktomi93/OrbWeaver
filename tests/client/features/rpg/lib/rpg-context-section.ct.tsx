@@ -89,27 +89,48 @@ function trackerView(trackersReadOnly: boolean): unknown {
   };
 }
 
-function stubTakeover(page: Page, opts: { readonly readOnly?: boolean } = {}): ReturnType<typeof routeTrpc> {
+// A `rpg.revealHidden` stub — the P3 host-reveal read the Veiled ledger (Status, host-only) tails. Default
+// EMPTY (no hidden content ⇒ the ledger renders nothing); `standingLies` carries the crown-gold rows.
+function revealView(
+  lies: readonly { readonly character: string; readonly type: string; readonly truth: string; readonly reason: string; readonly messageId: string }[] = [],
+): unknown {
+  const byCharacter = new Map<string, typeof lies>();
+  for (const lie of lies) {
+    byCharacter.set(lie.character, [...(byCharacter.get(lie.character) ?? []), lie]);
+  }
+  return {
+    messages: [],
+    standingLies: [...byCharacter.entries()].map(([character, characterLies]) => ({ character, lies: characterLies })),
+  };
+}
+
+function stubTakeover(page: Page, opts: { readonly readOnly?: boolean; readonly reveal?: unknown } = {}): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
     "chat.getChat": () => gameChat(),
     "rpg.getGame": () => gameView(readOnly),
     "rpg.getTrackerView": () => trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
+    "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened).
     "chat.listChatInjections": () => [],
   });
 }
 
-test("the takeover renders the 4 LITE game tabs (in the Game strip) when chat.rpg !== null, meta strip below", async ({ mount, page }) => {
+test("the takeover renders the 6 LIVE game tabs + the locked Map (in the Game strip) when chat.rpg !== null, meta strip below", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  // The four rpg game tabs live in the "Game" strip (the §4.2 bracket's top row).
+  // The redesign's top strip (panel-redesign §4): 6 live game tabs — Quests + Journal are LIVE lite tabs
+  // (the owner correction), never APPLICABILITY-omitted.
   const gameStrip = component.getByRole("tablist", { name: "Game" });
-  await Promise.all(["Status", "Sheet", "Inventory", "Scene"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()));
-  // Quests/Journal/Map are lite APPLICABILITY-omitted — never contributed.
-  await expect(gameStrip.getByRole("tab", { name: "Quests" })).toHaveCount(0);
+  await Promise.all(
+    ["Status", "Sheet", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()),
+  );
+  // Map is the ONE PHASE-locked tab: visible + aria-disabled with its reason on title (never hidden).
+  const mapTab = gameStrip.getByRole("tab", { name: "Map" });
+  await expect(mapTab).toBeVisible();
+  await expect(mapTab).toHaveAttribute("aria-disabled", "true");
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row).
   const metaStrip = component.getByRole("tablist", { name: "Chat" });
   await expect(metaStrip.getByRole("tab", { name: "Settings" })).toBeVisible();
@@ -150,20 +171,37 @@ test("an editable pool value fires the editSnapshot mutation (host, writable) �
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
-test("read-only trackers: the pill shows AND edits are disabled (no editable field ⇒ no mutation possible)", async ({ mount, page }) => {
+test("read-only trackers: the pill shows BUT the host still hand-edits (D108 — trackersReadOnly gates the MODEL write path only)", async ({ mount, page }) => {
   await stubTakeover(page, { readOnly: true });
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // The honest-arms read-only pill (§4.4).
-  await expect(component.getByText("Trackers read-only")).toBeVisible();
-  // No editable pool field renders (the value is static datum text, not an input) — the edit is DISABLED,
-  // never a silent drop. This STRUCTURALLY proves no mutation can fire (there is no control to fire it); the
-  // static value still reads inside the roster row's meter (scoped past the header orb readouts, which also
-  // print "24/30"). A retrying `toHaveCount(0)` is the disabled-edit assertion (not a one-shot count read).
-  await expect(component.getByRole("textbox", { name: "Vitality value" })).toHaveCount(0);
-  await expect(component.locator('[data-slot="meter-row"]').filter({ hasText: "Vitality" }).first().getByText("24/30")).toBeVisible();
+  // The honest-arms read-only pill (§4.4; the redesign band's compact label) — the affordance, not a lock.
+  await expect(component.getByText("Read-only")).toBeVisible();
+  // D108 manual-steering (owner-confirmed 2026-07-28): `trackersReadOnly` disables the MODEL write path, NOT
+  // the host's HAND edits — when the model can't write trackers, the host hand-edits every plane (the pill's
+  // "edit them by hand" IS the affordance). So a host STILL sees the editable pool field under readonly;
+  // conflating the two disabled the exact recovery the read-only state exists to enable.
+  await expect(component.getByRole("textbox", { name: "Vitality value" })).toBeVisible();
+});
+
+test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidden — crown-gold, host-only", async ({ mount, page }) => {
+  await stubTakeover(page, {
+    reveal: revealView([
+      { character: "Sera", type: "lie", truth: "she pocketed the key", reason: "claims she never touched it", messageId: "message_ct_beat_t41" },
+    ]),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // The ledger section header + the standing lie's character, public claim, and the host-only TRUTH — LIVE
+  // off the P3 `rpg.revealHidden` read (the deception plane), not a placeholder.
+  await expect(component.getByText("Veiled — host only")).toBeVisible();
+  await expect(component.getByText("she pocketed the key")).toBeVisible();
+  // The TurnRef chip anchors where it was told (the trailing-id short form).
+  await expect(component.getByText("t_t41")).toBeVisible();
 });
 
 // FIX 3 runs on a COARSE (touch) pointer: the design system deliberately compresses controls below 44px on a

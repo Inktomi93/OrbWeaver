@@ -742,7 +742,8 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     // The attach probe carries the caller's own D16 floor alongside the window (the SSE live loop clamps on
     // it) — `me` is the born-here host, so it is the unclamped 0.
     const bounds = await chatEventBounds({ principal: principal(me), chatId });
-    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: true });
+    // `reasoningHostOnly` is false — the host reads verbatim, and a plain chat is never deception-active.
+    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: true, reasoningHostOnly: false });
 
     // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
     await expect(replayChatEvents({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);

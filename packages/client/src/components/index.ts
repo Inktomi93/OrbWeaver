@@ -38,4 +38,4 @@ export type {
   TrackerChipProps,
   TrackerValueProps,
 } from "./tracker-blocks";
-export { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow, StatCell, TrackerChip, TrackerValue } from "./tracker-blocks";
+export { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow, RelationshipBadge, StatCell, TrackerChip, TrackerValue } from "./tracker-blocks";
