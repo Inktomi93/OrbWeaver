@@ -19,6 +19,52 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
+## ═══ ▶▶▶ SESSION STATE 2026-07-28 EOD — READ THIS FIRST (supersedes every block below) ═══
+
+**HEAD = `8306a2b9`** (main, commit-only, NEVER pushed). Owner is heading into DOGFOODING — the bar is:
+rpg working IN FULL · all guided options exposed+usable+working · forking working properly.
+
+**LANDED THIS SESSION (committed, whole-tree green, pre-commit re-verified each):**
+- `dba7e378..8eb6e427` — the **a9361256 comprehensive lane** (Fable): the RPG OVERLAY model (on/off any time,
+  draft-time enable, steer-less opening), per-field pins (#10), editability (#2), pool rename-carry (#11),
+  #40 front-door, pool hints (#36), inventory location/list/icon (#37), GM-console overflow, Scene-goal nav (#39),
+  wand consolidation (#41), #9 narrated date, + the getGame-404 owner-blocker + the AbortError swallow.
+  **NOT REACHED by that lane: #1 META-TABS redesign (settings/injections/preview) — still unbuilt.**
+- `55f36973` — **extraction SAD-PATH fix**: establish-when-unset (constrainExtractionSchema + ExtractionRefs.
+  `establishScene`) forces scene.location/timeOfDay + non-empty presentUpsert REQUIRED while unset → the 8B
+  populates the scene (was `{}`). xgrammar enforces required+minItems. [[xgrammar-enforced-schema-is-the-populate-lever]].
+- `8306a2b9` — **fork STOPGAP**: `forkMetadataWithoutGame` drops the dangling rpg pointer so a fork is a valid
+  plain chat (no crash). The PROPER fork-clone is designed + queued (below).
+
+**➤ THE CRUNCHY-CLUSTER REDESIGN — DESIGNED, OWNER-REVIEWED, GREENLIT** (Fable designer `a5dbdcea812e9d552`;
+`reports/design-refs/crunchy-cluster-redesign/DESIGN.md`). Solves the interconnected cluster owner surfaced while
+dogfooding: (1) EXTRACTION rides the turn's own canon transcript (zero extra reads — the engine already holds
+`canonAll` at `engine.ts:1189`); knob `beat|window|full` (default window@4k) + reconcile-every-10 + `resyncFromStory`
+host verb; plane-prompt registry (plot/widgets/customFields were unprompted); state-JSON leak fix. (2) WAND =
+owner's SillyTavern control map — ☰ (=our ⋯ relocated left) · ✨ utility menu · FOUR always-visible dual-mode icons
+(impersonate·swipe·response·continue; empty=plain, text=guided; Response hosts empty-generate + fixes can't-fire-
+twice via `responseNudge`; swipe keeps the composer, the rest clear-and-restore-on-fail; Recover=recall last steer)
++ the draft/committed matrix (all icons show, phase-gated legibly). (3) FORK CLONES THE GAME (`ChatRpgOps.forkGame`
+remapping per-variant snapshots/journal through a `variantIdMap`; host-secret strips) + dangling-pointer heal.
+(4) SWEEP: blank-"Group"-bubble root cause (empty narrator mint rides prompt → `excludedFromPrompt`); panel-beauty
+punch list; #1 meta-tabs deferred. **OWNER DECISIONS: 1–6,8 ratified as recommended; #7 (deception→tracker) = A
+(tracker shows the players' SURFACE reality; hidden truth stays in the reveal/reasoning channel). Proposed D111.**
+9-WAVE build sequence (W-A silent-slots · W-B extraction · W-C resync[sec] · W-D wand · W-E empty-send · W-F fork-
+clone[sec] · W-G heal · W-H panel-beauty · W-I ledger). W-C/W-F → **security-executor** per doctrine.
+
+**BUILD IN FLIGHT (dogfood priority):** the Fable designer builds the NON-security functional waves on main,
+serial+commit-each (order: silent-slots → WAND → extraction → heal; panel-beauty after). `security-executor`
+builds W-F fork-clone (own lane). W-C resync = deferred (escape-hatch, not dogfood-critical).
+
+**DEFERRED / STILL-OWED (logged so it isn't lost):** #1 META-TABS redesign (settings/injections/preview) ·
+PANEL BEAUTY (W-H — dead space, tiny Waystone, asymmetric roster cards, dup orb numbers, header hierarchy,
+bar-color grammar — punch list in the DESIGN.md §4.2) · resync-from-story escape hatch (W-C) · fork RESILIENCE
+heal for pre-fix forks (W-G) · task #24 MU picks pane · #16 engine sleep live-characterization · the flakes/
+facelift ledgers below. STACK: `:5173`/`:8788` UP with `VLLM_DISABLED=false` + `WIRE_CAPTURE=on` (flipped this
+session — gen engine adopted at :8703); chat.send works on chat-completions×vllm; the sad-path is the 8B floor.
+
+**═══════════════════════════════════════════════════════════════════════════════════════════════**
+
 ## ═══ ▶▶▶ ✅ PARITY-PLUS FOUNDATION COMMITTED + PUSHED — `ecf98497` · PANEL REDESIGN DELIVERED (2026-07-27 EOD) ═══
 **THE BATCH LANDED + PUSHED to origin/main** (180 files; pre-commit hook re-ran the full static gate = 12/12
 green; **owner EXPLICITLY authorized the push + `--no-verify`** — the pre-PUSH hook re-runs the whole check,
@@ -130,19 +176,34 @@ spine wave lands. Lane collisions → orch integrates. Morning debrief: this blo
   the P3 invariant-pin test · boot-seed route fix #27 · the world_day column+regen (journal in-world grouping) · the transcript
   reveal-eye (features/chat) · the app-shell mobile topbar #28. LESSON APPLIED: worktree-isolate concurrent big lanes (P6 now) —
   the panel+P3 main-tree coupling forced the commit to wait + serialized the gate-fix rounds.
-- **═══ COMPACT-SAFE SNAPSHOT (2026-07-28 ~04:00, post-P5 — READ THIS FIRST on resume) ═══**
-  **PARITY-PLUS FEATURE PROGRAM = BUILT + TEST-GREEN.** All landed on main (ahead of origin, NEVER pushed):
-  · Panel redesign `db17d2c3` (lock-pin/release · quest-create · inventory diff · max-drag tell · mobile)
-  · P6 macro×rpg feed `5d6f4773` (celBindings chat-turn channel + idle_duration/rpgQuests/rpgDelta; verifier CONFIRMED)
-  · #27 fresh-DB route `82cbd9b2` (E2E-seed fix; PROD was always fine — see [[fresh-db-retired-route-born-readonly]])
-  · #28 mobile topbar `4d2baf82`→`ba8605e7` (title min-6ch floor + shed member-chip/⌘K-label + 44px tap targets)
-  · P4 immersive HTML `d2b48fc2` (:::card lifecycle + lenient arm + Scene card archive + tierB scripts-OFF sandbox; security-executor CLEAR)
-  · P5 CYOA+plot+wand `5d27cd99` (:::choices click-send + snapshot `plot:{act,title,acts}` plane + wand Plot submenu via `gameSteer` enum — ruling-#9 zero-coupling)
-  Merged-main proof: whole-tree `pnpm check` (12 stages) green + battery **8109 vitest/0 + 1493 CT/0**. D110 minted (waves-landed addendum). All worktrees retired.
-  **STACK STATE:** dev DB **RESEEDED fresh** 2026-07-28 (has the P5 `plot` column; `pnpm seed:demo --fresh`) · stack UP on :5173 (server healthz ok) · **`VLLM_DISABLED=true`** (no model engine — the capstone needs it woken: VLLM_DISABLED=false + `pnpm stack restart`).
-  **ORCH NEXT — THE REMAINING GATE = task #26 CAPSTONE:** live full-system E2E (FE=BE=DB with REAL turns — EXTEND the existing `tests/e2e` suite for P3/P4/P5/panel) + a comprehensive **side-eye** taste pass over every new surface (P4 cards · P5 choices/act-rail/wand · the topbar long-title debt I still owe). Needs vLLM woken. THEN parity-plus (#15) is DONE.
-  **PENDING (smaller):** #24 MU picks pane (deferred client) · base-E2E worktree `agent-a173af5d8c9c97082` (stale @`ecf98497` — reconcile INTO #26, don't merge standalone) · P3 invariant-pin test · world_day column+regen · transcript reveal-eye (features/chat).
-  **POSTURE:** overnight full-auto, self-resolve forks + log, NEVER push. Worktree lanes MUST commit before reporting done, and they branch from origin(=stale `ecf98497`) so ALWAYS expect a rebase-onto-main. [[worktree-isolate-concurrent-lanes]] · [[overnight-full-auto-posture]].
+- **═══ COMPACT-SAFE SNAPSHOT (2026-07-28 ~mid-day, post-panel-fidelity — READ THIS FIRST on resume) ═══**
+  **▶ RESUME READ ORDER (do this, in order, don't re-derive):** (1) THIS snapshot block (full state below). (2) Check the comprehensive build lane `a9361256e493acb11` — read its task-output report if done, else it's mid-flight (don't dup). (3) Memories, in priority: [[concurrent-main-lanes-gate-thrash]] (SERIALIZE main lanes; --no-verify+quiesced-gate) · [[side-eye-fix-all-findings]] (fix ALL + aria-nav/click-clip bars) · [[rpg-panel-default-subject-is-user]] + [[snap-rpg-panel-recipe]] (seed via `__orb.seed.game({profile})`; panel default subject=USER) · [[rpg-updateconfig-rebuilds-features]] (mergeFeatures config-reset trap) · [[content-class-wire-is-hardcoded-dispatch]] (declared shape ≠ behavior) · [[live-client-port-5173]] (zombie-server + snap-path + no-long-title-chat traps) · [[e2e-live-verification-facts]] + [[reasoning-cut-durable-replay-leak]] (E2E adopt-only stack; 3 strip paths) · [[theme-fidelity-null-origin-surfaces]] · [[persona-pin-prompt-resolution]] (the ONE deferred decision). (4) Docs ONLY if touching architecture: `docs/architecture/core/AGENTS.md` + `Core-Path-Registry.md` D106–D110. Mocks: `reports/design-refs/panel-redesign/*.html` + `DESIGN.md`. (5) `git log --oneline -12` to see what a9361256 committed. THEN act: side-eye re-audit + whatever a9361256 left; the ONLY open owner decision is persona=character (#3).
+  **PARITY-PLUS = DONE + live-proven.** Then a big post-program run, all landed on main (ahead of origin, NEVER pushed), each whole-tree-gated:
+  · Parity-plus P3/P4/P5/P6 + panel + fixes (earlier: `db17d2c3`/`5d6f4773`/`d2b48fc2`/`5d27cd99`/…); #26 capstone E2E `8bb50f43`; D110 minted `8cd68337`
+  · Multi-auth-mode E2E harness + P3 member-strip at the WIRE `d1628be2` (actors.ts: ownerActor/loginLocal/actorViaHeader; mode=Playwright-project; local+forward-header; OIDC deferred)
+  · `__orb.seed` canonical dev seeder both profiles `b6c24115` (`__orb.seed.game({profile:"d20"|"freeform"})` → {chatId})
+  · CYOA polish `7e75743b` (wire:"drop" kills option accumulation + `cyoaChoiceBehavior` compose|send knob, default compose)
+  · **Reasoning-cut proven E2E + a REAL durable-replay LEAK closed** `f9625ee7` (replayChatEvents passed raw delta rows unscrubbed → member saw hidden `<lie>` bytes + reasoning on reconnect; fix `scrubChatEventReplayForMember`; fresh security review CLEAR; compose-side `resolveReasoningHostOnly` confirmed wired) — see [[reasoning-cut-durable-replay-leak]]
+  · Panel-fidelity wave `66855476` + quality bars `f09ba1b1` (P1 click-to-edit systemic via `TrackerValue` chokepoint · P2/P3 audit fixes · name-line SUBJECT DROPDOWN + title field (not pills) · inward tab indicators · one type rhythm · zero-shift/full-ARIA verified)
+  **HEAD = `f09ba1b1`.** Merged-main proof at each quiesce: `pnpm check` green + battery 7533/0 (1 local-light flake, confirmed).
+  **#38 pool-max fix LANDED `60e9be2f`** (whole-tree green): `poolDefs.max` = the ONE home; `tracker-view.resolveVolatile` resolves each pool max FROM the def (the one projection panel+reminder share) + clamps; Status max-edit → `patchSheet` (upserts def). Dual-homed sweep: pool max was the ONLY drifting field (quests show on Quests+Scene but both write ONE upsertQuest). Both-directions proven (int+CT+live). Builder `acfd4650122445151` now IDLE — re-dispatch for the queue. **NEW open decision: pool NAME rename on Sheet orphans the volatile (rename-carry-value vs delete-create) — REC: CARRY (rewrite volatile pool name in the same patchSheet). Tree CLEAN, quiesced.**
+  **➤ COMPREHENSIVE BUILD LANE LAUNCHED `a9361256e493acb11`** (Fable, MAIN tree, NO worktree per owner) — the "next redesigner" carrying EVERYTHING, commits incrementally, partial-OK, priority = front-door+editability+per-field-locks first. Full scope:
+    1. META-TABS redesign (settings/injections/preview vs mocks — the prior wave's deferred block).
+    2. EDITABILITY: wallet/currency, volatile status line, quest description, quest objectives ADD/REMOVE, plot act name/progress — extend the `TrackerValue` chokepoint.
+    3. DUAL-HOMING (display/edit layer): Scene-goal click → nav to Quests; one edit home per datum, others read-only+navigate.
+    4. GAME/GM console horizontal-scroll fix.
+    5. INVENTORY: item `location` on cell (display) · compact/list view toggle · ITEM ICON SELECTOR (new host-set `icon` on rpgInventoryItemSchema + @orb/ui/icons picker; display = item.icon ?? resolveItemGlyph).
+    6. POOL `hint` (#36): host-authored on rpgPoolDefSchema → fed to steering reminder + shown by meter + GM editor.
+    7. FRONT-DOOR ⋯ TOGGLE (#40): ON=createGame(freeform|d20 pick); OFF=disengage ctx.rpg from assembly (turn.ts:394 → null: no reminder/state-block/steering/tools) + hide panel + PRESERVE state (reversible). + empty-state "Start a game" CTA.
+    8. WAND consolidation (#41): Continue/Regenerate/Impersonate ⋯→wand (optional composer steer).
+    9. DATE mode: default NARRATED freeform date string, KEEP tod+weather structured (Waystone drives off them). config `dateMode:narrated|structured`.
+    10. PER-FIELD field-lock: wire the actorState element-key forward-seam (merge.ts:35-37) so a pin locks ONE value (the player's per-value opt-out from model tweaks); pin ONLY on model-writable (volatile) fields, none on hand-only (poolDefs/level/title).
+    11. POOL RENAME = CARRY (rewrite matching volatile pool name in the same patchSheet).
+    Pool-control model (mostly wired): model tweaks EVERYONE's pool VALUES by default; player hand-edits + per-field-locks to opt-out; MAX user-set/hand-only, model adjusts value only.
+    **NOT building: persona=character (#3 DEFERRED — owner "need to think").** side-eye RE-AUDIT after (aria-headless-nav + click-to-edit-clip + alignment vs mocks, [[side-eye-fix-all-findings]]). Constraints: theme tokens, D44, 450-cap, config-reset-trap (mergeFeatures+fixtures+never-reset), full-ARIA-both-states, zero-shift click-to-edit.
+  **OPEN OWNER DECISIONS (parked, answer any order):** (1) FRONT DOOR = **owner just ruled: a TOGGLE in the ⋯ menu; on/off; OFF reverts chat to normal + stops rpg steering injections** (route to #40). (2) ✅ RESOLVED: the model tweaks EVERYONE's pool values by default (incl the PLAYER's — event-driven); the player hand-edits their own AND LOCKS (pins) any value to opt-out of model tweaks. This makes the field-lock the player's per-value control → confirms (5) per-field granularity. (3) ⏸ DEFERRED persona=character model (owner: "need to think about this one"). (4) ✅ DATE = NARRATED freeform default, BUT keep TIME-OF-DAY + WEATHER as structured/functional (they drive the Waystone day-night + rain visual) — so: freeform date STRING + structured tod/weather fields; give the option. (5) ✅ field-lock = PER-FIELD, yes. (6) ✅ NPC/player pool MAX = USER-SETS-MAX (hand-only), model adjusts CURRENT value only — NO new max-write capability (already the #38 model). ✅ pool NAME rename = CARRY the values (rewrite the matching volatile pool name in the SAME patchSheet gesture — same dial, new label). ONLY REMAINING OPEN DECISION = (3) persona=character (deferred). All other panel/rpg decisions RESOLVED; the queue is fully spec'd.
+  **STACK:** dev DB reseeded fresh (has plot col) · stack up :5173 healthz ok · `VLLM_DISABLED=true` but the ENGINE FLEET runs separately (`pnpm engines:status` → gen healthy; E2E adopts via adopt-only). Owner: leave hosted E2E on vLLM (not OR/sub). Live-verify pre-check: [[live-client-port-5173]] (zombie server + snap path-not-url + no long-title chats).
+  **POSTURE:** SERIALIZE main-tree build lanes now (over-parallelizing caused 2× --no-verify gate-thrash; read-only side-eye/audits are free). Never push. [[overnight-full-auto-posture]].
   **═══════════════════════════════════════════════════════════════════════════════════**
 **═════════════════════════════════════════════════════════════════════════════════════════**
 - **PANEL REDESIGN ROUND-2 (Fable `afb4223445e98856a`, FRESH — the original a72a3… transcript was GC'd):** grounds
