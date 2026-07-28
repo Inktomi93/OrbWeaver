@@ -77,6 +77,7 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
     // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
     deception: game.config.features.deception,
     omniscience: game.config.features.omniscience,
+    dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
   });
 
   const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: reminder };

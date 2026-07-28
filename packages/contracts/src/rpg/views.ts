@@ -36,6 +36,9 @@ export interface RpgGameView {
    *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
+    /** The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
+     *  Member-safe display knob: the band + Scene ambient render the date arm by it. */
+    readonly dateMode: RpgGameConfig["dateMode"];
     readonly immersiveHtml: boolean;
     readonly cyoa: boolean;
     readonly cyoaChoiceBehavior: RpgGameConfig["features"]["cyoaChoiceBehavior"];
@@ -131,6 +134,8 @@ export interface RpgConfigView {
   readonly steeringNote: string;
   readonly gmPresetId: string | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];
+  /** The #9 ambient-date mode knob (host editor). */
+  readonly dateMode: RpgGameConfig["dateMode"];
   /** The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the
    *  per-custom-relationship-kind steering hints on this editor surface. */
   readonly castFields: RpgGameConfig["features"]["castFields"];

@@ -20,7 +20,7 @@
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
-import type { RpgCastField, RpgClockTime, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
+import type { RpgCastField, RpgClockTime, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
 import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../contract/params";
 import { buildDeltaBlock } from "./delta";
@@ -83,7 +83,10 @@ function timeOfDayLabel(clock: RpgClockTime): string {
   return best;
 }
 
-function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>): string {
+/** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
+ *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
+ *  it. Time-of-day stays in BOTH modes (structured + functional — it drives the Waystone). */
+function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
   const parts: string[] = [];
   if (ambient.location !== "") {
     parts.push(ambient.location);
@@ -92,7 +95,7 @@ function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>): string {
     parts.push(ambient.calendarDate);
   }
   if (ambient.clock !== null) {
-    parts.push(`day ${ambient.clock.day} · ${timeOfDayLabel(ambient.clock)}`);
+    parts.push(dateMode === "structured" ? `day ${ambient.clock.day} · ${timeOfDayLabel(ambient.clock)}` : timeOfDayLabel(ambient.clock));
   }
   if (ambient.weather !== null) {
     parts.push(weatherLine(ambient.weather));
@@ -274,7 +277,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
 
   const stateLines: string[] = [];
   if (view.ambient !== null) {
-    const line = ambientLine(view.ambient);
+    const line = ambientLine(view.ambient, input.dateMode);
     if (line !== "") {
       stateLines.push(`Scene: ${line}`);
     }

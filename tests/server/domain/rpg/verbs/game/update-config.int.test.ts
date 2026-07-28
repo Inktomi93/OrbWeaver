@@ -58,6 +58,15 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.engaged).toBe(true);
   });
 
+  test("#9 dateMode: defaults narrated; structured sets + survives an unrelated edit (never-reset)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    expect((await findGameByChat(db, chatId))?.config.dateMode).toBe("narrated");
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { dateMode: "structured" } });
+    expect((await findGameByChat(db, chatId))?.config.dateMode).toBe("structured");
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "unrelated" } });
+    expect((await findGameByChat(db, chatId))?.config.dateMode).toBe("structured");
+  });
+
   test("sets the P3 hidden-channel knobs; an OMITTED knob KEEPS its value (deception survives an unrelated edit)", async () => {
     const { chatId, h } = await seedLiteGame(db);
     // Turn deception on + set the recent-beats cap.

@@ -12,7 +12,7 @@
 // The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
-import type { RpgClockTime, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
@@ -45,10 +45,20 @@ function timeOfDayLabel(clock: RpgClockTime): string {
   return best;
 }
 
-/** Line 2's `day N · <time> · <weather>` when/where caption from the ambient strip. Empty segments drop. */
-function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>): string {
+/** Line 2's when/where caption from the ambient strip. `dateMode` (#9): `narrated` (the default) leads
+ *  with the FREEFORM date string and drops the sequential `day N` counter (the model narrates the date;
+ *  no forced day-count display); `structured` keeps the counter. Time-of-day + weather render in BOTH
+ *  modes (they drive the Waystone visual). Empty segments drop. */
+function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
   const parts: string[] = [];
-  if (ambient.clock !== null) {
+  if (dateMode === "narrated") {
+    if (ambient.calendarDate !== null) {
+      parts.push(ambient.calendarDate);
+    }
+    if (ambient.clock !== null) {
+      parts.push(timeOfDayLabel(ambient.clock));
+    }
+  } else if (ambient.clock !== null) {
     parts.push(`day ${ambient.clock.day}`, timeOfDayLabel(ambient.clock));
   } else if (ambient.calendarDate !== null) {
     parts.push(ambient.calendarDate);
@@ -86,6 +96,8 @@ export interface RpgTakeoverHeaderProps {
   readonly trackersReadOnly: boolean;
   /** The game's delivery-model knob — drives the freshness indicator's honest posture (§4.5, the ruling). */
   readonly extractionMode: RpgExtractionMode;
+  /** The #9 ambient-date mode — `narrated` leads with the date string (no day counter); `structured` keeps it. */
+  readonly dateMode: RpgDateMode;
   /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
   readonly freshnessPending: boolean;
   /** The host-only "N veiled" cue for the cues row (§2 — crown gold; the doorway to Status → Veiled).
@@ -101,12 +113,13 @@ export function RpgTakeoverHeader({
   viewerUserId,
   trackersReadOnly,
   extractionMode,
+  dateMode,
   freshnessPending,
   veiledCue,
 }: RpgTakeoverHeaderProps): ReactElement {
   const clock = ambient?.clock ?? null;
   const weatherType = ambient?.weather?.type ?? null;
-  const when = ambient === null ? "" : whenLine(ambient);
+  const when = ambient === null ? "" : whenLine(ambient, dateMode);
   const location = ambient?.location ?? "";
   const wallet = primaryWallet(actors, viewerUserId);
 

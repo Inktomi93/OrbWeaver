@@ -5,7 +5,7 @@
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
-import type { RpgConfigView, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgDateMode, RpgExtractionMode } from "@orb/contracts/rpg";
 import { RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
@@ -31,6 +31,12 @@ const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
 const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBehavior"], string>> = {
   compose: "a pick drops into the composer — edit before sending",
   send: "a pick sends immediately as your turn",
+};
+
+/** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
+const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
+  narrated: "The story narrates the date as free text — no day counter.",
+  structured: "A running day counter shows beside the time of day.",
 };
 
 // The autosave scalar form (§13.4). Module scope (stable identity); keys its Session by `entityId` (the
@@ -88,6 +94,31 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                   </form.AppField>
                 ) : null
               }
+            </form.AppField>
+            {/* The #9 ambient-date mode — a SEGMENTED toggle (narrated default: the model narrates the
+                date as a freeform string, no day counter; structured keeps the integer day). Time-of-day
+                + weather stay structured in both (the Waystone visual never turns off). */}
+            <form.AppField name="dateMode">
+              {(field): ReactElement => (
+                <Row gap="block" align="center">
+                  <ToggleGroup
+                    aria-label="Ambient date mode"
+                    value={[field.state.value]}
+                    onValueChange={(next): void => {
+                      const picked = next[0];
+                      if (picked === "narrated" || picked === "structured") {
+                        field.handleChange(picked);
+                      }
+                    }}
+                  >
+                    <Toggle value="narrated">narrated</Toggle>
+                    <Toggle value="structured">structured</Toggle>
+                  </ToggleGroup>
+                  <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                    {DATE_MODE_CONSEQUENCE[field.state.value]}
+                  </Text>
+                </Row>
+              )}
             </form.AppField>
             <form.AppField name="plotProgression">
               {(field): ReactElement => (

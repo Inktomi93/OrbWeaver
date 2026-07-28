@@ -8,7 +8,7 @@
 // The form↔wire mapping lives here (the room-overrides precedent): the surface deals in `RpgConfigView` +
 // the `updateConfig` patch shape, never the form's own value bag.
 
-import type { RpgConfigView, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgDateMode, RpgExtractionMode } from "@orb/contracts/rpg";
 
 type CyoaChoiceBehavior = RpgConfigView["cyoaChoiceBehavior"];
 
@@ -23,6 +23,8 @@ export interface GmConsoleFormValues {
   readonly cyoa: boolean;
   readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
   readonly plotProgression: boolean;
+  /** The #9 ambient-date mode — narrated (freeform date string) | structured (day counter). */
+  readonly dateMode: RpgDateMode;
 }
 
 export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
@@ -33,6 +35,7 @@ export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
   cyoa: false,
   cyoaChoiceBehavior: "compose",
   plotProgression: true,
+  dateMode: "narrated",
 };
 
 /** Project the host config read into the form's scalar bag. */
@@ -45,6 +48,7 @@ export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
     cyoa: config.cyoa,
     cyoaChoiceBehavior: config.cyoaChoiceBehavior,
     plotProgression: config.plotProgression,
+    dateMode: config.dateMode,
   };
 }
 
@@ -58,6 +62,7 @@ export interface GmConsoleScalarPatch {
     readonly cyoa: boolean;
     readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
     readonly plotProgression: boolean;
+    readonly dateMode: RpgDateMode;
   };
   readonly extractionMode: RpgExtractionMode;
 }
@@ -71,6 +76,7 @@ export function fromGmConsoleForm(values: GmConsoleFormValues): GmConsoleScalarP
       cyoa: values.cyoa,
       cyoaChoiceBehavior: values.cyoaChoiceBehavior,
       plotProgression: values.plotProgression,
+      dateMode: values.dateMode,
     },
     extractionMode: values.extractionMode,
   };

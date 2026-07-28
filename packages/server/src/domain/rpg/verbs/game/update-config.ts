@@ -80,6 +80,8 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
+      // #9 — keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]).
+      dateMode: params.patch?.dateMode ?? game.config.dateMode,
       // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
       features: mergeFeatures(params.patch, game.config.features),
       // Not a write-door field, but carried through verbatim so a config write never resets game macros to

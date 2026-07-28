@@ -70,6 +70,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
       viewerUserId={state.viewerUserId}
       trackersReadOnly={state.tracker.trackersReadOnly}
       extractionMode={state.game.extractionMode}
+      dateMode={state.game.publicConfig.dateMode}
       freshnessPending={turnLive}
       // The host-only veiled count on the cues row (§2/§6 P3) — PERMISSION-omit for a member.
       veiledCue={state.isHost ? <RpgVeiledCue chatId={chatId} /> : null}
