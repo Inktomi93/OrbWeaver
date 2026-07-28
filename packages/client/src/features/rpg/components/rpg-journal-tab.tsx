@@ -1,53 +1,49 @@
 // The JOURNAL tab (panel-redesign DESIGN.md §4 "Journal" — live in lite AND full, the owner correction):
-// the campaign CHRONICLE. Scope row (the ONE mini-tab scope-selector semantics, §12.1.3): `All | Marks` —
-// Wraps is full-only and Cards is P4 (APPLICABILITY-omitted until their planes exist; the scope row grows
-// by append, wired-when-ready). Entries group by REAL date (`timeLib.formatDate`) — the designed in-world
-// day grouping needs the flagged `rpg_journal.world_day` column (§12.2.5); until it lands the honest arm
-// is real-date headers, never a client-invented "Day 3".
+// the campaign CHRONICLE. Scope row (the ONE mini-tab scope-selector semantics, §12.1.3): `All | Marks |
+// Cards` — Cards is the P4 immersive-card archive (APPLICABILITY: only when the game's `immersiveHtml` is
+// on); Wraps stays full-only/unbuilt (no `wrap` member in `RPG_JOURNAL_TYPES` — the scope row grows by
+// append). Entries group by REAL date (`timeLib.formatDate`) — the designed in-world day grouping needs
+// the flagged `rpg_journal.world_day` column (§12.2.5); until it lands the honest arm is real-date
+// headers, never a client-invented "Day 3".
+//
+// Plain beats render as BULLET LINES (`BeatLine` — the §3 rule: bordered cards are reserved for
+// ARTIFACTS), and immersive cards ARCHIVE INTO THE DAY THEY WERE BORN (§4 "Journal": the shared
+// `collectArchivedCards` projection over the same `chat.listMessages` cache the Scene birth-home reads).
 //
 // MARKS (§12.2.4 — checkpoints' designed home): a mark row = label · created date · the host-only Restore
 // (clone-forward `restoreCheckpoint`, behind a ConfirmDialog naming the consequence) + the host "New mark"
 // primary. Members see the list (the verb is member-read), no restore — PERMISSION-omit, never a disabled
-// control. Entry glyphs ride the CLOSED journal-type Record (exhaustive — a new type fails tsc).
+// control.
 
-import type { RpgJournalType } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
-import type { LucideIcon } from "@orb/ui/icons";
-import { Icon, MapPin, Package, Pin, Scroll, ScrollText, Swords, Users, Zap } from "@orb/ui/icons";
+import { Icon, Pin } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { ConfirmDialog, TrackerValue } from "#components";
+import { BeatLine, ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useCreateCheckpoint, useRestoreCheckpoint } from "../hooks/use-rpg-mutations";
+import type { ArchivedCard } from "../lib/archived-cards";
+import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { RpgCardLightbox } from "./rpg-scene-cards";
 
 /** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
 const JOURNAL_PAGE = 100;
 
-/** Journal-type glyph — exhaustive over the CLOSED `RPG_JOURNAL_TYPES` vocab (§12.5.5). */
-const JOURNAL_TYPE_GLYPHS: Readonly<Record<RpgJournalType, LucideIcon>> = {
-  location: MapPin,
-  npc: Users,
-  combat: Swords,
-  quest: Scroll,
-  item: Package,
-  event: Zap,
-  note: ScrollText,
-};
+// The scope axis as the ONE homed tuple (§5.5 dispatch discipline) — the body Record derives from it.
+const JOURNAL_SCOPES = ["all", "marks", "cards"] as const;
+type JournalScope = (typeof JOURNAL_SCOPES)[number];
 
-/** Free-string type → glyph (the wire view carries `type: string`); off-vocab falls back to `note`. */
-function journalGlyph(type: string): LucideIcon {
-  const map: Readonly<Record<string, LucideIcon | undefined>> = JOURNAL_TYPE_GLYPHS;
-  return map[type] ?? ScrollText;
+function isJournalScope(value: string | undefined): value is JournalScope {
+  return (JOURNAL_SCOPES as readonly (string | undefined)[]).includes(value);
 }
-
-type JournalScope = "all" | "marks";
 
 // A section label — the muted letter-spaced caps idiom (§4.7).
 function SectionLabel({ children }: { readonly children: ReactNode }): ReactElement {
@@ -58,47 +54,94 @@ function SectionLabel({ children }: { readonly children: ReactNode }): ReactElem
   );
 }
 
-function JournalEntries({ state }: { readonly state: RpgPanelState }): ReactElement {
+/** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
+ *  into one per-day stream by `createdAt`. */
+type ChronicleRow =
+  | { readonly kind: "beat"; readonly key: string; readonly title: string; readonly content: string }
+  | { readonly kind: "card"; readonly card: ArchivedCard };
+
+/** One archived-card row — the artifact title line (✦ chrome voice); opens the sandboxed card. */
+function CardRow({ card, onOpen }: { readonly card: ArchivedCard; readonly onOpen: (key: string) => void }): ReactElement {
+  return (
+    <Button intent="ghost" size="sm" className="justify-start" onClick={(): void => onOpen(card.key)} data-slot="rpg-journal-card-row">
+      <Text size="label" className="truncate">
+        ✦ {cardLabel(card.title)}
+      </Text>
+    </Button>
+  );
+}
+
+/** The chronicle (All): plain beats as bullet lines + immersive cards archived into their birth day,
+ *  grouped by real date, newest group first. */
+function JournalEntries({ state, cards }: { readonly state: RpgPanelState; readonly cards: readonly ArchivedCard[] }): ReactElement {
   const trpc = useTRPC();
   const { data: entries } = useSuspenseQuery(trpc.rpg.listJournal.queryOptions({ chatId: state.chatId, limit: JOURNAL_PAGE }));
+  const [openKey, setOpenKey] = useState<string | null>(null);
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && cards.length === 0) {
     return <Text tone="muted">Nothing chronicled yet — the story writes the first page.</Text>;
   }
 
-  // Group by REAL date (the §12.2.5 honest arm until `world_day` lands) — newest group first.
-  const groups = new Map<string, typeof entries>();
-  for (const entry of [...entries].sort((a, b) => b.createdAt - a.createdAt)) {
-    const day = timeLib.formatDate(entry.createdAt);
+  // Merge beats + cards into one dated stream, newest first, then bucket by REAL date (§12.2.5 honest arm).
+  const rows: readonly { readonly createdAt: number; readonly row: ChronicleRow }[] = [
+    ...entries.map((entry) => ({
+      createdAt: entry.createdAt,
+      row: { kind: "beat", key: entry.id, title: entry.title, content: entry.content } as const,
+    })),
+    ...cards.map((card) => ({ createdAt: card.createdAt, row: { kind: "card", card } as const })),
+  ].sort((a, b) => b.createdAt - a.createdAt);
+
+  const groups = new Map<string, ChronicleRow[]>();
+  for (const { createdAt, row } of rows) {
+    const day = timeLib.formatDate(createdAt);
     const bucket = groups.get(day) ?? [];
-    groups.set(day, [...bucket, entry]);
+    bucket.push(row);
+    groups.set(day, bucket);
   }
 
   return (
     <Stack gap="section">
-      {[...groups.entries()].map(([day, dayEntries]) => (
+      {[...groups.entries()].map(([day, dayRows]) => (
         <Stack key={day} gap="field">
           <SectionLabel>{day}</SectionLabel>
-          {dayEntries.map((entry) => (
-            <Stack key={entry.id} gap="field" className="rounded-card border border-border bg-card px-block py-row" data-slot="rpg-journal-entry">
-              <Row gap="field" align="center" className="min-w-0">
-                <Icon icon={journalGlyph(entry.type)} size="xs" className="text-muted-foreground" />
-                <Text as="span" size="label" weight="semibold" className="min-w-0 flex-1 truncate">
-                  {entry.title}
+          {dayRows.map((row) =>
+            row.kind === "card" ? (
+              <CardRow key={row.card.key} card={row.card} onOpen={setOpenKey} />
+            ) : (
+              // A plain beat is a BULLET LINE (§3 — cards are reserved for artifacts): title, then the
+              // body in the same muted voice. The em-dash marker is BeatLine's own.
+              <BeatLine key={row.key}>
+                <Text as="span" size="label" weight="medium">
+                  {row.title}
                 </Text>
-                <Text as="span" size="micro" tone="muted">
-                  {entry.type}
-                </Text>
-              </Row>
-              {entry.content === "" ? null : (
-                <Text size="label" tone="muted">
-                  {entry.content}
-                </Text>
-              )}
-            </Stack>
-          ))}
+                {row.content === "" ? null : (
+                  <Text as="span" size="label" tone="muted">
+                    {` — ${row.content}`}
+                  </Text>
+                )}
+              </BeatLine>
+            ),
+          )}
         </Stack>
       ))}
+      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
+    </Stack>
+  );
+}
+
+/** The Cards scope (P4) — every archived card, newest first (the "find the wanted poster later" surface). */
+function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): ReactElement {
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  if (cards.length === 0) {
+    return <Text tone="muted">No cards yet — the story crafts them.</Text>;
+  }
+  const newestFirst = [...cards].sort((a, b) => b.createdAt - a.createdAt);
+  return (
+    <Stack gap="field">
+      {newestFirst.map((card) => (
+        <CardRow key={card.key} card={card} onOpen={setOpenKey} />
+      ))}
+      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
     </Stack>
   );
 }
@@ -117,13 +160,8 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
     <Stack gap="section">
       {state.isHost ? (
         <Row gap="field" align="center">
-          <TrackerValue
-            ariaLabel="New mark label"
-            display={draftLabel}
-            placeholder="Mark this moment…"
-            onEdit={setDraftLabel}
-            className="h-control-sm flex-1"
-          />
+          {/* A CREATION draft, not a datum at rest — a plain Input, not the display-at-rest grammar. */}
+          <Input aria-label="New mark label" value={draftLabel} placeholder="Mark this moment…" onValueChange={setDraftLabel} className="h-control-sm flex-1" />
           <Button
             intent="primary"
             size="sm"
@@ -186,25 +224,41 @@ export interface RpgJournalTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Journal tab — the chronicle (All) + the checkpoint bookmarks (Marks). */
+/** The scope's body — a Record over the closed scope axis (never a nested ternary). */
+const SCOPE_BODY: Readonly<Record<JournalScope, (state: RpgPanelState, cards: readonly ArchivedCard[]) => ReactElement>> = {
+  all: (state, cards) => <JournalEntries state={state} cards={cards} />,
+  marks: (state) => <JournalMarks state={state} />,
+  cards: (_state, cards) => <JournalCards cards={cards} />,
+};
+
+/** The Journal tab — the chronicle (All) + the checkpoint bookmarks (Marks) + the card archive (Cards). */
 export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
   const [scope, setScope] = useState<JournalScope>("all");
+  const trpc = useTRPC();
+  // The P4 card projection — the SAME `chat.listMessages` cache the transcript + Scene birth-home share
+  // (lockdown §12 direct read). APPLICABILITY: only fetched/offered when the game crafts cards at all.
+  const cardsEnabled = state.game.publicConfig.immersiveHtml;
+  const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const cards = cardsEnabled ? collectArchivedCards(messagesQuery.data?.messages ?? []) : [];
+  const effectiveScope = scope === "cards" && !cardsEnabled ? "all" : scope;
   return (
     <Stack gap="section" data-slot="rpg-journal-tab">
       <ToggleGroup
         aria-label="Journal scope"
-        value={[scope]}
+        value={[effectiveScope]}
         onValueChange={(next): void => {
           const picked = next[0];
-          if (picked === "all" || picked === "marks") {
+          if (isJournalScope(picked)) {
             setScope(picked);
           }
         }}
       >
         <Toggle value="all">All</Toggle>
         <Toggle value="marks">Marks</Toggle>
+        {/* APPLICABILITY-omit: a game without immersive cards has no Cards scope (never a disabled twin). */}
+        {cardsEnabled ? <Toggle value="cards">Cards</Toggle> : null}
       </ToggleGroup>
-      {scope === "all" ? <JournalEntries state={state} /> : <JournalMarks state={state} />}
+      {SCOPE_BODY[effectiveScope](state, cards)}
     </Stack>
   );
 }

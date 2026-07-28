@@ -29,6 +29,7 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot } from "../hooks/use-rpg-mutations";
 import { resolveConditionGlyph } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
+import { RpgFieldLock } from "./rpg-field-lock";
 import { RpgVeiledSection } from "./rpg-veiled-section";
 
 type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
@@ -176,9 +177,16 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-status-tab">
-      <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-        Roster — {tracker.actors.length}
-      </Text>
+      <Row gap="field" align="center">
+        <Text size="label" tone="muted" transform="caps" className="tracking-micro">
+          Roster — {tracker.actors.length}
+        </Text>
+        {/* The section-scoped hand-lock pin (§12.3): a Status hand edit stamps the TOP-LEVEL `actorState`
+            path (the whole-array overlay), so one lock ⇒ one pin ⇒ one Release, on the section label. */}
+        {canEditShared && tracker.lockedPaths.includes("actorState") ? (
+          <RpgFieldLock onRelease={(): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: ["actorState"] })} />
+        ) : null}
+      </Row>
       {tracker.actors.map((actor) => {
         const edit = editFor(actor);
         return <RpgStatusCard key={`${actor.actorRef.kind}:${actor.name}`} actor={actor} cast={tracker.cast} {...(edit === undefined ? {} : { edit })} />;

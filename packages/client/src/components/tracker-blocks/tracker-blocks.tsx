@@ -17,7 +17,7 @@
 
 import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
-import { Gauge, Icon, MapPin } from "@orb/ui/icons";
+import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
@@ -99,6 +99,8 @@ export function MeterRow({
                 }
               }}
               className={valueWarning === true ? "!w-avatar-lg px-field text-right tabular-nums text-warning" : "!w-avatar-lg px-field text-right tabular-nums"}
+              // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
+              restClassName={valueWarning === true ? "tabular-nums text-warning" : "tabular-nums"}
             />
             {onEditMax === undefined ? (
               <Text as="span" size="label" tone="muted" className="tabular-nums">
@@ -120,6 +122,7 @@ export function MeterRow({
                     }
                   }}
                   className="!w-avatar-lg px-field text-right tabular-nums"
+                  restClassName="tabular-nums"
                 />
               </Row>
             )}
@@ -175,13 +178,14 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
           ariaLabel={`${label} value`}
           display={String(value)}
           kind="numeric"
+          size="title"
           onEdit={(next): void => {
             const n = Number.parseInt(next, 10);
             if (!Number.isNaN(n)) {
               onEditValue(n);
             }
           }}
-          className="w-avatar-md text-center"
+          className="w-avatar-md text-center tabular-nums"
         />
       )}
       <Text as="span" size="micro" tone="muted" transform="caps" className="tracking-micro">
@@ -217,7 +221,13 @@ export function TrackerChip({ label, value, guide = false, onEditValue }: Tracke
           {value}
         </Text>
       ) : (
-        <TrackerValue ariaLabel={`${label} value`} display={value} onEdit={onEditValue} className="h-control-sm w-avatar-lg" />
+        <TrackerValue
+          ariaLabel={`${label} value`}
+          display={value}
+          onEdit={onEditValue}
+          className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
+          restClassName="min-w-0 max-w-full"
+        />
       )}
     </Badge>
   );
@@ -308,82 +318,24 @@ export interface BeatLineProps {
   readonly children: ReactNode;
 }
 
-/** One muted recent-event line (read-only by nature — beats are a log, not an editable tracker). */
+/** One muted recent-event BULLET line (read-only by nature — beats are a log, not an editable tracker).
+ *  The leading em-dash is the mock's beat marker (aria-hidden decoration — the text stays the datum). */
 export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
-    <Text size="label" tone="muted" data-slot="beat-line">
-      {children}
+    <Text size="label" tone="muted" data-slot="beat-line" className="flex gap-field">
+      <Text as="span" size="label" aria-hidden={true} className="shrink-0 opacity-50">
+        —
+      </Text>
+      <Text as="span" size="label" tone="muted">
+        {children}
+      </Text>
     </Text>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 6. AMBIENT STRIP — location · date · time-of-day · weather: one compact chip row.
+// 6. AMBIENT STRIP — extracted to ./ambient-strip.tsx (the component-size cap).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-export interface AmbientStripProps {
-  readonly location?: string;
-  readonly date?: string;
-  readonly timeOfDay?: string;
-  readonly weather?: string;
-  /** Commit an ambient field — present ⇒ editable; absent ⇒ read-only. */
-  readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
-  /** Optional per-field lock indicator (§12.3 the-lock-consequence-is-visible) — the feature supplies a
-   *  render (the pin + Release) for a field whose hand-edit auto-stamped a lock; `undefined` ⇒ no pin. The
-   *  field→lock-path mapping is domain knowledge, so it lives in the caller (this shared block is agnostic). */
-  readonly lockSlot?: (field: "location" | "date" | "timeOfDay" | "weather") => ReactNode;
-}
-
-const AMBIENT_FIELDS = [
-  { key: "location", label: "Location" },
-  { key: "date", label: "Date" },
-  { key: "timeOfDay", label: "Time" },
-  { key: "weather", label: "Weather" },
-] as const;
-
-/** The scene's where/when strip (mode-agnostic scene DATA — §3.2). Hand-editable; empty fields omit. */
-export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
-  const values: Record<string, string | undefined> = { location, date, timeOfDay, weather };
-  return (
-    <Row gap="block" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="ambient-strip">
-      <Icon icon={MapPin} size="sm" label="Scene" />
-      {AMBIENT_FIELDS.map(({ key, label }) => {
-        const value = values[key];
-        if (value === undefined && onEditField === undefined) {
-          return null;
-        }
-        return (
-          // Each pair packs inline (the mock's `flex-wrap; align:baseline` compact card): a label + a
-          // content-sized value/input, so 2+ pairs share a row rather than one-per-line (the owner
-          // density ruling 2026-07-28). `min-w-0` lets a long location value truncate/shrink instead of
-          // forcing a full-width row.
-          <Row key={key} gap="field" align="baseline" className="min-w-0">
-            <Text as="span" size="label" tone="muted" className="shrink-0">
-              {label}
-            </Text>
-            {onEditField === undefined ? (
-              <Text as="span" size="label" className="truncate tabular-nums">
-                {value}
-              </Text>
-            ) : (
-              <TrackerValue
-                ariaLabel={`${label} value`}
-                display={value ?? ""}
-                placeholder="—"
-                onEdit={(next): void => onEditField(key, next)}
-                // Content-sized, capped: `!w-auto` beats FIELD_CONTROL's `w-full` so a short value ("rain")
-                // is a compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full`
-                // + `min-w-0` keep a long location from overflowing the wrapping card (owner density ruling).
-                className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
-              />
-            )}
-            {lockSlot?.(key)}
-          </Row>
-        );
-      })}
-    </Row>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 7. GOAL LINE — objectives: free-text goal + optional `n/m` clock; done gets a strikethrough.

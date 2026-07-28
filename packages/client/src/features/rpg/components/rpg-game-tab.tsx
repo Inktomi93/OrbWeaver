@@ -11,120 +11,25 @@
 // doesn't exist yet — the flagged §12.2.7 arm).
 
 import type { RpgCastField, RpgConfigView } from "@orb/contracts/rpg";
-import { RPG_HINT_MAX, RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
+import { RPG_HINT_MAX } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Crown, Icon, Pin, PinOff, Plus, Trash2 } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
+import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { createAutosaveEntityForm } from "#forms";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations";
-import type { GmConsoleFormValues } from "../lib/gm-console-form-model";
-import { EMPTY_GM_CONSOLE_FORM, fromGmConsoleForm, toGmConsoleForm } from "../lib/gm-console-form-model";
+import { trackColor } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
-
-/** The delivery-model select items + the honest one-line consequence per mode (the mock's fact — the same
- *  freshness posture the band cue renders). */
-const EXTRACTION_ITEMS = [
-  { label: "Reliable — trackers lag one beat", value: "reliable" },
-  { label: "Cheap — trackers update live, best-effort", value: "cheap" },
-] as const;
-
-// The autosave scalar form (§13.4). Module scope (stable identity); keys its Session by `entityId` (the
-// chatId) so a chat switch with the Game tab open is a full remount seeded from the new game's config.
-const GmConsoleFormBoundary = createAutosaveEntityForm<GmConsoleFormValues>({
-  defaultValues: EMPTY_GM_CONSOLE_FORM,
-});
-
-// A muted letter-spaced caps section label with a trailing rule (the mock's `.kicker`). The rule is the
-// `@orb/ui/separator` primitive (`flex-1` to fill the row) — never a hand-styled raw element in a feature.
-function Kicker({ children, crown = false }: { readonly children: string; readonly crown?: boolean }): ReactElement {
-  return (
-    <Row gap="field" align="center">
-      <Text size="micro" transform="caps" weight="semibold" className={crown ? "tracking-micro text-highlight" : "tracking-micro text-muted-foreground"}>
-        {children}
-      </Text>
-      <Separator className="flex-1" />
-    </Row>
-  );
-}
-
-/** The scalar autosave form — steering note · delivery model · deception knobs. */
-function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const save = (values: GmConsoleFormValues): Promise<unknown> => {
-    const { patch, extractionMode } = fromGmConsoleForm(values);
-    return updateConfig.mutateAsync({ chatId, patch, extractionMode });
-  };
-  return (
-    <GmConsoleFormBoundary entityId={`rpg-game:${chatId}`} serverValues={toGmConsoleForm(config)} save={save}>
-      {({ form }): ReactElement => (
-        <Stack gap="section">
-          <Stack gap="field">
-            <Kicker>Steering note — never shown to members</Kicker>
-            <form.AppField name="steeringNote">
-              {(field): ReactElement => (
-                <field.TextareaField
-                  label="Steering note"
-                  hint={`An always-wins host directive spliced into the game reminder. Members never see it. Max ${RPG_STEERING_NOTE_MAX} chars.`}
-                  rows={3}
-                />
-              )}
-            </form.AppField>
-          </Stack>
-
-          <Stack gap="field">
-            <Kicker>Delivery model</Kicker>
-            <form.AppField name="extractionMode">
-              {(field): ReactElement => <field.SelectField label="Delivery model" items={EXTRACTION_ITEMS} />}
-            </form.AppField>
-          </Stack>
-
-          <Stack gap="field">
-            <Kicker>Play style</Kicker>
-            <form.AppField name="cyoa">
-              {(field): ReactElement => (
-                <field.SwitchField label="CYOA choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
-              )}
-            </form.AppField>
-            <form.AppField name="plotProgression">
-              {(field): ReactElement => (
-                <field.SwitchField
-                  label="Plot steering"
-                  hint="Adds a Plot submenu to the composer wand — one-shot story steers (twist, escalate, advance the act)."
-                />
-              )}
-            </form.AppField>
-          </Stack>
-
-          <Stack gap="field">
-            <Kicker crown={true}>Hidden channels — host only</Kicker>
-            <form.AppField name="deception">
-              {(field): ReactElement => (
-                <field.SwitchField label="Deception" hint="Teach the model the <lie> channel — characters can hold standing secrets (the Veiled ledger)." />
-              )}
-            </form.AppField>
-            <form.AppField name="omniscience">
-              {(field): ReactElement => (
-                <field.SwitchField label="Omniscience" hint="Teach the <ofilter> channel — the model can note events the party can't perceive." />
-              )}
-            </form.AppField>
-          </Stack>
-        </Stack>
-      )}
-    </GmConsoleFormBoundary>
-  );
-}
+import { GmConsoleScalars, Kicker } from "./rpg-gm-scalars";
 
 /** The stat-profile READ display — the attribute vocabulary the sheet keys off (editing it is a full arm). */
 function StatProfileDisplay({ config }: { readonly config: RpgConfigView }): ReactElement {
@@ -156,11 +61,16 @@ function CastFieldsEditor({ chatId, config }: { readonly chatId: ChatId; readonl
   const updateConfig = useUpdateConfig({ trpc, invalidation });
   const commit = (next: readonly RpgCastField[]): void => updateConfig.mutate({ chatId, patch: { castFields: [...next] } });
   const fields = config.castFields;
+  // The meter-ordinal color derivation (§12.1.2 — ONE source of truth): a meter field's swatch wears
+  // `trackColor(its index among METER-kind fields in definition order)` — the SAME ordinal the Scene cast
+  // cards derive, so definition and display are visibly one system (§3).
+  const meterOrdinals = new Map(fields.filter((f) => f.kind === "meter").map((f, i) => [f.key, i]));
   return (
     <Stack gap="field">
       <Kicker>Cast fields — tracked on NPCs</Kicker>
       {fields.map((f, i) => (
         <Row key={f.key} gap="field" align="center">
+          {f.kind === "meter" ? <TrackBar value={1} max={1} color={trackColor(meterOrdinals.get(f.key) ?? 0)} className="!w-block shrink-0" /> : null}
           <Badge tone="soft" size="sm">
             {f.kind}
           </Badge>
@@ -191,6 +101,7 @@ function CastFieldsEditor({ chatId, config }: { readonly chatId: ChatId; readonl
                   }
                 }}
                 className="!w-avatar-lg px-field text-right tabular-nums"
+                restClassName="tabular-nums"
               />
             </Row>
           ) : null}
@@ -265,11 +176,12 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
         </Row>
       ))}
       <Row gap="field">
-        <TrackerValue
-          ariaLabel="New relationship label"
-          display={draftLabel}
+        {/* A CREATION draft, not a datum at rest — a plain Input, exempt from display-at-rest (§12.4.1). */}
+        <Input
+          aria-label="New relationship label"
+          value={draftLabel}
           placeholder="custom label (e.g. debtor)"
-          onEdit={setDraftLabel}
+          onValueChange={setDraftLabel}
           className="h-control-sm flex-1"
         />
         <Button
@@ -352,11 +264,16 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
           GM console — host only
         </Text>
       </Row>
-      <GmConsoleScalars chatId={state.chatId} config={config} />
+      {/* The mock's section order (game.html): Stat profile → the pools-adjacent Band-orbs section →
+          Cast fields → Relationship hints → the scalar form (Play style → Hidden channels → Steering
+          note → Delivery model last). The mock's "Pools — defaults for new sheets" section stays
+          APPLICABILITY-omitted until `features.defaultPoolDefs` exists (§12.2.7 — pools are per-actor
+          sheet data, authored on the Sheet tab). */}
       <StatProfileDisplay config={config} />
       <OrbPinningEditor state={state} config={config} />
       <CastFieldsEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
+      <GmConsoleScalars chatId={state.chatId} config={config} />
       {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
       <RpgDoorwayLine>Full mode adds skills, combat, sessions, and the map arc — coming with the full graft.</RpgDoorwayLine>
     </Stack>

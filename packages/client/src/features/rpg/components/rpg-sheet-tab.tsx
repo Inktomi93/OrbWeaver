@@ -137,6 +137,7 @@ function PoolDefsEditor({ poolDefs, onCommit }: PoolDefsEditorProps): ReactEleme
                   }
                 }}
                 className="!w-avatar-lg px-field text-right tabular-nums"
+                restClassName="tabular-nums"
               />
             </Row>
           </Row>

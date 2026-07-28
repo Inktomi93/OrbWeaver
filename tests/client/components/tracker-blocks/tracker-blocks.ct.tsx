@@ -1,9 +1,11 @@
 // CT: the tracker BLOCK KIT (Context-Panel-Program §3.2) — the seven blocks, both arms. The kit's
 // contracts under test:
 //   • LABEL always present + value TEXT is the datum (§3.2/§4.9) — a bare number is the named failure;
-//   • EDITABLE IN PLACE by default (an `onEdit*` makes the value an inline field committing on
-//     blur/Enter) with a READ-ONLY arm (no callback → static text) — display-only is the corruption-
-//     trainer failure, so both arms are exhaustively pinned;
+//   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (panel-redesign DESIGN.md §12.4.1): an
+//     `onEdit*` renders the value as STATIC text on a real button; the inline field appears only on
+//     CLICK, commits on blur/Enter, cancels on Escape. The READ-ONLY arm (no callback → static text)
+//     stays the honest-arms fallback — display-only is the corruption-trainer failure, so both arms
+//     are exhaustively pinned;
 //   • the commit FIRES with the parsed value (assert-the-mutation-fired — not just the UI reaction).
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
 // (reports/snaps/tracker-kit-*.png) — the structure/density/hierarchy receipt against the committed mockup.
@@ -22,7 +24,7 @@ test("MeterRow read-only: renders label + value/max as the text datum (no edit f
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
 });
 
-test("MeterRow editable: the value is an inline field; commit fires with the parsed number", async ({ mount, page }) => {
+test("MeterRow editable: display-at-rest → click reveals the inline field; commit fires with the parsed number", async ({ mount, page }) => {
   let committed = -1;
   await mount(
     <MeterRow
@@ -35,11 +37,41 @@ test("MeterRow editable: the value is an inline field; commit fires with the par
       }}
     />,
   );
+  // AT REST: no input in the DOM (the instrument posture) — the value is a static-text button.
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+  const rest = page.getByRole("button", { name: "Vitality value" });
+  await expect(rest).toContainText("24");
+  // CLICK → the inline field appears, seeded with the value; blur commits.
+  await rest.click();
   const field = page.getByRole("textbox", { name: "Vitality value" });
   await expect(field).toHaveValue("24");
   await field.fill("18");
   await field.blur();
   expect(committed).toBe(18);
+  // Back to rest after commit (the field closes).
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+});
+
+test("TrackerValue Escape cancels: the draft is dropped, nothing commits, back to rest (§12.4.1)", async ({ mount, page }) => {
+  let committed = -1;
+  await mount(
+    <MeterRow
+      label="Vitality"
+      value={24}
+      max={30}
+      color={1}
+      onEditValue={(next): void => {
+        committed = next;
+      }}
+    />,
+  );
+  await page.getByRole("button", { name: "Vitality value" }).click();
+  const field = page.getByRole("textbox", { name: "Vitality value" });
+  await field.fill("99");
+  await field.press("Escape");
+  expect(committed).toBe(-1); // nothing sent
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0); // back to rest
+  await expect(page.getByRole("button", { name: "Vitality value" })).toContainText("24"); // draft dropped
 });
 
 // ── StatCell ──────────────────────────────────────────────────────────────────────────────────────
@@ -51,7 +83,7 @@ test("StatCell read-only: big value over the caps label, hint on title", async (
   await expect(component).toHaveAttribute("title", "Strength — melee, carry");
 });
 
-test("StatCell editable: commit fires with the parsed number", async ({ mount, page }) => {
+test("StatCell editable: display-at-rest big value → click reveals the field; commit fires", async ({ mount, page }) => {
   let committed = -1;
   await mount(
     <StatCell
@@ -62,6 +94,9 @@ test("StatCell editable: commit fires with the parsed number", async ({ mount, p
       }}
     />,
   );
+  const rest = page.getByRole("button", { name: "STR value" });
+  await expect(rest).toContainText("16");
+  await rest.click();
   const field = page.getByRole("textbox", { name: "STR value" });
   await field.fill("18");
   await field.blur();
@@ -86,7 +121,7 @@ test("TrackerChip plain: carries the tracker-chip slot (no guide glyph)", async 
   await expect(plain).toHaveAttribute("data-slot", "tracker-chip");
 });
 
-test("TrackerChip editable: commit fires with the new string", async ({ mount, page }) => {
+test("TrackerChip editable: display-at-rest → click reveals the field; commit fires with the new string", async ({ mount, page }) => {
   let committed = "";
   await mount(
     <TrackerChip
@@ -97,6 +132,9 @@ test("TrackerChip editable: commit fires with the new string", async ({ mount, p
       }}
     />,
   );
+  const rest = page.getByRole("button", { name: "mood value" });
+  await expect(rest).toContainText("wary");
+  await rest.click();
   const field = page.getByRole("textbox", { name: "mood value" });
   await field.fill("hostile");
   await field.blur();
@@ -122,7 +160,7 @@ test("CastCard: name + mood line + customFields as chip rows", async ({ mount })
   await expect(component).toContainText("3 favors");
 });
 
-test("CastCard editable: editing a field fires onEditField with (name, value)", async ({ mount, page }) => {
+test("CastCard editable: clicking a field's rest value reveals the editor; onEditField fires with (name, value)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(
     <CastCard
@@ -133,6 +171,7 @@ test("CastCard editable: editing a field fires onEditField with (name, value)", 
       }}
     />,
   );
+  await page.getByRole("button", { name: "Trust value" }).click();
   const field = page.getByRole("textbox", { name: "Trust value" });
   await field.fill("high");
   await field.blur();
@@ -217,11 +256,36 @@ test("AmbientStrip editable: all four fields are present (seedable) and commit f
       }}
     />,
   );
-  // Editable ⇒ even the unset `date` row renders (seed data mid-chat — §3.2).
+  // Editable ⇒ even the unset `date` row renders at rest (seed data mid-chat — §3.2), input on click.
+  await page.getByRole("button", { name: "Date value" }).click();
   const dateField = page.getByRole("textbox", { name: "Date value" });
   await dateField.fill("day 3");
   await dateField.blur();
   expect(captured).toEqual(["date", "day 3"]);
+});
+
+test("AmbientStrip Time: the closed 6-label PICKER (never free text, never a resting dropdown) commits a label", async ({ mount, page }) => {
+  let captured: [string, string] = ["", ""];
+  await mount(
+    <AmbientStrip
+      location="The Rusted Lantern"
+      timeOfDay="dawn"
+      onEditField={(field, next): void => {
+        captured = [field, next];
+      }}
+    />,
+  );
+  // At rest: the current label as static text on a button — no input, no select.
+  const rest = page.getByRole("button", { name: "Time value" });
+  await expect(rest).toContainText("dawn");
+  await rest.click();
+  // The six TIME_OF_DAY labels appear as a pick-once group (Tier-0 §12.3 — off-vocab unconstructable).
+  const group = page.getByRole("group", { name: "Time of day" });
+  await expect(group.getByRole("button", { name: "night", exact: true })).toBeVisible();
+  await group.getByRole("button", { name: "night", exact: true }).click();
+  expect(captured).toEqual(["timeOfDay", "night"]);
+  // The picker closes back to rest after the pick.
+  await expect(page.getByRole("group", { name: "Time of day" })).toHaveCount(0);
 });
 
 // ── GoalLine ──────────────────────────────────────────────────────────────────────────────────────
@@ -237,7 +301,7 @@ test("GoalLine done: the goal text gets a strikethrough", async ({ mount }) => {
   await expect(done.getByText("Escape the inn")).toHaveCSS("text-decoration-line", "line-through");
 });
 
-test("GoalLine editable: commit fires with the new goal text", async ({ mount, page }) => {
+test("GoalLine editable: display-at-rest → click reveals the field; commit fires with the new goal text", async ({ mount, page }) => {
   let committed = "";
   await mount(
     <GoalLine
@@ -247,6 +311,9 @@ test("GoalLine editable: commit fires with the new goal text", async ({ mount, p
       }}
     />,
   );
+  const rest = page.getByRole("button", { name: "Goal" });
+  await expect(rest).toContainText("Find the bone key");
+  await rest.click();
   const field = page.getByRole("textbox", { name: "Goal" });
   await field.fill("Find the iron key");
   await field.blur();
@@ -315,7 +382,7 @@ test("Scene region — ambient strip → cast card w/ per-NPC meter → beats (m
   await component.screenshot({ path: "reports/snaps/tracker-kit-scene.png" });
 });
 
-test("Editable arm — the value becomes an inline field (editable-in-place is the default posture)", async ({ mount }) => {
+test("Editable arm — display-at-rest: an editable region shows NO inputs until a value is clicked (§12.4.1)", async ({ mount, page }) => {
   const noop = (): void => undefined;
   const component = await mount(
     <Stack gap="block" className="w-panel bg-sidebar p-block">
@@ -329,8 +396,14 @@ test("Editable arm — the value becomes an inline field (editable-in-place is t
       </Row>
     </Stack>,
   );
-  await expect(component.getByRole("textbox", { name: "Affection value" })).toHaveValue("42");
+  // The INSTRUMENT posture: zero inputs at rest — every editable value is a static-text button.
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Affection value" })).toContainText("42");
   await component.screenshot({ path: "reports/snaps/tracker-kit-editable.png" });
+  // Clicking one value reveals exactly ONE inline field, seeded with the value.
+  await component.getByRole("button", { name: "Affection value" }).click();
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(1);
+  await expect(component.getByRole("textbox", { name: "Affection value" })).toHaveValue("42");
 });
 
 test("Sheet region — attribute stat cells, 3-up grid (mockup OSRS skills idiom)", async ({ mount }) => {

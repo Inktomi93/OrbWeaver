@@ -12,7 +12,7 @@
 import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Icon } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#components";
@@ -21,6 +21,7 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
 import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
 import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
+import { RpgChoiceEcho } from "./rpg-choice-echo";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { RpgSceneCards } from "./rpg-scene-cards";
@@ -123,17 +124,25 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   };
 }
 
-/** The lite Scene tab — ambient, cast, goals, widgets, beats. */
-export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
-  const { tracker } = state;
-  const { onEditAmbient, onEditGoal, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
+/** The section-scoped hand-lock pin (§12.3): `editSnapshot` stamps TOP-LEVEL patch paths
+ *  (`presentCharacters`, `widgetValues`), so one lock ⇒ one pin ⇒ one Release, rendered beside the
+ *  section label. `null` unless the path is locked AND the viewer owns the release (host). */
+function sectionLockPin(locked: ReadonlySet<string>, path: string, onReleaseLock: ((path: string) => void) | undefined): ReactNode {
+  if (onReleaseLock === undefined || !locked.has(path)) {
+    return null;
+  }
+  return <RpgFieldLock onRelease={(): void => onReleaseLock(path)} />;
+}
 
-  const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
-  const groups = widgetsBySubject(tracker.widgets);
-  const locked = new Set(tracker.lockedPaths);
-
-  const ambient = tracker.ambient;
-  const ambientProps: Parameters<typeof AmbientStrip>[0] = {
+/** The ambient card's props — the field values (nullable-honest), the edit callback, and the per-field
+ *  lock pins (§12.3), split from the tab body for the complexity gate. */
+function ambientStripProps(
+  ambient: RpgTrackerView["ambient"],
+  locked: ReadonlySet<string>,
+  onEditAmbient: ((field: "location" | "date" | "timeOfDay" | "weather", next: string) => void) | undefined,
+  onReleaseLock: ((path: string) => void) | undefined,
+): Parameters<typeof AmbientStrip>[0] {
+  return {
     ...(ambient !== null && ambient.location !== "" ? { location: ambient.location } : {}),
     ...(ambient !== null && ambient.calendarDate !== null ? { date: ambient.calendarDate } : {}),
     ...(ambient !== null && ambient.clock !== null ? { timeOfDay: timeOfDayLabel(ambient.clock) } : {}),
@@ -143,22 +152,35 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
     ...(onReleaseLock === undefined
       ? {}
       : {
-          lockSlot: (field: "location" | "date" | "timeOfDay" | "weather"): ReactNode => {
-            const path = AMBIENT_LOCK_PATH[field];
-            return locked.has(path) ? <RpgFieldLock onRelease={(): void => onReleaseLock(path)} /> : null;
-          },
+          lockSlot: (field: "location" | "date" | "timeOfDay" | "weather"): ReactNode => sectionLockPin(locked, AMBIENT_LOCK_PATH[field], onReleaseLock),
         }),
   };
+}
+
+/** The lite Scene tab — ambient, cast, goals, the live choice echo, widgets, beats. */
+export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
+  const { tracker } = state;
+  const { onEditAmbient, onEditGoal, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
+
+  const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
+  const groups = widgetsBySubject(tracker.widgets);
+  const locked = new Set(tracker.lockedPaths);
+  const ambient = tracker.ambient;
 
   return (
     <Stack gap="section" data-slot="rpg-scene-tab">
-      {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientProps} />}
-      <SceneCast cast={tracker.cast} castFields={tracker.castFields} {...(castEdit === undefined ? {} : { edit: castEdit })} />
+      {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientStripProps(ambient, locked, onEditAmbient, onReleaseLock)} />}
+      <SceneCast
+        cast={tracker.cast}
+        castFields={tracker.castFields}
+        {...(castEdit === undefined ? {} : { edit: castEdit })}
+        lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)}
+      />
       {/* The Goals section is a filtered ECHO of the quest plane (§12.1.8): ACTIVE only, compact rows —
           the Quests tab is the plane's home. One datum, two lenses, zero divergent state. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} {...(onEditGoal === undefined ? {} : { onEditGoal })} />
-      <RpgChoiceEcho choices={[]} />
-      <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} />
+      <RpgChoiceEcho state={state} />
+      <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} lockPin={sectionLockPin(locked, "widgetValues", onReleaseLock)} />
       <SceneBeats beats={beats} />
       <RpgSceneCards chatId={state.chatId} enabled={state.game.publicConfig.immersiveHtml} />
     </Stack>
@@ -176,22 +198,33 @@ function SectionLabel({ children }: { readonly children: ReactNode }): ReactElem
 
 /** Split a cast member's stored `customFields` record against the host-defined field SCHEMAS (§2.8): a `meter`
  *  field becomes a MeterRow (numeric value/max, the value parsed from its stored string); a `text` field becomes
- *  a labelled chip. Only DEFINED fields render (an orphan value from a deleted field-schema is dropped). */
+ *  a labelled chip. Only DEFINED fields render (an orphan value from a deleted field-schema is dropped).
+ *
+ *  `ordinal` is the ONE cast-field color source of truth (§12.1.2 — color is a DERIVATION, never a datum):
+ *  the field's index among METER-kind fields in the SCHEMA's definition order — stable per field, identical
+ *  across members (a per-member filtered index would color the same field differently on different cards),
+ *  and the SAME ordinal the GM console's definition swatch derives from (definition and display one system, §3). */
 function castFieldViews(
   customFields: Readonly<Record<string, string>>,
   castFields: RpgTrackerView["castFields"],
-): { readonly meters: readonly { key: string; label: string; value: number; max: number }[]; readonly texts: readonly { name: string; value: string }[] } {
-  const meters: { key: string; label: string; value: number; max: number }[] = [];
+): {
+  readonly meters: readonly { key: string; label: string; value: number; max: number; ordinal: number }[];
+  readonly texts: readonly { name: string; value: string }[];
+} {
+  const meters: { key: string; label: string; value: number; max: number; ordinal: number }[] = [];
   const texts: { name: string; value: string }[] = [];
+  let meterOrdinal = 0;
   for (const field of castFields) {
     const raw = customFields[field.key];
-    if (raw === undefined) {
-      continue;
-    }
     if (field.kind === "meter") {
+      const ordinal = meterOrdinal;
+      meterOrdinal += 1;
+      if (raw === undefined) {
+        continue;
+      }
       const value = Number.parseInt(raw, 10);
-      meters.push({ key: field.key, label: field.label, value: Number.isNaN(value) ? 0 : value, max: field.max ?? 0 });
-    } else {
+      meters.push({ key: field.key, label: field.label, value: Number.isNaN(value) ? 0 : value, max: field.max ?? 0, ordinal });
+    } else if (raw !== undefined) {
       texts.push({ name: field.label, value: raw });
     }
   }
@@ -217,10 +250,13 @@ function SceneCast({
   cast,
   castFields,
   edit,
+  lockPin,
 }: {
   readonly cast: RpgTrackerView["cast"];
   readonly castFields: RpgTrackerView["castFields"];
   readonly edit?: SceneCastEdit;
+  /** The section-scoped `presentCharacters` hand-lock pin (§12.3) — `null` when unlocked/not-host. */
+  readonly lockPin?: ReactNode;
 }): ReactElement {
   if (cast.length === 0) {
     // The honest empty-cast doorway (§12.1.5): the scene fills from the story; nothing to author by hand here.
@@ -230,7 +266,10 @@ function SceneCast({
   const keyByLabel = new Map(castFields.map((f) => [f.label, f.key]));
   return (
     <Stack gap="field">
-      <SectionLabel>On stage — {cast.length}</SectionLabel>
+      <Row gap="field" align="center">
+        <SectionLabel>On stage — {cast.length}</SectionLabel>
+        {lockPin}
+      </Row>
       {cast.map((member) => {
         const { meters, texts } = castFieldViews(member.customFields, castFields);
         const editProps =
@@ -262,7 +301,7 @@ function SceneCast({
             {...(meters.length === 0
               ? {}
               : {
-                  meters: meters.map((m, i) => {
+                  meters: meters.map((m) => {
                     const fieldKey = keyByLabel.get(m.label);
                     return (
                       <MeterRow
@@ -270,7 +309,9 @@ function SceneCast({
                         label={m.label}
                         value={m.value}
                         max={m.max}
-                        color={trackColor(i)}
+                        // The schema-ordinal derivation (§12.1.2) — the same field wears the same track
+                        // color on every card AND on its GM-console definition row.
+                        color={trackColor(m.ordinal)}
                         {...(edit === undefined || fieldKey === undefined
                           ? {}
                           : {
@@ -328,18 +369,25 @@ function SceneGoals({
 function SceneWidgets({
   groups,
   onEditWidget,
+  lockPin,
 }: {
   readonly groups: ReadonlyMap<string, readonly RpgWidgetView[]>;
   readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
+  /** The section-scoped `widgetValues` hand-lock pin (§12.3) — ONE lock covers every widget value, so the
+   *  pin renders once, beside the FIRST group's label. `null` when unlocked/not-host. */
+  readonly lockPin?: ReactNode;
 }): ReactElement | null {
   if (groups.size === 0) {
     return null;
   }
   return (
     <>
-      {[...groups.entries()].map(([subject, subjectWidgets]) => (
+      {[...groups.entries()].map(([subject, subjectWidgets], groupIndex) => (
         <Stack key={subject} gap="field">
-          <SectionLabel>{subject}</SectionLabel>
+          <Row gap="field" align="center">
+            <SectionLabel>{subject}</SectionLabel>
+            {groupIndex === 0 ? lockPin : null}
+          </Row>
           {subjectWidgets.map((widget, i) => (
             <MeterRow
               key={widget.def.label}
@@ -358,39 +406,6 @@ function SceneWidgets({
         </Stack>
       ))}
     </>
-  );
-}
-
-// ─── The P5 CHOICE echo — the wired-when-ready shell (info-blue voice) ───────────────────────────
-
-/**
- * One offered choice — the P5 (CYOA) forward-seam shape the choice plane will supply.
- * @public P5 forward-seam (panel-redesign DESIGN.md §6 P5) — unwired ≠ worthless; the CYOA lane fills it.
- */
-export interface RpgSceneChoice {
-  readonly id: string;
-  readonly text: string;
-}
-
-/** The "Choice on the table" block (§6 P5 — moment-scale CYOA; info blue, numbered). Renders NOTHING
- *  until the choice plane exists — the honest empty plane, never filler. LOCAL (rendered in-file with an
- *  empty list today); the P5 lane wires real `choices` (+ the pick verb; the wand owns the send — this
- *  block is the echo). The `RpgSceneChoice` prop type stays exported as the seam's published shape. */
-function RpgChoiceEcho({ choices }: { readonly choices: readonly RpgSceneChoice[] }): ReactElement | null {
-  if (choices.length === 0) {
-    return null;
-  }
-  return (
-    <Stack gap="field" data-slot="rpg-choice-echo" className="rounded-card border border-info bg-card px-block py-row">
-      <Text size="label" transform="caps" className="tracking-micro text-info">
-        Choice on the table
-      </Text>
-      {choices.map((choice, i) => (
-        <Text key={choice.id} size="label">
-          {i + 1}. {choice.text}
-        </Text>
-      ))}
-    </Stack>
   );
 }
 

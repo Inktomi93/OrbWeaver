@@ -1,10 +1,12 @@
-// The INVENTORY tab (panel-redesign DESIGN.md §4 "Inventory" — the PACK): the pinned currency line above
+// The INVENTORY tab (panel-redesign DESIGN.md §4 "Inventory" — the PACK): the member-selector pill row
+// (§12.1.3 — the ONE scope-selector primitive Sheet uses; self default) + the pinned currency line above
 // the OSRS item grid. The pinned line is the PARTY TOTAL derivation (§12.2 — no purse entity exists; totals
 // SUM per-actor wallets, "party total — N carried by <viewer>"), the Sheet chip and band coin being the
-// other two zoom levels of the same number. Grid cells: resolved glyph (the §12.5 keyword resolver —
-// aria-hidden; the NAME is the datum on the cell + `title`), qty in the corner, quest-bound = the ember
-// dot (keys off the model-written `type` matching /quest/ — §12.2; no quest link exists on items), plus
-// ONE dashed ghost socket (growth affordance — never a fake 28-slot pack; no encumbrance UI, not modeled).
+// other two zoom levels of the same number. Grid = `cols="cell"` (§5 — 5-up docked, 6-up mobile,
+// container-driven). Cells: resolved glyph (the §12.5 keyword resolver — aria-hidden; the NAME is the
+// datum on `title` + a visually-hidden line), qty in the corner, quest-bound = the ember dot (keys off the
+// model-written `type` matching /quest/ — §12.2; no quest link exists on items), plus ONE dashed ghost
+// socket (growth affordance — never a fake 28-slot pack; no encumbrance UI, not modeled).
 // The "last change" provenance line is DEFERRED (§12.2.8 — no per-item provenance datum exists; the honest
 // arm is a client-side ephemeral snapshot diff, a follow-up seam).
 
@@ -12,10 +14,19 @@ import type { RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
 import { Coins, Icon } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { Toggle } from "@orb/ui/toggle";
+import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { useInventoryDiff } from "../hooks/use-inventory-diff";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { resolveItemGlyph } from "../lib/glyphs";
+
+/** The stable selector key for an actor (the Sheet selector's own derivation — §12.1.3 one scope-selector
+ *  semantics across tabs). */
+function actorKey(actor: RpgActorView): string {
+  return `${actor.actorRef.kind}:${actor.name}`;
+}
 
 /** The quest-bound tell — the model-written item `type` naming the quest taxonomy (§12.2). */
 const QUEST_TYPE_RE = /quest/i;
@@ -40,9 +51,12 @@ export interface RpgInventoryTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Inventory tab — the pinned party-purse line + the glyph item grid + one ghost socket. */
+/** The Inventory tab — the member-selector pill row (§12.1.3, self default) + the pinned party-purse
+ *  line + the glyph item grid + one ghost socket. */
 export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
-  const actor = viewerActor(state.tracker.actors, state.viewerUserId);
+  const fallback = viewerActor(state.tracker.actors, state.viewerUserId);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const actor = state.tracker.actors.find((a) => actorKey(a) === selectedKey) ?? fallback;
   const volatile = actor?.volatile ?? null;
   const items = volatile?.inventory ?? [];
   const totals = partyTotals(state.tracker.actors);
@@ -52,6 +66,26 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
+      {/* The shared member-selector pill row (§12.1.3 — the SAME mini-tab primitive Sheet scopes with;
+          whose PACK is shown; self default). Omitted on a one-actor roster (nothing to scope). */}
+      {state.tracker.actors.length > 1 && actor !== undefined ? (
+        <ToggleGroup
+          aria-label="Whose pack"
+          value={[actorKey(actor)]}
+          onValueChange={(next): void => {
+            const picked = next[0];
+            if (typeof picked === "string") {
+              setSelectedKey(picked);
+            }
+          }}
+        >
+          {state.tracker.actors.map((a) => (
+            <Toggle key={actorKey(a)} value={actorKey(a)}>
+              {a.name}
+            </Toggle>
+          ))}
+        </ToggleGroup>
+      ) : null}
       {totals.size === 0 ? null : (
         <Row gap="field" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="rpg-purse-line">
           <Icon icon={Coins} size="sm" label="Party purse" />
@@ -79,7 +113,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
           <Text size="label" tone="muted" transform="caps" className="tracking-micro">
             Pack — {items.length}
           </Text>
-          <Grid cols="tile" gap="field">
+          <Grid cols="cell" gap="field">
             {items.map((item) => {
               const questBound = QUEST_TYPE_RE.test(item.type);
               return (
@@ -104,7 +138,9 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
                     </Text>
                   ) : null}
                   <Icon icon={resolveItemGlyph(item.name, item.type)} size="md" className="text-muted-foreground" />
-                  <Text as="span" size="micro" className="line-clamp-2">
+                  {/* The mock's 5/6-up density carries the NAME on title/hover; the visually-hidden text
+                      keeps it the accessible datum (the tracker-kit a11y model — glyphs stay decoration). */}
+                  <Text as="span" size="micro" className="sr-only">
                     {item.name}
                   </Text>
                 </Stack>

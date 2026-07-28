@@ -1,53 +1,80 @@
 // The CastCard header slots (extracted from tracker-blocks.tsx for the component-size cap): the
-// relationship slot (kind PICKER when editable — the closed 6-token vocab, Tier-0 §12.3; else the read
-// badge, silent on neutral) and the mood slot (inline field when editable, else the read line). Both are
-// editable-in-place by default per the kit doctrine (§3.2).
+// relationship slot (a display-at-rest badge whose CLICK opens the closed 6-token kind PICKER — Tier-0
+// §12.3, but never a RESTING dropdown per DESIGN §12.4.1) and the mood slot (display-at-rest,
+// input-on-click via TrackerValue). Both are editable-in-place by default per the kit doctrine (§3.2).
 
 import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
-import { Row } from "@orb/ui/layout";
-import { Select } from "@orb/ui/select";
+import { RPG_RELATIONSHIP_KINDS } from "@orb/contracts/rpg";
+import { Button } from "@orb/ui/button";
+import { Row, Stack } from "@orb/ui/layout";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import { RelationshipBadge } from "./relationship-badge";
 import { TrackerValue } from "./tracker-value";
-
-/** The relationship-kind picker options (the closed vocab — Tier-0, a PICKER never free text). */
-const RELATIONSHIP_KIND_OPTIONS: readonly { readonly label: string; readonly value: RpgRelationshipKind }[] = [
-  { label: "lover", value: "lover" },
-  { label: "friend", value: "friend" },
-  { label: "ally", value: "ally" },
-  { label: "neutral", value: "neutral" },
-  { label: "enemy", value: "enemy" },
-  { label: "custom", value: "custom" },
-];
 
 export interface CastRelationshipProps {
   readonly name: string;
   readonly relationship?: RpgRelationship;
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
-  /** An optional leading relationship glyph (aria-hidden) beside the picker in EDIT mode — the feature
+  /** An optional leading relationship glyph (aria-hidden) beside the trigger in EDIT mode — the feature
    *  supplies it (the tier-2 kit can't reach a feature glyph lib). In read mode the badge carries its own. */
   readonly relationshipGlyph?: ReactNode;
 }
 
-/** The relationship slot — the kind PICKER when editable, else the read badge (a neutral default is silent). */
+/** The relationship slot — display-at-rest: the read badge (or a quiet "+ relationship" seed affordance
+ *  when neutral) opens the 6-kind PICKER popover on click. Read-only (no callback): the badge alone,
+ *  silent on neutral. Off-vocab kinds are unconstructable (Tier-0). */
 export function CastRelationship({ name, relationship, onEditRelationshipKind, relationshipGlyph }: CastRelationshipProps): ReactElement | null {
+  const kind = relationship?.kind ?? "neutral";
+  // Controlled so a PICK closes the popover in the same gesture (commit-and-close, §12.4.1).
+  const [open, setOpen] = useState(false);
   if (onEditRelationshipKind !== undefined) {
+    const badge = relationship !== undefined && kind !== "neutral" ? <RelationshipBadge relationship={relationship} /> : null;
     return (
-      <Row gap="field" align="center" className="shrink-0">
-        {relationshipGlyph}
-        <Select<RpgRelationshipKind>
-          aria-label={`${name} relationship`}
-          items={RELATIONSHIP_KIND_OPTIONS}
-          value={relationship?.kind ?? "neutral"}
-          onValueChange={(next): void => {
-            if (next !== null) {
-              onEditRelationshipKind(next);
-            }
-          }}
-          className="h-control-sm shrink-0"
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger
+          render={
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              aria-label={`${name} relationship`}
+              title="Click to edit"
+              className="!h-auto min-h-0 gap-field !px-field !py-0 font-normal"
+            >
+              {relationshipGlyph}
+              {badge ?? (
+                <Text as="span" size="micro" tone="muted">
+                  + relationship
+                </Text>
+              )}
+            </Button>
+          }
         />
-      </Row>
+        <PopoverPopup>
+          <Stack gap="field" role="group" aria-label={`${name} relationship kind`}>
+            {RPG_RELATIONSHIP_KINDS.map((option) => (
+              <Button
+                key={option}
+                type="button"
+                intent={option === kind ? "secondary" : "ghost"}
+                size="sm"
+                className="justify-start"
+                onClick={(): void => {
+                  if (option !== kind) {
+                    onEditRelationshipKind(option);
+                  }
+                  setOpen(false);
+                }}
+              >
+                {option}
+              </Button>
+            ))}
+          </Stack>
+        </PopoverPopup>
+      </Popover>
     );
   }
   if (relationship === undefined) {
@@ -62,7 +89,8 @@ export interface CastMoodProps {
   readonly onEditMood?: (next: string) => void;
 }
 
-/** The mood slot — an inline field when editable, else the read line (omitted when absent). */
+/** The mood slot — display-at-rest with the inline editor on click (TrackerValue owns the grammar);
+ *  read-only shows the plain line (omitted when absent). */
 export function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | null {
   if (onEditMood !== undefined) {
     return (
