@@ -105,6 +105,31 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
 export const RPG_EXTRACTION_MODES = ["reliable", "cheap"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
 
+/** The extraction-CONTEXT knob (the crunchy-cluster redesign §1.3) — how much of the turn's OWN story the
+ *  post-narration state round reads as evidence. The round rides the character turn's already-loaded canon
+ *  transcript (zero extra model reads, §1.4); this knob slices it:
+ *    • `beat`   = today's behavior EXACTLY — the round sees only the latest committed beat (the escape hatch,
+ *                 byte-compatible; the 8B floor if a local model proves swamped by more context).
+ *    • `window` (default) = the last `extractionWindowTokens` of transcript (whole messages, newest-first
+ *                 fill, oldest→newest in the prompt) — "the recent arc" so relationships/inventory/quests
+ *                 evolve as arcs and stale planes reconcile against what actually happened.
+ *    • `full`   = the whole threaded canon (itself compaction-bounded by the char turn's loading) — maximum
+ *                 inference for a hosted room, with an honest GM-console consequence line.
+ *  Additive, default `"window"` — a pre-redesign blob self-heals at the parse seam (D107 knob-wire discipline). */
+export const RPG_EXTRACTION_CONTEXTS = ["beat", "window", "full"] as const;
+export type RpgExtractionContext = (typeof RPG_EXTRACTION_CONTEXTS)[number];
+
+/** The `window` arm's transcript-token budget bounds + default (§1.3). Floored for the sad-path 8B (enough for
+ *  the recent arc), capped so a hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]);
+ *  4096 ≈ 10–16 typical RP beats. */
+export const RPG_EXTRACTION_WINDOW_TOKENS_MIN = 512;
+export const RPG_EXTRACTION_WINDOW_TOKENS_MAX = 32_768;
+export const RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT = 4096;
+
+/** The reconcile-cadence bounds + default (§1.3): every Nth flush forces a full plane re-emission (0 = off). */
+export const RPG_RECONCILE_EVERY_BEATS_MAX = 100;
+export const RPG_RECONCILE_EVERY_BEATS_DEFAULT = 10;
+
 /** The ambient DATE mode (#9, owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
  *  provides from the fiction (`calendarDate` — "3rd of Frostmoon"), with NO forced sequential day-counter
  *  display and no exact-date pressure; `structured` = the integer `clock.day` counter renders beside it
@@ -133,6 +158,24 @@ export const rpgGameConfigSchema = z.object({
     })
     .default({ steeringNote: "" }),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).default("reliable"),
+  // The extraction-DEPTH knobs (the crunchy-cluster redesign §1.3) — how much of the turn's own story the
+  // state round reads, and its token budget. Additive defaulted, self-healing at the parse seam (the
+  // `extractionMode` precedent — D107 knob-wire discipline, no version stamp). `extractionContext` defaults
+  // to `window` (the "recent arc" — the ratified round-1 owner default); `extractionWindowTokens` bounds the
+  // `window` arm's transcript budget (message-boundary sliced), floored for the sad-path 8B and capped so a
+  // hosted room can raise it without unbounded prefill ([[plan-for-small-hardware]]).
+  extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).default("window"),
+  extractionWindowTokens: z
+    .number()
+    .int()
+    .min(RPG_EXTRACTION_WINDOW_TOKENS_MIN)
+    .max(RPG_EXTRACTION_WINDOW_TOKENS_MAX)
+    .default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
+  // The RECONCILE CADENCE (§1.3) — every Nth flush FORCES a full re-emission of the refreshable planes
+  // (scene + present cast, via the establish-when-unset machinery applied unconditionally) so a deep story's
+  // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config
+  // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
+  reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),
   dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
   // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + the P4 card options) — additive,
   // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the

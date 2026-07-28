@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import type { ChatRpgOps, RpgTurnConnection } from "../../../../packages/server/src/domain/chat";
+import type { ChatRpgOps, RpgTurnContext } from "../../../../packages/server/src/domain/chat";
 import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type {
   RpgContext,
@@ -53,6 +53,9 @@ export function liteConfig(): RpgGameConfig {
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
     extractionMode: "reliable",
+    extractionContext: "window",
+    extractionWindowTokens: 4096,
+    reconcileEveryBeats: 10,
     dateMode: "narrated",
     features: {
       castFields: [],
@@ -140,12 +143,15 @@ export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; v
  *  Defaults to a WRITER connection (structured + tools capable) with consent ON, so a flush actually runs its
  *  round unless a test overrides it (e.g. a readonly/no-writer capability to pin the F2 gate, or a max-pro-sub
  *  source + `ownerConsented:false` to pin the F1 consent inheritance). */
-export function turnConnection(over: Partial<RpgTurnConnection> = {}): RpgTurnConnection {
+export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnContext {
   return {
     connection: makeResolvedConnection({
       capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
     }),
     ownerConsented: true,
+    // Default: an empty transcript (the round still fires with an empty beat — the canned fakes ignore prompt
+    // content). A §1.3 window-content test overrides `transcript` with real name-stamped rows.
+    transcript: [],
     ...over,
   };
 }

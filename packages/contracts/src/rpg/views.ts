@@ -134,6 +134,11 @@ export interface RpgConfigView {
   readonly steeringNote: string;
   readonly gmPresetId: string | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];
+  /** The §1.3 extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
+   *  token budget, and the reconcile cadence (0 = off). */
+  readonly extractionContext: RpgGameConfig["extractionContext"];
+  readonly extractionWindowTokens: RpgGameConfig["extractionWindowTokens"];
+  readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
   /** The #9 ambient-date mode knob (host editor). */
   readonly dateMode: RpgGameConfig["dateMode"];
   /** The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the

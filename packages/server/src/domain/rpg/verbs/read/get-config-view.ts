@@ -15,6 +15,10 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       steeringNote: game.config.lite.steeringNote,
       gmPresetId: game.gmPresetId,
       extractionMode: game.config.extractionMode,
+      // The §1.3 extraction-depth knobs (host editor).
+      extractionContext: game.config.extractionContext,
+      extractionWindowTokens: game.config.extractionWindowTokens,
+      reconcileEveryBeats: game.config.reconcileEveryBeats,
       dateMode: game.config.dateMode, // #9 — the ambient-date mode knob
       castFields: game.config.features.castFields,
       relationshipHints: game.config.features.relationshipHints,
