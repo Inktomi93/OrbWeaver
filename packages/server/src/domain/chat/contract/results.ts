@@ -14,13 +14,14 @@ import type {
   TurnAbortReason,
   TurnInitiator,
   TurnIntent,
+  UserMacroDraws,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory";
@@ -222,6 +223,16 @@ export interface TurnPrep {
    *  recall (merged/narrator/solo, memory off, or empty cast) ⇒ the round-level `assembleContext.memory` stands
    *  byte-identically. Shared across the round's speakers (the recent-window + name-map are speaker-invariant). */
   readonly memoryRecall?: MemoryRecallInputs | null | undefined;
+  /** The per-turn user-macro RENDER registry (WAVE MU delivery) — handler CLOSURES capturing this turn's
+   *  resolved input bindings, so it is SERVER-ONLY and rides HERE, NEVER on the serializable
+   *  `assembleContext` (a client-imported contract shape). Absent ⇒ the preset authored no user macros ⇒
+   *  every render seam falls back to the process `globalMacroRegistry` (byte-identical). Shared by reference
+   *  across a group round's speakers (one resolution per round). */
+  readonly macroRegistry?: MacroRegistry | undefined;
+  /** The turn's effective user-macro draw record (frozen ∪ fresh) — resolved ONCE at registry build and
+   *  immutable for the round; persisted onto EVERY committed variant (so a swipe of any speaker's row
+   *  replays it). Absent ⇒ the turn drew nothing. */
+  readonly userMacroDraws?: UserMacroDraws | undefined;
   /** The roster character this single turn voices; null for a non-character turn. */
   readonly speakerCharacterId: CharacterId | null;
   /** A synthetic trailing user turn (regen prompt/continue nudge); null for a plain send. */

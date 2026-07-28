@@ -6,7 +6,7 @@
 
 import { OpenRouter } from "@openrouter/sdk";
 import type { RequestOptions } from "@openrouter/sdk/lib/sdks";
-import type { GenerationResponse, ModelsListResponse } from "@openrouter/sdk/models";
+import type { GenerationResponse } from "@openrouter/sdk/models";
 import type {
   CreateEmbeddingsRequest,
   CreateEmbeddingsResponse,
@@ -15,9 +15,11 @@ import type {
   CreateResponsesRequest,
   CreateResponsesResponse,
   GetCreditsResponse,
+  GetModelsResponse,
   SendChatCompletionRequestRequest,
   SendChatCompletionRequestResponse,
 } from "@openrouter/sdk/models/operations";
+import type { PageIterator } from "@openrouter/sdk/types";
 import { APP_NAME, APP_URL } from "#foundation/config";
 
 /** Max distinct API-key clients kept warm; the least-recently-used is evicted past this. */
@@ -29,10 +31,8 @@ export interface OrClient {
   readonly chat: {
     readonly send: (request: SendChatCompletionRequestRequest, options?: RequestOptions) => Promise<SendChatCompletionRequestResponse>;
   };
-  readonly beta: {
-    readonly responses: {
-      readonly send: (request: CreateResponsesRequest, options?: RequestOptions) => Promise<CreateResponsesResponse>;
-    };
+  readonly responses: {
+    readonly send: (request: CreateResponsesRequest, options?: RequestOptions) => Promise<CreateResponsesResponse>;
   };
   readonly embeddings: {
     readonly generate: (request: CreateEmbeddingsRequest, options?: RequestOptions) => Promise<CreateEmbeddingsResponse>;
@@ -41,7 +41,9 @@ export interface OrClient {
     readonly rerank: (request: CreateRerankRequest, options?: RequestOptions) => Promise<CreateRerankResponse>;
   };
   readonly models: {
-    readonly list: () => Promise<ModelsListResponse>;
+    // `list()` returns an auto-paginating `PageIterator` (SDK 1.x); the first page's `.result` carries the
+    // catalog. We read page one only (OR returns the full catalog un-paginated on `/models`).
+    readonly list: () => Promise<PageIterator<GetModelsResponse, { offset: number }>>;
   };
   readonly credits: {
     readonly getCredits: () => Promise<GetCreditsResponse>;

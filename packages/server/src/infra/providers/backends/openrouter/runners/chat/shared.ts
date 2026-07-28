@@ -16,6 +16,7 @@ import type {
   ProviderPreferences,
   ReasoningDetailUnion,
 } from "@openrouter/sdk/models";
+import { Quantization } from "@openrouter/sdk/models";
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -275,9 +276,11 @@ function toMaxPrice(raw: Record<string, unknown>): ProviderPreferences["maxPrice
 }
 
 // The quantization levels OpenRouter actually filters on. The contract stores `quantizations` as loose
-// strings; keep only the wire-valid levels (an unknown level would fail routing anyway), which also
-// bridges the SDK's branded `Quantization` enum without a cast.
-const OR_QUANTIZATIONS = new Set(["int4", "int8", "fp4", "fp6", "fp8", "fp16", "bf16", "fp32", "unknown"]);
+// strings; keep only the wire-valid levels (an unknown level would fail routing anyway). Derived from the
+// SDK's `Quantization` enum so a new upstream level can't be silently stripped from a user's routing pref.
+// ASSUMES(single-replica): a read-only lookup Set derived from the static `Quantization` enum — identical on
+// every replica, never mutated after init, so it is NOT a correctness boundary and needs no DB-backed seam.
+const OR_QUANTIZATIONS = new Set<string>(Object.values(Quantization));
 
 function toQuantizations(values: readonly string[]): ProviderPreferences["quantizations"] {
   return values.filter((value): value is NonNullable<ProviderPreferences["quantizations"]>[number] => OR_QUANTIZATIONS.has(value));

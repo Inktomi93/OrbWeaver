@@ -13,6 +13,7 @@
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
@@ -30,6 +31,7 @@ import type {
   ReapTemporaryChatsParams,
   SetChatAnchorPersonaParams,
   SetChatInjectionParams,
+  SetUserMacroValuesParams,
   SetVariablesParams,
   StarChatParams,
   UpdateTitleParams,
@@ -64,6 +66,7 @@ type ChatLifecycleVerbs = Pick<
   | "getVariables"
   | "getStoredVariables"
   | "setVariables"
+  | "setUserMacroValues"
   | "clearVariables"
   | "setChatInjection"
   | "listChatInjections"
@@ -240,6 +243,20 @@ function createSetVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService[
   };
 }
 
+/** `setUserMacroValues` (WAVE MU) — member. Flush the per-chat user-macro INPUT picks (a nested
+ *  macro→input→typed pick bag) to `chats.user_macro_values`. The `setVariables` sibling — a distinct column
+ *  because the nested-typed shape can't share the flat `variableValues` map. Re-validates through
+ *  `userMacroValuesSchema` at the verb (defense-in-depth over the tRPC boundary parse) — a malformed bag is
+ *  refused rather than persisted; the turn build reads it back as the `values` bag. Emits `chatUpdated`. */
+function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent): ChatService["setUserMacroValues"] {
+  return async ({ principal, chatId, values }: SetUserMacroValuesParams): Promise<void> => {
+    await requireParticipant(ctx, principal, chatId);
+    const parsed = userMacroValuesSchema.parse(values);
+    await ctx.db.update(chats).set({ userMacroValues: parsed, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await emit({ type: "chatUpdated", chatId });
+  };
+}
+
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
 function createClearVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
@@ -325,6 +342,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     getVariables: createGetVariables(ctx),
     getStoredVariables: createGetStoredVariables(ctx),
     setVariables: createSetVariables(ctx, emit),
+    setUserMacroValues: createSetUserMacroValues(ctx, emit),
     clearVariables: createClearVariables(ctx, emit),
     setChatInjection: createSetChatInjection(ctx, emit),
     listChatInjections: createListChatInjections(ctx),

@@ -1,4 +1,4 @@
-import type { ProcessMacroOptions } from "#macro";
+import type { MacroRegistry, ProcessMacroOptions } from "#macro";
 import { neutralizeMacros, processMacros } from "#macro";
 
 // Guided Generations — the pure resolver for an owner-editable guided-action prompt template.
@@ -71,7 +71,7 @@ export function resolveGuidedInstruction(
   promptTemplate: string,
   userInput: string,
   baseMacroOptions: ProcessMacroOptions,
-  opts?: { person?: string; base?: string },
+  opts?: { person?: string; base?: string; registry?: MacroRegistry | undefined },
 ): string {
   const safeInput = neutralizeMacros(userInput);
   // Substitute `{{person}}` and `{{base}}` in the template BEFORE macro processing so the editable template
@@ -84,5 +84,9 @@ export function resolveGuidedInstruction(
   if (template.length === 0) {
     return safeInput;
   }
-  return processMacros(template, { ...baseMacroOptions, input: safeInput });
+  // The per-turn user-macro registry (WAVE MU) when a guided template references a user macro; absent ⇒
+  // `processMacros`' own `globalMacroRegistry` default (byte-identical for every existing caller).
+  return opts?.registry !== undefined
+    ? processMacros(template, { ...baseMacroOptions, input: safeInput }, opts.registry)
+    : processMacros(template, { ...baseMacroOptions, input: safeInput });
 }

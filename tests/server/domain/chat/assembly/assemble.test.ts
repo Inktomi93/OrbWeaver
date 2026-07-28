@@ -9,6 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card";
+import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
 import { expect, test } from "../../../../support/fixtures";
 
 let sectionSeq = 0;
@@ -334,5 +335,82 @@ describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () =
     // Delivered (the stateless-runner safety net) and after the authored system top (not blindly slot-0 ahead of it).
     expect(out.static).toContain("the summary so far");
     expect(out.trace.compactSummaryIncluded).toBe(true);
+  });
+});
+
+// ── WAVE MU: the per-turn user-macro registry threads through the REAL section walk ──────────────────
+describe("assemblePrompt — per-turn user-macro registry (WAVE MU)", () => {
+  test("a threaded registry renders a user macro in a literal section (default registry passes it through verbatim)", () => {
+    const config = configOf([literal("Mood: {{mood}}"), marker({ marker: "chat_history" })]);
+    const turn = buildTurnUserMacros({
+      defs: [
+        {
+          name: "mood",
+          description: "tone",
+          args: [],
+          body: "{{tone}}",
+          strict: false,
+          inputs: [
+            {
+              kind: "single-select",
+              name: "tone",
+              label: "Tone",
+              options: [{ label: "Grim", value: "grim" }],
+              separator: "",
+              onValue: "",
+              offValue: "",
+              defaultValue: "grim",
+            },
+          ],
+        },
+      ],
+      sourceId: "preset-1",
+      values: {},
+      prng: () => 0,
+    });
+    if (turn === null) {
+      throw new Error("expected a built registry");
+    }
+    // With the threaded registry the macro resolves; the process-default (no third arg) leaves it verbatim.
+    expect(assemblePrompt(config, ctxOf(), turn.registry).static).toBe("Mood: grim");
+    expect(assemblePrompt(config, ctxOf()).static).toBe("Mood: {{mood}}");
+  });
+
+  test("a volatile (random-pick) user macro in a STATIC section lands in staticCacheBusters (the WeakMap scan)", () => {
+    const config = configOf([literal("Draw: {{luck}}"), marker({ marker: "chat_history" })]);
+    const turn = buildTurnUserMacros({
+      defs: [
+        {
+          name: "luck",
+          description: "a random draw",
+          args: [],
+          body: "{{roll}}",
+          strict: false,
+          inputs: [
+            {
+              kind: "random-pick",
+              name: "roll",
+              label: "Roll",
+              options: [
+                { label: "A", value: "a" },
+                { label: "B", value: "b" },
+              ],
+              separator: "",
+              onValue: "",
+              offValue: "",
+              defaultValue: "",
+            },
+          ],
+        },
+      ],
+      sourceId: "preset-1",
+      values: {},
+      prng: () => 0,
+    });
+    if (turn === null) {
+      throw new Error("expected a built registry");
+    }
+    // The scan reads the TURN registry's volatile names (not the process singleton's), so the user macro busts.
+    expect(assemblePrompt(config, ctxOf(), turn.registry).trace.staticCacheBusters).toContain("luck");
   });
 });

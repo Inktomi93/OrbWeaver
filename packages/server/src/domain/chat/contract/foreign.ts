@@ -64,6 +64,11 @@ export interface ResolvedPersonas {
  */
 export interface ForeignInputs {
   readonly promptConfig: PromptConfig;
+  /** The RESOLVED preset id `promptConfig` came from (GM override wins over host default), or null when the system
+   *  `DEFAULT_PROMPT_CONFIG` stood in — WAVE MU user-macro source attribution (`MacroSourceRef` needs the id).
+   *  Absent/null ⇒ the turn stamps the `"default"` source label (unreachable when no user macros are
+   *  authored, since the default config has none). */
+  readonly presetId?: PresetId | null | undefined;
   readonly personas: ResolvedPersonas;
   readonly globalRegexScripts: readonly RegexScript[];
   readonly scanDepth: number;

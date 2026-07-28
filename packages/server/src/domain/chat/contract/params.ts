@@ -20,7 +20,7 @@ import type {
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AssetId,
@@ -310,6 +310,13 @@ export interface GetStoredVariablesParams extends ChatScopedParams {}
 /** `setVariables` — flushes a \{\{var\}\}→value map to chats.variableValues. */
 export interface SetVariablesParams extends ChatScopedParams {
   readonly values: Record<string, string>;
+}
+
+/** `setUserMacroValues` (WAVE MU) — flushes the per-chat user-macro INPUT picks (a nested macro→input→typed
+ *  pick bag) to `chats.user_macro_values`. A SIBLING of `setVariables` (the ChoiceBlock-picks store), kept a
+ *  distinct column because the nested-typed shape can't share the flat `variableValues` map. */
+export interface SetUserMacroValuesParams extends ChatScopedParams {
+  readonly values: UserMacroValues;
 }
 
 export interface ClearVariablesParams extends ChatScopedParams {}

@@ -19,23 +19,156 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
-## ═══ ▶▶▶ QUIESCE GATE — 2026-07-27 (drive to the batch commit) ═══
-**The whole parity-plus foundation + macro engine + security boundary + engine tooling is BUILT + per-wave
-VERIFIED, all uncommitted (159 dirty files). Driving to THE COMMIT.** Whole-tree `pnpm check` run 1 = RED,
-5 stages (the classic cross-lane cleanup the whole-tree gate exists to force): lint:eslint (8 tsdoc/cond) ·
-types:graph (6 test fixtures missing new required fields relationship/viewerIsHost) · structure:full (27:
-suppressions-baseline-regen · engine-url test-presence · render-error-via-battery · no-inline-types moves ·
-no-test-fabrication · single-replica allowlist · dialog-composite) · deps:knip (ss/ps binaries) · docs:format
-(FIXED by orch). **✅ GATE-FIX GREEN (executor `ab77252fe2daea0c7`, `pnpm check` ok:true/0-failed/12 stages):** fixed 8
-eslint (tsdoc + 1 redundant-cond) · types:graph (the rpg wave shipped FIXTURE DEBT — features/userMacros/
-level/castFieldKeys missing on fixtures, all added) · knip (ss/ps ignoreBinaries + a module-local const) ·
-structure 27 (suppressions baseline regen +6 all-cited · engine-url mirror test · no-inline-types→
-domain/rpg/contract/delta.ts + kit moves · no-test-fabrication FABRICATION-OK · single-replica annotations
-· render-error KEPT RpgErrorState + cited allowlist [overrode orch lean: QueryErrorState has NO role=alert,
-reuse would REGRESS the side-eye a11y fix — verified both ends] · dialog→FormDialog). **🔄 FULL BATTERY
-RUNNING (bg; :8788 free, engines up-harmless). NEXT on green: THE BATCH COMMIT (+ D110 mint) → supervised
-engine pass (auto-sleep/wake).** Engines up 8701/2/3; dev
-stack killed to free :8788 for the battery.
+## ═══ ▶▶▶ ✅ PARITY-PLUS FOUNDATION COMMITTED + PUSHED — `ecf98497` · PANEL REDESIGN DELIVERED (2026-07-27 EOD) ═══
+**THE BATCH LANDED + PUSHED to origin/main** (180 files; pre-commit hook re-ran the full static gate = 12/12
+green; **owner EXPLICITLY authorized the push + `--no-verify`** — the pre-PUSH hook re-runs the whole check,
+THAT was the slowness, not auth; standing default stays commit-only-unless-told). vitest 8010/0 · CT 1473/0.
+Contents: P0 delta · P1 relationship/level/cast-fields · P2 visibility registry + the 8-leak hidden-content
+boundary · macro engine MG/ME/MU · engine fleet tooling · P1 fixes · macro consolidation · gate-fix round ·
+**D110 minted** + D109. Blueprint: `reports/parity-plus-program-spec.md`.
+**🎨 PANEL REDESIGN DELIVERED + orch-reviewed (task #18, Fable `a72a33f7785684448`) — STRONG, recommend as the
+BUILD TARGET.** 15 self-contained HTML mocks in `reports/design-refs/panel-redesign/` (index.html + DESIGN.md)
+— all 12 tabs (7 top incl. Quests/Journal[lite-LIVE, CP-doc §4.4 erratum] + locked Map · 5 bottom meta) +
+header band, desktop+mobile. **Signature = THE WAYSTONE** (24h dial + weather sky disc where the map goes +
+satellite RingGauge orbs + honest coin-disc gold). Every parity-plus feature designed IN w/ every state
+(deception host/member split + Status→Veiled ledger + header count · immersive card lifecycle forming→
+collapsed→expanded→view-raw→wire-hider · CYOA block + plot act-rail · relationship/cast-fields first-class).
+Cohesion = **four-voice color grammar** (ember=game-pulse · crown-gold=host-truth · info-blue=story-asks-you ·
+track-ramp=data-identity) every future feature inherits. **⚠ BUILD CONSTRAINT (owner): mocks HARDCODE
+`--color-*` hex for standalone viewing — the BUILD MUST use the D71 THEME TOKEN system (auto-adjusting OKLCH
+`--color-*` vars, NEVER hardcoded hex); the four-voice grammar maps to token ROLES, not literal colors.**
+OPEN: owner verdict · side-eye a11y pass pre-build · recapture clean OSRS refs (osrs-tabs = rough Bing pages).
+**UNCOMMITTED post-push:** OR-SDK hygiene (@openrouter/sdk→1.1.8 + client.responses + OR_QUANTIZATIONS derive,
+scoped-green) + panel-redesign mocks + this workboard — ride the next commit.
+**✅ MU DONE (W1–W5 + gate-fix, Fable `adfad8a03ac9b9d8f`) — AT THE COMMIT GATE (2026-07-27):** verifier-CONFIRMED
++ agent green (321 tests, ts7 clean, biome/eslint/depcruise clean). W1–W4 = draws column + per-turn registry threading
+(WeakMap volatile-cache fix) + swipe-replay pin. W5 = NEW sibling column `chats.userMacroValues` + `setUserMacroValues`
+verb + tRPC proc + sweep-PROBED + wired into buildTurnContext (stored pick overrides the draw — proven). ONE baseline
+regen = 2 cols (`macro_draws` + `user_macro_values`). OR-SDK single-replica red annotated by orch. **NOW:** whole-tree
+check `bk26bdbgu` running → battery → **COMMIT W1–W5 + OR-SDK hygiene + panel mocks + workboard as ONE MU commit**
+(commit-only) → **FIRE panel #21 + P3 #22 + P6 #23**. **Client PICKS PANE DEFERRED → task #24** (build-verified: NO
+in-chat picks UI exists anywhere — even ChoiceBlock picks have zero client consumers; it's a net-new chat-panel surface,
+non-blocking — server delivery is complete + proven). [[mu-store-flat-vs-nested-wall]].
+- **~~MU building~~ (superseded by the line above).**
+- **PANEL REDESIGN ROUND-2 (Fable `afb4223445e98856a`, FRESH — the original a72a3… transcript was GC'd):** grounds
+  the design in reality — (1) one-home/generalize hyper-specific (2) READ rpg DB tables (db/schema/rpg.ts + contracts/
+  rpg) + shapes (3) DATA-INTEGRITY/ward: hand-TYPED edit+validation states (clamp/error/refusal, D108 merge-clear)
+  (4) how-it's-USED flows (host-edit · member-own-ref · model-writes-live-via-bus · swipe) (5) **INVENTORY ICON
+  RESOLUTION** for model-authored item STRINGS (+ relationship/condition/widget glyphs) → updated DESIGN.md round-2
+  section + revised mocks. **all-tabs.html** built (single-file gallery — the index cross-file links went blank in a
+  sandboxed viewer; open all-tabs.html not index.html).
+
+**═══ OPEN THREADS LEDGER — the authoritative "don't lose these" checklist (2026-07-27 EOD) ═══**
+_A) IN-FLIGHT (running, will notify):_
+1. MU-delivery BUILD — Fable `adfad8a03ac9b9d8f` (spec reports/user-macro-delivery-spec.md, F1=Arm A per-chat). → verify + commit on report.
+2. ✅ Panel redesign ROUND-2 DONE — Fable `afb4223445e98856a`. DESIGN.md gained **§12** (buildability/data-integrity/
+   interaction); 9 mocks revised (+ all-tabs.html mirrored). Findings: **one-home** (all arcs→shipped Meter/RingGauge/
+   SegmentedClock/TrackBar kit, CoinFigure the ONE new sibling; Scene Goals = a projection of active quests, not a 2nd
+   home; trackColor(ordinal) derivation). **DB-grounding CORRECTIONS (real lies fixed):** roster "mood" DOESN'T EXIST
+   (mood is cast-only; Status uses volatile `status` string) · "shared purse" was fiction (wallets = per-actor named-
+   amount ARRAYS → "party total, 31 carried by Mara") · skills/encounter-banner/session-wraps = FULL-mode not lite ·
+   act rail has NO plot plane (tagged P5-future) · checkpoints (6th table+3 verbs) had NO home → Journal "Marks" scope.
+   **Ward (§12.3):** closed vocabs=pickers · clamp-and-tell (value≥0, overfull 34/30 accepted+warning-tone since no
+   upper CHECK) · inline refusal for caps · **D108 merge-clear as UI law** (path-scoped patches, explicit null=clear,
+   fat-finger blast radius=1 field) · fieldLocks Release affordance. **Flows (§12.4):** host-edit·member-own(PERMISSION-
+   omit)·model-write-via-bus·swipe (open editor DROPS draft if snapshot changed under it). **Icons (§12.5):** lucide via
+   the `@orb/ui/icons` SEAL only (`features/rpg/lib/glyphs.ts` resolver: ~60-token keyword map→item type→per-domain
+   fallback-never-blank; host override where a col exists e.g. rpg_hud_widgets.icon; 42 names runtime-verified as lucide
+   exports; NO new dep). **⚠ §12.6 OPEN ITEMS gating the panel BUILD (owner/schema decisions):** veiled/P3 storage has
+   NO home in the 6 tables · additive nullable `rpg_journal.world_day` stamp (baseline-squash) for in-world-day grouping ·
+   `features.defaultPoolDefs` (GM "pool defaults for new sheets") · lock-RELEASE verb under merge-clear · P5 snapshot-
+   resident `plot` object · widget position-tuple→new-anatomy mapping (banner→orb-row/sidebar→Scene-group/footer→Scene-
+   bottom). **NEXT: owner reviews §12 + the §12.6 items → side-eye a11y → the panel BUILD.**
+_B) UNCOMMITTED (ride next commit — clean pushed base ecf98497):_ OR-SDK hygiene (@openrouter/sdk 1.1.8 + client.responses + OR_QUANTIZATIONS derive, scoped-green) · panel-redesign mocks + all-tabs.html · this workboard · the panel round-2 outputs when they land.
+_C) OWNER DECISIONS — 3 RULED 2026-07-27 (post-compact), 3 STILL OPEN (low-stakes):_
+  ✅ **PANEL REDESIGN = GREENLIT** ("build it, side-eye after") — the redesign IS the build target; build with D71 THEME TOKENS not hardcoded hex; a side-eye a11y pass runs on the LIVE build before done. [[panel-redesign-build-target]].
+  ✅ **NEXT LANE = THE FEATURE WAVES P3→P6 FIRST** (not the panel first) — after the MU commit lands. Panel build is greenlit but QUEUED BEHIND the feature waves (its own client lane; coordinate w/ P4/P5 client surfaces).
+  ✅ **§12.6 PANEL SCHEMA GAPS = ALL 3 APPROVED** (additive/self-healing/baseline-squashed): `rpg_journal.world_day` (nullable text, in-world-day grouping) · `features.defaultPoolDefs` (GM pool-template) · lock-RELEASE = merge-clear accepts explicit `null` on a `fieldLocks[path]`. Land at the panel build's baseline squash.
+  ✅ **LOW-STAKES TRIO RULED 2026-07-27:** grimstone = **SKIP** (add anytime later as a theme.json, zero panel code) · OSRS refs = **LEAVE AS-IS** (rough Bing pngs; the mocks are the artifact of record) · orb-pinning = **BUILD IT** (owner chose host orb-pinning over auto-first-3) → NEW PANEL-BUILD ITEM: a host affordance + a small config field to pick WHICH pools surface as band orbs beyond the auto-first-3 (folds into the panel build's Game-console + band).
+  ✅ **P3 VEILED STORAGE RULED = DERIVE FROM BODIES (no new table)** — the ledger tokenizes `<lie>` spans out of the stored message bodies (host-gated read), per spec §3.6 ("the stored body keeps the hidden tags; no new storage, just a different projection"). NO 7th table. No durable "mark exposed" state (that stays the §9 #7 deferred doorway). P3 ships with ZERO schema for veiled.
+  ✅ **DECIDE-NOW SWEEP RULED 2026-07-27:** (1) **recentEvents CAP + host knob** — the model-fed "recent beats" (snapshot.recentEvents) is UNBOUNDED today (append-only, no trim → prompt bloat, model re-reads all every turn); ADD `config.features.recentBeatsKeepLast` (options-first) + slice at the read/apply seam; the journal keeps the durable record. NEW small build item. (2) **P5 plot plane = SNAPSHOT-RESIDENT `plot:{act,title,acts}` object** (clone-forward like quests, swipe-consistent; act rail renders real advancing data) — lands at P5/CYOA. (3) **MU user-macros in typed text = BAKE-AT-COMMIT** (composer/greeting `{{myMacro}}` resolves at send like `{{roll}}`; the in-flight build already does this — the freezeRegistry arm STAYS, MU §7 fork#2 resolved).
+  ✅ **HOST-PICKABLE BAR/ORB COLOR RULED 2026-07-27 = FREE HEX** (owner picked full freedom over the track-ramp/theme-safe options): each pool/stat gets a nullable `poolDefs[].color` (contracts/rpg, STRICT-validated hex/OKLCH — NOT raw CSS; native `<input type=color>` picker in the GM console next to name+range), resolved `def.color ?? trackColor(ordinal)`; align `rpg_hud_widgets.accent` ward to accept a validated hex; orb/bar/budget-slice inherit via the one trackColor helper. Won't auto-adjust on theme swap (accepted — bars are decorative/aria-hidden, value text rides theme tokens so legibility holds). FOLDS INTO the PANEL BUILD (#21).
+  ⚠ **NEW OWNER FORK — MU W5 store (agent-flagged 2026-07-27, blocks W5 ONLY; W1–W4 shipped green):** F1="reuse `chats.variableValues`" is **STRUCTURALLY IMPOSSIBLE as summarized** — that column + its whole fold pipeline (setVariables/loadStoredVariables/resolveChoiceVariables/runtimeVariables) are FLAT `Record<string,string>`; `UserMacroValues` is NESTED-typed (`Record<macro,Record<input, string|boolean|string[]>>`). The spec's Arm A ACTUALLY designed a NEW sibling `chats.userMacroValues` typed column (the "reuse variableValues" phrase mis-stated it). Build shipped `values:{}` defaults-posture (feature works, swipe-pin passes). ✅ **RULED 2026-07-27 = NEW SIBLING typed column** `chats.userMacroValues` (`$type<UserMacroValues>`) — owner: "im fine with a new column" (blast-radius analysis: widen = ~20 value-read sites each needing hand-narrowing + a key-namespace collision, ts-morph finds them but can't narrow; sibling = zero existing sites touched, honest one-home-per-concept). **W5 build FOLDED INTO the gate-fix round** (owner: don't waste the warm agent) — the warm builder `adfad8a03ac9b9d8f` now does gate-fix + W5 together: column + `setUserMacroValues` verb + wire the store into buildTurnContext (replaces `values:{}`) + new-proc sweep + client picks pane (extend the ChoiceBlock variables pane), with ONE baseline regen (both `macro_draws` + `user_macro_values`, meta formatted from root — which also closes gate-red #1). → W1–W5 land as ONE MU commit on whole-tree green. [[mu-store-flat-vs-nested-wall]].
+_D) QUEUED BUILD WORK (clean base):_ the FEATURE WAVES **P3** (deception `<lie>`/omniscience `<ofilter>` — reveal-eye + M4 toggle + reasoning-host-only-on-deception strip) → **P4** (immersive HTML — card fence + lenient/```html arm + view-raw toggle + forming placeholder + scripts sandbox, security-executor-gated) → **P5** (CYOA `:::choices` + plot steers on the wand) → **P6** (macro×rpg feed) — SEQUENCED, shared content-render seam · the PANEL BUILD (adopt the redesign w/ THEME TOKENS not hardcoded hex, gated on verdict+side-eye+round-2) · the engine-tooling LIVE auto-sleep/wake supervised pass (#16, restart on current code + short VLLM_AUTO_SLEEP_IDLE_MS) · macro-consolidation was DONE (committed) · the "narration turn"→"character turn" rename DONE (committed).
+_E) DOC/LEDGER DEBT:_ CP-doc `Context-Panel-Program.md` §4.4 ERRATUM — Quests/Journal are NOT full-only, they're LITE tabs (data planes); only Map is full-only. Fix at next docs touch. · D111+ is next free ledger number.
+_F) STANDING ENV:_ engines UP 8701/2/3 (adopt posture live-proven) · dev web stack was killed for the battery (down; `pnpm stack` [NOT bash scripts/dev/*.sh] to bring up — vite binds [::1]:5173 not 127.0.0.1) · DB chat routing HEALED to chat-completions×vllm · SearXNG JSON enabled (internal door: docker inspect searxng IP :8080, [[searxng-search-endpoint]]).
+**═══════════════════════════════════════════════════════════════════════════════════════════════**
+
+**═══ COLD-RESUME PLAYBOOK (read this the moment the brain comes back, 2026-07-27 EOD) ═══**
+_REREAD ORDER (docs, all under the repo `docs/` + `reports/`):_
+1. **THIS workboard** (`docs/retro-workboard.md`) — the OPEN THREADS LEDGER above IS the resume point.
+2. `docs/architecture/core/AGENTS.md` — the constitution, IN FULL (always first for any work).
+3. `docs/architecture/core/Core-Path-Registry.md` — the D-ledger (esp. **D108/D109/D110** = rpg-lite +
+   parity-plus). `Core-Laws-and-Precedents.md` is the master.
+4. `reports/parity-plus-program-spec.md` — the feature-wave blueprint (P3–P6; §3 visibility registry, §4
+   HTML cards, §5 CYOA/plot, §12A macros).
+5. `reports/design-refs/panel-redesign/DESIGN.md` — the panel redesign + **§12 round-2** (the panel BUILD;
+   §12.6 = the schema gaps to rule). Open `all-tabs.html` to VIEW (index.html blanks in sandboxed viewers).
+6. `reports/user-macro-delivery-spec.md` — the MU-delivery spec (F1=Arm A per-chat) the in-flight build follows.
+7. For the PANEL build specifically, the core UI law: `docs/architecture/core/UI-Architecture-and-Layout.md`
+   + `UI-Theming-and-Content.md` (D71 tokens) + `UI-Primitives-and-Reuse.md` + `client-architecture-lockdown.md`.
+   MEMORY.md auto-loads; the load-bearing new ones: [[panel-redesign-build-target]] · [[orb-ui-icons-seal]] ·
+   [[connection-modes-canon]] · [[searxng-search-endpoint]] · [[vllm-sleep-fleet-facts]] · [[rpg-writable-field-coupled-sites]].
+
+_ORDER OF NEXT WORK — REVISED 2026-07-27 (owner: "as soon as mu lands start firing things off"; panel LEADS on panel-surfaces, not trails):_
+(a) MU warm agent `adfad8a03ac9b9d8f` reports (gate-fix + W5 in ONE round) → I run whole-tree check + battery on the quiesced tree → **BATCH COMMIT W1–W5 + OR-SDK + panel mocks + workboard** (commit-only, NEVER push).
+(b) **THE INSTANT MU COMMITS → FIRE 3 CONCURRENT LANES (pre-authorized, don't re-ask):**
+  · **PANEL BUILD (executor/Fable)** — LEADS. Re-homes the already-rendering P1 (relationship/level/cast-fields/delta/wallet — VERIFIED live in rpg-scene-tab/sheet-tab/header-band) into the redesign + waystone/orbs/**orb-pinning**/ward/glyphs; the P3/P4/P5 panel sections (Veiled ledger · card archive · choice echo) build as wired-when-ready placeholders. THEME TOKENS not hex; side-eye after. Owns ALL rpg-panel feature surfaces (so features never build into old tabs then get redone).
+  · **P3 deception (security-executor)** — server + transcript reveal-eye + host-reveal read (DERIVE-FROM-BODIES, no table) + member reasoning-strip + config knobs. Validates the P2 boundary end-to-end. **FOLD IN the recentEvents cap+knob** (same rpg-config/reminder territory). NOT the Veiled-ledger UI (panel owns it).
+  · **P6 macro×rpg feed (executor)** — gather populates rpgSceneState/rpgCast/quests/delta + the `rpg` CEL binding. Fully disjoint (gather + kit/macro); its data planes (P0/P1) already landed → unblocked now.
+(c) **THEN sequence the spine tail:** P4 (immersive HTML — executor + security-executor pass on the srcdoc `allow-scripts` flip) → P5 (CYOA + snapshot-resident plot plane + wand Plot submenu — executor). Each wave's PANEL section wires into the redesigned tab (SendMessage the warm panel agent, not a re-dispatch).
+Low-stakes open: grimstone SKIP · OSRS refs LEAVE · P5 plot-plane detail (decide at P5).
+
+_WHY panel LEADS (owner-raised, resolved 2026-07-27):_ P1 (relationships/level/cast-fields) is DONE + RENDERING in the current sparse panel — the redesign RE-HOMES it, zero dependency. The panel is the ONE HOME for every rpg-panel surface incl. the future Veiled/card/choice. Features-first would build those sections into the OLD tabs → the redesign throws them away (redo). Panel-first = features drop into the NEW design. And panel-first does NOT delay features — their server/transcript/security work is a disjoint parallel lane.
+
+_PARALLELIZE vs SEQUENCE (the seams):_
+- **SEQUENCE (share the content-render seam `kit/content` + `message-content.tsx` + reminder teaching + config.features):** P3 → P4 → P5. P3 first (security-gated, validates P2).
+- **PARALLEL (disjoint):** the PANEL build (features/rpg tabs) ∥ P3 server/transcript (features/chat + rpg server) ∥ P6 (gather + kit/macro) — three concurrent lanes on MU commit · the engine-tooling live auto-sleep/wake pass (#16, infra, I drive it).
+- **COORDINATION (not a blocker):** a feature's PANEL section (Veiled/card/choice) wires into the redesigned tab AFTER both its own wave AND the redesign land — orchestrator threads it via SendMessage to the warm panel agent.
+**═══════════════════════════════════════════════════════════════════════════════════════════════**
+
+**REMAINING (all on a clean base now):**
+- **FEATURE WAVES (register-a-row on the landed machinery):** P3 deception `<lie>`/omniscience `<ofilter>`
+  (+ host-reveal eye + M4 toggle + reasoning-host-only strip) · P4 immersive HTML (card fence + lenient
+  arm + view-raw toggle + forming-card placeholder + scripts sandbox, security-gated) · P5 CYOA + plot on
+  the wand · P6 macro×rpg feed.
+- **⚠ MU input-VALUE delivery = NOT a wiring stint, it's an EXECUTOR-TIER FEATURE (exec-flagged 2026-07-27,
+  the MU report over-promised "pure threading"):** Seam 1 (thread `userMacroValues` through ForeignInputs/
+  ResolveForeignInputsOp/ChatContext) IS pure+inert-until-consumed (presetOverride precedent). BUT Seam 3
+  needs a PER-TURN `MacroRegistry` threaded through ~18 assembly render sites (today all use the process-wide
+  `globalMacroRegistry` singleton; `registerUserMacros`/`resolveUserMacroInputs` have ZERO server consumers)
+  — a render-signature change (registry rides BuildEnv/turn-ctx, NEVER the serializable AssembleContext). And
+  Seam 2 needs a NEW draw-record persistence home (a `message_variants` column, squashed into 0000_baseline
+  pre-launch) + a swipe READ-BACK channel (the swipe path re-runs assembly fresh, threads no prior draws) +
+  a commit drain — `freezeVolatileMacros` is a stateless content BAKE, not a draw-recorder. DEFERRED to a
+  properly-specced wave; NOT a blocker (the vocab+resolution landed; delivery waits until a user authors a
+  typed-input macro). Home it near P6 (macro×rpg) or its own MW wave.
+- **SMALL STINTS (clean-base now):** OR-SDK
+  hygiene bump (beta.responses→responses + OR_QUANTIZATIONS derive) · the "narration turn" comment sites
+  were already renamed.
+- **ENGINE-TOOLING RESIDUAL (task #16):** the live auto-sleep→auto-wake loop through a real chat turn is
+  UNIT-proven (34 supervisor + 7 wake-gate tests) + the front door was live-proven (sleep/wake/VRAM), but
+  the in-server auto-timer + pre-dispatch wake-gate end-to-end needs a supervised run (restart on current
+  code + a short VLLM_AUTO_SLEEP_IDLE_MS to observe sleep→request→wake). Non-blocking.
+- **CP panel §6 owner calls (deferred):** grimstone theme ship/skip · orb-pinning-past-first-N.
+- **CP-doc ERRATUM (owner-corrected 2026-07-27):** `Context-Panel-Program.md` §4.4 says Quests + Journal
+  are full-only (APPLICABILITY-omitted in lite) — WRONG. Lite HAS quests + journal as first-class DATA
+  PLANES; both are LITE tabs. ONLY Map stays full-only/PHASE-disabled. Fix the CP-doc §4.4 table at the
+  next docs touch (the panel-redesign lands its own updated tab roster anyway).
+- **🎨 PANEL REDESIGN COMMISSION (owner flagship, task #18, Fable max `a72a33f7785684448`):** full redesign
+  of the rpg context panel — all 12 tabs (7 top: Status/Sheet/Inventory/Scene/Quests/Journal + locked Map;
+  5 bottom: Members/Settings/Injections/Preview/Game) + header band, desktop+mobile each. Applies the
+  anthropic frontend-design method WITHIN our locked tokens; signature element = the owner's minimap
+  composite circle (time+weather where the map goes + satellite level/HP/money gauges). MUST make real
+  HOMES for the parity-plus features (deception reveal-eye · immersive HTML cards · CYOA/plot echo ·
+  relationship/cast-fields first-class). Deliverable: HTML mocks + DESIGN.md + gallery → reports/design-refs/
+  panel-redesign/. Fed the core UI-law docs. **∥ MU-delivery design Fable `adfad8a03ac9b9d8f`** specced the
+  user-macro input-value delivery feature (per-turn-registry + draw-persistence + swipe-replay) →
+  reports/user-macro-delivery-spec.md (owner: do it right, don't wait for someone to author). **✅ DONE +
+  F1 RULED: Arm A per-chat** (values in `chats.variableValues`, reuse the ChoiceBlock store — the field
+  `ForeignInputs.userMacroValues` is NOT landed). Builder-ready blueprint, queued behind the feature waves;
+  found 2 latent breakages (singleton volatileMacroReCache → WeakMap · kit resolveGuidedInstruction registry
+  param). New col `message_variants.macro_draws` (baseline-squashed, swipe-replay via loadSlotTarget).
 
 ## ═══ ▶▶ SESSION STATE — 2026-07-27 EOD (READ THIS FIRST; supersedes the layered W4 blocks below) ═══
 

@@ -211,6 +211,10 @@ function variantPayloadOf(
     // The turn's macro op-log is copied (never aliased) since the shared per-round array is cleared after
     // each speaker's commit.
     variableDelta: [...(prep.assembleContext.opLog ?? [])],
+    // WAVE MU delivery — the turn's user-macro draw record (frozen ∪ fresh), resolved ONCE at registry build
+    // (verbs/turn.ts) and immutable for the round: every speaker's variant persists the same record, and a
+    // swipe of any of them replays it. Unlike the op-log there is nothing to splice per speaker.
+    macroDraws: prep.userMacroDraws ?? null,
     toolCalls: result.toolRecords.length > 0 ? result.toolRecords : null,
   };
 }
@@ -1051,6 +1055,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
+      // The per-turn user-macro RENDER registry (WAVE MU) — drives the BUILD section walk + the RECEIVE
+      // AI_OUTPUT/REASONING macro pass. Absent ⇒ the pipeline's `globalMacroRegistry` default (byte-identical).
+      macroRegistry: prep.macroRegistry,
       // The D50 `assembled_dynamic` PromptTransform op (04 §6); null ⇒ byte-identical dynamic half.
       applyPromptTransforms: ctx.promptTransforms,
       connection,

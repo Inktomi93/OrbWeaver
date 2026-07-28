@@ -2,6 +2,7 @@
 // circular-FK dance (slot→variant→pointer), the slot⋈selected-variant read-back, append-a-variant (regen),
 // select-active (the pointer flip), and that `buildCommittedMessageView` equals the re-read row byte-for-byte.
 
+import type { UserMacroDraws } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -15,7 +16,7 @@ import {
   insertCanonMessageStatements,
   selectActiveVariantStatement,
 } from "../../../../../packages/server/src/domain/chat/persistence/canon-write";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { loadCanonHistory, loadSlotTarget } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../_support";
@@ -192,6 +193,74 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       .where(eq(messageVariants.id, variantId));
     expect(row?.maxOutputTokens).toBe(4096);
     expect(row?.reasoningEffort).toBe("high");
+  });
+
+  test("WAVE MU: macroDraws round-trips on insert + append, read back via loadSlotTarget (write↔read seam)", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    const firstDraws: UserMacroDraws = { mood: { tone: "grim" } };
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "first", macroDraws: firstDraws },
+        }),
+      ),
+    );
+
+    // The write end round-trips through the read-back channel both swipe + continue use.
+    const target0 = await loadSlotTarget(db, chatId, messageId);
+    expect(target0?.macroDraws).toEqual(firstDraws);
+
+    // A swipe re-persists the (replayed) record onto the new selected variant.
+    const v2 = castId<MessageVariantId>("variant_m1_1");
+    await db.batch(
+      batchMany(
+        appendVariantStatements(db, {
+          messageId,
+          variantId: v2,
+          idx: 1,
+          now: FROZEN_AT,
+          variant: { content: "rerolled", macroDraws: firstDraws },
+        }),
+      ),
+    );
+    const target1 = await loadSlotTarget(db, chatId, messageId);
+    expect(target1?.selectedVariantId).toBe(v2);
+    expect(target1?.macroDraws).toEqual(firstDraws);
+  });
+
+  test("WAVE MU: a null/absent macroDraws (pre-feature variant) reads back as null, never throws", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = ids("m1");
+    await db.batch(
+      batchMany(
+        insertCanonMessageStatements(db, {
+          messageId,
+          variantId,
+          chatId,
+          seq: 1,
+          role: "assistant",
+          now: FROZEN_AT,
+          variant: { content: "no draws" },
+        }),
+      ),
+    );
+    const target = await loadSlotTarget(db, chatId, messageId);
+    expect(target?.macroDraws).toBeNull();
+
+    // A malformed blob written directly (a corrupt row) degrades to null (safeParse), never a throw — a
+    // non-record string is the corrupt-row shape the read-seam safeParse-degrade exists to survive; no
+    // factory can produce an intentionally malformed `UserMacroDraws`.
+    const corruptDraws = "not-a-record" as unknown as UserMacroDraws; // FABRICATION-OK: deliberate invalid-input probe
+    await db.update(messageVariants).set({ macroDraws: corruptDraws }).where(eq(messageVariants.id, variantId));
+    const degraded = await loadSlotTarget(db, chatId, messageId);
+    expect(degraded?.macroDraws).toBeNull();
   });
 
   test("append-variant with selectActive:false leaves the original selected", async () => {

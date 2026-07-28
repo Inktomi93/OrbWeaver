@@ -106,9 +106,10 @@ catalog:
   # egress-firewalled global fetch. ALREADY in the tree as a transitive dep of the agent-sdk; promoted
   # to a direct dep to name the existing surface (installs nothing new).
   "@anthropic-ai/sdk": ^0.106.0
-  # @openrouter/sdk: the openrouter backend (stateless chat.send / beta.responses + embed/rerank/image).
-  # `^0.13.0` (not pinned to .20) so the minimumReleaseAge guard auto-picks the latest >24h-old 0.13.x.
-  "@openrouter/sdk": ^0.13.0
+  # @openrouter/sdk: the openrouter backend (stateless chat.send / responses.send GA + embed/rerank/image).
+  # `^1.1.0` (Responses API went GA in 1.x — the `beta.responses` namespace was removed); the
+  # minimumReleaseAge guard auto-picks the latest >24h-old 1.1.x.
+  "@openrouter/sdk": ^1.1.0
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
   "@huggingface/transformers": ^4.2.0

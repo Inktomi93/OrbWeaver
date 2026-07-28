@@ -15,8 +15,9 @@ import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import type { ActiveTurns } from "../../../../../packages/server/src/domain/chat/contract/active-turns";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
+import { loadStoredUserMacroValues } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { scenario } from "../../../../support/chat/scenario";
 import { tape } from "../../../../support/chat/tape";
@@ -271,6 +272,44 @@ describe("variables — the config-plane round-trip (member)", () => {
 
     await life.clearVariables({ principal: principal(member), chatId });
     expect(await life.getStoredVariables({ principal: principal(member), chatId })).toEqual({});
+  });
+});
+
+describe("setUserMacroValues — the per-chat user-macro picks flush (WAVE MU, member)", () => {
+  test("a member persists the nested picks bag + emits chatUpdated; the turn build reads it back", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+
+    const picks = { mood: { tone: "grim" }, weather: { pool: ["storm", "clear"] } };
+    await life.setUserMacroValues({ principal: principal(member), chatId, values: picks });
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+    // Round-trips through the SAME reader the turn build feeds `buildTurnUserMacros`.
+    expect(await loadStoredUserMacroValues(db, chatId)).toEqual(picks);
+  });
+
+  test("a non-participant (stranger) is refused — no cross-tenant write", async () => {
+    const { chatId } = await seedRoom();
+    const stranger = await seedUser(db, "stranger");
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+
+    const err = await life.setUserMacroValues({ principal: principal(stranger), chatId, values: { mood: { tone: "grim" } } }).catch((e: unknown) => e);
+    // A non-member gets the leak-free NOT_FOUND (the membership precedent — never reveals the chat exists).
+    expect(err).toBeInstanceOf(ChatNotFoundError);
+    // No write landed + no bus event fired.
+    expect(await loadStoredUserMacroValues(db, chatId)).toEqual({});
+    expect(emitted).toEqual([]);
+  });
+
+  test("a malformed pick leaf is REFUSED at the verb (userMacroValuesSchema defense-in-depth)", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
+
+    // A number leaf is not a valid pick (string | boolean | string[]) — the verb's schema.parse throws.
+    // FABRICATION-OK: a DELIBERATE invalid-input probe — no factory produces an intentionally malformed bag.
+    const bad = { mood: { tone: 42 } } as unknown as Parameters<typeof life.setUserMacroValues>[0]["values"];
+    await expect(life.setUserMacroValues({ principal: principal(member), chatId, values: bad })).rejects.toThrow();
+    // Nothing persisted.
+    expect(await loadStoredUserMacroValues(db, chatId)).toEqual({});
   });
 });
 

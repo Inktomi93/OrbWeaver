@@ -17,6 +17,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MacroRegistry } from "@orb/kit/macro";
 import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../context";
 
@@ -120,6 +121,18 @@ async function loadCastCards(
     }
   }
   return { cards, names };
+}
+
+/** Collect the per-turn user-macro registries (WAVE MU) into an omit-when-undefined object — kept a pure
+ *  top-level helper so its two branches stay out of `gatherAssembleContext`'s cognitive-complexity budget. */
+function pickMacroRegistries(
+  render: MacroRegistry | undefined,
+  freeze: MacroRegistry | undefined,
+): { macroRegistry?: MacroRegistry; freezeMacroRegistry?: MacroRegistry } {
+  return {
+    ...(render !== undefined ? { macroRegistry: render } : {}),
+    ...(freeze !== undefined ? { freezeMacroRegistry: freeze } : {}),
+  };
 }
 
 /** Map a persisted `chat_injections` row → the `ChatInjection` wire shape (omit `order` when null). */
@@ -240,6 +253,10 @@ export async function gatherAssembleContext(
     /** The chat-crew director's guidance injection(s) (chat-crew-design/04 §1) — merged into the chat injection
      *  list at the author's-note depth. Absent ⇒ director off / no pass ⇒ byte-identical non-crew turn. */
     readonly crewInjections?: readonly ChatInjection[] | undefined;
+    /** The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — threaded verbatim to the pure build.
+     *  Absent ⇒ the pure build falls back to the process singletons (byte-identical non-user-macro turn). */
+    readonly macroRegistry?: MacroRegistry | undefined;
+    readonly freezeMacroRegistry?: MacroRegistry | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
@@ -309,6 +326,10 @@ export async function gatherAssembleContext(
   // entry-enabled + present, and an empty pool ⇒ no lore. There is no `worldInfoEnabled` input.
   const roomOverrides = chatRow?.metadata.roomOverrides;
 
+  // The per-turn user-macro registries (WAVE MU), collected by a pure top-level helper so the two
+  // omit-when-undefined branches live OUTSIDE this function's cognitive-complexity budget.
+  const macroRegistries = pickMacroRegistries(args.macroRegistry, args.freezeMacroRegistry);
+
   return await buildAssembleContext(
     ctx,
     {
@@ -351,6 +372,8 @@ export async function gatherAssembleContext(
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
+      // The per-turn user-macro registries (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
+      ...macroRegistries,
     },
     out,
   );

@@ -8,22 +8,23 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { GenerationType } from "@orb/contracts/preset";
+import type { GenerationType, UserMacroValues } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MacroRegistry } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
-
+import type { TurnUserMacros } from "../contract/assembly-macros";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "../contract/foreign";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory";
 import type {
@@ -51,7 +52,6 @@ import {
   setVariantContentStatement,
 } from "../persistence/canon-write";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
-
 import {
   loadCanonHistory,
   loadChatRow,
@@ -60,10 +60,11 @@ import {
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
+  loadStoredUserMacroValues,
 } from "../persistence/queries";
 import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { freezeVolatileMacros } from "../substrate/assembly-access";
+import { buildTurnUserMacros, freezeVolatileMacros } from "../substrate/assembly-access";
 import { stripHiddenForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
@@ -233,6 +234,15 @@ interface BuiltTurnContext {
   /** rpg-design/05 §6 slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
    *  minting `turnId`). False for a non-game / ineligible turn (byte-identical). */
   readonly respondsToLatestUserTurn: boolean;
+  /** The per-turn user-macro registry (WAVE MU) — closures, threaded onto every `TurnPrep.macroRegistry`
+   *  (never the serializable `assembleContext`). `null` ⇒ the preset authored no user macros (byte-identical). */
+  readonly macroRegistry: MacroRegistry | null;
+  /** The per-turn user-macro FREEZE registry (WAVE MU) — the SEND greeting-freeze bakes a greeting-embedded
+   *  user macro against it. `null` ⇒ no user macros (byte-identical to the process `VOLATILE_ONLY_REGISTRY`). */
+  readonly freezeMacroRegistry: MacroRegistry | null;
+  /** The turn's effective user-macro draw record (frozen ∪ fresh) — persisted onto every committed variant.
+   *  `null` ⇒ the turn drew nothing. */
+  readonly userMacroDraws: UserMacroDraws | null;
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -247,6 +257,67 @@ const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
   continue: "continue",
   impersonate: "impersonate",
 };
+
+/** The per-turn user-macro registry build (WAVE MU delivery) + the D53 loud-degrade for a refused def.
+ *  A top-level helper so its branch (rejected-log) stays OUT of `buildTurnContext`'s cognitive-complexity
+ *  budget. `null` ⇒ the preset authored no user macros (the byte-identical singleton fast path).
+ *
+ *  Arm A (owner ruling): user-macro input VALUES live in a per-chat SIBLING typed column
+ *  (`chats.user_macro_values`, read via `loadStoredUserMacroValues`) — NOT the flat `chats.variableValues`
+ *  (which can't hold the nested-typed `UserMacroValues`). Absent picks ⇒ `{}` ⇒ the defaults posture
+ *  (unpicked inputs → per-kind defaults; random-pick pool → ALL options). */
+function buildTurnUserMacrosForTurn(args: {
+  readonly chatId: ChatId;
+  readonly foreign: ForeignInputs;
+  readonly prng: () => number;
+  readonly values: UserMacroValues;
+  readonly frozenUserMacroDraws: UserMacroDraws | undefined;
+}): TurnUserMacros | null {
+  const userMacros = buildTurnUserMacros({
+    defs: args.foreign.promptConfig.userMacros,
+    sourceId: args.foreign.presetId ?? "default",
+    values: args.values,
+    ...(args.frozenUserMacroDraws !== undefined ? { frozenDraws: args.frozenUserMacroDraws } : {}),
+    prng: args.prng,
+  });
+  if (userMacros !== null && userMacros.rejected.length > 0) {
+    getLog().warn({ chatId: args.chatId, rejected: userMacros.rejected }, "chat: user macro(s) rejected at turn build");
+  }
+  return userMacros;
+}
+
+/** The gather-args registry spread (WAVE MU) — the render + freeze registries when user macros were built,
+ *  else `{}` (the pure build's singleton fallback). A top-level helper so its branch stays OUT of
+ *  `buildTurnContext`'s cognitive-complexity budget. */
+function gatherMacroRegistries(userMacros: TurnUserMacros | null): { macroRegistry?: MacroRegistry; freezeMacroRegistry?: MacroRegistry } {
+  return userMacros !== null ? { macroRegistry: userMacros.registry, freezeMacroRegistry: userMacros.freezeRegistry } : {};
+}
+
+/** The `BuiltTurnContext`/`TurnBase` user-macro fields (WAVE MU): the render + freeze registries + the draw
+ *  record, all null when no user macros were built. A top-level helper so the null-coalescing stays out of
+ *  `buildTurnContext`'s / `resolveTurnBase`'s cognitive-complexity budget. */
+function userMacroFields(userMacros: TurnUserMacros | null): {
+  macroRegistry: MacroRegistry | null;
+  freezeMacroRegistry: MacroRegistry | null;
+  userMacroDraws: UserMacroDraws | null;
+} {
+  return userMacros !== null
+    ? { macroRegistry: userMacros.registry, freezeMacroRegistry: userMacros.freezeRegistry, userMacroDraws: userMacros.draws }
+    : { macroRegistry: null, freezeMacroRegistry: null, userMacroDraws: null };
+}
+
+/** The `TurnPrep`/`RoundBase` user-macro spread (WAVE MU) — the render registry + the draw record OMITTED
+ *  when null (exactOptionalPropertyTypes), so a non-user-macro turn's prep is byte-identical. A top-level
+ *  helper so its two branches stay out of the verbs' cognitive-complexity budgets. */
+function prepMacroFields(
+  macroRegistry: MacroRegistry | null,
+  userMacroDraws: UserMacroDraws | null,
+): { macroRegistry?: MacroRegistry; userMacroDraws?: UserMacroDraws } {
+  return {
+    ...(macroRegistry !== null ? { macroRegistry } : {}),
+    ...(userMacroDraws !== null ? { userMacroDraws } : {}),
+  };
+}
 
 /** Builds the one immutable assemble ctx for the round: resolves the foreign half from chat-supplied keys,
  *  then gathers the chat-internal half + builds the pure ctx. Returns the built ctx plus the resolved memory
@@ -276,6 +347,9 @@ async function buildTurnContext(
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     readonly guided?: GuidedSteer | undefined;
+    /** The slot's persisted user-macro draw record (WAVE MU) on a swipe/continue turn — replayed byte-exact
+     *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
+    readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
   },
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
@@ -299,6 +373,19 @@ async function buildTurnContext(
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
   // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
   const crew = ctx.crew !== null ? await ctx.crew.gatherTurnContext(args.chatId) : null;
+  // The per-turn user-macro registries (WAVE MU delivery) — resolved ONCE via the top-level helper (kept out
+  // of this function's cognitive-complexity budget). `null` when no user macros are authored ⇒ every render
+  // seam falls back to the process singletons (byte-identical); the registries ride `TurnPrep` (closures),
+  // NEVER the serializable `assembleContext`. The INPUT picks come from the per-chat sibling store
+  // (`chats.user_macro_values`); read ONLY when macros are authored (no wasted read on a non-user-macro turn).
+  const userMacroValues = foreign.promptConfig.userMacros.length > 0 ? await loadStoredUserMacroValues(ctx.db, args.chatId) : {};
+  const userMacros = buildTurnUserMacrosForTurn({
+    chatId: args.chatId,
+    foreign,
+    prng: deps.prng,
+    values: userMacroValues,
+    frozenUserMacroDraws: args.frozenUserMacroDraws,
+  });
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
   // one — either way `gatherMemory` stages `memoryRecall` here for the engine's per-speaker witnessed re-run.
   const sink: SendRegexSink = out ?? {};
@@ -318,6 +405,8 @@ async function buildTurnContext(
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       ...(rpg !== null ? { rpgMacros: rpg.macros, rpgInjections: rpg.injections } : {}),
       ...(crew !== null ? { crewInjections: crew.injections } : {}),
+      // The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — absent ⇒ the pure build's singleton fallback.
+      ...gatherMacroRegistries(userMacros),
     },
     foreign,
     sink,
@@ -329,6 +418,7 @@ async function buildTurnContext(
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     attachedToolNames: rpg?.tools ?? [],
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
+    ...userMacroFields(userMacros),
   };
 }
 
@@ -703,12 +793,19 @@ async function deferIfHostOffline(
  * on a repeat pass), so it's also safe under the concurrent-send retry. A later swipe to an unfrozen
  * alternate is not re-frozen — there is no subsequent "first turn" to catch it.
  */
-async function freezeGreetingVolatiles(ctx: ChatContext, deps: TurnDeps, assembleContext: AssembleContext, priorCanon: readonly MessageView[]): Promise<void> {
+async function freezeGreetingVolatiles(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  args: { readonly assembleContext: AssembleContext; readonly priorCanon: readonly MessageView[]; readonly freezeRegistry: MacroRegistry | null },
+): Promise<void> {
+  const { assembleContext, priorCanon, freezeRegistry } = args;
   const stmts = priorCanon.flatMap((m) => {
     if (m.role !== "assistant") {
       return [];
     }
-    const frozen = freezeVolatileMacros(m.content, assembleContext, { random: deps.prng });
+    // WAVE MU: pass the turn's freeze registry so a greeting embedding a user macro bakes with the turn's
+    // bindings/draws; null ⇒ the process `VOLATILE_ONLY_REGISTRY` (byte-identical — user tokens pass through).
+    const frozen = freezeVolatileMacros(m.content, assembleContext, { random: deps.prng, ...(freezeRegistry !== null ? { registry: freezeRegistry } : {}) });
     return frozen === m.content ? [] : [setVariantContentStatement(ctx.db, m.selectedVariantId, frozen, m.reasoning)];
   });
   if (stmts.length > 0) {
@@ -942,7 +1039,17 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // Built with the pending user text in the WI haystack before the user row commits; the engine reloads
     // canon (including the committed row) for the wire history.
     const sendOut: SendRegexSink = {};
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(
+    const {
+      assembleContext,
+      memoryConfig,
+      memoryRecall,
+      chatBehavior,
+      attachedToolNames,
+      respondsToLatestUserTurn,
+      macroRegistry,
+      freezeMacroRegistry,
+      userMacroDraws,
+    } = await buildTurnContext(
       ctx,
       deps,
       {
@@ -983,7 +1090,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     });
 
     if (isFirstUserTurn) {
-      await freezeGreetingVolatiles(ctx, deps, assembleContext, priorCanon);
+      await freezeGreetingVolatiles(ctx, deps, { assembleContext, priorCanon, freezeRegistry: freezeMacroRegistry });
     }
 
     fireRpgUserCommit(ctx, chatId, userView.id);
@@ -1019,6 +1126,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       attachedToolNames,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
+      // WAVE MU: the per-turn user-macro registry + the fresh draw record — shared across the round's speakers
+      // (buildSpeakerPrep spreads the base), so every committed variant persists the same draws.
+      ...prepMacroFields(macroRegistry, userMacroDraws),
       signal: handle.signal,
     };
 
@@ -1144,6 +1254,15 @@ interface TurnBase {
   /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
    *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
   readonly respondsToLatestUserTurn: boolean;
+  /** The per-turn user-macro registry (WAVE MU) — threaded onto the aux prep's `macroRegistry`; `null` ⇒ no
+   *  user macros (byte-identical). */
+  readonly macroRegistry: MacroRegistry | null;
+  /** The per-turn user-macro FREEZE registry (WAVE MU) — currently unused by the aux verbs (no greeting-freeze
+   *  path), carried for shape-parity with `BuiltTurnContext`; `null` ⇒ no user macros. */
+  readonly freezeMacroRegistry: MacroRegistry | null;
+  /** The turn's effective user-macro draw record (frozen ∪ fresh) — persisted on the committed variant;
+   *  `null` ⇒ the turn drew nothing. On swipe/continue it is the REPLAYED record (the frozen draws in force). */
+  readonly userMacroDraws: UserMacroDraws | null;
 }
 
 /** Resolves the {@link TurnBase} for an auxiliary turn. The AI runs as the host. These turns add no new user
@@ -1162,6 +1281,9 @@ async function resolveTurnBase(
     /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     readonly guided?: GuidedSteer | undefined;
+    /** The target slot's persisted user-macro draws (WAVE MU) — swipe/continue replay them byte-exact so the
+     *  re-generation resolves the identical draw. Absent (generate) ⇒ a fresh draw. */
+    readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
@@ -1171,7 +1293,17 @@ async function resolveTurnBase(
     hostUserId: room.hostUserId,
   });
   const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn } = await buildTurnContext(ctx, deps, {
+  const {
+    assembleContext,
+    memoryConfig,
+    memoryRecall,
+    chatBehavior,
+    attachedToolNames,
+    respondsToLatestUserTurn,
+    macroRegistry,
+    freezeMacroRegistry,
+    userMacroDraws,
+  } = await buildTurnContext(ctx, deps, {
     chatId,
     runAsUserId: identity.runAsUserId,
     model: connection.model,
@@ -1184,8 +1316,22 @@ async function resolveTurnBase(
     triggerPersonaId: args.triggerPersonaId,
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
     guided: args.guided,
+    ...(args.frozenUserMacroDraws !== undefined ? { frozenUserMacroDraws: args.frozenUserMacroDraws } : {}),
   });
-  return { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn };
+  return {
+    room,
+    identity,
+    connection,
+    assembleContext,
+    memoryConfig,
+    memoryRecall,
+    chatBehavior,
+    attachedToolNames,
+    respondsToLatestUserTurn,
+    macroRegistry,
+    freezeMacroRegistry,
+    userMacroDraws,
+  };
 }
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
@@ -1236,15 +1382,18 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     // responds to the die-bearing latest user message (no swipe-fishing for a better roll; a swipe of an older
     // slot, or after a later reply landed, is ineligible).
     const respondsToLatestUserTurn = await loadIsReplyToLatestUserMessage(ctx.db, chatId, messageId);
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "swipe",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
-      respondsToLatestUserTurn,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
+      await resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "swipe",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        respondsToLatestUserTurn,
+        guided,
+        // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
+        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+      });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
@@ -1260,6 +1409,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       attachedToolNames,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
+      ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
       persist: { mode: "append-variant", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
@@ -1279,14 +1429,17 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
     }
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "continue",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
+      await resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "continue",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        guided,
+        // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
+        ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
+      });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
@@ -1301,6 +1454,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
+      ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
       appendUserTurn: nudgeOf(assembleContext, "continueNudge"),
       persist: { mode: "continue", targetMessageId: messageId },
@@ -1322,15 +1476,16 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
     // persona (server-derived, trusted — no check). A non-owned id is refused notPersonaOwner (same code the
     // re-stamp path returns).
     await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "impersonate",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
-      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
-      guided,
-    });
+    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
+      await resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "impersonate",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
+        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+        guided,
+      });
     return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
       assembleContext,
@@ -1344,6 +1499,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
+      ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: null,
       appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
       persist: {
@@ -1362,14 +1518,15 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames } = await resolveTurnBase(ctx, deps, {
-      principal,
-      chatId,
-      kind: "generate",
-      anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
-      guided,
-    });
+    const { room, identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws } =
+      await resolveTurnBase(ctx, deps, {
+        principal,
+        chatId,
+        kind: "generate",
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        triggerPersonaId: membership.activePersonaId,
+        guided,
+      });
     // An EXPLICIT speaker must be a PRESENT cast member of THIS chat — never trust the branded id from the
     // wire to name any character (a bare `speakerShapeFor` silently returns an undefined shape for an unknown
     // id, so an unvalidated foreign CharacterId would commit an assistant canon row attributed to it and leak
@@ -1405,6 +1562,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
+      ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: speaker,
       lockFree: true,
       ...(shape !== undefined ? { shape } : {}),

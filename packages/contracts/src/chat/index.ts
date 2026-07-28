@@ -84,12 +84,14 @@ export type {
   MessageView,
   StandaloneVariableDelta,
   ToolCallRecord,
+  UserMacroDraws,
 } from "./messages";
 export {
   messageSlotSchema,
   standaloneVariableDeltaSchema,
   standaloneVariableDeltasSchema,
   toolCallRecordSchema,
+  userMacroDrawsSchema,
   variableDeltaSchema,
   varOpSchema,
 } from "./messages";

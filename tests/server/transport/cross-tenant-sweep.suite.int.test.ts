@@ -533,6 +533,12 @@ const PROBES: readonly Probe[] = [
     path: "chat.setToolRecurseLimit",
     call: (c, i) => c.chat.setToolRecurseLimit({ chatId: i.chatId, limit: 5 }),
   },
+  {
+    // WAVE MU: the per-chat user-macro INPUT picks flush — `requireParticipant` miss on a stranger's chatId is
+    // a leak-free NOT_FOUND (the setVariables/member shape) BEFORE any `chats.user_macro_values` write.
+    path: "chat.setUserMacroValues",
+    call: (c, i) => c.chat.setUserMacroValues({ chatId: i.chatId, values: { mood: { tone: "grim" } } }),
+  },
   { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
   { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },

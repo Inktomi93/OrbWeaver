@@ -9,8 +9,9 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroContext, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
-import { createMacroContext, createVolatileOnlyRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import type { MacroContext, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
+import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import type { RenderMacrosOptions } from "../contract/assembly-macros";
 import type { HistoryMacroNames } from "../contract/results";
 
 // Commit-time freeze registry: resolves ONLY the nondeterministic macros ({{roll}}/{{random}}/{{time}}/…),
@@ -111,8 +112,8 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
  * card-derived sections, active for user-authored). `original` is the preset Main-Prompt/Jailbreak,
  * threaded only while rendering the two overridable markers.
  */
-export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined, original?: string): string {
-  return processMacros(text, macroOptionsFor(ctx, persona, { original }));
+export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined, opts: RenderMacrosOptions = {}): string {
+  return processMacros(text, macroOptionsFor(ctx, persona, { original: opts.original }), opts.registry ?? globalMacroRegistry);
 }
 
 /**
@@ -122,8 +123,14 @@ export function renderMacros(text: string, ctx: AssembleContext, persona: Assemb
  * resolved-at-read. Exact inverse of `renderHistoryMacros`' names-only pass. Applied to a user turn's
  * composer text at send, before the row is persisted.
  */
-export function freezeVolatileMacros(text: string, ctx: AssembleContext, args?: { readonly random?: (() => number) | undefined }): string {
-  return processMacros(text, macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }), VOLATILE_ONLY_REGISTRY);
+export function freezeVolatileMacros(
+  text: string,
+  ctx: AssembleContext,
+  args?: { readonly random?: (() => number) | undefined; readonly registry?: MacroRegistry | undefined },
+): string {
+  // The per-turn FREEZE registry (WAVE MU — volatile-only + user macros) when supplied; absent ⇒ the
+  // process `VOLATILE_ONLY_REGISTRY` (byte-identical — user-macro tokens pass through verbatim).
+  return processMacros(text, macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }), args?.registry ?? VOLATILE_ONLY_REGISTRY);
 }
 
 /**
@@ -195,6 +202,9 @@ export function resolveGuidedActionText(
     readonly model?: string | undefined;
     readonly chatId?: ChatId | undefined;
     readonly person?: GuidedImpersonatePerson | undefined;
+    /** The per-turn user-macro registry (WAVE MU) when the guided template references a user macro; absent
+     *  ⇒ the process `globalMacroRegistry` (byte-identical). */
+    readonly registry?: MacroRegistry | undefined;
   },
 ): string {
   // A scaffold-only action with a blank steer injects nothing (its template is a pure {{input}} frame,
@@ -203,12 +213,10 @@ export function resolveGuidedActionText(
     return "";
   }
   const config = ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
-  return resolveGuidedInstruction(
-    config.prompt,
-    args.input,
-    macroOptionsFor(ctx, ctx.activePersona, { model: args.model, chatId: args.chatId }),
-    args.person !== undefined ? { person: args.person } : undefined,
-  );
+  return resolveGuidedInstruction(config.prompt, args.input, macroOptionsFor(ctx, ctx.activePersona, { model: args.model, chatId: args.chatId }), {
+    ...(args.person !== undefined ? { person: args.person } : {}),
+    ...(args.registry !== undefined ? { registry: args.registry } : {}),
+  });
 }
 
 /**
@@ -222,6 +230,9 @@ export function buildTurnMacroContext(args: {
   readonly input?: string | undefined;
   readonly random?: (() => number) | undefined;
   readonly onWarn?: ((msg: string, err?: unknown) => void) | undefined;
+  /** The per-turn user-macro registry (WAVE MU) — the turn-stage regex/guided context resolves user macros
+   *  against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). */
+  readonly registry?: MacroRegistry | undefined;
 }): MacroContext {
   const { assembleCtx } = args;
   return createMacroContext(
@@ -232,5 +243,6 @@ export function buildTurnMacroContext(args: {
       random: args.random,
       onWarn: args.onWarn,
     }),
+    args.registry ?? globalMacroRegistry,
   );
 }

@@ -54,7 +54,7 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
-import { userIntentSchema } from "@orb/contracts/preset";
+import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -274,6 +274,14 @@ const setToolRecurseLimitSchema = z.object({
   limit: toolRecurseLimitSchema,
 });
 
+// WAVE MU: the per-chat user-macro INPUT picks flush — a member writes the nested macro→input→typed-pick bag
+// to `chats.user_macro_values`. Authz (`requireParticipant`) lives INSIDE the verb, so a stranger's chatId is
+// a leak-free NOT_FOUND (the setVariables/member shape). `userMacroValuesSchema` bounds the bag at the wire.
+const setUserMacroValuesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  values: userMacroValuesSchema,
+});
+
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
 const previewAssemblySchema = z.object({
@@ -458,6 +466,9 @@ export const chatRouter = t.router({
   setToolRecurseLimit: authedProcedure
     .input(setToolRecurseLimitSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setToolRecurseLimit({ principal: ctx.auth, ...input })),
+  setUserMacroValues: authedProcedure
+    .input(setUserMacroValuesSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setUserMacroValues({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),

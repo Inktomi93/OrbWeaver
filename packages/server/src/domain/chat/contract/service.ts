@@ -83,6 +83,7 @@ import type {
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
+  SetUserMacroValuesParams,
   SetVariablesParams,
   StarChatParams,
   StartChatParams,
@@ -234,6 +235,8 @@ export interface ChatService {
   readonly getStoredVariables: (params: GetStoredVariablesParams) => Promise<VariablesResult>;
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
   readonly clearVariables: (params: ClearVariablesParams) => Promise<void>;
+  /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */
+  readonly setUserMacroValues: (params: SetUserMacroValuesParams) => Promise<void>;
 
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */

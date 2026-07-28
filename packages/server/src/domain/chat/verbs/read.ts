@@ -20,6 +20,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MacroRegistry } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
@@ -80,7 +81,16 @@ import {
 import { loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildHistoryBudget, buildPrompt, buildShapeTrace, fitHistory, previewSection, shapeTurn, toShapeCanon } from "../substrate/assembly-access";
+import {
+  buildHistoryBudget,
+  buildPrompt,
+  buildShapeTrace,
+  buildTurnUserMacros,
+  fitHistory,
+  previewSection,
+  shapeTurn,
+  toShapeCanon,
+} from "../substrate/assembly-access";
 import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
@@ -224,9 +234,29 @@ async function resolvePreviewInputs(
   return { hostUserId, model: connection.model, capability: connection.capability, api: connection.api, castCharacterIds, personaIds, foreign };
 }
 
+/** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with a STABLE
+ *  prng (`() => 0`), so a random-pick previews its FIRST-pool value and a re-poll never varies (the
+ *  "preview never varies per poll" precedent — `gatherAssembleContext`'s absent-prng arm). Draws are
+ *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
+function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
+  const built = buildTurnUserMacros({
+    defs: inputs.foreign.promptConfig.userMacros,
+    sourceId: inputs.foreign.presetId ?? "default",
+    values: {},
+    prng: () => 0,
+  });
+  return built?.registry ?? null;
+}
+
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
- *  optional `guided` steer mirrors a real turn's steered assembly. */
-async function buildPreviewContext(ctx: ChatContext, inputs: PreviewInputs, chatId: ChatId, guided?: GuidedSteer): ReturnType<typeof gatherAssembleContext> {
+ *  optional `guided` steer mirrors a real turn's steered assembly. Threads the preview user-macro registry
+ *  (WAVE MU) so a previewed prompt resolves user macros exactly as a real turn would (stable-prng posture). */
+async function buildPreviewContext(
+  ctx: ChatContext,
+  inputs: PreviewInputs,
+  chatId: ChatId,
+  opts: { readonly registry: MacroRegistry | null; readonly guided?: GuidedSteer | undefined } = { registry: null },
+): ReturnType<typeof gatherAssembleContext> {
   return await gatherAssembleContext(
     ctx,
     {
@@ -235,7 +265,9 @@ async function buildPreviewContext(ctx: ChatContext, inputs: PreviewInputs, chat
       model: inputs.model,
       castCharacterIds: inputs.castCharacterIds,
       personaIds: inputs.personaIds,
-      ...(guided !== undefined ? { guided } : {}),
+      ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
+      // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
+      ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
     },
     inputs.foreign,
   );
@@ -379,8 +411,9 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, guided);
-    const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext);
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry, guided });
+    const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // Route through the host-audience redaction seam (chat-crew-design/04 §2, CREW-6). The verdict is DERIVED
     // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
     // gate is ever relaxed to `requireParticipant` the elision inherits automatically (the structural belt: a
@@ -399,10 +432,11 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
     // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
-    return buildPrompt(inputs.foreign.promptConfig, assembleContext);
+    return buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
   };
 }
 
@@ -418,8 +452,9 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext);
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
 
     // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
     // (client-display parity), exactly as the engine builds it for a real turn.
@@ -504,8 +539,9 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext);
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
 
     const canon = await loadCanonHistory(ctx.db, chatId);
     const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
@@ -584,8 +620,9 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
     if (section === undefined) {
       throw new DomainNotFoundError("prompt_section", sectionId);
     }
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    return previewSection(section, assembleContext, inputs.foreign.promptConfig);
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    return previewSection(section, assembleContext, inputs.foreign.promptConfig, registry ?? undefined);
   };
 }
 

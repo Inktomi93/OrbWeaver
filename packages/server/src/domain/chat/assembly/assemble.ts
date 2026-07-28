@@ -16,6 +16,7 @@
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
@@ -24,22 +25,34 @@ import { renderMacros } from "./macros";
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
 // (top-level so it isn't re-compiled per call).
 const NO_VOLATILE_RE = /a^/u;
-let volatileMacroReCache: RegExp | undefined;
-function volatileMacroRe(): RegExp {
-  if (volatileMacroReCache === undefined) {
-    const names = globalMacroRegistry.volatileNames();
-    volatileMacroReCache = names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
+// The volatile-name scan re, memoized PER REGISTRY (WAVE MU): the process singleton keeps its one-compile,
+// and each per-turn user-macro registry gets its own compile so a volatile random-pick user macro in a
+// static section busts the cache (a WeakMap so per-turn registries are GC'd with the turn — no leak).
+//
+// ASSUMES(single-replica): a PURE per-registry memoization cache — NOT a correctness boundary, so there is NO
+// DB-backed replacement seam (and none is needed). It derives the SAME regex from the registry's own
+// `volatileNames()` every time; a cross-replica "miss" (a fresh replica's empty WeakMap) simply RECOMPILES
+// the identical regex on first use — deterministic + idempotent, never a divergent result. The keys are
+// per-turn registries (GC'd with the turn) + the process singleton, so the map self-bounds.
+const volatileReByRegistry = new WeakMap<MacroRegistry, RegExp>();
+function volatileMacroRe(registry: MacroRegistry): RegExp {
+  const cached = volatileReByRegistry.get(registry);
+  if (cached !== undefined) {
+    return cached;
   }
-  return volatileMacroReCache;
+  const names = registry.volatileNames();
+  const re = names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
+  volatileReByRegistry.set(registry, re);
+  return re;
 }
 
 /** The volatile macro names present in `text` (source-template scan — resolved macros never reach here). */
-function findVolatileMacros(text: string | null | undefined): string[] {
+function findVolatileMacros(text: string | null | undefined, registry: MacroRegistry): string[] {
   if (text === null || text === undefined || text.length === 0) {
     return [];
   }
   const hits = new Set<string>();
-  for (const m of text.matchAll(volatileMacroRe())) {
+  for (const m of text.matchAll(volatileMacroRe(registry))) {
     if (m[1] !== undefined) {
       hits.add(m[1].toLowerCase());
     }
@@ -68,6 +81,9 @@ interface BuildEnv {
   readonly trace: AssembleTrace;
   readonly originals: Originals;
   readonly pivotIndex: number;
+  /** The per-turn user-macro registry (WAVE MU) every section render + volatile-scan reads; the process
+   *  `globalMacroRegistry` when the turn authored no user macros (byte-identical). */
+  readonly registry: MacroRegistry;
 }
 
 /** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
@@ -85,7 +101,7 @@ const MERGED_FALLBACK_CAP = 4000;
 
 /** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
  *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
-function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext): string {
+function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
   const raw = member[field];
   if (typeof raw !== "string" || raw.trim().length === 0) {
     return "";
@@ -96,7 +112,7 @@ function renderMemberField(field: MemberField, member: AssembleCharacter, ctx: A
     character: member,
     speaker: { kind: "single", character: member },
   };
-  const rendered = renderMacros(raw, sub, ctx.pinnedPersona);
+  const rendered = renderMacros(raw, sub, ctx.pinnedPersona, { registry });
   return field === "exampleMessages" ? normalizeExampleStart(rendered) : rendered;
 }
 
@@ -117,12 +133,12 @@ function dedupeNonEmpty(parts: readonly string[]): string[] {
 /** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, + whether
  *  it merged the present cast. Solo/scoped collapses to `activeValue`. Consumed only by the two
  *  `{{original}}`-templated overridable markers, never the scenario marker (that would double-emit it). */
-function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeValue: string): { value: string; merged: boolean } {
+function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeValue: string, registry: MacroRegistry): { value: string; merged: boolean } {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
     return { value: activeValue, merged: false };
   }
-  const parts = dedupeNonEmpty([activeValue, ...co.map((m) => renderMemberField(field, m, ctx))]);
+  const parts = dedupeNonEmpty([activeValue, ...co.map((m) => renderMemberField(field, m, ctx, registry))]);
   const joined = parts.join("\n\n");
   const value = joined.length > MERGED_FALLBACK_CAP ? joined.slice(0, MERGED_FALLBACK_CAP) : joined;
   return { value, merged: true };
@@ -130,20 +146,22 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
 
 /** The merged co-speakers' card block, appended after the active character's description. Empty when
  *  scoped/solo/no co-speakers. */
-function renderCoSpeakers(ctx: AssembleContext): string {
+function renderCoSpeakers(ctx: AssembleContext, registry: MacroRegistry): string {
   const co = ctx.coSpeakers;
   if (co === undefined || co.length === 0) {
     return "";
   }
   return co
     .map((m) => {
-      const head = [renderMemberField("description", m, ctx), renderMemberField("personality", m, ctx)].filter((s) => s.trim().length > 0).join("\n");
+      const head = [renderMemberField("description", m, ctx, registry), renderMemberField("personality", m, ctx, registry)]
+        .filter((s) => s.trim().length > 0)
+        .join("\n");
       if (head.trim().length === 0) {
         return "";
       }
       const parts = [`[Also present — ${m.name}]\n${head}`];
-      const scenario = renderMemberField("scenario", m, ctx);
-      const examples = renderMemberField("exampleMessages", m, ctx);
+      const scenario = renderMemberField("scenario", m, ctx, registry);
+      const examples = renderMemberField("exampleMessages", m, ctx, registry);
       if (scenario.trim().length > 0) {
         parts.push(`[${m.name}'s scenario]\n${scenario}`);
       }
@@ -201,14 +219,17 @@ function renderOverridable(
   cardField: "systemPrompt" | "postHistoryInstructions",
   roomOverride: string | null | undefined,
 ): { text: string; merged: boolean } {
-  const { ctx, originals } = env;
+  const { ctx, originals, registry } = env;
   const cardOverride = ctx.character[cardField];
-  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section), ctx, ctx.activePersona);
-  const afterCard = overrideSet(cardOverride) && section.forbidCharacterOverride !== true ? renderMacros(cardOverride, ctx, ctx.pinnedPersona, preset) : preset;
-  const fallback = resolveScopeFallback(cardField, ctx, afterCard);
+  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section), ctx, ctx.activePersona, { registry });
+  const afterCard =
+    overrideSet(cardOverride) && section.forbidCharacterOverride !== true
+      ? renderMacros(cardOverride, ctx, ctx.pinnedPersona, { original: preset, registry })
+      : preset;
+  const fallback = resolveScopeFallback(cardField, ctx, afterCard, registry);
   if (overrideSet(roomOverride) && section.forbidRoomOverride !== true) {
     return {
-      text: renderMacros(roomOverride, ctx, ctx.activePersona, fallback.value),
+      text: renderMacros(roomOverride, ctx, ctx.activePersona, { original: fallback.value, registry }),
       merged: fallback.merged,
     };
   }
@@ -239,7 +260,7 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   const room = ctx.roomOverrides?.scenario;
   // Active speaker's effective scenario only — co-speakers' scenarios are emitted once by the
   // char_description co-block; merging them here too would double-emit.
-  const value = renderMacros(templateFor(section), ctx, ctx.pinnedPersona);
+  const value = renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry });
   if (value.trim().length === 0) {
     return "";
   }
@@ -274,7 +295,7 @@ function renderServerMarker(section: TemplatedMarkerSection, marker: "compact_su
     return "";
   }
   markServerInclude(marker, env.trace);
-  return renderMacros(templateFor(section), env.ctx, env.ctx.activePersona);
+  return renderMacros(templateFor(section), env.ctx, env.ctx.activePersona, { registry: env.registry });
 }
 
 // biome-ignore-start lint/suspicious/noUnnecessaryConditions: biome's cross-package zod-union inference
@@ -292,21 +313,27 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
     case "scenario":
       return renderScenarioMarker(section, env);
     case "char_description": {
-      const active = renderMacros(templateFor(section), ctx, ctx.pinnedPersona);
-      const co = renderCoSpeakers(ctx);
+      const active = renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry });
+      const co = renderCoSpeakers(ctx, env.registry);
       if (co.trim().length > 0) {
         recordMergedCacheBuster(trace);
       }
       return [active, co].filter((s) => s.trim().length > 0).join("\n\n");
     }
     case "char_personality":
-      return ctx.character.personality !== null && ctx.character.personality !== "" ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona) : "";
+      return ctx.character.personality !== null && ctx.character.personality !== ""
+        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry })
+        : "";
     case "dialogue_examples":
-      return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== "" ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona) : "";
+      return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
+        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry })
+        : "";
     case "persona":
       // Emits ONLY when the active persona's description placement is in_prompt (else it rode an
       // injection, or nowhere — the single-placement rule that makes double-injection impossible).
-      return ctx.activePersona && ctx.personaMarkerActive !== false ? renderMacros(templateFor(section), ctx, ctx.activePersona) : "";
+      return ctx.activePersona && ctx.personaMarkerActive !== false
+        ? renderMacros(templateFor(section), ctx, ctx.activePersona, { registry: env.registry })
+        : "";
     case "compact_summary":
     case "memory":
     case "guided_instruction":
@@ -323,7 +350,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
 
 function renderSection(section: PromptSection, env: BuildEnv): string {
   // Literal blocks are USER-authored → active persona; markers route per-marker (dual-persona inside).
-  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona) : renderMarker(section, env);
+  return section.type === "literal" ? renderMacros(section.content, env.ctx, env.ctx.activePersona, { registry: env.registry }) : renderMarker(section, env);
 }
 
 function coSpeakerFieldSources(field: MemberField, ctx: AssembleContext): string[] {
@@ -379,7 +406,7 @@ function collectStaticSources(section: PromptSection, ctx: AssembleContext): str
 
 /** Pre-render the preset content of every enabled overridable section, memoized by id — renders exactly
  *  once regardless of section order. */
-function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals {
+function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: MacroRegistry): Originals {
   const overridable = config.sections.filter(
     (s): s is TemplatedMarkerSection => s.type === "marker" && s.enabled && (s.marker === "main_prompt" || s.marker === "post_history"),
   );
@@ -388,7 +415,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext): Originals
   }
   const renderedById = new Map<string, string>();
   for (const s of overridable) {
-    renderedById.set(s.id, renderMacros(templateFor(s), ctx, ctx.activePersona));
+    renderedById.set(s.id, renderMacros(templateFor(s), ctx, ctx.activePersona, { registry }));
   }
   return { renderedById };
 }
@@ -521,9 +548,9 @@ function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, 
 }
 
 /** Scan a static section's source strings for volatile macros (cache-busters) into `busters`. */
-function scanStaticBusters(section: PromptSection, ctx: AssembleContext, busters: Set<string>): void {
+function scanStaticBusters(section: PromptSection, ctx: AssembleContext, busters: Set<string>, registry: MacroRegistry): void {
   for (const src of collectStaticSources(section, ctx)) {
-    for (const name of findVolatileMacros(src)) {
+    for (const name of findVolatileMacros(src, registry)) {
       busters.add(name);
     }
   }
@@ -538,7 +565,7 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
   }
   const dynamic = isSectionDynamic(section);
   if (!dynamic) {
-    scanStaticBusters(section, env.ctx, acc.cacheBusters);
+    scanStaticBusters(section, env.ctx, acc.cacheBusters, env.registry);
   }
   const rendered = renderSection(section, env).trim();
   if (rendered.length === 0) {
@@ -600,7 +627,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * Render `config` against `ctx` into the system-prompt halves + the after-history injection bucket. Each
  * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
-export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext): AssembledPrompt {
+export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, registry: MacroRegistry = globalMacroRegistry): AssembledPrompt {
   const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
   const acc: WalkAccum = {
@@ -610,7 +637,7 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext): A
     cacheBusters: new Set<string>(),
   };
   const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
-  const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx), pivotIndex };
+  const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx, registry), pivotIndex, registry };
 
   const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
   // Send history unless a chat_history marker is explicitly present AND disabled.
@@ -654,7 +681,12 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext): A
  * SIDE-EFFECT FREE: the variable map is cloned so a `{{setvar}}` in the preview can't bleed into the
  * caller's live `variableValues`.
  */
-export function previewSection(section: PromptSection, ctx: AssembleContext, config: PromptConfig): SectionPreview {
+export function previewSection(
+  section: PromptSection,
+  ctx: AssembleContext,
+  config: PromptConfig,
+  registry: MacroRegistry = globalMacroRegistry,
+): SectionPreview {
   const half: "static" | "dynamic" = isSectionDynamic(section) ? "dynamic" : "static";
   const trace = freshTrace(ctx);
   if (!section.enabled) {
@@ -664,8 +696,9 @@ export function previewSection(section: PromptSection, ctx: AssembleContext, con
   const env: BuildEnv = {
     ctx: previewCtx,
     trace,
-    originals: computeOriginals(config, previewCtx),
+    originals: computeOriginals(config, previewCtx, registry),
     pivotIndex: -1,
+    registry,
   };
   return { rendered: renderSection(section, env), half, trace };
 }

@@ -13,24 +13,26 @@ describe("fetchOrCatalog", () => {
       models: {
         list: (): Promise<unknown> =>
           Promise.resolve({
-            data: [
-              {
-                id: "anthropic/claude-opus-4-5",
-                name: "Claude Opus 4.5",
-                contextLength: 200_000,
-                pricing: { prompt: "0.000015", completion: "0.000075", inputCacheRead: "" },
-                architecture: { inputModalities: ["text", "image"], outputModalities: ["text"] },
-                supportedParameters: ["reasoning", "temperature"],
-                topProvider: { maxCompletionTokens: 64_000, isModerated: true },
-                reasoning: {
-                  mandatory: false,
-                  defaultEnabled: true,
-                  supportedEfforts: ["high", "medium", "low", null],
-                  defaultEffort: "high",
-                  supportsMaxTokens: true,
+            result: {
+              data: [
+                {
+                  id: "anthropic/claude-opus-4-5",
+                  name: "Claude Opus 4.5",
+                  contextLength: 200_000,
+                  pricing: { prompt: "0.000015", completion: "0.000075", inputCacheRead: "" },
+                  architecture: { inputModalities: ["text", "image"], outputModalities: ["text"] },
+                  supportedParameters: ["reasoning", "temperature"],
+                  topProvider: { maxCompletionTokens: 64_000, isModerated: true },
+                  reasoning: {
+                    mandatory: false,
+                    defaultEnabled: true,
+                    supportedEfforts: ["high", "medium", "low", null],
+                    defaultEffort: "high",
+                    supportsMaxTokens: true,
+                  },
                 },
-              },
-            ],
+              ],
+            },
           }),
       },
     } as unknown as CatalogClient;
@@ -60,17 +62,19 @@ describe("fetchOrCatalog", () => {
       models: {
         list: (): Promise<unknown> =>
           Promise.resolve({
-            data: [
-              {
-                id: "x/y",
-                name: "",
-                contextLength: null,
-                pricing: { prompt: "1", completion: "2" },
-                architecture: { inputModalities: [], outputModalities: [] },
-                supportedParameters: [],
-                topProvider: {},
-              },
-            ],
+            result: {
+              data: [
+                {
+                  id: "x/y",
+                  name: "",
+                  contextLength: null,
+                  pricing: { prompt: "1", completion: "2" },
+                  architecture: { inputModalities: [], outputModalities: [] },
+                  supportedParameters: [],
+                  topProvider: {},
+                },
+              ],
+            },
           }),
       },
     } as unknown as CatalogClient;

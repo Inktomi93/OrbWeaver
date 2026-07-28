@@ -91,6 +91,7 @@ export const CHAT_VERB_AUTHORITY = {
   getVariables: "member",
   getStoredVariables: "member",
   setVariables: "member",
+  setUserMacroValues: "member", // WAVE MU: user-macro input picks — interactive play state (the setVariables sibling)
   clearVariables: "member",
   delete: "host", // host-only
   reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats
