@@ -2,6 +2,8 @@ import type {
   MenuArrowProps as BaseArrowProps,
   MenuBackdropProps as BaseBackdropProps,
   MenuCheckboxItemProps as BaseCheckboxItemProps,
+  MenuGroupLabelProps as BaseGroupLabelProps,
+  MenuGroupProps as BaseGroupProps,
   MenuItemProps as BaseItemProps,
   MenuLinkItemProps as BaseLinkItemProps,
   MenuPopupProps as BasePopupProps,
@@ -90,6 +92,26 @@ export interface MenuSeparatorProps extends Omit<ComponentProps<typeof BaseMenu.
 export function MenuSeparator(props: MenuSeparatorProps): ReactElement {
   const { className, ...rest } = props;
   return <BaseMenu.Separator className={slots.separator({ className })} {...rest} />;
+}
+
+export interface MenuGroupProps extends Omit<BaseGroupProps, "className"> {
+  className?: string;
+}
+
+/** Groups related items under one MenuGroupLabel — Base UI wires the label↔group aria association. */
+export function MenuGroup(props: MenuGroupProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BaseMenu.Group className={slots.group({ className })} data-slot="menu-group" {...rest} />;
+}
+
+export interface MenuGroupLabelProps extends Omit<BaseGroupLabelProps, "className"> {
+  className?: string;
+}
+
+/** The heading for a MenuGroup — a muted section caption, auto-associated with its parent group. */
+export function MenuGroupLabel(props: MenuGroupLabelProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BaseMenu.GroupLabel className={slots.groupLabel({ className })} data-slot="menu-group-label" {...rest} />;
 }
 
 export interface MenuCheckboxItemProps extends Omit<BaseCheckboxItemProps, "className"> {

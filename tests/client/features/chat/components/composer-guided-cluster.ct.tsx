@@ -17,9 +17,13 @@ import { ComposerStory } from "../_ct-stories";
 import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
 
 const RESPONSE = "Generate reply";
+// P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.
+const RESPONSE_GUIDED = "Guided generate reply";
 const RESPONSE_DRAFT = "Generate opening";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 const NEEDS_REPLY = /reply to regenerate/iu;
+const PLAIN_REROLL = /plain reroll/iu;
+const GROUP_LABELS = ["Input", "Reply", "Continuation", "Images"] as const;
 
 test("all four guided icons ALWAYS render on a committed chat (never hidden/swapped)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // committed, empty composer
@@ -46,7 +50,8 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
   const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
 
   await component.getByRole("textbox", { name: "Message" }).fill("make her angrier");
-  await component.getByRole("button", { name: RESPONSE }).click();
+  // P3-dualmode: with text present the icon is in guided mode and its accessible name says so.
+  await component.getByRole("button", { name: RESPONSE_GUIDED }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
   const input = trpc.lastInput("chat.generate") as { guided?: { input?: string }; afterAssistant?: boolean };
@@ -118,6 +123,26 @@ test("Regenerate in the ✨ menu is disabled-with-reason when there's no assista
   await expect(regen).toHaveAttribute("title", NEEDS_REPLY);
 });
 
+// P1-A: Regenerate must read APART from the top-row ⟳ Swipe icon — an enabled Regenerate carries a helper
+// title that names it a PLAIN reroll (ignores the typed steer), so it is not the byte-identical twin of Swipe.
+test("P1-A: an enabled Regenerate carries the plain-reroll helper (distinct from the steer-aware Swipe)", async ({ mount, page }) => {
+  const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
+  await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]) });
+  const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
+
+  await component.getByRole("button", { name: "Message tools" }).click();
+  const regen = page.getByRole("menuitem", { name: "Regenerate" });
+  await expect(regen).toBeEnabled();
+  await expect(regen).toHaveAttribute("title", PLAIN_REROLL);
+});
+
+// P2-A: the menu is regrouped with labeled groups (Base UI wires each label to its group as an aria heading).
+test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Continuation · Images)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await Promise.all(GROUP_LABELS.map((label) => expect(page.getByRole("group", { name: label })).toBeVisible()));
+});
+
 test("Simple send fires chat.commitMessage (post without generating) and clears the composer", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.commitMessage": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
   const component = await mount(<ComposerStory />);
@@ -138,7 +163,7 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
 // to decide which steers render; a plot steer fires chat.generate with a trusted-template gameSteer KIND.
 const GAME_CHAT = { participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } };
 
-test("game steers live in the ✨ menu (Plot + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
+test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
@@ -147,8 +172,10 @@ test("game steers live in the ✨ menu (Plot + Offer choices) and fire a gameSte
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
 
-  // A plot steer + the always-present Offer choices both render inside the ✨ menu (not a loose bar icon).
+  // The always-present Offer choices sits directly in the Plot group; the six plot steers nest under a Plot
+  // submenu (side-eye P1-B). Open the submenu, then fire one.
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Plot" }).click();
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
@@ -156,15 +183,15 @@ test("game steers live in the ✨ menu (Plot + Offer choices) and fire a gameSte
   expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "advance" } });
 });
 
-test("Plot steers are APPLICABILITY-gated off when plotProgression is false (Offer choices still shows)", async ({ mount, page }) => {
+test("Plot submenu is APPLICABILITY-gated off when plotProgression is false (Offer choices still shows)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: false } }),
   });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
-  // Plot steer absent (never a disabled twin); Offer choices always present on a game.
-  await expect(page.getByRole("menuitem", { name: "Advance the act" })).toHaveCount(0);
+  // The whole Plot submenu is absent (never a disabled twin); Offer choices always present on a game.
+  await expect(page.getByRole("menuitem", { name: "Plot", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
 });
 

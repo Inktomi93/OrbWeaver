@@ -54,6 +54,10 @@ export const IMPERSONATE_NEEDS_CHAT = "Send your first message to impersonate a 
 /** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a draft, or a user-tail chat, has none). */
 export const SWIPE_NEEDS_REPLY = "Needs a reply to regenerate.";
 
+/** The ✨-menu Regenerate row's hover helper — distinguishes it from the top-row Swipe icon: Regenerate is a
+ *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
+export const REGENERATE_PLAIN_HELPER = "Plain reroll of the last reply — ignores your typed steer.";
+
 /** Continue — needs an assistant reply to extend (a draft, or a user-tail chat, has none). */
 export const CONTINUE_NEEDS_REPLY = "Needs a reply to continue.";
 
