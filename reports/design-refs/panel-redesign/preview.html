@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preview — the assembly, host-only — orbweaver panel redesign</title>
+<style>
+:root{
+  /* ==== verbatim Hearth values (theme.css, generated D71) ==== */
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-surface-raised: oklch(0.185 0.006 60);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-secondary: oklch(0.255 0.007 60);
+  --color-muted: oklch(0.255 0.006 60);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-accent: oklch(0.285 0.009 60);
+  --color-destructive: oklch(0.65 0.19 25);
+  --color-success: oklch(0.72 0.13 155);
+  --color-warning: oklch(0.79 0.13 75);
+  --color-info: oklch(0.7 0.1 232);
+  --color-highlight: oklch(0.82 0.16 100);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-ring: oklch(0.72 0.175 52);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --color-track-1: oklch(0.68 0.13 145);
+  --color-track-2: oklch(0.68 0.11 250);
+  --color-track-3: oklch(0.76 0.12 90);
+  --color-track-4: oklch(0.68 0.12 310);
+  --color-track-5: oklch(0.70 0.12 20);
+  --color-track-6: oklch(0.72 0.10 200);
+  --spacing-field: 0.375rem; --spacing-row: 0.5rem; --spacing-block: 0.75rem;
+  --spacing-section: 1.5rem; --spacing-gutter: 2rem;
+  --radius-base: 0.5rem; --radius-control: 0.375rem; --radius-card: 0.625rem; --radius-full: 9999px;
+  --dimension-chrome-row: 3rem;
+  --text-title: 1rem; --text-body: 0.9375rem; --text-label: 0.8125rem; --text-micro: 0.65625rem;
+  --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --motion-fast: 130ms; --motion-base: 220ms; --motion-shimmer: 1300ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  /* derived conveniences (color-mix over tokens only) */
+  --ember-tint: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  --ember-line: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  --crown: var(--color-highlight);
+  --track-bg: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+}
+*{box-sizing:border-box} html{color-scheme:dark}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:28px 24px 64px;}
+.num{font-variant-numeric:tabular-nums;font-family:var(--font-mono);}
+.muted{color:var(--color-muted-foreground)}
+a{color:var(--color-primary);text-decoration:none} a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px;border-radius:var(--radius-control)}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;animation-iteration-count:1!important}
+}
+.page{max-width:1180px;margin:0 auto}
+.crumb{font-size:var(--text-micro);letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--color-muted-foreground);margin:0 0 6px}
+h1{font-size:1.35rem;margin:0 0 4px;letter-spacing:-0.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:900px}
+.views{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.view h2{font-size:var(--text-micro);letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:600;margin:0 0 8px}
+.notes{flex:1 1 300px;min-width:280px;color:var(--color-muted-foreground);line-height:1.62;font-size:12.5px;max-width:480px}
+.notes b{color:var(--color-foreground)} .notes h3{color:var(--color-foreground);font-size:12px;letter-spacing:.07em;text-transform:uppercase;margin:18px 0 4px}
+.kicker{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;display:flex;align-items:center;gap:6px}
+.kicker .rule{flex:1;height:1px;background:var(--color-border)}
+svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ the PANEL bracket ============ */
+.panel{width:340px;height:auto;min-height:640px;background:var(--color-sidebar);border:1px solid var(--color-sidebar-border);
+  border-radius:12px;overflow:hidden;display:flex;flex-direction:column;flex:none;
+  box-shadow:0 12px 40px oklch(0 0 0 / 0.35)}
+.panel.floor{width:272px} .panel.max{width:416px}
+/* mobile: full-width sheet inside a phone frame */
+.phone{width:390px;flex:none;background:var(--color-background);border:1px solid var(--color-sidebar-border);
+  border-radius:22px;overflow:hidden;box-shadow:0 12px 40px oklch(0 0 0/0.35)}
+.phone .ptop{height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--color-sidebar-border);background:var(--color-sidebar)}
+.phone .ptop .t{font-weight:650;font-size:13px}
+.phone .panel{width:100%;border:none;border-radius:0;box-shadow:none;height:auto;min-height:640px}
+.phone .pbot{height:52px;display:flex;align-items:center;justify-content:space-around;border-top:1px solid var(--color-sidebar-border);background:var(--color-sidebar);color:var(--color-muted-foreground)}
+.phone .pbot .on{color:var(--color-primary)}
+
+/* header BAND — the waystone slot */
+.band{padding:10px 12px 11px;border-bottom:1px solid var(--color-sidebar-border);
+  box-shadow:inset 0 2px 0 var(--ember-line);display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center}
+.band .ws{grid-row:1 / span 2;align-self:center}
+.band .loc{font-weight:650;font-size:13px;line-height:1.3;letter-spacing:-0.005em;min-width:0}
+.band .loc .sub{font-weight:400;font-size:11px;color:var(--color-muted-foreground);margin-top:1px}
+.band .loc .sub .sep{opacity:.5;margin:0 3px}
+.band .meta{display:flex;align-items:center;gap:8px;font-size:9.5px;color:var(--color-muted-foreground);min-width:0;flex-wrap:wrap}
+.band .meta .fresh{display:inline-flex;align-items:center;gap:4px;letter-spacing:.05em;text-transform:uppercase;font-weight:600}
+.band .veil{display:inline-flex;align-items:center;gap:4px;color:var(--crown);letter-spacing:.05em;text-transform:uppercase;font-weight:600;cursor:pointer}
+.band .orbrow{grid-column:1 / -1;display:flex;gap:12px;margin-top:7px;align-items:flex-end}
+.orb{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
+.orb svg{display:block}
+.orb .lbl{font-size:8px;letter-spacing:.07em;color:var(--color-muted-foreground);font-weight:650;text-transform:uppercase}
+.orb .vals{font-size:8.5px;color:var(--color-muted-foreground)}
+.ro-pill{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full);
+  border:1px solid color-mix(in oklab, var(--crown) 50%, transparent);color:var(--crown)}
+
+/* tab STRIPS — the bracket */
+.strip{display:flex;background:var(--color-sidebar)}
+.strip.top{border-bottom:1px solid var(--color-sidebar-border)}
+.strip.bottom{border-top:1px solid var(--color-sidebar-border);background:color-mix(in oklab, var(--color-sidebar) 88%, black)}
+.tabbtn{flex:1;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground);
+  position:relative;cursor:pointer;background:none;border:none;padding:0;transition:color var(--motion-fast) var(--ease-out-expo),background var(--motion-fast) var(--ease-out-expo)}
+.tabbtn:hover{color:var(--color-foreground);background:color-mix(in oklab, var(--color-foreground) 4%, transparent)}
+.phone .tabbtn{height:48px}
+.tabbtn.active{background:var(--ember-tint);color:var(--color-primary)}
+.strip.top .tabbtn.active{box-shadow:inset 0 -2px 0 var(--color-primary)}
+.strip.bottom .tabbtn.active{box-shadow:inset 0 2px 0 var(--color-primary)}
+.tabbtn .dot{position:absolute;top:6px;right:8px;width:5px;height:5px;border-radius:50%;background:var(--color-primary)}
+.tabbtn.disabled{opacity:.38;cursor:not-allowed}
+.tabbtn .lock{position:absolute;bottom:5px;right:7px;width:8px;height:8px;stroke-width:2.4}
+.tabbtn.crown{color:var(--crown)}
+.tabbtn.crown.active{background:color-mix(in oklab, var(--crown) 12%, transparent);color:var(--crown)}
+.strip.bottom .tabbtn.crown.active{box-shadow:inset 0 2px 0 var(--crown)}
+
+/* VIEWPORT */
+.viewport{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;
+  scrollbar-color:color-mix(in oklab, var(--color-foreground) 15%, transparent) transparent}
+
+/* ==== block kit + panel widgets ==== */
+.card{background:var(--color-card);border:1px solid var(--color-border);border-radius:var(--radius-card);padding:8px 10px}
+.meter{display:flex;flex-direction:column;gap:3px}
+.meter .mline{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--color-muted-foreground)}
+.meter .mline .v{color:var(--color-foreground);font-size:11px}
+.bar{height:6px;border-radius:3px;background:var(--track-bg);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:3px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:1.5px 8px;border-radius:var(--radius-full);
+  border:1px solid var(--color-border);color:var(--color-muted-foreground);background:color-mix(in oklab, var(--color-foreground) 3%, transparent)}
+.chip b{color:var(--color-foreground);font-weight:600}
+.chip.cond{border-color:color-mix(in oklab, var(--color-destructive) 50%, transparent);color:color-mix(in oklab, var(--color-destructive) 80%, var(--color-foreground));background:color-mix(in oklab, var(--color-destructive) 8%, transparent)}
+.chip.cond.warn{border-color:color-mix(in oklab, var(--color-warning) 45%, transparent);color:var(--color-warning);background:color-mix(in oklab, var(--color-warning) 8%, transparent)}
+.chip.guide svg{width:10px;height:10px}
+.rel{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:600;padding:1px 7px;border-radius:var(--radius-full)}
+.rel svg{width:9px;height:9px;stroke-width:2.2}
+.rel.lover{background:color-mix(in oklab, var(--color-primary) 14%, transparent);color:var(--color-primary)}
+.rel.friend{background:color-mix(in oklab, var(--color-success) 14%, transparent);color:var(--color-success)}
+.rel.ally{background:color-mix(in oklab, var(--color-info) 14%, transparent);color:var(--color-info)}
+.rel.enemy{background:color-mix(in oklab, var(--color-destructive) 14%, transparent);color:color-mix(in oklab, var(--color-destructive) 85%, white)}
+.rel.custom{background:color-mix(in oklab, var(--color-foreground) 7%, transparent);color:var(--color-muted-foreground)}
+.portrait{width:34px;height:34px;border-radius:var(--radius-base);flex:none;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:13px;color:var(--color-primary-foreground);position:relative;overflow:hidden}
+.portrait.sm{width:26px;height:26px;font-size:11px;border-radius:var(--radius-control)}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.statcell{background:var(--color-card);border:1px solid var(--color-border);border-radius:var(--radius-card);
+  padding:7px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.statcell .v{font-size:16px;font-weight:650;line-height:1}
+.statcell .l{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650}
+.itemgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.itemcell{aspect-ratio:1;background:var(--color-card);border:1px solid var(--color-border);border-radius:var(--radius-base);
+  position:relative;display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground);cursor:default}
+.itemcell:hover{border-color:color-mix(in oklab, var(--color-foreground) 20%, transparent);color:var(--color-foreground)}
+.itemcell svg{width:20px;height:20px}
+.itemcell .qty{position:absolute;top:2px;right:4px;font-size:8.5px;color:var(--color-warning);font-weight:650}
+.itemcell.quest::after{content:"";position:absolute;left:4px;top:4px;width:5px;height:5px;border-radius:50%;background:var(--color-primary)}
+.itemcell.ghost{border-style:dashed;opacity:.4}
+.beat{font-size:11px;color:var(--color-muted-foreground);padding:1.5px 0;display:flex;gap:6px}
+.beat::before{content:"—";opacity:.5;flex:none}
+.enc{border:1px solid color-mix(in oklab, var(--color-primary) 35%, transparent);border-radius:var(--radius-card);
+  padding:7px 9px;background:color-mix(in oklab, var(--color-primary) 6%, transparent)}
+.enc .kicker{color:var(--color-primary)}
+.init{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.init span{font-size:10px;border:1px solid var(--color-border);border-radius:5px;padding:1px 7px;color:var(--color-muted-foreground)}
+.init span.turn{border-color:color-mix(in oklab, var(--color-primary) 60%, transparent);color:var(--color-primary);font-weight:650;background:var(--ember-tint)}
+.btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:4px 11px;border-radius:var(--radius-control);
+  border:1px solid transparent;cursor:pointer;background:none;color:inherit;font-family:inherit}
+.btn.primary{background:var(--color-primary);color:var(--color-primary-foreground);box-shadow:0 2px 8px color-mix(in oklab, var(--color-primary) 30%, transparent)}
+.btn.ghost{color:var(--color-muted-foreground)} .btn.ghost:hover{color:var(--color-foreground);background:color-mix(in oklab, var(--color-foreground) 5%, transparent)}
+.btn.secondary{border-color:var(--color-border);color:var(--color-foreground)}
+.field-val{border:1px solid var(--color-input);background:color-mix(in oklab, var(--color-foreground) 4%, transparent);
+  border-radius:var(--radius-control);padding:1px 7px;font-size:11px;min-width:34px;text-align:right;color:var(--color-foreground)}
+.field-val.txt{text-align:left;min-width:60px}
+.goal{display:flex;align-items:baseline;gap:8px;font-size:11.5px}
+.goal .clock{margin-left:auto;color:var(--color-muted-foreground);font-size:10.5px}
+.goal.done{color:var(--color-muted-foreground);text-decoration:line-through}
+.seg{display:inline-flex;gap:2px} .seg i{width:9px;height:5px;border-radius:2px;background:var(--track-bg)}
+.seg i.on{background:var(--color-track-3)}
+.secret{border:1px solid color-mix(in oklab, var(--crown) 30%, transparent);border-radius:var(--radius-card);
+  background:color-mix(in oklab, var(--crown) 5%, transparent);padding:7px 9px}
+.secret .kicker{color:var(--crown)}
+.srow{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:11px}
+.srow+.srow{border-top:1px solid var(--color-border)}
+.srow .eye{flex:none;width:24px;height:24px;border-radius:var(--radius-control);border:1px solid color-mix(in oklab, var(--crown) 35%, transparent);
+  display:flex;align-items:center;justify-content:center;color:var(--crown);cursor:pointer;background:none}
+.srow .eye:hover{background:color-mix(in oklab, var(--crown) 10%, transparent)}
+.srow .what{min-width:0} .srow .what .truth{color:var(--color-muted-foreground);font-size:10.5px;margin-top:1px}
+.srow .what .truth b{color:var(--crown);font-weight:600}
+.srow .turnref{margin-left:auto;flex:none;font-size:9px;color:var(--color-muted-foreground)}
+/* immersive html card chrome */
+.artifact{border:1px solid var(--color-border);border-radius:var(--radius-card);overflow:hidden;background:var(--color-card)}
+.artifact .abar{display:flex;align-items:center;gap:6px;padding:4px 8px;border-bottom:1px solid var(--color-border);
+  background:color-mix(in oklab, var(--color-foreground) 3%, transparent);font-size:10px;color:var(--color-muted-foreground)}
+.artifact .abar .t{font-weight:600;color:var(--color-foreground);display:flex;align-items:center;gap:5px}
+.artifact .abar .sp{flex:1}
+.artifact .abar button{background:none;border:none;color:var(--color-muted-foreground);cursor:pointer;padding:2px;border-radius:4px;display:flex}
+.artifact .abar button:hover{color:var(--color-foreground)}
+.artifact .abody{padding:10px}
+.artifact.forming .abody{display:flex;flex-direction:column;gap:6px}
+.shimmer{height:10px;border-radius:5px;background:linear-gradient(90deg,
+  color-mix(in oklab, var(--color-foreground) 6%, transparent) 25%,
+  color-mix(in oklab, var(--color-foreground) 12%, transparent) 50%,
+  color-mix(in oklab, var(--color-foreground) 6%, transparent) 75%);
+  background-size:200% 100%;animation:shim var(--motion-shimmer) linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+.choice{border:1px solid color-mix(in oklab, var(--color-info) 35%, transparent);border-radius:var(--radius-card);
+  background:color-mix(in oklab, var(--color-info) 6%, transparent);padding:7px 9px}
+.choice .kicker{color:var(--color-info)}
+.choicebtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin-top:5px;padding:5px 8px;font-size:11.5px;
+  border:1px solid var(--color-border);border-radius:var(--radius-base);background:color-mix(in oklab, var(--color-foreground) 3%, transparent);
+  color:var(--color-foreground);cursor:pointer;font-family:inherit;transition:border-color var(--motion-fast) var(--ease-out-expo)}
+.choicebtn:hover{border-color:color-mix(in oklab, var(--color-info) 50%, transparent)}
+.choicebtn .k{flex:none;width:16px;height:16px;border-radius:4px;border:1px solid color-mix(in oklab, var(--color-info) 45%, transparent);
+  color:var(--color-info);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.choicebtn.picked{border-color:color-mix(in oklab, var(--color-info) 60%, transparent);background:color-mix(in oklab, var(--color-info) 10%, transparent)}
+.acts{display:flex;align-items:center;gap:4px;margin:2px 0 0}
+.acts .a{display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--color-muted-foreground)}
+.acts .adot{width:7px;height:7px;border-radius:50%;border:1px solid var(--color-border)}
+.acts .adot.done{background:color-mix(in oklab, var(--color-track-3) 70%, transparent);border-color:transparent}
+.acts .adot.now{border-color:var(--color-primary);background:var(--ember-tint)}
+.acts .aline{flex:1;height:1px;background:var(--color-border)}
+.mselect{display:flex;gap:4px;flex-wrap:wrap}
+.mselect .mbtn{font-size:10px;padding:2px 9px;border-radius:var(--radius-full);border:1px solid var(--color-border);
+  color:var(--color-muted-foreground);background:none;cursor:pointer;font-family:inherit}
+.mselect .mbtn.on{border-color:color-mix(in oklab, var(--color-primary) 55%, transparent);color:var(--color-primary);background:var(--ember-tint)}
+.rowline{display:flex;align-items:center;gap:8px;padding:6px 0}
+.rowline+.rowline{border-top:1px solid var(--color-border)}
+.talk{width:64px;height:4px;border-radius:2px;background:var(--track-bg);position:relative}
+.talk i{position:absolute;inset:0 auto 0 0;border-radius:2px;background:var(--color-track-6)}
+.talk::after{content:"";position:absolute;top:-3px;width:10px;height:10px;border-radius:50%;background:var(--color-foreground);left:var(--x,50%);transform:translateX(-50%)}
+.switch{width:26px;height:15px;border-radius:8px;background:var(--track-bg);position:relative;flex:none}
+.switch.on{background:color-mix(in oklab, var(--color-primary) 70%, transparent)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:var(--color-foreground);transition:left var(--motion-fast)}
+.switch.on::after{left:13px}
+.iseg{display:inline-flex;border:1px solid var(--color-border);border-radius:var(--radius-control);overflow:hidden}
+.iseg span{font-size:10px;padding:2px 9px;color:var(--color-muted-foreground)}
+.iseg span.on{background:color-mix(in oklab, var(--color-foreground) 8%, transparent);color:var(--color-foreground);font-weight:600}
+.note-ta{border:1px solid var(--color-input);border-radius:var(--radius-base);padding:6px 8px;font-size:11px;
+  color:var(--color-foreground);background:color-mix(in oklab, var(--color-foreground) 3%, transparent);line-height:1.5}
+.autosave{font-size:9.5px;color:var(--color-muted-foreground);display:flex;align-items:center;gap:4px}
+.budget{height:6px;border-radius:3px;background:var(--track-bg);overflow:hidden;display:flex}
+.budget i{height:100%}
+.prow{display:flex;align-items:center;gap:7px;padding:5.5px 0;font-size:11.5px}
+.prow+.prow{border-top:1px solid var(--color-border)}
+.prow .tok{margin-left:auto;font-size:10px;color:var(--color-muted-foreground)}
+.prow .swatch{width:8px;height:8px;border-radius:2px;flex:none}
+.empty{border:1px dashed var(--color-border);border-radius:var(--radius-card);padding:14px 12px;text-align:center;color:var(--color-muted-foreground);font-size:11.5px}
+.empty b{color:var(--color-foreground)}
+.empty .door{margin-top:4px;font-size:10.5px}
+.skillrow{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px;padding:4px 0}
+.skillrow+.skillrow{border-top:1px solid var(--color-border)}
+.skillrow .b{color:var(--color-track-3);font-weight:650;font-size:11px}
+/* grids on wider containers: mobile gets one more column of stats/items */
+.phone .statgrid{grid-template-columns:repeat(4,1fr)}
+.phone .itemgrid{grid-template-columns:repeat(6,1fr)}
+.wide2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+.ws-rain{animation:wsdrift 1.6s linear infinite}
+@keyframes wsdrift{0%{transform:translate(0,0);opacity:.75}100%{transform:translate(-2px,5px);opacity:.15}}</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-heart"><path d="M12 20.5 4.8 13.4A4.8 4.8 0 0 1 12 6.8a4.8 4.8 0 0 1 7.2 6.6Z"/><path d="M4 12h4l1.5-2.5 2.5 5 1.5-2.5H20"/></g>
+<g id="i-scroll"><path d="M17 3H7a2 2 0 0 0-2 2v13"/><path d="M17 3a2 2 0 0 1 2 2v12H8a3 3 0 0 0-3 3 3 3 0 0 0 3 3h11"/><path d="M9 8h6M9 12h6"/></g>
+<g id="i-pack"><path d="M7 9a5 5 0 0 1 10 0v11a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20Z"/><path d="M9.5 9V6.5a2.5 2.5 0 0 1 5 0V9"/><path d="M7 14h10"/><path d="M10 14v7.5M14 14v7.5"/></g>
+<g id="i-mask"><path d="M4.5 4.5c3 1.4 12 1.4 15 0V12c0 5-3.3 8.5-7.5 8.5S4.5 17 4.5 12Z"/><path d="M8.7 10.2h.01M15.3 10.2h.01"/><path d="M9 14.6c1.6 1.6 4.4 1.6 6 0"/></g>
+<g id="i-flag"><path d="M5.5 21.5V4.2c3.7-1.9 6.5 1.9 11 .1v9c-4.5 1.8-7.3-2-11-.1"/></g>
+<g id="i-book"><path d="M12 6.4C10 5 7.2 4.4 3.5 4.4v13.8c3.7 0 6.5.6 8.5 2 2-1.4 4.8-2 8.5-2V4.4c-3.7 0-6.5.6-8.5 2Z"/><path d="M12 6.4v13.8"/></g>
+<g id="i-map"><path d="m9 4.2-5.5 1.9v13.7L9 17.9l6 1.9 5.5-1.9V4.2L15 6.1Z"/><path d="M9 4.2v13.7M15 6.1v13.7"/></g>
+<g id="i-users"><circle cx="9" cy="8" r="3.4"/><path d="M3.4 20c0-3.1 2.5-5 5.6-5s5.6 1.9 5.6 5"/><path d="M15.5 3.6a3.3 3.3 0 0 1 0 6.4"/><path d="M17 15.3c2.3.6 3.6 2.3 3.6 4.7"/></g>
+<g id="i-gear"><circle cx="12" cy="12" r="3.1"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8"/></g>
+<g id="i-syringe"><path d="m17.5 2.5 4 4"/><path d="m16 7 3-3"/><path d="M18.5 9.5 9 19l-4.2 1.2L6 16 15.5 6.5"/><path d="m8.5 11.5 3.5 3.5"/></g>
+<g id="i-eye"><path d="M2.5 12S6.3 5.5 12 5.5 21.5 12 21.5 12 17.7 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g>
+<g id="i-eyeoff"><path d="M4 4l16 16"/><path d="M10.6 6a9.8 9.8 0 0 1 1.4-.1c5.7 0 9.5 6.1 9.5 6.1a17.4 17.4 0 0 1-3 3.5M7 7.2A16.6 16.6 0 0 0 2.5 12s3.8 6.5 9.5 6.5a9 9 0 0 0 4-.9"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></g>
+<g id="i-crown"><path d="M4.5 19h15M4.5 19 2.6 7.5 7.8 11 12 4.5 16.2 11l5.2-3.5L19.5 19"/></g>
+<g id="i-lock"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></g>
+<g id="i-compass"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5Z"/></g>
+<g id="i-coin"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.6"/></g>
+<g id="i-gauge"><path d="M3.4 17.4a9.8 9.8 0 1 1 17.2 0"/><path d="m12 14 3.8-3.8"/><circle cx="12" cy="14" r="1"/></g>
+<g id="i-history"><path d="M3.5 12a8.5 8.5 0 1 1 2.5 6"/><path d="M3.5 12V7.5M3.5 12H8"/><path d="M12 8v4.3l2.8 1.7"/></g>
+<g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+<g id="i-kebab"><circle cx="12" cy="5.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="18.5" r="1.2"/></g>
+<g id="i-pin"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></g>
+<g id="i-check"><path d="m4.5 12.5 5 5 10-11"/></g>
+<g id="i-chev"><path d="m9 5.5 6.5 6.5L9 18.5"/></g>
+<g id="i-code"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></g>
+<g id="i-expand"><path d="M14 3.5h6.5V10M10 20.5H3.5V14"/><path d="M20.5 3.5 14 10M3.5 20.5 10 14"/></g>
+<g id="i-collapse"><path d="M9.5 3.5V10H3M14.5 20.5V14H21"/></g>
+<g id="i-x"><path d="m5.5 5.5 13 13M18.5 5.5l-13 13"/></g>
+<g id="i-volume"><path d="M4 9.5v5h3.5L12 19V5L7.5 9.5Z"/><path d="M15.5 9a4.3 4.3 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></g>
+<g id="i-key"><circle cx="7.5" cy="15.5" r="4"/><path d="m10.5 12.5 9-9M15 8l3 3M18 5l2.5 2.5"/></g>
+<g id="i-blade"><path d="M6 18 17.5 3.5 20.5 6.5 9 18"/><path d="m5 19 3-1-2-2Z"/><path d="m3.5 20.5 1.5-1.5"/></g>
+<g id="i-coil"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/><path d="M12 7a5 5 0 1 0 5 5"/><path d="M12 10.5a1.5 1.5 0 1 0 1.5 1.5"/></g>
+<g id="i-pouch"><path d="M7 8.5C5 10.5 4 13 4 15.5 4 19 7 21 12 21s8-2 8-5.5c0-2.5-1-5-3-7"/><path d="M7 8.5 6 5l3 1.5L12 4l3 2.5L18 5l-1 3.5"/><path d="M7 8.5h10"/></g>
+<g id="i-flask"><path d="M10 3.5h4M11 3.5v5L5.5 18a2 2 0 0 0 1.8 3h9.4a2 2 0 0 0 1.8-3L13 8.5v-5"/><path d="M8 14.5h8"/></g>
+<g id="i-needle"><path d="m19 5-9.5 9.5"/><path d="M19 5c1 1 1 2 0 3l-2-2c1-1 2-1 2-1Z"/><path d="M9.5 14.5 5 19"/><path d="m4 20 1-1"/></g>
+<g id="i-drop"><path d="M12 3.5c3.5 4.2 6 7.4 6 10.3a6 6 0 0 1-12 0c0-2.9 2.5-6.1 6-10.3Z"/></g>
+<g id="i-star"><path d="m12 3.5 2.5 5.4 5.9.6-4.4 4 1.2 5.8L12 16.4l-5.2 2.9 1.2-5.8-4.4-4 5.9-.6Z"/></g>
+<g id="i-userx"><circle cx="10" cy="8" r="3.5"/><path d="M4 20c0-3.2 2.7-5.2 6-5.2s6 2 6 5.2"/><path d="m16.5 5.5 4 4M20.5 5.5l-4 4"/></g>
+<g id="i-wand"><path d="m5 19 10-10"/><path d="m14 5.5.7-2 .7 2 2 .7-2 .7-.7 2-.7-2-2-.7Z"/><path d="m19 12 .5-1.4.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5Z"/></g>
+<g id="i-dice"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1"/><circle cx="15" cy="15" r="1.1"/><circle cx="15" cy="9" r="1.1"/><circle cx="9" cy="15" r="1.1"/></g>
+<g id="i-grip"><circle cx="9" cy="6" r="1.1"/><circle cx="15" cy="6" r="1.1"/><circle cx="9" cy="12" r="1.1"/><circle cx="15" cy="12" r="1.1"/><circle cx="9" cy="18" r="1.1"/><circle cx="15" cy="18" r="1.1"/></g>
+<g id="i-msg"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></g>
+<g id="i-home"><path d="m4 11 8-7 8 7"/><path d="M6 9.5V20h12V9.5"/></g>
+</defs></svg>
+<div class="page">
+<p class="crumb"><a href="index.html">panel redesign</a> / bottom strip · 4/5</p>
+<h1>Preview — the assembly, host-only</h1>
+<p class="lede">What the model will see next turn: the context budget as a stacked bar, the assembly sections in prompt order with token counts (swatch-keyed to the bar), and the game-state block expanded — including the veiled-truth count the members never see.</p>
+
+<div class="views">
+  <section class="view">
+    <h2>Desktop — docked CONTEXT column (token width clamp(17rem, 24vw, 26rem))</h2>
+    <div class="panel " data-takeover>
+  <div class="band">
+  <button class="ws" style="background:none;border:none;padding:0;cursor:pointer" title="The waystone — time &amp; weather. Maps unlock with the map arc (MA-3).">
+    <svg class="waystone" width="76" height="76" viewBox="0 0 96 96" aria-hidden="true" >
+  <defs><radialGradient id="sky-night-rain" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="color-mix(in oklab, var(--color-track-2) 26%, var(--color-background))"/>
+      <stop offset="100%" stop-color="color-mix(in oklab, var(--color-track-2) 8%, oklch(0.11 0.008 60))"/></radialGradient><clipPath id="clip-night-rain"><circle cx="48" cy="48" r="34"/></clipPath></defs>
+  <circle cx="48" cy="48" r="42" stroke="var(--track-bg)" stroke-width="5.5" fill="none"/>
+  <path d="M 7.43 58.87 A 42 42 0 0 1 7.43 37.13" stroke="color-mix(in oklab, var(--color-primary) 65%, var(--color-track-3))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 7.43 37.13 A 42 42 0 0 1 90.00 48.00" stroke="color-mix(in oklab, var(--color-track-3) 80%, var(--color-background))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 90.00 48.00 A 42 42 0 0 1 84.37 69.00" stroke="color-mix(in oklab, var(--color-primary) 75%, var(--color-track-4))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 84.37 69.00 A 42 42 0 0 1 7.43 58.87" stroke="color-mix(in oklab, var(--color-track-2) 40%, var(--color-background))" stroke-width="5.5" fill="none" stroke-linecap="butt"/>
+  <circle cx="48" cy="48" r="35.5" fill="var(--color-sidebar)"/>
+  <g clip-path="url(#clip-night-rain)">
+    <rect x="10" y="10" width="76" height="76" fill="url(#sky-night-rain)"/>
+    <g fill="var(--color-foreground)" opacity="0.7"><circle cx="38" cy="32" r="0.9"/><circle cx="56" cy="26" r="0.7"/>
+       <circle cx="62" cy="40" r="0.9"/><circle cx="45" cy="22" r="0.6"/><circle cx="31" cy="42" r="0.7"/></g><path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z"
+    fill="color-mix(in oklab, var(--color-sidebar) 80%, black)" opacity="0.85"/>
+    <path d="M 44 56 l 3 -6 3 6 Z" fill="color-mix(in oklab, var(--color-primary) 45%, var(--color-sidebar))" opacity="0.9"/><g stroke="color-mix(in oklab, var(--color-track-6) 80%, white)" stroke-width="1.1" stroke-linecap="round" opacity="0.75" class="ws-rain">
+      <line x1="36" y1="36" x2="33" y2="43"/><line x1="46" y1="33" x2="43" y2="40"/><line x1="56" y1="37" x2="53" y2="44"/><line x1="50" y1="45" x2="47" y2="52"/><line x1="40" y1="48" x2="37" y2="55"/></g>
+  </g>
+  <circle cx="48" cy="48" r="35.5" fill="none" stroke="var(--color-border)" stroke-width="1"/>
+  <circle cx="73.6" cy="81.3" r="3.4" fill="var(--color-primary)" stroke="var(--color-sidebar)" stroke-width="1.6"/>
+</svg>
+  </button>
+  <div class="loc"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">The Rusted Lantern — Common Room</div>
+    <div class="sub num">Day 3 <span class="sep">·</span> Night <span class="sep">·</span> Rain</div>
+    <div class="meta"><span class="fresh"><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px"><use href="#i-history"/></svg> as of last beat</span>
+      <button class="veil" style="background:none;border:none;padding:0;font:inherit" title="2 veiled truths in play — host only. Opens Status → Veiled."><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px"><use href="#i-eyeoff"/></svg> 2 veiled</button>
+      
+    </div>
+  </div>
+  <div class="orbrow"><div class="orb" title="VIT 24/30">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-1)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="62.8 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">24</text>
+  </svg>
+  <span class="lbl">VIT</span><span class="vals num">24/30</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">VIT 24 of 30</span>
+</div><div class="orb" title="RES 7/10">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-2)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="55.0 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">7</text>
+  </svg>
+  <span class="lbl">RES</span><span class="vals num">7/10</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">RES 7 of 10</span>
+</div><div class="orb" title="SUP 3/5">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-3)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="47.1 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">3</text>
+  </svg>
+  <span class="lbl">SUP</span><span class="vals num">3/5</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">SUP 3 of 5</span>
+</div><div class="orb" title="Gold — 128">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="13" fill="color-mix(in oklab, var(--color-track-3) 22%, var(--color-sidebar))"
+      stroke="color-mix(in oklab, var(--color-track-3) 70%, transparent)" stroke-width="2"/>
+    <circle cx="16" cy="16" r="9.5" fill="none" stroke="color-mix(in oklab, var(--color-track-3) 40%, transparent)" stroke-width="1"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10px var(--font-mono);fill:var(--color-foreground)">128</text>
+  </svg>
+  <span class="lbl">Gold</span><span class="vals num">&nbsp;</span>
+</div></div>
+</div>
+  <div class="strip top" role="tablist" aria-label="Game"><button class="tabbtn" role="tab" aria-selected="false" aria-label="Status" title="Status"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-heart"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Sheet" title="Sheet"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-scroll"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Inventory" title="Inventory"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-pack"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Scene" title="Scene"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-mask"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Quests" title="Quests"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-flag"/></svg><span class="dot" aria-hidden="true"></span></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Journal" title="Journal"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-book"/></svg></button><button class="tabbtn  disabled" role="tab" aria-selected="false" aria-label="Map" aria-disabled="true" title="Maps unlock with the map arc (MA-3)"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-map"/></svg><svg class="lock ic" viewBox="0 0 24 24"><use href="#i-lock"/></svg></button></div>
+  <div class="viewport" role="tabpanel" aria-label="preview">
+<p class="kicker" style="margin:0">Assembly — next turn<span class="rule"></span></p>
+<div class="card" style="display:flex;flex-direction:column;gap:6px;padding:8px 10px">
+  <div style="display:flex;justify-content:space-between;font-size:10.5px">
+    <span class="muted">context</span><span class="num"><b>4,300</b> / 8,192 tok</span>
+  </div>
+  <div class="budget" aria-hidden="true">
+    <i style="width:9%;background:var(--color-track-6)"></i><i style="width:28%;background:var(--color-track-4)"></i>
+    <i style="width:8%;background:var(--color-track-2)"></i><i style="width:7%;background:var(--color-track-3)"></i>
+    <i style="width:9%;background:var(--color-track-1)"></i><i style="width:38%;background:var(--color-track-5)"></i>
+  </div>
+</div>
+<div>
+  <div class="prow"><span class="swatch" style="background:var(--color-track-6)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">System · GM charter</span><span class="tok num">412</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-4)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cards — Mara · Niko · JFC</span><span class="tok num">1,208</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-2)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">World info — The Lantern Road</span><span class="tok num">356</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-3)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Steering — guides · note · state block</span><span class="tok num">298</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-1)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Game state — roster · scene · quests</span><span class="tok num">402</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-5)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">History — 41 turns, squashed</span><span class="tok num">1,624</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div>
+</div>
+<div class="card" style="font-family:var(--font-mono);font-size:9.5px;line-height:1.6;color:var(--color-muted-foreground);max-height:110px;overflow:hidden">
+<span style="color:var(--color-track-1)">## Game state</span><br>
+roster: Mara (VIT 24/30, RES 7/10, winded) · Niko (VIT 9/20, poisoned) · JFC (VIT 28/28)<br>
+scene: Common Room · night · rain · Sera (guarded, corruption 70/100), Brant<br>
+goals: keep the bone key (1/2) · encounter r2, Niko to act<br>
+<span style="color:var(--crown)">veiled: 2 truths withheld (host)</span>
+</div>
+<p class="muted" style="font-size:10px;margin:0">Host-only. What the model sees — nothing more, nothing hidden from you.</p></div>
+  <div class="strip bottom" role="tablist" aria-label="Chat"><button class="tabbtn" role="tab" aria-selected="false" aria-label="Members" title="Members"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-users"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Settings" title="Settings"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-gear"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Injections" title="Injections"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-syringe"/></svg></button><button class="tabbtn active" role="tab" aria-selected="true" aria-label="Preview (host)" title="Preview (host)"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-eye"/></svg></button><button class="tabbtn   crown" role="tab" aria-selected="false" aria-label="Game (host) — GM console" title="Game (host) — GM console"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-crown"/></svg></button></div>
+</div>
+  </section>
+  <section class="view">
+    <h2>Mobile ~390px — the panel as a full-width sheet</h2>
+    <div class="phone">
+  <div class="ptop"><svg class="ic" viewBox="0 0 24 24" style="transform:rotate(180deg)"><use href="#i-chev"/></svg><span class="t">The Rusted Lantern</span>
+    <span class="muted num" style="margin-left:auto;font-size:10px">day 3 · night</span></div>
+  <div class="panel " data-takeover>
+  <div class="band">
+  <button class="ws" style="background:none;border:none;padding:0;cursor:pointer" title="The waystone — time &amp; weather. Maps unlock with the map arc (MA-3).">
+    <svg class="waystone" width="64" height="64" viewBox="0 0 96 96" aria-hidden="true" >
+  <defs><radialGradient id="sky-night-rain" cx="50%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="color-mix(in oklab, var(--color-track-2) 26%, var(--color-background))"/>
+      <stop offset="100%" stop-color="color-mix(in oklab, var(--color-track-2) 8%, oklch(0.11 0.008 60))"/></radialGradient><clipPath id="clip-night-rain"><circle cx="48" cy="48" r="34"/></clipPath></defs>
+  <circle cx="48" cy="48" r="42" stroke="var(--track-bg)" stroke-width="5.5" fill="none"/>
+  <path d="M 7.43 58.87 A 42 42 0 0 1 7.43 37.13" stroke="color-mix(in oklab, var(--color-primary) 65%, var(--color-track-3))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 7.43 37.13 A 42 42 0 0 1 90.00 48.00" stroke="color-mix(in oklab, var(--color-track-3) 80%, var(--color-background))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 90.00 48.00 A 42 42 0 0 1 84.37 69.00" stroke="color-mix(in oklab, var(--color-primary) 75%, var(--color-track-4))" stroke-width="5.5" fill="none" stroke-linecap="butt"/><path d="M 84.37 69.00 A 42 42 0 0 1 7.43 58.87" stroke="color-mix(in oklab, var(--color-track-2) 40%, var(--color-background))" stroke-width="5.5" fill="none" stroke-linecap="butt"/>
+  <circle cx="48" cy="48" r="35.5" fill="var(--color-sidebar)"/>
+  <g clip-path="url(#clip-night-rain)">
+    <rect x="10" y="10" width="76" height="76" fill="url(#sky-night-rain)"/>
+    <g fill="var(--color-foreground)" opacity="0.7"><circle cx="38" cy="32" r="0.9"/><circle cx="56" cy="26" r="0.7"/>
+       <circle cx="62" cy="40" r="0.9"/><circle cx="45" cy="22" r="0.6"/><circle cx="31" cy="42" r="0.7"/></g><path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z"
+    fill="color-mix(in oklab, var(--color-sidebar) 80%, black)" opacity="0.85"/>
+    <path d="M 44 56 l 3 -6 3 6 Z" fill="color-mix(in oklab, var(--color-primary) 45%, var(--color-sidebar))" opacity="0.9"/><g stroke="color-mix(in oklab, var(--color-track-6) 80%, white)" stroke-width="1.1" stroke-linecap="round" opacity="0.75" class="ws-rain">
+      <line x1="36" y1="36" x2="33" y2="43"/><line x1="46" y1="33" x2="43" y2="40"/><line x1="56" y1="37" x2="53" y2="44"/><line x1="50" y1="45" x2="47" y2="52"/><line x1="40" y1="48" x2="37" y2="55"/></g>
+  </g>
+  <circle cx="48" cy="48" r="35.5" fill="none" stroke="var(--color-border)" stroke-width="1"/>
+  <circle cx="73.6" cy="81.3" r="3.4" fill="var(--color-primary)" stroke="var(--color-sidebar)" stroke-width="1.6"/>
+</svg>
+  </button>
+  <div class="loc"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">The Rusted Lantern — Common Room</div>
+    <div class="sub num">Day 3 <span class="sep">·</span> Night <span class="sep">·</span> Rain</div>
+    <div class="meta"><span class="fresh"><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px"><use href="#i-history"/></svg> as of last beat</span>
+      <button class="veil" style="background:none;border:none;padding:0;font:inherit" title="2 veiled truths in play — host only. Opens Status → Veiled."><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px"><use href="#i-eyeoff"/></svg> 2 veiled</button>
+      
+    </div>
+  </div>
+  <div class="orbrow"><div class="orb" title="VIT 24/30">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-1)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="62.8 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">24</text>
+  </svg>
+  <span class="lbl">VIT</span><span class="vals num">24/30</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">VIT 24 of 30</span>
+</div><div class="orb" title="RES 7/10">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-2)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="55.0 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">7</text>
+  </svg>
+  <span class="lbl">RES</span><span class="vals num">7/10</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">RES 7 of 10</span>
+</div><div class="orb" title="SUP 3/5">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--track-bg)" stroke-width="3.2"/>
+    <circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--color-track-3)" stroke-width="3.2" stroke-linecap="round"
+      stroke-dasharray="47.1 78.5" transform="rotate(-90 16 16)"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10.5px var(--font-mono);fill:var(--color-foreground)">3</text>
+  </svg>
+  <span class="lbl">SUP</span><span class="vals num">3/5</span>
+  <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)">SUP 3 of 5</span>
+</div><div class="orb" title="Gold — 128">
+  <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="13" fill="color-mix(in oklab, var(--color-track-3) 22%, var(--color-sidebar))"
+      stroke="color-mix(in oklab, var(--color-track-3) 70%, transparent)" stroke-width="2"/>
+    <circle cx="16" cy="16" r="9.5" fill="none" stroke="color-mix(in oklab, var(--color-track-3) 40%, transparent)" stroke-width="1"/>
+    <text x="16" y="20" text-anchor="middle" style="font:650 10px var(--font-mono);fill:var(--color-foreground)">128</text>
+  </svg>
+  <span class="lbl">Gold</span><span class="vals num">&nbsp;</span>
+</div></div>
+</div>
+  <div class="strip top" role="tablist" aria-label="Game"><button class="tabbtn" role="tab" aria-selected="false" aria-label="Status" title="Status"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-heart"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Sheet" title="Sheet"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-scroll"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Inventory" title="Inventory"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-pack"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Scene" title="Scene"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-mask"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Quests" title="Quests"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-flag"/></svg><span class="dot" aria-hidden="true"></span></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Journal" title="Journal"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-book"/></svg></button><button class="tabbtn  disabled" role="tab" aria-selected="false" aria-label="Map" aria-disabled="true" title="Maps unlock with the map arc (MA-3)"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-map"/></svg><svg class="lock ic" viewBox="0 0 24 24"><use href="#i-lock"/></svg></button></div>
+  <div class="viewport" role="tabpanel" aria-label="preview">
+<p class="kicker" style="margin:0">Assembly — next turn<span class="rule"></span></p>
+<div class="card" style="display:flex;flex-direction:column;gap:6px;padding:8px 10px">
+  <div style="display:flex;justify-content:space-between;font-size:10.5px">
+    <span class="muted">context</span><span class="num"><b>4,300</b> / 8,192 tok</span>
+  </div>
+  <div class="budget" aria-hidden="true">
+    <i style="width:9%;background:var(--color-track-6)"></i><i style="width:28%;background:var(--color-track-4)"></i>
+    <i style="width:8%;background:var(--color-track-2)"></i><i style="width:7%;background:var(--color-track-3)"></i>
+    <i style="width:9%;background:var(--color-track-1)"></i><i style="width:38%;background:var(--color-track-5)"></i>
+  </div>
+</div>
+<div>
+  <div class="prow"><span class="swatch" style="background:var(--color-track-6)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">System · GM charter</span><span class="tok num">412</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-4)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Cards — Mara · Niko · JFC</span><span class="tok num">1,208</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-2)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">World info — The Lantern Road</span><span class="tok num">356</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-3)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Steering — guides · note · state block</span><span class="tok num">298</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-1)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Game state — roster · scene · quests</span><span class="tok num">402</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div><div class="prow"><span class="swatch" style="background:var(--color-track-5)"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">History — 41 turns, squashed</span><span class="tok num">1,624</span><svg class="ic" viewBox="0 0 24 24" style="width:10px;height:10px;color:var(--color-muted-foreground)"><use href="#i-chev"/></svg></div>
+</div>
+<div class="card" style="font-family:var(--font-mono);font-size:9.5px;line-height:1.6;color:var(--color-muted-foreground);max-height:110px;overflow:hidden">
+<span style="color:var(--color-track-1)">## Game state</span><br>
+roster: Mara (VIT 24/30, RES 7/10, winded) · Niko (VIT 9/20, poisoned) · JFC (VIT 28/28)<br>
+scene: Common Room · night · rain · Sera (guarded, corruption 70/100), Brant<br>
+goals: keep the bone key (1/2) · encounter r2, Niko to act<br>
+<span style="color:var(--crown)">veiled: 2 truths withheld (host)</span>
+</div>
+<p class="muted" style="font-size:10px;margin:0">Host-only. What the model sees — nothing more, nothing hidden from you.</p></div>
+  <div class="strip bottom" role="tablist" aria-label="Chat"><button class="tabbtn" role="tab" aria-selected="false" aria-label="Members" title="Members"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-users"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Settings" title="Settings"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-gear"/></svg></button><button class="tabbtn" role="tab" aria-selected="false" aria-label="Injections" title="Injections"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-syringe"/></svg></button><button class="tabbtn active" role="tab" aria-selected="true" aria-label="Preview (host)" title="Preview (host)"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-eye"/></svg></button><button class="tabbtn   crown" role="tab" aria-selected="false" aria-label="Game (host) — GM console" title="Game (host) — GM console"><svg class="ic" viewBox="0 0 24 24" ><use href="#i-crown"/></svg></button></div>
+</div>
+  <div class="pbot"><svg class="ic" viewBox="0 0 24 24" class="ic on"><use href="#i-msg"/></svg><svg class="ic" viewBox="0 0 24 24" ><use href="#i-users"/></svg><svg class="ic" viewBox="0 0 24 24" ><use href="#i-book"/></svg><svg class="ic" viewBox="0 0 24 24" ><use href="#i-gear"/></svg></div>
+</div>
+  </section>
+  
+  <aside class="notes">
+<h3>What changed</h3>
+<p><b>The budget becomes a stacked bar keyed to the section list</b> — each section's swatch is its slice, so “where did my context go” is one glance. The expanded game-state block shows the exact serialized state (mono, muted), with the host-only veiled line in crown gold.</p>
+<h3>Why it matters in games</h3>
+<p>The state block is the game's honesty instrument: what the panel shows and what the model reads are provably the same numbers.</p></aside>
+</div>
+</div>
+</body>
+</html>
