@@ -60,8 +60,8 @@ export interface ComposerGuidedClusterProps {
   readonly imageControls: ComposerImageControls;
 }
 
-/** The four dual-mode guided icons + the ✨ utility menu (which now also holds Regenerate, the game steers,
- *  and the image controls — everything busy is inside the menu; the top row is just the four icons + ✨). */
+/** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
+ *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
   const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant, imageControls } = props;
   const committed = isCommitted(handle);
@@ -190,8 +190,9 @@ function ClusterUtilityMenu({
       onClear={hasText ? (): void => onChange("") : undefined}
       onSimpleSend={hasText && committed ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
       // Regenerate (owner: "regenerate goes inside magic wand menu") — a PLAIN reroll of the tail assistant, no
-      // steer (the dual-mode steer-aware reroll stays the ⟳ Swipe icon; §2.3e dual-home). Disabled-with-reason
-      // unless a tail assistant reply exists.
+      // steer. The menu row wears a DISTINCT RefreshCw glyph + helper (side-eye P1-A) so it reads apart from the
+      // dual-mode steer-aware ⟳ Swipe icon on the top row (§2.3e dual-home). Disabled-with-reason unless a tail
+      // assistant reply exists.
       onRegenerate={canTargetTail && idle ? (): void => guided.fireSwipe("") : undefined}
       // The P5 game steers (owner: "game steers go in the magic wand") — game-only, plotProgression-gated.
       game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
@@ -262,6 +263,13 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
 
+/** The dual-mode ACCESSIBLE NAME (side-eye P3-dualmode): when the composer has text the icon is in its guided
+ *  mode, so its announced name says so ("Impersonate" → "Guided impersonate") — the mode-switch a sighted user
+ *  reads off the icon's charge state is now spoken too. Empty composer keeps the plain action name. */
+function resolveGuidedName(base: string, hasText: boolean): string {
+  return hasText ? `Guided ${base.toLowerCase()}` : base;
+}
+
 const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = { first: "1st person", second: "2nd person", third: "3rd person" };
 
 // ── Impersonate (hover/click → perspective picker) ──────────────────────────────────────────────────────
@@ -275,11 +283,12 @@ function ImpersonateGuidedButton({
   readonly onPick: (person: GuidedImpersonatePerson) => void;
 }): ReactElement {
   const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason: IMPERSONATE_NEEDS_CHAT });
+  const name = resolveGuidedName("Impersonate", hasText);
   return (
     <Menu>
       <MenuTrigger
         disabled={disabled}
-        aria-label="Impersonate"
+        aria-label={name}
         data-testid={testId("composerGuidedImpersonate")}
         render={
           <Button
@@ -321,6 +330,8 @@ function ResponseGuidedButton({
 }): ReactElement {
   const label = committed ? "Generate reply" : "Generate opening";
   const title = hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
+  // The dual-mode accessible name (P3-dualmode): guided when the composer has text, plain when empty.
+  const name = resolveGuidedName(label, hasText);
   // Solo/draft: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
   if (cast.length <= 1) {
     return (
@@ -330,7 +341,7 @@ function ResponseGuidedButton({
         size="icon"
         disabled={!idle}
         title={title}
-        aria-label={label}
+        aria-label={name}
         data-testid={testId("composerGuidedResponse")}
         onClick={idle ? (): void => onFire(null) : undefined}
         className="shrink-0 rounded-full"
@@ -343,7 +354,7 @@ function ResponseGuidedButton({
     <Menu>
       <MenuTrigger
         disabled={!idle}
-        aria-label={label}
+        aria-label={name}
         data-testid={testId("composerGuidedResponse")}
         render={
           <Button type="button" intent={hasText ? "primary" : "ghost"} size="icon" title={title} className="shrink-0 rounded-full">

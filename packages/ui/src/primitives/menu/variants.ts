@@ -18,5 +18,9 @@ export const menuVariants = tv({
     arrow: OVERLAY_ARROW,
     backdrop: SCRIM("popover"),
     separator: "my-field border-t border-border",
+    // A labeled group of related rows — the label is the group heading (Base UI wires the
+    // aria-labelledby group↔label association from nesting), styled as a muted section caption.
+    group: "",
+    groupLabel: "px-row pt-field pb-field text-label leading-label font-medium text-muted-foreground",
   },
 });
