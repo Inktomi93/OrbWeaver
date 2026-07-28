@@ -101,6 +101,13 @@ export const rpgRouter = t.router({
   detachDanglingPointer: authedProcedure
     .input(rpgReadGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.detachDanglingPointer({ principal: ctx.auth, ...input })),
+  // §1.3 resyncFromStory — HOST-gated (a stamped-id write + model-call boundary): re-read a deep story window
+  // and rebuild the tracked state. The host authority gate lives INSIDE the verb (`resolveHost`), so a
+  // non-member stranger collapses to leak-free NOT_FOUND and a non-host member to FORBIDDEN BEFORE any model
+  // call — a member can never trigger the host-principal model call. Chat-scoped (the chatId-only read envelope).
+  resyncFromStory: authedProcedure
+    .input(rpgReadGameInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.resyncFromStory({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
   getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),

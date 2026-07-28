@@ -22,7 +22,7 @@ import type { StagedTurnFlush } from "../contract/params";
 import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
-import { resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
+import { countSnapshots, resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
 
@@ -42,6 +42,21 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
   return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
 }
 
+/** The RECONCILE-CADENCE beat check (crunchy-cluster §1.3): is THIS flush the `reconcileEveryBeats`-th? Derived
+ *  from a cheap snapshot COUNT (never a stamped counter) — the count read BEFORE this flush's own write is the
+ *  number of PRIOR beats, so this beat's ordinal is `count + 1`. A reconcile fires when `(count + 1) % N === 0`
+ *  (beat N, 2N, 3N…); `N === 0` is OFF (opt-out — never reconcile, byte-identical to the pre-cadence round).
+ *  On a reconcile beat the round re-emits the full refreshable planes so a deep story's panel self-heals against
+ *  drift; locks stay lock-protected at the merge (a reconcile never clobbers a hand-pin). */
+async function isReconcileBeat(ctx: RpgContext, game: RpgGameRow): Promise<boolean> {
+  const n = game.config.reconcileEveryBeats;
+  if (n <= 0) {
+    return false; // opt-out — reconcile disabled for this game
+  }
+  const priorBeats = await countSnapshots(ctx.db, game.id);
+  return (priorBeats + 1) % n === 0;
+}
+
 /** Stage a state DELTA (from either dedicated state round — reliable's extraction OR cheap's tool round) into
  *  the turn's accumulator: ensure the bucket from the resolution-ladder base, overlay the state patch, append
  *  the journal entries. An EMPTY delta (no state keys, no journal) stages NOTHING — a "nothing changed this
@@ -52,6 +67,7 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
   const baseState = await extractionBase(ctx, game);
+  const reconcile = await isReconcileBeat(ctx, game);
   const delta = await runRound({
     chatId: game.chatId,
     gameId: game.id,
@@ -60,6 +76,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
     variantId: turn.variantId,
     baseState,
     turnConnection: turn.turnConnection,
+    reconcile,
   });
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {

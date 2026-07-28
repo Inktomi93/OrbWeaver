@@ -41,7 +41,7 @@ import type {
   RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
-import type { RpgTurnContext } from "../../chat";
+import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -58,6 +58,7 @@ import type {
   PatchSheetParams,
   ReadGameParams,
   RestoreCheckpointParams,
+  ResyncFromStoryParams,
   RollDiceParams,
   StagedJournalEntry,
   StagedTurnFlush,
@@ -212,6 +213,16 @@ export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Prom
  *  resolve); the view TYPE carries the field. A fake returns a fixed boolean in tests. */
 export type RpgResolveTrackersReadOnly = (chatId: ChatId) => Promise<boolean>;
 
+/** The DEEP canon-window read (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed). An
+ *  INJECTED CHAT OP (chat owns canon reads; rpg reads no chat table, §2 one-directional flow): resolve the
+ *  chat's selected-lineage canon, name-stamped + token-measured, oldest→newest, up to `maxTokens` (newest-first
+ *  fill, then restored to chronological order — the SAME projection the engine threads at `fireRpgTurnCompleted`,
+ *  one shared builder so the two can't drift). Room-plane per D106 ("the prompt is the room's"); hidden-class
+ *  spans stay INTACT (the resync is model-plane — the model always reads its own lies, D110 §3.6; the member
+ *  never sees this read). Principal-free (the resync verb gated its host caller before invoking).
+ *  Non-exported: reachable only through `RpgContext.resolveCanonWindow`'s signature — no consumer names it (knip). */
+type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
+
 /** The reliable-mode post-narration extraction op (§4.6 / the delivery-model amendment). AFTER the character
  *  message commits, `reliable` mode runs a DEDICATED structured-output turn that reads the committed beat + the
  *  resolved base state and emits the whole state delta in ONE object. This is the DECLARED SEAM: `onTurnCompleted`
@@ -235,6 +246,29 @@ export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDe
  *  (readonly/manual-steering; §4.6). */
 export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
 
+/** The `resyncFromStory` model call (crunchy-cluster §1.3 — the host escape hatch). Rebuilds the tracked state
+ *  from a DEEP story window with establish-EVERYTHING forcing (the reconcile arm, applied unconditionally). The
+ *  verb resolves the host authority + reads the window (via the injected `resolveCanonWindow`) then hands the
+ *  resolved inputs to THIS op; the op resolves the ROOM connection AS THE HOST (fresh, at the verb — the one
+ *  sanctioned non-inherited rpg model call, because the consenting human initiates it) and drives ONE
+ *  structured-output call. Returns the delta the verb applies through the normal staging → write tail onto a
+ *  fresh state-anchor slot. A connection with no structured-output writer capability yields an EMPTY delta (the
+ *  resync is a no-op — never a corrupt write); the verb surfaces that as an unchanged state.
+ *  Non-exported: reachable only through `RpgContext.runResyncExtraction`'s signature — no consumer names it (knip). */
+type RpgRunResyncExtraction = (input: RpgResyncInput) => Promise<RpgStateDelta>;
+
+/** The resolved inputs the `resyncFromStory` model call consumes. `hostUserId` is the ROOM host (resolved by
+ *  ROLE at the verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied
+ *  principal/userId (the injected-op caller-gate class: dropping the host id here would let a foreign principal
+ *  fund the model call). `transcript` is the deep canon window the injected `resolveCanonWindow` read;
+ *  `baseState` is the resolution-ladder head the rebuild reconciles against (locks honored at the verb's merge). */
+interface RpgResyncInput {
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  readonly baseState: RpgSnapshotState;
+  readonly transcript: readonly RpgTurnTranscriptMessage[];
+}
+
 /** The shared input BOTH dedicated state rounds consume (reliable extraction + cheap tool round). Carries the
  *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
  *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
@@ -253,6 +287,14 @@ interface RpgStateRoundInput {
   readonly variantId: MessageVariantId;
   readonly baseState: RpgSnapshotState;
   readonly turnConnection: RpgTurnContext;
+  /** RECONCILE beat (crunchy-cluster §1.3 reconcile cadence): this flush is the `reconcileEveryBeats`-th, so the
+   *  round FORCES a full re-emission of the refreshable planes — the establish-when-unset machinery
+   *  (`constrainExtractionSchema` scene/cast) is applied UNCONDITIONALLY and the prompt gains the reconcile
+   *  line — so a deep story's panel self-heals against drift instead of decaying. Locked fields stay
+   *  lock-protected at the merge (a reconcile never clobbers a hand-pin). `false` on an ordinary beat
+   *  (byte-identical to the pre-cadence round). Derived at `stageStateRound` from a cheap snapshot COUNT — the
+   *  round never re-computes it. */
+  readonly reconcile: boolean;
 }
 
 /** What a reliable-mode extraction returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
@@ -293,6 +335,17 @@ export interface RpgContext {
   readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
   readonly runExtraction: RpgRunExtraction;
   readonly runToolRound: RpgRunToolRound;
+  /** The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
+   *  chat op (rpg reads no chat table). Wired at compose to a chat-owned builder that shares the engine's
+   *  transcript projection. A fake returns a fixed transcript in tests. */
+  readonly resolveCanonWindow: RpgResolveCanonWindow;
+  /** The reliable-mode reconcile/resync model call under the HOST's FRESH-resolved connection (§1.3 resync).
+   *  UNLIKE `runExtraction`/`runToolRound` (which ride the character turn's already-resolved connection +
+   *  inherited consent), this resolves the ROOM connection AS THE HOST at the verb (a host-INITIATED
+   *  interactive action, not an out-of-turn background call): the consenting human is at the keyboard, so
+   *  consent is the host's OWN and the principal is the host — never a caller-injected foreign principal. Wired
+   *  at compose (the `resolveTrackersReadOnly` host-resolve precedent). A fake returns a fixed delta in tests. */
+  readonly runResyncExtraction: RpgRunResyncExtraction;
   /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
    *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
    *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. A fake
@@ -399,4 +452,15 @@ export interface RpgService {
    *  required — a stamped-id write boundary, `getMembership`), and REFUSES to detach a LIVE game (a real
    *  `rpg_games` row → `DomainOperation` — that is `updateConfig engaged:false`'s job, never a silent unpoint). */
   readonly detachDanglingPointer: (params: DetachDanglingPointerParams) => Promise<void>;
+  /** HOST (crunchy-cluster §1.3 — the manual "re-derive from the story" escape hatch). On demand, re-reads a DEEP
+   *  story window and REBUILDS/reconciles the tracked state (the alternative to hand-editing when the panel has
+   *  drifted). Runs ONE model call under the HOST principal (the consent seam — the host is authorizing a model
+   *  read of the canon): the verb resolves host authority FIRST (`resolveHost` — a member gets leak-free
+   *  NOT_FOUND, a non-host member FORBIDDEN, so a member can NEVER trigger a host-principal model call), then
+   *  resolves the room connection AS THE HOST and drives the rebuild with establish-EVERYTHING forcing. The delta
+   *  applies through the normal staging → write-boundary tail onto a fresh state-anchor slot; locks are honored
+   *  (a resync repairs the model plane, never the host's pins). A capability-absent connection / empty rebuild is
+   *  a no-op (no write). Deception-active games stay surface-only by construction (the §1.6 registry clause — the
+   *  tracker never carries hidden `<lie>`/`<ofilter>` truth). */
+  readonly resyncFromStory: (params: ResyncFromStoryParams) => Promise<void>;
 }

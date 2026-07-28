@@ -28,7 +28,7 @@ import {
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
-import { and, desc, eq, lt, ne } from "drizzle-orm";
+import { and, count, desc, eq, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors";
 import type { ForwardSnapshotTarget, ResolveSnapshotOpts, SnapshotGameRef } from "../contract/params";
@@ -87,6 +87,15 @@ export async function findSnapshotByVariant(db: Db, variantId: MessageVariantId)
 export async function listSnapshots(db: Db, gameId: RpgGameId): Promise<readonly RpgSnapshotRow[]> {
   const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
   return rows.map(parseSnapshotRow);
+}
+
+/** The count of snapshots a game has written — the reconcile-cadence BEAT COUNTER (crunchy-cluster §1.3): every
+ *  `reconcileEveryBeats`-th flush is a reconcile beat (`count % N === 0`). Derived (never a stamped counter) off
+ *  the table the flush already writes; a cheap `COUNT(*)`, not a row scan. Read at `stageStateRound` BEFORE this
+ *  flush's own write, so the count is the number of PRIOR beats. */
+export async function countSnapshots(db: Db, gameId: RpgGameId): Promise<number> {
+  const rows = await db.select({ n: count() }).from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
+  return rows.at(0)?.n ?? 0;
 }
 
 /** The snapshot keyed on its durable `id`, parsed, or `undefined` — the checkpoint-restore base reader (a
@@ -240,6 +249,23 @@ export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, targe
     return { ok: false, reason: parsed.error.message };
   }
   const row = await insertSnapshot(db, snapshotInsertFrom(state, state.fieldLocks, UNCOMMITTED, target));
+  return { ok: true, row };
+}
+
+/** The host RESYNC write (crunchy-cluster §1.3): the reconciled effective state onto a fresh state-anchor slot,
+ *  BORN COMMITTED (the host deliberately re-derived the panel; it is the truth immediately, like a restore — not
+ *  a swipe-volatile `committed=0` staged write). The state arrives locks-honored (the verb applied
+ *  `applyLockedPatch` — a resync never clobbers a hand-pin); `fieldLocks` carry forward on the state.
+ *
+ *  Rides the SAME F1 write-boundary backstop as `writeStagedSnapshot`: validate the state against the full
+ *  contract schema BEFORE the durable insert, so a resync can never poison a row (errors-as-data — the verb
+ *  drops on `{ok:false}`). */
+export async function writeResyncedSnapshot(db: Db, state: RpgSnapshotState, target: ForwardSnapshotTarget): Promise<WriteStagedSnapshotResult> {
+  const parsed = rpgSnapshotStateSchema.safeParse(state);
+  if (!parsed.success) {
+    return { ok: false, reason: parsed.error.message };
+  }
+  const row = await insertSnapshot(db, snapshotInsertFrom(state, state.fieldLocks, COMMITTED, target));
   return { ok: true, row };
 }
 

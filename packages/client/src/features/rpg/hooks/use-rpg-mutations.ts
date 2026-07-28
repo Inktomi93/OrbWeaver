@@ -71,6 +71,17 @@ export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rp
   errorToast: "Couldn't detach the game.",
 });
 
+/** `rpg.resyncFromStory` — the §1.3 HOST re-derive-from-the-story escape hatch (host-only; the server gate
+ *  refuses a member). Runs ONE host-principal model call that re-reads a deep story window and rebuilds the
+ *  drifted panel. Repaints the tracker view (every plane re-resolves off the rebuilt snapshot) + the journal
+ *  (the rebuild can stamp a resync entry). The rebuild writes a fresh snapshot, so the CHAT message list also
+ *  refetches for the silent anchor slot (invisible — empty content). */
+export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["resyncFromStory"]>, unknown>({
+  options: (trpc) => trpc.rpg.resyncFromStory.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't resync from the story.",
+});
+
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).
  *  A cross-feature ride on the chat proc DIRECTLY ([workloads.subscribe cross-feature] — never a
  *  features/chat hook import). `busDriven`: the turn's own bus events run the chat invalidation; the sent
