@@ -149,7 +149,7 @@ test("pool MAX has ONE home — the displayed max resolves from sheet.poolDefs, 
   const { game, ctx } = await seedGameWithSheetAndPools(
     db,
     "maxhome",
-    [{ name: "Vitality", max: 40, color: null }],
+    [{ name: "Vitality", max: 40, color: null, hint: "" }],
     [{ name: "Vitality", value: 24, max: 30 }], // stale volatile max — the def overrides it
   );
 
@@ -157,7 +157,7 @@ test("pool MAX has ONE home — the displayed max resolves from sheet.poolDefs, 
   const actor = view.actors[0];
   expect(view.actors).toHaveLength(1);
   // Sheet read (what the Sheet tab renders): the def max.
-  expect(actor?.sheet.poolDefs).toEqual([{ name: "Vitality", max: 40, color: null }]);
+  expect(actor?.sheet.poolDefs).toEqual([{ name: "Vitality", max: 40, color: null, hint: "" }]);
   // Status read (what the Status meter renders): the SAME 40, resolved from the def — never the stale 30.
   expect(actor?.volatile?.pools).toEqual([{ name: "Vitality", value: 24, max: 40 }]);
 });
@@ -167,7 +167,12 @@ test("pool max: a def max LOWERED below the volatile value drags the displayed v
   // The Sheet lowered Vitality's def max to 20 while the volatile still holds value 24 — the projection
   // clamps the displayed value to the def max (so a Status max-edit routed to patchSheet lands honestly even
   // if the volatile value write is missed), never a value-over-max overflow from a hand-lowered def.
-  const { game, ctx } = await seedGameWithSheetAndPools(db, "drag", [{ name: "Vitality", max: 20, color: null }], [{ name: "Vitality", value: 24, max: 30 }]);
+  const { game, ctx } = await seedGameWithSheetAndPools(
+    db,
+    "drag",
+    [{ name: "Vitality", max: 20, color: null, hint: "" }],
+    [{ name: "Vitality", value: 24, max: 30 }],
+  );
   const actor = (await buildTrackerView(ctx, game, false)).actors[0];
   expect(actor?.volatile?.pools).toEqual([{ name: "Vitality", value: 20, max: 20 }]);
 });
