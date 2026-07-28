@@ -80,7 +80,7 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
   return (
     <>
       {avatars}
-      <Text size="title" weight="semibold" className="min-w-0 truncate">
+      <Text size="title" weight="semibold" className="shell-topbar-title min-w-0 truncate">
         {title}
       </Text>
     </>
@@ -126,7 +126,14 @@ function ChatRosterEntry({
 }): ReactElement {
   const label = `Members — ${memberCount}`;
   const entryButton = (onClick?: () => void): ReactElement => (
-    <Button type="button" intent="ghost" size="sm" aria-label={label} className="whitespace-nowrap" {...(onClick === undefined ? {} : { onClick })}>
+    <Button
+      type="button"
+      intent="ghost"
+      size="sm"
+      aria-label={label}
+      className="shell-chat-member-chip whitespace-nowrap"
+      {...(onClick === undefined ? {} : { onClick })}
+    >
       <Icon icon={Users} size="sm" />
       <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
         {memberCount}
