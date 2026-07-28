@@ -95,6 +95,12 @@ export const rpgRouter = t.router({
     .input(rpgRestoreCheckpointInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.restoreCheckpoint({ principal: ctx.auth, ...input })),
   rollDice: authedProcedure.input(rpgRollDiceInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.rollDice({ principal: ctx.auth, ...input })),
+  // §3.3 dangling-pointer HEAL — HOST-gated (a stamped-id write boundary): null a `metadata.rpg` pointer at a
+  // game that no longer exists (a pre-fix fork / any desync). Chat-scoped (the chatId-only read envelope); a
+  // non-member collapses to leak-free NOT_FOUND, a non-host member to FORBIDDEN, a LIVE game to a refusal.
+  detachDanglingPointer: authedProcedure
+    .input(rpgReadGameInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.detachDanglingPointer({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
   getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),

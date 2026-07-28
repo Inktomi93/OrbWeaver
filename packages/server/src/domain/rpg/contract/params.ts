@@ -278,6 +278,13 @@ export interface ReadGameParams {
   readonly chatId: ChatId;
 }
 
+/** `detachDanglingPointer` — the host heal for a pointer at a vanished game (§3.3). Chat-scoped; the verb gates
+ *  on host membership DIRECTLY (the game row is gone, so the normal game gate can't run). */
+export interface DetachDanglingPointerParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+}
+
 /** `listJournal` — the paged lineage-projected archive (member). */
 export interface ListJournalParams {
   readonly principal: Principal;

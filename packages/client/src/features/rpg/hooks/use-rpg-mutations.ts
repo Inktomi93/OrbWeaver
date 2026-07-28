@@ -62,6 +62,15 @@ export const useCreateGame = createEntityMutation<inferInput<Trpc["rpg"]["create
   errorToast: "Couldn't start the game.",
 });
 
+/** `rpg.detachDanglingPointer` — the §3.3 dangling-pointer HEAL (host): null a `metadata.rpg` pointer at a
+ *  game that no longer exists (a pre-fix fork / any desync). Repaints `chat.getChat` (the pointer the takeover
+ *  gate reads) so the whole game takeover collapses to a plain chat on the same commit. */
+export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rpg"]["detachDanglingPointer"]>, unknown>({
+  options: (trpc) => trpc.rpg.detachDanglingPointer.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't detach the game.",
+});
+
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).
  *  A cross-feature ride on the chat proc DIRECTLY ([workloads.subscribe cross-feature] — never a
  *  features/chat hook import). `busDriven`: the turn's own bus events run the chat invalidation; the sent

@@ -50,6 +50,7 @@ import type {
   DeleteJournalEntryParams,
   DeleteQuestParams,
   DeleteWidgetParams,
+  DetachDanglingPointerParams,
   EditJournalEntryParams,
   EditSnapshotParams,
   ListCheckpointsParams,
@@ -174,8 +175,9 @@ export interface RpgFlushBarrier {
 export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
 
 /** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame` calls it ONCE so the client's takeover
- *  gate is a sync read off `ChatDetail` — rpg never reads it back. */
-export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer) => Promise<void>;
+ *  gate is a sync read off `ChatDetail` — rpg never reads it back. `null` DELETES the pointer (the
+ *  dangling-pointer heal §3.3 — `detachDanglingPointer` nulls a pointer at a vanished game). */
+export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
 
 /** One roster actor projected for the tracker view (roster ∪ sheets, §4.3). The injected `resolveRoster` op
  *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the
@@ -390,4 +392,11 @@ export interface RpgService {
    *  host-gated server-side (a member gets leak-free NOT_FOUND — the truth is a GM-plane secret). Empty when the
    *  host turned M4 `hiddenContentReveal` off (pure-hidden posture). */
   readonly revealHidden: (params: ReadGameParams) => Promise<RpgRevealView>;
+  /** HOST. The dangling-pointer HEAL (fork-clones-the-game §3.3): a chat's `metadata.rpg` pointer points at a
+   *  game row that no longer exists (a pre-fix fork, or any future desync). Nulls the stale pointer so the chat
+   *  self-heals to a plain chat. This verb CANNOT resolve through the normal game gate (the game is GONE, so
+   *  `resolveMember`/`resolveHost` collapse to NOT_FOUND); it gates on chat MEMBERSHIP directly (host role
+   *  required — a stamped-id write boundary, `getMembership`), and REFUSES to detach a LIVE game (a real
+   *  `rpg_games` row → `DomainOperation` — that is `updateConfig engaged:false`'s job, never a silent unpoint). */
+  readonly detachDanglingPointer: (params: DetachDanglingPointerParams) => Promise<void>;
 }

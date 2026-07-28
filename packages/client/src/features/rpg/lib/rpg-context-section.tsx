@@ -90,8 +90,10 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           fallback={<Text tone="muted">{`Loading ${label.toLowerCase()}…`}</Text>}
           // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
           // collapses to nothing on error (below) so a failed read is a single `role="alert"` region, never two
-          // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`.
-          renderError={(_error, retry): ReactElement => <RpgErrorState onRetry={retry} />}
+          // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
+          // read = the DANGLING POINTER state (§3.3): `RpgErrorState` discriminates it and renders the typed
+          // gone-copy + the host's detach heal instead of a doomed Retry (host = the same cached `viewerIsHost`).
+          renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={isHostGameChat(s)} error={error} onRetry={retry} />}
         >
           <RpgGameTabBody chatId={s.chatId} render={render} />
         </QueryBoundary>
@@ -193,7 +195,12 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
           return null;
         }
         return (
-          <QueryBoundary fallback={<Text tone="muted">Loading…</Text>} renderError={(_error, retry): ReactElement => <RpgErrorState onRetry={retry} />}>
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading…</Text>}
+            // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
+            // pointer here surfaces the host detach heal exactly like the tab bodies (§3.3).
+            renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}
+          >
             <RpgGameDoor chatId={s.chatId} />
           </QueryBoundary>
         );
