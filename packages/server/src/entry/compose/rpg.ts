@@ -43,7 +43,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "#domain/chat";
+import type { RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
@@ -181,13 +181,24 @@ const EXTRACTION_SYSTEM_HEADER =
   "warmed over several turns, an item a character picked up earlier and still carries, a quest implied across " +
   "turns. The player sees this as a live character panel, so keep every plane current and rich.";
 
+/** The RECONCILE prompt line (crunchy-cluster §1.3) — appended to BOTH system prompts on a reconcile beat / a
+ *  resync. It pairs with the establish-EVERYTHING schema forcing (`establishScene` all-true) so the model
+ *  re-states the whole scene + present cast as the story currently stands, healing a decayed panel. The delta
+ *  is still applied through the [merge-clear] + lock machinery, so a reconcile can never clobber a hand-pin. */
+const RECONCILE_PROMPT_LINE =
+  "This is a RECONCILE pass: re-state the FULL scene and everyone currently present as the story now stands — " +
+  "refresh any plane the recent beats stopped mentioning (location, time, weather, who is here, what they carry " +
+  "and wear, active quests, the plot act). Correct anything the CURRENT TRACKED STATE gets wrong against the story.";
+
 /** Compose the full reliable-mode system prompt: the header + the per-plane teaching (from the §1.6 registry,
- *  config/refs aware — plot/widgets/customFields/emoji/day/deception-clause) + the R1 ref enumeration. The
- *  registry is the ONE home both the reliable extraction and the cheap tool round teach their planes from. */
-function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null): string {
+ *  config/refs aware — plot/widgets/customFields/emoji/day/deception-clause) + the R1 ref enumeration + (on a
+ *  reconcile beat) the reconcile line. The registry is the ONE home both the reliable extraction and the cheap
+ *  tool round teach their planes from. */
+function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
   const teaching = composePlaneTeaching({ config, refs });
   const refLines = refEnumerationLines(refs, playerDisplayName);
-  return refLines.length > 0 ? `${EXTRACTION_SYSTEM_HEADER}\n\n${teaching}\n\n${refLines}` : `${EXTRACTION_SYSTEM_HEADER}\n\n${teaching}`;
+  const parts = [EXTRACTION_SYSTEM_HEADER, teaching, ...(refLines.length > 0 ? [refLines] : []), ...(reconcile ? [RECONCILE_PROMPT_LINE] : [])];
+  return parts.join("\n\n");
 }
 
 /** Strip model-facing PLUMBING from the base state before it rides the CURRENT TRACKED STATE block (§4.4):
@@ -231,8 +242,8 @@ function extractionUserPrompt(args: { story: readonly RpgTurnTranscriptMessage[]
  *  pre-redesign shape — the FULL `JSON.stringify(baseState)` (no §4.4 strip) and no RECENT STORY block, so the
  *  verifier's diff matches today exactly. The `window`/`full` arms slice the turn's transcript and ride the
  *  model-projected state (locks/ids stripped, §4.4). */
-function buildExtractionUserPrompt(turnContext: RpgTurnContext, baseState: RpgSnapshotState, config: RpgGameConfig): string {
-  const { story, beat } = sliceTranscript(turnContext.transcript, config);
+function buildExtractionUserPrompt(transcript: readonly RpgTurnTranscriptMessage[], baseState: RpgSnapshotState, config: RpgGameConfig): string {
+  const { story, beat } = sliceTranscript(transcript, config);
   // `beat` arm — byte-identical to the pre-redesign request: the raw full state JSON, no strip, no story block.
   if (config.extractionContext === "beat") {
     return extractionUserPrompt({ story: [], stateJson: JSON.stringify(baseState), lockedPathsLine: "", beat });
@@ -325,7 +336,7 @@ interface ResolvedRefs {
  *     first-class cast actor already tracked (D108 — cast actors are first-class targets).
  *  Deduped (a scene NPC promoted to a cast actor appears once). A model can then only target a REAL, resolvable
  *  ref under an enforcing backend, and the cast-actor reach is representable in BOTH constrained modes. */
-async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState): Promise<ResolvedRefs> {
+async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
   const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgRoster(chatId), findGameByChat(deps.db, chatId)]);
   const player = roster.find((r) => r.actorRef.kind === "user");
   const rosterOwnsPlayerName = roster.some((r) => r.name.toLowerCase() === PLAYER_SEMANTIC_REF);
@@ -361,11 +372,18 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // lacks them — a fresh game establishes the scene from the first beat, an ongoing scene keeps the optional
   // omit=keep patch. `location` defaults to "" (unset), `clock` is null until a timeOfDay lands, and an empty
   // `presentCharacters` means the cast hasn't been put on stage yet (force a non-empty presentUpsert).
-  const establishScene = {
-    location: baseState.location === "",
-    timeOfDay: baseState.clock === null,
-    presentCast: baseState.presentCharacters.length === 0,
-  };
+  //
+  // RECONCILE (crunchy-cluster §1.3): on a reconcile beat / a resync, force EVERY scene field REQUIRED
+  // UNCONDITIONALLY (not just the unset ones) — the establish-when-unset lever becomes the standing anti-drift
+  // mechanism, so the model re-states the whole scene + present cast even when the state already has them. The
+  // re-emission still merges through [merge-clear] + lock honoring, so a hand-pin survives a reconcile.
+  const establishScene = reconcile
+    ? { location: true, timeOfDay: true, presentCast: true }
+    : {
+        location: baseState.location === "",
+        timeOfDay: baseState.clock === null,
+        presentCast: baseState.presentCharacters.length === 0,
+      };
   return {
     refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, establishScene },
     playerDisplayName: player?.name ?? null,
@@ -404,20 +422,21 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
  *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture). */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
-  return async ({ chatId, baseState, turnConnection }) => {
+  return async ({ chatId, baseState, turnConnection, reconcile }) => {
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
     // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + widget labels)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
-    // prompt (the fallback arm for a non-enforcing model).
-    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState);
+    // prompt (the fallback arm for a non-enforcing model). `reconcile` (§1.3 cadence) forces establish-
+    // EVERYTHING + the reconcile prompt line so a drifted panel self-heals this beat.
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     const schema = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs);
     const ctx: ExtractCtx = {
       conn,
       ownerConsented: turnConnection.ownerConsented,
-      systemPrompt: extractionSystem(config, refs, playerDisplayName),
-      userPrompt: buildExtractionUserPrompt(turnConnection, baseState, config),
+      systemPrompt: extractionSystem(config, refs, playerDisplayName, reconcile),
+      userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config),
       schema,
     };
     // The structured-output extraction can THROW at the backend (e.g. a backend that doesn't honor
@@ -515,7 +534,7 @@ function safeJson(text: string): unknown {
 /** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
  *  SAME per-plane teaching (from the §1.6 registry — plot/widgets/customFields/deception-clause) that the
  *  reliable arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
-function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null): string {
+function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
   // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
   // wrote only ONE plane. So the prompt now walks the model plane-by-plane (a checklist) and gives the concrete
   // multi-call example, forcing it to consider EACH plane independently rather than settling for one call.
@@ -535,7 +554,8 @@ function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisp
     "no_changes and nothing else. Do not narrate.";
   const teaching = composePlaneTeaching({ config, refs });
   const refLines = refEnumerationLines(refs, playerDisplayName);
-  return `${base}\n\n${teaching}\n\n${refLines}`;
+  const parts = [base, teaching, refLines, ...(reconcile ? [RECONCILE_PROMPT_LINE] : [])];
+  return parts.join("\n\n");
 }
 
 /** Build the ref-constrained wire tools for the round: each state tool's projected+enum-constrained args +
@@ -576,14 +596,14 @@ function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; descript
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {
-    const { chatId, baseState, turnConnection } = input;
+    const { chatId, baseState, turnConnection, reconcile } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction.
     if (conn.api === "agent-sdk") {
       return extract(input);
     }
-    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState);
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     let calls: readonly RpgToolCall[];
     try {
       const result = await deps.executor.runChatTurn({
@@ -592,8 +612,8 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         credential: conn.credential,
         capability: conn.capability,
         params: {},
-        systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName), dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection, baseState, config) }] }],
+        systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName, reconcile), dynamic: "" },
+        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config) }] }],
         tools: buildToolRoundWireTools(refs),
         toolChoice: { mode: "required" },
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
@@ -611,6 +631,89 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, parsed: extraction, delta });
+    return delta;
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// RESYNC — the HOST deep-rebuild model call (crunchy-cluster §1.3). The ONE non-inherited rpg model call.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// UNLIKE the in-turn rounds (which ride the character turn's already-resolved connection + inherited consent,
+// stickler F1), the resync is a HOST-INITIATED interactive action: the consenting human is at the keyboard, so
+// it resolves the ROOM connection AS THE HOST FRESH at the verb (`resolveChat({principal: host})`) and consent
+// is the host's OWN — never a caller-injected foreign principal (the verb resolved host authority before this
+// op runs; `input.hostUserId` is the room host by ROLE, D19, never a caller-supplied id). The rebuild reads the
+// DEEP window with establish-EVERYTHING forcing (`reconcile: true` + `extractionContext: "full"` so the WHOLE
+// window is evidence). A connection with no structured writer capability yields an EMPTY delta (a no-op resync,
+// never a corrupt write — the SAME readonly gate the in-turn flush honors, F2). Deception surface-only holds by
+// construction: the §1.6 registry composes the surface-only clause on a deception-active game, so the rebuild
+// never writes hidden truth into a member-visible plane (the hidden layer stays in the reveal channel).
+
+/** Build the host `resyncFromStory` model call. Resolves the room connection AS THE HOST, gates readonly
+ *  (capability-absent ⇒ empty no-op delta), runs the establish-EVERYTHING extraction over the deep window. */
+function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncExtraction"] {
+  return async ({ chatId, hostUserId, baseState, transcript }) => {
+    const empty = { statePatch: {}, journal: [] };
+    // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveTrackersReadOnly` host-resolve
+    // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
+    // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend degrades the
+    // resync to a no-op (never a 500); anything else rethrows (never swallow a real bug).
+    const host = await deps.resolveHostPrincipal(hostUserId);
+    const routableChat = await readRoutableChat(deps.db, chatId);
+    let conn: ResolvedConnection;
+    try {
+      conn = await deps.connection.resolveChat({ principal: host, routableChat });
+    } catch (err) {
+      if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
+        logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: room connection did not resolve — no rebuild");
+        return empty;
+      }
+      throw err;
+    }
+    // No structured-output writer capability ⇒ no rebuild (the SAME readonly verdict the flush enforces, F2 —
+    // a resync on a manual-steering connection would predictably fail and, on hosted creds, cost real spend).
+    if (deriveTrackersReadOnly("reliable", conn.capability)) {
+      logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no structured writer — no rebuild");
+      return empty;
+    }
+    // Establish-EVERYTHING (`reconcile: true`) over the WHOLE window (`extractionContext: "full"`, forced — the
+    // resync deliberately re-reads the deepest story, regardless of the game's per-turn context knob).
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, true);
+    const resyncConfig: RpgGameConfig = { ...config, extractionContext: "full" };
+    const ctx: ExtractCtx = {
+      conn,
+      // The host funds + authorizes this call: consent is the HOST's own (the consenting human initiated it),
+      // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
+      // whose own consent belt refuses a metered sub simply refuses the resync.
+      ownerConsented: true,
+      systemPrompt: extractionSystem(resyncConfig, refs, playerDisplayName, true),
+      userPrompt: buildExtractionUserPrompt(transcript, baseState, resyncConfig),
+      schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
+    };
+    let text: string;
+    try {
+      text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+    } catch (err) {
+      logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
+      return empty;
+    }
+    const parsed = rpgExtractionSchema.safeParse(safeJson(text));
+    if (!parsed.success) {
+      logger.warn(
+        {
+          event: "rpg.resync.unparseable",
+          chatId,
+          model: conn.model,
+          api: conn.api,
+          issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+        },
+        "rpg resync did not conform to the schema — no state rebuilt",
+      );
+      return empty;
+    }
+    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const delta = extractionToStateDelta(baseState, parsed.data, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, parsed: parsed.data, delta });
     return delta;
   };
 }
@@ -638,6 +741,12 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveTrackersReadOnly: buildResolveTrackersReadOnly(deps),
     runExtraction: buildRunExtraction(deps),
     runToolRound: buildRunToolRound(deps),
+    // The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
+    // chat op (chat owns canon reads; rpg reads no chat table), shares the engine's transcript projection.
+    resolveCanonWindow: deps.rpgChatOps.resolveCanonWindow,
+    // The host resync model call (§1.3) — resolves the room connection AS THE HOST fresh at the verb (the ONE
+    // non-inherited rpg model call, gated host-only inside the verb).
+    runResyncExtraction: buildRunResyncExtraction(deps),
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.
     emitBus: publishRpgEvent,
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).

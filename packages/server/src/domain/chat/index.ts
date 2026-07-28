@@ -29,6 +29,7 @@ export type {
   PostNarratorMessageDeps,
   PresenceReadOp,
   PromptTransformRegistry,
+  ResolveCanonWindow,
   ResolveRpgRoster,
   ResolveViewerVisibility,
   RpgRosterActor,
@@ -101,6 +102,7 @@ export { createPostNarratorMessage } from "./verbs/post-narrator-message";
 // and a sibling domain re-deriving it is the defect class this op exists to make impossible.
 // The rpg roster-resolution op (rpg-design/05 §4.3) — resolves present participants into rpg actor refs +
 // name/avatar; wired into `RpgContext.resolveRoster` at the composition root (W1c-b). Standalone + principal-free.
+export { createResolveCanonWindow } from "./verbs/resolve-canon-window";
 export { createResolveRpgRoster } from "./verbs/resolve-rpg-roster";
 export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility";
 export { setParticipantActivePersona } from "./verbs/roster";
