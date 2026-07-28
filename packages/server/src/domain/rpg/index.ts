@@ -14,6 +14,7 @@ export type {
   RpgGetMembership,
   RpgIdMints,
   RpgPostNarratorMessage,
+  RpgResolvePresetOwned,
   RpgResolveRoster,
   RpgResolveTrackersReadOnly,
   RpgRosterActor,

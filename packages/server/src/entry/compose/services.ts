@@ -23,7 +23,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
@@ -36,6 +36,7 @@ import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
+import { PresetNotFoundError } from "#domain/preset";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
@@ -461,6 +462,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     onTurnAborted: (chatId, turnId, reason) => rpgOps().onTurnAborted(chatId, turnId, reason),
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
+    forkGame: (args) => rpgOps().forkGame(args),
   };
   const chatCompose = buildChatService({
     toolUse,
@@ -493,6 +495,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
+  // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`
+  // is SAFE for the forker to carry (readable BY them). Off the preset front door `get` (the ONLY legal preset
+  // import): it returns the preset for an owned row OR the shared system default, and throws `PresetNotFoundError`
+  // for a preset the user can't read — the exact "foreign preset" the strip drops. Any OTHER error is a genuine
+  // fault and RETHROWS (never swallowed into a false "not owned").
+  const resolvePresetOwned = async (presetId: PresetId, userId: UserId): Promise<boolean> => {
+    try {
+      await preset.get({ userId, id: presetId });
+      return true;
+    } catch (err) {
+      if (err instanceof PresetNotFoundError) {
+        return false;
+      }
+      throw err;
+    }
+  };
+
   // ── rpg (the rpg seam) — the LITE vertical. Built AFTER chat (its `rpgChatOps` are rpg's cross-feature deps);
   // its `ChatRpgOps` are bound back onto the forward-ref holder above so chat's turn hooks reach the live rpg
   // service. Registers rpg's 7 state tools into the ONE tool registry (the imagery precedent).
@@ -503,6 +522,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     connection,
     executor,
     resolveHostPrincipal,
+    resolvePresetOwned,
     toolUse,
   });
   rpgOpsHolder = rpgCompose.chatOps;

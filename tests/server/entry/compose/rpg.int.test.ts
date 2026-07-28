@@ -225,6 +225,8 @@ function buildReliableRpgWithText(args: {
       },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    // The fork preset-ownership gate is unreached on the reliable-extraction path; a benign stub.
+    resolvePresetOwned: () => Promise.resolve(false),
     // A throwaway registry — the real graph already registered rpg's tools into `app.toolUse`; re-registering
     // would collide (boot-fatal). The reliable path exercises `runExtraction`, not the tool handlers.
     toolUse: { register: () => undefined },
@@ -541,6 +543,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
       runChatTurn: () => Promise.reject(new Error("unreached")),
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolvePresetOwned: () => Promise.resolve(false),
     toolUse: { register: () => undefined },
   });
 }

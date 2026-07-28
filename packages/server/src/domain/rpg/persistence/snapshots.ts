@@ -27,7 +27,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { ChatId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { and, desc, eq, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors";
@@ -79,6 +79,14 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
 export async function findSnapshotByVariant(db: Db, variantId: MessageVariantId): Promise<RpgSnapshotRow | undefined> {
   const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.variantId, variantId)).limit(LIMIT_ONE);
   return rows[0] ? parseSnapshotRow(rows[0]) : undefined;
+}
+
+/** EVERY snapshot row for a game (all swipe variants), parsed — the fork-clone source read (§3.2). NOT
+ *  lineage-projected: the clone re-keys each row through the fork's `variantIdMap` and DROPS any whose variant
+ *  wasn't copied (past the fork horizon / below the floor), so it must see the whole set, not the selected chain. */
+export async function listSnapshots(db: Db, gameId: RpgGameId): Promise<readonly RpgSnapshotRow[]> {
+  const rows = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
+  return rows.map(parseSnapshotRow);
 }
 
 /** The snapshot keyed on its durable `id`, parsed, or `undefined` — the checkpoint-restore base reader (a
