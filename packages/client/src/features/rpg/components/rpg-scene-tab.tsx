@@ -19,7 +19,7 @@ import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#component
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, useResyncFromStory } from "../hooks/use-rpg-mutations";
 import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
 import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
@@ -184,7 +184,29 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
       <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} lockPin={sectionLockPin(locked, "widgetValues", onReleaseLock)} />
       <SceneBeats beats={beats} />
       <RpgSceneCards chatId={state.chatId} enabled={state.game.publicConfig.immersiveHtml} />
+      <SceneResyncDoorway state={state} />
     </Stack>
+  );
+}
+
+/** The panel-doorway to the §1.3 host resync (HOST-only — rides `canEditShared`, the same shared-plane gate the
+ *  edits use). Offered only when the scene reads STALE/EMPTY (no present cast AND no location) — the exact "panel
+ *  out of sync?" state the escape hatch exists for. A member never sees it (the verb would refuse anyway; the gate
+ *  keeps them from seeing a control that can't fire). The full control lives in the GM console; this is the
+ *  discoverable inline pointer. */
+function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): ReactElement | null {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const resync = useResyncFromStory({ trpc, invalidation });
+  const { tracker } = state;
+  const sceneStale = tracker.cast.length === 0 && (tracker.ambient === null || tracker.ambient.location === "");
+  if (!(state.canEditShared && sceneStale)) {
+    return null;
+  }
+  return (
+    <RpgDoorwayLine actionLabel={resync.isPending ? "Resyncing…" : "Resync from story →"} onAction={(): void => resync.mutate({ chatId: state.chatId })}>
+      Panel out of sync with the story?
+    </RpgDoorwayLine>
   );
 }
 

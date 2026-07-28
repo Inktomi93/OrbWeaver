@@ -15,7 +15,7 @@ import { RPG_HINT_MAX } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Crown, Icon, Pin, PinOff, Plus, Trash2 } from "@orb/ui/icons";
+import { Crown, Icon, Pin, PinOff, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
@@ -26,7 +26,7 @@ import { useState } from "react";
 import { TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useUpdateConfig } from "../hooks/use-rpg-mutations";
+import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
 import { trackColor } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { GmConsoleScalars } from "./rpg-gm-scalars";
@@ -253,6 +253,31 @@ function OrbPinningEditor({ state, config }: { readonly state: RpgPanelState; re
   );
 }
 
+/** The RESYNC control (§1.3 — the host re-derive escape hatch). Host-only (this whole tab is host-gated; the
+ *  `resyncFromStory` verb is a second server-side host gate). One host-initiated model call re-reads a deep
+ *  story window and rebuilds the drifted panel — an honest consequence line states the cost. Disabled while a
+ *  resync is in flight (the model call takes seconds); the tracker/journal repaint on settle. */
+function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const resync = useResyncFromStory({ trpc, invalidation });
+  return (
+    <Stack gap="field">
+      <Kicker>Resync from story</Kicker>
+      <Text size="micro" tone="muted">
+        Re-reads the recent story and rebuilds the tracked panel — the escape hatch when the state has drifted. Runs one model call (a few seconds); your
+        hand-locked fields are never overwritten.
+      </Text>
+      <Row gap="field">
+        <Button intent="secondary" size="sm" disabled={resync.isPending} onClick={(): void => resync.mutate({ chatId })}>
+          <Icon icon={RotateCcw} size="xs" />
+          {resync.isPending ? "Resyncing…" : "Resync from story"}
+        </Button>
+      </Row>
+    </Stack>
+  );
+}
+
 /** The host config read + the console body. Host-gated (the tab `when` + the server verb). */
 function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
   const trpc = useTRPC();
@@ -275,6 +300,7 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
       <CastFieldsEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
       <GmConsoleScalars chatId={state.chatId} config={config} />
+      <ResyncControl chatId={state.chatId} />
       {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
       <RpgDoorwayLine>Full mode adds skills, combat, sessions, and the map arc — coming with the full graft.</RpgDoorwayLine>
     </Stack>

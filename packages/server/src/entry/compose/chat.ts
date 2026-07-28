@@ -34,6 +34,7 @@ import type {
   PresenceReadOp,
   PromptTransformRegistry,
   RequestTurnOp,
+  ResolveCanonWindow,
   ResolveRpgRoster,
   SetRpgPointer,
   TurnMessage,
@@ -50,6 +51,7 @@ import {
   createGetPendingUserText,
   createPostNarratorMessage,
   createPromptTransformRegistry,
+  createResolveCanonWindow,
   createResolveRpgRoster,
   createSetRpgPointer,
   getGroupConfig,
@@ -259,6 +261,9 @@ export interface ChatComposeResult {
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
     readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+    /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
+     *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
+    readonly resolveCanonWindow: ResolveCanonWindow;
   };
   /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
    *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -990,6 +995,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       setRpgPointer: createSetRpgPointer(chatCtx),
       resolveRpgRoster: createResolveRpgRoster(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
+      resolveCanonWindow: createResolveCanonWindow(chatCtx),
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
