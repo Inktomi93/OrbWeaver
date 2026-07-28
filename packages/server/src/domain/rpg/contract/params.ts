@@ -108,6 +108,8 @@ export interface UpdateConfigParams {
         readonly omniscience?: boolean | undefined;
         readonly hiddenContentReveal?: boolean | undefined;
         readonly recentBeatsKeepLast?: number | undefined;
+        // ORB-PINNING (§4.8): pool names pinned as band orbs beyond the auto-first-3 (whole-list replace).
+        readonly pinnedOrbs?: readonly string[] | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;

@@ -58,6 +58,12 @@ export const rpgGameFeaturesSchema = z.object({
   omniscience: z.boolean().default(false),
   hiddenContentReveal: z.boolean().default(true),
   recentBeatsKeepLast: z.number().int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
+  // ORB-PINNING (panel-redesign §3 / owner-ruled): pool NAMES the host pins to surface as band orbs BEYOND
+  // the auto first-3 (§4.8). The band derivation is `first-3 ∪ pinned`, deduped + capped (§4.11 #5 orb-row
+  // envelope). Additive, self-healing at the parse seam (a pre-pin blob → `[]`, the auto-first-3 behavior).
+  // Pool names (not ids) because pools are per-actor blob data keyed by name everywhere (the wallet/pool
+  // vocabulary is name-addressed, D86).
+  pinnedOrbs: z.array(z.string().min(1)).default([]),
 });
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
 

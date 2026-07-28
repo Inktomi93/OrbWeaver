@@ -115,6 +115,27 @@ spine wave lands. Lane collisions → orch integrates. Morning debrief: this blo
     sealed in `@orb/ui/charts` (its home); CONVENTION to document: var() works in color attrs NOT geometry attrs (cx/r/d → CSS/computed).
   · **MOBILE = uggo + the TOP BAR is awful** (owner) — panel polishes the mobile panel to the mock frame; the top bar (title/members/
     ⌘K-jump/expand) is likely app-shell chrome OUTSIDE features/rpg — panel flags it back → orch routes a separate app-shell fix.
+- **✅✅ CHECKPOINT COMMITTED `0e1bd920` — P3 + panel chunk 1-3 (2026-07-27 night):** whole-tree check GREEN + battery (vitest
+  8063/0 · CT 1473/0/1-known-flake); pre-commit hook re-verified. ONE combined commit (P3 + panel overlap on contracts/rpg/
+  {inputs,views} — the color-derivation × deception-config overlap — so a clean 2-commit split wasn't practical). Took 3 gate-fix
+  rounds (scoped-green ≠ whole-tree: test fixtures from P3's config fields · the ChatEventAttach mock-shape ripple · panel inline-
+  types/waystone-unions/component-size/knip-forward-seams · the Veiled section's render-error battery · reveal.ts test-presence).
+  Panel GREEN-LIT full-speed (main tree, sole lane): orb-pinning · GM console (shared lite+full) · the 5 deferred §-items · mobile
+  polish · the icon-weight seal (absoluteStrokeWidth + house strokeWidth ~1.75). P6 (#23) dispatched FRESH in a WORKTREE
+  (`a306da5f57b915a1f`) to decouple its commit. **PENDING FOLLOW-UPS (tracked):** integrate the base-E2E spec from its worktree ·
+  the P3 invariant-pin test · boot-seed route fix #27 · the world_day column+regen (journal in-world grouping) · the transcript
+  reveal-eye (features/chat) · the app-shell mobile topbar #28. LESSON APPLIED: worktree-isolate concurrent big lanes (P6 now) —
+  the panel+P3 main-tree coupling forced the commit to wait + serialized the gate-fix rounds.
+- **═══ COMPACT-SAFE SNAPSHOT (2026-07-28, ~90% ctx — READ THIS FIRST on resume) ═══**
+  **COMMITTED (main, ahead origin, NEVER pushed):** MU `24df458d` · design mocks `46543e1e` · P3 + panel-chunk-1-3 `0e1bd920`.
+  **IN-FLIGHT / IDLE-HOLDING:**
+  · **PANEL `a11263612a91abe13`** — chunk #1 orb-pinning + #2 GM console (shared lite+full) + #5 icon-weight-seal (absoluteStrokeWidth+1.75) DONE + eslint-fixed, **HOLDING** for the checkpoint commit. After commit → green-light **#3 deferred §-items** (lock-pin/release · quest-create · inventory ephemeral diff · max-lowering drag tell) + **#4 mobile polish**.
+  · **P6 `a306da5f57b915a1f` DONE in a WORKTREE** (`.claude/worktrees/agent-a306da5f57b915a1f`, branch `worktree-agent-a306da5f57b915a1f`) — the celBindings CHAT-TURN CHANNEL + idle_duration + rpgQuests/rpgDelta + fixed a dead rpgMacros half-seam; scoped-green. **AWAITING: integrate the branch into main (MERGE — contracts/rpg/params.ts OVERLAPS orb-pinning, resolve carefully) + a fresh VERIFIER.**
+  **ORCH DOING RIGHT NOW:** re-gate `bfbuza2um` → battery → COMMIT the panel checkpoint (#1/#2/#5 + the Core-Laws index fix + my 2 pinnedOrbs fixture fixes) → green-light panel #3/#4 → integrate+verify P6.
+  **UNCOMMITTED (main):** panel #1/#2/#5 + `Core-Laws-and-Precedents.md §7` stale-index fix (was "D106–D109" → now D106–D110; D110 was minted in ecf98497 but the index never bumped — the doc-debt that confused the P6 builder) + 2 `pinnedOrbs` fixture fixes.
+  **PENDING FOLLOW-UPS (tasks):** #27 fresh-DB retired-route bug (lite born read-only) · #28 app-shell mobile topbar · #24 MU picks pane · #26 FINAL full-system E2E (LAST gate) · base-E2E spec integration (worktree `agent-a173af5d8c9c97082`) · the P3 invariant-pin test · world_day column+regen · the transcript reveal-eye (features/chat).
+  **NEXT WAVES (after panel+P6 land):** P4 (immersive HTML — `:::card` fence + lenient arm + view-raw + forming placeholder + the srcdoc scripts-flip, security-executor pass) → P5 (CYOA `:::choices` + snapshot-resident plot plane + wand submenu). SEQUENCED on the shared content-render seam; **worktree-isolate them** (the coupling lesson). Overnight posture: FULL SPINE + PANEL, self-resolve forks via the ladder + log, NEVER push. [[overnight-full-auto-posture]].
+  **═══════════════════════════════════════════════════════════════════════════════════**
 **═════════════════════════════════════════════════════════════════════════════════════════**
 - **PANEL REDESIGN ROUND-2 (Fable `afb4223445e98856a`, FRESH — the original a72a3… transcript was GC'd):** grounds
   the design in reality — (1) one-home/generalize hyper-specific (2) READ rpg DB tables (db/schema/rpg.ts + contracts/

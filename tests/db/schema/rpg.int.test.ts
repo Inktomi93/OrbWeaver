@@ -66,7 +66,7 @@ const CONFIG: RpgGameConfig = {
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },
   extractionMode: "reliable",
-  features: { castFields: [], relationshipHints: {}, deception: false, omniscience: false, hiddenContentReveal: true, recentBeatsKeepLast: 8 },
+  features: { castFields: [], relationshipHints: {}, deception: false, omniscience: false, hiddenContentReveal: true, recentBeatsKeepLast: 8, pinnedOrbs: [] },
   userMacros: [],
 };
 const EMPTY_SHEET = { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };

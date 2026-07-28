@@ -39,6 +39,15 @@ export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upser
   errorToast: "Couldn't save the goal.",
 });
 
+/** `rpg.updateConfig` — the ONE config write door (host): steering note, extraction knob, cast-field
+ *  schemas, relationship hints, the deception knobs, and orb-pinning. Repaints BOTH the config view (the
+ *  GM console's own read) AND the tracker view (pinnedOrbs changes the band; castFields changes Scene). */
+export const useUpdateConfig = createEntityMutation<inferInput<Trpc["rpg"]["updateConfig"]>, unknown>({
+  options: (trpc) => trpc.rpg.updateConfig.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getConfigView.queryFilter({ chatId: vars.chatId }), trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't save the game settings.",
+});
+
 /** `rpg.createCheckpoint` — mint a MARK on the current resolved snapshot (Journal → Marks; host). */
 export const useCreateCheckpoint = createEntityMutation<inferInput<Trpc["rpg"]["createCheckpoint"]>, unknown>({
   options: (trpc) => trpc.rpg.createCheckpoint.mutationOptions(),

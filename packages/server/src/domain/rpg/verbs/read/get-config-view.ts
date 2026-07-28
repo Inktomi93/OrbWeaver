@@ -21,6 +21,7 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       omniscience: game.config.features.omniscience,
       hiddenContentReveal: game.config.features.hiddenContentReveal,
       recentBeatsKeepLast: game.config.features.recentBeatsKeepLast,
+      pinnedOrbs: game.config.features.pinnedOrbs,
     };
   }
   return { getConfigView };
