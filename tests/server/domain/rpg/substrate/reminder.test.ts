@@ -85,9 +85,22 @@ function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
     rosterNames: {},
     deception: false,
     omniscience: false,
+    dateMode: "narrated",
     ...over,
   };
 }
+
+test("#9 dateMode: narrated DROPS the day counter (freeform date + time-of-day only); structured keeps it", () => {
+  const view = emptyView({
+    ambient: { location: "The Bone Road", calendarDate: "3rd of Frostmoon", clock: { day: 7, hour: 21, minute: 0 }, weather: { type: "rain" } },
+  });
+  const narrated = buildLiteReminder(input({ view }));
+  expect(narrated).toContain("3rd of Frostmoon"); // the freeform date string IS the date datum
+  expect(narrated).toContain("night"); // time-of-day stays STRUCTURED in both modes (the Waystone arm)
+  expect(narrated).not.toContain("day 7"); // no forced sequential day counter
+  const structured = buildLiteReminder(input({ view, dateMode: "structured" }));
+  expect(structured).toContain("day 7 · night");
+});
 
 test("a fresh game reminder is just the license (no phantom empty headers; no-change delta omitted)", () => {
   const out = buildLiteReminder(input());

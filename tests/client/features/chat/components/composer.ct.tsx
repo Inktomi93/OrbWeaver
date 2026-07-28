@@ -139,17 +139,18 @@ test("#8: the generate-image button (DRAFT) names the send-first unlock (image g
   await expect(generate).toHaveAttribute("title", SEND_TO_UNLOCK);
 });
 
-test("#8: the guided-generations wand trigger (empty composer) is aria-disabled (hoverable) with a 'type a message' reason", async ({ mount, page }) => {
-  const component = await mount(<ComposerStory />); // empty composer
+test("the wand trigger OPENS on an empty committed composer (#41 — it hosts the text-optional turn actions)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />); // empty composer, committed handle
   const wand = component.getByRole("button", { name: "Guided generations" });
 
-  // Same mechanism as the image button: aria-disabled (hoverable, `title` surfaces) not native-disabled.
-  await expect(wand).toBeDisabled();
-  await expect(wand).toHaveAttribute("aria-disabled", "true");
-  await expect(wand).not.toHaveAttribute("disabled", ANY_VALUE);
-  await expect(wand).toHaveAttribute("title", TYPE_TO_UNLOCK);
-  // The disabled trigger cannot open the menu — no menu items appear (activation prevented).
-  await expect(page.getByRole("menuitem", { name: "Guided response" })).toHaveCount(0);
+  // Owner ruling (the #41 consolidation): the wand opens TEXT-LESSLY — Continue/Regenerate/Impersonate
+  // live here with the composer text optional. The text-gated item ("Guided response") still explains
+  // itself: disabled with the type-a-message reason until a steer is typed.
+  await expect(wand).toBeEnabled();
+  await wand.click();
+  const primary = page.getByRole("menuitem", { name: "Guided response" });
+  await expect(primary).toBeDisabled();
+  await expect(primary).toHaveAttribute("title", TYPE_TO_UNLOCK);
 });
 
 test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({ mount, page }) => {

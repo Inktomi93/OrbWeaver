@@ -19,6 +19,7 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       extractionMode: game.config.extractionMode,
       publicConfig: {
         statProfile: game.config.statProfile,
+        dateMode: game.config.dateMode, // #9 — the ambient-date display mode (member-safe)
         immersiveHtml: game.config.features.immersiveHtml,
         // P5 (§5.4/§6.4) — the wand's game affordance gates + the choice-click behavior (member-safe).
         cyoa: game.config.features.cyoa,

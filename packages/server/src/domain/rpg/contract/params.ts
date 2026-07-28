@@ -9,6 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type {
   RpgActorRef,
   RpgCastField,
+  RpgDateMode,
   RpgGameFeatures,
   RpgJournalType,
   RpgPoolDef,
@@ -124,6 +125,8 @@ export interface UpdateConfigParams {
         // The FRONT-DOOR toggle (#40) — omit keeps; `false` disengages (state preserved, reversible);
         // the verb mirrors the value onto the chat pointer (`ChatRpgPointer.engaged`).
         readonly engaged?: boolean | undefined;
+        // The #9 ambient-date mode (`narrated` | `structured`) — omit keeps.
+        readonly dateMode?: RpgDateMode | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;
@@ -339,4 +342,6 @@ export interface LiteReminderInput {
    *  `<lie …/>`/`<ofilter …/>` tag grammar the tokenizer's `HIDDEN_TAGS` registry recognizes. */
   readonly deception: boolean;
   readonly omniscience: boolean;
+  /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
+  readonly dateMode: RpgDateMode;
 }

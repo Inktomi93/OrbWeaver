@@ -105,9 +105,19 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
 export const RPG_EXTRACTION_MODES = ["reliable", "cheap"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
 
+/** The ambient DATE mode (#9, owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
+ *  provides from the fiction (`calendarDate` — "3rd of Frostmoon"), with NO forced sequential day-counter
+ *  display and no exact-date pressure; `structured` = the integer `clock.day` counter renders beside it
+ *  (the pre-#9 behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
+ *  the Waystone day-night + rain visual, which must never be lost. A DISPLAY/steering knob only: the
+ *  stored `clock` plane is untouched by the mode (flipping it back loses nothing). */
+export const RPG_DATE_MODES = ["narrated", "structured"] as const;
+export type RpgDateMode = (typeof RPG_DATE_MODES)[number];
+
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
- *  delivery-model knob (the amendment), default `"reliable"`. */
+ *  delivery-model knob (the amendment), default `"reliable"`. `dateMode` (#9) defaults `"narrated"` —
+ *  additive, self-heals at the parse seam. */
 export const rpgGameConfigSchema = z.object({
   // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
   // turn assembly (no reminder/state/steering/tools — every rpg chat-op behaves as a non-game chat) and
@@ -123,6 +133,7 @@ export const rpgGameConfigSchema = z.object({
     })
     .default({ steeringNote: "" }),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).default("reliable"),
+  dateMode: z.enum(RPG_DATE_MODES).default("narrated"),
   // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + the P4 card options) — additive,
   // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the
   // all-defaults features via the sub-schema, so the knobs heal in without a version stamp). The function

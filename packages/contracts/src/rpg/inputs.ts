@@ -16,7 +16,7 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId, RpgWi
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorRefSchema } from "./actor";
-import { RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
+import { RPG_DATE_MODES, RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
 import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
 import { rpgPoolDefSchema } from "./sheet";
@@ -69,6 +69,8 @@ export const rpgUpdateConfigInputSchema = z.object({
       // The FRONT-DOOR toggle (#40): `false` disengages the game from the turn assembly + hides the
       // panel, state PRESERVED (reversible). The verb also re-writes the chat pointer mirror.
       engaged: z.boolean().optional(),
+      // The #9 ambient-date mode — `narrated` (freeform date string, no day counter) | `structured`.
+      dateMode: z.enum(RPG_DATE_MODES).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

@@ -11,6 +11,7 @@
 // requests composer focus, so the reader appends flavor before sending. Choices only exist on committed
 // chats (an assistant emitted them), so a draft handle provides null (options render disabled until commit).
 
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ReactElement, ReactNode } from "react";
 import { useMemo } from "react";
 import { useGatedQuery, useTRPC } from "#data";
@@ -34,9 +35,13 @@ export function ChoiceSendProvider({ handle, children }: ChoiceSendProviderProps
   const sender = useSendMessage({ handle });
   const send = sender.send;
   const busy = turnBusy || sender.isPending;
-  // The game knob — cache-first, only when this room is a game (the composer-wand's precedent). Absent /
+  // The game knob — cache-first, only when this room is a LIVE game (the composer-wand's exact gate: the
+  // getChat rpg pointer, cache-first, through the ONE `isRpgEngaged` predicate). Gating on `chatId` alone
+  // fired `rpg.getGame` on EVERY committed chat and 404-retry-looped on non-game rooms (owner-hit). Absent /
   // unsettled / non-game ⇒ the "compose" default (a lower-commitment interaction; the intended fallback).
-  const gameQuery = useGatedQuery(chatId, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
+  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const isGame = isRpgEngaged(detailQuery.data?.rpg ?? null);
+  const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const behavior = gameQuery.data?.publicConfig.cyoaChoiceBehavior ?? "compose";
 
   const value = useMemo<ChoiceSend | null>(() => {

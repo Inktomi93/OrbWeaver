@@ -53,6 +53,7 @@ export function liteConfig(): RpgGameConfig {
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
     extractionMode: "reliable",
+    dateMode: "narrated",
     features: {
       castFields: [],
       relationshipHints: {},
