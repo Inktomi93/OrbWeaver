@@ -32,6 +32,7 @@ function features(over: Partial<RpgGameFeatures> = {}): RpgGameFeatures {
     immersiveHtmlInteractive: true,
     cardKeepLastX: 0,
     cyoa: false,
+    cyoaChoiceBehavior: "compose",
     plotProgression: true,
     ...over,
   };

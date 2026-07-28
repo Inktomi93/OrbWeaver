@@ -1,10 +1,12 @@
-// P5 CYOA (§5.2-5.3) — the `:::choices` render block's CLICKABLE arm: the model's offered options as
-// numbered send-affordances. A click sends the option TEXT as the user's next turn through the room's
-// choice-send capability (`ChoiceSendProvider` → `useSendMessage` — a choice IS a user turn; zero new
-// turn machinery). Buttons disable while a turn is in flight (the existing send-in-flight state) and in
-// a provider-less mount (a CT story / read-only preview) — same surface, inert affordance, with the
-// hover reason naming the unlock (owner: "when it's disabled on hover tell why"). Info-blue voice per
-// the panel-redesign choice grammar (border-info) — theme tokens only, never hex.
+// P5 CYOA (§5.2-5.4) — the `:::choices` render block's CLICKABLE arm: the model's offered options as
+// numbered choice-affordances. A click routes the option TEXT through the room's choice capability
+// (`ChoiceSendProvider` → `choose`), whose behavior the game's `cyoaChoiceBehavior` knob gates: `send`
+// fires it as the user's next turn immediately; `compose` (the default) drops it into the composer draft +
+// focuses it. The block is behavior-agnostic — the provider owns the branch. Buttons disable while a turn
+// is in flight (the existing send-in-flight state) and in a provider-less mount (a CT story / read-only
+// preview) — same surface, inert affordance, with the hover reason naming the unlock (owner: "when it's
+// disabled on hover tell why"). Info-blue voice per the panel-redesign choice grammar (border-info) —
+// theme tokens only, never hex.
 
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -55,7 +57,7 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
           className="h-auto min-h-touch-target justify-start whitespace-normal py-field text-left"
           onClick={(): void => {
             if (choiceSend !== null && !choiceSend.busy) {
-              choiceSend.send(option);
+              choiceSend.choose(option);
             }
           }}
         >

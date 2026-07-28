@@ -77,21 +77,29 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect(game?.config.features.cardKeepLastX).toBe(2);
   });
 
-  test("sets the P5 play-style knobs (cyoa/plotProgression); an unrelated patch never resets them (§5.4/§6.4)", async () => {
+  test("sets the P5 play-style knobs (cyoa/cyoaChoiceBehavior/plotProgression); an unrelated patch never resets them (§5.4/§6.4)", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    // Defaults at birth: cyoa OFF (a strong play-style), plotProgression ON (unobtrusive, click-only).
+    // Defaults at birth: cyoa OFF (a strong play-style), cyoaChoiceBehavior "compose" (lower-commitment
+    // default), plotProgression ON (unobtrusive, click-only).
     let game = await findGameByChat(db, chatId);
     expect(game?.config.features.cyoa).toBe(false);
+    expect(game?.config.features.cyoaChoiceBehavior).toBe("compose");
     expect(game?.config.features.plotProgression).toBe(true);
-    // Flip both away from their defaults.
-    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { cyoa: true, plotProgression: false } });
+    // Flip all three away from their defaults.
+    await h.service.updateConfig({
+      principal: principal("host"),
+      chatId,
+      patch: { cyoa: true, cyoaChoiceBehavior: "send", plotProgression: false },
+    });
     game = await findGameByChat(db, chatId);
     expect(game?.config.features.cyoa).toBe(true);
+    expect(game?.config.features.cyoaChoiceBehavior).toBe("send");
     expect(game?.config.features.plotProgression).toBe(false);
-    // The never-reset pin ([versioned-config-lift-drops-overrides] class): an unrelated write keeps both.
+    // The never-reset pin ([versioned-config-lift-drops-overrides] class): an unrelated write keeps all.
     await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "onward" } });
     game = await findGameByChat(db, chatId);
     expect(game?.config.features.cyoa).toBe(true);
+    expect(game?.config.features.cyoaChoiceBehavior).toBe("send");
     expect(game?.config.features.plotProgression).toBe(false);
   });
 

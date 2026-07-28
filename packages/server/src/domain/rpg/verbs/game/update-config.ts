@@ -56,6 +56,7 @@ function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatu
     cardKeepLastX: patch?.cardKeepLastX ?? current.cardKeepLastX,
     // P5 play-style knobs (§5.4/§6.4) — keep-on-omit like every sibling.
     cyoa: patch?.cyoa ?? current.cyoa,
+    cyoaChoiceBehavior: patch?.cyoaChoiceBehavior ?? current.cyoaChoiceBehavior,
     plotProgression: patch?.plotProgression ?? current.plotProgression,
   };
 }

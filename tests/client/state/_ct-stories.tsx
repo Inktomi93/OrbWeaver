@@ -28,6 +28,7 @@ import {
   migrateComposerDraft,
   openModal,
   openSettingsTo,
+  requestComposerFocus,
   revealContextPanel,
   selectAnalyticsCharacter,
   selectCharacter,
@@ -67,6 +68,7 @@ import {
   useChatListCharacterFilter,
   useChromeRegistry,
   useComposerDraft,
+  useComposerFocusRequest,
   useContextTab,
   useFavoritesOnly,
   useListDocked,
@@ -576,4 +578,25 @@ function ComposerDraftReader(): ReactElement {
   const draft = useComposerDraft("cd_scope");
   const committed = useComposerDraft("cd_committed");
   return <output>{`draft=${draft === "" ? "empty" : draft} committed=${committed === "" ? "empty" : committed}`}</output>;
+}
+
+/** ComposerFocusProbe — drives the composer-FOCUS store (the P5 CYOA compose-mode focus signal): a caller
+ *  bumps a room's focus nonce (`requestComposerFocus`); a subscriber reads the reactive
+ *  `useComposerFocusRequest` hook and focuses on change. A CT because the read is the reactive hook
+ *  (useSyncExternalStore needs a browser render — the composer-draft-store.ct posture). The probe surfaces
+ *  the nonce as text so the CT proves each request bumps it (0 → 1 → 2 for the same scope). */
+export function ComposerFocusProbe(): ReactElement {
+  const nonce = useComposerFocusRequest("cf_scope");
+  const other = useComposerFocusRequest("cf_other");
+  return (
+    <div>
+      <button type="button" onClick={(): void => requestComposerFocus("cf_scope")}>
+        request focus
+      </button>
+      <button type="button" onClick={(): void => requestComposerFocus("cf_other")}>
+        request other
+      </button>
+      <output>{`nonce=${nonce} other=${other}`}</output>
+    </div>
+  );
 }

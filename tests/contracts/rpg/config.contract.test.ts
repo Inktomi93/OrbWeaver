@@ -50,9 +50,10 @@ test("userMacros is the game-home for authored macros — defaults [], accepts a
 });
 
 // P5 §5.4/§6.4: the play-style knobs self-heal on a pre-P5 blob — cyoa OFF (a strong play-style is opt-in),
-// plotProgression ON (unobtrusive, fires only on click).
+// cyoaChoiceBehavior "compose" (the lower-commitment default), plotProgression ON (fires only on click).
 test("the P5 play-style knobs self-heal to their defaults on a pre-P5 blob", () => {
   const features = rpgGameConfigSchema.parse({}).features;
   expect(features.cyoa).toBe(false);
+  expect(features.cyoaChoiceBehavior).toBe("compose");
   expect(features.plotProgression).toBe(true);
 });
