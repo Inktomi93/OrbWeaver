@@ -119,7 +119,13 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
-        sheet: { className: "Rogue", attributes: { dex: 16 }, poolDefs: [], maxHp: null, level: 3 },
+        sheet: {
+          className: "Rogue",
+          attributes: { dex: 16 },
+          poolDefs: [{ name: "focus", max: 5, color: null, hint: "spent to steady the hand" }],
+          maxHp: null,
+          level: 3,
+        },
         volatile: {
           actorRef: { kind: "cast", castKey: "kael" },
           hp: { value: 8, max: 12 },
@@ -140,7 +146,7 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("night");
   expect(out).toContain("Kael");
   expect(out).toContain("HP 8/12");
-  expect(out).toContain("focus 3/5");
+  expect(out).toContain("focus 3/5 (spent to steady the hand)"); // #36 — the host pool hint glosses the meaning
   expect(out).toContain("40 gold");
   expect(out).toContain("dagger ×2");
   expect(out).toContain("poisoned");

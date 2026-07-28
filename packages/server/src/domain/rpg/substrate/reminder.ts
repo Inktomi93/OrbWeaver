@@ -107,14 +107,23 @@ function weatherLine(weather: RpgWeather): string {
 /** One roster actor's line — name, className flavor, attributes, pools value/max, wallet, inventory summary,
  *  status. A missing plane is omitted (no phantom "0 gold"). */
 /** An actor's volatile-plane segments (hp/pools/wallet/inventory/status/conditions) — hoisted out of `actorLine`
- *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate. */
-function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>): string[] {
+ *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
+ *  `poolHints` (#36) glosses each pool with its host-authored MEANING (`mana 5/10 (fuels spellcasting)`)
+ *  so the model knows what a pool IS, not just its number — matched by name off `sheet.poolDefs`. */
+function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>, poolHints: ReadonlyMap<string, string>): string[] {
   const segs: string[] = [];
   if (v.hp !== null) {
     segs.push(`HP ${v.hp.value}/${v.hp.max}`);
   }
   if (v.pools.length > 0) {
-    segs.push(v.pools.map((p) => `${p.name} ${p.value}/${p.max}`).join(", "));
+    segs.push(
+      v.pools
+        .map((p) => {
+          const hint = poolHints.get(p.name);
+          return hint !== undefined && hint !== "" ? `${p.name} ${p.value}/${p.max} (${hint})` : `${p.name} ${p.value}/${p.max}`;
+        })
+        .join(", "),
+    );
   }
   if (v.wallet.length > 0) {
     segs.push(v.wallet.map((w) => `${w.amount} ${w.name}`).join(", "));
@@ -144,7 +153,7 @@ function actorLine(actor: RpgTrackerView["actors"][number]): string {
     segs.push(attrs.map(([k, n]) => `${k} ${n}`).join(", "));
   }
   if (actor.volatile !== null) {
-    segs.push(...volatileSegs(actor.volatile));
+    segs.push(...volatileSegs(actor.volatile, new Map(actor.sheet.poolDefs.map((d) => [d.name, d.hint]))));
   }
   return `- ${segs.join(" — ")}`;
 }

@@ -44,6 +44,10 @@ export const rpgInventoryItemSchema = z.object({
   quantity: z.number().int().min(1).default(1),
   location: z.string().default(""),
   type: z.string().default(""),
+  // #37 — the HOST-picked display icon (a curated `@orb/ui/icons` seal NAME from the client's
+  // `ITEM_ICON_CHOICES` table). Host-set only (absent from `update_inventory`'s args + the extraction
+  // schema — unwritable by the model); display falls back to the keyword resolver when unset.
+  icon: z.string().optional(),
 });
 export type RpgInventoryItem = z.infer<typeof rpgInventoryItemSchema>;
 

@@ -12,7 +12,7 @@
 // carry no sheet. `trackersReadOnly` folds in via the standing `canEdit` gate (consistent with every tab).
 
 import type { RpgActorView, RpgPoolDef, RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_POOL_COLOR_RE } from "@orb/contracts/rpg";
+import { RPG_HINT_MAX, RPG_POOL_COLOR_RE } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -197,56 +197,68 @@ function PoolDefsEditor({ poolDefs, onCommit, onRename }: PoolDefsEditorProps): 
       {poolDefs.map((def, i) => {
         const resolved = resolvePoolColor(def.color, i);
         return (
-          <Row key={poolRowKey(def, i)} gap="field" align="center">
-            <ColorField
-              // A ramp-derived pool shows its resolved `--color-track-N` in the swatch (definition and
-              // display visibly one system, §3); the var string can never COMMIT (it fails the strict
-              // grammar), so the stored color stays null until a real hex/OKLCH is picked.
-              value={resolved.kind === "custom" ? resolved.css : `var(--color-track-${resolved.step})`}
-              aria-label={`${def.name} color`}
-              onValueChange={(next): void => {
-                if (next === "") {
-                  onCommit(replaceAt(i, { color: null }));
-                } else if (RPG_POOL_COLOR_RE.test(next)) {
-                  onCommit(replaceAt(i, { color: next }));
-                }
-                // A safe-but-off-grammar color (a named color) is refused at the picker — the popover's
-                // hex field is the strict path; the contract never receives raw CSS.
-              }}
-            />
-            <TrackerValue
-              ariaLabel={`Pool ${i + 1} name`}
-              display={def.name}
-              onEdit={(next): void => {
-                const trimmed = next.trim();
-                // Tier-2 refusal (§12.3): an empty pool name is never sent (min(1) on the wire).
-                if (trimmed !== "" && trimmed !== def.name) {
-                  // A RENAME rides the carry path (#11) so the volatile pool follows its def.
-                  (onRename ?? ((_old: string, defs: readonly RpgPoolDef[]): void => onCommit(defs)))(def.name, replaceAt(i, { name: trimmed }));
-                }
-              }}
-              className="flex-1"
-            />
-            <Row gap="field" align="baseline" className="shrink-0">
-              <Text as="span" size="micro" tone="muted">
-                max
-              </Text>
+          <Stack key={poolRowKey(def, i)} gap="field">
+            <Row gap="field" align="center">
+              <ColorField
+                // A ramp-derived pool shows its resolved `--color-track-N` in the swatch (definition and
+                // display visibly one system, §3); the var string can never COMMIT (it fails the strict
+                // grammar), so the stored color stays null until a real hex/OKLCH is picked.
+                value={resolved.kind === "custom" ? resolved.css : `var(--color-track-${resolved.step})`}
+                aria-label={`${def.name} color`}
+                onValueChange={(next): void => {
+                  if (next === "") {
+                    onCommit(replaceAt(i, { color: null }));
+                  } else if (RPG_POOL_COLOR_RE.test(next)) {
+                    onCommit(replaceAt(i, { color: next }));
+                  }
+                  // A safe-but-off-grammar color (a named color) is refused at the picker — the popover's
+                  // hex field is the strict path; the contract never receives raw CSS.
+                }}
+              />
               <TrackerValue
-                ariaLabel={`${def.name} max`}
-                display={String(def.max)}
-                kind="numeric"
+                ariaLabel={`Pool ${i + 1} name`}
+                display={def.name}
                 onEdit={(next): void => {
-                  const n = Number.parseInt(next, 10);
-                  // Tier-1 clamp (§12.3): max ≥ 1 is the real wire floor.
-                  if (!Number.isNaN(n)) {
-                    onCommit(replaceAt(i, { max: Math.max(1, n) }));
+                  const trimmed = next.trim();
+                  // Tier-2 refusal (§12.3): an empty pool name is never sent (min(1) on the wire).
+                  if (trimmed !== "" && trimmed !== def.name) {
+                    // A RENAME rides the carry path (#11) so the volatile pool follows its def.
+                    (onRename ?? ((_old: string, defs: readonly RpgPoolDef[]): void => onCommit(defs)))(def.name, replaceAt(i, { name: trimmed }));
                   }
                 }}
-                className="!w-avatar-lg px-field text-right tabular-nums"
-                restClassName="tabular-nums"
+                className="flex-1"
               />
+              <Row gap="field" align="baseline" className="shrink-0">
+                <Text as="span" size="micro" tone="muted">
+                  max
+                </Text>
+                <TrackerValue
+                  ariaLabel={`${def.name} max`}
+                  display={String(def.max)}
+                  kind="numeric"
+                  onEdit={(next): void => {
+                    const n = Number.parseInt(next, 10);
+                    // Tier-1 clamp (§12.3): max ≥ 1 is the real wire floor.
+                    if (!Number.isNaN(n)) {
+                      onCommit(replaceAt(i, { max: Math.max(1, n) }));
+                    }
+                  }}
+                  className="!w-avatar-lg px-field text-right tabular-nums"
+                  restClassName="tabular-nums"
+                />
+              </Row>
             </Row>
-          </Row>
+            {/* #36 — the host-authored pool MEANING (the quiet hint by the meter + the reminder gloss). */}
+            <TrackerValue
+              ariaLabel={`${def.name} hint`}
+              display={def.hint}
+              placeholder="what this pool means…"
+              tone="muted"
+              size="micro"
+              onEdit={(next): void => onCommit(replaceAt(i, { hint: next.trim().slice(0, RPG_HINT_MAX) }))}
+              className="w-full"
+            />
+          </Stack>
         );
       })}
       <Row>
@@ -254,7 +266,7 @@ function PoolDefsEditor({ poolDefs, onCommit, onRename }: PoolDefsEditorProps): 
           intent="ghost"
           size="sm"
           onClick={(): void => {
-            onCommit([...poolDefs, { name: `Pool ${poolDefs.length + 1}`, max: DEFAULT_POOL_MAX, color: null }]);
+            onCommit([...poolDefs, { name: `Pool ${poolDefs.length + 1}`, max: DEFAULT_POOL_MAX, color: null, hint: "" }]);
           }}
         >
           Add meter

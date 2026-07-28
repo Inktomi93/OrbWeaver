@@ -5,6 +5,7 @@
 // projected roster ∪ rows at read time, created on first write). Full grafts `arc` as an ADD COLUMN.
 
 import { z } from "zod";
+import { RPG_HINT_MAX } from "./config";
 
 /** The strict pool-color grammar (panel-redesign, owner-ruled FREE HEX): a 3/6-digit hex or a numeric
  *  `oklch(L C H)` (optional `deg` hue + `/ alpha`) — a COLOR literal, never raw CSS (no `var()`, no
@@ -21,6 +22,11 @@ export const rpgPoolDefSchema = z.object({
   name: z.string().min(1),
   max: z.number().int().min(1),
   color: z.string().regex(RPG_POOL_COLOR_RE).nullable().default(null),
+  // #36 — the HOST-authored pool MEANING ("mana fuels spellcasting; empty = exhausted"). Host-set like
+  // `color` (absent from the extraction schema + every tool arg — unwritable by the model; patchSheet is
+  // the only door). Fed into the steering reminder so the model knows what each pool MEANS, and shown as
+  // the quiet hint by the meter. A pre-hint blob heals to "" at the parse seam via the `.default`.
+  hint: z.string().max(RPG_HINT_MAX).default(""),
 });
 export type RpgPoolDef = z.infer<typeof rpgPoolDefSchema>;
 

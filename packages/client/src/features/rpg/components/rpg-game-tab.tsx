@@ -84,7 +84,7 @@ function CastFieldsEditor({ chatId, config }: { readonly chatId: ChatId; readonl
                 commit(fields.map((x, j) => (j === i ? { ...x, label: trimmed } : x)));
               }
             }}
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
           {f.kind === "meter" ? (
             <Row gap="field" align="baseline" className="shrink-0">
@@ -160,7 +160,7 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
             display={hint}
             placeholder="how this label steers…"
             onEdit={(next): void => commit({ ...hints, [label]: next.slice(0, RPG_HINT_MAX) })}
-            className="flex-1"
+            className="min-w-0 flex-1"
           />
           <Button
             intent="ghost"

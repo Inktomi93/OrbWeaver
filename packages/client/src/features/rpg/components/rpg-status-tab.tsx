@@ -85,11 +85,15 @@ function StatusPoolMeter({
   pool,
   ordinal,
   color,
+  hint,
   edit,
 }: {
   readonly pool: ActorPool;
   readonly ordinal: number;
   readonly color: string | null;
+  /** #36 — the host-authored pool MEANING (`poolDefs[].hint`); shown as the quiet microline under the
+   *  meter when no transient drag-tell is active. Empty = nothing. */
+  readonly hint: string;
   readonly edit?: StatusCardEdit;
 }): ReactElement {
   const [note, setNote] = useState<string | null>(null);
@@ -102,6 +106,8 @@ function StatusPoolMeter({
   }
   const lockSub = `.pools.${pool.name}`;
   const release = edit === undefined || !edit.isLocked(lockSub) ? undefined : (): void => edit.onRelease(lockSub);
+  // The transient drag-tell wins; otherwise the quiet standing hint (#36); empty hint = no microline.
+  const effectiveNote = note ?? (hint === "" ? null : hint);
   return (
     <MeterRow
       label={pool.name}
@@ -119,7 +125,7 @@ function StatusPoolMeter({
               setNote(result === null ? null : `${pool.name} ${pool.value} → ${result.draggedTo} — max lowered`);
             },
           })}
-      {...(note === null ? {} : { note })}
+      {...(effectiveNote === null ? {} : { note: effectiveNote })}
     />
   );
 }
@@ -133,7 +139,9 @@ function actorMeters(actor: RpgActorView, edit?: StatusCardEdit): readonly React
   }
   return volatile.pools.map((pool, i) => {
     const def = actor.sheet.poolDefs.find((d) => d.name === pool.name);
-    return <StatusPoolMeter key={pool.name} pool={pool} ordinal={i} color={def?.color ?? null} {...(edit === undefined ? {} : { edit })} />;
+    return (
+      <StatusPoolMeter key={pool.name} pool={pool} ordinal={i} color={def?.color ?? null} hint={def?.hint ?? ""} {...(edit === undefined ? {} : { edit })} />
+    );
   });
 }
 

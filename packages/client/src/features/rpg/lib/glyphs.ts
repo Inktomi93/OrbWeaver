@@ -174,8 +174,42 @@ function matchTokens(map: Readonly<Record<string, LucideIcon>>, raw: string): Lu
 }
 
 /** Item glyph: name keywords → type taxonomy → the designed `Package` fallback (never a blank). */
-export function resolveItemGlyph(name: string, type: string): LucideIcon {
+function resolveItemGlyph(name: string, type: string): LucideIcon {
   return matchTokens(ITEM_NAME_GLYPHS, name) ?? matchTokens(ITEM_TYPE_GLYPHS, type) ?? Package;
+}
+
+/** The #37 HOST-pickable item-icon catalog — the curated choices the icon PICKER offers, each a stable
+ *  NAME the `rpgInventoryItemSchema.icon` field stores (never a component reference in the blob). Grown
+ *  from the seal's fantasy floor; a stored name that later leaves this table falls back to the keyword
+ *  resolver (never a blank cell). */
+export const ITEM_ICON_CHOICES: Readonly<Record<string, LucideIcon>> = {
+  sword: Sword,
+  shield: Shield,
+  armor: ShieldHalf,
+  potion: FlaskConical,
+  key: KeyRound,
+  scroll: Scroll,
+  book: BookOpen,
+  map: MapIcon,
+  gem: Gem,
+  coins: Coins,
+  rope: Cable,
+  flame: Flame,
+  food: Beef,
+  herb: Leaf,
+  bone: Bone,
+  skull: Skull,
+  arrow: Crosshair,
+  droplet: Droplet,
+  star: Star,
+  heart: Heart,
+  pack: Package,
+};
+
+/** Display resolution for an item's glyph (#37): the host-picked `icon` name wins; unset/unknown falls
+ *  back to the keyword resolver (`resolveItemGlyph`). */
+export function resolveItemIcon(icon: string | undefined, name: string, type: string): LucideIcon {
+  return (icon === undefined ? undefined : ITEM_ICON_CHOICES[icon]) ?? resolveItemGlyph(name, type);
 }
 
 /** Condition glyph: name keywords → the designed `Activity` fallback. */
