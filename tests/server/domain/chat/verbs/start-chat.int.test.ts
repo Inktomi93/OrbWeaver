@@ -97,6 +97,44 @@ function makeDeps(
   };
 }
 
+describe("startChat — #40 draft-time game birth (startAsGame)", () => {
+  test("a startAsGame carry calls the injected rpg.startGame for the minted chat, threading the profile blind", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const started: { chatId: string; profile: unknown }[] = [];
+    // FABRICATION-OK: minimal ChatRpgOps stub — startChat reaches ONLY `startGame` on this path.
+    const rpg = {
+      startGame: (chatId: string, params: { profile?: unknown }): Promise<void> => {
+        started.push({ chatId, profile: params.profile });
+        return Promise.resolve();
+      },
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const result = await startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} });
+    // The op fired exactly once for the minted chat (BEFORE the verb returned — turn 1 is in-game); an
+    // omitted profile rides through as undefined (freeform default is rpg's own).
+    expect(started).toEqual([{ chatId: result.chat.id, profile: undefined }]);
+  });
+
+  test("no startAsGame carry ⇒ the rpg op never fires (byte-identical plain creation)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const started: string[] = [];
+    // FABRICATION-OK: minimal ChatRpgOps stub — asserting the ABSENCE of the call.
+    const rpg = {
+      startGame: (chatId: string): Promise<void> => {
+        started.push(chatId);
+        return Promise.resolve();
+      },
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    await startChat({ principal: principal(host), characterIds: [aria] });
+    expect(started).toEqual([]);
+  });
+});
+
 describe("startChat — canon-mutator stats push (stats.md)", () => {
   test("creation pushes the chat-created counters + the seeded greeting contribution", async () => {
     const host = await seedUser(db, "host");

@@ -21,6 +21,7 @@ import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
+import type { RpgStatProfile } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AssetId,
@@ -75,6 +76,10 @@ export interface StartChatParams extends ChatActorParams {
   readonly temporary?: boolean | undefined;
   /** The one-turn guided steer for a generate opening; only runGeneratedOpening reads it. */
   readonly guided?: GuidedSteer | undefined;
+  /** #40 DRAFT-TIME game start: mint a lite game for the new chat BEFORE the opening turn (turn 1 is
+   *  already in-game). Threaded BLIND to the injected `ChatRpgOps.startGame` (the pointer precedent);
+   *  `profile` is rpg's contract shape (omit = freeform). */
+  readonly startAsGame?: { readonly profile?: RpgStatProfile | undefined } | undefined;
 }
 
 export interface ListChatsParams extends ChatActorParams {

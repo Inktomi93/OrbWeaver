@@ -22,7 +22,7 @@ import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
-import type { ChatRpgPointer, RpgActorRef } from "@orb/contracts/rpg";
+import type { ChatRpgPointer, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
@@ -460,6 +460,13 @@ export interface RpgTurnConnection {
 }
 
 export interface ChatRpgOps {
+  /** The #40 DRAFT-TIME game birth: `startChat` carried a `startAsGame` intent, so rpg mints the lite game
+   *  for the just-created chat RIGHT AFTER the creation batch commits and BEFORE the opening turn runs —
+   *  turn 1 is already in-game (the gather sees the row). The startChat CALLER is the just-minted host, so
+   *  no second authority resolve rides this op (the chat verb is the gate); idempotent (an existing game is
+   *  a no-op). `profile` is rpg's own contract shape (the `ChatRpgPointer` foreign-schema precedent — chat
+   *  threads it BLIND from the wire to this op, never reading inside it). */
+  readonly startGame: (chatId: ChatId, params: { readonly profile?: RpgStatProfile | undefined }) => Promise<void>;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: (chatId: ChatId) => Promise<PresetId | null>;

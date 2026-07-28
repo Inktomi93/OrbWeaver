@@ -55,6 +55,7 @@ import type { Principal } from "@orb/contracts/identity";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
+import { rpgStatProfileSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -95,6 +96,10 @@ const startChatSchema = z.object({
   // `opening` policy). The DERIVED `guidedSteerSchema` (F6) — the transport trust boundary; a garbage
   // action/non-string input is refused here as BAD_REQUEST instead of 500ing the domain resolver.
   guided: guidedSteerSchema.optional(),
+  // #40 DRAFT-TIME game start — the draft staged a "start as game" intent; the server mints the lite
+  // game right after chat creation, BEFORE the opening turn (turn 1 in-game). `profile` rides rpg's own
+  // contract schema (the trust boundary); omit = freeform.
+  startAsGame: z.object({ profile: rpgStatProfileSchema.optional() }).optional(),
 });
 
 const listMessagesSchema = z.object({

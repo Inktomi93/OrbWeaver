@@ -28,7 +28,7 @@ import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { DRAFT_UNLOCK_AFTER_SEND } from "#lib";
-import { enterSelectionMode, goToLanding, startNewChat } from "#state";
+import { enterSelectionMode, goToLanding, setDraftStartAsGame, startNewChat, useDraftConfig } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { RenameChatDialog } from "./rename-chat-dialog";
@@ -47,56 +47,94 @@ const useSetGameEngaged = createEntityMutation<inferInput<Trpc["rpg"]["updateCon
   errorToast: "Couldn't switch the game.",
 });
 
-/** The #40 Game section of the ⋯ menu (host-only; a member sees nothing — the verbs are host-gated):
- *  no game ⇒ the "Start a game" submenu (freeform | d20); a live game ⇒ "Turn off the game" (state
- *  KEPT — reversible); a paused game ⇒ "Turn the game back on". Disabled (never hidden) on a draft. */
+// The overlay toggle labels — ONE easily-renamed home (owner naming may still move; never scatter).
+const RPG_OVERLAY_ON_LABEL = "Turn on RPG";
+const RPG_OVERLAY_OFF_LABEL = "Turn off RPG";
+
+/** The "turn on RPG" submenu — the profile pick behind a FIRST-ever enable (freeform | d20). Both the
+ *  draft arm (stages the intent) and the committed no-game arm (createGame) render this one shape. */
+function TurnOnRpgSubmenu({ onPick }: { readonly onPick: (profile: "freeform" | "d20") => void }): ReactElement {
+  return (
+    <MenuSubmenuRoot>
+      <MenuSubmenuTrigger>
+        <Icon icon={Swords} size="sm" />
+        {RPG_OVERLAY_ON_LABEL}
+      </MenuSubmenuTrigger>
+      <MenuPopup>
+        <MenuItem onClick={(): void => onPick("freeform")}>Freeform story</MenuItem>
+        <MenuItem onClick={(): void => onPick("d20")}>D20 adventure</MenuItem>
+      </MenuPopup>
+    </MenuSubmenuRoot>
+  );
+}
+
+/** The #40 RPG-overlay section of the ⋯ menu — ONE on/off toggle, flippable at ANY time (owner model:
+ *  rpg-lite is an OVERLAY on the roleplay, not a game session; there is no pause/resume). Host-only (a
+ *  member sees nothing — the server verbs re-gate). Arms:
+ *   • DRAFT — "Turn on RPG" stages the intent (the first send mints the game BEFORE the opening turn, so
+ *     turn 1 is in-game); staged ⇒ "Turn off RPG" clears it. A pre-canon decision — never draft-disabled.
+ *   • committed, no game — "Turn on RPG" (profile pick) → createGame.
+ *   • committed, overlay ON — "Turn off RPG" (state kept; assembly + panel drop the overlay).
+ *   • committed, overlay OFF — "Turn on RPG" (no re-pick — the preserved state comes back as-is). */
 function GameMenuSection({
   chatId,
   committed,
-  reason,
+  draftKey,
 }: {
   readonly chatId: ChatId | undefined;
-  readonly reason: string | undefined;
   readonly committed: boolean;
+  readonly draftKey: string | undefined;
 }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const startGame = useStartGame({ trpc, invalidation });
   const setEngaged = useSetGameEngaged({ trpc, invalidation });
   const detailQuery = useGatedQuery(chatId ?? null, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  // Hooks run unconditionally (rules-of-hooks): the draft arm subscribes to its config; "" reads the
+  // frozen empty config on a committed chat (no draftKey).
+  const draftConfig = useDraftConfig(draftKey ?? "");
   // OPTIONAL-CHAINED throughout: the CT harness resolves UNLISTED procs to `{data:null}` by design (an
   // incidental read must never crash a surface) — a bare `.viewerIsHost` deref here blanked the menu.
   const detail = detailQuery.data;
   if (detail?.viewerIsHost === false) {
-    return null; // PERMISSION-omit: only the host starts/pauses a game (the server verbs re-gate).
+    return null; // PERMISSION-omit: only the host flips the overlay (the server verbs re-gate).
   }
-  const pointer = detail?.rpg ?? null;
-  const disabled = !committed || chatId === undefined;
-  if (pointer === null) {
-    return (
-      <MenuSubmenuRoot>
-        <MenuSubmenuTrigger disabled={disabled} title={reason}>
+
+  // DRAFT arm — stage/clear the intent locally; the first send carries it (`DraftCarry.startAsGame`).
+  if (!committed && draftKey !== undefined) {
+    if (draftConfig.startAsGame !== undefined) {
+      return (
+        <MenuItem
+          title="RPG is staged — it turns on with your first message. Click to turn it off."
+          onClick={(): void => setDraftStartAsGame(draftKey, undefined)}
+        >
           <Icon icon={Swords} size="sm" />
-          Start a game
-        </MenuSubmenuTrigger>
-        <MenuPopup>
-          <MenuItem onClick={(): void => (chatId === undefined ? undefined : startGame.mutate({ chatId, mode: "lite" }))}>Freeform story</MenuItem>
-          <MenuItem onClick={(): void => (chatId === undefined ? undefined : startGame.mutate({ chatId, mode: "lite", profile: RPG_PROFILE_D20 }))}>
-            D20 adventure
-          </MenuItem>
-        </MenuPopup>
-      </MenuSubmenuRoot>
+          {RPG_OVERLAY_OFF_LABEL}
+        </MenuItem>
+      );
+    }
+    return <TurnOnRpgSubmenu onPick={(profile): void => setDraftStartAsGame(draftKey, profile === "d20" ? { profile: RPG_PROFILE_D20 } : {})} />;
+  }
+  if (chatId === undefined) {
+    return null; // a landing/keyless surface — nothing to toggle against
+  }
+
+  const pointer = detail?.rpg ?? null;
+  if (pointer === null) {
+    // First-ever enable on a committed chat — the profile pick, then createGame.
+    return (
+      <TurnOnRpgSubmenu onPick={(profile): void => startGame.mutate({ chatId, mode: "lite", ...(profile === "d20" ? { profile: RPG_PROFILE_D20 } : {}) })} />
     );
   }
   const engaged = isRpgEngaged(pointer);
+  const label = engaged ? RPG_OVERLAY_OFF_LABEL : RPG_OVERLAY_ON_LABEL;
   return (
     <MenuItem
-      disabled={disabled}
-      title={engaged ? "Keeps the game's state — turn it back on anytime." : "Restores the game exactly as you left it."}
-      onClick={(): void => (chatId === undefined ? undefined : setEngaged.mutate({ chatId, patch: { engaged: !engaged } }))}
+      title={engaged ? "Turns the RPG overlay off — your sheets, scene, and quests are kept." : "Turns the RPG overlay back on — everything is as you left it."}
+      onClick={(): void => setEngaged.mutate({ chatId, patch: { engaged: !engaged } })}
     >
       <Icon icon={Swords} size="sm" />
-      {engaged ? "Turn off the game" : "Turn the game back on"}
+      {label}
     </MenuItem>
   );
 }
@@ -114,9 +152,11 @@ export interface ChatOptionsMenuProps {
   readonly title: string | null;
   /** Seeds "New chat with same cast" and the per-character gallery entries. */
   readonly characters: readonly ChatOptionsCastMember[];
+  /** The DRAFT's config key (#40 — the RPG-overlay toggle stages its pre-send intent there). */
+  readonly draftKey?: string | undefined;
 }
 
-export function ChatOptionsMenu({ chatId, committed = true, title, characters }: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, committed = true, title, characters, draftKey }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -205,8 +245,8 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters }:
             </MenuPopup>
           </MenuSubmenuRoot>
         ) : null}
-        {/* The #40 GAME front door — start / pause / resume rides here (where New chat lives). */}
-        <GameMenuSection chatId={chatId} committed={committed} reason={draftReason} />
+        {/* The #40 RPG-overlay toggle — on/off at ANY time, draft included (where New chat lives). */}
+        <GameMenuSection chatId={chatId} committed={committed} draftKey={draftKey} />
 
         {/* #41 consolidation — Continue/Regenerate/Impersonate moved to the composer WAND (the
             guided-actions home; composer text optional there). The ⋯ menu keeps only actions with no

@@ -101,6 +101,7 @@ export {
   setDraftInjections,
   setDraftRoomOverrides,
   setDraftRosterOverride,
+  setDraftStartAsGame,
   useDraftConfig,
 } from "./draft-config-store";
 export {

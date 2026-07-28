@@ -17,6 +17,7 @@ import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
 import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnConnection } from "../../chat";
 import type { RpgContext } from "../contract/service";
+import { mintLiteGame } from "../game-mint";
 import { findGameByChat } from "../persistence/games";
 import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots";
 import { flushTurn } from "./flush";
@@ -92,6 +93,16 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
   }
 
   return {
+    // #40 DRAFT-TIME birth (`chat.startChat` carried `startAsGame`): mint the lite game for the freshly
+    // created chat — the startChat caller IS the just-minted host (chat's verb is the authority gate), and
+    // the mint runs BEFORE the opening turn so turn 1's gather already sees the game. Idempotent belt: an
+    // existing game (a double-fired commit) is a no-op, never a duplicate-row throw mid-creation.
+    startGame: async (chatId, params): Promise<void> => {
+      if (await findGameByChat(ctx.db, chatId)) {
+        return;
+      }
+      await mintLiteGame(ctx, { chatId, profile: params.profile });
+    },
     resolvePresetOverride,
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
     // (reliable / readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
