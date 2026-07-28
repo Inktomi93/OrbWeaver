@@ -5,6 +5,8 @@
 
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import type { MacroRun } from "@orb/kit/macro";
+import { scanMacroRuns } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { deriveZones } from "./derive-zones";
 import { MARKER_COPY } from "./marker-copy";
@@ -17,32 +19,15 @@ function isTemplatedMarker(marker: string): marker is keyof typeof DEFAULT_MARKE
   return marker in DEFAULT_MARKER_TEMPLATES;
 }
 
-/** One inline token of a section's display text: literal prose, or a `{{macro}}` reference (chipped). */
-export interface MacroToken {
-  readonly kind: "text" | "macro";
-  /** For `text` — the literal run; for `macro` — the inner name (without the `{{ }}`). */
-  readonly value: string;
-}
+// One inline token of a section's display text is a `MacroRun` (the kit macro parser's display projection —
+// literal prose or a `{{macro}}` reference, the ONE grammar family, escape rule included). No local alias:
+// the type home is @orb/kit/macro (§7.4).
 
-const MACRO_PATTERN = /\{\{\s*([^{}]+?)\s*\}\}/g;
-
-/** Split a string into text + `{{macro}}` tokens — DISPLAY ONLY (no resolution). Empty runs are dropped
- *  so a string that is exactly one macro yields a single `macro` token, not empty text either side. */
-export function splitMacroTokens(text: string): readonly MacroToken[] {
-  const tokens: MacroToken[] = [];
-  let lastIndex = 0;
-  for (const match of text.matchAll(MACRO_PATTERN)) {
-    const start = match.index;
-    if (start > lastIndex) {
-      tokens.push({ kind: "text", value: text.slice(lastIndex, start) });
-    }
-    tokens.push({ kind: "macro", value: (match[1] ?? "").trim() });
-    lastIndex = start + match[0].length;
-  }
-  if (lastIndex < text.length) {
-    tokens.push({ kind: "text", value: text.slice(lastIndex) });
-  }
-  return tokens;
+/** Split a string into text + `{{macro}}` tokens — DISPLAY ONLY (no resolution). Delegates to the real kit
+ *  parser's escape-aware scan so `\{{char}}` chips as LITERAL text (not a live macro), killing the second
+ *  tokenizer that drifted from the engine. Empty runs are dropped so a one-macro string yields one token. */
+export function splitMacroTokens(text: string): readonly MacroRun[] {
+  return scanMacroRuns(text);
 }
 
 /** A preview block — one displayed section (the source `section` carries id/role for click-through). */
@@ -51,7 +36,7 @@ export interface PreviewBlock {
   /** The human name (marker copy for markers; the author's name / a neutral label for a literal). */
   readonly name: string;
   /** The display text tokens ( `undefined` for a plain marker that contributes no author text). */
-  readonly tokens: readonly MacroToken[] | undefined;
+  readonly tokens: readonly MacroRun[] | undefined;
   /** A one-line "what this contributes" hint for a plain marker (no author text of its own). */
   readonly plainHint: string | undefined;
 }
@@ -84,7 +69,7 @@ export interface AssembledPreview {
 /** The display text a section contributes (literal content · templated `template ?? default`). Plain
  *  markers return `undefined` (no author text — the caller shows a hint instead). An empty custom
  *  template ("silent") returns an empty-token list, distinct from `undefined`. */
-function displayTokens(section: PromptSection): readonly MacroToken[] | undefined {
+function displayTokens(section: PromptSection): readonly MacroRun[] | undefined {
   if (section.type === "literal") {
     return splitMacroTokens(section.content);
   }

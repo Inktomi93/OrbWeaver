@@ -19,7 +19,7 @@ import { discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
-import { env } from "#foundation/env";
+import { enginesPostureInput, env, postureManages, postureRegistersBackend, resolveEnginesPosture } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
@@ -129,11 +129,13 @@ export function createLifecycle(): Lifecycle {
     }
     const ownerHandle = handles[0] ?? env.DEFAULT_USER_HANDLE;
 
-    // The one GPU/vLLM-availability fact: probe the host once. VLLM_DISABLED is a force-off override;
-    // effective disabled = forced OR no GPU.
+    // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
+    // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` OR no GPU ⇒
+    // the backend isn't registered and no supervisor runs (effective "disabled" for the rest of compose).
     const gpuPresent = detectGpu();
-    const vllmDisabled = env.VLLM_DISABLED || !gpuPresent;
-    log.info({ gpuPresent, vllmDisabled }, "boot: gpu-detect → effective vLLM availability");
+    const posture = resolveEnginesPosture(enginesPostureInput(), (msg) => log.warn({ deprecation: true }, `boot: ${msg}`));
+    const vllmDisabled = !(postureRegistersBackend(posture) && gpuPresent);
+    log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
     // reclaim (wipes this replica's own orphaned chat_locks).
@@ -150,6 +152,7 @@ export function createLifecycle(): Lifecycle {
       ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
+      vllmManages: postureManages(posture),
       repoRoot: process.cwd(),
       holder,
     });

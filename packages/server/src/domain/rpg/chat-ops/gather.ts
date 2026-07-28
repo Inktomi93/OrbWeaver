@@ -18,10 +18,15 @@
 // game's `extractionMode` by the integration op) — the gather reuses its verdict, never re-resolving.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import { actorRefKey } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../contract/params";
 import type { RpgContext, RpgGameRow } from "../contract/service";
+import { snapshotRowToState } from "../contract/service";
 import { findGameByChat } from "../persistence/games";
+import { resolveTurnSnapshotPair } from "../persistence/snapshots";
+import { defaultSnapshotState } from "../substrate/default-state";
 import { buildLiteReminder } from "../substrate/reminder";
 import { buildTrackerView } from "./tracker-view";
 
@@ -40,10 +45,33 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
 
   const trackersReadOnly = await ctx.resolveTrackersReadOnly(chatId);
   const view = await buildTrackerView(ctx, game, trackersReadOnly);
+  // The DELTA BLOCK's second ladder read (§2.7): the prev→current snapshot PAIR on the selected lineage. `cur`
+  // is the SAME resolution-ladder head the tracker view projects from (a swipe re-selects both ends together —
+  // swipe-consistent by construction); `prev` is the snapshot one committed beat back (null on the first
+  // snapshot → the delta's first-state arm). A turnless game (no rows) has no `cur` row — the view synthesized
+  // the born default, so the reminder's `curSnapshot` mirrors it (`defaultSnapshotState`) with a null prev.
+  const { cur, prev } = await resolveTurnSnapshotPair(ctx.db, { id: game.id, chatId });
+  const curSnapshot: RpgSnapshotState = cur !== undefined ? snapshotRowToState(cur) : defaultSnapshotState();
+  const prevSnapshot: RpgSnapshotState | null = prev !== undefined ? snapshotRowToState(prev) : null;
+  // The delta's roster-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name roster
+  // actors ("Kael HP 12→16", not "character HP 12→16"). Resolved HERE (the gather has `ctx.resolveRoster` reach —
+  // the same source `buildTrackerView` reads) and handed to the PURE delta as data (no I/O in the registry).
+  const roster = await ctx.resolveRoster(chatId);
+  const rosterNames: Record<string, string> = {};
+  for (const entry of roster) {
+    rosterNames[actorRefKey(entry.actorRef)] = entry.name;
+  }
   // The character turn is tool-less prose in every mode — the reminder injects state as FLAVOR only (no
   // tool-update guidance; the char turn is NEVER asked to call a tool, the dedicated post-commit state round
   // does the writing — its checklist prompt is `toolRoundSystem`, entry/compose/rpg.ts).
-  const reminder = buildLiteReminder({ view, steeringNote: game.config.lite.steeringNote });
+  const reminder = buildLiteReminder({
+    view,
+    steeringNote: game.config.lite.steeringNote,
+    curSnapshot,
+    prevSnapshot,
+    relationshipHints: game.config.features.relationshipHints,
+    rosterNames,
+  });
 
   const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: reminder };
   return { macros: {}, injections: [injection], tools: [] };

@@ -112,6 +112,9 @@ export interface ServicesDeps {
   readonly stProfileDir?: string;
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
+  /** The fleet MANAGER posture (adopt-or-start) — the supervisor triggers spawns + owns auto-sleep; adopt-only
+   *  adopts but never spawns. Absent ⇒ manager default. Derived from ENGINES_POSTURE at boot (lifecycle.ts). */
+  readonly vllmManages?: boolean;
   readonly repoRoot?: string;
   readonly providerSeams?: Partial<BackendRegistryDeps>;
   /** This replica's stable lock-holder tag — must match the boot reclaim's match key. */
@@ -226,6 +229,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
     vllmDisabled: deps.vllmDisabled,
+    ...(deps.vllmManages !== undefined ? { vllmManages: deps.vllmManages } : {}),
     vllmConcurrency: {
       embed: resolved.vllmConcurrency.embed,
       summarize: resolved.vllmConcurrency.summarize,

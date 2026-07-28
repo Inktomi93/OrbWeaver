@@ -19,9 +19,195 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
+## ═══ ▶▶▶ QUIESCE GATE — 2026-07-27 (drive to the batch commit) ═══
+**The whole parity-plus foundation + macro engine + security boundary + engine tooling is BUILT + per-wave
+VERIFIED, all uncommitted (159 dirty files). Driving to THE COMMIT.** Whole-tree `pnpm check` run 1 = RED,
+5 stages (the classic cross-lane cleanup the whole-tree gate exists to force): lint:eslint (8 tsdoc/cond) ·
+types:graph (6 test fixtures missing new required fields relationship/viewerIsHost) · structure:full (27:
+suppressions-baseline-regen · engine-url test-presence · render-error-via-battery · no-inline-types moves ·
+no-test-fabrication · single-replica allowlist · dialog-composite) · deps:knip (ss/ps binaries) · docs:format
+(FIXED by orch). **✅ GATE-FIX GREEN (executor `ab77252fe2daea0c7`, `pnpm check` ok:true/0-failed/12 stages):** fixed 8
+eslint (tsdoc + 1 redundant-cond) · types:graph (the rpg wave shipped FIXTURE DEBT — features/userMacros/
+level/castFieldKeys missing on fixtures, all added) · knip (ss/ps ignoreBinaries + a module-local const) ·
+structure 27 (suppressions baseline regen +6 all-cited · engine-url mirror test · no-inline-types→
+domain/rpg/contract/delta.ts + kit moves · no-test-fabrication FABRICATION-OK · single-replica annotations
+· render-error KEPT RpgErrorState + cited allowlist [overrode orch lean: QueryErrorState has NO role=alert,
+reuse would REGRESS the side-eye a11y fix — verified both ends] · dialog→FormDialog). **🔄 FULL BATTERY
+RUNNING (bg; :8788 free, engines up-harmless). NEXT on green: THE BATCH COMMIT (+ D110 mint) → supervised
+engine pass (auto-sleep/wake).** Engines up 8701/2/3; dev
+stack killed to free :8788 for the battery.
+
 ## ═══ ▶▶ SESSION STATE — 2026-07-27 EOD (READ THIS FIRST; supersedes the layered W4 blocks below) ═══
 
-**W4 IS AT THE COMMIT GATE — GREEN.** The rpg-lite loop WORKS end-to-end in BOTH modes on the local
+**✅✅✅ W4 IS COMMITTED — `fc85f1c0`** (main, ahead origin 31, NEVER pushed; a pre-commit hook re-ran the
+full static gate = all 12 stages green, so the commit is doubly-verified). vitest 7711/0 · CT 1465/0/1-flaky
+(the known code-editor CM6 flake). The rpg-lite loop is PROVEN live end-to-end in both modes. W4 DONE.
+
+**POST-COMMIT STATE (agents launched from the pre-compaction brain, 2026-07-27):**
+- **PARITY-PLUS SPEC v2.1 — ✅ FULLY RATIFIED, ALL 25 COVER ITEMS (owner 2026-07-27)** (`reports/
+  parity-plus-program-spec.md`, ~25.9k words) — marinara audit folded (D1 fence-robustness→§3.2.1+graft#V10;
+  D3 typed choice-blocks+random-pick→§12A.5; D2 strict-author/lenient-render→§12A.3; D5 memo-latch; D6
+  idle_duration; D4/D7 skipped). The audit VALIDATED our visibility matrix (marinara's 3 strip-variants =
+  our {surface×wire} planes, convergent). Final rulings: #17-25 all "sure"; #18 (permanent grammar — flags
+  `! ? ~ > / #`, `{{#name}}…{{/name}}` REPLACED by universal `{{name::args}}content{{/name}}`, one-time
+  seed find-replace) ratified after the argued explanation; #20 clarified (user macros don't exist yet —
+  preset/game-config homing REJECTS ST's global-runtime registry, consistent-with-architecture). **BUILD STATE (2026-07-27
+  evening): ✅ P0 delta block DONE + verifier-CONFIRMED (197/197; swipe-consistency proven by real
+  variant-flip; heal belt-and-suspenders) — widgets set-delta gap + roster-names folded into P1.
+  ✅ MG grammar DONE (Fable, 212/212: universal blocks, MACRO_FLAG_DEFS one-home, determinism property
+  pinned, migration CLI golden + live-drilled; behavior flips pinned: {{~x}}/{{!x}}/{{#x}} now resolve,
+  unclosed-{{#x}} = flagged inline call; no live old-form content existed) — **✅ verifier CONFIRMED
+  all 8 claims** (own-run 212/212; extended flag-char sweep {{~/{{!/{{>/{{? = ZERO live-content hits;
+  parse never throws under brace-spam/nested-comments/1000-unclosed). GRAMMAR LOCKED. **🔄 ME (M2 lazy
+  contract + `!`/`?` semantics + M3 typed args) DISPATCHED (Fable exec `affd5648f8890a219` — consumes the
+  trimContent/MACRO_FLAG_DEFS forward-seams, clearing the knip reds properly).**
+  ✅ P1 DATA PLANES LANDED + verifier-CONFIRMED all 7 (Opus `a67125e59f2cdc6b8`; 283/283 reproduced;
+  relationship enum+custom w/ merge-by-key + built-in-clears-label + server-derived beats; LEVEL proven
+  hand-only by SCHEMA-STRING ABSENCE [[rpg-writable-field-coupled-sites]]; cast-fields enum-exact via
+  nested castFieldKeys; all four fold-ins in [widgets set-delta · rosterNames DeltaContext · calendar-
+  agnostic ambient · P0-seam registration]; DeltaContext now REQUIRED — the 2-arg degradation gap closed).
+  **side-eye running** on the live badges/meters/Lv surfaces (snaps: reports/snaps/p1-scene.png,
+  p1-sheet.png). **OWNER RULINGS FOLDED: spec §4.8 MINTED (v2.2 fold) — the LENIENT-RENDER
+  raw-HTML fallback**: naked-HTML block ≥3 lines (robustness-walker-parsed, never inside a md code fence)
+  wraps as an IMPLICIT card (derived title, origin:"lenient", same sandbox/stub/toggles) — "dumb models
+  being dumb models, shit works"; P4 item, negative corpus mandatory. ✅ ME LANDED (Fable `affd5648f8890a219`, 233/233):
+  `!`/`?` LIVE (arg-axis only — flipping body delivery would fire unpicked branches, argued+pinned;
+  `!` wins conflicts; `?` on lazy-unaware = raw-byte passthrough, pinned), `ctx.resolve` per-call handle,
+  typed args (ONE violation core `checkMacroArgs`, optional-suffix defaults, body-satisfies-required,
+  strict=""-degrade / lenient=warn, never-throw), lazy-path budget bombs, determinism pins extended to
+  op-log equality across flag overrides; trimContent + MACRO_FLAG_DEFS now PROD-CONSUMED (knip clears
+  naturally). **✅ verifier CONFIRMED all 8 + closed every adversarial angle** (op-log symmetric; the
+  `?`-smuggle class structurally closed — foldVarOps stores raw + never re-evaluates; no depth-guard
+  escape; no metadata aliasing). **🔄 MU DISPATCHED (Fable `a7b7ac262f36b3609` — M5 user macros in preset/game
+  config [owner #20] + the #24 typed inputs incl. swipe-safe random-pick + the authoring surface + the
+  macro-browser consumer; DECOMPOSED: per-turn input-VALUE threading through domain/chat = a named
+  post-P2 follow-up stint, P2 owns that territory now).** ✅ **P2 LANDED (Fable `a962a5cf19f5b7ff2`; 288 targeted +
+  full chat-domain sweep 1451/1451 green): ONE grammar family (hidden tags + :::fences on the §3.2.1
+  walker; allowlist-strip; §4.8 detector shipped PURE+opt-in `lenientHtml` default-OFF); render filter +
+  wire arms (`cardWireStub` + `cardKeepLastX` seam, adjacent-part merge byte-compat); MEMBER-STRIP at 4
+  enforcement points (read.ts:340/629/652 + trpc/chat.ts:576 via member-visibility.ts — payload-level
+  pins); §3.9 pins as tests; registries HOME IN KIT not contracts (argued D54 deviation, headers carry
+  WHY). FOUND+FIXED a spec-missed LEAK SINK: compaction summarized RAW bodies → card blobs + hidden
+  truths would fold into the member-peekable compactSummary → `projectBodyForSummary` at compaction.ts:170
+  (trade named: covered lies drop from summary memory — fail-closed; security review ratifies).
+  ⚠ FLAGS FOR SECURITY-EXECUTOR (queued): (1) LIVE TOKEN DELTAS + stream-event replay leak hidden bytes
+  to members MID-STREAM (vanish at commit) — per-subscriber stream-scrubber = a real design fork;
+  (2) memory digest/segment builds likely read raw bodies (same class as the compaction fix — policy
+  ruling needed); (3) stripChatEventForMember is a LISTED set (VIEW_EVENT_TYPES) — future view-carrying
+  bus members must join it (payload pins catch, tsc doesn't). Residual: choices/card-title renders have
+  unit pins only — side-eye when P4/P5 put real content on screen. Lesson: tsdoc bans braces/backticks
+  in /** */ — plane vocab as show/full.**
+  ✅ **MU LANDED (post-resume; 389 kit tests + contracts pins + CT, all 5 packages tsc-clean):**
+  user-macros.ts (per-render registry compose, REFUSE-not-shadow collisions, derived volatility w/
+  fixpoint through user→user refs); #24 typed inputs + swipe-safe random-pick (frozen-draw replay);
+  two-home schema (preset + rpg config, drift-guarded); Macros tab + editor dialog (EntryListEditor
+  idiom) + THE MACRO-BROWSER CONSUMER LIVE (queryMacros + MACRO_FLAG_DEFS + attribution — ME's deferred
+  item closed); neutralizeMacros/ZWSP re-homed guided→macro/content (guided re-exports, splice defense
+  is a macro-engine concern now). **THE FOLLOW-UP THREADING SPEC (post-security-exec, domain/chat):**
+  ForeignInputsOp += userMacroValues · frozenDraws record beside freeze-at-commit (turn.ts:710 seam) ·
+  assembly/macros.ts composes registerUserMacros per turn — PURE WIRING, shapes all exported. **✅
+  verifier CONFIRMED all 8** (ZWSP splice-neutralization proven at the injection boundary; A↔B volatility
+  cycle terminates; per-render registry no-leak; test count 380 not 389 — cosmetic). MACRO WORKSTREAM
+  MG→ME→MU FULLY BUILT + TRIPLE-VERIFIED. ✅ **P1 SIDE-EYE = SHIP-WITH-FIXES** (surfaces well-built:
+  contrast 12-15:1, honest-empty, tracker-kit a11y holds live, host-gating=affordance-absence). 3
+  findings → 🔄 FIX STINT DISPATCHED (executor `<tbl>`, disjoint lane compose/rpg.ts + tracker-blocks +
+  features/rpg): FIX1 [LOAD-BEARING] game READ must degrade to trackersReadOnly=true not 500 when chat
+  backend unresolvable/incoherent (resolveChat throws, escaping its own readonly contract — compose/rpg.ts
+  ~558; verifier after) · FIX2 long custom rel-label truncates name to 0px (badge max-w+truncate, name
+  shrink-0) · FIX3 error region consolidate+role=alert+44px retry. **P3 34px tabs = PRE-EXISTING panel
+  chrome → facelift ledger, not P1.** ✅ **P1 FIXES LANDED (executor `a6d6510a0b346db34`):** FIX1 catches
+  EXACTLY `ConnectionRoutingError` + `AgentModelHealError` (both #domain/connection DomainOperationError
+  subclasses) → trackersReadOnly=true, RETHROWS everything else incl. transient catalog 503s (proven by
+  a plain-Error-propagates test); 16 int tests green. FIX2 badge min-w-0/max-w/truncate + name shrink-0
+  (CT: name width>0 w/ 40-char label). FIX3 new rpg-error-state.tsx (ONE role=alert, real Button retry,
+  header band collapses silently). **SHARP CATCH: 44px is a COARSE-pointer contract — desktop `pointer:fine`
+  compresses to 32px by design; side-eye measured on fine-pointer where ALL controls are sub-44; the real
+  defect was bare-link-not-Button, fixed. CT asserts the floor under hasTouch (the honest home).** ✅
+  **FIX1 verifier CONFIRMED** — full resolveChat throw-surface enumerated; degrades EXACTLY the 2
+  stale-routing classes (both thrown pre-model-call, can't mask inference fails), rethrows all else incl.
+  assertNever type-violations; identity-match propagate test. P1 FIX STINT CLOSED. **~~PRODUCT DOORWAY~~ MOOT (owner-corrected 2026-07-27):** the
+  missing-key degrade question is a NON-SCENARIO — connections are GLOBAL PER-USAGE-TYPE (per-role, with
+  a fallback to the default global chat connection), games carry NO keys/connections of their own. A
+  missing key breaks EVERY chat, not a game — nothing game-specific to degrade. FIX1's rethrow of
+  DomainNoCredentialError→FAILED_PRECONDITION stands correct; doorway deleted.
+  **✅ DEV-STACK HEAL DONE (owner: "just kill the processes and handle it"):** the live DB
+  (data/orbweaver.db, owner 01kyfdy4b0…) still had the RETIRED `agent-sdk×vllm` (side-eye's UI flip never
+  reached THIS db) → DB-direct `json_set` `$.routing.roleDefaults.chat` = `{chat-completions, vllm}`,
+  schema_version untouched (6 = no migrate reset), verified readback. Server-down made the DB write the
+  CLEAN path (same-version blob edit isn't migrated away — the footgun was theoretical). NOTE: for the
+  OWNER an UNSET chat falls back to `agent-sdk` (resolve-role.ts:45), NOT vllm — so an explicit
+  chat-completions×vllm override IS required, clearing wouldn't do it. Canonical local mode restored at
+  the data layer; FIX1 covers it at the code layer.
+  **DESIGN DOORWAY (owner musing 2026-07-27, NOT a work order — "im not saying do something"):** the
+  owner-unset chat fallback = `agent-sdk` (needs Claude), non-owner = DEFAULT_LOCAL_SOURCE (needs vllm) — a
+  user with NEITHER falls back to something absent. Fork for later: (a) honest `none`/visible-refusal ("no
+  chat backend configured" — the plan-for-small-hardware posture); or (b) promote `local-light` (today
+  CANON-BARRED from chat turns, embed/rerank only) to a chat-capable always-available last-resort.
+  Recorded, not built. ▶ 🔄 P2 SECURITY REVIEW DISPATCHED (security-executor
+  `a7a75dd8d2cf94f0d`): Part 1 member-strip coverage hunt (all body-serving surfaces + the D64
+  host-handoff edge + VIEW_EVENT_TYPES completeness) · Part 2 ratify the compaction fail-closed trade ·
+  Part 3 BUILD the mid-stream per-subscriber scrub (fail-closed, member deltas never carry hidden bytes
+  at any prefix) · Part 4 assess memory digests (report-only). Its lane = domain/chat + transport +
+  kit/content (P2 vacated); MU's lane untouched.**
+  ✅ **P2 SECURITY REVIEW DONE (`a7a75dd8d2cf94f0d`): 4 member-strip points sound + FOUND & CLOSED 4 MORE
+  leaks** (TurnOutcome.messages · undo/revertContinue returns · durable stream-replay log) + BUILT the
+  mid-stream scrubber (conservative hold-back, fail-closed every prefix, DROP held tail at end, cap 4096)
+  wired live-SSE + durable-replay + CAUGHT&FIXED its own infinite-loop DoS · VIEW_EVENT_TYPES now
+  compile-pinned bidirectional (proven to bite) · compaction fail-closed RATIFIED (single core, complete)
+  · memory-digest CLOSED (room-plane only). **🔄 FRESH SECURITY-EXECUTOR VERIFY (`ae065f1c0cfe801ec`,
+  security-dominant → 2nd security-exec NOT stickler-on-Fable): 5th-leak hunt across ALL routers/verbs ·
+  independent scrubber adversarial audit · host-gets-everything proof · pin-bites proof · reasoning
+  reachability map.** **✅ OWNER RULING (reasoning×lies): REASONING CHANNEL GOES HOST-ONLY when a game has
+  DECEPTION ACTIVE — members see NO reasoning for that game (clean boundary, not per-tag scrub); games
+  w/o deception unchanged. FOLDED into spec §3.6 as a P3 BUILD REQ (game-conditional strip at every
+  reasoning-carrying member surface, gate = deception-active AND viewer!==host). P2 body-strip shipped
+  reasoning-unstripped by design; P3 adds this gate.**
+  ✅✅ **FRESH SECURITY-EXEC (`ae065f1c0cfe801ec`) FOUND 2 MORE LEAKS the 1st pass missed — the double
+  security pass earned its keep:** **5th (HIGH, default-config): forkChat LAUNDERING** — a non-host member
+  forks → becomes HOST of the copy → copy carried lie/ofilter truths verbatim → host-path listMessages on
+  the fork reads all secrets. FIXED (member-forker copy stripHiddenSpans, incl. the continue-snapshot body
+  twins; host verbatim; real-libSQL tests). **6th (MED): scrubber `<`-in-attr-value** — `<lie truth="<..."`
+  split at the INNER `<`, leaked the prefix. FIXED (quote-aware whole-tag scanner + 14-payload adversarial
+  driver, zero secret bytes any prefix). Compile-pin bites both ways PROVEN; hosts-get-everything PROVEN.
+  Full body-serving-surface enumeration delivered (~17 surfaces classified). **🔄 BOUNDARY-COMPLETION
+  DISPATCHED (warm same exec): close the 3 SECONDARY planes it flagged (leak the NEW hidden content once P3
+  ships) — loadPluginMessages [D106-F1 doctrine: thread the already-resolved role + strip] · extractQuiet
+  [projectBodyForSummary like the compaction sink] · discovery message-reads [firm reachability verdict:
+  strip or closed-by-construction]. Building the FULL boundary now beats pre-P3 landmines.** SIX+ leaks
+  found+closed across the boundary — verification IS the moat, textbook. THREE lanes again (ME=kit/macro
+  · P1=domain/rpg+features/rpg · P2=chat-content) — disjoint. **OWNER RULINGS FOLDED (2026-07-27 cont.):
+  §4.7 VIEW-RAW toggle on every card (in-lore HTML renders, toggle shows source) · §4.8 ```html/```svg
+  LANGUAGE-TAGGED fences = implicit-card candidates (element-majority + immersiveHtml gate; generic
+  fences stay code, view-raw = the highlighted block) · §4.5 FORMING-CARD placeholder ("pretty when it's
+  building" — skeleton/shimmer chip at open-fence, chip→card cut at commit, side-eye surface) · §4.5
+  wiring-reality note (ghost arm projection-free = ST-flicker structurally impossible; P4 hygiene:
+  memoize toContentBlocks).** Markdown seal verified first-hand: ``` = Shiki-highlighted code blocks +
+  20k perf guard; single-backtick inline code; KaTeX both tiers; Mermaid trusted-only. NEXT: P1-verify →
+  side-eye; ME-verify; P2 → security-executor (member-strip) + stickler; then QUIESCE → whole-tree
+  check+battery → supervised live pass (auto-sleep/wake loop) → THE BATCH COMMIT.**
+- **✅ ENGINE FLEET TOOLING + SLEEP MODE — ALL 8 STEPS DONE, LIVE-PROVEN (Opus exec `ab6b1ef42231f8cab`,
+  240 tests, fleet left UP-healthy 42/38°C).** Landed: sleep argv/env (`--enable-sleep-mode` +
+  `VLLM_SERVER_DEV_MODE=1`) · wake-budget (holder-naming refusals, rendered from REAL nvidia-smi) ·
+  reaper (cwd-equality, proven both kill paths, zero orphans) · `ENGINES_POSTURE off|adopt-only|
+  adopt-or-start` LIVE end-to-end (adopt-only fail-fast real) · sleeping/sleeping-held + `is_sleeping`
+  probe · bash front door `engines:start/stop/status/sleep/wake` (engines-ctl.ts, setsid+pidfile,
+  hold marker; per-engine log fds survive launcher death) · OWNERSHIP INVERSION (spawnOwned pipe-watchdog
+  DELETED; supervisor spawns via the detached verb; detached fleet survived every shell exit) · auto-sleep
+  timer + pre-dispatch `ensureAwake` wake gate (unit-proven; live loop needs the app server) · step-8
+  remainder + the owner's new argv flags (all 8 verified to EXIST in installed 0.22.1; X-Request-Id live).
+  **LIVE NUMBERS (step-9 collapsed into build): sleep frees ~34GiB/card (36.4→2.5 / 37.0→2.2); wake ≈3.15s
+  whole-verb; `/health`=200 WHILE ASLEEP confirmed all 3 (the probe arm earns its keep).** Memory banked:
+  [[vllm-sleep-fleet-facts]]. **DIVERGENCE: `--performance-mode` DOES NOT EXIST in installed vLLM 0.22.1**
+  (newer-docs drift; orch relayed it, exec caught it) — thermal A/B BLOCKED on a vLLM upgrade; idle
+  baseline 35/31°C captured. **RESIDUAL for the supervised pass (post-quiesce, new server code must boot):
+  (1) live auto-sleep→auto-wake loop through a real chat turn + request-during-sleep silent-queue
+  confirmation; (2) X-Request-Id → wire-capture/provider-log threading (flag live, threading queued).**
+  **QUEUED WART (exec-flagged, D107-spirit): supervisor auto-respawn rebuilds argv from the ENV FLOOR —
+  an admin `engineLaunch` override is NOT threaded, so a crash-respawn can silently differ from a manual
+  admin-configured start; fix = config handoff to the detached verb.** FACT: `knob-wire-coverage` is
+  settings-contract-scoped ONLY — raw env floors are discipline, not gate members.
+- **MARINARA AUDIT DONE** (`reports/marinara-engine-parser-macro-audit.md`) — folded into v2.1.
+- **W4 IS AT THE COMMIT GATE — GREEN.** The rpg-lite loop WORKS end-to-end in BOTH modes on the local
 default (proven live, 5 observation rounds → round-5 both-pass: reliable 3/3 flush, race closed, all
 failure logs zero). Whole-tree `pnpm check` GREEN (0 failed); **full battery RUNNING as the final gate**
 (prior clean run: vitest 7691/0 · CT 1466/0 · 0 flakes). On battery-green → **THE W4 COMMIT** (server +
@@ -39,11 +225,13 @@ the char turn's ALREADY-RESOLVED connection + enforced consent, no second seam) 
 indicator · the vLLM config `36221388` + GPU util 0.28→0.55 · boot-seed catch · the build-argv
 thinking-swap-playbook comment + CLAUDE_CODE_ATTRIBUTION_HEADER pin · @live backend-matrix + rpg-lite-loop specs.
 
-**TERMINOLOGY DEBT (owner-flagged 2026-07-27):** code comments say "narration turn" for what is really THE
-CHARACTER TURN (the {{char}} prose reply). There is NO narration round in lite; the word collides with group
-chat's actual narrator seat (the deferred mode-3 doorway). RENAME "narration turn" → "character turn" in the
-~8 comment sites (reminder.ts, contract/service.ts, chat-ops/flush.ts:30/52/137, chat-ops/index.ts:75,
-compose/rpg.ts:15) — comment-only, fold into the W4 commit or an immediate follow-up.
+**✅ POST-COMPACT FOLLOW-UPS LANDED IN-TREE (2026-07-27, uncommitted — ride the tooling batch):**
+(1) the "narration turn"→"character turn" comment rename DONE (mech-exec: 21 sites / 10 files, comment-only,
+full-repo grep now empty, biome clean); (2) **D109 MINTED** (`Core-Path-Registry.md` — the W4 rulings: two-turn
+exchange final [amends D108's cheap arm], the F1 consent-inheritance precedent as GENERAL law, flush barrier +
+one-beat-lag indicator + reminder-delivery knob, the `structured` role split, the 6-mode canon, the strict-schema
+authoring law + ref enums, total observability) + header/range sync in registry AND Core-Laws §7 (which was
+stale even for D107/D108; next free = D110+). `d-citation-integrity` validates on the quiesced tree pre-commit.
 
 **IN-FLIGHT / QUEUED (post-commit):**
 - **PARITY-PLUS (task #15) — spec v2 RATIFIED** (`reports/parity-plus-program-spec.md`, ~23.8k words):
@@ -398,7 +586,8 @@ never ask about pushing.**
 
 - Stack UP: server :8788 · vite :5173, single-user auto-authed as the owner. **ENGINE-START AUTHORIZED
   (owner 2026-07-27: "you are authed to start the engines up") — ComfyUI GPU work done, GPU free. Use
-  `pnpm engines` (engine-only, NO DB reset — unlike `stack.sh restart`) when engines are DOWN + a live
+  `pnpm engines` (engine-only, NO DB reset — and note `stack.sh restart` ALSO does not reset the DB; the
+  only deliberate wipe is `pnpm seed:demo --fresh` — see the CORRECTED standing-fact below) when engines are DOWN + a live
   drive needs them; don't spawn a 2nd set when up; config-diff correctness is still argv-snapshot not a
   launch. [[never-run-engine-launcher-live]] SCOPE-CORRECTED — stop deferring engine starts to owner.**
   (Engines UP 2026-07-27: embed :8701 · rerank :8702 · gen :8703 = `Qwen/Qwen3-VL-8B-Instruct`; boot
@@ -602,6 +791,40 @@ Marinara has TWO modes, DEFAULT = 1-call: **`together`** (default, 1 call — pr
 - **F5 upgrade (owner "handle properly in full"):** state-round calls into ToolCallRecord/stats — was
   ruled documented-doorway for v1; UPGRADED to a committed early parity-plus wave item (real stats deltas
   + record visibility for the per-turn state rounds), unless the owner objects at spec ratification.
+- **✅ Macro-duplication consolidation DONE + orch-spot-verified (executor `aad97ec2da39acd49`, 2026-07-27; 267 macro tests green):**
+  ONE `swapIdentityMacros(text, {char,user})` in `kit/macro/content.ts` (single-pass global regex +
+  FUNCTION-replacement → no double-swap [replacements not re-scanned], no `$&`/`$$` interp [function
+  returns skip $-patterns] — BOTH hazards solved structurally, orch read the code + hazard pins myself);
+  persona macro-swap (inversion mapping) + character embed-text (name-projection) both migrated, 4-pass
+  trick + bespoke regexes deleted, behavior byte-identical (case-insensitive, no whitespace-in-braces —
+  matches originals + card canon). FIX B: `scanMacroRuns` exported from `kit/macro/parser.ts` (escape-aware
+  flat run projection) → preview-model chip tokenizer consumes it; `\{{char}}` now → literal run not chip.
+  Lane-clean (untouched kit/content · domain/chat · transport). Original detail: the audit found exactly TWO similar-but-different pairs, everything else funnels
+  through the ONE engine. (1) REAL duplication: `persona/substrate/macro-swap.ts` (4-pass regex
+  {{char}}↔{{user}} inversion) vs `character/substrate/embed-text.ts` `normalizePlaceholders` (regex
+  {{char}}/{{user}}→names) — two independent reinventions with DIFFERENT escape hazards each fenced by
+  comments; fix = ONE kit-level `swapIdentityMacros`/`replaceIdentityMacros` helper (non-parser — these
+  run outside turn context, full engine is overkill) satisfying both hazards, both sites migrate.
+  (2) `preset/prompt-assembly/preview-model.ts` display-chip tokenizer: bespoke regex with NO
+  escape-awareness (`\{{char}}` mis-chips as live macro — display-only cosmetic divergence from the real
+  grammar); fix = export an escape-aware scan from the real parser so chips are grammar-true (one
+  grammar family, kills the drift class). Both small; ONE stint after MU vacates kit/macro. NOT
+  duplicates (audited clean): guided {{person}}/{{base}} pre-splice (deliberately outside the grammar,
+  documented), MacroTextarea caret-walk (not a resolver), suggestion catalogs (data).
+- **Dev-stack chat routing is on the RETIRED agent-sdk×vllm mode** (P1 exec found createGame refusing
+  coherence; it seeded via openrouter then RESTORED the stale routing) — next owner chat on :8788 will
+  hit the intentional visible ConnectionRoutingError. HEAL at the supervised pass (or owner flips in
+  UI): chat routing → chat-completions×vllm, the canonical local mode.
+- **OR SDK hygiene stint (small, one batch — from the 2026-07 OR changelog review):** (1) bump
+  `@openrouter/sdk` past 0.13.19 → rename `client.beta.responses.send` → `client.responses.send`
+  (`runners/chat/responses.ts:390` — upstream deprecated the beta namespace, sunset will be announced);
+  (2) same stint: derive `OR_QUANTIZATIONS` (`runners/chat/shared.ts:280`) FROM the SDK's Quantization
+  enum export instead of the hand-mirrored Set (scout-audited 2026-07-27: the only BRITTLE-BY-STALENESS
+  site — a new upstream quant level is silently stripped from user routing prefs; everything else
+  SAFE — SDK inbound enums wrap unknowns, catalog refresh can't drop rows, finishReason falls back
+  "other"). Report: scout `a6050f8b3638ed94f` in-session. (+ OWNER action at a quiet boundary: install
+  the OpenRouterTeam/skills plugin — `/plugin marketplace add OpenRouterTeam/skills` → `/plugin install
+  openrouter@openrouter` — deferred by owner 2026-07-27 "later when we are quiet and settled".)
 
 - **Workloads junk-drawer exit, stages A–E — VERY LAST** (owner order stands). Design ACCEPTED:
   `reports/stickler/2026-07-25-workloads-junk-drawer-exit.md`; its two standalone product defects

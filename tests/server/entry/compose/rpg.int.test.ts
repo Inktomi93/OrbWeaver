@@ -20,6 +20,7 @@ import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contract
 import type { Db } from "@orb/db";
 import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { ChatResult } from "@orb/server/infra/providers";
@@ -34,7 +35,7 @@ import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedU
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
 
-/** The narration turn's resolved connection + consent verdict the flush threads into the state round (F1). The
+/** The character turn's resolved connection + consent verdict the flush threads into the state round (F1). The
  *  `api` selects the round's routed arm (agent-sdk → the structured CHAT path; else the `structured` dispatcher);
  *  the model is "fake-chat-model" so the spy's model assertions still match. Writer-capable (structured + tools)
  *  + consent ON so the flush's F2 gate passes and the round runs. `over` pins the F1 consent/source cases. */
@@ -207,7 +208,7 @@ function buildReliableRpgWithText(args: {
           model: req.model,
           hasResponseFormat: req.responseFormat !== undefined,
           hasToolServer: "toolServer" in req && req.toolServer !== undefined,
-          // The consent verdict the round threaded onto the request — F1: this is the narration turn's ENFORCED
+          // The consent verdict the round threaded onto the request — F1: this is the character turn's ENFORCED
           // `ownerConsented`, inherited, NOT a force-stamped `true`.
           ownerConsented: req.ownerConsented === true,
         });
@@ -394,7 +395,7 @@ function baseWithCast(): RpgSnapshotState {
     calendarDate: null,
     location: "the tavern",
     weather: null,
-    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", customFields: {} }],
+    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
     recentEvents: [],
     actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
     widgetValues: {},
@@ -518,4 +519,68 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
   // The composed chat-side host resolver (what the rpg extraction + capability verdict read) resolves the
   // role='host' participant — NOT the first-joined human. This is the repro-gone assertion.
   expect(await app.chatRpgOps.resolveHostUserId(chatId)).toBe(host);
+});
+
+// ── FIX 1: a game READ degrades to trackersReadOnly:true when the chat connection is unresolvable, never 500s ──
+/** Build an rpg over the REAL chat wiring + real db, but with a `resolveChat` that THROWS `err` — the
+ *  misconfigured-backend repro (a stale routing setting whose (api,source) pair maps to no coherent backend).
+ *  The READ-side `trackersReadOnly` pill must catch the connection-resolution error and degrade to read-only,
+ *  never let it escape as a 500. */
+function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unknown): ReturnType<typeof buildRpg> {
+  return buildRpg({
+    db,
+    now: () => FROZEN_AT,
+    rpgChatOps: app.chatRpgOps,
+    connection: {
+      resolveChat: () => Promise.reject(err),
+      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    },
+    executor: {
+      structured: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
+      runChatTurn: () => Promise.reject(new Error("unreached")),
+    },
+    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    toolUse: { register: () => undefined },
+  });
+}
+
+test("FIX 1: getGame on a game whose chat connection resolves INCOHERENTLY returns trackersReadOnly:true (READ succeeds, no 500)", async ({ app, db }) => {
+  // The exact live repro: a stale dev-stack setting resolves api=agent-sdk × source=vllm — `resolveChat` throws
+  // ConnectionRoutingError. The pill's honest-degrade contract ("an unresolvable connection is readonly by
+  // construction") must hold: the READ returns a readable game marked read-only, never a thrown 500.
+  const { chatId, hostId } = await seedHostGameChat(db, "fix1-incoherent");
+  const rpgCompose = buildRpgWithThrowingResolveChat(app, db, new ConnectionRoutingError("agent-sdk", "vllm"));
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
+  expect(game.trackersReadOnly).toBe(true);
+
+  // The tracker view READ likewise degrades (both reads share the pill) — no throw escapes.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.trackersReadOnly).toBe(true);
+});
+
+test("FIX 1: the agent-sdk model-heal failure class ALSO degrades to trackersReadOnly:true (unresolvable by construction)", async ({ app, db }) => {
+  // The sibling connection-resolution failure: an agent-sdk source that reaches the fail-loud model heal.
+  // Same contract — an unresolvable connection is readonly, not a 500.
+  const { chatId, hostId } = await seedHostGameChat(db, "fix1-heal");
+  const rpgCompose = buildRpgWithThrowingResolveChat(app, db, new AgentModelHealError("vllm"));
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
+  expect(game.trackersReadOnly).toBe(true);
+});
+
+test("FIX 1: an UNEXPECTED resolveChat failure still PROPAGATES — the catch never swallows a real bug", async ({ app, db }) => {
+  // The boundary the verifier checks: the catch is SPECIFIC to the connection-resolution error classes. A
+  // genuinely unexpected failure (a DB fault, a transient catalog gap, a programming bug) must escape so it is
+  // surfaced/root-caused, NOT silently masked as "read-only". Drive a plain Error and assert the READ throws it.
+  const { chatId, hostId } = await seedHostGameChat(db, "fix1-unexpected");
+  const boom = new Error("unexpected infra fault");
+  // Create the game through a NON-throwing build first (createGame also reads the pill — the unexpected error is
+  // scoped to the READ under test, not birth), then READ it through a build whose resolveChat throws `boom`.
+  await buildReliableRpg(app, db, "chat-completions", emptySpy()).service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  const rpgCompose = buildRpgWithThrowingResolveChat(app, db, boom);
+
+  await expect(rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId })).rejects.toBe(boom);
 });

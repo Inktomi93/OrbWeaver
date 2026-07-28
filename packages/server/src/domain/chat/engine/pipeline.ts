@@ -14,8 +14,8 @@ import type { AssembleContext, AssembledPrompt, ChatContentPart, ChatDeltaEvent,
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ContentImageRef } from "@orb/kit/content";
-import { tokenizeContent } from "@orb/kit/content";
+import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
+import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -85,6 +85,11 @@ interface RunTurnPipelineArgs {
   /** The per-chat macro name producer `toShapeCanon` resolves each history row's own macro stamps
    *  against; absent means empty maps (every row falls through to its speaker-default floor). */
   readonly historyMacroNames?: HistoryMacroNames | undefined;
+  /** The M2 keep-last-X card knob (parity-plus §3.5): the X most-recent card spans in the fitted history
+   *  ride the wire FULL; every older card collapses to the deterministic `[card: title]` stub. Absent/0 =
+   *  immediate total collapse (the argued cache/budget-honest default). Wired from the game config by the
+   *  P4 wave; the mechanism is feature-agnostic. */
+  readonly cardKeepLastX?: number | undefined;
 }
 
 /** The historyMacroNames default when a caller supplies none — every row falls through to its own
@@ -366,18 +371,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
 
-  // REQUEST — the one seam where the shaped string body becomes content-parts: tokenize embedded image
-  // refs, resolve to URLs, gated by input.vision (a non-vision model drops them + we flag the turn).
-  const visionOk = args.connection.capability.input?.vision === true;
-  const built = await Promise.all(
-    fitted.history.map(async (h) => {
-      const { parts, dropped } = await toContentParts(h.content, visionOk, args.resolveImageUrl);
-      const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
-      return { row, dropped };
-    }),
-  );
-  const history: TurnMessage[] = built.map((b) => b.row);
-  const imageDropped = built.some((b) => b.dropped);
+  // REQUEST — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
+  // content-class visibility registry): tokenize each row's spans, resolve/drop image refs by input.vision,
+  // ride hidden/choices/unknown spans VERBATIM ({wire: full} — the model keeps its own memory), and collapse
+  // card spans to the deterministic stub (except the M2 keep-last-X newest). This runs DOWNSTREAM of SHAPE
+  // (squash joins with `\n\n` before tokenization — fences/tags survive the join) and of every string-body
+  // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
+  // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
+  // uniform per backend.
+  const { history, imageDropped } = await buildWireHistory(args, fitted.history);
   const baseRequest: TurnRequest = {
     connection: args.connection,
     chatId: args.chatId,
@@ -608,27 +610,58 @@ function droppedImagePlaceholder(droppedAlts: string[]): string {
   return droppedAlts.length > 0 ? `[image: ${droppedAlts.join(", ")}]` : "[image omitted]";
 }
 
-/** Tokenizes a shaped string body into provider content-parts; image spans resolve to a URL or drop when
- *  the model lacks vision or the ref resolves to null. */
-async function toContentParts(
-  body: string,
-  visionOk: boolean,
-  resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>,
-): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
-  const resolved = await Promise.all(
-    tokenizeContent(body).map(async (span): Promise<ChatContentPart | { droppedAlt: string } | null> => {
-      if (span.kind === "text") {
-        return span.text.length > 0 ? { type: "text", text: span.text } : null;
-      }
-      if (!visionOk) {
-        return { droppedAlt: span.alt };
-      }
-      const url = await resolveImageUrl(span.ref);
-      return url === null ? { droppedAlt: span.alt } : { type: "image", url };
-    }),
-  );
+/** The per-assembly wire environment for the span→part projection (§3.5 — the WIRE plane). */
+interface WirePartsEnv {
+  readonly visionOk: boolean;
+  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
+  /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
+  readonly fullCards: ReadonlySet<ContentSpan>;
+}
+
+const NO_FULL_CARDS: ReadonlySet<ContentSpan> = new Set([]);
+
+/** The M2 keep-last-X window: the LAST X card spans across the fitted history (document order, counted from
+ *  the tail) ride the wire full; everything older stubs. Deterministic PER ASSEMBLY — the same history at a
+ *  given turn always yields the same last-X set; a card entering the stub zone as newer cards arrive is a
+ *  bounded one-time cache break per card, inherent to a sliding window (§3.5). */
+function resolveFullCards(tokenized: readonly { readonly spans: readonly ContentSpan[] }[], keepLastX: number): ReadonlySet<ContentSpan> {
+  if (keepLastX <= 0) {
+    return NO_FULL_CARDS;
+  }
+  const cards = tokenized.flatMap((t) => t.spans.filter((s) => s.kind === "card"));
+  return new Set(cards.slice(-keepLastX));
+}
+
+/** One span → its wire part (§3.5, the total dispatch over the content-class registry's WIRE plane):
+ *  `text` rides as-is; `image` = the existing drop-to-alt arm gated by vision; `hidden`/`choices`/
+ *  `unknown-directive` ride VERBATIM (wire=full — the model must remember its own lie / the true event /
+ *  its own bytes; the transcript is honest); `card` collapses to the deterministic stub unless inside the
+ *  keep-last-X window (wire=stub). */
+async function spanToWirePart(span: ContentSpan, env: WirePartsEnv): Promise<ChatContentPart | { droppedAlt: string } | null> {
+  if (span.kind === "text") {
+    return span.text.length > 0 ? { type: "text", text: span.text } : null;
+  }
+  if (span.kind === "hidden" || span.kind === "choices" || span.kind === "unknown-directive") {
+    return { type: "text", text: span.raw };
+  }
+  if (span.kind === "card") {
+    return { type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) };
+  }
+  if (!env.visionOk) {
+    return { droppedAlt: span.alt };
+  }
+  const url = await env.resolveImageUrl(span.ref);
+  return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+}
+
+/** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
+ *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
+ *  pre-registry wire for every wire=full class. */
+async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
+  const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env)));
   const parts: ChatContentPart[] = [];
   let dropped = false;
+  let mergeBlocked = false;
   const droppedAlts: string[] = [];
   for (const r of resolved) {
     if (r === null) {
@@ -636,11 +669,20 @@ async function toContentParts(
     }
     if ("droppedAlt" in r) {
       dropped = true;
+      // A drop is a part BOUNDARY (the pre-registry wire shape): text on either side of a dropped image
+      // stays two parts — only text that was truly adjacent in the body merges.
+      mergeBlocked = true;
       if (r.droppedAlt.length > 0) {
         droppedAlts.push(r.droppedAlt);
       }
       continue;
     }
+    const prev = parts.at(-1);
+    if (!mergeBlocked && r.type === "text" && prev !== undefined && prev.type === "text") {
+      parts[parts.length - 1] = { type: "text", text: prev.text + r.text };
+      continue;
+    }
+    mergeBlocked = false;
     parts.push(r);
   }
   if (parts.length === 0) {
@@ -648,4 +690,23 @@ async function toContentParts(
     parts.push({ type: "text", text: dropped ? droppedImagePlaceholder(droppedAlts) : "" });
   }
   return { parts, dropped };
+}
+
+/** The REQUEST-step history build (extracted): tokenize each fitted row ONCE, resolve the keep-last-X card
+ *  window over the whole assembly, then project every row through the ONE span→part seam. */
+async function buildWireHistory(
+  args: RunTurnPipelineArgs,
+  fittedHistory: readonly { readonly role: TurnMessage["role"]; readonly content: string; readonly name?: string | undefined }[],
+): Promise<{ history: TurnMessage[]; imageDropped: boolean }> {
+  const visionOk = args.connection.capability.input?.vision === true;
+  const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content) }));
+  const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX ?? 0) };
+  const built = await Promise.all(
+    tokenized.map(async ({ h, spans }) => {
+      const { parts, dropped } = await toContentParts(spans, env);
+      const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
+      return { row, dropped };
+    }),
+  );
+  return { history: built.map((b) => b.row), imageDropped: built.some((b) => b.dropped) };
 }

@@ -197,7 +197,7 @@ export type RpgResolveTrackersReadOnly = (chatId: ChatId) => Promise<boolean>;
 export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
 
 /** CHEAP mode's DEDICATED TOOL ROUND (owner ruling 2026-07-27) — the SIBLING of `runExtraction`, structurally
- *  symmetric: a state-only request (NOT tools on the narration turn) that reads the committed beat + base state
+ *  symmetric: a state-only request (NOT tools on the character turn) that reads the committed beat + base state
  *  and emits its writes as PARALLEL tool calls (`tool_choice:"required"` + a `no_changes` escape). The parsed
  *  calls fold to the SAME `RpgStateDelta` the flush stages + writes — the shared-plane proof (a tool round IS
  *  "the batch of tool calls the model would otherwise have made"). Same input/output as `runExtraction`; the

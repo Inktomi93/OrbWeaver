@@ -1,5 +1,6 @@
-import { validateMacroArgs } from "./metadata";
-import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroRegistry } from "./types";
+import { applyArgDefaults, checkMacroArgs, macroArgDiagnostics } from "./metadata";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroFlags, MacroHandler, MacroMetadata, MacroRegistry } from "./types";
+import { MACRO_FLAG_DEFS } from "./types";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
  *  Returns the stringified value (null/undefined → ""), or `undefined` when no key matches so
@@ -22,53 +23,107 @@ function resolveArg(arg: string, ctx: MacroContext): string {
   return arg.includes("{{") ? ctx.evaluateString(arg) : arg;
 }
 
-// Re-emit an unrecognized inline/block macro as TYPED. `node.raw` is the original source span;
-// reconstructing from parsed args normalized `{{x:one,two}}` → `{{x::one::two}}`, changing
-// passthrough bytes (review V10-10). Fallback reconstruction only for hand-built AST nodes that
-// lack `raw`. `openMarker` is "{{" for inline, "{{#" for a block open tag.
-function reconstruct(name: string, args: string[], raw: string | undefined, openMarker: string): string {
-  const argSuffix = args.length > 0 ? `::${args.join("::")}` : "";
-  return raw ?? `${openMarker}${name}${argSuffix}}}`;
+// The flag chars of a node's parsed flags, in the vocabulary's canonical order — the `raw`-less
+// reconstruction fallback only (`closing` never sits on an AST node; skip it defensively anyway).
+function flagString(flags: MacroFlags | undefined): string {
+  if (flags === undefined) {
+    return "";
+  }
+  let out = "";
+  for (const def of MACRO_FLAG_DEFS) {
+    if (def.key !== "closing" && flags[def.key] === true) {
+      out += def.char;
+    }
+  }
+  return out;
 }
 
-// Arg validation (02 §5): check the RESOLVED args against the macro's DX metadata, push diagnostics to
-// the optional sink, and — under strictArgs — signal "render empty" when there's an error. Returns true
-// when strict mode wants the call suppressed to "". No-op when the macro has no metadata or no span.
-function checkArgs(node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext, resolvedArgs: string[]): boolean {
-  const meta = registry.getMetadata(node.name);
-  if (meta === undefined || node.span === undefined) {
+// Re-emit an unrecognized inline/block-open macro as TYPED. `raw` is the original source span —
+// reconstructing from parsed args normalized `{{x:one,two}}` → `{{x::one::two}}`, changing
+// passthrough bytes (review V10-10); the raw path also carries the flag run verbatim (§12A.4).
+// Fallback reconstruction only for hand-built AST nodes that lack `raw`.
+function reconstruct(name: string, args: string[], raw: string | undefined, flags: MacroFlags | undefined): string {
+  const argSuffix = args.length > 0 ? `::${args.join("::")}` : "";
+  return raw ?? `{{${flagString(flags)}${name}${argSuffix}}}`;
+}
+
+// The per-call arg-resolution mode (M2, §12A.2): the `!` (IMMEDIATE) / `?` (DELAYED) flags override the
+// handler's declared `delayArgResolution` default. A conflicting `{{!?…}}` run resolves IMMEDIATE —
+// eager delivery is safe for every handler, while a lazy delivery to a lazy-unaware handler passes raw
+// bytes through. A lazy delivery hands the handler its RAW args; the handler resolves what it needs via
+// ctx.resolve (same PRNG/opLog/budget, so document-order draws survive the deferral — the
+// determinism-through-nesting invariant).
+function lazyArgs(node: MacroCallNode | MacroBlockNode, registry: MacroRegistry): boolean {
+  if (node.flags?.immediate === true) {
     return false;
   }
-  const strict = ctx.strictArgs === true;
-  const diags = validateMacroArgs(meta, resolvedArgs, node.span, strict);
-  if (diags.length > 0 && ctx.diagnostics !== undefined) {
-    ctx.diagnostics.push(...diags);
+  if (node.flags?.delayed === true) {
+    return true;
   }
-  return strict && diags.some((d) => d.severity === "error");
+  return registry.getOptions(node.name)?.delayArgResolution === true;
+}
+
+// One recognized call's delivered-arg shape, bundled for checkArgs (parameter-count discipline).
+// `contentArgs` = how many trailing args are a scoped-block BODY (0 inline, 1 universal-block) — block
+// capability is universal (M1), so the body slot must never trip the too-many arity check.
+interface DeliveredCall {
+  readonly node: MacroCallNode | MacroBlockNode;
+  readonly args: string[];
+  readonly contentArgs: number;
+}
+
+// M3 runtime enforcement (§12A.3): check the DELIVERED args against the macro's declared contract, push
+// diagnostics to the optional sink, and — under strict (ctx.strictArgs OR the metadata's per-macro
+// `strict`) — signal "render empty" when there's a violation. STRICT-AUTHOR / LENIENT-RENDER (the D2
+// posture): a violation never throws — lenient renders best-effort, strict degrades to "" (the author
+// already got the diagnostic at write time; a stale template can't abort a live turn). No-op when the
+// macro has no metadata (the restricted registries); the diagnostic additionally needs a span.
+function checkArgs(ctx: MacroContext, meta: MacroMetadata | undefined, call: DeliveredCall): boolean {
+  if (meta === undefined) {
+    return false;
+  }
+  const strict = ctx.strictArgs === true || meta.strict === true;
+  const violations = checkMacroArgs(meta, call.args, { contentArgs: call.contentArgs });
+  if (violations.length === 0) {
+    return false;
+  }
+  if (ctx.diagnostics !== undefined && call.node.span !== undefined) {
+    ctx.diagnostics.push(...macroArgDiagnostics(violations, call.node.span, strict));
+  }
+  return strict;
+}
+
+// A recognized INLINE call: deliver args per the call's eager/lazy mode, pad declared defaults, enforce
+// the typed-arg contract, invoke. Strict-mode violation → render "" (the editors hold new authorship to
+// the bar); lenient → diagnostics recorded, best-effort render proceeds. The still-reserved flags
+// (`~`/`>`, and `#` on an inline call) are parse-and-carry NO-OPS (§12A.4) — the call evaluates as if
+// unflagged.
+function evalKnownCall(handler: MacroHandler, node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext): string {
+  const delivered = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
+  const meta = registry.getMetadata(node.name);
+  const padded = applyArgDefaults(meta, delivered);
+  if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 0 })) {
+    return "";
+  }
+  // Locate the handler at its call span so a diagnostic-emitting handler ({{expr::…}}) can attach it.
+  ctx.__currentSpan = node.span;
+  try {
+    const val = handler(padded, ctx);
+    return ctx.postProcess ? ctx.postProcess(val) : val;
+  } catch (err) {
+    // Fail-open POLICY: ALL handler errors degrade the macro to a literal `{{name}}` (and surface
+    // the cause via onWarn). This is intentional, not a bug-swallow — a card author shouldn't be
+    // able to crash a turn by writing a bad macro. The trade-off: a typo in a BUILT-IN handler
+    // gets the same treatment, so review onWarn output when adding/changing a built-in.
+    ctx.onWarn?.(`[Macro Engine] Error evaluating macro ${node.name}`, err);
+    return `{{${node.name}}}`;
+  }
 }
 
 function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroContext): string {
   const handler = registry.get(node.name);
   if (handler) {
-    const resolvedArgs = node.args.map((arg) => resolveArg(arg, ctx));
-    // Strict-mode arg violation → render "" (the editors hold new authorship to the bar); lenient →
-    // diagnostics recorded, best-effort render proceeds.
-    if (checkArgs(node, registry, ctx, resolvedArgs)) {
-      return "";
-    }
-    // Locate the handler at its call span so a diagnostic-emitting handler ({{expr::…}}) can attach it.
-    ctx.__currentSpan = node.span;
-    try {
-      const val = handler(resolvedArgs, ctx);
-      return ctx.postProcess ? ctx.postProcess(val) : val;
-    } catch (err) {
-      // Fail-open POLICY: ALL handler errors degrade the macro to a literal `{{name}}` (and surface
-      // the cause via onWarn). This is intentional, not a bug-swallow — a card author shouldn't be
-      // able to crash a turn by writing a bad macro. The trade-off: a typo in a BUILT-IN handler
-      // gets the same treatment, so review onWarn output when adding/changing a built-in.
-      ctx.onWarn?.(`[Macro Engine] Error evaluating macro ${node.name}`, err);
-      return `{{${node.name}}}`;
-    }
+    return evalKnownCall(handler, node, registry, ctx);
   }
   // No handler registered — catch-all: an argument-less `{{NAME}}` whose name matches a key in
   // ctx.env resolves to that value directly. This is what makes a ChoiceBlock variable named "POV"
@@ -88,30 +143,56 @@ function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroC
       span: node.span,
     });
   }
-  return reconstruct(node.name, node.args, node.raw, "{{");
+  return reconstruct(node.name, node.args, node.raw, node.flags);
+}
+
+// A recognized macro in scoped-block form. Two delivery modes (§12A.1):
+//   • `blockChildren` registrations (`if`, the trim/case-fold family) receive the RAW body AST and
+//     control resolution themselves (branch-picking, whole-body transforms) — the `!`/`?` flags flip
+//     only the ARG axis, never this body delivery (an eager-forced `{{!if}}` still branch-picks);
+//   • every OTHER macro (the universal default) gets the body resolved through ctx.resolve (the
+//     evaluateAST seam — depth guard + budget fire; a body never escapes the MacroBudget), trimmed +
+//     indent-dedented (verbatim under the `#` PRESERVE_WHITESPACE flag), appended as its LAST unnamed
+//     argument. Declared defaults pad AFTER the body lands (the body is a real positional arg).
+function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
+  const meta = registry.getMetadata(node.name);
+  const resolvedArgs = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
+  ctx.__currentSpan = node.span;
+  try {
+    if (registry.getOptions(node.name)?.blockChildren === true) {
+      const padded = applyArgDefaults(meta, resolvedArgs);
+      if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 0 })) {
+        return "";
+      }
+      const val = handler(padded, ctx, node.children);
+      return ctx.postProcess ? ctx.postProcess(val) : val;
+    }
+    const content = ctx.resolve(node.children, { trim: node.flags?.preserveWhitespace !== true });
+    const padded = applyArgDefaults(meta, [...resolvedArgs, content]);
+    if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 1 })) {
+      return "";
+    }
+    const val = handler(padded, ctx);
+    return ctx.postProcess ? ctx.postProcess(val) : val;
+  } catch (err) {
+    // Same fail-open policy as inline calls: degrade to the OPEN tag's literal bytes, body dropped.
+    ctx.onWarn?.(`[Macro Engine] Error evaluating block ${node.name}`, err);
+    return reconstruct(node.name, node.args, node.raw, node.flags);
+  }
 }
 
 function evalBlockNode(node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
   const handler = registry.get(node.name);
   if (handler) {
-    // `delayArgResolution: true` lets handlers like `if` distinguish a bare identifier from a
-    // resolved sub-macro by reading the unresolved arg themselves.
-    const opts = registry.getOptions(node.name);
-    const resolvedArgs = opts?.delayArgResolution === true ? node.args : node.args.map((arg) => resolveArg(arg, ctx));
-    try {
-      const val = handler(resolvedArgs, ctx, node.children);
-      return ctx.postProcess ? ctx.postProcess(val) : val;
-    } catch (err) {
-      ctx.onWarn?.(`[Macro Engine] Error evaluating block ${node.name}`, err);
-      return `{{#${node.name}}}`;
-    }
+    return evalKnownBlock(handler, node, registry, ctx);
   }
-  // Unrecognized block — preserve the wrapper + recurse into children. Route the child evaluation
-  // through ctx.evaluateAST so the depth guard (index.ts) fires; the direct `evaluateMacros` call
-  // would skip it and a deeply nested unknown-block tree could blow the stack before the output
-  // budget tripped. The open tag re-emits the ORIGINAL source span (review V10-10).
-  const open = reconstruct(node.name, node.args, node.raw, "{{#");
-  return `${open}${ctx.evaluateAST(node.children)}{{/${node.name}}}`;
+  // Unrecognized block — re-emit BOTH tags from their original bytes (flags verbatim) + recurse into
+  // children. Route the child evaluation through ctx.evaluateAST so the depth guard (engine.ts) fires;
+  // the direct `evaluateMacros` call would skip it and a deeply nested unknown-block tree could blow
+  // the stack before the output budget tripped. (Review V10-10: raw spans, never normalized args.)
+  const open = reconstruct(node.name, node.args, node.raw, node.flags);
+  const close = node.closeRaw ?? `{{/${node.name}}}`;
+  return `${open}${ctx.evaluateAST(node.children)}${close}`;
 }
 
 export function evaluateMacros(ast: MacroAST, registry: MacroRegistry, ctx: MacroContext): string {

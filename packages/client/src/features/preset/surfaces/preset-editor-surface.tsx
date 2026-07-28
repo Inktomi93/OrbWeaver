@@ -35,6 +35,7 @@ import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
+import { UserMacrosTab } from "../components/user-macros-tab";
 import { VariablesTab } from "../components/variables-tab";
 import { useResetPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
 import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
@@ -76,13 +77,15 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
 interface LeafContentProps {
   readonly form: AppFormInstance<PromptConfig>;
   readonly capability: ModelCapability | undefined;
+  /** The Macros leaf's source attribution (`preset:<id>` in the browser). */
+  readonly presetId: PresetId;
   readonly onRevealSection?: (() => void) | undefined;
   readonly onDismissSection?: (() => void) | undefined;
 }
 
 /** Render one leaf tab's content, UNCHANGED from the flat editor (the regroup only re-homes the leaf). */
 function leafContent(id: PresetEditorTab["id"], props: LeafContentProps): ReactElement {
-  const { form, capability, onRevealSection, onDismissSection } = props;
+  const { form, capability, presetId, onRevealSection, onDismissSection } = props;
   switch (id) {
     case "quality":
     case "sampling":
@@ -99,6 +102,8 @@ function leafContent(id: PresetEditorTab["id"], props: LeafContentProps): ReactE
       return <PresetStructureTabs form={form} tab="compaction" />;
     case "variables":
       return <VariablesTab form={form} />;
+    case "macros":
+      return <UserMacrosTab form={form} presetId={presetId} />;
     case "regex":
       return <RegexTab form={form} />;
   }
@@ -179,7 +184,7 @@ function PresetEditorBody({ session, presetId, presetName, capability, reset, on
     return (): void => clearAssemblyForm();
   }, [presetId, boundForm]);
 
-  const leafProps: LeafContentProps = { form: boundForm, capability, onRevealSection, onDismissSection };
+  const leafProps: LeafContentProps = { form: boundForm, capability, presetId, onRevealSection, onDismissSection };
 
   return (
     <Stack>

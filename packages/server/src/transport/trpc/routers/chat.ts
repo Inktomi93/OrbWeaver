@@ -56,6 +56,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { userIntentSchema } from "@orb/contracts/preset";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
+import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -63,7 +64,7 @@ import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ChatService } from "#domain/chat";
-import { isBelowHistoryFloor, toolRecurseLimitSchema } from "#domain/chat";
+import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, toolRecurseLimitSchema } from "#domain/chat";
 import { notifyChatOpened } from "../automation-chat-open-tap";
 import { subscribeChatEvents } from "../chat-events-bus";
 import { withSubscriptionErrors } from "../subscriptions";
@@ -535,6 +536,11 @@ async function* chatEventStream(args: {
   const resumeSeq = parseResumeSeq(lastEventId);
   // Attach the live listener FIRST (`on()` buffers from this point) so the replay→live gap loses nothing.
   const live = subscribeChatEvents(chatId, signal ?? new AbortController().signal);
+  // The §3.6 MID-STREAM scrubbers — ONE per streaming slot, for a NON-HOST subscriber only. A `text`-channel
+  // delta is fed through its slot's scrubber so hidden bytes never reach a member mid-stream (they'd vanish at
+  // commit — a devtools-only leak). Keyed by `slotSeq`; a slot's scrubber is retired when its turn commits
+  // (`messageCommitted`) so the map can't grow without bound. A host subscriber never allocates one.
+  const deltaScrubbers = new Map<number, ReturnType<typeof createHiddenSpanStreamScrubber>>();
 
   // The attach probe: membership + the retained-window bounds in ONE member-gated read. `null` = the
   // withhold-not-throw NOT_FOUND (no chat yet / not a member) — synthesize nothing, replay nothing.
@@ -554,23 +560,68 @@ async function* chatEventStream(args: {
     if (entry.seq <= maxSeq) {
       continue;
     }
-    // The PER-YIELD membership gate: a kicked member stops receiving within the kick tx; a pre-start
-    // subscriber stays open and silent until the room exists and they are seated (withhold-not-throw).
-    const gate = await memberBounds(service, principal, chatId);
-    if (gate === null) {
+    // The per-yield membership gate → D16 clamp → §3.6 member projection, resolved as ONE verdict. `null` =
+    // withhold WITHOUT advancing the cursor (kicked / pre-start / clamped-below-floor / held-delta): a `seq`
+    // gap is correct — a reconnect resumes from the last delivered event and the durable replay re-applies the
+    // identical verdict to the gap, so the stream never stalls and never re-offers a withheld row.
+    const projected = await resolveLiveYield({ service, principal, chatId, event: entry.event, deltaScrubbers });
+    if (projected === null) {
       continue;
     }
-    // The D16 JOIN-HISTORY clamp on the LIVE half — an ADDITIONAL filter after (never instead of) the
-    // membership gate, applying the domain's ONE verdict over the floor that same probe just handed back.
-    // Zero cost for the common case: an unclamped caller's floor is 0 and the verdict short-circuits.
-    if (isBelowHistoryFloor(entry.event, gate.historyFloorSeq)) {
-      // Withhold WITHOUT advancing `maxSeq` — the cursor is "the last seq actually delivered", exactly as on
-      // the replay path. The withheld row leaves a `seq` gap, a reconnect resumes from the last delivered
-      // event, and the durable replay re-applies the same verdict to the gap: never a stall, never a re-offer.
-      continue;
-    }
-    yield tracked(String(entry.seq), entry.event);
+    yield tracked(String(entry.seq), projected);
     maxSeq = entry.seq;
+  }
+}
+
+/** One live event → the bytes THIS subscriber may see, or `null` to withhold. Runs the per-yield membership
+ *  gate (a kicked member stops within the kick tx), the D16 join-history clamp, and the §3.6 member projection
+ *  (host: verbatim; member: at-commit `view` strip + the mid-stream `delta` scrubber) — the durable replay's
+ *  identical verdict, applied live. The transport OWNS no policy; it applies the domain's ONE verdict. */
+async function resolveLiveYield(args: {
+  readonly service: ChatService;
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly event: ChatBusEvent;
+  readonly deltaScrubbers: Map<number, ReturnType<typeof createHiddenSpanStreamScrubber>>;
+}): Promise<ChatBusEvent | null> {
+  const { service, principal, chatId, event, deltaScrubbers } = args;
+  const gate = await memberBounds(service, principal, chatId);
+  if (gate === null || isBelowHistoryFloor(event, gate.historyFloorSeq)) {
+    return null;
+  }
+  if (gate.viewerIsHost) {
+    return event;
+  }
+  // Member: a mid-stream `delta` rides its slot's stateful scrubber; any other event at-commit-strips its
+  // `view` and retires the finished slot's scrubber (the streaming phase is over — the held tail is dropped,
+  // the authoritative final content is the stripped `view`).
+  if (event.type === "delta") {
+    return scrubDeltaEventForMember(event, scrubberFor(deltaScrubbers, event.slotSeq));
+  }
+  retireScrubberOnCommit(deltaScrubbers, event);
+  return stripChatEventForMember(event);
+}
+
+/** Get-or-create the per-slot mid-stream scrubber (a member's text-delta stream is stateful per turn). */
+function scrubberFor(
+  scrubbers: Map<number, ReturnType<typeof createHiddenSpanStreamScrubber>>,
+  slotSeq: number,
+): ReturnType<typeof createHiddenSpanStreamScrubber> {
+  const existing = scrubbers.get(slotSeq);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created = createHiddenSpanStreamScrubber();
+  scrubbers.set(slotSeq, created);
+  return created;
+}
+
+/** Retire a slot's scrubber once its turn commits/edits (the streaming phase is over) — bounds the map to
+ *  at-most the concurrently-streaming slots. The retired held tail is dropped: the member's authoritative
+ *  final content is the at-commit-stripped `view` on this same event, not the ephemeral delta stream. */
+function retireScrubberOnCommit(scrubbers: Map<number, ReturnType<typeof createHiddenSpanStreamScrubber>>, event: ChatBusEvent): void {
+  if ("view" in event) {
+    scrubbers.delete(event.view.seq);
   }
 }
 

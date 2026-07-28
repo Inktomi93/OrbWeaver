@@ -10,6 +10,11 @@ import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
+import type { EnginesPosture } from "./posture";
+import { ENGINES_POSTURES } from "./posture";
+
+export type { EnginesPosture } from "./posture";
+export { ENGINES_POSTURES, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
@@ -62,6 +67,8 @@ const VLLM_GEN_PRESENCE_PENALTY_DEFAULT = 1.5;
 const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;
 // Whole-request embed timeout (ms): a warming/wedged engine can't hang boot-time embedding forever.
 const VLLM_EMBED_REQUEST_TIMEOUT_MS_DEFAULT = 120_000;
+// Manager-posture auto-sleep idle window (ms): a fully-idle engine is /sleep'd after 10 min (B.5).
+const VLLM_AUTO_SLEEP_IDLE_MS_DEFAULT = 600_000;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
@@ -163,6 +170,40 @@ const envSchema = z
     VLLM_STORE_ROOT: z.string().min(1).optional(),
     HF_HOME: z.string().min(1).optional(),
     VLLM_CACHE_ROOT: z.string().min(1).optional(),
+    // Emit `--enable-sleep-mode` on every engine + set VLLM_SERVER_DEV_MODE=1 on the child (unlocks the
+    // loopback /sleep · /wake_up · /is_sleeping endpoints). Default on: force-enables vLLM's cumem allocator
+    // (steady-state inference cost ≈ nil) so an idle GPU can be reclaimed via /sleep. "false" reverts to the
+    // pre-sleep launch (no endpoints, no idle reclaim). LAUNCH-tier (argv-affecting, restart-to-apply) —
+    // resolved into EngineLaunchConfig.sleepMode via engineLaunchEnvFloor (override ?? floor).
+    VLLM_SLEEP_MODE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((v) => v === "true"),
+    // The ENGINE-SIDE flight recorder (default off). "true" ⇒ the serve argv gains `--enable-log-requests
+    // --enable-log-outputs --max-log-len 2048`: wire captures show what WE sent, these show what the engine
+    // PARSED (post-chat-template, post-tool-parser) — the tool-call-debugging blind spot. LAUNCH-tier
+    // (argv-affecting, restart-to-apply). Verbose — leave off except when diagnosing a prompt/tool-parse gap.
+    VLLM_DEBUG_REQUESTS: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((v) => v === "true"),
+    // `--shutdown-timeout N` — a graceful in-flight drain window (seconds) on engine shutdown. 0 (default) =
+    // today's immediate abort; a positive value lets `engines:stop` drain first. LAUNCH-tier.
+    VLLM_SHUTDOWN_TIMEOUT_S: z.coerce.number().int().nonnegative().default(0),
+    // The ONE engine topology knob (A.4), replacing the VLLM_DISABLED/STACK_ENGINES combo folklore:
+    //   off            — backend not registered, no supervisor (GPU-less / cloud-only box).
+    //   adopt-only     — supervisor ADOPTS healthy engines, NEVER spawns; engines down → honest fail-fast.
+    //                    Passive consumer (no auto-sleep management; on-demand wake allowed). snap/e2e/alt.
+    //   adopt-or-start — fleet MANAGER: adopts when healthy, triggers the detached spawner when down, owns
+    //                    restart/breaker + the auto-sleep timer. The dev/prod server.
+    // Unset ⇒ resolved from the DEPRECATED VLLM_DISABLED/STACK_ENGINES pair with a visible log (resolveEnginesPosture).
+    ENGINES_POSTURE: z.enum(ENGINES_POSTURES).optional(),
+    // The manager-posture auto-sleep idle window (ms) — an idle engine (running==0 && waiting==0 && success
+    // counters unchanged) is /sleep'd after this. `0` disables. Default 10 min: wake is seconds (cheap to be
+    // wrong toward shorter), but in-chat thinking pauses routinely hit 5 min, so 10 keeps a live session warm
+    // while reclaiming the GPU within a coffee break of walking away. AppSettings-tier override applies.
+    VLLM_AUTO_SLEEP_IDLE_MS: z.coerce.number().int().nonnegative().default(VLLM_AUTO_SLEEP_IDLE_MS_DEFAULT),
+    // DEPRECATED-BY ENGINES_POSTURE (mapped with a visible log by resolveEnginesPosture, then removed):
     // "true" disables the local engine entirely (a GPU-less/cloud-only box runs without the supervisor).
     VLLM_DISABLED: z
       .enum(["true", "false"])
@@ -333,6 +374,9 @@ export function engineLaunchEnvFloor(): {
   readonly VLLM_GEN_MAX_PIXELS: number;
   readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_GEN_PRESENCE_PENALTY: number;
+  readonly VLLM_SLEEP_MODE: boolean;
+  readonly VLLM_DEBUG_REQUESTS: boolean;
+  readonly VLLM_SHUTDOWN_TIMEOUT_S: number;
   readonly VLLM_EMBED_PORT: number;
   readonly VLLM_RERANK_PORT: number;
   readonly VLLM_GEN_PORT: number;
@@ -353,10 +397,20 @@ export function engineLaunchEnvFloor(): {
     VLLM_GEN_MAX_PIXELS: env.VLLM_GEN_MAX_PIXELS,
     VLLM_GEN_REPETITION_PENALTY: env.VLLM_GEN_REPETITION_PENALTY,
     VLLM_GEN_PRESENCE_PENALTY: env.VLLM_GEN_PRESENCE_PENALTY,
+    VLLM_SLEEP_MODE: env.VLLM_SLEEP_MODE,
+    VLLM_DEBUG_REQUESTS: env.VLLM_DEBUG_REQUESTS,
+    VLLM_SHUTDOWN_TIMEOUT_S: env.VLLM_SHUTDOWN_TIMEOUT_S,
     VLLM_EMBED_PORT: env.VLLM_EMBED_PORT,
     VLLM_RERANK_PORT: env.VLLM_RERANK_PORT,
     VLLM_GEN_PORT: env.VLLM_GEN_PORT,
   };
+}
+
+/** The raw inputs the posture resolver reads (A.4): the incoming ENGINES_POSTURE knob + the two deprecated
+ *  vars it falls back to. Consumers (compose/lifecycle) call resolveEnginesPosture with this + a log so the
+ *  deprecation line lands in the boot log; foundation/env stays the pure process.env reader. */
+export function enginesPostureInput(): { readonly posture: EnginesPosture | undefined; readonly vllmDisabled: boolean; readonly stackEngines: "yes" | "no" } {
+  return { posture: env.ENGINES_POSTURE, vllmDisabled: env.VLLM_DISABLED, stackEngines: env.STACK_ENGINES };
 }
 
 /** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒

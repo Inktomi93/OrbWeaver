@@ -44,6 +44,7 @@ function configOf(sections: PromptSection[]): PromptConfig {
     params: {},
     regexScripts: [],
     variables: [],
+    userMacros: [],
   };
 }
 

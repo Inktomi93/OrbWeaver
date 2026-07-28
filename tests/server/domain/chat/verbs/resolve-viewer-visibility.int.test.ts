@@ -37,9 +37,9 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
 
     const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
-    expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 7 });
-    expect(await resolveViewerVisibility(chatId, openMember)).toEqual({ role: "member", historyFloorSeq: NO_HISTORY_FLOOR });
-    expect(await resolveViewerVisibility(chatId, host)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR });
+    expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 7, readsHidden: false });
+    expect(await resolveViewerVisibility(chatId, openMember)).toEqual({ role: "member", historyFloorSeq: NO_HISTORY_FLOOR, readsHidden: false });
+    expect(await resolveViewerVisibility(chatId, host)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR, readsHidden: true });
   });
 
   // F2 — the host has full control (owner ratified): a PROMOTED host (a member who joined late with a
@@ -54,7 +54,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
 
     const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
-    expect(await resolveViewerVisibility(chatId, promoted)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR });
+    expect(await resolveViewerVisibility(chatId, promoted)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR, readsHidden: true });
   });
 
   test("the floor is PER-CALLER — one member's restriction never clamps another member's read", async () => {
@@ -66,8 +66,8 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
 
     const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
-    expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 12 });
-    expect(await resolveViewerVisibility(chatId, other)).toEqual({ role: "member", historyFloorSeq: 3 });
+    expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 12, readsHidden: false });
+    expect(await resolveViewerVisibility(chatId, other)).toEqual({ role: "member", historyFloorSeq: 3, readsHidden: false });
   });
 
   test("non-member, unknown chat, and a LEFT member are all the one leak-free null (never a floor of 0)", async () => {

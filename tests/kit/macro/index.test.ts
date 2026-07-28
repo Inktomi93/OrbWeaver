@@ -40,7 +40,22 @@ test("parseMacros nests a macro inside an argument without tearing it", () => {
   expect(ast[0]).toMatchObject({ type: "macro", name: "setvar", args: ["g", "Hi {{user}}"] });
 });
 
-test("parseMacros builds a block node with children", () => {
+test("parseMacros builds a block node with children (universal form — any name pairs with {{/name}})", () => {
+  const ast = parseMacros("{{if::x}}body{{/if}}");
+  expect(ast).toEqual([
+    {
+      type: "block",
+      name: "if",
+      args: ["x"],
+      raw: "{{if::x}}",
+      children: [{ type: "text", value: "body" }],
+      span: { offset: 0, line: 1, col: 1, length: 9 },
+      closeRaw: "{{/if}}",
+    },
+  ]);
+});
+
+test("parseMacros parses the flag-form block open — `#` is the PRESERVE_WHITESPACE flag, not a block marker", () => {
   const ast = parseMacros("{{#if x}}body{{/if}}");
   expect(ast).toEqual([
     {
@@ -50,6 +65,8 @@ test("parseMacros builds a block node with children", () => {
       raw: "{{#if x}}",
       children: [{ type: "text", value: "body" }],
       span: { offset: 0, line: 1, col: 1, length: 9 },
+      flags: { preserveWhitespace: true },
+      closeRaw: "{{/if}}",
     },
   ]);
 });
@@ -74,10 +91,12 @@ test("parseMacros re-emits an unclosed macro verbatim", () => {
   ]);
 });
 
-test("parseMacros rescues an unclosed block as literal open tag + children", () => {
+test("parseMacros treats a close-less tag as the inline call it always was (universal grammar — no block-open marker)", () => {
+  // `{{if x}}` with no `{{/if}}` is indistinguishable from an intentional inline call — the candidate
+  // reverts to a macro node (flags carried), never a rescued literal.
   const ast = parseMacros("{{#if x}}tail");
   expect(ast).toEqual([
-    { type: "text", value: "{{#if x}}" },
+    { type: "macro", name: "if", args: ["x"], raw: "{{#if x}}", span: { offset: 0, line: 1, col: 1, length: 9 }, flags: { preserveWhitespace: true } },
     { type: "text", value: "tail" },
   ]);
 });
@@ -101,6 +120,13 @@ test("evaluateMacros runs against an explicitly built context", () => {
   expect(evaluateMacros(parseMacros("{{getvar::mood}}"), globalMacroRegistry, ctx)).toBe("calm");
 });
 
+test("ctx.resolve (the M2 lazy-contract handle) resolves through the SAME context and env", () => {
+  const ctx = createMacroContext(opts({ env: { mood: "calm" } }));
+  expect(ctx.resolve("{{getvar::mood}} {{user}}")).toBe("calm Bob");
+  // The trim option applies the resolveContent body treatment (trim + indent-dedent).
+  expect(ctx.resolve("\n    a\n      b\n", { trim: true })).toBe("a\n  b");
+});
+
 test("unknown macro passes through with its original source span", () => {
   expect(processMacros("{{mystery:one,two}}", opts())).toBe("{{mystery:one,two}}");
 });
@@ -114,8 +140,13 @@ test("an unknown macro WITH args bypasses the env lookup (name-only)", () => {
 });
 
 test("unknown block preserves its wrapper and recurses into children", () => {
-  const out = processMacros("{{#box}}{{user}}{{/box}}", opts());
+  const out = processMacros("{{box}}{{user}}{{/box}}", opts());
   // Assembled from parts so the expected value isn't one contiguous high-entropy literal (noSecrets).
+  expect(out).toBe(`{{box}}${opts().user}{{/box}}`);
+});
+
+test("a flagged unknown block re-emits BOTH tags byte-verbatim (flags carried through raw)", () => {
+  const out = processMacros("{{#box}}{{user}}{{/box}}", opts());
   expect(out).toBe(`{{#box}}${opts().user}{{/box}}`);
 });
 
@@ -137,17 +168,17 @@ test("hasvar reports membership (empty value still counts) and deletevar removes
 // ── default registry: conditionals ───────────────────────────────────────────────────────────
 
 test("if truthy-check selects the then branch, else otherwise", () => {
-  expect(processMacros("{{#if flag}}Y{{else}}N{{/if}}", opts({ env: { flag: "1" } }))).toBe("Y");
-  expect(processMacros("{{#if flag}}Y{{else}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
+  expect(processMacros("{{if flag}}Y{{else}}N{{/if}}", opts({ env: { flag: "1" } }))).toBe("Y");
+  expect(processMacros("{{if flag}}Y{{else}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
 });
 
 test("if treats false/off/0 as falsy", () => {
-  expect(processMacros("{{#if flag}}Y{{/if}}", opts({ env: { flag: "off" } }))).toBe("");
+  expect(processMacros("{{if flag}}Y{{/if}}", opts({ env: { flag: "off" } }))).toBe("");
 });
 
 test("if comparator compares a bare identifier against a quoted literal", () => {
-  expect(processMacros('{{#if char == "Alice"}}match{{/if}}', opts())).toBe("match");
-  expect(processMacros('{{#if char != "Alice"}}no{{/if}}', opts())).toBe("");
+  expect(processMacros('{{if char == "Alice"}}match{{/if}}', opts())).toBe("match");
+  expect(processMacros('{{if char != "Alice"}}no{{/if}}', opts())).toBe("");
 });
 
 // ── default registry: cast / group ─────────────────────────────────────────────────────────────
@@ -258,8 +289,8 @@ test("random option-pick mode (non-integer 2-arg / 3+ args) uses the injected in
 // ── default registry: formatting blocks + char-field recursion ─────────────────────────────────
 
 test("trim and case-folding blocks transform their evaluated body", () => {
-  expect(processMacros("{{#trim}}  {{user}}  {{/trim}}", opts())).toBe("Bob");
-  expect(processMacros("{{#uppercase}}{{user}}{{/uppercase}}", opts())).toBe("BOB");
+  expect(processMacros("{{trim}}  {{user}}  {{/trim}}", opts())).toBe("Bob");
+  expect(processMacros("{{uppercase}}{{user}}{{/uppercase}}", opts())).toBe("BOB");
 });
 
 test("case-folding is locale-independent (Unicode default fold, deterministic)", () => {
@@ -267,8 +298,8 @@ test("case-folding is locale-independent (Unicode default fold, deterministic)",
   // {{#box}} test). The handlers use locale-INDEPENDENT `.toUpperCase()`/`.toLowerCase()` so server
   // + client fold identically; ASCII round-trips deterministically regardless of host TZ/locale.
   const body = "Hello World";
-  expect(processMacros(`{{#uppercase}}${body}{{/uppercase}}`, opts())).toBe("HELLO WORLD");
-  expect(processMacros(`{{#lowercase}}${body}{{/lowercase}}`, opts())).toBe("hello world");
+  expect(processMacros(`{{uppercase}}${body}{{/uppercase}}`, opts())).toBe("HELLO WORLD");
+  expect(processMacros(`{{lowercase}}${body}{{/lowercase}}`, opts())).toBe("hello world");
 });
 
 test("a char field recursively evaluates macros embedded in its value", () => {
@@ -354,13 +385,13 @@ test("if comparator accepts curly/typographic quotes on the RHS", () => {
   // contiguous high-entropy literal (noSecrets).
   const dq = ["“", "”"]; // “ ”
   const sq = ["‘", "’"]; // ‘ ’
-  expect(processMacros(`{{#if char == ${dq[0]}Alice${dq[1]}}}match{{/if}}`, opts())).toBe("match");
-  expect(processMacros(`{{#if char == ${sq[0]}Alice${sq[1]}}}match{{/if}}`, opts())).toBe("match");
+  expect(processMacros(`{{if char == ${dq[0]}Alice${dq[1]}}}match{{/if}}`, opts())).toBe("match");
+  expect(processMacros(`{{if char == ${sq[0]}Alice${sq[1]}}}match{{/if}}`, opts())).toBe("match");
 });
 
 test("{{else}} splits case-insensitively (Else / ELSE both work)", () => {
-  expect(processMacros("{{#if flag}}Y{{Else}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
-  expect(processMacros("{{#if flag}}Y{{ELSE}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
+  expect(processMacros("{{if flag}}Y{{Else}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
+  expect(processMacros("{{if flag}}Y{{ELSE}}N{{/if}}", opts({ env: { flag: "" } }))).toBe("N");
 });
 
 // ── defense-in-depth: output budget + single-warn discipline ───────────────────────────────────

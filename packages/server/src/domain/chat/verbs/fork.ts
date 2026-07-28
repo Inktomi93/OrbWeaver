@@ -16,6 +16,7 @@ import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context";
@@ -37,6 +38,7 @@ import { loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { NO_HISTORY_FLOOR } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
+import { viewerReadsHidden } from "../substrate/member-visibility";
 import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
@@ -57,12 +59,51 @@ type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
 
 /** Build the deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
  *  the remapped `selectedVariantId` flip — FK-safe in that order). */
+/** Copy ONE variant into the fork: fresh id, remapped slot + boundary pointers, and (§3.6) a hidden-span
+ *  strip when the forker is a non-host member of the source (identity when nothing is hidden). */
+function copyVariantStmt(
+  db: Db,
+  args: {
+    readonly variant: typeof messageVariants.$inferSelect;
+    readonly newId: MessageVariantId;
+    readonly newMessageId: MessageId;
+    readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
+    readonly stripHidden: boolean;
+  },
+): BatchStmt {
+  const { variant, newId, newMessageId, slotIdMap, stripHidden } = args;
+  // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the same slotIdMap;
+  // a boundary outside the copied range has no entry → null (never a stale cross-chat id).
+  const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
+  // §3.6 strip for a non-host forker: the live `content` AND the continue-snapshot BODY twins
+  // (`preContinueContent`/`lastContinuationContent`) all carry body prose — undo/revert on the fork would
+  // otherwise reconstruct a lie's truth from the snapshot. The `reasoning` twins are left alone (the deliberate
+  // reasoning-channel exclusion). `stripBody` is identity when nothing is hidden / the field is null.
+  const stripBody = (s: string | null): string | null => (stripHidden && s !== null ? stripHiddenSpans(s).content : s);
+  return batchStmt(
+    db.insert(messageVariants).values({
+      ...variant,
+      id: newId,
+      messageId: newMessageId,
+      content: stripBody(variant.content) ?? variant.content,
+      preContinueContent: stripBody(variant.preContinueContent),
+      lastContinuationContent: stripBody(variant.lastContinuationContent),
+      contextBoundaryMessageId: newBoundaryId,
+    }),
+  );
+}
+
 function buildCanonCopy(
   ctx: ChatContext,
   args: {
     readonly newChatId: ChatId;
     readonly slots: (typeof messages.$inferSelect)[];
     readonly variants: (typeof messageVariants.$inferSelect)[];
+    /** §3.6 member-strip across the fork boundary: a NON-HOST forker never had host-plane access to the
+     *  source room's hidden-class spans, so the copied bodies must be stripped — else the forker (now HOST of
+     *  the copy) would read the GM-plane secrets verbatim via the fork's host `listMessages`, laundering the
+     *  member-strip through the member→host transition. A host forker copies verbatim (they already read it). */
+    readonly stripHidden: boolean;
   },
 ): BatchStmt[] {
   const db: Db = ctx.db;
@@ -91,19 +132,7 @@ function buildCanonCopy(
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
-      // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the
-      // same slotIdMap; a boundary outside the copied range has no entry → null (never a stale cross-chat id).
-      const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
-      variantInserts.push(
-        batchStmt(
-          db.insert(messageVariants).values({
-            ...variant,
-            id: newId,
-            messageId: newMessageId,
-            contextBoundaryMessageId: newBoundaryId,
-          }),
-        ),
-      );
+      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, stripHidden: args.stripHidden }));
     }
   }
   for (const slot of args.slots) {
@@ -213,7 +242,12 @@ async function resolveOwnedCharacterSeats(
  *  the rows the floor withheld). `full` forkers are unaffected. */
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
-    const { chat: source, historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const { chat: source, historyFloorSeq } = membership;
+    // §3.6 member-strip across the fork boundary — the forker's SOURCE-room role decides whether the copied
+    // bodies keep their hidden-class spans. A non-host member never had host-plane access to the source's GM
+    // secrets; the copy must not launder them past the member→host transition (they become the fork's host).
+    const forkerReadsHidden = viewerReadsHidden(membership);
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
@@ -296,7 +330,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         }),
       ),
       batchStmt(ctx.db.insert(chatParticipants).values(participantRows)),
-      ...buildCanonCopy(ctx, { newChatId, slots, variants }),
+      ...buildCanonCopy(ctx, { newChatId, slots, variants, stripHidden: forkerReadsHidden === false }),
       ...injections.map((inj) => batchStmt(ctx.db.insert(chatInjections).values({ ...inj, id: ctx.newInjectionId(), chatId: newChatId }))),
     ];
 

@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { PresetStructureTabs } from "../../../../../packages/client/src/features/preset/components/preset-structure-tabs";
 import { RegexTab } from "../../../../../packages/client/src/features/preset/components/regex-tab";
+import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab";
 import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab";
 
 const STORY_PRESET = "preset_addflowstoryy";
@@ -73,6 +74,22 @@ export function CompactionTabSetStory(): ReactElement {
   return (
     <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="compaction" />}
+    </StoryForm>
+  );
+}
+
+/** The Macros tab wired to a real, empty-userMacros AUTOSAVE boundary — drives the actual add/edit/remove
+ *  path (WAVE MU) and asserts the store driver persisted via the mirrored save spy (no call-site flush). */
+export function UserMacrosTabStory(): ReactElement {
+  const { save, saves, savedLen } = usePersistenceSpy((c) => c.userMacros.length);
+  return (
+    <StoryForm entityId={STORY_PRESET} serverValues={{ ...DEFAULT_PROMPT_CONFIG, userMacros: [] }} save={save}>
+      {(session): ReactElement => (
+        <>
+          <output>{`saves=${saves} savedLen=${savedLen}`}</output>
+          <UserMacrosTab form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
+        </>
+      )}
     </StoryForm>
   );
 }

@@ -45,3 +45,19 @@ export const rpgWidgetTypeSchema = z.enum(RPG_WIDGET_TYPES);
 export const RPG_WIDGET_POSITIONS = ["banner", "sidebar", "footer"] as const;
 export type RpgWidgetPosition = (typeof RPG_WIDGET_POSITIONS)[number];
 export const rpgWidgetPositionSchema = z.enum(RPG_WIDGET_POSITIONS);
+
+/** Relationship kind (parity-plus §2.1) — the CLOSED genre-floor vocab + an explicit `custom` escape (NOT free
+ *  text, NOT a bare closed enum). The five are ordered lover→friend→ally→neutral→enemy (a warmth axis, so a
+ *  future gradient render is a SORT not a re-map); `custom` reaches any relationship via a free `label` (+ an
+ *  optional per-kind host HINT, M1). A model can NEVER emit an off-vocab kind (the enum binds the token under a
+ *  schema-enforcing backend, §2.3) but CAN reach anything through `{kind:"custom", label:"…"}`. */
+export const RPG_RELATIONSHIP_KINDS = ["lover", "friend", "ally", "neutral", "enemy", "custom"] as const;
+export type RpgRelationshipKind = (typeof RPG_RELATIONSHIP_KINDS)[number];
+export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
+
+/** Custom tracked cast-field kind (parity-plus §2.8) — `text` = a free string chip; `meter` = a 0-max numeric
+ *  the panel renders as a `TrackBar` and the delta diffs numerically. The host defines the field SCHEMA per
+ *  game (`config.features.castFields`); the model writes DEFINED field keys only (enum-constrained, §2.3). */
+export const RPG_CAST_FIELD_KINDS = ["text", "meter"] as const;
+export type RpgCastFieldKind = (typeof RPG_CAST_FIELD_KINDS)[number];
+export const rpgCastFieldKindSchema = z.enum(RPG_CAST_FIELD_KINDS);

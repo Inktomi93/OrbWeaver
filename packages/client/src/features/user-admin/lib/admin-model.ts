@@ -47,6 +47,11 @@ export function engineBadgeIntent(status: string): NonNullable<BadgeProps["inten
   if (status === "adopted" || status === "owned") {
     return "success";
   }
+  // sleeping / sleeping-held are healthy-but-idle (weights on CPU, scheduler paused) — NOT an error;
+  // an on-demand request wakes them. Distinct from the warming/warning states.
+  if (status === "sleeping" || status === "sleeping-held") {
+    return "info";
+  }
   if (status === "starting" || status === "stack-pending" || status === "down") {
     return "warning";
   }

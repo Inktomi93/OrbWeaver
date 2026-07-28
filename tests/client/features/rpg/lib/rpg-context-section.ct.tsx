@@ -11,7 +11,7 @@
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
@@ -164,4 +164,39 @@ test("read-only trackers: the pill shows AND edits are disabled (no editable fie
   // print "24/30"). A retrying `toHaveCount(0)` is the disabled-edit assertion (not a one-shot count read).
   await expect(component.getByRole("textbox", { name: "Vitality value" })).toHaveCount(0);
   await expect(component.locator('[data-slot="meter-row"]').filter({ hasText: "Vitality" }).first().getByText("24/30")).toBeVisible();
+});
+
+// FIX 3 runs on a COARSE (touch) pointer: the design system deliberately compresses controls below 44px on a
+// fine pointer (theme.css `@media (pointer: fine)` → control-sm = 2rem), so the ≥44px tap-target floor is a TOUCH
+// contract. `hasTouch` flips the primary pointer to coarse, where the shared control tokens deliver 44px by
+// construction — the honest place to assert the floor (a fine-pointer measure would read 32px for EVERY control).
+test.describe("FIX 3 — consolidated, announced error region", () => {
+  test.use({ hasTouch: true, viewport: { width: 420, height: 800 } });
+
+  test("a failed takeover read surfaces ONE announced (role=alert) error region with a ≥44px Retry, not two fragmented blocks", async ({ mount, page }) => {
+    // The chat is a game (pointer present, band + body both read the rpg views), but the rpg reads FAIL. Before the
+    // fix this rendered TWO unannounced blocks (a generic band "Couldn't load this." + a "Couldn't load status.")
+    // with bare ~34px retry links. Now the band collapses silently and the body owns the SINGLE `role="alert"`
+    // region with scene-named copy + a real Button retry.
+    await routeTrpc(page, {
+      "chat.getChat": () => gameChat(),
+      "rpg.getGame": () => trpcError({ code: "BAD_REQUEST", message: "incoherent routing: api=agent-sdk is not coherent with source=vllm" }),
+      "rpg.getTrackerView": () => trpcError({ code: "BAD_REQUEST", message: "incoherent routing" }),
+      "chat.listChatInjections": () => [],
+    });
+    const component = await mount(<RpgTakeoverStory />);
+
+    // Exactly ONE announced error region (the band's boundary renders null on error — no second block).
+    const alert = component.getByRole("alert");
+    await expect(alert).toHaveCount(1);
+    await expect(alert).toContainText("Couldn't load the scene");
+    // The generic fallback copy is GONE (no fragmented second block).
+    await expect(component.getByText("Couldn't load this.")).toHaveCount(0);
+
+    // Retry is a real Button meeting the ≥44px touch floor (the shared control-sm token = 2.75rem on coarse).
+    const retry = alert.getByRole("button", { name: "Retry" });
+    await expect(retry).toBeVisible();
+    const box = await retry.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  });
 });

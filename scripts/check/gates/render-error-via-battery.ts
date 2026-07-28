@@ -26,6 +26,13 @@ const ALLOWLIST = new Set([
   `${CLIENT_SRC}features/chat/surfaces/chat-room-surface.tsx`,
   `${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`,
   `${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`,
+  // The rpg context-panel takeover suspends on TWO seams (header BAND + game-tab BODY) and needs a
+  // CONSOLIDATED, ANNOUNCED failure (Context-Panel-Program §4.4; the side-eye a11y finding): the panel's own
+  // live region reports "Loaded chat." on success, so an unannounced error tells an SR user the opposite of
+  // the truth. `QueryErrorState` is a plain `<Stack>` with NO `role="alert"` — it cannot satisfy that intent.
+  // So the BODY renders `RpgErrorState` (the SINGLE `role="alert"` region) and the decorative BAND collapses
+  // to `() => null` so there is exactly one announced surface. Both arms are the sanctioned custom species.
+  `${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`,
 ]);
 
 const MESSAGE =

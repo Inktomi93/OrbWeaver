@@ -4,6 +4,7 @@
 // block is click-through: clicking it flips back to Compose, selects the section, and reveals the
 // inspector. Derives entirely from `assemblePreview`; this component only paints.
 
+import type { MacroRun } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -11,7 +12,7 @@ import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { AssembledPreview, MacroToken, PreviewBlock, RoleGroup } from "./preview-model";
+import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model";
 
 /** The role → header label map (the block-header voice above a run of same-role sections). */
 const ROLE_HEADER: Record<MessageRole, string> = {
@@ -162,7 +163,7 @@ function BlockBody({ block }: { readonly block: PreviewBlock }): ReactElement {
 
 /** Render a token run — literal prose as inline text, `{{macro}}` references as inline info Badges. A
  *  text token stays a bare string child (strings in a `ReactNode[]` need no key — only elements do). */
-function MacroText({ tokens }: { readonly tokens: readonly MacroToken[] }): ReactElement {
+function MacroText({ tokens }: { readonly tokens: readonly MacroRun[] }): ReactElement {
   return (
     <Text size="micro" className="whitespace-pre-wrap break-words">
       {tokens.map(
@@ -180,6 +181,6 @@ function MacroText({ tokens }: { readonly tokens: readonly MacroToken[] }): Reac
 }
 
 /** A stable-enough key for a token at a position (index + value — the token list is render-stable). */
-function tokenKey(index: number, token: MacroToken): string {
+function tokenKey(index: number, token: MacroRun): string {
   return `${index}-${token.kind}-${token.value}`;
 }

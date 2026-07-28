@@ -20,6 +20,7 @@
 import type { TriggerFact } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -74,39 +75,61 @@ interface VisibilityDeps {
  * A chat-less DOMAIN fact (character.updated / asset.created) requires OWNERSHIP of the referenced resource.
  * Any other chat-less fact fails CLOSED.
  */
-async function canInstallerSeeFact(deps: VisibilityDeps, installer: UserId, fact: TriggerFact): Promise<boolean> {
+/** The per-installer visibility verdict for one fact: denied (no delivery), or visible WITH the §3.6 / D106
+ *  hidden-content read decision (`readsHidden` false ⇒ strip `<lie>`/`<ofilter>` from the delivered body). A
+ *  chat-less fact carries no canon body, so its `readsHidden` is `true` (nothing to strip — the gate is ownership). */
+type FactVisibility = { readonly visible: false } | { readonly visible: true; readonly readsHidden: boolean };
+
+async function resolveFactVisibility(deps: VisibilityDeps, installer: UserId, fact: TriggerFact): Promise<FactVisibility> {
   if (fact.chatId !== null) {
     // Ids arrive UNBRANDED (the TriggerFact wire shape) and are re-branded only to query — a re-read gate,
     // never a trust transfer. A garbage/forged chatId resolves to no membership ⇒ `null` ⇒ no delivery.
     const visibility = await deps.resolveViewerVisibility(castId<ChatId>(fact.chatId), installer);
     if (visibility === null) {
-      return false;
+      return { visible: false };
     }
-    return fact.message === undefined || fact.message.seq >= visibility.historyFloorSeq;
+    if (fact.message !== undefined && fact.message.seq < visibility.historyFloorSeq) {
+      return { visible: false };
+    }
+    // Membership + floor pass. The §3.6 hidden verdict rides the SAME visibility answer (chat's ONE home) —
+    // a member's delivered `message.content` is hidden-stripped below; a host reads verbatim (reveal plane).
+    return { visible: true, readsHidden: visibility.readsHidden };
   }
   if (fact.characterId !== undefined) {
-    return isDomainRowOwnedBy(deps.db, "character", fact.characterId, installer);
+    return { visible: await isDomainRowOwnedBy(deps.db, "character", fact.characterId, installer), readsHidden: true };
   }
   if (fact.assetId !== undefined) {
-    return isDomainRowOwnedBy(deps.db, "asset", fact.assetId, installer);
+    return { visible: await isDomainRowOwnedBy(deps.db, "asset", fact.assetId, installer), readsHidden: true };
   }
-  return false;
+  return { visible: false };
+}
+
+/** §3.6 / D106: project the fact's message body for THIS installer — a member's delivered `message.content` is
+ *  hidden-stripped so a non-host member's plugin never receives a lie's truth; a host reads verbatim. Identity
+ *  when the fact carries no message or nothing is hidden. */
+function projectFactForInstaller(fact: TriggerFact, readsHidden: boolean): TriggerFact {
+  if (readsHidden || fact.message === undefined) {
+    return fact;
+  }
+  const stripped = stripHiddenSpans(fact.message.content);
+  return stripped.hadHidden ? { ...fact, message: { ...fact.message, content: stripped.content } } : fact;
 }
 
 /** Deliver one subscriber's fact behind the VISIBILITY gate — self-safe (a throwing guest `deliver` is
- *  isolated). `canInstallerSeeFact` is fail-closed on `false` OR a throwing read (a raced delete / a bad id). */
+ *  isolated). `resolveFactVisibility` is fail-closed on `denied` OR a throwing read (a raced delete / a bad id). */
 async function deliverIfVisible(deps: VisibilityDeps, sub: PluginTriggerSubscriber, resolved: ResolvedTrigger): Promise<void> {
-  let visible: boolean;
+  let verdict: FactVisibility;
   try {
-    visible = await canInstallerSeeFact(deps, sub.installer, resolved.fact);
+    verdict = await resolveFactVisibility(deps, sub.installer, resolved.fact);
   } catch {
-    visible = false;
+    verdict = { visible: false };
   }
-  if (!visible) {
+  if (!verdict.visible) {
     return;
   }
+  const fact = projectFactForInstaller(resolved.fact, verdict.readsHidden);
   try {
-    sub.deliver(resolved.fact, resolved.automationDepth);
+    sub.deliver(fact, resolved.automationDepth);
   } catch (err) {
     getLog().warn({ err: err instanceof Error ? err.message : String(err), type: resolved.fact.type }, "plugin subscriber deliver threw (isolated)");
   }

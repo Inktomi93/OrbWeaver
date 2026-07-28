@@ -46,6 +46,9 @@ export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
 export interface BackendRegistryDeps {
   readonly now: () => number;
   readonly vllmDisabled: boolean;
+  /** The fleet MANAGER posture (adopt-or-start) triggers the detached spawner + owns auto-sleep; adopt-only
+   *  adopts but never spawns. Absent ⇒ the supervisor's manager default (true). Derived from ENGINES_POSTURE. */
+  readonly vllmManages?: boolean;
   readonly vllmConcurrency?: VllmBackendDeps["concurrency"];
   /** Live getter for the resolved engine LAUNCH config (admin ⊕ env floor) — read per spawn so a
    *  restart-to-apply picks up an admin retune. Absent ⇒ the supervisor uses the pure env floor. */
@@ -105,6 +108,7 @@ function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
 function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
   return {
     now: deps.now,
+    ...(deps.vllmManages !== undefined ? { manages: deps.vllmManages } : {}),
     ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
     ...(deps.engineLaunch !== undefined ? { engineLaunch: deps.engineLaunch } : {}),
     ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),

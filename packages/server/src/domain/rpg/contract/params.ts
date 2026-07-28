@@ -6,7 +6,16 @@
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { RpgActorRef, RpgJournalType, RpgQuestStatus, RpgSnapshotState, RpgStatProfile, RpgTrackerView, RpgWidgetDef } from "@orb/contracts/rpg";
+import type {
+  RpgActorRef,
+  RpgCastField,
+  RpgJournalType,
+  RpgQuestStatus,
+  RpgSnapshotState,
+  RpgStatProfile,
+  RpgTrackerView,
+  RpgWidgetDef,
+} from "@orb/contracts/rpg";
 import type {
   ChatId,
   MessageId,
@@ -88,6 +97,8 @@ export interface UpdateConfigParams {
     | {
         readonly statProfile?: RpgStatProfile | undefined;
         readonly steeringNote?: string | undefined;
+        readonly castFields?: readonly RpgCastField[] | undefined;
+        readonly relationshipHints?: Readonly<Record<string, string>> | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;
@@ -107,6 +118,7 @@ export interface PatchSheetParams {
     readonly poolDefs?: readonly { readonly name: string; readonly max: number }[] | undefined;
     readonly maxHp?: number | null | undefined;
     readonly flavor?: string | undefined;
+    readonly level?: number | null | undefined;
   };
 }
 
@@ -249,8 +261,24 @@ export interface RpgGatherResult {
 
 /** The `buildLiteReminder` inputs the gather resolves and hands in (§4.7). `steeringNote` is
  *  `config.lite.steeringNote` (the always-wins tail). No tool-capability input: the char turn is always
- *  tool-less prose (owner ruling 2026-07-27), so the reminder never carries tool-update guidance. */
+ *  tool-less prose (owner ruling 2026-07-27), so the reminder never carries tool-update guidance.
+ *
+ *  `curSnapshot` + `prevSnapshot` feed the DELTA BLOCK (§2.7 — the always-on prev→current diff rendered before
+ *  the license). Both are the RESOLVED committed snapshot states on the selected lineage (the gather's second
+ *  ladder read supplies `prevSnapshot`), so the delta is swipe-consistent by construction. `curSnapshot` is the
+ *  same resolved-current state `view` projects from (one resolve, two consumers); `prevSnapshot` is `null` when
+ *  this is the first snapshot on the lineage (the delta renders the first-state form, or omits — §2.7). */
 export interface LiteReminderInput {
   readonly view: RpgTrackerView;
   readonly steeringNote: string;
+  readonly curSnapshot: RpgSnapshotState;
+  readonly prevSnapshot: RpgSnapshotState | null;
+  /** Per-custom-relationship-kind steering HINTS (M1 — `config.features.relationshipHints`, a `label → gloss`
+   *  map). The reminder's cast line renders a custom relationship as `label (gloss)` so a bare "vassal" steers as
+   *  precisely as the five built-ins. Empty ⇒ bare labels (backward-compatible). */
+  readonly relationshipHints: Readonly<Record<string, string>>;
+  /** The delta's roster-name map (P0 fold-in #5 — actorRefKey → display name) so volatile-plane delta lines name
+   *  roster actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveRoster`;
+   *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */
+  readonly rosterNames: Readonly<Record<string, string>>;
 }

@@ -25,6 +25,10 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
   if (state === null) {
     return null;
   }
+  // The viewer's-actor LEVEL (§2.6) — beside the scene banner as a compact "Lv N" badge. Resolved from the same
+  // roster ∪ sheets projection the Sheet tab reads; null (unset) omits the badge (nullable-honesty).
+  const viewer = state.tracker.actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === state.viewerUserId) ?? state.tracker.actors[0];
+  const viewerLevel = viewer?.sheet.level ?? null;
   return (
     <RpgTakeoverHeader
       ambient={state.tracker.ambient}
@@ -32,6 +36,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
       trackersReadOnly={state.tracker.trackersReadOnly}
       extractionMode={state.game.extractionMode}
       freshnessPending={turnLive}
+      viewerLevel={viewerLevel}
     />
   );
 }

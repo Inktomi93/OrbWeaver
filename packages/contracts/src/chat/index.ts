@@ -8,6 +8,7 @@
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
 //   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
+//   • content-classes.ts — the parity-plus §3 content-class visibility registry (`CONTENT_CLASS_POLICY`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
 //
 // LAWS honored across these modules:
@@ -67,7 +68,7 @@ export {
   TURN_INITIATORS,
   TURN_INTENTS,
 } from "./bus";
-export type { CardTrust, MessageContentBlock, MessageMediaKind, MessageMediaSrc } from "./content-blocks";
+export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, MessageMediaKind, MessageMediaSrc } from "./content-blocks";
 export {
   cardTrustSchema,
   contentSpansToBlocks,
@@ -75,6 +76,8 @@ export {
   messageMediaKindSchema,
   messageMediaSrcSchema,
 } from "./content-blocks";
+export type { ContentClassPolicy } from "./content-classes";
+export { CONTENT_CLASS_POLICY } from "./content-classes";
 export type {
   MessageSlot,
   MessageVariant,

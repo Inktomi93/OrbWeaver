@@ -426,4 +426,85 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       .where(eq(chats.id, castId(chat.id)));
     expect(forkRow?.summary).toBe("the pre-join story");
   });
+
+  // §3.6 member-strip across the fork boundary (D106): a fork copies canon into a room the forker HOSTS. A
+  // NON-HOST forker never had host-plane access to the source's hidden-class spans; if the copy kept them, the
+  // forker would read the GM-plane truth verbatim via the fork's HOST listMessages — laundering the member-strip
+  // through the member→host transition. The copied bodies must be stripped for a member forker; verbatim for host.
+  describe("§3.6 hidden-content strip across the member→host fork boundary", () => {
+    const lie = '<lie character="Z" truth="he is the traitor"/>';
+
+    test("a NON-HOST member forker's copied assistant body is STRIPPED of hidden spans", async () => {
+      const host = await seedUser(db, "host");
+      const member = await seedUser(db, "member");
+      const charA = await seedCharacter(db, member, "aria");
+      const chatId = await seedChat(db, "hs_src");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: `He smiles. ${lie} "Nothing," he says.` });
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+      const [row] = await db
+        .select({ content: messageVariants.content })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(row?.content).toBe('He smiles.  "Nothing," he says.');
+      expect(row?.content).not.toContain("traitor");
+      expect(row?.content).not.toContain("<lie");
+    });
+
+    test("a member forker's copied continue-snapshot BODY twins are also stripped (undo/revert can't re-expose the truth)", async () => {
+      const host = await seedUser(db, "host");
+      const member = await seedUser(db, "member");
+      const charA = await seedCharacter(db, member, "aria");
+      const chatId = await seedChat(db, "hs_snap");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "clean tip" });
+      // Stamp the continue-snapshot twins with a lie in the pre-continue body (the undo target).
+      await db
+        .update(messageVariants)
+        .set({ preContinueContent: `pre ${lie} pre`, lastContinuationContent: `cont ${lie} cont` })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+      const [row] = await db
+        .select({ pre: messageVariants.preContinueContent, cont: messageVariants.lastContinuationContent })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(row?.pre).not.toContain("traitor");
+      expect(row?.cont).not.toContain("traitor");
+      expect(row?.pre).toBe("pre  pre");
+      expect(row?.cont).toBe("cont  cont");
+    });
+
+    test("a HOST forker's copied assistant body is VERBATIM (they already read the truth)", async () => {
+      const host = await seedUser(db, "host");
+      const charA = await seedCharacter(db, host, "aria");
+      const chatId = await seedChat(db, "hs_src2");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const body = `He smiles. ${lie} done`;
+      await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: body });
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+      const [row] = await db
+        .select({ content: messageVariants.content })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(row?.content).toBe(body);
+      expect(row?.content).toContain("traitor");
+    });
+  });
 });

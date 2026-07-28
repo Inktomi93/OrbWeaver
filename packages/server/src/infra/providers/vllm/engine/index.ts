@@ -10,7 +10,7 @@ export type {
 } from "./chat-completion";
 export { cleanJsonSchema, runVllmChatCompletion } from "./chat-completion";
 export type { VllmEngineClient } from "./client";
-export { createVllmEngineClient, engineBaseUrl } from "./client";
+export { createVllmEngineClient } from "./client";
 export {
   DOC_INSTRUCTION,
   normalizeVector,
@@ -27,16 +27,39 @@ export {
   getEngineStatus,
   setEngineStatus,
 } from "./engine-status";
+export { engineBaseUrl } from "./engine-url";
 export { VLLM_ENGINES } from "./engines";
+export type { AutoSleepState, EngineMetrics, WakeDecision } from "./fleet-control";
+export {
+  advanceAutoSleep,
+  clearHold,
+  decideWake,
+  enginePortPid,
+  fetchEngineMetrics,
+  fleetRunDir,
+  getIsSleeping,
+  holdMarkerPath,
+  initialAutoSleepState,
+  isEngineIdle,
+  isHeld,
+  parseEngineMetrics,
+  postSleep,
+  postWakeAndAwait,
+  WAKE_READY_TIMEOUT_MS,
+  writeHold,
+} from "./fleet-control";
 export { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "./gen-window";
 export { countGpus, detectGpu } from "./gpu";
 export { sniffMime, toDataUri } from "./image";
+export { findOrphanedFamily, makeCwdMarker, parsePsRows, reapOrphanedFamily } from "./reaper";
 export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine";
 export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine";
 export {
   breakerAllows,
   decideTick,
-  findOrphanedEngineCores,
-  reapOrphanedEngineCores,
   startVllmEngines,
 } from "./supervisor";
+export type { EngineUtilFractions, EngineVramNeed, GpuShortfall, GpuTenant, GpuVram, WakeBudgetVerdict } from "./wake-budget";
+export { decideWakeBudget, engineVramNeed, parseComputeAppsCsv, parseGpuVramCsv, queryGpuVram } from "./wake-budget";
+export type { WakeGateDeps } from "./wake-gate";
+export { ensureAwake } from "./wake-gate";

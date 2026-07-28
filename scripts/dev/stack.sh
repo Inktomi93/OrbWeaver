@@ -28,12 +28,11 @@
 # THEN vite. So vite-answering == everything-ready; Playwright gates on :5173.
 #
 # ENV PINS: exported here with `: "${VAR:=default}"` so a host export still
-# wins. VLLM_DISABLED=true (container-safe; engines.sh additionally no-ops
-# without a GPU) · AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a
-# caller flipping AUTH_MODE=local/oidc doesn't trip the env superRefine
-# boot-fatality (packages/server/src/foundation/env/index.ts). RUNNER_OVERRIDE
-# is deliberately NOT touched — the scripted-runner seam rides through from the
-# caller unclobbered.
+# wins. VLLM_DISABLED=true maps to ENGINES_POSTURE=off (no engines in-stack;
+# an explicit ENGINES_POSTURE from the caller — e.g. e2e's adopt-only — wins) ·
+# AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a caller flipping
+# AUTH_MODE=local/oidc doesn't trip the env superRefine boot-fatality
+# (packages/server/src/foundation/env/index.ts).
 #
 # Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Output
 # contract (probe convention): the LAST line is a stable `RESULT stack …`
@@ -64,13 +63,20 @@ declare -A PIN_SRC
 for v in "${PIN_VARS[@]}"; do
   if [ -n "${!v:+x}" ]; then PIN_SRC[$v]=host; else PIN_SRC[$v]=pinned; fi
 done
-# Normalize stray boolean spellings FIRST — the env schema takes exactly "true"|"false", and a stale
-# ambient `VLLM_DISABLED=1` (the pre-rebuild devcontainer ships one) is a boot-fatality otherwise.
-case "${VLLM_DISABLED:-}" in
-  1 | on | yes) VLLM_DISABLED=true ;;
-  0 | off | no) VLLM_DISABLED=false ;;
-esac
-: "${VLLM_DISABLED:=true}"
+# Engine topology (A.4): if the caller set ENGINES_POSTURE (e.g. e2e's adopt-only), it wins and we pass it
+# through untouched. Otherwise default VLLM_DISABLED=true (no engines in-stack), which the env resolver maps
+# to ENGINES_POSTURE=off. Normalize stray VLLM_DISABLED spellings FIRST — the schema takes exactly
+# "true"|"false", and a stale ambient `VLLM_DISABLED=1` (the pre-rebuild devcontainer ships one) is fatal.
+if [ -n "${ENGINES_POSTURE:-}" ]; then
+  export ENGINES_POSTURE
+else
+  case "${VLLM_DISABLED:-}" in
+    1 | on | yes) VLLM_DISABLED=true ;;
+    0 | off | no) VLLM_DISABLED=false ;;
+  esac
+  : "${VLLM_DISABLED:=true}"
+  export VLLM_DISABLED
+fi
 : "${AUTH_MODE:=single-user}"
 # DEV-ONLY deterministic secrets — INSECURE BY DESIGN, never for a real deploy.
 # They exist so AUTH_MODE=local (superRefine: SESSION_SECRET ≥32 chars +
@@ -78,7 +84,7 @@ esac
 : "${SESSION_SECRET:=orbweaver-dev-only-session-secret-insecure}"
 : "${CREDENTIALS_KEY:=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
 : "${LOCAL_INITIAL_PASSWORD:=orbweaver-dev-password}"
-export VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD
+export AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD
 
 port_pid() { ss -tlnp 2>/dev/null | grep ":$1 " | grep -oP 'pid=\K[0-9]+' | head -1; }
 own_pgid() { [ -f "$PIDFILE" ] && cat "$PIDFILE" 2>/dev/null || true; }
@@ -96,16 +102,16 @@ backend_env_var() { # pid name → value (from /proc environ; dotenv-loaded keys
 
 env_pin_report() {
   local bpid="$1" line="" v live
-  for v in VLLM_DISABLED AUTH_MODE; do
-    line="$line $v=${!v}(${PIN_SRC[$v]})"
-  done
+  # Engine topology: whichever of ENGINES_POSTURE / VLLM_DISABLED is set (one of them always is).
+  line="$line ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—}"
+  line="$line AUTH_MODE=${AUTH_MODE}(${PIN_SRC[AUTH_MODE]})"
   for v in SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD; do
     line="$line $v=<redacted>(${PIN_SRC[$v]})" # values are secrets — source only
   done
   echo "env pins      :${line}"
   if [ -n "$bpid" ]; then
     local lv=""
-    for v in VLLM_DISABLED AUTH_MODE; do
+    for v in ENGINES_POSTURE VLLM_DISABLED AUTH_MODE; do
       live="$(backend_env_var "$bpid" "$v")"
       lv="$lv $v=${live:-?}"
     done

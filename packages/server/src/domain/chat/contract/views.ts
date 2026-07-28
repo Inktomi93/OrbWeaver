@@ -231,4 +231,8 @@ export interface StreamEventBounds {
  *  seat) — the common case, which the `isBelowHistoryFloor` verdict short-circuits on. */
 export interface ChatEventAttach extends StreamEventBounds {
   readonly historyFloorSeq: number;
+  /** Whether the SUBSCRIBER is the room host — resolved from their own participant row at the same probe.
+   *  The live fan-out applies the §3.6 hidden-content member-strip (`stripChatEventForMember`) when false,
+   *  mirroring the per-caller strip the durable replay applies. Never client-supplied. */
+  readonly viewerIsHost: boolean;
 }

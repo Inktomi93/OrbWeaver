@@ -181,9 +181,10 @@ function splitOnElse(children: MacroAST): [MacroAST, MacroAST] {
   return [children, []];
 }
 
-// Three predicate shapes: {{#if NAME}}, {{#if NAME == "X"}}, {{#if NAME != "X"}}; optional {{else}}.
+// Three predicate shapes: {{if NAME}}, {{if NAME == "X"}}, {{if NAME != "X"}}; optional {{else}}.
+// (`::`-form args ({{if::NAME}}) rejoin to the same predicate string.)
 const ifHandler: MacroHandler = (args, ctx, children) => {
-  // Reassemble the raw predicate: the parser's whitespace splitter turns `{{#if NAME == "X"}}`
+  // Reassemble the raw predicate: the parser's whitespace splitter turns `{{if NAME == "X"}}`
   // into ["NAME", "==", "\"X\""]; reading only args[0] would degrade to a truthy check on NAME.
   const rawArg = args.join(" ").trim();
   if (!rawArg) {
@@ -390,7 +391,7 @@ const decVar: MacroHandler = (args, ctx) => {
   return String(ctx.env[key] ?? "");
 };
 
-// {{hasvar::name}} — "true" / "" so it composes with `{{#if hasvar::flag}}`. Semantics: "exists" is
+// {{hasvar::name}} — "true" / "" so it composes with `{{if hasvar::flag}}`. Semantics: "exists" is
 // membership, NOT non-empty — `{{setvar::flag::}}` then `{{hasvar::flag}}` returns "true".
 const hasVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
@@ -644,8 +645,10 @@ export function createDefaultRegistry(): MacroRegistry {
   registerVolatileMacros(registry);
 
   // `delayArgResolution: true` lets us read RAW args so we can tell a bare identifier apart from a
-  // sub-macro-resolved value like `{{hasvar::flag}} → "true"`.
-  registry.register("if", ifHandler, { delayArgResolution: true });
+  // sub-macro-resolved value like `{{hasvar::flag}} → "true"`. `blockChildren: true` (M1, §12A.1) —
+  // `if` branch-picks over the raw body AST itself, so the universal content-as-last-arg delivery
+  // (which would eagerly resolve BOTH branches) must not apply.
+  registry.register("if", ifHandler, { delayArgResolution: true, blockChildren: true });
   registry.register("else", () => ""); // structural marker; standalone use is a no-op
 
   // {{expr::<cel>}} — CEL surfaced inside templates (02 §3). Volatile: its value depends on the runtime
@@ -657,13 +660,17 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("noop", () => "");
   registry.register("banned", () => ""); // legacy upstreams strip the contents; mirror that
 
-  registry.register("trim", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trim() : ""));
-  registry.register("trimstart", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimStart() : ""));
-  registry.register("trimend", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimEnd() : ""));
+  // The whole-body transform family — `blockChildren: true` (M1): each transforms its VERBATIM resolved
+  // body, so the universal trim/dedent must not pre-mangle it (`{{trim}}` trimming a pre-trimmed body
+  // would be vacuous; the case-folds must preserve the author's exact whitespace).
+  const block = { blockChildren: true } as const;
+  registry.register("trim", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trim() : ""), block);
+  registry.register("trimstart", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimStart() : ""), block);
+  registry.register("trimend", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimEnd() : ""), block);
   // Locale-INDEPENDENT fold (Unicode default case mapping) — server and client must fold identically;
   // `toLocale*` would diverge on host locale (Turkish dotless-i, German ß).
-  registry.register("uppercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toUpperCase() : ""));
-  registry.register("lowercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toLowerCase() : ""));
+  registry.register("uppercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toUpperCase() : ""), block);
+  registry.register("lowercase", (_args, ctx, children) => (children ? ctx.evaluateAST(children).toLowerCase() : ""), block);
 
   registry.register("input", (_args, ctx) => ctx.input ?? "", volChat);
   registry.register("lastMessage", (_args, ctx) => ctx.lastMessage ?? "", volChat);

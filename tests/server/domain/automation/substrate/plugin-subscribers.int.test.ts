@@ -171,6 +171,29 @@ describe("plugin events.on fan-out — the P4 delivery gates", () => {
     expect(cap.delivered[0]?.message?.content).toBe("said after they joined");
   });
 
+  // §3.6 / D106: the plugin fan-out delivers `message.content` to a guest realm. A non-host member's plugin
+  // must receive the body with hidden-class spans STRIPPED (they never had the host reveal plane); a host's
+  // plugin reads the truth verbatim. Floor passes for a `full` member, so only the hidden strip differs here.
+  test("SECURITY (§3.6) — a member installer's delivered message.content is hidden-stripped; a host's is verbatim", async () => {
+    const f = await setup();
+    const member = await seedUser(f.db, "user_member");
+    await seedParticipant(f.db, { chatId: f.chatId, key: "member", userId: member, role: "member" }); // default `full`
+    const lie = '<lie character="Z" truth="he is the mole"/>';
+    const msg = await seedMessage(f.db, f.chatId, 1, { role: "assistant", content: `He smiles. ${lie} "Nothing."` });
+
+    const memberCap = capturingSubscriber(member, ["messageEdited"]);
+    const hostCap = capturingSubscriber(f.host, ["messageEdited"]);
+    f.registry.register(memberCap.subscriber);
+    f.registry.register(hostCap.subscriber);
+
+    await f.svc.handleEvent({ type: "messageEdited", chatId: f.chatId, messageId: msg.messageId });
+
+    // The member's plugin never sees the truth; the host's reads it verbatim (the reveal plane).
+    expect(memberCap.delivered[0]?.message?.content).toBe('He smiles.  "Nothing."');
+    expect(memberCap.delivered[0]?.message?.content).not.toContain("mole");
+    expect(hostCap.delivered[0]?.message?.content).toContain("mole");
+  });
+
   test("(b) FLOOR — the row AT the member's own joinSeq is INCLUSIVE (delivered), and an UNRESTRICTED member sees pre-join content", async () => {
     const f = await setup();
     const clamped = await seedUser(f.db, "user_clamped");

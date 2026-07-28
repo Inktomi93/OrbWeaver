@@ -3,6 +3,7 @@
 // re-exported from the barrel — can import `processMacros` without an import CYCLE (index → row-macros →
 // index would trip `noImportCycles`/`no-circular`; index → row-macros → engine does not).
 
+import { trimContent } from "./content";
 import { evaluateMacros } from "./evaluator";
 import { parseMacros } from "./parser";
 import { createDefaultRegistry } from "./registry";
@@ -33,14 +34,15 @@ function createMacroBudget(): MacroBudget {
 // agnostic and stay correct either way; this caveat is only about who gets to add names.
 export const globalMacroRegistry: MacroRegistry = createDefaultRegistry();
 
-export type ProcessMacroOptions = Omit<MacroContext, "evaluateString" | "evaluateAST"> & {
+export type ProcessMacroOptions = Omit<MacroContext, "evaluateString" | "evaluateAST" | "resolve"> & {
   postProcess?: (val: string) => string;
 };
 
 export function createMacroContext(options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): MacroContext {
   const budget: MacroBudget = options.__budget ?? createMacroBudget();
   // Wrap each recursion seam in a depth check — handler-driven re-entry (ctx.evaluateString in
-  // args, ctx.evaluateAST in block bodies) is exactly where the recursion bomb lives.
+  // args, ctx.evaluateAST in block bodies, ctx.resolve on the lazy path) is exactly where the
+  // recursion bomb lives.
   const guard = (fn: () => string): string => {
     if (budget.tripped) {
       return "";
@@ -64,6 +66,13 @@ export function createMacroContext(options: ProcessMacroOptions, registry: Macro
     __budget: budget,
     evaluateString: (str: string) => guard(() => evaluateMacros(parseMacros(str), registry, ctx)),
     evaluateAST: (astNode: MacroAST) => guard(() => evaluateMacros(astNode, registry, ctx)),
+    // The M2 lazy-contract handle (§12A.2): delegates to the guarded seams above, so it threads the
+    // SAME budget/PRNG/opLog as eager resolution — a lazy handler's late draws land in document order,
+    // byte-identical to the eager path. `trim: true` = the resolveContent body treatment (trimContent).
+    resolve: (content, opts) => {
+      const out = typeof content === "string" ? ctx.evaluateString(content) : ctx.evaluateAST(content);
+      return opts?.trim === true ? trimContent(out) : out;
+    },
   };
   return ctx;
 }

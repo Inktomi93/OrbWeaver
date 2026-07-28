@@ -71,6 +71,7 @@ export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): Promp
     params: normalizeParams(edited.params),
     regexScripts: edited.regexScripts,
     variables: edited.variables,
+    userMacros: edited.userMacros,
   };
   assignIfDefined(next, "customParameters", server.customParameters);
   assignIfDefined(next, "namesBehavior", edited.namesBehavior);

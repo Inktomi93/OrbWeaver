@@ -23,6 +23,13 @@ export const ENGINE_LIFECYCLE_STATUSES = [
   "foreign",
   /** Crash-loop circuit breaker open: repeated restarts failed; half-open retry later. */
   "failed",
+  /** Engine slept by the AUTO idle timer (manager posture): /health 200 but /is_sleeping true. Weights are
+   *  on CPU, the scheduler is paused — a request wakes it on demand (the client pre-dispatch wake gate). */
+  "sleeping",
+  /** Engine slept by a MANUAL hold (`pnpm engines:sleep` → the .cache/stack/engines.hold marker) — intent
+   *  ahead of a tenant's occupancy. The wake gate refuses on the marker even with VRAM free; only
+   *  `pnpm engines:wake` clears it. Distinct from `sleeping` so status tells manual-vs-auto apart. */
+  "sleeping-held",
 ] as const;
 
 // Derived file-locally from the canonical tuples (one home; no inline re-spell).

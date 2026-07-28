@@ -69,6 +69,27 @@ describe("patchSheet", () => {
     expect((await findSheet(db, game.id, { userId }))?.sheet.maxHp).toBeNull();
   });
 
+  test("level (§2.6 hand-only) writes + clears via patchSheet — its ONLY write door", async () => {
+    const { chatId, userId, service } = await seedGame();
+    const ref = { kind: "user" as const, userId };
+    const game = await findGameByChat(db, chatId);
+    if (!game) {
+      throw new Error("no game");
+    }
+    // Born null (nullable-honesty).
+    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { className: "Fighter" } });
+    expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBeNull();
+    // Hand-set the level.
+    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { level: 4 } });
+    expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBe(4);
+    // Omit keeps it (MA-4).
+    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { className: "Paladin" } });
+    expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBe(4);
+    // Explicit null clears it (key-presence, not ??).
+    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { level: null } });
+    expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBeNull();
+  });
+
   test("an attribute key NOT in the profile is refused", async () => {
     const { chatId, userId, service } = await seedGame();
     await expect(

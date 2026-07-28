@@ -24,6 +24,14 @@ test("an empty object is a valid 'nothing changed this turn' extraction (all fie
   expect(parsed).toEqual({ party: [], inventory: [], widgets: [], quests: [], journal: [] });
 });
 
+test("LEVEL is UNREACHABLE from the model (§2.6 hand-only) — absent from the projected extraction schema AND tool args", () => {
+  // The whole projected schema serialized — `level` must not appear as a writable property anywhere (the
+  // extraction reaches every model-writable plane, so its absence proves level is model-unwritable). A `level`
+  // reachable through a tool arg or the extraction would be the progression-inflation footgun §2.6 forbids.
+  const schemaJson = JSON.stringify(projectJsonSchema(rpgExtractionSchema));
+  expect(schemaJson).not.toContain("level");
+});
+
 test("the party field DERIVES from update_party args (the shared-plane proof)", () => {
   // The same object that parses as `update_party` args parses as one `party` entry — the extraction is a batch
   // of the tool calls the model would otherwise have made.
@@ -65,19 +73,23 @@ function refEnum(schema: Record<string, unknown>, path: readonly string[]): unkn
 
 test("constrain injects the actorRefs enum on party/inventory targetRef + scene.presentRemove", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
-  const constrained = constrainExtractionSchema(base, { actorRefs: ["You", "Bramwell"], widgetRefs: [] });
+  const constrained = constrainExtractionSchema(base, { actorRefs: ["You", "Bramwell"], widgetRefs: [], castFieldKeys: [] });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "inventory", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "scene", "properties", "presentRemove", "items", "enum"])).toEqual(["You", "Bramwell"]);
 });
 
 test("constrain injects the widgetRefs enum on widgets.widgetRef", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: ["Corruption", "Torch Fuel"] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: ["Corruption", "Torch Fuel"],
+    castFieldKeys: [],
+  });
   expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toEqual(["Corruption", "Torch Fuel"]);
 });
 
 test("an EMPTY ref list leaves the field unconstrained (never an impossible empty enum — the fresh-game arm)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [], castFieldKeys: [] });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toBeUndefined();
   expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toBeUndefined();
 });
@@ -85,15 +97,31 @@ test("an EMPTY ref list leaves the field unconstrained (never an impossible empt
 test("constrain does NOT mutate the input schema (the cached projection also feeds other wires)", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
   const snapshot = JSON.stringify(base);
-  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"] });
+  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"], castFieldKeys: [] });
   expect(JSON.stringify(base)).toBe(snapshot);
 });
 
 test("a constrained schema still PROJECTS clean (enum is plain JSON Schema every backend enforces)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: ["You"], widgetRefs: [] });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: ["You"], widgetRefs: [], castFieldKeys: [] });
   // The enum lives on a leaf string node — valid JSON Schema, no throw, portable to vLLM xgrammar + OR strict.
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You"]);
+});
+
+test("constrain injects the castFieldKeys enum on scene.presentUpsert[].customFields[].name (§2.8)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    actorRefs: [],
+    widgetRefs: [],
+    castFieldKeys: ["suspicion", "trust"],
+  });
+  const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
+  expect(refEnum(constrained, path)).toEqual(["suspicion", "trust"]);
+});
+
+test("an EMPTY castFieldKeys leaves the cast-field name unconstrained (the feature-off arm)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { actorRefs: [], widgetRefs: [], castFieldKeys: [] });
+  const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
+  expect(refEnum(constrained, path)).toBeUndefined();
 });
 
 // ── toolCallsToExtraction (the cheap TOOL ROUND fold — parallel tool calls → an RpgExtraction) ──────────

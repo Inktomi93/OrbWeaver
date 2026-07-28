@@ -20,7 +20,9 @@ import { EngineLaunchConfig } from "./engine-launch-config";
 
 const POLL_ACTIVE_MS = 5000;
 const POLL_STEADY_MS = 30_000;
-const STEADY_STATUSES = new Set(["adopted", "owned"]);
+// Steady = settled, no restart/warmup in flight → the slow poll. sleeping/sleeping-held are steady (a
+// healthy engine deliberately idle, weights on CPU) — not a transient the fast poll should chase.
+const STEADY_STATUSES = new Set(["adopted", "owned", "sleeping", "sleeping-held"]);
 
 /** The engine status list + per-engine restart. */
 export function AdminEnginesSection(): ReactElement {

@@ -13,7 +13,17 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorVolatileSchema } from "./actor";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient";
-import { RPG_QUEST_STATUSES, RPG_WIDGET_POSITIONS, RPG_WIDGET_TYPES } from "./enums";
+import { RPG_QUEST_STATUSES, RPG_RELATIONSHIP_KINDS, RPG_WIDGET_POSITIONS, RPG_WIDGET_TYPES } from "./enums";
+
+/** A present character's RELATIONSHIP (parity-plus §2.1) — a first-class field, NOT a `customFields` entry.
+ *  `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token level); `label` is the free
+ *  gloss used ONLY when `kind === "custom"` (empty otherwise). The default reading is the cast member's stance
+ *  toward the PLAYER. Swipe-consistent by construction (it rides the `presentCharacters` volatile plane). */
+export const rpgRelationshipSchema = z.object({
+  kind: z.enum(RPG_RELATIONSHIP_KINDS).default("neutral"),
+  label: z.string().default(""),
+});
+export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
 /** A quest objective — a stable-`id` line with a completion flag (`n/m` derives from these). The objective
  *  `id` is a plain in-blob string (`id` doesn't trip `no-raw-id`; a per-objective brand buys nothing at
@@ -50,6 +60,7 @@ export const rpgPresentCharacterSchema = z.object({
   outfit: z.string().optional(),
   thoughts: z.string().optional(),
   customFields: z.record(z.string(), z.string()).default({}),
+  relationship: rpgRelationshipSchema.default({ kind: "neutral", label: "" }),
 });
 export type RpgPresentCharacter = z.infer<typeof rpgPresentCharacterSchema>;
 

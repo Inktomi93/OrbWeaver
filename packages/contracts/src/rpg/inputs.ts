@@ -16,7 +16,7 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId, RpgWi
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorRefSchema } from "./actor";
-import { RPG_EXTRACTION_MODES, RPG_STEERING_NOTE_MAX } from "./config";
+import { RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
 import { rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
 import { rpgWidgetDefSchema } from "./snapshot";
@@ -41,6 +41,11 @@ export const rpgUpdateConfigInputSchema = z.object({
     .object({
       statProfile: rpgStatProfileSchema.optional(),
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).optional(),
+      // The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the
+      // per-custom-kind relationship hints. Omit keeps the current features; a passed array/record REPLACES it
+      // (whole-list edit, the host owns the schema authoritatively).
+      castFields: z.array(rpgCastFieldSchema).optional(),
+      relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),
@@ -59,6 +64,9 @@ export const rpgPatchSheetInputSchema = z.object({
     poolDefs: z.array(z.object({ name: z.string().min(1), max: z.number().int().min(1) })).optional(),
     maxHp: z.number().int().nullable().optional(),
     flavor: z.string().optional(),
+    // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). It is NOT a
+    // model-writable field (absent from the extraction schema + tool args) — patchSheet is its ONLY write door.
+    level: z.number().int().min(0).nullable().optional(),
   }),
 });
 

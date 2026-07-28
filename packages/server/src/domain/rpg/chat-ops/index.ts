@@ -72,7 +72,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
         return;
       }
       const mode: RpgExtractionMode = game.config.extractionMode;
-      // `turn` is the narration turn's already-resolved route + consent verdict — the state round rides it
+      // `turn` is the character turn's already-resolved route + consent verdict — the state round rides it
       // (F1: no second `resolveRole`, no force-stamped consent; F2: the readonly gate reads this capability).
       await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn });
     };

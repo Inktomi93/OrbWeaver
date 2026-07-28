@@ -10,10 +10,11 @@
 > content pipeline (D44/D45/D51), and the marinara source read where useful (cited per read). Every
 > load-bearing tree claim was verified against the working tree this session by direct read.
 >
-> **Status: DESIGN v2 — owner-RATIFIED (2026-07-27), build-ready pending the W4 commit.** v1 was ratified
-> with 11 rulings + 5 mods + 3 new integration areas (A/B/C); v2 folds them ALL in. House doc style: every
-> non-obvious call carries its WHY + the rejected alternative. BUILD begins after the W4 batch commits
-> (orchestrator sequences). Same completeness bar as v1 — zero build-time improvisation.
+> **Status: DESIGN v2.1 — owner-RATIFIED (v2, 2026-07-27); W4 COMMITTED (fc85f1c0).** v2.1 folds the
+> marinara-engine audit's curated STEAL/ADAPT verdicts (`reports/marinara-engine-parser-macro-audit.md`,
+> Opus, file:line-evidenced) — a DELTA FOLD onto the ratified v2 body, NOT a redesign (the audit validated
+> §12A: no design choice contradicted). House doc style: every non-obvious call carries its WHY + the
+> rejected alternative. Same completeness bar — zero build-time improvisation.
 >
 > **Two owner steers folded in v1 (2026-07-27), recorded verbatim in §4 and §5:**
 > - Feature 7 (immersive HTML): *"The fun IS the model making whatever in its HTML — we don't really
@@ -23,6 +24,45 @@
 > - Feature 7 addendum (the card hider): *"That and a hider — so the card doesn't get submitted each
 >   turn eating context."* → this GENERALIZED the whole hidden-channel design into a **content-class
 >   visibility registry** (§3), which is now the spec's core new machinery.
+
+---
+
+## v2 → v2.1 CHANGELOG (the marinara-audit delta fold — diff-read this first)
+
+The marinara-engine audit (Opus, read-only, file:line-evidenced) VALIDATED §12A — no design choice
+contradicted; marinara's `{{macro}}` engine is a less-capable predecessor (staged regex passes, no AST/CEL,
+no typed args, no user macros, no variant-scoped vars). Its value is entirely in an ADJACENT output-parser
+(D1) + small product/perf patterns. v2.1 folds the curated verdicts; nothing in the ratified v2 body is
+rewritten.
+
+- **D1 — the bracket-DSL ROBUSTNESS CONTRACT (STEAL the contract, keep OUR syntax + registry) → §3.2.**
+  Marinara's `[tag: attr="value"]` GM-output parser (`game-tag-parser.ts`) is the design cousin of our
+  `:::choices`/`:::card`/`<lie>` fences — and it built substantially MORE defensive output-parsing than a
+  fence scanner usually has. Ported as a robustness contract on our tokenizer (NOT its syntax): (a) a
+  quote/escape/JSON-aware BALANCED walker (survives JSON-in-attributes + streaming-truncated fences); (b)
+  ALLOWLIST-STRIP-UNKNOWN (a hallucinated fence/tag drops silently, never leaks into prose); (c) the THREE
+  RETENTION VARIANTS — which the audit notes is the SAME idea as our {reading-surface × wire} visibility
+  matrix, arrived at independently (the convergence is cited). This is the highest-value fold: it hardens
+  the parity-plus fences AND pre-designs full-mode's encounter/skill-check tags (graft doorway #V10).
+- **D3 — typed CHOICE-BLOCK input vocabulary (ADAPT onto the FOREIGN-inputs seam) → §12A.5.** The biggest
+  §12A enrichment: user-authored typed macro INPUTS — single-select, boolean-toggle, multi-select+separator,
+  and RANDOM-PICK-FROM-SELECTED-POOL (a variety mechanic we lack). §12A's user-defined macros get this input
+  vocabulary, homed on the FOREIGN-inputs channel (`[[foreign-inputs-seam-for-turn-settings]]`).
+- **D2 — strict-author / lenient-render split (ADAPT) → §12A.3.** Folded as the ENFORCEMENT POSTURE:
+  `validateTemplate` at the WRITE/author boundary (unknown vars/args = an authoring diagnostic) + lenient
+  leave-intact at RENDER (never crash a stale template at generation). Marinara proves the pattern in the
+  wild (`prompt-overrides/template.ts`).
+- **D5 — var-op-aware memoizing resolver (ADAPT, perf) → §12A note.** Cache-by-template-string with a
+  PERMANENT invalidate-on-first-var-op latch (correct because a later READ can observe an earlier WRITE).
+  Noted for the hot row-macro resolver.
+- **D6 — `{{idle_duration}}` (STEAL) → §12 (P6).** Time-since-last-activity as human text, EXCLUDING the
+  in-flight message. Made concrete on the macro-feed list.
+- **SKIP (recorded): D4** (var-snapshot commit/rollback — our D46 variant-scoped op-log strictly dominates a
+  flat `{...vars}` snapshot); **D7** (WrapFormat xml/markdown/none — assembly-layer, not the macro/parser
+  engine; flagged to the assembler owner).
+- **Terminology: "narration turn" → "character turn"** throughout (owner-flagged — there is no narration
+  round in lite; "narration" collides with group chat's narrator seat). Code-comment rename is a separate
+  follow-up.
 
 ---
 
@@ -719,6 +759,54 @@ a `:::card` with no closing `:::`, an unregistered tag/fence — all fall throug
 crashes. The output span union grows by the three registry-driven members (`hidden`/`card`/`choices`);
 `ContentSpanKind` is the tuple the `CONTENT_CLASS_POLICY` registry (§3.1) keys off.
 
+#### 3.2.1 The OUTPUT-PARSER ROBUSTNESS CONTRACT (D1 — steal the contract, keep our syntax)
+
+> **v2.1 fold (the marinara audit's highest-value delta).** Marinara's `[tag: attr="value"]` GM-output
+> parser (`game-tag-parser.ts`, 1144 lines) is the design cousin of these fences/tags — a parser for MODEL
+> OUTPUT, hallucination-tolerant, stream-tolerant. It built substantially more defensive machinery than a
+> fence scanner usually has. We STEAL the robustness CONTRACT (three guarantees), keep OUR syntax + the
+> visibility registry. This hardens the parity-plus fences AND pre-designs full-mode's encounter/skill-check
+> output tags (graft doorway #V10).
+
+The tokenizer's fence/tag recognizers (§3.2) must satisfy THREE robustness guarantees — the model-output
+parsing contract, not just the happy path:
+
+1. **JSON-in-attributes + streaming-truncation survival — a QUOTE/ESCAPE/BALANCE-AWARE walker.** A fence or
+   tag may carry structured attributes (a `:::card` with a `title="a {json: value}"`, or a full-mode
+   `[skill_check: {"dc":15,"attr":"dex"}]`), and the model STREAMS — so a recognizer must (a) track
+   `inString`/`escaped`/`depth` char-by-char so it removes/parses a tag carrying JSON-in-attributes WHOLE
+   (the naive "stop at the first `]`/`:::`" leaves `}]` garbage — marinara's `stripUnknownBracketTags`
+   :205-256 states exactly this bug), and (b) leave an UNBALANCED / stream-truncated fence IN PLACE (never
+   mangle a half-streamed `:::card` — marinara :249). *Our fences already close on a matching `:::`/`/>`,
+   but the current recognizer is a simple pair-match; the D1 contract upgrades it to a balance-aware walker
+   so a `:::` INSIDE a card's own body/attrs (or a `"` -quoted `:::` in an attribute) doesn't false-close.*
+   This is the extraction PRIMITIVE under every fence/tag recognizer — one shared walker, not per-kind.
+2. **ALLOWLIST-STRIP-UNKNOWN — the anti-hallucination floor.** A fence/tag whose NAME is not in the registry
+   (`DIRECTIVE_FENCE_NAMES` / `HIDDEN_TAGS`) is DROPPED silently, never leaked into rendered prose. Today an
+   unregistered fence degrades to literal TEXT (D51) — the D1 refinement: for a fence/tag that STRUCTURALLY
+   looks like a command (`:::teleport` / `<gmnote/>` before it's registered), the reading-surface plane
+   STRIPS it (drops the span) rather than showing the raw `:::teleport …` to the reader, because a
+   hallucinated command tag is model noise, not authored prose. *WHY not just literal-text it:* a model
+   inventing `:::combat` we never defined would render the raw directive as visible garbage; the allowlist
+   strip is the honest floor (the reader never sees a command the system didn't honor). A NON-command shape
+   (a stray `:::` with no valid name, ordinary prose) stays literal text (unchanged). The strip is
+   reading-surface-plane only — the WIRE keeps the model's bytes (it emitted them; the transcript is honest).
+3. **THE THREE RETENTION VARIANTS = OUR VISIBILITY MATRIX (the convergence, cited).** Marinara built THREE
+   strip variants with different retention — display-strip vs re-feed-strip vs keep-for-reader
+   (`stripGmTags` / `stripGmTagsKeepReadables` / `stripBalancedTag`). **This is the SAME idea as our
+   {reading-surface × wire} visibility matrix (§3.1), arrived at INDEPENDENTLY** — marinara's "which caller
+   gets which retention policy" IS our "each content class declares its {reading, wire} planes." The
+   convergence VALIDATES the matrix (two teams reached the same two-plane model). *Consequence:* we do NOT
+   need marinara's three ad-hoc strip functions — the `CONTENT_CLASS_POLICY` registry (§3.1) already
+   expresses all three retentions as data (`{show,full}` = keep-for-reader; `{hide,full}` = display-strip
+   but re-feed; `{show,stub}` = keep-for-reader but re-feed-shrunk). The D1 fold is the WALKER + the
+   allowlist-strip; the retention model is already ours.
+
+*The `{effect: text}` inline sub-grammar + the angle-line HTML-escape allowlist* (marinara's lighter prose-
+styling grammars, :1080/:1085) are NOT folded — our html-card (feature 7) covers inline styling via the
+sandbox, and our tokenizer already handles `<lie>`/`<ofilter>` angle tags via the `HIDDEN_TAGS` registry; a
+second `{effect}` grammar is surface area for zero capability the card doesn't give. Recorded as considered.
+
 ### 3.3 The teaching injections (features 3/4/5/7 — composed into the ONE reminder, config-gated)
 
 Each hidden-channel / card / cyoa feature contributes a teaching BLOCK to `buildLiteReminder`
@@ -796,6 +884,20 @@ the same tokenizer) — so the compaction sees the STUB, never the blob. The wir
 tells the truth about what the model saw. Verified by a wire-capture assertion (§10 tests).
 
 ### 3.6 The host-reveal surface — the GM "eye" (BEYOND marinara — she has none)
+
+**REASONING-CHANNEL RULE (owner-ratified 2026-07-27 — P3 build requirement, folds onto the member-strip):**
+the member-strip removes hidden tags from the message BODY, but the model's REASONING/thinking channel is
+member-visible (`MessageView.reasoning`, rendered by `reasoning-block.tsx`) and a deceptive model can spill
+a lie's truth there ("I'll tell them X but secretly Y"). Owner ruling: **when a game has deception active
+(`<lie>`/`<ofilter>` in use — i.e. `config.features.deception`/`omniscience` on), the REASONING CHANNEL IS
+HOST-ONLY — members see NO reasoning at all for that game** (not a per-tag scrub — the whole thinking channel
+goes host-only, the clean threat-model boundary). The host still sees reasoning. This is a per-game
+CONDITIONAL strip at every reasoning-carrying member-reachable surface (commit `MessageView.reasoning`, the
+live `reasoning`-channel delta, `reasoningEdited`/`reasoningCleared` bus events, durable replay) — the
+security review's reasoning-reachability map (`reports/…` P2-hardening) enumerates them. P3 wires it beside
+the body member-strip (`substrate/member-visibility.ts`); the gate is `game deception-active AND
+viewer !== host`. Games WITHOUT deception keep reasoning member-visible as today (no regression). The P2
+body-strip infra shipped reasoning-unstripped by design; P3 adds this game-conditional reasoning gate.
 
 Marinara hides the tags and offers ZERO reveal UI. Our "better":
 
@@ -905,6 +1007,7 @@ re-types, or migrates NOTHING shipped.
 | **#V5** | a richer STUB (per-class stub format, size hints) | an additive stub render off the same span (the stub is a function of the span, not a stored string) | a stored stub column (it is derived at the wire seam every assembly) |
 | **#V6** | a per-class WIRE policy change (a class that stubs on some backends only) | the policy could grow from a scalar to `{wire, backendOverrides?}` — an additive field on `ContentClassPolicy` | today's scalar `wire` is byte-stable; an override is opt-in |
 | **#V8** | `structural_tag` EMISSION enforcement (vLLM-only) — token-force schema-valid JSON inside a `<lie …/>` tag or a `:::card`/`:::choices` fence, AND the prose+state-together mode-3 doorway (guaranteed-valid embedded state in one generation) | a capability-keyed wire arm that, on a `structural_tag`-capable backend, sends the tag/fence grammar as a structural_tag constraint — an ENHANCEMENT over the portable prompt-taught base (the base works everywhere; §10.1) | replace the prompt-taught base (it stays the portable floor); build it into the v2 waves (doorway, not a wave) |
+| **#V10** | FULL-MODE encounter/skill-check OUTPUT tags (`[skill_check: …]`-class command tags in model prose — marinara's D1 registry has ~23) | new `HIDDEN_TAGS`/`DIRECTIVE_FENCE_NAMES` registrants that RIDE the §3.2.1 robustness contract (the balance-aware walker + allowlist-strip + the visibility-matrix retention) — full's engine parses them into structured actions; the parser machinery is ALREADY built by the parity-plus fences | a bespoke full-mode output parser (the §3.2.1 contract is the shared home — a full-mode tag is a registry row, not a new parser) |
 
 These are DESIGNED seams (named registries + total functions), not speculative code — the machinery
 ships with the registry it reads, so an add is a data row, matching the D72 machine-ships-with-its-seal
@@ -1062,6 +1165,33 @@ closed. A card whose fence never closes (stream aborted mid-card) stays literal 
 (the model's own truncation; the stored body is honest). *Rejected:* speculatively rendering partial HTML
 (the half-rendered flash the SandboxFrame header warns against).
 
+**Wiring reality (scouted 2026-07-27 — P4 builds from these facts, don't re-scout):** the streaming arm
+is ALREADY card-safe by construction — the ghost row (`ghost-message-row.tsx`, the only per-token
+re-renderer) is pure markdown (streamdown `mode="streaming"` + incomplete-markdown repair) with NO block
+projection; `toContentBlocks`/`SandboxFrame` exist only in the committed `MessageContent` path, and
+commit is a WHOLE-ROW hard cut (ghost unmounts, committed row mounts fresh) — so the card iframe loads
+exactly once, at commit, and the ST flicker/reload/re-execute class is structurally impossible (iframes
+are not in the per-token render path at all). P4 hygiene items: (1) memoize `toContentBlocks` on the
+body string in `MessageContent` (recompute-per-render today; note React string-prop diffing already
+prevents srcdoc reloads on identical content — a reload requires the html to actually change, i.e. a
+swipe, where it's correct); (2) keys are index+kind (`message-content.tsx:70`) — stable within a
+committed body, keep it that way; (3) the mid-stream reader experience is the raw fence text until
+commit — CURED by the ratified forming-card placeholder below.
+
+**The FORMING-CARD placeholder (owner-ratified 2026-07-27: "I want it to look pretty when it's
+building" — P4 item, ghost-arm only):** the moment the OPENING fence line completes in the ghost text
+(`:::card title="…"` + newline — unambiguous, no speculation about the body), the ghost renderer
+suppresses the accumulating raw HTML and shows a PRETTY building-state placeholder: a card-shaped
+skeleton frame (existing @orb/ui skeleton/shimmer primitives + the motion tokens — no bespoke CSS, the
+motion-token-purity gate applies) carrying "✦ {title}" and a subtle forming animation; body bytes keep
+accumulating invisibly behind it. At COMMIT the real card mounts in its place (chip → card, one cut).
+ABORTED stream (fence never closes): the committed body renders the honest literal text per the degrade
+rule — the chip simply disappears with the ghost row; no false card. NO iframe, NO partial HTML render
+ever — the chip is recognition of the completed OPEN marker only, which is why it doesn't violate the
+rejected-speculation rule. *Doorway:* the same chip can front the §4.8 lenient arm once its detector
+exists (the detector is pure and can run on ghost text; chip fires when the wrap threshold is met
+mid-stream) — additive, not required for P4. This is a `side-eye` surface (the prettiness IS the spec).
+
 ### 4.6 Swipe behavior (falls out of variant machinery — owner's expectation confirmed)
 
 Cards are per-variant body content (they live in the stored body of a specific `message_variant`). A
@@ -1081,9 +1211,58 @@ lightbox label. *SPEC'S LEAN:* ship inline + a fullscreen expand affordance; sel
 is an additive follow-up (it needs a message-channel contract the §10 security pass should also eyeball —
 a card postMessage-ing the parent is a new channel). This is a `side-eye` surface (§10).
 
----
+**The VIEW-RAW toggle (owner-ratified 2026-07-27, rides P4 with the card chrome):** every `html-card` —
+fence-authored AND lenient-wrapped alike — carries a raw-source affordance in the card chrome/lightbox:
+flip between the rendered sandbox and the EXACT stored source (the fence body / detected block) in a
+code view. WHY: a character can be IN-LORE writing HTML (a hacker's exploit page, an in-world website) —
+the rendered card is the right default (the fun IS seeing it), and the toggle serves the reader who
+wants the code the character "wrote". It is also the lenient-arm's safety valve: a borderline wrap is
+recoverable by the reader, not a dead-end.
 
-## 5. SECTION D — CYOA (feature 5): the structural choice grammar + click→send
+### 4.8 The LENIENT-RENDER raw-HTML fallback (owner-ratified 2026-07-27 — v2.2 fold; P4 item)
+
+**The gap (owner-surfaced):** ST/marinara need no fence — they watch for raw HTML in the output and
+render it, because raw HTML is pretraining-native. Our taught `:::card` fence is load-bearing (the wire
+stub needs a boundary + title; trust routing needs a decision point; watch-for-tags false-positives on
+in-fiction code/angle-bracket text) — but a SMALL LOCAL MODEL may ignore the taught syntax and emit
+naked HTML anyway, which today renders as ugly literal text. That is a [[plan-for-small-hardware]]
+honest-arms miss: "dumb models being dumb models — shit works and we handle properly" (owner, verbatim).
+
+**The design — strict fence is the TAUGHT contract; naked HTML gets WRAPPED as an implicit card:**
+- Detection is CONSERVATIVE, not watch-for-any-tag: a contiguous block of ≥N lines (start at N=3,
+  tunable constant, argued not a knob) that parses as element-majority HTML (opens with a block-level
+  tag, balanced-ish by the §3.2.1 robustness walker — the same quote/escape-aware machinery, ONE parser
+  family, no second heuristic engine) and is NOT inside a markdown code fence (a ```-fenced block is the
+  author showing code, never a card — hard exclusion).
+- A detected block becomes an IMPLICIT `card` span: same tierB SandboxFrame, same visibility-registry
+  row (`{show, stub}`), same keep-last-X. The stub title is DERIVED (first `<h1-h3>`/`title`-ish text,
+  else "untitled card" — the journalTitleFor derive precedent).
+- The implicit arm obeys the SAME toggles: immersiveHtml OFF → no wrap (literal text, today's behavior);
+  the M3 interactive sub-toggle governs scripts identically. No separate knob for the fallback itself —
+  it is the same feature arriving by a lenient door (strict-author/lenient-render, the D2 audit adopt,
+  now applied to the feature's own input).
+- False-positive discipline, softened by the view-raw toggle (§4.7): the negative corpus — markdown
+  ```-fenced blocks (explicit code display, markdown's own semantics), `<lie>`-class registered tags,
+  angle-bracket emotes/actions, a single inline `<b>` bold — must NOT wrap, and the corpus is the
+  regression floor. But NAKED in-fiction HTML (a character in-lore writing a page) DOES wrap by design
+  (owner ruling): render-first is the right default, and the §4.7 view-raw toggle serves the
+  read-the-code case — so a borderline wrap is a recoverable preference, not a dead-end bug.
+- **The ```html-FENCE exception (owner-ratified 2026-07-27: "that is how we roll"):** assistant-trained
+  models habitually wrap HTML in ` ```html ` fences (burned-in coding-assistant behavior) — the second
+  dumb-model shape after naked HTML. A fence whose LANGUAGE TAG is `html` or `svg` AND whose body passes
+  the same element-majority check is an implicit-card candidate (same sandbox/stub/`origin:"lenient"`,
+  same immersiveHtml gate — OFF renders the code block exactly as today). GENERIC fences stay
+  hard-excluded (no language tag, or any non-markup tag = code display, period — the exclusion above is
+  unchanged for them). The view-raw toggle maps perfectly on this arm: the "raw" view IS the highlighted
+  code block the fence would have rendered. Negative-corpus additions: ` ```html ` containing prose/
+  pseudo-code (fails element-majority) stays a code block; ` ```js `/` ```css `/untagged never wrap.
+- Provenance is visible: an implicit card's block carries `origin: "lenient"` (vs `"fence"`) so the
+  reveal/debug surfaces can show WHY something rendered as a card; the wire stub is identical either way.
+
+*Rejected:* teaching harder (more injection tokens for a model that already ignored the syntax);
+rendering naked HTML in place without the card wrapper (loses the hider + sandbox — the two owner
+non-negotiables). **Wave: P4** (it rides the same tokenizer arm + trust routing); tests join §10's P4
+row (detection corpus positive + negative, derived-title, origin tag, toggle-off passthrough).
 
 ### 5.1 The "better" — clickable structural affordances, not dead prose
 
@@ -1494,7 +1673,7 @@ tax on the surviving skins; the program's cache assumptions hold.
 
 The rpg state round (reliable extraction / cheap tool round) is a REAL billed model call per game turn, but
 its tool calls fold to an extraction and are DROPPED (`toolCallsToExtraction`) — no `ToolCallRecord` lands
-on any variant, and no stats delta is built (the stats plane meters engine/narration turns only). The
+on any variant, and no stats delta is built (the stats plane meters engine/character turns only). The
 stickler flagged this as an undocumented spend path (F5). **Orchestrator ruling (2026-07-27):
 ACCEPTED-AND-DOCUMENTED for v1.** *WHY it is correct, not a gap:* the state round is an INFRA-ECONOMIC call
 of the SAME class as summarize / managed-compaction / memory-digest generation — background model work that
@@ -1504,7 +1683,7 @@ delta either; they are metered by the PER-ITEM PROVIDER LOGS (`provider.structur
 wire captures. So the state round's economics ARE recorded — in the provider-observability plane where its
 siblings live, not the conversational-turn plane (D46: "cost VISIBILITY is untouched — enforcement died,
 not measurement"; the visibility is the per-item log, which this batch built). A `ToolCallRecord` on the
-variant would be a category error: the state round's calls are not the narration turn's tool exchanges (the
+variant would be a category error: the state round's calls are not the character turn's tool exchanges (the
 char turn is tool-less), so persisting them on the variant would mislead the transcript reader into thinking
 the character called tools. **The doorway (named for parity-plus):** if a future need wants state-round
 tokens IN the per-chat/per-user stats rollup (not just the provider log), a `RpgStateRoundEconomics` sink on
@@ -1560,7 +1739,9 @@ where a wave spans both). Commit bar per the standing rule: lanes verify scoped;
 `pnpm check` + the battery on the quiesced tree. A `stickler` pass on the P2 registry diff (substantial,
 security-adjacent) before merge.
 
-**Ledger at land:** mint **D108** — the parity-plus program: relationship as a closed-vocab-with-custom
+**Ledger at land:** mint **D110** (erratum fixed 2026-07-27 — this note predated the D108/D109 mints;
+D108 = the rpg-lite carve, D109 = the W4 rulings, both live in Core-Path-Registry.md) — the parity-plus
+program: relationship as a closed-vocab-with-custom
 field; level hand-only; the CONTENT-CLASS VISIBILITY REGISTRY (two planes, an OPEN registry of content
 classes, the `toContentParts` wire seam + the client/server render filter); the generic hidden-tag
 registry (`HIDDEN_TAGS`, lie/ofilter first registrants) + the generic directive-fence registry
@@ -1611,6 +1792,15 @@ The seam is ALREADY BUILT (verified this session) — feature A only POPULATES i
 - **The path-read set** (`rpg.scene.*`, `rpg.cast[].relationship`, `rpg.quests[].status`, `rpg.delta.*`) is
   the documented reachable surface — the shape is the tracker view, so it stays in sync by construction
   (one projection, two consumers: the panel + the macro/CEL binding).
+- **`{{idle_duration}}` (D6 v2.1 fold — STEAL, made concrete).** Time since the last chat activity as human
+  text (`8 minutes`, `1 hour 5 minutes`, `2 days 3 hours`) — the "the character notices you've been gone"
+  beat. A context-macro (not rpg-specific — it belongs on the general `MacroContext`, so it works in any
+  chat, game or not). **The load-bearing subtlety (marinara-proven, `macro-context.ts:130`):** it scans the
+  message timestamps and EXCLUDES the in-flight message (else it always reads ~0 — the user just sent). The
+  value is computed at assembly (server-side, off the message timestamps the chat already holds) and staged
+  onto `ctx.idleDuration`; the macro reads it or "" (a fresh chat with one message = no prior activity =
+  ""). Volatile (it changes every turn) — registered `volatile: true` so the cache-buster scan flags a
+  preset placing it in a cached prefix (the §12.3 volatility-honesty discipline).
 
 ### 12.3 Metadata honesty + cache notes (owner-required)
 
@@ -1758,6 +1948,21 @@ through nesting (ST's `globalOffset` discipline).
   push to `ctx.opLog` in resolution order (the replay along the variant chain stays deterministic); the CEL
   activation (`celBindings`) is data-only and re-read, not re-seeded.
 
+**D5 (v2.1 fold — ADAPT, perf) — the var-op-aware MEMOIZING resolver for the hot row-macro path.** The
+shared server/client row-macro atom (`resolveRowMacros`) resolves the SAME regex-script/trim template
+strings repeatedly during one display render (the DISPLAY-regex pass re-runs the same templates per row).
+Marinara's `createMessageMacroResolver` (`chat-macros.ts:208-234`) is the correct memoization contract:
+cache-by-template-string for ONE display computation, cap the cache to templates ≤2048 chars, and — the
+subtle-correct part — **PERMANENTLY invalidate the cache from the FIRST variable WRITE onward** (a
+`variablesTouched` latch). *WHY the latch, not "skip var-op templates":* a naive "cache unless this template
+writes a var" is WRONG because conditionals and the argument-less `{{NAME}}` env-catch-all can READ a
+variable without matching any var-op pattern — so a template cached BEFORE an unrelated write would serve
+stale on a repeat AFTER the write (a later read observes the earlier write). The permanent latch is correct
+by construction: once ANY write happens, no cached repeat is trustworthy. **ADOPT IF the row-macro resolver
+shows up hot** (a profiling gate, not a speculative build — measure first); the correctness argument goes in
+the commit. This is a perf pattern, not a capability — noted here so it's in hand when the profile calls for
+it. NOT a wave; a documented drop-in.
+
 ### 12A.3 WAVE M3 — RUNTIME-ENFORCED TYPED ARGS
 
 **The win (ruling #3):** extend `MacroArgDef` from DX-metadata-only into EXECUTION-PATH enforcement
@@ -1776,6 +1981,25 @@ through nesting (ST's `globalOffset` discipline).
   error CLASS inside it (the diagnostic carries the arg index + expected/got type), and `strictArgs`
   chooses render-"" vs best-effort. The DX metadata (`MacroMetadata`) and the runtime spec become ONE
   home (the metadata IS the runtime contract — no second declaration to drift, the D51 one-home discipline).
+
+**D2 (v2.1 fold) — the ENFORCEMENT POSTURE is STRICT-AUTHOR / LENIENT-RENDER.** Marinara's `${name}`
+prompt-override engine (`prompt-overrides/template.ts`) proves the pattern in the wild: `validateTemplate`
+runs at the WRITE path and returns `unknownVariables[]` (surfaced as an authoring diagnostic — a chip
+palette of the declared set + an "unknown variable" warning), while `renderTemplate` leaves an undeclared
+`${x}` INTACT rather than throwing ("production rendering should never crash on a stale template"). This is
+the exact posture for §12A.3's enforcement:
+- **STRICT at the AUTHOR/WRITE boundary** — when a preset/game/user-macro template is SAVED, validate it
+  against the declared macros + their arg specs and surface unknown macros / bad-arity / type-mismatch as
+  AUTHORING diagnostics (the DX squiggle + the macro-browser palette). This is where `strictArgs` bites
+  hard: the editor holds new authorship to the bar.
+- **LENIENT at RENDER/generation** — a template that is somehow stale at generation time (a macro was
+  renamed, a game's vocab changed) NEVER crashes the turn: the unknown macro degrades to literal `{{name}}`
+  (the existing fail-open, `evaluator.ts:64`), the render proceeds. A generation is not the place to enforce
+  authorship — the author already had their diagnostic at write time.
+- *WHY this split, not uniform-strict:* uniform-strict-at-render would let a stale stored template abort a
+  live generation (the exact crash marinara's comment warns against); uniform-lenient-everywhere loses the
+  authoring feedback that makes typed args worth having. Strict-author/lenient-render gets both — the author
+  is told, the turn is safe. This is the POSTURE for the whole §12A.3 typed-arg contract.
 
 ### 12A.4 WAVE M4 — the RESERVED FLAGS GRAMMAR (syntax reserved before it's needed)
 
@@ -1834,6 +2058,30 @@ top of it" payoff** — the whole program exists to reach this wave.
   error, the registry's boot-fatal-collision posture); the neutralize-macros defense (`kit/guided`
   `neutralizeMacros`) applies to any untrusted arg spliced into a user template (a user macro can't be a
   macro-injection vector).
+
+**D3 (v2.1 fold) — the TYPED CHOICE-BLOCK INPUT VOCABULARY (the biggest §12A enrichment).** A user macro's
+args are not only free-text — a preset/game author defines a macro input as a TYPED, user-facing control
+(marinara's "Preset Variables", `preset-variables.md`). The input vocabulary (steal the KINDS, skip the
+presentation-style zoo):
+- **single-select** — a fixed option list, the user picks one (radio/dropdown at the surface — the surface
+  style is UI chrome, not engine; we ship the KIND, the client renders it).
+- **boolean-toggle** — a one-option input becomes on/off.
+- **multi-select + configurable JOIN SEPARATOR** — the user picks several; the macro resolves to the picks
+  joined by the author's separator.
+- **RANDOM-PICK-FROM-SELECTED-POOL** — the user pre-selects a POOL; each generation draws ONE at random.
+  *This is a genuine variety mechanic we lack* — and it's SWIPE-SAFE + DETERMINISTIC in ours by
+  construction: the draw rides `ctx.random` (freeze-at-commit, §12A.2), so a swipe/replay re-draws the same
+  pick, and the op-log records it (marinara's is per-generation-fresh with no replay). The random-pick is
+  the standout D3 steal.
+
+**Home: the FOREIGN-INPUTS seam** (`[[foreign-inputs-seam-for-turn-settings]]` — per-user turn knobs ride
+`ResolveForeignInputsOp`). A typed macro input is exactly a per-user turn knob: the user's picks resolve on
+the FOREIGN-inputs channel, so a multi-human room's members each get their own picks (the seam is already
+per-user), and the picks freeze at commit like every other turn input. *WHY the FOREIGN-inputs seam, not
+config:* the DEFINITION (the input's type + options) lives in preset/game config (the user-macro home,
+above); the user's PICK is per-turn per-user runtime state — that is the FOREIGN-inputs channel's exact job.
+*Skipped:* the presentation-style zoo (Auto/Radios/Checkboxes/Dropdown/Listbox — UI chrome; the KIND
+determines the control, the client owns the rendering). **Cover-summary item (owner eyeball): §13 #24.**
 
 ### 12A.6 SKIP (argued) — the variable shorthand (`./$` prefixes)
 
@@ -2030,3 +2278,21 @@ re-spells anything shipped. **(keep-last-X is now SHIPPED as M2, not deferred.)*
     nesting × malformed × escaping), golden round-trip pins, the determinism property test, budget/recursion
     bombs, server/client shared-atom byte-parity, and the migration golden. Per your "do it right and
     tested." **Eyeball: language-kernel test bar.**
+
+**The v2.1 marinara-audit fold — the two owner-eyeball-worthy adopts:**
+
+24. **Typed CHOICE-BLOCK input vocabulary for user macros (D3, §12A.5)** — user-authored macros get typed
+    INPUTS, not only free text: single-select, boolean-toggle, multi-select+separator, and the standout
+    RANDOM-PICK-FROM-SELECTED-POOL (a variety mechanic we lack — the user pre-selects a pool, each generation
+    draws one; swipe-safe + deterministic in ours because the draw rides freeze-at-commit). Homed on the
+    FOREIGN-inputs seam (per-user, per-turn). **Eyeball: the input vocabulary + the random-pick mechanic —
+    this is the biggest §12A enrichment.**
+25. **The output-parser ROBUSTNESS CONTRACT + the convergence with our visibility matrix (D1, §3.2.1)** —
+    marinara's `[tag: attr]` GM-output parser is the design cousin of our fences; we STEAL its robustness
+    (a quote/escape/JSON-aware balanced walker that survives JSON-in-attributes + stream-truncation; an
+    allowlist-strip so a hallucinated fence/tag drops silently instead of leaking into prose), keep OUR
+    syntax. **The notable finding: marinara's "three retention variants" ARE our {reading-surface × wire}
+    visibility matrix, arrived at independently** — two teams reached the same two-plane model, which
+    validates the matrix. Hardens the parity-plus fences AND pre-designs full-mode's encounter/skill-check
+    tags (graft doorway #V10). **Eyeball: the convergence confirmation + the robustness contract on the
+    fences.**

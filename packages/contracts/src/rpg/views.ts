@@ -7,7 +7,7 @@
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
-import type { RpgGameConfig } from "./config";
+import type { RpgCastField, RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
 import type { RpgPresentCharacter, RpgWidgetDef } from "./snapshot";
 
@@ -41,6 +41,8 @@ export interface RpgActorView {
     readonly attributes: Readonly<Record<string, number>>;
     readonly poolDefs: readonly { readonly name: string; readonly max: number }[];
     readonly maxHp: number | null;
+    /** The hand-only progression level (§2.6) — null renders nothing (nullable-honesty, no phantom "Level 0"). */
+    readonly level: number | null;
   };
   readonly volatile: RpgActorVolatile | null;
 }
@@ -79,6 +81,10 @@ export interface RpgTrackerView {
   } | null;
   readonly actors: readonly RpgActorView[];
   readonly cast: readonly RpgPresentCharacter[];
+  /** The host-defined tracked cast-field SCHEMAS (§2.8 — `config.features.castFields`) the Scene tab joins
+   *  against each cast member's `customFields` record to render meters/text + the relationship badge. Empty when
+   *  the feature is off (a defined field or nothing — no opaque-record fallback). */
+  readonly castFields: readonly RpgCastField[];
   readonly widgets: readonly RpgWidgetView[];
   readonly quests: readonly RpgQuestView[];
   readonly recentBeats: readonly string[];
@@ -103,4 +109,8 @@ export interface RpgConfigView {
   readonly steeringNote: string;
   readonly gmPresetId: string | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];
+  /** The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the
+   *  per-custom-relationship-kind steering hints on this editor surface. */
+  readonly castFields: RpgGameConfig["features"]["castFields"];
+  readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
 }

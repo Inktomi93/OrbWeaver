@@ -103,7 +103,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-scene-tab">
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientProps} />}
-      <SceneCast cast={tracker.cast} />
+      <SceneCast cast={tracker.cast} castFields={tracker.castFields} />
       <SceneGoals quests={tracker.quests} {...(onEditGoal === undefined ? {} : { onEditGoal })} />
       <SceneWidgets groups={groups} />
       <SceneBeats beats={beats} />
@@ -120,21 +120,54 @@ function SectionLabel({ children }: { readonly children: ReactNode }): ReactElem
   );
 }
 
-function SceneCast({ cast }: { readonly cast: RpgTrackerView["cast"] }): ReactElement {
+/** Split a cast member's stored `customFields` record against the host-defined field SCHEMAS (§2.8): a `meter`
+ *  field becomes a MeterRow (numeric value/max, the value parsed from its stored string); a `text` field becomes
+ *  a labelled chip. Only DEFINED fields render (an orphan value from a deleted field-schema is dropped). */
+function castFieldViews(
+  customFields: Readonly<Record<string, string>>,
+  castFields: RpgTrackerView["castFields"],
+): { readonly meters: readonly { key: string; label: string; value: number; max: number }[]; readonly texts: readonly { name: string; value: string }[] } {
+  const meters: { key: string; label: string; value: number; max: number }[] = [];
+  const texts: { name: string; value: string }[] = [];
+  for (const field of castFields) {
+    const raw = customFields[field.key];
+    if (raw === undefined) {
+      continue;
+    }
+    if (field.kind === "meter") {
+      const value = Number.parseInt(raw, 10);
+      meters.push({ key: field.key, label: field.label, value: Number.isNaN(value) ? 0 : value, max: field.max ?? 0 });
+    } else {
+      texts.push({ name: field.label, value: raw });
+    }
+  }
+  return { meters, texts };
+}
+
+function SceneCast({ cast, castFields }: { readonly cast: RpgTrackerView["cast"]; readonly castFields: RpgTrackerView["castFields"] }): ReactElement {
   if (cast.length === 0) {
     return <Text tone="muted">No one on stage yet.</Text>;
   }
   return (
     <Stack gap="field">
       <SectionLabel>On stage — {cast.length}</SectionLabel>
-      {cast.map((member) => (
-        <CastCard
-          key={member.key}
-          name={member.name}
-          {...(member.mood === "" ? {} : { mood: member.mood })}
-          fields={Object.entries(member.customFields).map(([name, value]) => ({ name, value }))}
-        />
-      ))}
+      {cast.map((member) => {
+        const { meters, texts } = castFieldViews(member.customFields, castFields);
+        return (
+          <CastCard
+            key={member.key}
+            name={member.name}
+            {...(member.mood === "" ? {} : { mood: member.mood })}
+            relationship={member.relationship}
+            fields={texts}
+            {...(meters.length === 0
+              ? {}
+              : {
+                  meters: meters.map((m, i) => <MeterRow key={m.key} label={m.label} value={m.value} max={m.max} color={trackColor(i)} />),
+                })}
+          />
+        );
+      })}
     </Stack>
   );
 }

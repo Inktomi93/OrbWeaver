@@ -30,34 +30,11 @@ test("[reject] legacy <BOT>/<CHAR> markers are left verbatim", () => {
   expect(render("Bot: <BOT>, Char: <CHAR>.")).toBe("Bot: <BOT>, Char: <CHAR>.");
 });
 
-// ── STscript execution-modifier flags {{!m}} {{?m}} {{~m}} {{>m}} (MacroLexer.e2e.js:513-643) ──────
-// ST's lexer recognizes `! ? ~ / >` as macro EXECUTION MODIFIERS before the identifier. Orbweaver's
-// MACRO_IDENT requires a leading LETTER (parser.ts) — a `{{!` / `{{?` / `{{~` / `{{>` fails the identifier
-// match, so the whole tag re-emits as its literal source span (never a flagged invocation).
-
-test("[reject] the ! execution-modifier flag is not parsed — tag is literal", () => {
-  expect(render("{{!setvar::x::1}}")).toBe("{{!setvar::x::1}}");
-});
-
-test("[reject] the ? execution-modifier flag is not parsed — tag is literal", () => {
-  expect(render("{{?getvar::x}}")).toBe("{{?getvar::x}}");
-});
-
-test("[reject] the ~ execution-modifier flag is not parsed — tag is literal", () => {
-  expect(render("{{~char}}")).toBe("{{~char}}");
-});
-
-test("[reject] the > filter-modifier flag is not parsed — tag is literal", () => {
-  expect(render("{{>char}}")).toBe("{{>char}}");
-});
-
-// The `#` flag: ST treats a leading `#` as a legacy no-op flag (MacroEngine.e2e.js:1371) that STILL
-// resolves the macro (`{{#char}}` → the char name). Orbweaver's `#` is the BLOCK-OPEN marker (parser.ts):
-// `{{#char}}` opens a block named `char` that never closes → rescued as its literal open-tag text. A hard
-// GRAMMAR COLLISION, not merely an ignored flag — `#` means something DIFFERENT in each engine.
-test("[reject] a leading # opens a block in ours (not ST's no-op flag) — unclosed → literal", () => {
-  expect(render("{{#char}}")).toBe("{{#char}}");
-});
+// ── Execution-modifier flags {{!m}} {{?m}} {{~m}} {{>m}} {{#m}} — NO LONGER REJECTED ───────────────
+// The MG wave (parity-plus §12A.4) ADOPTED ST's flag grammar: `! ? ~ > / #` parse as a flag RUN between
+// `{{` and the identifier (reserved-but-unimplemented flags carry + no-op). These constructs moved from
+// this rejection file to the IMPLEMENTED-grammar pins in grammar-corpus.suite.test.ts — a `{{~char}}`
+// now RESOLVES (un-reevaluated), and `#` is PRESERVE_WHITESPACE (the old block-open collision is gone).
 
 // ── Variable shorthand syntax {{$local}} {{$$global}} {{var++}} {{var=v}} (MacroLexer.e2e.js:708-933) ──
 // ST's lexer has dedicated `$`/`$$`/`++`/`--`/`=`/`+=` variable-shorthand tokens. Orbweaver has no `$`

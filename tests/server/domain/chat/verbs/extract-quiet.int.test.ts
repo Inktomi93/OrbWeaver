@@ -116,6 +116,30 @@ describe("createExtractQuiet", () => {
     expect(userPrompt).not.toContain("HIDDEN line.");
   });
 
+  // §3.6 / D106 summary-plane strip: the extractor's distillation is handed back on the wire (and can seed a
+  // durable image prompt), so hidden-class spans must NEVER enter the model's scene — a lie's truth cannot
+  // launder into an image prompt. Unconditional (the compaction-sink ruling), like `projectBodyForSummary`.
+  test("hidden-class spans are STRIPPED from the scene the side-LLM reads (no lie-truth in the distillation)", async () => {
+    const db = await freshDb();
+    const chatId = await seedRoom(db);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: 'He smiles. <lie character="Z" truth="he is the mole"/> "Nothing."' });
+
+    const calls: SummarizeCall[] = [];
+    const extractQuiet = createExtractQuiet({
+      db,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+    });
+
+    await extractQuiet({ chatId, instruction: "x", historyFloorSeq: historyFloor(0) });
+
+    const userPrompt = calls[0]?.inputs[0]?.userPrompt ?? "";
+    expect(userPrompt).toContain('He smiles.  "Nothing."');
+    expect(userPrompt).not.toContain("mole");
+    expect(userPrompt).not.toContain("<lie");
+  });
+
   // The extraction's product is a model DISTILLATION of the transcript returned to ONE human on the wire
   // (`imagery.extractPrompt`), so it is viewer-plane: a `from-join`-clamped caller's pre-join rows must never
   // reach the side-LLM at all. The floor is resolved at the compose gate by `resolveViewerVisibility`.

@@ -18,10 +18,10 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const DEFAULT_SHEET: RpgSheet = { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "" };
+const DEFAULT_SHEET: RpgSheet = { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
 
 function sheetWith(className: string): RpgSheet {
-  return { className, attributes: { str: 3 }, poolDefs: [], maxHp: null, flavor: "" };
+  return { className, attributes: { str: 3 }, poolDefs: [], maxHp: null, flavor: "", level: null };
 }
 
 function seedChar(userId: UserId, key: string): Promise<CharacterId> {

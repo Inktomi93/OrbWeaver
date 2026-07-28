@@ -34,6 +34,18 @@ test("plain text yields a single text token; empty string yields none", () => {
   expect(splitMacroTokens("")).toEqual([]);
 });
 
+test("escape-aware: `\\{{char}}` chips as LITERAL text, a bare `{{char}}` chips as a macro (the drift the fix closes)", () => {
+  // The old bespoke regex was escape-blind — it mis-chipped `\{{char}}` as a live macro. The real parser
+  // treats `\{{` as a literal opener, so the preview now honors the same rule the engine does.
+  expect(splitMacroTokens("\\{{char}}")).toEqual([{ kind: "text", value: "{{char}}" }]);
+  expect(splitMacroTokens("{{char}}")).toEqual([{ kind: "macro", value: "char" }]);
+  // Mixed: an escaped token stays literal alongside a live one.
+  expect(splitMacroTokens("a \\{{char}} b {{user}}")).toEqual([
+    { kind: "text", value: "a {{char}} b " },
+    { kind: "macro", value: "user" },
+  ]);
+});
+
 test("only enabled, in-flow sections appear; grouped by consecutive role", () => {
   const sections = [
     literal("a", "aaaa"),

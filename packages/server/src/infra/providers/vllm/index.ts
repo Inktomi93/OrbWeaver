@@ -5,15 +5,15 @@
 
 import process from "node:process";
 import type { ResolvedEngineLaunch } from "@orb/contracts/settings";
-import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "#foundation/env";
+import { engineDeploymentEnv, engineLaunchEnvFloor, env } from "#foundation/env";
 import type { ProviderBackend, WireCaptureSink } from "../contract";
-import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine";
+import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine";
 import {
   allEngineStatuses,
-  buildEngineSpawnSpec,
-  countGpus,
   createVllmEngineClient,
+  fleetRunDir,
   getVllmEngineController,
+  isHeld,
   resolveEngineDeploymentFacts,
   startVllmEngines,
 } from "./engine";
@@ -68,10 +68,14 @@ export interface VllmBackendDeps {
   readonly embedDim?: number | undefined;
   readonly chunkSize?: number | undefined;
   readonly concurrency?: { readonly embed?: number; readonly summarize?: number } | undefined;
-  /** Cwd marker the supervisor's death-couple + orphan-reap use; defaults to cwd. */
+  /** Cwd marker the supervisor's orphan-reap + the detached-spawn trigger use; defaults to cwd. */
   readonly repoRoot?: string | undefined;
-  /** Live getter for the RESOLVED engine launch config (admin override ⊕ env floor). Read PER SPAWN so an
-   *  admin retune + restart picks up the new flags. Omitted (tests / GPU-less) ⇒ the pure env-floor default. */
+  /** The fleet MANAGER posture (adopt-or-start) triggers the detached spawner + owns auto-sleep; adopt-only
+   *  adopts healthy engines but NEVER spawns (fail-fast on a down engine). Omitted ⇒ true (manager default). */
+  readonly manages?: boolean | undefined;
+  /** Live getter for the RESOLVED engine launch config (admin override ⊕ env floor). RESERVED: under the
+   *  ownership inversion the detached front-door verb rebuilds argv from the env floor, so this is not
+   *  currently threaded into the auto-spawn path (an admin retune-restart rides engine-control.ts). */
   readonly engineLaunch?: (() => ResolvedEngineLaunch) | undefined;
   /** Live getter for the per-REQUEST presence-penalty default the chat surface applies when a preset is silent
    *  (item 7 — engineLaunch.genPresencePenalty). Read per request so an admin retune applies without a restart.
@@ -91,35 +95,26 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
   const summarizeConcurrency = deps.concurrency?.summarize ?? DEFAULT_SUMMARIZE_CONCURRENCY;
   const repoRoot = deps.repoRoot ?? process.cwd();
 
-  // The spawn-spec builder handed to the supervisor: resolve the launch config (admin override ⊕ env floor)
-  // + deployment env + detected GPU count into a command+args+env, PER SPAWN so a restart-to-apply picks up
-  // an admin retune. The floor's ports are DEPLOYMENT facts (env-only); the launch flags come from the live
-  // effective config when injected, else the pure env floor. gpuCount drives TP + the util split.
+  // DEPLOYMENT facts for the admin panel (port + store path). Under ownership inversion the supervisor no
+  // longer builds a spawn spec — the detached front-door verb (engines.sh start) rebuilds argv from the env
+  // floor — so `deps.engineLaunch` (the admin AppSettings launch override) is NOT threaded into the auto-spawn
+  // path today; an admin retune-restart rides engine-control.ts (which re-triggers the detached verb, reading
+  // the current env floor). This is a known limitation of the inversion (flagged in the report).
   const floor = engineLaunchEnvFloor();
   const deployment: EngineDeploymentEnv = engineDeploymentEnv();
   const ports = { embed: floor.VLLM_EMBED_PORT, rerank: floor.VLLM_RERANK_PORT, gen: floor.VLLM_GEN_PORT };
-  const spawnSpec = (e: VllmEngine): EngineSpawnSpec => {
-    const launch = deps.engineLaunch?.() ?? {
-      embedModel: floor.VLLM_EMBED_MODEL,
-      rerankModel: floor.VLLM_RERANK_MODEL,
-      genModel: floor.VLLM_GEN_MODEL,
-      embedMaxModelLen: floor.VLLM_EMBED_MAX_MODEL_LEN,
-      rerankMaxModelLen: floor.VLLM_RERANK_MAX_MODEL_LEN,
-      genMaxModelLen: floor.VLLM_GEN_MAX_MODEL_LEN,
-      embedGpuUtil: floor.VLLM_EMBED_GPU_UTIL,
-      rerankGpuUtilMulti: floor.VLLM_RERANK_GPU_UTIL_MULTI,
-      rerankGpuUtilSingle: floor.VLLM_RERANK_GPU_UTIL_SINGLE,
-      genGpuUtilMulti: floor.VLLM_GEN_GPU_UTIL_MULTI,
-      genGpuUtilSingle: floor.VLLM_GEN_GPU_UTIL_SINGLE,
-      poolingMaxPixels: floor.VLLM_POOLING_MAX_PIXELS,
-      genMaxPixels: floor.VLLM_GEN_MAX_PIXELS,
-      genRepetitionPenalty: floor.VLLM_GEN_REPETITION_PENALTY,
-    };
-    return buildEngineSpawnSpec(e, { ...launch, ports }, { repoRoot, gpuCount: countGpus(), deployment, baseEnv: processEnvSnapshot() });
-  };
 
   const engine: VllmEngineHandle = {
-    start: () => startVllmEngines({ repoRoot, now: deps.now, spawnSpec }),
+    start: () =>
+      startVllmEngines({
+        repoRoot,
+        now: deps.now,
+        // Only the MANAGER posture (adopt-or-start) spawns; adopt-only adopts + fails fast. Defaults true
+        // (today's manager behavior) when compose doesn't inject a posture.
+        ...(deps.manages !== undefined ? { manages: deps.manages } : {}),
+        // The supervisor tick reads the hold marker each tick → sleeping-held classification.
+        sleepHeld: () => isHeld(fleetRunDir(repoRoot)),
+      }),
     status: () => allEngineStatuses(),
     deployment: () => resolveEngineDeploymentFacts({ repoRoot, deployment, ports }),
     restart: (e) => {

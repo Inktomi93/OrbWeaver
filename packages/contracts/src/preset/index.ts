@@ -3,6 +3,8 @@
 // preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
 
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
+import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
+import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -705,6 +707,88 @@ export const choiceBlockSchema = z.object({
 });
 export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// User macros (WAVE MU — parity-plus §12A.5 M5 + the #24 typed-input fold). The DEFINITION home is
+// preset/game CONFIG (owner ruling #20 — never a global runtime): `promptConfig.userMacros` here and
+// `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
+// The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
+// (`registerUserMacros`/`resolveUserMacroInputs`, kit/macro/user-macros.ts) consumes exactly these
+// shapes, pinned by the contract test's assignability guard. A name colliding with a builtin is refused
+// at REGISTRATION (never silently shadowed) — the schema pins only the parseable-name shape.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const MAX_USER_MACROS = 100;
+const MAX_USER_MACRO_ARGS = 16;
+const MAX_USER_MACRO_INPUTS = 16;
+
+/** One declared positional arg — kit's `MacroArgDef` authored (checkMacroArgs enforces it at render). */
+const userMacroArgSchema = z.object({
+  name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
+  type: z.enum(MACRO_ARG_TYPES).default("string"),
+  optional: z.boolean().default(false),
+  default: z.string().max(MAX_CHOICE_VALUE_LENGTH).optional(),
+  description: z.string().max(MAX_QUESTION_LENGTH).optional(),
+});
+
+const userMacroInputOptionSchema = z.object({
+  label: z.string().min(MIN_ID_LENGTH).max(MAX_CHOICE_LABEL_LENGTH),
+  value: z.string().max(MAX_CHOICE_VALUE_LENGTH),
+});
+
+/** One typed input (#24): a FLAT shape (kind + per-kind knobs, the ChoiceBlock editor idiom) — the
+ *  semantics table lives on kit's `UserMacroInputDef` (resolveUserMacroInputs is the ONE resolution
+ *  home). Every knob is defaulted so a stored def predating a knob self-heals at the parse seam. */
+const userMacroInputSchema = z.object({
+  kind: z.enum(USER_MACRO_INPUT_KINDS),
+  name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
+  label: z.string().max(MAX_QUESTION_LENGTH).default(""),
+  options: z.array(userMacroInputOptionSchema).max(MAX_CHOICE_OPTIONS).default([]),
+  separator: z.string().max(MAX_SEPARATOR_LENGTH).default(", "),
+  onValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default("true"),
+  offValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
+  defaultValue: z.string().max(MAX_CHOICE_VALUE_LENGTH).default(""),
+});
+
+/** One user macro definition. `args` must declare optionals as a CONTIGUOUS SUFFIX (the arity model
+ *  counts on it — the same shape rule the builtin metadata test pins). */
+export const userMacroSchema = z
+  .object({
+    name: z.string().regex(MACRO_NAME_RE).max(MAX_NAME_LENGTH),
+    description: z.string().max(MAX_QUESTION_LENGTH).default(""),
+    args: z.array(userMacroArgSchema).max(MAX_USER_MACRO_ARGS).default([]),
+    body: z.string().max(MAX_TEXT_LENGTH),
+    inputs: z.array(userMacroInputSchema).max(MAX_USER_MACRO_INPUTS).default([]),
+    strict: z.boolean().default(false),
+  })
+  .superRefine((def, ctx) => {
+    const firstOptional = def.args.findIndex((a) => a.optional);
+    if (firstOptional !== -1 && def.args.slice(firstOptional).some((a) => !a.optional)) {
+      ctx.addIssue({ code: "custom", message: "optional args must form a contiguous suffix after the required ones", path: ["args"] });
+    }
+  });
+export type UserMacroSpec = z.infer<typeof userMacroSchema>;
+
+// Drift guard: the authored schema must produce EXACTLY kit's UserMacroDef — the engine half consumes it
+// unmapped. A schema field diverging from the kit shape is a compile error here, not a runtime surprise.
+const _userMacroIsKitDef = (spec: UserMacroSpec): UserMacroDef => spec;
+void _userMacroIsKitDef;
+
+/** The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
+ *  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
+ *  kit's `resolveUserMacroInputs` — string (single-select) · boolean (boolean-toggle) · string[]
+ *  (multi-select picks / the random-pick POOL). */
+export const userMacroInputValueSchema = z.union([
+  z.string().max(MAX_CHOICE_VALUE_LENGTH),
+  z.boolean(),
+  z.array(z.string().max(MAX_CHOICE_VALUE_LENGTH)).max(MAX_CHOICE_OPTIONS),
+]);
+export const userMacroValuesSchema = z.record(z.string().max(MAX_NAME_LENGTH), z.record(z.string().max(MAX_NAME_LENGTH), userMacroInputValueSchema));
+export type UserMacroValues = z.infer<typeof userMacroValuesSchema>;
+
+// The values-bag wire type must stay assignable to kit's per-macro bag (the threading passes it through).
+const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): UserMacroInputValue => value;
+void _valueIsKitValue;
+
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
 export const PROMPT_CONFIG_SCHEMA_VERSION = 4;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
@@ -720,6 +804,9 @@ export const promptConfigSchema = z.object({
   params: userIntentSchema.catch({}).default({}),
   regexScripts: z.array(regexScriptSchema).max(MAX_REGEX_SCRIPTS).default([]),
   variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
+  // WAVE MU (§12A.5 M5): preset-authored user macros — additive defaulted (a pre-MU blob parses; no
+  // version bump needed, the `variables`/`guidedActions` precedent).
+  userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
   customParameters: customParametersSchema.optional(),
   namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
   continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
@@ -962,6 +1049,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   params: {},
   regexScripts: [],
   variables: [],
+  userMacros: [],
   formatStrings: { ...DEFAULT_FORMAT_STRINGS },
   guidedActions: DEFAULT_GUIDED_ACTIONS,
 };
