@@ -61,6 +61,10 @@ export const SINGLE_USER: ModeProject = {
   seedMultiUser: false,
 };
 
+/** The scripted fixture provider's loopback port (support/fixture-provider.ts) — a fixed port so the LOCAL
+ *  stack's egress allowlist can name it and the reasoning-strip spec can start the fixture there. */
+export const FIXTURE_PROVIDER_PORT = 8797;
+
 // ── local (cookie/BFF sessions) — ports 8799/5183, ISOLATED DB/assets under .cache. AUTH_MODE=local +
 // the local-mode secrets; global-setup flips localMultiUser on + seeds a member. adopt-only + WIRE_CAPTURE
 // so the member-strip @live spec can plant a lie AND (optionally) drive a real turn. ──
@@ -84,6 +88,15 @@ const LOCAL: ModeProject = {
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
     DATABASE_URL: "file:./.cache/e2e-local/orb.db",
     ASSETS_DIR: "./.cache/e2e-local/assets",
+    // The reasoning-strip spec's scripted BYO provider (support/fixture-provider.ts) is a loopback endpoint the
+    // custom-byo runner reaches via a raw fetch → the global egress firewall. Allowlist loopback so the box can
+    // reach its OWN configured backend (127.0.0.1); the operator legitimately trusts loopback egress on a test
+    // box. safeFetch paths stay self-enforcing regardless — this only widens the NON-safeFetch backstop.
+    EGRESS_ALLOWLIST: "127.0.0.1",
+    // The local specs log in the seeded member MANY times within a minute, all from 127.0.0.1 — the default
+    // per-IP login throttle (10/min) 429s partway through a serial run. Raise it for the isolated test stack
+    // (the throttle itself is proven in auth-routes' own tests; here it is noise on a single-tenant loopback).
+    RATE_LIMIT_LOGIN: "1000",
     // The dev stack's checked-in `.env` loads with override:true; flip to override:false so this project's
     // exported AUTH_MODE/DATABASE_URL win (the multi-user-fixture escape hatch).
     ORB_ENV_NO_OVERRIDE: "1",

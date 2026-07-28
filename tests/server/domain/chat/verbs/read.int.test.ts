@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
@@ -1003,5 +1004,51 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     // The LIVE half's verdict input: the same member-gated probe hands the transport `viewerIsHost`.
     expect((await chatEventBounds({ principal: principal(host), chatId })).viewerIsHost).toBe(true);
     expect((await chatEventBounds({ principal: principal(member), chatId })).viewerIsHost).toBe(false);
+  });
+
+  // The DURABLE-replay DELTA leak (found by the e2e reasoning-strip proof): a resume from afterSeq:0 re-drains
+  // the raw mid-turn `delta` rows, so `replayChatEvents` must scrub them per-slot exactly like the LIVE
+  // transport — otherwise a member's reconnect leaks the model's hidden `<lie>` TEXT bytes AND, on a
+  // deception-active game, the whole reasoning channel the live stream withheld. Deception-active is injected
+  // via the `rpg.resolveReasoningHostOnly` op (the ONE seam chat reads the verdict from).
+  test("replayChatEvents (deception game): a MEMBER's durable resume withholds reasoning DELTAS + scrubs hidden TEXT deltas; the HOST gets both", async () => {
+    const host = await seedUser(db, "drd_host");
+    const member = await seedUser(db, "drd_member");
+    const chatId = await seedRoom("drd", host);
+    await seedParticipant(db, { chatId, key: "drd_m", userId: member, role: "member" });
+    // A committed reply slot at seq 1 (the deltas below stream INTO it — slotSeq 1).
+    const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", content: `He nods. ${lieTag}` });
+
+    // Deception-active: the injected op returns true for this chat (the game's `deception||omniscience`). A
+    // minimal ChatRpgOps stub — read.ts calls ONLY `resolveReasoningHostOnly` on the non-host replay path.
+    // FABRICATION-OK: minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads.
+    const deceptionRpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
+    const ctx = makeChatContext(db, { rpg: deceptionRpg });
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const view = await loadMessageView(db, messageId);
+    // The exact durable log a member's reconnect re-drains: a reasoning delta (spells the truth), the hidden
+    // `<lie>` TEXT delta, the reasoningStreamDone signal, then the at-commit committed view.
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "reasoning", text: "I'll deflect, but he is in the crypt." } });
+    await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: `He nods. ${lieTag}` } });
+    await bus.emit({ type: "reasoningStreamDone", chatId });
+    await bus.emit({ type: "messageCommitted", chatId, messageId, ...(view === undefined ? {} : { view }) });
+
+    const { replayChatEvents } = createRead(ctx, makeDeps());
+
+    const memberReplay = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    const memberBytes = JSON.stringify(memberReplay);
+    // Zero truth bytes anywhere — reasoning delta withheld, text delta scrubbed, committed view stripped.
+    expect(memberBytes).not.toContain("crypt");
+    expect(memberBytes).not.toContain("<lie");
+    // No reasoning-channel delta and no `reasoningStreamDone` reach the member on a deception game.
+    expect(memberReplay.some((e) => e.event.type === "delta" && e.event.delta.kind === "reasoning")).toBe(false);
+    expect(memberReplay.some((e) => e.event.type === "reasoningStreamDone")).toBe(false);
+
+    // The host gets the whole log verbatim — the reasoning delta + the raw `<lie>` + reasoningStreamDone.
+    const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
+    const hostBytes = JSON.stringify(hostReplay);
+    expect(hostBytes).toContain("crypt");
+    expect(hostReplay.some((e) => e.event.type === "delta" && e.event.delta.kind === "reasoning")).toBe(true);
+    expect(hostReplay.some((e) => e.event.type === "reasoningStreamDone")).toBe(true);
   });
 });

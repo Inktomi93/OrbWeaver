@@ -49,6 +49,9 @@ export interface ActorClient {
   /** The resolved principal for THIS actor's headers (`GET /api/auth/me`) — the mode-agnostic whoami: who did
    *  the seam resolve this request AS, and at what role. `authenticated:false` for an unresolved caller. */
   readonly whoami: () => Promise<Whoami>;
+  /** This actor's identifying headers (cookie / signed-JWT proxy headers), for a caller that must speak the
+   *  wire directly AS this actor — the SSE consumer (`collectChatStream`) connects the member's own stream. */
+  readonly headers: Readonly<Record<string, string>>;
 }
 
 /** The `GET /api/auth/me` shape — the seam's resolved principal (handle + role), or unauthenticated. */
@@ -109,7 +112,7 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
     return (await res.json()) as Whoami;
   }
 
-  return { query, mutation, expectError, whoami };
+  return { query, mutation, expectError, whoami, headers };
 }
 
 // ── OWNER (single-user + the local/forward-header HOST) ─────────────────────────────────────────────────
@@ -214,4 +217,32 @@ interface CreatedInvite {
 export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: string, memberHandle: string): Promise<void> {
   const invite = await host.mutation<CreatedInvite>("invites.createInvite", { chatId, input: { invitedHandle: memberHandle } });
   await member.mutation("invites.redeemInvite", { token: invite.token });
+}
+
+// ── CUSTOM PROVIDER — point the chat role at a BYO OpenAI-compatible endpoint (the fixture provider) ───────
+
+/** The `credentials.add` return (subset) — the minted credential id `setActive` targets. */
+interface AddedCredential {
+  readonly id: string;
+}
+
+/** Wire the chat role at a `custom_openai` (BYO OpenAI-compatible) endpoint — the REAL product seam a user
+ *  uses to point orbweaver at any OpenAI-compatible server. The HOST/owner: adds a `custom_openai` credential
+ *  carrying the `baseUrl`, activates it, then pins `routing.roleDefaults.chat` to it. After this a real
+ *  `chat.send` turn streams from that endpoint through the custom-byo backend. Used to drive the harness
+ *  fixture provider (a scripted deterministic stream) — NOT a product backdoor; the endpoint is external and
+ *  the app only knows it as a user-configured BYO connection. `model` is a bare label (the custom-byo runner
+ *  reads capabilities, not a baked model). */
+export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<void> {
+  const credential = await host.mutation<AddedCredential>("credentials.add", {
+    provider: "custom_openai",
+    label: "e2e-fixture-provider",
+    key: "e2e-fixture-key",
+    metadata: { kind: "custom_openai", baseUrl, model, contextWindow: 8192 },
+  });
+  await host.mutation("credentials.setActive", { credentialId: credential.id });
+  await host.mutation("settings.updateUserSettingsSection", {
+    section: "routing",
+    patch: { roleDefaults: { chat: { api: "chat-completions", source: "custom_openai", model } } },
+  });
 }

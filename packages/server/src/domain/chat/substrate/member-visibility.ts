@@ -42,7 +42,7 @@
 import type { ChatBusEvent, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
-import type { ChatStreamReplayEvent } from "../contract/views";
+import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views";
 
 /** Strip hidden-class spans from one message view's content. Identity when nothing is hidden (the common
  *  case allocates nothing). Only `content` carries body prose; the `reasoning` channel is handled SEPARATELY
@@ -206,4 +206,49 @@ export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[
     }
   }
   return out;
+}
+
+/** The STATEFUL member projection of the DURABLE chat-bus-log replay (`replayChatEvents`), §3.6. Unlike the
+ *  per-event {@link stripChatEventForMember} (which is deliberately delta-blind — the LIVE transport scrubs
+ *  deltas via {@link scrubDeltaEventForMember}), the durable replay also carries raw `delta` rows (a resume
+ *  from `lastEventId:"0"` re-drains the whole mid-turn token stream), so it MUST apply the same per-slot delta
+ *  scrub the live path does — otherwise a member's reconnect leaks the model's hidden `<lie>` TEXT bytes AND
+ *  (on a deception game) the whole reasoning channel that the live stream withheld. This is the durable twin
+ *  of `resolveLiveYield`: a `text` delta rides a per-`slotSeq` stateful scrubber (empty→dropped); a `reasoning`
+ *  delta is dropped on a deception game; a `reasoningStreamDone` is dropped on a deception game; every
+ *  view-carrying event is body+reasoning projected; all else passes. Host: identity. Rows arrive in append
+ *  order (the scrubber state depends on it). A dropped row is omitted (its `seq` gap is correct — the cursor
+ *  is the last DELIVERED seq, exactly as the D16 floor drop). */
+export function scrubChatEventReplayForMember(rows: readonly ChatBusReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatBusReplayEvent[] {
+  if (viewerReadsHidden(viewer)) {
+    return [...rows];
+  }
+  const scrubbers = new Map<number, HiddenSpanStreamScrubber>();
+  const out: ChatBusReplayEvent[] = [];
+  for (const { seq, event } of rows) {
+    if (event.type === "delta") {
+      const scrubbed = scrubDeltaEventForMember(event, scrubberFor(scrubbers, event.slotSeq), reasoningHostOnly);
+      if (scrubbed !== null) {
+        out.push({ seq, event: scrubbed });
+      }
+      continue;
+    }
+    const projected = stripChatEventForMember(event, reasoningHostOnly);
+    if (projected !== null) {
+      out.push({ seq, event: projected });
+    }
+  }
+  return out;
+}
+
+/** Get-or-create the per-slot mid-stream scrubber for the durable replay (one stateful scrubber per streaming
+ *  slot, exactly like the live transport's per-`slotSeq` map). */
+function scrubberFor(scrubbers: Map<number, HiddenSpanStreamScrubber>, slotSeq: number): HiddenSpanStreamScrubber {
+  const existing = scrubbers.get(slotSeq);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created = createHiddenSpanStreamScrubber();
+  scrubbers.set(slotSeq, created);
+  return created;
 }
