@@ -329,6 +329,16 @@ export interface RpgRosterActor {
  *  injected-op precedent). Wired into `RpgContext.resolveRoster` at the composition root (W1c-b). */
 export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
 
+/** The DEEP canon-window read op (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed).
+ *  STANDALONE + principal-free (the `ResolveRpgRoster` precedent — the rpg resync verb gated its host caller
+ *  before invoking; this op only reads canon). Resolves the chat's selected-lineage canon into the SAME
+ *  name-stamped, token-measured {@link RpgTurnTranscriptMessage} projection the engine threads at
+ *  `fireRpgTurnCompleted` (one shared substrate builder — the state round and the resync can't drift), sliced to
+ *  the last `maxTokens` (newest-first fill, oldest→newest order). Room-plane per D106; hidden-class spans stay
+ *  INTACT (model-plane, D110 §3.6 — the member never sees this read). Wired into `RpgContext.resolveCanonWindow`
+ *  at the composition root. */
+export type ResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
+
 /** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
  *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
  *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver

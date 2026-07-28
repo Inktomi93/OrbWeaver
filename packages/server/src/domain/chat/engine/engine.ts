@@ -51,6 +51,7 @@ import {
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket";
+import { projectRpgTranscript } from "../substrate/rpg-transcript";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
@@ -556,34 +557,16 @@ function fireExpressionClassify(ctx: ChatContext, view: MessageView): void {
   }
 }
 
-/** Resolve a canon row's name-stamp against the engine's per-chat `historyMacroNames` producer (the SAME
- *  producer the shape mapper uses, so the transcript names match the wire). Assistant → its stamped character
- *  name; user/narrator → its stamped persona name; system → null. A null/unresolvable stamp yields null (the
- *  consumer renders "You"/an unnamed speaker). */
-function transcriptSpeakerName(m: MessageView, names: HistoryMacroNames): string | null {
-  if (m.role === "assistant") {
-    return m.characterId !== null ? (names.characterNamesById.get(m.characterId)?.name ?? null) : null;
-  }
-  if (m.role === "user") {
-    return m.personaId !== null ? (names.personaNamesById.get(m.personaId)?.name ?? null) : null;
-  }
-  return null; // system rows carry no speaker
-}
-
 /** Project the turn's loaded canon (`canonAll`) PLUS the just-committed reply (`view`) into the name-stamped,
  *  token-measured transcript the rpg state round reasons from (crunchy-cluster redesign §1.3). `canonAll` was
  *  loaded pre-turn so it does NOT carry this reply; append `view` (the latest beat) and drop any stale row with
  *  the same id (a regenerate replaces the slot). Oldest→newest, hidden spans INTACT (model-plane, D110 §3.6);
  *  system rows kept (the consumer decides — the knob is rpg's). Zero extra reads — the canon is already in
- *  scope (§1.4). */
-function projectRpgTranscript(canonAll: readonly MessageView[], view: MessageView, names: HistoryMacroNames): RpgTurnTranscriptMessage[] {
+ *  scope (§1.4). Rides the SHARED substrate projection (`projectRpgTranscript`) so this in-turn feed and the
+ *  `resolveCanonWindow` resync deep-read can never drift. */
+function projectTurnRpgTranscript(canonAll: readonly MessageView[], view: MessageView, names: HistoryMacroNames): RpgTurnTranscriptMessage[] {
   const rows = [...canonAll.filter((m) => m.id !== view.id), view];
-  return rows.map((m) => ({
-    role: m.role,
-    speakerName: transcriptSpeakerName(m, names),
-    content: m.content,
-    tokens: estimateTokens(m.content),
-  }));
+  return projectRpgTranscript(rows, names);
 }
 
 /** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
@@ -1219,7 +1202,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // §1.3 — thread the turn's OWN canon transcript (the story the state round reasons from) alongside the
     // resolved route + consent verdict. Projected from the canon already in scope (`canonAll` + this reply):
     // zero extra reads. The rpg consumer slices it to its configured window.
-    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented, transcript: projectRpgTranscript(canonAll, view, historyMacroNames) });
+    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented, transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames) });
 
     return committedOutcome([view]);
   } catch (err) {

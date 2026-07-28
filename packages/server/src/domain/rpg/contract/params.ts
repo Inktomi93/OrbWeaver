@@ -285,6 +285,16 @@ export interface DetachDanglingPointerParams {
   readonly chatId: ChatId;
 }
 
+/** `resyncFromStory` — the HOST re-derive-from-the-story escape hatch (crunchy-cluster §1.3). Chat-scoped; the
+ *  verb resolves the HOST floor (`resolveHost`) so a member can never trigger the host-principal model call. The
+ *  `principal` is the CALLER's — the host authorization the model read runs under (the consent seam); the verb
+ *  resolves the room connection under the room HOST (by role, D19), never a caller-injected foreign principal. No
+ *  window arg: the budget is a `RPG_RESYNC_MAX_TOKENS` const (the deepest honest read), not a client knob. */
+export interface ResyncFromStoryParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+}
+
 /** `listJournal` — the paged lineage-projected archive (member). */
 export interface ListJournalParams {
   readonly principal: Principal;

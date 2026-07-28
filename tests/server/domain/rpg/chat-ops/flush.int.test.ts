@@ -44,7 +44,7 @@ test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flus
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
   // The tool-round op fired with the committed identifiers; the extraction op did NOT (the cheap arm).
-  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId }]);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
   expect(h.fakes.extractionCalls).toHaveLength(0);
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the cave mouth");
@@ -87,7 +87,7 @@ test("reliable mode: runExtraction is called, its delta is staged + flushed", as
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
   // The extraction op fired with the committed identifiers.
-  expect(h.fakes.extractionCalls).toEqual([{ chatId, messageId, variantId }]);
+  expect(h.fakes.extractionCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
   // Its state delta landed on the committed variant's snapshot.
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the obsidian tower");
@@ -331,4 +331,59 @@ test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster
   const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
   const playerView = view.actors.find((a) => a.actorRef.kind === "user");
   expect(playerView?.volatile?.wallet).toEqual([{ name: "gold", amount: 20 }]);
+});
+
+// ── RECONCILE CADENCE (crunchy-cluster §1.3, W-C) — the consumption homes in flush.ts (`isReconcileBeat`), so
+//    its tests fold in here (test-layout: one source, one mirror). Every `reconcileEveryBeats`-th flush FORCES a
+//    full re-emission (the round receives `reconcile:true`); the others run the incremental pass. `0` = opt-out.
+//    The counter is DERIVED from a snapshot COUNT at `stageStateRound` (never a stamped counter): this beat's
+//    ordinal is `count(prior snapshots) + 1`, so a reconcile fires on ordinal N, 2N, 3N…. createGame writes NO
+//    born snapshot, so beat 1 = ordinal 1.
+
+/** Drive one beat: a fresh assistant slot + a non-empty extraction delta so the flush WRITES a snapshot (each
+ *  written snapshot advances the beat counter). Returns the `reconcile` flag the round was called with. */
+async function driveReconcileBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h"], chatId: ChatId, seq: number): Promise<boolean> {
+  const turnId = castId<ChatTurnId>(`chat_turn_beat_${seq}`);
+  const { messageId, variantId } = await seedMessage(h.ctx.db, chatId, seq, { role: "assistant" });
+  const before = h.fakes.extractionCalls.length;
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, turnId, turnConnection());
+  return h.fakes.extractionCalls[before]?.reconcile ?? false;
+}
+
+test("reconcile cadence N=2: fires on beats 2 and 4, incremental on beats 1 and 3", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { extractionDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { reconcileEveryBeats: 2 } });
+
+  expect(await driveReconcileBeat(h, chatId, 1)).toBe(false); // ordinal 1: 1 % 2 !== 0 → incremental
+  expect(await driveReconcileBeat(h, chatId, 2)).toBe(true); //  ordinal 2: 2 % 2 === 0 → RECONCILE
+  expect(await driveReconcileBeat(h, chatId, 3)).toBe(false); // ordinal 3: 3 % 2 !== 0 → incremental
+  expect(await driveReconcileBeat(h, chatId, 4)).toBe(true); //  ordinal 4: 4 % 2 === 0 → RECONCILE
+});
+
+test("reconcile cadence N=0: NEVER fires (opt-out) — every beat is incremental", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { extractionDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { reconcileEveryBeats: 0 } });
+
+  // Beats are SEQUENTIAL (each writes a snapshot that advances the counter) — one at a time, never Promise.all.
+  expect(await driveReconcileBeat(h, chatId, 1)).toBe(false);
+  expect(await driveReconcileBeat(h, chatId, 2)).toBe(false);
+  expect(await driveReconcileBeat(h, chatId, 3)).toBe(false);
+  expect(await driveReconcileBeat(h, chatId, 4)).toBe(false);
+});
+
+test("reconcile cadence: cheap mode honors it too (the TOOL ROUND receives reconcile on the Nth beat)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
+
+  const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m1, v1, castId<ChatTurnId>("chat_turn_cheap_1"), turnConnection());
+  const { messageId: m2, variantId: v2 } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m2, v2, castId<ChatTurnId>("chat_turn_cheap_2"), turnConnection());
+
+  // The tool round (not the extraction) carried the cadence: beat 1 incremental, beat 2 reconcile.
+  expect(h.fakes.toolRoundCalls.map((c) => c.reconcile)).toEqual([false, true]);
+  expect(h.fakes.extractionCalls).toHaveLength(0);
 });

@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import type { ChatRpgOps, RpgTurnContext } from "../../../../packages/server/src/domain/chat";
+import type { ChatRpgOps, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
 import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type {
   RpgContext,
@@ -173,6 +173,10 @@ export interface RpgFakes {
   extractionDelta: RpgStateDelta;
   /** The cheap-mode tool-round fake return (the sibling of `extractionDelta`). Default: empty delta = no-op. */
   toolRoundDelta: RpgStateDelta;
+  /** The `resyncFromStory` host model-call fake return (§1.3 — W-C). Default: empty delta = no-op resync. */
+  resyncDelta: RpgStateDelta;
+  /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
+  canonWindow: RpgTurnTranscriptMessage[];
   /** OPTIONAL gate the fake `runExtraction` awaits before resolving — the flush-barrier race test sets it to a
    *  deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
   extractionGate?: Promise<void>;
@@ -184,8 +188,13 @@ export interface RpgFakes {
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
   readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
-  readonly extractionCalls: { chatId: string; messageId: string; variantId: string }[];
-  readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string }[];
+  readonly extractionCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
+  readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
+  /** The `resyncFromStory` host model-call fires (§1.3) — records the host userId the call resolved UNDER + the
+   *  window budget it read, so a test asserts the host-principal seam (never a caller-injected foreign id). */
+  readonly resyncCalls: { chatId: string; hostUserId: string; windowTokens: number }[];
+  /** The `resolveCanonWindow` reads (the injected chat op) — records the budget so a test pins the deep read. */
+  readonly canonWindowReads: { chatId: string; maxTokens: number }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
@@ -210,7 +219,7 @@ export interface RpgHarness {
  *  a test may mutate `fakes.membership` directly for the authority matrix. */
 export function makeRpgService(
   db: Db,
-  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta">> = {},
+  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "resyncDelta" | "canonWindow">> = {},
 ): RpgHarness {
   const fakes: RpgFakes = {
     membership: new Map(),
@@ -219,12 +228,16 @@ export function makeRpgService(
     dice: [...(over.dice ?? [])],
     extractionDelta: over.extractionDelta ?? { statePatch: {}, journal: [] },
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
+    resyncDelta: over.resyncDelta ?? { statePatch: {}, journal: [] },
+    canonWindow: over.canonWindow ?? [],
     ownedPresets: new Set(),
     pointers: [],
     detaches: [],
     narratorPosts: [],
     extractionCalls: [],
     toolRoundCalls: [],
+    resyncCalls: [],
+    canonWindowReads: [],
     busEvents: [],
     flushDrops: [],
     barrierTimeouts: [],
@@ -242,7 +255,7 @@ export function makeRpgService(
   };
   const resolveRoster: RpgResolveRoster = () => Promise.resolve(fakes.roster);
   const runExtraction: RpgRunExtraction = async (input) => {
-    fakes.extractionCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId });
+    fakes.extractionCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
     // The flush-barrier race test HOLDS the extraction in-flight via this gate (a slow dedicated state round is
     // the real 0.8-2.9s window); default is unset ⇒ the extraction resolves immediately (every other test).
     if (fakes.extractionGate !== undefined) {
@@ -251,7 +264,7 @@ export function makeRpgService(
     return Promise.resolve(fakes.extractionDelta);
   };
   const runToolRound: RpgRunToolRound = (input) => {
-    fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId });
+    fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
     return Promise.resolve(fakes.toolRoundDelta);
   };
 
@@ -287,6 +300,17 @@ export function makeRpgService(
     resolveTrackersReadOnly: () => Promise.resolve(fakes.trackersReadOnly),
     runExtraction,
     runToolRound,
+    resolveCanonWindow: (chatId, opts) => {
+      fakes.canonWindowReads.push({ chatId, maxTokens: opts.maxTokens });
+      return Promise.resolve(fakes.canonWindow);
+    },
+    runResyncExtraction: (input) => {
+      // Record the host userId the resync resolved UNDER + the window budget it read — the test asserts the
+      // host-principal seam (the funding userId is the resolved HOST, never a caller-injected foreign id) and
+      // the deep read fired.
+      fakes.resyncCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, windowTokens: input.transcript.length });
+      return Promise.resolve(fakes.resyncDelta);
+    },
     emitBus: (event) => {
       fakes.busEvents.push(event);
     },
@@ -313,7 +337,7 @@ export interface SeededLiteGame {
 }
 export async function seedLiteGame(
   db: Db,
-  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta">> = {},
+  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "resyncDelta" | "canonWindow">> = {},
   key = "a",
 ): Promise<SeededLiteGame> {
   const chatId = await seedChat(db, key);

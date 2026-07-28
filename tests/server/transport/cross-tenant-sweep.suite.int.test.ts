@@ -779,6 +779,11 @@ const PROBES: readonly Probe[] = [
   // A's LIVE game the verb refuses (rpg_pointer_not_dangling) — either way it never nulls A's real pointer (the
   // post-sweep chat integrity re-read proves A's game/pointer untouched).
   { path: "rpg.detachDanglingPointer", call: (c, i) => c.rpg.detachDanglingPointer({ chatId: i.chatId }) },
+  // §1.3 resyncFromStory — HOST-gated model-call verb: a non-member stranger passing A's chatId collapses to
+  // leak-free NOT_FOUND (`resolveHost` → `getMembership` miss) BEFORE any host-principal model call resolves, so
+  // a stranger can never fund/trigger a rebuild against A's game (the consent-seam boundary). The post-sweep
+  // chat/game integrity re-read proves A's snapshot/pointer untouched.
+  { path: "rpg.resyncFromStory", call: (c, i) => c.rpg.resyncFromStory({ chatId: i.chatId }) },
   { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
   { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
   { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
