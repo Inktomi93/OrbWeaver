@@ -31,9 +31,20 @@ export function lastUserRowIndex(items: readonly { readonly kind: "message" | "g
   return -1;
 }
 
+/** An rpg STATE-ANCHOR slot: an EMPTY-body assistant row minted only to key a snapshot (a between-turns
+ *  hand-edit / resync clone-forward — server `postNarratorMessage(chatId, "")`). It is not a message; hiding
+ *  it keeps a hand edit from rendering a blank bubble. A committed canon row is only ever empty when it is an
+ *  anchor (a real turn always carries content; a user draft never commits blank), so empty content is the
+ *  precise, sufficient discriminator — no server flag needed (the wire prompt already drops the empty row via
+ *  the shape-stage empty-row filter, and this hides it from the reading surface). Typed structurally (only the
+ *  field it reads) so a `.test.ts` fixture needs no full MessageView. */
+export function isStateAnchorSlot(view: { readonly content: string }): boolean {
+  return view.content.trim() === "";
+}
+
 export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
-  const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
+  const base: ChatRowItem[] = messages.filter((view) => !isStateAnchorSlot(view)).map((view) => ({ kind: "message", view }));
 
   const live = isLiveTurnPhase(phase);
   if (!live) {
