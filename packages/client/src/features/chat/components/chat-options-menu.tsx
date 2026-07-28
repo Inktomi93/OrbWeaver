@@ -16,13 +16,16 @@
 // on hover because Base UI renders a div[role=menuitem] aria-disabled (not native-disabled), so a disabled
 // item still receives pointer/hover — verified in chat-options-menu.ct.tsx.
 
+import { isRpgEngaged, RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Download, Icon, Images, MessagesSquare, Pencil, Trash2, X } from "@orb/ui/icons";
+import { Download, Icon, Images, MessagesSquare, Pencil, Swords, Trash2, X } from "@orb/ui/icons";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import type { Trpc } from "#data";
+import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY } from "#lib";
 import { committedChat, draftChat, enterSelectionMode, goToLanding, startNewChat } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
@@ -30,6 +33,74 @@ import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutatio
 import { useGuidedActions } from "../hooks/use-guided-actions";
 import { ImpersonateSubmenu } from "./impersonate-submenu";
 import { RenameChatDialog } from "./rename-chat-dialog";
+
+// The #40 GAME front-door mutations — the ⋯ menu's start/pause/resume rides the rpg procs DIRECTLY
+// ([workloads.subscribe cross-feature] — a feature rides another domain's tRPC procedure, never its
+// client). Both repaint `chat.getChat` (the pointer MIRROR the takeover gate + this menu read).
+const useStartGame = createEntityMutation<inferInput<Trpc["rpg"]["createGame"]>, unknown>({
+  options: (trpc) => trpc.rpg.createGame.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't start the game.",
+});
+const useSetGameEngaged = createEntityMutation<inferInput<Trpc["rpg"]["updateConfig"]>, unknown>({
+  options: (trpc) => trpc.rpg.updateConfig.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't switch the game.",
+});
+
+/** The #40 Game section of the ⋯ menu (host-only; a member sees nothing — the verbs are host-gated):
+ *  no game ⇒ the "Start a game" submenu (freeform | d20); a live game ⇒ "Turn off the game" (state
+ *  KEPT — reversible); a paused game ⇒ "Turn the game back on". Disabled (never hidden) on a draft. */
+function GameMenuSection({
+  chatId,
+  committed,
+  reason,
+}: {
+  readonly chatId: ChatId | undefined;
+  readonly reason: string | undefined;
+  readonly committed: boolean;
+}): ReactElement | null {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const startGame = useStartGame({ trpc, invalidation });
+  const setEngaged = useSetGameEngaged({ trpc, invalidation });
+  const detailQuery = useGatedQuery(chatId ?? null, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  // OPTIONAL-CHAINED throughout: the CT harness resolves UNLISTED procs to `{data:null}` by design (an
+  // incidental read must never crash a surface) — a bare `.viewerIsHost` deref here blanked the menu.
+  const detail = detailQuery.data;
+  if (detail?.viewerIsHost === false) {
+    return null; // PERMISSION-omit: only the host starts/pauses a game (the server verbs re-gate).
+  }
+  const pointer = detail?.rpg ?? null;
+  const disabled = !committed || chatId === undefined;
+  if (pointer === null) {
+    return (
+      <MenuSubmenuRoot>
+        <MenuSubmenuTrigger disabled={disabled} title={reason}>
+          <Icon icon={Swords} size="sm" />
+          Start a game
+        </MenuSubmenuTrigger>
+        <MenuPopup>
+          <MenuItem onClick={(): void => (chatId === undefined ? undefined : startGame.mutate({ chatId, mode: "lite" }))}>Freeform story</MenuItem>
+          <MenuItem onClick={(): void => (chatId === undefined ? undefined : startGame.mutate({ chatId, mode: "lite", profile: RPG_PROFILE_D20 }))}>
+            D20 adventure
+          </MenuItem>
+        </MenuPopup>
+      </MenuSubmenuRoot>
+    );
+  }
+  const engaged = isRpgEngaged(pointer);
+  return (
+    <MenuItem
+      disabled={disabled}
+      title={engaged ? "Keeps the game's state — turn it back on anytime." : "Restores the game exactly as you left it."}
+      onClick={(): void => (chatId === undefined ? undefined : setEngaged.mutate({ chatId, patch: { engaged: !engaged } }))}
+    >
+      <Icon icon={Swords} size="sm" />
+      {engaged ? "Turn off the game" : "Turn the game back on"}
+    </MenuItem>
+  );
+}
 
 interface ChatOptionsCastMember {
   readonly characterId: CharacterId;
@@ -142,6 +213,9 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters }:
             </MenuPopup>
           </MenuSubmenuRoot>
         ) : null}
+        {/* The #40 GAME front door — start / pause / resume rides here (where New chat lives). */}
+        <GameMenuSection chatId={chatId} committed={committed} reason={draftReason} />
+
         {/* Turn steering needs an assistant reply to work on — disabled (with the tail reason) on a draft
             OR a committed chat whose latest turn isn't an assistant reply. Same items, never removed. */}
         <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => guided.fireContinue("")}>

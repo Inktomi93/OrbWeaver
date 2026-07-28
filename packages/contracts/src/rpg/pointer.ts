@@ -11,10 +11,22 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
-/** The `chats.metadata.rpg` sub-blob — mode-free `{gameId}`. Owned HERE (the foreign-schema precedent);
- *  the chat metadata parser lazy-parses it with `.catch(undefined)` so a corrupt blob heals to absent.
- *  `gameId` is prefix-validated (`rpg_game_…`) so a malformed pointer heals rather than projecting garbage. */
+/** The `chats.metadata.rpg` sub-blob — mode-free `{gameId}` + the `engaged` MIRROR (#40 front-door
+ *  toggle; the truth is `rpg_games.config.engaged`, this is the sync copy the client's takeover gate
+ *  reads off `ChatDetail`). Owned HERE (the foreign-schema precedent); the chat metadata parser
+ *  lazy-parses it with `.catch(undefined)` so a corrupt blob heals to absent. `gameId` is
+ *  prefix-validated (`rpg_game_…`); a pre-toggle pointer heals `engaged` to `true` via the default. */
 export const chatRpgPointerSchema = z.object({
   gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  engaged: z.boolean().default(true),
 });
 export type ChatRpgPointer = z.infer<typeof chatRpgPointerSchema>;
+
+/** The ONE takeover-gate predicate (#40): does this chat's pointer say "a LIVE game"? `null`/absent =
+ *  not a game; `engaged:false` = a game that is OFF (panel hidden, turn assembly clean) but PRESERVED.
+ *  Every client gate (tabs `when`, panel state, wand, reading surface) reads THIS, never a re-spelled
+ *  null-check — the OFF arm must gate identically everywhere. A pointer MISSING the field (a pre-toggle
+ *  cached payload the schema default hasn't healed) reads ENGAGED — mirroring the `.default(true)`. */
+export function isRpgEngaged(pointer: ChatRpgPointer | null | undefined): boolean {
+  return pointer !== null && pointer !== undefined && pointer.engaged !== false;
+}

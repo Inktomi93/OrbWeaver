@@ -64,6 +64,16 @@ test("a NON-game chat gathers null (byte-identical no-op)", async () => {
   expect(out).toBeNull();
 });
 
+test("#40 a DISENGAGED game gathers null (byte-identical no-op — reminder/steering/macros all off, rows preserved)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: false } });
+  expect(await h.chatOps.gatherTurnContext(chatId, undefined, false)).toBeNull();
+  // Reversible: re-engage and the gather contributes again (the game rows were never touched).
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: true } });
+  expect(await h.chatOps.gatherTurnContext(chatId, undefined, false)).not.toBeNull();
+});
+
 test("a game contributes ONE depth-0 system reminder injection + the rpg macro/CEL feed (parity-plus §12)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);

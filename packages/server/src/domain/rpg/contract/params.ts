@@ -121,6 +121,9 @@ export interface UpdateConfigParams {
         readonly cyoa?: boolean | undefined;
         readonly cyoaChoiceBehavior?: RpgGameFeatures["cyoaChoiceBehavior"] | undefined;
         readonly plotProgression?: boolean | undefined;
+        // The FRONT-DOOR toggle (#40) — omit keeps; `false` disengages (state preserved, reversible);
+        // the verb mirrors the value onto the chat pointer (`ChatRpgPointer.engaged`).
+        readonly engaged?: boolean | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;

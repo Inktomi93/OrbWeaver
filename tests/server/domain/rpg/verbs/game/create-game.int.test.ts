@@ -31,7 +31,7 @@ describe("createGame", () => {
     expect(game?.status).toBe("active");
     expect(game?.gmPresetId).toBeNull(); // the knob's lite default = augment
     expect(game?.config.extractionMode).toBe("reliable");
-    expect(fakes.pointers).toEqual([{ chatId, gameId: result.gameId }]); // fired EXACTLY once
+    expect(fakes.pointers).toEqual([{ chatId, gameId: result.gameId, engaged: true }]); // fired EXACTLY once, born engaged (#40)
     expect(result.trackersReadOnly).toBe(false);
     // §4.9: createGame emits `gameChanged` after the row write (the takeover/config reads refetch).
     expect(fakes.busEvents).toEqual([{ type: "gameChanged", chatId }]);

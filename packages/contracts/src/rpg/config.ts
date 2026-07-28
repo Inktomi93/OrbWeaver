@@ -109,6 +109,13 @@ export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
  *  delivery-model knob (the amendment), default `"reliable"`. */
 export const rpgGameConfigSchema = z.object({
+  // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
+  // turn assembly (no reminder/state/steering/tools — every rpg chat-op behaves as a non-game chat) and
+  // hides the panel, while PRESERVING every game row/snapshot (reversible — re-enable restores the
+  // sheet/scene as they were, never a delete). Additive defaulted — a pre-toggle blob self-heals to
+  // `true` (engaged) at the parse seam. Mirrored onto the chat pointer (`ChatRpgPointer.engaged`) so the
+  // client's sync gate reads it off `ChatDetail` without a round-trip.
+  engaged: z.boolean().default(true),
   statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
   lite: z
     .object({

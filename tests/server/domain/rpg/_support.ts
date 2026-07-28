@@ -49,6 +49,7 @@ export function emptyState(): RpgSnapshotState {
 /** A lite game config (freeform profile, empty steering note, default extraction mode). */
 export function liteConfig(): RpgGameConfig {
   return {
+    engaged: true,
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
     extractionMode: "reliable",
@@ -169,7 +170,7 @@ export interface RpgFakes {
    *  deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
   extractionGate?: Promise<void>;
   /** Recorders — the tests assert these fired. */
-  readonly pointers: { chatId: string; gameId: string }[];
+  readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
   readonly narratorPosts: { chatId: string; content: string }[];
   readonly extractionCalls: { chatId: string; messageId: string; variantId: string }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string }[];
@@ -255,7 +256,7 @@ export function makeRpgService(
       return Promise.resolve(role === undefined ? null : { role });
     },
     setPointer: (chatId, pointer) => {
-      fakes.pointers.push({ chatId, gameId: pointer.gameId });
+      fakes.pointers.push({ chatId, gameId: pointer.gameId, engaged: pointer.engaged });
       return Promise.resolve();
     },
     resolveRoster,

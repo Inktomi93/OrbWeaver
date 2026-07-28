@@ -42,6 +42,22 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.features.castFields).toHaveLength(2);
   });
 
+  test("#40 engaged toggle: OFF disengages + re-writes the pointer mirror; survives an unrelated edit; ON restores", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    // Born engaged (the createGame pointer carries engaged:true).
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(true);
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: false } });
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(false);
+    // The pointer MIRROR was re-written (createGame's birth write + the flip).
+    expect(h.fakes.pointers.at(-1)).toEqual({ chatId, gameId: (await findGameByChat(db, chatId))?.id, engaged: false });
+    // NEVER-RESET: an unrelated config write must not silently re-engage the game.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "still off" } });
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(false);
+    // Reversible: ON restores (the rows were never touched).
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: true } });
+    expect((await findGameByChat(db, chatId))?.config.engaged).toBe(true);
+  });
+
   test("sets the P3 hidden-channel knobs; an OMITTED knob KEEPS its value (deception survives an unrelated edit)", async () => {
     const { chatId, h } = await seedLiteGame(db);
     // Turn deception on + set the recent-beats cap.

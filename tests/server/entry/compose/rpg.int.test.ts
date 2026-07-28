@@ -95,7 +95,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
 
   // The pointer is projected onto ChatDetail (the client's takeover gate reads it off data it already holds).
   const detail = await services.chat.getChat({ principal: hostPrincipal(hostId), chatId });
-  expect(detail.rpg).toEqual({ gameId: created.gameId });
+  expect(detail.rpg).toEqual({ gameId: created.gameId, engaged: true }); // born engaged (#40)
 
   // A committed assistant slot the flush keys the snapshot to.
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They enter the cave." });

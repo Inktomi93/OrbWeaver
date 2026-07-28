@@ -25,17 +25,26 @@ import { gatherTurnContext } from "./gather";
 /** Build the `ChatRpgOps` runtime over the rpg ctx (rpg-design/05 §3.2). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
 export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
+  // #40 — the disengage chokepoint: a game whose front-door toggle is OFF behaves as NO GAME in every
+  // chat-op (gather/flush/preset/reasoning/commit) — the turn assembly is byte-identical to a non-game
+  // chat while the rows stay preserved for re-enable.
+  async function findEngagedGame(chatId: ChatId): Promise<Awaited<ReturnType<typeof findGameByChat>>> {
+    const game = await findGameByChat(ctx.db, chatId);
+    return game !== undefined && game.config.engaged ? game : undefined;
+  }
+
   // KNOB-DRIVEN, MODE-BLIND (§3.2 / ratification #2): the game's `gmPresetId` (born NULL = augment the user's
   // own preset), or null for a non-game chat. Full changes only what SEEDS the knob, never this read.
   async function resolvePresetOverride(chatId: ChatId): Promise<PresetId | null> {
-    const game = await findGameByChat(ctx.db, chatId);
+    const game = await findEngagedGame(chatId);
     return game?.gmPresetId ?? null;
   }
 
   // SEND path: lock in the state the user was replying to (the last visible assistant slot's snapshot,
-  // committed 0 → 1). A non-game chat / a vanished message / a first user turn is a byte-identical no-op.
+  // committed 0 → 1). A non-game/disengaged chat / a vanished message / a first user turn is a
+  // byte-identical no-op.
   async function onUserCommit(chatId: ChatId, messageId: MessageId): Promise<void> {
-    const game = await findGameByChat(ctx.db, chatId);
+    const game = await findEngagedGame(chatId);
     if (game === undefined) {
       return;
     }
@@ -68,7 +77,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     turn: RpgTurnConnection,
   ): Promise<void> {
     const runFlush = async (): Promise<void> => {
-      const game = await findGameByChat(ctx.db, chatId);
+      const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write
       if (game === undefined) {
         return;
       }
@@ -103,7 +112,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // P3 (§3.6): is the game DECEPTION-ACTIVE (`config.features.deception || omniscience`)? Drives the member
     // reasoning-host-only strip in chat. `false` for a non-game chat (no game row) / a game with neither channel.
     resolveReasoningHostOnly: async (chatId): Promise<boolean> => {
-      const game = await findGameByChat(ctx.db, chatId);
+      const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no reasoning strip
       return game !== undefined && isDeceptionActive(game.config.features);
     },
   };

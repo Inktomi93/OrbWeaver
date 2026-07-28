@@ -14,6 +14,7 @@
 // from `features/chat` and never widens chat's client projection.
 
 import type { RpgGameView, RpgTrackerView } from "@orb/contracts/rpg";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -48,7 +49,9 @@ export function useRpgContextState(chatId: ChatId): RpgPanelState | null {
     queries: [trpc.chat.getChat.queryOptions({ chatId })],
   });
   const chat = chatQuery.data;
-  const isGame = chat.rpg !== null;
+  // #40 — a DISENGAGED game (pointer engaged:false) collapses the takeover exactly like a non-game chat
+  // (the panel hides; the rows are preserved for re-enable).
+  const isGame = isRpgEngaged(chat.rpg ?? null);
 
   // The two game reads fire ONLY when the pointer says this chat is a game (the dynamic-array idiom — an
   // empty array suspends on nothing, so a non-game chat never round-trips rpg).
