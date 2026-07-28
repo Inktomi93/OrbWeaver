@@ -84,3 +84,10 @@ export async function deleteJournalEntry(db: Db, gameId: RpgGameId, id: RpgJourn
 export function listJournalByVariant(db: Db, variantId: MessageVariantId): Promise<RpgJournalRow[]> {
   return db.select().from(rpgJournal).where(eq(rpgJournal.variantId, variantId));
 }
+
+/** EVERY journal row for a game — both hand entries (`variantId` NULL) and model entries — NOT lineage-projected.
+ *  The fork-clone source read (§3.2): the clone copies hand entries verbatim (room truth on every lineage) and
+ *  re-keys model entries through the fork's `variantIdMap`, dropping any whose variant wasn't copied. */
+export function listAllJournal(db: Db, gameId: RpgGameId): Promise<RpgJournalRow[]> {
+  return db.select().from(rpgJournal).where(eq(rpgJournal.gameId, gameId));
+}

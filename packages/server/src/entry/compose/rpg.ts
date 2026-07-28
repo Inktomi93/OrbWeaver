@@ -35,7 +35,7 @@ import { eq } from "drizzle-orm";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
-import type { RpgContext, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
+import type { RpgContext, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
 import {
   buildRosterRefIndex,
   createRpgChatOps,
@@ -81,6 +81,11 @@ export interface RpgComposeDeps {
   /** The host's REAL `Principal` by userId — the READ-side `trackersReadOnly` pill resolves the room connection
    *  as the host (D19). The state rounds no longer need it (they ride the threaded turn connection). */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  /** The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` calls it to decide whether the source
+   *  game's `gmPresetId` is SAFE for the forker to carry (readable BY them: owned OR the shared default). Wired
+   *  off the preset front door `get` (the ONLY legal preset import), which throws `PresetNotFoundError` for a
+   *  preset the user can't read — the exact "foreign preset" the strip drops. rpg never reads preset tables. */
+  readonly resolvePresetOwned: RpgResolvePresetOwned;
   /** The ONE tool-use registry — rpg registers its 7 state tools into it (the imagery precedent). */
   readonly toolUse: Pick<ToolUseService, "register">;
 }
@@ -527,6 +532,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     setPointer: deps.rpgChatOps.setRpgPointer,
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
+    resolvePresetOwned: deps.resolvePresetOwned,
     resolveTrackersReadOnly: buildResolveTrackersReadOnly(deps),
     runExtraction: buildRunExtraction(deps),
     runToolRound: buildRunToolRound(deps),

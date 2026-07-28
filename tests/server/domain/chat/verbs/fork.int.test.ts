@@ -15,6 +15,8 @@ import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -93,19 +95,19 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
 });
 
 describe("forkChat — D27 deep copy", () => {
-  test("a member forks: new chat is parented, canon is copied with fresh ids, the forker is host", async () => {
+  test("the host forks a multi-human room: parented, canon copied with fresh ids, the OTHER human is not copied", async () => {
     const host = await seedUser(db, "host");
     const member = await seedUser(db, "member");
-    // The forker (member) OWNS the cast — the F4 cast-ownership guard requires the new host to own every
-    // seated card; a member forking a cast they DON'T own is refused (proven in the guard test below).
-    const charA = await seedCharacter(db, member, "aria");
+    // The HOST forks (fork gate: a multi-human room is host-only). The host OWNS the cast — the F4
+    // cast-ownership guard requires the new host to own every seated card.
+    const charA = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "src");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "c", characterId: charA });
     const m1 = await seedMessage(db, chatId, 1, {
       role: "user",
-      authorUserId: member,
+      authorUserId: host,
       content: "one",
     });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "two" });
@@ -123,7 +125,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
 
     expect(chat.parentChatId).toBe(chatId);
     expect(chat.id).not.toBe(chatId);
@@ -131,9 +133,9 @@ describe("forkChat — D27 deep copy", () => {
 
     // The forker is HOST of the fork; the cast copied as member; the OTHER human is NOT copied (FLAG[fork-humans]).
     const host2 = chat.participants.find((p) => p.role === "host");
-    expect(host2?.userId).toBe(member);
+    expect(host2?.userId).toBe(host);
     expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
-    expect(chat.participants.some((p) => p.userId === host)).toBe(false);
+    expect(chat.participants.some((p) => p.userId === member)).toBe(false);
 
     // The canon copied with FRESH ids (no shared rows), content preserved.
     const forkMsgs = await db
@@ -282,12 +284,12 @@ describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () 
   test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's cast + the whole history", async () => {
     const host = await seedUser(db, "host");
     const member = await seedUser(db, "member");
-    // Single-owner cast (D28): aria belongs to the source HOST, bella to the FORKER. The forker resolves bella
-    // but NOT aria → the fork keeps bella's seat, drops aria's — but the CANON (history) is copied whole.
+    // Single-owner cast (D28): aria belongs to another user (the source's departed host), bella to the FORKER.
+    // The forking member is the SOLE present human (fork allowed via the solo arm), and is a non-host, so the
+    // cast-drop ruling applies: they resolve bella but NOT aria → keep bella's seat, drop aria's; canon whole.
     const aria = await seedCharacter(db, host, "aria");
     const bella = await seedCharacter(db, member, "bella");
     const chatId = await seedChat(db, "src");
-    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "ca", characterId: aria });
     await seedParticipant(db, { chatId, key: "cb", characterId: bella });
@@ -308,12 +310,11 @@ describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () 
     });
     const { chat } = await fork.forkChat({ principal: principal(member), chatId });
 
-    // The fork exists (the ruling: succeed, don't refuse), the forker is host, the OTHER human is not copied.
+    // The fork exists (the ruling: succeed, don't refuse), the forker is host.
     expect(chat.parentChatId).toBe(chatId);
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
     expect(chat.participants.find((p) => p.role === "host")?.userId).toBe(member);
-    expect(chat.participants.some((p) => p.userId === host)).toBe(false);
-    // The forker's own character seat is KEPT; the un-owned (source host's) seat is DROPPED from the fork roster.
+    // The forker's own character seat is KEPT; the un-owned seat is DROPPED from the fork roster.
     expect(chat.participants.some((p) => p.characterId === bella)).toBe(true);
     expect(chat.participants.some((p) => p.characterId === aria)).toBe(false);
 
@@ -356,11 +357,12 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     const host = await seedUser(db, "jhf_host");
     const member = await seedUser(db, "jhf_member");
     const chatId = await seedChat(db, "jhf_src");
-    await seedParticipant(db, { chatId, key: "jhf_h", userId: host, role: "host" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
     await seedMessage(db, chatId, 2, { role: "user", authorUserId: host, content: "more pre-join" });
     await seedMessage(db, chatId, 3, { role: "assistant", content: "after they joined" });
-    // Redeemed at head 3 and host-RESTRICTED to `from-join` (the opt-in clamp; the column default is `full`).
+    // Redeemed at head 3 and RESTRICTED to `from-join` (the opt-in clamp; the column default is `full`). The
+    // SOLE present human is this floored member (the host left without a handoff), so the fork is ALLOWED via
+    // the solo arm — and the clamp still narrows the copy to their own window (the belt this test proves).
     await seedParticipant(db, { chatId, key: "jhf_m", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
@@ -380,13 +382,14 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
   });
 
   test("a clamped forker does not carry the compaction checkpoint (it distills the rows their floor hid)", async () => {
-    const host = await seedUser(db, "jhk_host");
+    await seedUser(db, "jhk_host");
     const member = await seedUser(db, "jhk_member");
     const chatId = await seedChat(db, "jhk_src");
-    await seedParticipant(db, { chatId, key: "jhk_h", userId: host, role: "host" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "after they joined" });
     await db.update(chats).set({ compactSummary: "the pre-join story", compactedAtSeq: 1 }).where(eq(chats.id, chatId));
+    // Sole present human = the floored member (host left, no handoff) ⇒ fork allowed via the solo arm; the
+    // clamp still drops the checkpoint that distills the rows their floor hid.
     await seedParticipant(db, { chatId, key: "jhk_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
@@ -401,13 +404,13 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
   });
 
   test("a `full` member's fork is unchanged — the whole source canon + checkpoint carry", async () => {
-    const host = await seedUser(db, "jhu_host");
+    await seedUser(db, "jhu_host");
     const member = await seedUser(db, "jhu_member");
     const chatId = await seedChat(db, "jhu_src");
-    await seedParticipant(db, { chatId, key: "jhu_h", userId: host, role: "host" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join secret" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "after they joined" });
     await db.update(chats).set({ compactSummary: "the pre-join story", compactedAtSeq: 1 }).where(eq(chats.id, chatId));
+    // Sole present human = this `full`-visibility member ⇒ fork allowed via the solo arm; `full` carries everything.
     await seedParticipant(db, { chatId, key: "jhu_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "full" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
@@ -430,16 +433,18 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
   // §3.6 member-strip across the fork boundary (D106): a fork copies canon into a room the forker HOSTS. A
   // NON-HOST forker never had host-plane access to the source's hidden-class spans; if the copy kept them, the
   // forker would read the GM-plane truth verbatim via the fork's HOST listMessages — laundering the member-strip
-  // through the member→host transition. The copied bodies must be stripped for a member forker; verbatim for host.
-  describe("§3.6 hidden-content strip across the member→host fork boundary", () => {
+  // through the member→host transition. This strip is now DEFENSE-IN-DEPTH: the fork gate refuses a non-host in
+  // a MULTI-human room, so a non-host forker only reaches here as the SOLE present human (solo arm) — the tests
+  // seed exactly that (a lone non-host member, host departed). The belt still fires (a non-host role → strip).
+  describe("§3.6 hidden-content strip across the member→host fork boundary (defense-in-depth belt)", () => {
     const lie = '<lie character="Z" truth="he is the traitor"/>';
 
-    test("a NON-HOST member forker's copied assistant body is STRIPPED of hidden spans", async () => {
-      const host = await seedUser(db, "host");
+    test("a NON-HOST (solo) forker's copied assistant body is STRIPPED of hidden spans", async () => {
       const member = await seedUser(db, "member");
       const charA = await seedCharacter(db, member, "aria");
       const chatId = await seedChat(db, "hs_src");
-      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      // Sole present human = a non-host member (host departed, no handoff) ⇒ fork allowed via the solo arm; the
+      // non-host role still triggers the body strip belt.
       await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: `He smiles. ${lie} "Nothing," he says.` });
@@ -457,12 +462,10 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       expect(row?.content).not.toContain("<lie");
     });
 
-    test("a member forker's copied continue-snapshot BODY twins are also stripped (undo/revert can't re-expose the truth)", async () => {
-      const host = await seedUser(db, "host");
+    test("a (solo) non-host forker's copied continue-snapshot BODY twins are also stripped (undo/revert can't re-expose the truth)", async () => {
       const member = await seedUser(db, "member");
       const charA = await seedCharacter(db, member, "aria");
       const chatId = await seedChat(db, "hs_snap");
-      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
       await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "clean tip" });
@@ -506,5 +509,151 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       expect(row?.content).toBe(body);
       expect(row?.content).toContain("traitor");
     });
+  });
+
+  // FORK CLONES THE GAME (fork-clones-the-game §3.2) — the WIRING proof: `forkChat` hands `ChatRpgOps.forkGame`
+  // the fork's id maps (built from the floor-clamped/throughSeq-truncated copy) + the forker's source-room
+  // posture, AFTER the atomic batch commits, and never fails the fork on a clone error. The rpg-side re-key +
+  // strip rules are proven in `tests/server/domain/rpg/chat-ops/fork-game.int.test.ts`; this proves the seam.
+  describe("§3.2 game-clone wiring", () => {
+    /** A stub `ctx.rpg` capturing the `forkGame` call. `resolveReasoningHostOnly` returns false (non-deception),
+     *  the only OTHER op `forkChat` reaches. Cast — the verb touches just these two ops. */
+    function captureRpg(over: { throwOnFork?: boolean } = {}): { calls: ForkGameArgs[]; rpg: NonNullable<ChatContext["rpg"]> } {
+      const calls: ForkGameArgs[] = [];
+      // FABRICATION-OK: minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly + forkGame.
+      const rpg = {
+        resolveReasoningHostOnly: () => Promise.resolve(false),
+        forkGame: (args: ForkGameArgs) => {
+          calls.push(args);
+          if (over.throwOnFork === true) {
+            return Promise.reject(new Error("clone boom"));
+          }
+          return Promise.resolve({ cloned: true });
+        },
+      } as unknown as NonNullable<ChatContext["rpg"]>;
+      return { calls, rpg };
+    }
+
+    test("a game-fork calls forkGame with the source/new chat ids, the built id maps, and the forker's posture", async () => {
+      const host = await seedUser(db, "host");
+      const charA = await seedCharacter(db, host, "aria");
+      const chatId = await seedChat(db, "gc_src");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const m1 = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "beat" });
+
+      const { calls, rpg } = captureRpg();
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+      expect(calls).toHaveLength(1);
+      const args = calls[0];
+      expect(args?.sourceChatId).toBe(chatId);
+      expect(args?.newChatId).toBe(castId(chat.id));
+      // The map re-keys the SOURCE slot/variant to a FRESH fork id (never the same id — a fork copies).
+      const mappedSlot = args?.slotIdMap.get(m1.messageId);
+      const mappedVariant = args?.variantIdMap.get(m1.variantId);
+      expect(mappedSlot).toBeDefined();
+      expect(mappedSlot).not.toBe(m1.messageId);
+      expect(mappedVariant).toBeDefined();
+      expect(mappedVariant).not.toBe(m1.variantId);
+      // The forker is the host of THIS source room → readsHidden true, userId = the forker.
+      expect(args?.forker).toEqual({ userId: host, readsHidden: true });
+    });
+
+    test("a (solo) NON-HOST forker hands forkGame readsHidden:false (the host-secret strip axis, belt)", async () => {
+      const member = await seedUser(db, "member");
+      const chatId = await seedChat(db, "gc_member");
+      // Sole present human = a non-host member (host departed) ⇒ fork allowed via the solo arm; the clone still
+      // receives readsHidden:false so its host-secret strips fire (defense-in-depth belt).
+      await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+      await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+      const { calls, rpg } = captureRpg();
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      await fork.forkChat({ principal: principal(member), chatId });
+
+      expect(calls[0]?.forker).toEqual({ userId: member, readsHidden: false });
+    });
+
+    test("a clone FAILURE never fails the fork — the fork ships as a valid plain chat", async () => {
+      const host = await seedUser(db, "host");
+      const chatId = await seedChat(db, "gc_boom");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+      const { rpg } = captureRpg({ throwOnFork: true });
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
+      // The clone throws, but the fork still resolves (degraded-not-broken) with a real forked chat row.
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const [row] = await db
+        .select({ id: chats.id })
+        .from(chats)
+        .where(eq(chats.id, castId(chat.id)));
+      expect(row?.id).toBe(castId(chat.id));
+    });
+  });
+});
+
+// THE FORK GATE (owner policy 2026-07-28): a fork is allowed when the caller is the HOST, or is the SOLE
+// present HUMAN in the room (a solo chat/game — nothing to launder). A NON-HOST caller with ANOTHER present
+// human member is REFUSED — the multi-human member→host secret-laundering case, now closed at the source (the
+// strips demote to defense-in-depth belt). Human = `kind:"human"`; a seated character never counts.
+describe("forkChat — the host-or-sole-human fork gate", () => {
+  test("SOLO HOST forks — allowed", async () => {
+    const host = await seedUser(db, "gate_host");
+    const chatId = await seedChat(db, "gate_solo_host");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    expect(chat.parentChatId).toBe(chatId);
+  });
+
+  test("SOLE NON-HOST HUMAN forks — allowed (host departed, no handoff; nothing to launder)", async () => {
+    const member = await seedUser(db, "gate_lone_member");
+    const chatId = await seedChat(db, "gate_solo_member");
+    // A lone non-host human (a character seat is also present — it does NOT count as a human).
+    const charA = await seedCharacter(db, member, "aria");
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "c", characterId: charA });
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "beat" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    expect(chat.parentChatId).toBe(chatId);
+    // The lone forker becomes the fork's host.
+    expect(chat.participants.find((p) => p.role === "host")?.userId).toBe(member);
+  });
+
+  test("NON-HOST member in a MULTI-HUMAN room — REFUSED with not_host (a known-existence authority refusal)", async () => {
+    const host = await seedUser(db, "gate_mh_host");
+    const member = await seedUser(db, "gate_mh_member");
+    const chatId = await seedChat(db, "gate_multi");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const err = await fork.forkChat({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    // No fork chat row was created (the refusal is before any write).
+    expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);
+    expect(emitted).toEqual([]);
+  });
+
+  test("a NON-MEMBER stranger — REFUSED with leak-free NOT_FOUND (never reveals the room exists)", async () => {
+    const host = await seedUser(db, "gate_nf_host");
+    const stranger = await seedUser(db, "gate_nf_stranger");
+    const chatId = await seedChat(db, "gate_nf");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const err = await fork.forkChat({ principal: principal(stranger), chatId }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatNotFoundError);
+    expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);
   });
 });

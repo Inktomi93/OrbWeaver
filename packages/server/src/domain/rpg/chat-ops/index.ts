@@ -21,6 +21,7 @@ import { mintLiteGame } from "../game-mint";
 import { findGameByChat } from "../persistence/games";
 import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots";
 import { flushTurn } from "./flush";
+import { forkGame } from "./fork-game";
 import { gatherTurnContext } from "./gather";
 
 /** Build the `ChatRpgOps` runtime over the rpg ctx (rpg-design/05 §3.2). Handed to chat's compose (W1c); NOT
@@ -126,6 +127,12 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
       const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no reasoning strip
       return game !== undefined && isDeceptionActive(game.config.features);
     },
+    // FORK CLONES THE GAME (§3.2): re-key the source game's whole vertical onto the fork through the fork's id
+    // maps, host-secret-strip for a non-host forker, pointer LAST. `cloned:false` for a non-game source. Reads by
+    // the SOURCE chat's game row directly (NOT `findEngagedGame`): a DISENGAGED game still clones — the fork
+    // inherits its disengaged pointer (see `fork-game.ts`), preserving the source's front-door state, never
+    // silently re-engaging it.
+    forkGame: (args): ReturnType<ChatRpgOps["forkGame"]> => forkGame(ctx, args),
   };
 }
 
