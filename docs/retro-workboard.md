@@ -19,10 +19,24 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
-## ═══ ▶▶▶ SESSION STATE 2026-07-28 EOD — READ THIS FIRST (supersedes every block below) ═══
+## ═══ ▶▶▶ SESSION STATE 2026-07-28 LATE — READ THIS FIRST (supersedes every block below) ═══
 
-**HEAD = `8306a2b9`** (main, commit-only, NEVER pushed). Owner is heading into DOGFOODING — the bar is:
-rpg working IN FULL · all guided options exposed+usable+working · forking working properly.
+**HEAD = `85e6781a`** (main, commit-only, NEVER pushed) — a MERGE commit folding the fork-clone lane into main.
+Owner is heading into DOGFOODING — the bar is: rpg working IN FULL · all guided options exposed+usable+working ·
+forking working properly.
+
+**➤ FORK LANE MERGED (this turn):** the security-executor's W-F worktree branch (`b5faacd9` clone + `05b76fbb`
+host-or-sole-human gate) merged into main CLEANLY — `ort` auto-merged the 4 intersecting files (chat/contract/
+context.ts, auth/matrix.ts, rpg/contract/service.ts, rpg `_support.ts`), ZERO conflicts. Whole-tree `pnpm check`
+GREEN (12/12 static) + full battery GREEN (8154 passed / 0 failed / 23 skip). Worktree + branch pruned. So on main
+now: `ChatRpgOps.forkGame` (6-table clone, host-secret strips, pointer-write-LAST) + `assertForkAllowed` (host OR
+sole-human) with `forkChat` authority reclassified member→host. **Fork = DONE.**
+
+**➤ STILL QUEUED — designer `a5dbdcea812e9d552`** (Fable, PAUSED before W-B; may be stale/orphaned post-compact —
+re-verify its pulse or re-spawn): **W-B extraction rides transcript** (rpg-full) → **W-G dangling-pointer heal** →
+**W-H panel-beauty**. Plus **#49 wand v2** (composer → TWO ROWS: icons in a row ABOVE textarea+Send; Regenerate +
+P5 game steers move INTO the ✨ wand). Deferred: W-C resync escape-hatch [sec]; rewrite stale
+`tests/e2e/guided-generations.spec.ts` before any E2E_LIVE. **W-A `9905cbf1` + W-D `ed9c1020` already on main.**
 
 **LANDED THIS SESSION (committed, whole-tree green, pre-commit re-verified each):**
 - `dba7e378..8eb6e427` — the **a9361256 comprehensive lane** (Fable): the RPG OVERLAY model (on/off any time,
@@ -52,9 +66,36 @@ punch list; #1 meta-tabs deferred. **OWNER DECISIONS: 1–6,8 ratified as recomm
 9-WAVE build sequence (W-A silent-slots · W-B extraction · W-C resync[sec] · W-D wand · W-E empty-send · W-F fork-
 clone[sec] · W-G heal · W-H panel-beauty · W-I ledger). W-C/W-F → **security-executor** per doctrine.
 
-**BUILD IN FLIGHT (dogfood priority):** the Fable designer builds the NON-security functional waves on main,
-serial+commit-each (order: silent-slots → WAND → extraction → heal; panel-beauty after). `security-executor`
-builds W-F fork-clone (own lane). W-C resync = deferred (escape-hatch, not dogfood-critical).
+**BUILD IN FLIGHT (dogfood priority) — LIVE AGENT IDS + PROGRESS:**
+- **Lane 1 — designer `a5dbdcea812e9d552`** (Fable, MAIN tree, serial+commit-each): **✅ W-A LANDED `9905cbf1`**
+  (blank-"Group"-bubble fix — REVISED mid-build: NOT `excludedFromPrompt` [that broke the snapshot ladder's
+  empty-content state-head walk, caught by gather.int]; the anchor is identified by EMPTY CONTENT alone — wire
+  drops empty rows via the shape-stage filter, client hides via `isStateAnchorSlot`, state-resolution untouched).
+  **NOW ON W-D (the WAND — owner #1 dogfood need)** → then W-B extraction → W-G heal; W-H panel-beauty last.
+- **Lane 2 — security-executor `aa7dc690d8ced1eb0`** (W-F fork-clone): **✅ BUILT + GATED + COMMITTED IN THE
+  WORKTREE `b5faacd9`** (branch `worktree-agent-aa7dc690d8ced1eb0`, based on `8edde5dc`; NOT on main, NOT pushed).
+  `pnpm check` PASS · 1321 fork+rpg tests + 9-test two-principal exploit-drive (member `mallory` forks host `gm`'s
+  game → copy is member-safe: no host secrets, no cross-tenant rows). forkGame clones the 6-table graph; strips
+  for a non-host forker: `steeringNote`→"", foreign `gmPresetId`→null via new `resolvePresetOwned` (closes the
+  [[injected-op-caller-gate]] hole), belt `stripHiddenSpans` over recentEvents+journal (safe under both #7
+  outcomes), pointer-write-LAST. (Recovered from the stale-base incident — reset worktree to HEAD, draft survived;
+  [[worktree-isolate-concurrent-lanes]] updated.) **✅ MERGED into main `85e6781a` (2026-07-28 late) — clean, ZERO
+  conflicts, whole-tree check + battery green, worktree pruned. W-B extraction is now unblocked on the merged tree.** Reconcile files: `domain/chat/contract/context.ts`
+  (+forkGame/ForkGameArgs/Result), `domain/chat/index.ts`, `domain/rpg/contract/service.ts` (+RpgResolvePresetOwned),
+  `domain/rpg/index.ts`, `chat-ops/index.ts`, `compose/rpg.ts`+`services.ts`, `persistence/{snapshots,journal}.ts`
+  (+list readers). Also fixed a PRE-EXISTING red (`metadata.contract.test.ts` — a9361256's `engaged` pointer add).
+  **OWNER REVIEW (1 security assumption):** `resolvePresetOwned` carries the SHARED SYSTEM-DEFAULT preset (readable
+  by all); only presets the forker CANNOT read drop. If stricter (owned-only) wanted, one-line compose change.
+  **⚠ OWNER POLICY (2026-07-28, MERGE HELD ON THIS) → routed to fork lane `aa7dc690d8ced1eb0`:** fork GATE =
+  "caller is HOST (role, D19/D64 — transferred-to new host qualifies) **OR** caller is the SOLE human participant"
+  (single-human game/chat forking is ALWAYS safe — nothing to launder; the common dogfood path stays working even
+  if the lone remaining human isn't formally host). REFUSE only a NON-host caller when ANOTHER human member is
+  present (multi-human laundering case), leak-free. Current `fork.ts` = `requireParticipant` (too loose). The
+  member-forker strips (steeringNote/foreign-gmPreset/belt) DEMOTE to defense-in-depth (keep). Fork lane re-gates
+  + re-tests in worktree (host-fork · sole-non-host-human-fork · multi-human-member REFUSED) → reports → orch MERGES
+  b5faacd9 into main (after designer's W-D client wave commits — disjoint).
+- W-C resync = DEFERRED. **NOTE main HEAD advances as lane 1 commits (now `9905cbf1`); the SESSION-STATE
+  `8306a2b9` above is one commit stale — resume from `git log`.** Orch runs side-eye(wand)/verifier(extraction) post-commit.
 
 **DEFERRED / STILL-OWED (logged so it isn't lost):** #1 META-TABS redesign (settings/injections/preview) ·
 PANEL BEAUTY (W-H — dead space, tiny Waystone, asymmetric roster cards, dup orb numbers, header hierarchy,
