@@ -69,6 +69,21 @@ interface ShellSnapshot {
  *  rejected/invalid target. NEVER a silent no-op (a snap step reddens its exit on `ok:false`). */
 export type NavResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
+/** The two seedable game shapes: `d20` = the classic six-attribute grid + level + everything; `freeform` =
+ *  the same rich planes MINUS the attribute grid (freeform has no attribute vocabulary — the sparser Sheet). */
+export type SeedProfile = "d20" | "freeform";
+
+/** Dev-only rpg game seeder: stand up a fully-populated game (character + chat + game(profile) + config +
+ *  rich content across EVERY plane) in ONE call, so audits/demos/live-verify passes stop hand-rolling tRPC
+ *  seeders. Built at the composition root under IS_DEV (drives the real `rpg.*` verbs through the wire
+ *  client), injected into `installAgentDebugHandle`. Returns the created chatId — feed it to `nav.openChat`. */
+export interface OrbSeedHandle {
+  /** Seed one fully-populated game of `profile` and return its chatId (open it with `nav.openChat`). */
+  readonly game: (args: { profile: SeedProfile; title?: string }) => Promise<{ readonly chatId: string }>;
+  /** Convenience: `game({ profile })` with `profile` defaulting to `freeform` (lite's create default). */
+  readonly richGame: (profile?: SeedProfile) => Promise<{ readonly chatId: string }>;
+}
+
 /** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
  *  settings category, context tab, open chat) through the SAME store actions the real UI calls — the app
  *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
@@ -115,6 +130,8 @@ interface OrbDebugHandle {
   readonly snap: () => Record<string, unknown>;
   /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
   readonly nav: OrbNavHandle;
+  /** Dev-only rpg game seeder (see OrbSeedHandle) — spin up a fully-populated game in one call. */
+  readonly seed: OrbSeedHandle;
 }
 
 declare global {
@@ -139,7 +156,7 @@ function motionSummary(): {
   };
 }
 
-export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle): void {
+export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle, seed: OrbSeedHandle): void {
   if (!IS_DEV) {
     return;
   }
@@ -194,9 +211,10 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     animations: activeAnimations,
     snap,
     nav,
+    seed,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",
