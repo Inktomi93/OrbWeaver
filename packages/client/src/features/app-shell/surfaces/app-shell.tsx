@@ -204,7 +204,7 @@ export function AppShell(): ReactElement {
                             }}
                           >
                             <Kbd>⌘K</Kbd>
-                            <Text as="span" size="micro" tone="muted">
+                            <Text as="span" size="micro" tone="muted" className="shell-topbar-jump-label">
                               jump
                             </Text>
                           </Button>

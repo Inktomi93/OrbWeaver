@@ -443,6 +443,11 @@
   min-width: 0;
   min-height: 0;
   background: var(--color-background);
+  /* Query CONTAINER for the topbar's progressive-disclosure (§4b axis-1 @container, NEVER a viewport
+   * @media — the content column narrows independently of the viewport when panels dock). The named
+   * container keeps the deeper message-thread <Container name=…> queries from ever resolving against
+   * this box. inline-size contains only the inline axis, so the flex column still grows vertically. */
+  container: shell-main / inline-size;
 }
 .shell-topbar {
   flex: none;
@@ -480,6 +485,37 @@
   width: 1px;
   height: 1.25rem;
   background: var(--color-border);
+}
+
+/* The active chat's identity title in the topbar LEAD. It's the row's sole shrinker (min-w-0), so a
+ * hard floor stops it collapsing to 0px when the avatar + member chip + trail claim the row — it always
+ * shows a few chars + ellipsis rather than vanishing (the "graceful ellipsis, never 0 chars" floor). */
+.shell-topbar-title {
+  min-width: 6ch;
+}
+
+/* Progressive-disclosure shed on a narrow content column (@container, matched off .shell-main). At the
+ * mobile column width the identity + trail can't share the row without starving the title, so two
+ * low-value items step aside to give the title real room (not just its 6ch floor):
+ *  · the member-count chip — single-homed in the Context › Members tab (chat-header §13/§14), so dropping
+ *    it from the topbar loses nothing; and
+ *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
+ *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
+@container shell-main (max-width: 30rem) {
+  .shell-chat-member-chip,
+  .shell-topbar-jump-label {
+    display: none;
+  }
+}
+
+/* Tap-target floor for every topbar icon button (the lead list-panel toggle + the trail chrome icons):
+ * on a coarse pointer they must clear the ≥44px touch floor, so the lead toggle can't be squeezed below
+ * it by the flex row. --spacing-touch-target is pointer-conditional (44px coarse / 28px fine, D62 P1). */
+@media (pointer: coarse) {
+  .shell-topbar-icon-btn {
+    min-width: var(--spacing-touch-target);
+    flex: none;
+  }
 }
 .shell-content {
   flex: 1 1 auto;

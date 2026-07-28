@@ -38,7 +38,15 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick }: To
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button intent="ghost" size="icon" aria-label={label} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+          <Button
+            intent="ghost"
+            size="icon"
+            className="shell-topbar-icon-btn"
+            aria-label={label}
+            aria-pressed={pressed}
+            aria-expanded={expanded}
+            onClick={onClick}
+          >
             <Icon icon={icon} size="sm" />
           </Button>
         }
