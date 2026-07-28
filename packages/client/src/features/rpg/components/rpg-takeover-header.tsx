@@ -9,8 +9,8 @@
 // weather home (`resolveWeatherOverlay`); an unresolvable type = plain sky, the text still names it.
 // Orb color rides the ONE `resolvePoolColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
-// The cues row = freshness (extractionMode, honest) + the read-only pill. The veiled count (P3) has no data
-// plane yet — it joins this row when the deception ledger lands (wired-when-ready; no fake count).
+// The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
+// crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
 import type { RpgClockTime, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
@@ -19,7 +19,7 @@ import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { resolveWeatherOverlay } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
@@ -88,6 +88,9 @@ export interface RpgTakeoverHeaderProps {
   readonly extractionMode: RpgExtractionMode;
   /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
   readonly freshnessPending: boolean;
+  /** The host-only "N veiled" cue for the cues row (§2 — crown gold; the doorway to Status → Veiled).
+   *  Supplied by the band host (it owns the host gate + the reveal read); `null`/absent ⇒ nothing. */
+  readonly veiledCue?: ReactNode;
 }
 
 /** The waystone band — the signature composite + the text lines that carry its data. */
@@ -99,6 +102,7 @@ export function RpgTakeoverHeader({
   trackersReadOnly,
   extractionMode,
   freshnessPending,
+  veiledCue,
 }: RpgTakeoverHeaderProps): ReactElement {
   const clock = ambient?.clock ?? null;
   const weatherType = ambient?.weather?.type ?? null;
@@ -132,6 +136,7 @@ export function RpgTakeoverHeader({
           )}
           <Row gap="field" align="center" className="flex-wrap">
             <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
+            {veiledCue}
             {trackersReadOnly ? (
               <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
                 <Icon icon={Lock} size="xs" />

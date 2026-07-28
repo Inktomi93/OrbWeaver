@@ -277,25 +277,31 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(config.relationshipHints["vassal"]).toBe("sworn to serve but resentful");
 
     // ── FE CROSS-CHECK: the CP-4 panel re-renders the SAME server-truth (invalidation → re-render). The
-    // panel-redesign made the host's cast/ambient/quest fields EDITABLE-IN-PLACE, so many values render as
-    // `<input>`/`<select>` (assert `toHaveValue`/the picker value, NOT `toContainText` — the rpg-values-as-input
-    // rule, [[fresh-db-retired-route-born-readonly]]); the LABELS + NAME + beat stay text. Each comparand comes
+    // panel-redesign's DISPLAY-AT-REST grammar (DESIGN §12.4.1): an editable value renders as STATIC text
+    // on a button at rest; the inline `<input>` appears only on CLICK. So the assertions here are
+    // rest-text + one click-to-reveal proof; LABELS + NAME + beat stay plain text. Each comparand comes
     // straight from getTrackerView above.
     await openContextTab(page, "Scene");
     const scene = page.locator('[data-slot="rpg-scene-tab"]');
-    // Ambient location: an editable `<Input>` whose VALUE carries the location (host canEditShared).
-    await expect(scene.getByRole("textbox", { name: "Location value" })).toHaveValue("Ashfell Night Market", { timeout: 15_000 });
-    // Cast: the NAME renders as text; the relationship renders as a Base UI Select PICKER (a div combobox, not
-    // a native input) whose trigger shows the current KIND "custom" (NOT the label — the redesigned editable
-    // relationship slot, cast-card-slots.tsx `CastRelationship`); the cast-field LABELS render as text.
+    // Ambient location AT REST: a static-text edit button carrying the value (host canEditShared).
+    const locationRest = scene.getByRole("button", { name: "Location value" });
+    await expect(locationRest).toContainText("Ashfell Night Market", { timeout: 15_000 });
+    // CLICK → the inline input appears, seeded with the value (the click-to-reveal proof), Escape closes.
+    await locationRest.click();
+    const locationField = scene.getByRole("textbox", { name: "Location value" });
+    await expect(locationField).toHaveValue("Ashfell Night Market");
+    await locationField.press("Escape");
+    await expect(scene.getByRole("textbox", { name: "Location value" })).toHaveCount(0);
+    // Cast: the NAME renders as text; the relationship is a display-at-rest badge BUTTON (click opens the
+    // 6-kind picker popover — never a resting dropdown). A custom kind badges its LABEL ("vassal").
     await expect(scene).toContainText("Mira");
-    await expect(scene.getByRole("combobox", { name: "Mira relationship" })).toContainText("custom");
+    await expect(scene.getByRole("button", { name: "Mira relationship" })).toContainText("vassal");
     await expect(scene).toContainText("Trust"); // the meter cast-field label
     await expect(scene).toContainText("Secret"); // the text cast-field label
     await expect(scene).toContainText("Reputation"); // the widget label
-    // The quest GOAL name also renders in an editable `<Input>` for the host (aria-label "Goal"); assert its
-    // VALUE + the objective count text (1 of 2 objectives complete renders as "1/2" plain text).
-    await expect(scene.getByRole("textbox", { name: "Goal" })).toHaveValue("Find the Rusted Key");
+    // The quest GOAL name renders at rest as static text on its edit button (host); the objective count
+    // (1 of 2 complete) renders as "1/2" plain text.
+    await expect(scene.getByRole("button", { name: "Goal" })).toContainText("Find the Rusted Key");
     await expect(scene).toContainText("1/2");
     await expect(scene).toContainText("Stepped into the freezing night market");
     // Status tab: the hero's className + pool + condition render on the actor row.
@@ -432,13 +438,14 @@ test("rpg-lite (reliable): a live character turn + state round moves the snapsho
       .toBe(true);
 
     // HOP RESULT (CP-4 re-render): the Scene tab reflects the SAME server-truth state (DOM ↔ getTrackerView).
-    // The ambient LOCATION is present in BOTH outcomes (pre-seeded, or model-changed) and renders as an editable
-    // input value — the model-independent DOM witness. Assert the panel's location input EQUALS the persisted
-    // snapshot location (never a stale frame): ONE unconditional parity assertion, both 8B outcomes covered.
+    // The ambient LOCATION is present in BOTH outcomes (pre-seeded, or model-changed) and renders AT REST as
+    // static text on its edit button (display-at-rest, DESIGN §12.4.1) — the model-independent DOM witness.
+    // Assert the rest text EQUALS the persisted snapshot location (never a stale frame): ONE unconditional
+    // parity assertion, both 8B outcomes covered.
     await openContextTab(page, "Scene");
     const sceneTab = page.locator('[data-slot="rpg-scene-tab"]');
     await expect(sceneTab).toBeVisible({ timeout: 15_000 });
-    await expect(sceneTab.getByRole("textbox", { name: "Location value" })).toHaveValue(after.ambient?.location ?? "", { timeout: 15_000 });
+    await expect(sceneTab.getByRole("button", { name: "Location value" })).toContainText(after.ambient?.location ?? "", { timeout: 15_000 });
 
     // The canon + chat-DB witness: the narration + reply committed as durable rows; no error ring entry (the
     // HARD invariant — the loop ran clean regardless of whether the 8B decomposed a plane this run).

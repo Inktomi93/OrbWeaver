@@ -72,6 +72,9 @@ export const gridVariants = tv({
       // Dense compact tiles (the OSRS stat-cell / attribute grid, Context-Panel-Program §3.2): a narrow
       // min so the CONTEXT panel tiles stat cells 2-up at the 17rem floor, 3-up when it has room.
       tile: "grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
+      // Item-cell density (panel-redesign §5 — the OSRS pack grid): a 3.5rem min lands the pack 5-up in
+      // the docked CONTEXT column and 6-up on the ~390px mobile sheet (container-driven, the axis-1 rule).
+      cell: "grid-cols-[repeat(auto-fit,minmax(min(3.5rem,100%),1fr))]",
     },
   },
   defaultVariants: { cols: "auto" },

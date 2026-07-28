@@ -21,6 +21,7 @@ import type { RpgPlot, RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, Plus } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Separator } from "@orb/ui/separator";
@@ -200,12 +201,13 @@ export interface RpgQuestsTabProps {
 }
 
 /** The host "New quest" affordance (§12.4 flow — no dead ends): an inline name field + create button that
- *  fires `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal: an empty name never sends. */
+ *  fires `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal: an empty name never sends. A CREATION
+ *  draft, not a datum at rest — a plain Input, exempt from the display-at-rest grammar (§12.4.1). */
 function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
   const [draft, setDraft] = useState("");
   return (
     <Row gap="field" align="center">
-      <TrackerValue ariaLabel="New quest name" display={draft} placeholder="Start a quest…" onEdit={setDraft} className="h-control-sm flex-1" />
+      <Input aria-label="New quest name" value={draft} placeholder="Start a quest…" onValueChange={setDraft} className="h-control-sm flex-1" />
       <Button
         intent="primary"
         size="sm"

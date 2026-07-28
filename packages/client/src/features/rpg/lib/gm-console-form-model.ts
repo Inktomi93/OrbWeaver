@@ -10,14 +10,18 @@
 
 import type { RpgConfigView, RpgExtractionMode } from "@orb/contracts/rpg";
 
+type CyoaChoiceBehavior = RpgConfigView["cyoaChoiceBehavior"];
+
 /** The console's flat scalar values (the autosave form's bag). P5 adds the play-style knobs (`cyoa`
- *  standing mode + the wand Plot submenu gate) — same autosave pattern as the deception toggles. */
+ *  standing mode + `cyoaChoiceBehavior` — the compose|send choice-click knob — + the wand Plot submenu
+ *  gate) — same autosave pattern as the deception toggles. */
 export interface GmConsoleFormValues {
   readonly steeringNote: string;
   readonly extractionMode: RpgExtractionMode;
   readonly deception: boolean;
   readonly omniscience: boolean;
   readonly cyoa: boolean;
+  readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
   readonly plotProgression: boolean;
 }
 
@@ -27,6 +31,7 @@ export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
   deception: false,
   omniscience: false,
   cyoa: false,
+  cyoaChoiceBehavior: "compose",
   plotProgression: true,
 };
 
@@ -38,6 +43,7 @@ export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
     deception: config.deception,
     omniscience: config.omniscience,
     cyoa: config.cyoa,
+    cyoaChoiceBehavior: config.cyoaChoiceBehavior,
     plotProgression: config.plotProgression,
   };
 }
@@ -50,6 +56,7 @@ export interface GmConsoleScalarPatch {
     readonly deception: boolean;
     readonly omniscience: boolean;
     readonly cyoa: boolean;
+    readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
     readonly plotProgression: boolean;
   };
   readonly extractionMode: RpgExtractionMode;
@@ -62,6 +69,7 @@ export function fromGmConsoleForm(values: GmConsoleFormValues): GmConsoleScalarP
       deception: values.deception,
       omniscience: values.omniscience,
       cyoa: values.cyoa,
+      cyoaChoiceBehavior: values.cyoaChoiceBehavior,
       plotProgression: values.plotProgression,
     },
     extractionMode: values.extractionMode,

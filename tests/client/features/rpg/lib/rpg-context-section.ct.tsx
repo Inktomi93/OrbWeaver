@@ -49,6 +49,11 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
         perceptionAttribute: "",
         resolution: { kind: "house-d20" },
       },
+      // The member-safe play-style trim (§5.4/§6.4) the Scene echo + card archive gate on.
+      cyoa: false,
+      cyoaChoiceBehavior: "compose",
+      plotProgression: true,
+      immersiveHtml: false,
     },
   };
 }
@@ -144,25 +149,35 @@ function configView(): unknown {
     hiddenContentReveal: true,
     recentBeatsKeepLast: 6,
     pinnedOrbs: [],
+    // The P4/P5 knobs the scalar form projects (`toGmConsoleForm`).
+    immersiveHtml: false,
+    immersiveHtmlInteractive: false,
+    cardKeepLastX: 3,
+    cyoa: false,
+    cyoaChoiceBehavior: "compose",
+    plotProgression: true,
   };
 }
 
 function stubTakeover(
   page: Page,
-  opts: { readonly readOnly?: boolean; readonly reveal?: unknown; readonly tracker?: unknown } = {},
+  opts: { readonly readOnly?: boolean; readonly reveal?: unknown; readonly tracker?: unknown; readonly game?: unknown; readonly messages?: unknown } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
     "chat.getChat": () => gameChat(),
-    "rpg.getGame": () => gameView(readOnly),
+    "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
     "rpg.getConfigView": () => configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
-    // The chat panel's own reads (the meta strip's tabs suspend on these when opened).
+    // The chat panel's own reads (the meta strip's tabs suspend on these when opened) + the transcript
+    // read the Scene choice echo / card archive projects (fetched only when the play-style knobs gate on).
     "chat.listChatInjections": () => [],
+    "chat.listMessages": () => opts.messages ?? { messages: [] },
+    "chat.send": () => undefined,
   });
 }
 
@@ -222,7 +237,11 @@ test("the crown GM console (Game tab, host) renders getConfigView — scalars, o
   await expect(component.getByRole("textbox", { name: "Steering note" })).toHaveValue("Keep the tone grim.");
   // The stat-profile READ display (the vocabulary badge).
   await expect(component.getByText("Strength")).toBeVisible();
-  // The cast-field schema row (the stubbed "Trust" text field) + the relationship-hint row ("debtor").
+  // The cast-field schema row (the stubbed "Trust" text field, display-at-rest — the input appears on
+  // click, §12.4.1) + the relationship-hint row ("debtor").
+  const castFieldRest = component.getByRole("button", { name: "Cast field 1 label" });
+  await expect(castFieldRest).toContainText("Trust");
+  await castFieldRest.click();
   await expect(component.getByRole("textbox", { name: "Cast field 1 label" })).toHaveValue("Trust");
   await expect(component.getByText("debtor")).toBeVisible();
 });
@@ -265,9 +284,12 @@ test("an editable pool value fires the editSnapshot mutation (host, writable) �
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // The pool value is an inline editable field (host + not read-only ⇒ onEditValue wired). Change it + commit.
+  // The pool value is editable DISPLAY-AT-REST (§12.4.1): static text on a button; the inline field
+  // appears on click. Reveal it, change it, commit on blur.
+  const vitalityRest = component.getByRole("button", { name: "Vitality value" }).first();
+  await expect(vitalityRest).toBeVisible();
+  await vitalityRest.click();
   const vitality = component.getByRole("textbox", { name: "Vitality value" });
-  await expect(vitality).toBeVisible();
   await vitality.fill("18");
   await vitality.blur();
 
@@ -285,9 +307,10 @@ test("read-only trackers: the pill shows BUT the host still hand-edits (D108 —
   await expect(component.getByText("Read-only")).toBeVisible();
   // D108 manual-steering (owner-confirmed 2026-07-28): `trackersReadOnly` disables the MODEL write path, NOT
   // the host's HAND edits — when the model can't write trackers, the host hand-edits every plane (the pill's
-  // "edit them by hand" IS the affordance). So a host STILL sees the editable pool field under readonly;
+  // "edit them by hand" IS the affordance). So a host STILL sees the editable pool value under readonly
+  // (display-at-rest: the edit BUTTON; the input appears on click);
   // conflating the two disabled the exact recovery the read-only state exists to enable.
-  await expect(component.getByRole("textbox", { name: "Vitality value" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Vitality value" }).first()).toBeVisible();
 });
 
 test("a hand-locked field shows the pin + Release affordance (§12.3 the-lock-consequence-is-visible)", async ({ mount, page }) => {
@@ -359,15 +382,69 @@ test("lowering a pool max below its value drags the value + fires editSnapshot (
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // The pool max is an editable field (host). Lower Vitality's max (30) below its value (24) → the value
-  // drags to 20 in the same editSnapshot commit + a microline states it.
+  // The pool max is editable display-at-rest (host) — click reveals the field. Lower Vitality's max (30)
+  // below its value (24) → the value drags to 20 in the same editSnapshot commit + a microline states it.
+  const maxRest = component.getByRole("button", { name: "Vitality max" });
+  await expect(maxRest).toBeVisible();
+  await maxRest.click();
   const maxField = component.getByRole("textbox", { name: "Vitality max" });
-  await expect(maxField).toBeVisible();
   await maxField.fill("20");
   await maxField.blur();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // The clamp-and-tell microline (§12.3) — the value dragged to the new max.
   await expect(component.getByText("Vitality 24 → 20 — max lowered")).toBeVisible();
+});
+
+test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue; send-mode line) and a pick fires chat.send", async ({ mount, page }) => {
+  // A cyoa game in `send` mode + a transcript whose LAST message is an assistant turn carrying a choices
+  // fence — the echo's exact live condition (a later user reply would settle it → no echo).
+  const game = {
+    ...(gameView(false) as Record<string, unknown>),
+    publicConfig: {
+      ...((gameView(false) as { publicConfig: Record<string, unknown> }).publicConfig ?? {}),
+      cyoa: true,
+      cyoaChoiceBehavior: "send",
+    },
+  };
+  const messages = {
+    messages: [
+      { id: "message_ct_u1", role: "user", content: "We hold the door.", createdAt: 1000 },
+      {
+        id: "message_ct_a1",
+        role: "assistant",
+        content: "The bandits circle.\n\n:::choices\n1. Bar the door\n2. Parley through the window\n:::",
+        createdAt: 2000,
+      },
+    ],
+  };
+  const trpc = await stubTakeover(page, { game, messages });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const echo = component.locator('[data-slot="rpg-choice-echo"]');
+  await expect(echo).toBeVisible();
+  await expect(echo).toContainText("Choice on the table");
+  // The honest consequence line for `send` mode (the compose arm words it as a composer drop).
+  await expect(echo).toContainText("picks send as your turn");
+  // A pick fires the turn — assert the MUTATION count ([assert-the-mutation-fired]).
+  await echo.getByRole("button", { name: "1. Bar the door" }).click();
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("the band's host-only VEILED count (P3) renders off rpg.revealHidden — crown-gold cue, absent at zero", async ({ mount, page }) => {
+  await stubTakeover(page, {
+    reveal: revealView([
+      { character: "Sera", type: "lie", truth: "she pocketed the key", reason: "claims she never touched it", messageId: "message_ct_beat_t41" },
+      { character: "Niko", type: "ofilter", truth: "the dart was poisoned", reason: "", messageId: "message_ct_beat_t43" },
+    ]),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+
+  // The cue rides the BAND (above both strips) — no tab click needed; "2 veiled" is the datum text.
+  const cue = component.locator('[data-slot="rpg-veiled-cue"]');
+  await expect(cue).toBeVisible();
+  await expect(cue).toContainText("2 veiled");
 });
 
 test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidden — crown-gold, host-only", async ({ mount, page }) => {
