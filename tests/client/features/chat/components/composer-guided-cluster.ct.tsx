@@ -19,11 +19,13 @@ import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures
 const RESPONSE = "Generate reply";
 const RESPONSE_DRAFT = "Generate opening";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
+const NEEDS_REPLY = /reply to regenerate/iu;
 
 test("all four guided icons ALWAYS render on a committed chat (never hidden/swapped)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // committed, empty composer
   await expect(component.getByRole("button", { name: "Impersonate" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Regenerate" })).toBeVisible();
+  // Wand v2: the ⟳ icon is labeled "Swipe" (Regenerate moved into the ✨ menu as a plain reroll).
+  await expect(component.getByRole("button", { name: "Swipe" })).toBeVisible();
   await expect(component.getByRole("button", { name: RESPONSE })).toBeVisible();
   await expect(component.getByRole("button", { name: "Continue" })).toBeVisible();
 });
@@ -75,7 +77,7 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
 
   const box = component.getByRole("textbox", { name: "Message" });
   await box.fill("darker tone");
-  const btn = component.getByRole("button", { name: "Regenerate with this steering" });
+  const btn = component.getByRole("button", { name: "Swipe with this steering" });
   await expect(btn).toBeEnabled();
   await btn.click();
   await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
@@ -86,11 +88,34 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
 test("phase matrix: a DRAFT disables Swipe/Continue/Impersonate with a legible reason; Response stays live", async ({ mount }) => {
   const component = await mount(<ComposerStory committed={false} />);
   // aria-disabled (focusableWhenDisabled) — visible + hoverable, never hidden.
-  await expect(component.getByRole("button", { name: "Regenerate" })).toBeDisabled();
+  await expect(component.getByRole("button", { name: "Swipe" })).toBeDisabled();
   await expect(component.getByRole("button", { name: "Continue" })).toBeDisabled();
   await expect(component.getByRole("button", { name: "Impersonate" })).toBeDisabled();
   // Response is always live (Generate opening on a draft).
   await expect(component.getByRole("button", { name: RESPONSE_DRAFT })).toBeEnabled();
+});
+
+test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
+  // Regenerate moved into the ✨ menu (owner). It's a plain reroll — chat.swipe with NO guided object.
+  const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
+
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Regenerate" }).click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. A PLAIN reroll carries no steer object.
+  const input = trpc.lastInput("chat.swipe") as { guided?: unknown };
+  expect(input.guided).toBeUndefined();
+});
+
+test("Regenerate in the ✨ menu is disabled-with-reason when there's no assistant reply to reroll", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />); // committed, user/empty tail — no assistant tail
+  await component.getByRole("button", { name: "Message tools" }).click();
+  const regen = page.getByRole("menuitem", { name: "Regenerate" });
+  await expect(regen).toBeDisabled();
+  await expect(regen).toHaveAttribute("title", NEEDS_REPLY);
 });
 
 test("Simple send fires chat.commitMessage (post without generating) and clears the composer", async ({ mount, page }) => {
@@ -106,4 +131,46 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
   // ONESHOT-OK: the poll above settled the recorder at exactly 1 call, so lastInput is stable at read.
   expect(trpc.lastInput("chat.commitMessage")).toMatchObject({ content: "just a note, no reply" });
   await expect(box).toHaveValue("");
+});
+
+// ── P5 game steers, re-homed into the ✨ menu (owner: "game steers go in the magic wand") ─────────────────
+// The cluster reads `chat.getChat.rpg` (engaged pointer ⇒ a live game) + `rpg.getGame.publicConfig.plotProgression`
+// to decide which steers render; a plot steer fires chat.generate with a trusted-template gameSteer KIND.
+const GAME_CHAT = { participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } };
+
+test("game steers live in the ✨ menu (Plot + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => GAME_CHAT,
+    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+    "chat.generate": () => ({}),
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+
+  // A plot steer + the always-present Offer choices both render inside the ✨ menu (not a loose bar icon).
+  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Advance the act" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call. The steer rides as a trusted-template KIND.
+  expect(trpc.lastInput("chat.generate")).toMatchObject({ guided: { action: "response", gameSteer: "advance" } });
+});
+
+test("Plot steers are APPLICABILITY-gated off when plotProgression is false (Offer choices still shows)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => GAME_CHAT,
+    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: false } }),
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  // Plot steer absent (never a disabled twin); Offer choices always present on a game.
+  await expect(page.getByRole("menuitem", { name: "Advance the act" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
+});
+
+test("game steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount, page }) => {
+  await routeTrpc(page, {}); // no rpg pointer → not a game
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expect(page.getByRole("menuitem", { name: "Offer choices" })).toHaveCount(0);
 });

@@ -1,7 +1,13 @@
-// The chat composer: a pill footer with a growing textarea and one right-side control that toggles
-// Send <-> Stop off the live turn phase. Attach picks local images into a pending strip; on send they
-// upload to CAS and ride the send as attachmentAssetIds. continue-on-empty is real, tested groundwork
-// the Send button doesn't yet act on (parked until chat.continueTurn is exposed here).
+// The chat composer: a TWO-ROW footer (wand v2). Row 1 = the guided-action cluster (four dual-mode icons
+// impersonate·swipe·response·continue + the ✨ utility menu) so the busy controls sit ABOVE the textarea,
+// not crammed beside it. Row 2 = the growing textarea + SpeakAs + one right-side control that toggles Send
+// <-> Stop off the live turn phase. The IMAGE controls (attach + generate-from-text) live INSIDE the ✨ menu,
+// not loose on the bar; attach still uploads local images to CAS and rides the send as attachmentAssetIds.
+//
+// EMPTY-ENTER (PD-146 continue + W-E generate): a bare Enter on an empty composer either extends the tail
+// assistant reply (`continueOnSend`) or prompts a fresh reply on a committed non-assistant tail
+// (`generateOnEmptySend`) — the pure `resolveEmptySendAction` picks the arm; the ▷ Response icon is the
+// always-visible equivalent.
 //
 // SLASH COMMANDS (client-architecture-lockdown.md §6c): a send whose draft names a REGISTERED `/command`
 // dispatches to that command's runner instead of posting. Non-command text takes the byte-identical old
@@ -13,8 +19,7 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Icon, ImagePlus, Send, Sparkles, Square, X } from "@orb/ui/icons";
+import { Icon, Send, Square, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
@@ -36,10 +41,11 @@ import { useSendMessage } from "../hooks/use-send-message";
 import { useSlashCommands } from "../hooks/use-slash-commands";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { shouldSendOnEnter } from "../lib/composer-send-keys";
-import { resolveContinueTarget } from "../lib/continue-on-empty";
+import { resolveEmptySendAction } from "../lib/continue-on-empty";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command";
 import { ComposerGuidedCluster } from "./composer-guided-cluster";
 import { ComposerSlashStrip } from "./composer-slash-strip";
+import type { ComposerImageControls } from "./composer-utility-menu";
 import { SpeakAsSelect } from "./speak-as-select";
 
 // The composer's glue for the OPEN slash strip's combobox keys — kept at module scope (not a closure in the
@@ -113,11 +119,20 @@ function handleComposerKeyDown(
   }
 }
 
-function resolvePlaceholder(committed: boolean, canContinue: boolean): string {
+// The placeholder teaches the empty-Enter affordance in play. On an assistant tail with continue-on-empty
+// live, an empty Enter continues; on a committed non-assistant tail with generate-on-empty live, an empty
+// Enter prompts a reply (name the ▷ icon so the affordance is discoverable from the empty state).
+function resolvePlaceholder(committed: boolean, emptyAction: "continue" | "generate" | null): string {
   if (!committed) {
     return "Write the scene, or type a message…";
   }
-  return canContinue ? "Continue, or type a message…" : "Type a message…";
+  if (emptyAction === "continue") {
+    return "Continue, or type a message…";
+  }
+  if (emptyAction === "generate") {
+    return "Type a message, or hit ▷ to let the reply come…";
+  }
+  return "Type a message…";
 }
 
 // The disabled generate-image button's hover reason (undefined when it's actionable, or when disabled only
@@ -221,20 +236,23 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     // Clear ONLY on a green settle — a failed generate keeps the typed prompt for retry (F-P1).
     generateImage.generate(value, { onSuccess: () => onChange("") });
   };
-  // Continue-on-empty target: the pure resolver keeps the pref/tail/chat guards out of the component.
-  const continueTarget = resolveContinueTarget({
+  // Empty-Enter action: the pure resolver keeps the pref/tail/chat guards out of the component. `continue`
+  // extends the tail assistant reply; `generate` (W-E) prompts a fresh reply on a committed non-assistant
+  // tail. Both are the keyboard equivalents of the ▷ Response icon.
+  const emptySend = resolveEmptySendAction({
     continueOnSend: behaviorPrefs.continueOnSend,
+    generateOnEmptySend: behaviorPrefs.generateOnEmptySend,
     tailRole,
     hasText: canSubmitText,
     chatId,
     tailAssistantMessageId,
   });
-  const canContinue = continueTarget !== null && !continueOnEmpty.isPending;
+  const canEmptySend = emptySend !== null && !continueOnEmpty.isPending;
   const stopping = stopTurn.phase === "stopping";
   // Stop stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
   const showStop = stopTurn.canStop || stopping;
 
-  const placeholder = resolvePlaceholder(isCommitted(handle), canContinue);
+  const placeholder = resolvePlaceholder(isCommitted(handle), emptySend === null ? null : emptySend.kind);
 
   // The completion offer: the commands whose id extends the token the user is mid-way through typing
   // (a bare "/" matches them all). Empty when the draft isn't a command-in-progress.
@@ -268,8 +286,12 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
 
   const submit = (): void => {
     if (!canSubmit) {
-      if (canContinue) {
-        continueOnEmpty.continueTurn(continueTarget.chatId, continueTarget.messageId);
+      if (emptySend !== null && !continueOnEmpty.isPending) {
+        if (emptySend.kind === "continue") {
+          continueOnEmpty.continueTurn(emptySend.chatId, emptySend.messageId);
+        } else {
+          continueOnEmpty.generateReply(emptySend.chatId);
+        }
       }
       return;
     }
@@ -302,6 +324,19 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
     });
   };
 
+  // The image controls, re-homed OFF the composer bar and INTO the ✨ utility menu (owner). Attach still uses
+  // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
+  // wand renders these as menu rows — the bar top row is just the guided icons + the ✨ menu.
+  const imageControls: ComposerImageControls = {
+    maxAttachmentBytes,
+    uploadDisabled: sendMessage.isPending,
+    onAddFiles: addFiles,
+    canGenerate: canGenerateImage,
+    generateReason: imageGenReason,
+    generating: generateImage.isPending,
+    onGenerate: generateFromText,
+  };
+
   return (
     <footer data-testid={testId("composer")}>
       {/* The registered commands' invisible runner mounts — one fiber each, so a runner may use hooks.
@@ -322,9 +357,10 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
             ))}
           </Row>
         ) : null}
-        <Row
+        {/* TWO ROWS (wand v2): the guided cluster sits ABOVE the textarea so the busy controls aren't crammed
+            beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer. */}
+        <Stack
           gap="field"
-          align="center"
           data-slot="composer"
           // Reading-surface rule (D44 §12.1): the composer carries its OWN opaque backing (`bg-card`), never
           // leaning on the background scrim for legibility — the translucent `bg-input` tint left the typed
@@ -332,109 +368,76 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
           className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
-          {/* A raw <input type=file> is gate-banned in features; FileDropzone is the sanctioned picker,
-              laid invisibly over a ghost icon-button skin. */}
-          <Row
-            justify="center"
-            data-slot="composer-attach"
-            className="relative size-control-md shrink-0 rounded-full text-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background has-[:disabled]:pointer-events-none has-[:disabled]:opacity-50"
-          >
-            <Icon icon={ImagePlus} size="sm" />
-            <FileDropzone
-              accept="image/*"
-              multiple={true}
-              maxSizeBytes={maxAttachmentBytes}
-              disabled={sendMessage.isPending}
-              onFilesSelected={addFiles}
-              instructions=""
-              aria-label="Attach images"
-              className="absolute inset-0 size-full rounded-full border-0 bg-transparent p-0 opacity-0"
+          {/* ROW 1 — the guided cluster (wand v2): four always-visible dual-mode icons (impersonate·swipe·
+              response·continue) + the ✨ utility menu (Recover input · Corrections · Undo/Revert · Clear ·
+              Simple send · Regenerate · game steers · the image controls). The composer text is the steer. */}
+          <Row gap="field" align="center" data-slot="composer-actions">
+            <ComposerGuidedCluster
+              handle={handle}
+              value={value}
+              onChange={onChange}
+              draftSeed={draftSeed}
+              onCommitted={onCommitted}
+              busy={sendMessage.isPending}
+              tailIsAssistant={tailRole === "assistant"}
+              imageControls={imageControls}
             />
           </Row>
-          {/* Generate an image FROM the typed text (free mode) — a secondary/ghost action distinct from the
-              attach-local affordance above; Send stays the one primary (A2). */}
-          <Button
-            type="button"
-            intent="ghost"
-            size="icon"
-            data-testid={testId("composerGenerateImage")}
-            disabled={!canGenerateImage}
-            // focusableWhenDisabled ⇒ aria-disabled (not native `disabled`), so the button stays hoverable
-            // and the reason `title` surfaces on hover; the click stays a guarded no-op (generateFromText
-            // already early-returns when !canGenerateImage).
-            focusableWhenDisabled={true}
-            title={imageGenReason}
-            loading={generateImage.isPending}
-            aria-label={generateImage.isPending ? "Generating image…" : "Generate image from text"}
-            onClick={generateFromText}
-            className="shrink-0 rounded-full"
-          >
-            <Icon icon={Sparkles} size="sm" />
-          </Button>
-          <SpeakAsSelect handle={handle} />
-          <Textarea
-            ref={textareaRef}
-            aria-label="Message"
-            // Editable-combobox wiring for the slash strip (P2 a11y): while the strip is open the textarea
-            // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
-            // screen reader announces the highlighted offer without focus ever leaving the textarea.
-            {...slashComboboxAria(stripOpen)}
-            aria-activedescendant={activeSlashOptionId}
-            placeholder={placeholder}
-            value={value}
-            onChange={(e): void => {
-              // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
-              // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
-              setSlashNotice(null);
-              setSlashHighlight(-1);
-              onChange(e.target.value);
-            }}
-            onKeyDown={onKeyDown}
-            disabled={sendMessage.isPending}
-            className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-            rows={1}
-          />
-          {/* The guided cluster (W-D): four always-visible dual-mode icons (impersonate·swipe·response·
-              continue) + the ✨ utility menu (Recover input · Corrections · Undo/Revert · Clear · Simple
-              send). Sits between the textarea and Send — the composer text is the steer when present. */}
-          <ComposerGuidedCluster
-            handle={handle}
-            value={value}
-            onChange={onChange}
-            draftSeed={draftSeed}
-            onCommitted={onCommitted}
-            busy={sendMessage.isPending}
-            tailIsAssistant={tailRole === "assistant"}
-          />
-          {showStop ? (
-            <Button
-              type="button"
-              intent="secondary"
-              size="icon"
-              loading={stopping}
-              disabled={stopping}
-              aria-label={stopping ? "Stopping…" : "Stop generating"}
-              onClick={stopTurn.stop}
-              className="rounded-full"
-            >
-              {stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              intent="primary"
-              size="icon"
-              data-testid={testId("composerSend")}
-              disabled={!(canSubmit || canContinue) || sendMessage.isPending || continueOnEmpty.isPending}
-              loading={sendMessage.isPending || continueOnEmpty.isPending}
-              aria-label="Send message"
-              onClick={submit}
-              className="rounded-full"
-            >
-              <Icon icon={Send} size="sm" />
-            </Button>
-          )}
-        </Row>
+          {/* ROW 2 — the textarea + speaker picker + Send/Stop. */}
+          <Row gap="field" align="center" data-slot="composer-input">
+            <SpeakAsSelect handle={handle} />
+            <Textarea
+              ref={textareaRef}
+              aria-label="Message"
+              // Editable-combobox wiring for the slash strip (P2 a11y): while the strip is open the textarea
+              // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a
+              // screen reader announces the highlighted offer without focus ever leaving the textarea.
+              {...slashComboboxAria(stripOpen)}
+              aria-activedescendant={activeSlashOptionId}
+              placeholder={placeholder}
+              value={value}
+              onChange={(e): void => {
+                // The refusal explained the PREVIOUS send attempt — the next keystroke retires it. The highlight
+                // resets too: the match set narrows as the token grows, so a stale index would point elsewhere.
+                setSlashNotice(null);
+                setSlashHighlight(-1);
+                onChange(e.target.value);
+              }}
+              onKeyDown={onKeyDown}
+              disabled={sendMessage.isPending}
+              className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              rows={1}
+            />
+            {showStop ? (
+              <Button
+                type="button"
+                intent="secondary"
+                size="icon"
+                loading={stopping}
+                disabled={stopping}
+                aria-label={stopping ? "Stopping…" : "Stop generating"}
+                onClick={stopTurn.stop}
+                className="rounded-full"
+              >
+                {stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                intent="primary"
+                size="icon"
+                data-testid={testId("composerSend")}
+                disabled={!(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                loading={sendMessage.isPending || continueOnEmpty.isPending}
+                aria-label="Send message"
+                onClick={submit}
+                className="rounded-full"
+              >
+                <Icon icon={Send} size="sm" />
+              </Button>
+            )}
+          </Row>
+        </Stack>
       </Stack>
     </footer>
   );

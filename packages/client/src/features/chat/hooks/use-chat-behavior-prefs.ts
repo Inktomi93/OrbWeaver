@@ -13,6 +13,8 @@ import { useTRPC } from "#data";
 export interface ChatBehaviorPrefs {
   readonly enterSends: ChatSettings["enterSends"];
   readonly continueOnSend: ChatSettings["continueOnSend"];
+  /** W-E — bare Enter on an empty composer with a non-assistant tail prompts a reply. */
+  readonly generateOnEmptySend: ChatSettings["generateOnEmptySend"];
   readonly smoothStream: ChatSettings["smoothStream"];
   readonly smoothStreamCps: ChatSettings["smoothStreamCps"];
   readonly streamScrollMode: ChatSettings["streamScrollMode"];
@@ -25,6 +27,7 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
   return {
     enterSends: chat.enterSends,
     continueOnSend: chat.continueOnSend,
+    generateOnEmptySend: chat.generateOnEmptySend,
     smoothStream: chat.smoothStream,
     smoothStreamCps: chat.smoothStreamCps,
     streamScrollMode: chat.streamScrollMode,

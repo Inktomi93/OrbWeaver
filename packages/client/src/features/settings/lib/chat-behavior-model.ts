@@ -27,6 +27,7 @@ export const STREAM_SCROLL_MODE_ITEMS: SelectItems<string> = STREAM_SCROLL_MODES
 export interface ChatBehaviorForm {
   readonly enterSends: boolean;
   readonly continueOnSend: boolean;
+  readonly generateOnEmptySend: boolean;
   readonly autoContinue: boolean;
   readonly autoSwipeEnabled: boolean;
   readonly autoSwipeMinLength: number;
@@ -49,6 +50,7 @@ export function projectChatForm(chat: ChatSettings): ChatBehaviorForm {
   return {
     enterSends: chat.enterSends,
     continueOnSend: chat.continueOnSend,
+    generateOnEmptySend: chat.generateOnEmptySend,
     autoContinue: chat.autoContinue,
     autoSwipeEnabled: chat.autoSwipe.enabled,
     autoSwipeMinLength: chat.autoSwipe.minLength,
@@ -72,6 +74,7 @@ export function toChatSectionPatch(form: ChatBehaviorForm): ChatBehaviorPatch {
   return {
     enterSends: form.enterSends,
     continueOnSend: form.continueOnSend,
+    generateOnEmptySend: form.generateOnEmptySend,
     autoContinue: form.autoContinue,
     autoSwipe: {
       enabled: form.autoSwipeEnabled,

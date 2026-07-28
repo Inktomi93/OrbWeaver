@@ -17,14 +17,12 @@
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { GuidedGameSteerKind } from "@orb/kit/guided";
-import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Drama, FastForward, Icon, ListOrdered, Play, RotateCcw } from "@orb/ui/icons";
+import { Drama, FastForward, Icon, Play, RotateCcw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import {
@@ -42,6 +40,7 @@ import { isCommitted } from "#state";
 import { useComposerUtilities } from "../hooks/use-composer-utilities";
 import { useGuidedActions } from "../hooks/use-guided-actions";
 import { filterCharacters } from "../lib/roster";
+import type { ComposerImageControls } from "./composer-utility-menu";
 import { UtilityMenu } from "./composer-utility-menu";
 import { RewriteDialog } from "./rewrite-dialog";
 import { useRewriteModal } from "./use-rewrite-modal";
@@ -57,11 +56,14 @@ export interface ComposerGuidedClusterProps {
   /** The tail canon row's role is assistant — gates Swipe/Continue and drives the Response `afterAssistant`
    *  nudge flag. False on a draft / empty chat / a user-tail chat. */
   readonly tailIsAssistant: boolean;
+  /** The image controls, re-homed into the ✨ utility menu (owner). */
+  readonly imageControls: ComposerImageControls;
 }
 
-/** The four dual-mode guided icons + the ✨ utility menu. */
+/** The four dual-mode guided icons + the ✨ utility menu (which now also holds Regenerate, the game steers,
+ *  and the image controls — everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant } = props;
+  const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant, imageControls } = props;
   const committed = isCommitted(handle);
   const chatId = committed ? handle.id : null;
   const guided = useGuidedActions({ handle, draftSeed, onCommitted, onFireError: (firedText): void => onChange(firedText) });
@@ -92,19 +94,20 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     onChange("");
   };
 
-  const tailId = guided.tailAssistantMessageId;
   return (
     <Row gap="field" align="center" className="shrink-0" data-slot="composer-guided-cluster">
-      <UtilityMenu
+      <ClusterUtilityMenu
+        committed={committed}
         hasText={hasText}
+        trimmed={trimmed}
+        idle={idle}
         canTargetTail={canTargetTail}
-        canUndoRevert={guided.tailHasContinuation}
+        guided={guided}
+        utilities={utilities}
+        onChange={onChange}
         onRewrite={rewrite.open}
-        onRecall={onChange}
-        onUndo={tailId !== null ? (): void => utilities.undoContinue(tailId) : undefined}
-        onRevert={tailId !== null ? (): void => utilities.revertContinue(tailId) : undefined}
-        onClear={hasText ? (): void => onChange("") : undefined}
-        onSimpleSend={hasText && committed ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
+        game={game}
+        image={imageControls}
       />
       <ImpersonateGuidedButton
         disabled={!(committed && idle)}
@@ -113,7 +116,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       />
       <GuidedIconButton
         icon={RotateCcw}
-        label={hasText ? "Regenerate with this steering" : "Regenerate"}
+        label={hasText ? "Swipe with this steering" : "Swipe"}
         steerCue={STEER_CUE_SWIPE}
         hasText={hasText}
         disabled={!(canTargetTail && idle)}
@@ -133,7 +136,6 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         buttonTestId="composerGuidedContinue"
         onFire={(): void => fireAndClear(guided.fireContinue)}
       />
-      {game.isGame ? <GameSteerMenu plotAvailable={game.plotAvailable} onSteer={guided.fireGameSteer} /> : null}
       <RewriteDialog
         open={rewrite.isOpen}
         onOpenChange={rewrite.setOpen}
@@ -144,6 +146,57 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         onApply={rewrite.apply}
       />
     </Row>
+  );
+}
+
+/** The ✨ utility-menu wiring for the cluster — keeps the phase-guard conditionals (undo/revert/clear/simple-
+ *  send/regenerate/game) out of the parent's cognitive budget. All the "which tail" / "has text" branching
+ *  lives here; the parent just hands over the resolved actions bundle. */
+function ClusterUtilityMenu({
+  committed,
+  hasText,
+  trimmed,
+  idle,
+  canTargetTail,
+  guided,
+  utilities,
+  onChange,
+  onRewrite,
+  game,
+  image,
+}: {
+  readonly committed: boolean;
+  readonly hasText: boolean;
+  readonly trimmed: string;
+  readonly idle: boolean;
+  readonly canTargetTail: boolean;
+  readonly guided: ReturnType<typeof useGuidedActions>;
+  readonly utilities: ReturnType<typeof useComposerUtilities>;
+  readonly onChange: (text: string) => void;
+  readonly onRewrite: () => void;
+  readonly game: { readonly isGame: boolean; readonly plotAvailable: boolean };
+  readonly image: ComposerImageControls;
+}): ReactElement {
+  const tailId = guided.tailAssistantMessageId;
+  return (
+    <UtilityMenu
+      hasText={hasText}
+      canTargetTail={canTargetTail}
+      canUndoRevert={guided.tailHasContinuation}
+      onRewrite={onRewrite}
+      onRecall={onChange}
+      onUndo={tailId !== null ? (): void => utilities.undoContinue(tailId) : undefined}
+      onRevert={tailId !== null ? (): void => utilities.revertContinue(tailId) : undefined}
+      onClear={hasText ? (): void => onChange("") : undefined}
+      onSimpleSend={hasText && committed ? (): void => utilities.commitMessage(trimmed, () => onChange("")) : undefined}
+      // Regenerate (owner: "regenerate goes inside magic wand menu") — a PLAIN reroll of the tail assistant, no
+      // steer (the dual-mode steer-aware reroll stays the ⟳ Swipe icon; §2.3e dual-home). Disabled-with-reason
+      // unless a tail assistant reply exists.
+      onRegenerate={canTargetTail && idle ? (): void => guided.fireSwipe("") : undefined}
+      // The P5 game steers (owner: "game steers go in the magic wand") — game-only, plotProgression-gated.
+      game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
+      image={image}
+    />
   );
 }
 
@@ -163,41 +216,6 @@ function useGameSteer(chatId: ChatId | null): { readonly isGame: boolean; readon
   const isGame = isRpgEngaged(chatQuery.data?.rpg ?? null);
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   return { isGame, plotAvailable: isGame && gameQuery.data?.publicConfig.plotProgression === true };
-}
-
-// ── The P5 game-steer menu (Plot submenu + "Offer choices") — game chats only (D110-4, re-homed from the
-// old wand). The Plot submenu is APPLICABILITY-gated on `plotProgression` (absent when off, never a disabled
-// twin, [[no-separate-reduced-modes]]); "Offer choices" is the one-shot ask independent of the standing cyoa
-// mode. Both fire a KIND through the trusted-template guided path (`fireGameSteer`, ruling-#9).
-function GameSteerMenu({ plotAvailable, onSteer }: { readonly plotAvailable: boolean; readonly onSteer: (kind: GuidedGameSteerKind) => void }): ReactElement {
-  return (
-    <Menu>
-      <MenuTrigger
-        aria-label="Game steers"
-        data-testid={testId("composerGuidedGameSteer")}
-        render={
-          <Button type="button" intent="ghost" size="icon" title="Game steers" className="shrink-0 rounded-full">
-            <Icon icon={Compass} size="sm" />
-          </Button>
-        }
-      />
-      <MenuPopup>
-        {plotAvailable
-          ? RPG_PLOT_STEER_KINDS.map((kind) => (
-              <MenuItem key={kind} onClick={(): void => onSteer(kind)}>
-                <Icon icon={Compass} size="sm" />
-                {RPG_PLOT_STEERS[kind].label}
-              </MenuItem>
-            ))
-          : null}
-        {plotAvailable ? <MenuSeparator /> : null}
-        <MenuItem onClick={(): void => onSteer("choices")}>
-          <Icon icon={ListOrdered} size="sm" />
-          Offer choices
-        </MenuItem>
-      </MenuPopup>
-    </Menu>
-  );
 }
 
 // ── One dual-mode guided icon ───────────────────────────────────────────────────────────────────────────

@@ -505,6 +505,11 @@ const chatSchema = z
       .catch(AUTO_CONTINUE_ROUNDS_DEFAULT)
       .default(AUTO_CONTINUE_ROUNDS_DEFAULT),
     continueOnSend: z.boolean().catch(true).default(true),
+    // W-E: bare Enter on an EMPTY composer with a NON-assistant tail (a draft-forked user tail, an empty
+    // committed chat) triggers a generate — the "simple send" keyboard convenience so a reply can be prompted
+    // without typing one. The ▷ Response icon is the always-discoverable equivalent; this pref only governs the
+    // keyboard shortcut. Default ON (owner-ratified). Off ⇒ empty Enter is a no-op on a non-assistant tail.
+    generateOnEmptySend: z.boolean().catch(true).default(true),
     autoSwipe: z
       .object({
         enabled: z.boolean().default(false),

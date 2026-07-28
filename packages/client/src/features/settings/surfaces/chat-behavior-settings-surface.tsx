@@ -121,6 +121,14 @@ function ChatBehaviorFormBody({ session }: { readonly session: AutosaveSession<C
               />
             )}
           </form.AppField>
+          <form.AppField name="generateOnEmptySend">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Empty Enter generates a reply"
+                description="With an empty composer and no assistant message last (a fresh chat, or your own message last), Enter prompts a reply instead of doing nothing. The ▷ generate button does the same, always."
+              />
+            )}
+          </form.AppField>
           <form.AppField name="autoContinue">
             {(field): ReactElement => (
               <field.SwitchField

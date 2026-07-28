@@ -57,6 +57,7 @@ describe("convergence: chat-behavior", () => {
     {
       enterSends: false,
       continueOnSend: false,
+      generateOnEmptySend: false,
       autoContinue: true,
       autoContinueRounds: 1,
       autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 1 },
