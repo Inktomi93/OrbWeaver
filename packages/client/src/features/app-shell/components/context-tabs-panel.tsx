@@ -26,7 +26,7 @@
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
+import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ResolvedContextTab } from "#lib";
@@ -77,7 +77,7 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
     >
       {/* No bracket ⇒ the single top strip carries every (meta) tab, aria-label "Detail" — byte-identical
           to the pre-bracket panel. With a bracket ⇒ the GAME strip ("Game") sits above the viewport. */}
-      <ContextTabStrip ariaLabel={hasBracket ? "Game" : "Detail"} tabs={hasBracket ? gameTabs : metaTabs} activeTab={activeTab} actions={actions} />
+      <ContextTabStrip ariaLabel={hasBracket ? "Game" : "Detail"} tabs={hasBracket ? gameTabs : metaTabs} activeTab={activeTab} actions={actions} edge="top" />
       {/* THE VIEWPORT SCROLLS INTERNALLY (Context-Panel-Program §4.2 "VIEWPORT scrolls internally"): the two
           strips are `shrink-0`, the active panel is `flex-1 min-h-0 overflow-y-auto`, so a tall body scrolls
           WITHIN the bracket and the bottom meta strip stays pinned/visible — never pushed off-screen. Base UI
@@ -89,7 +89,7 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
           {entry.node}
         </TabsPanel>
       ))}
-      {hasBracket ? <ContextTabStrip ariaLabel="Chat" tabs={metaTabs} activeTab={activeTab} /> : null}
+      {hasBracket ? <ContextTabStrip ariaLabel="Chat" tabs={metaTabs} activeTab={activeTab} edge="bottom" /> : null}
     </Tabs>
   );
 }
@@ -99,26 +99,35 @@ interface ContextTabStripProps {
   readonly tabs: readonly ResolvedContextTab[];
   readonly activeTab: string | null;
   readonly actions?: ReactNode;
+  /** Which panel edge this strip sits on — the active indicator + the hairline face INWARD toward the
+   *  content (the bracket rule): a `top` strip marks the active tab on its BOTTOM edge, a `bottom` strip
+   *  on its TOP edge (the OSRS bracket / panel-redesign strips — `.strip.top`/`.strip.bottom`). */
+  readonly edge: "top" | "bottom";
 }
 
 /** One `.ctx-tab-strip` TabsList (its OWN a11y group + roving-focus row) with its own `data-tab-count`
- *  reveal threshold. Rendered once for a single-strip panel, twice for the bracket (Game / Chat). */
-function ContextTabStrip({ ariaLabel, tabs, activeTab, actions }: ContextTabStripProps): ReactElement {
-  // Both strips share the one `Tabs.Root` value, so the active tab lives in exactly ONE of them (§4.2 "exactly
-  // ONE tab selected across both strips"). The `TabsIndicator` (the sliding underline) renders ONLY in the
-  // strip that CONTAINS the active tab — otherwise Base UI parks the other strip's indicator at position 0
-  // (a spurious second underline on the wrong strip). At most one underline shows at a time.
-  const hasActive = tabs.some((entry) => entry.id === activeTab);
+ *  reveal threshold. Rendered once for a single-strip panel, twice for the bracket (Game / Chat).
+ *
+ *  The active marker is a PER-TAB inward-facing 2px bar (transparent on every tab, `--color-primary` on
+ *  the active one — zero layout shift) + the ember active tint, NOT the sliding `TabsIndicator`: the
+ *  absolute-positioned indicator sat at the list's scroll-container bottom where the safety
+ *  `overflow-x-auto` could clip it invisible on the top strip, and it can't flip edges per strip. The
+ *  list's hairline track flips with the strip (top strip: border-b; bottom strip: border-t) so the rule
+ *  always sits between strip and content, never dangling on the outside edge. */
+function ContextTabStrip({ ariaLabel, tabs, activeTab, actions, edge }: ContextTabStripProps): ReactElement {
   return (
     <Row align="center" gap="row" className="min-w-0 shrink-0">
       {/* `.ctx-tab-strip` = the @container; `data-tab-count` picks the per-count label-reveal threshold
           (shell.css). `overflow-x-auto` is the safety scroll if a wide host shows words that still don't
           fit — icon-mode always fits, so this only ever bites in label-mode. */}
-      <TabsList aria-label={ariaLabel} data-tab-count={tabs.length} className="ctx-tab-strip min-w-0 w-full gap-field overflow-x-auto">
+      <TabsList
+        aria-label={ariaLabel}
+        data-tab-count={tabs.length}
+        className={`ctx-tab-strip min-w-0 w-full gap-field overflow-x-auto ${edge === "bottom" ? "border-b-0 border-t border-border" : ""}`}
+      >
         {tabs.map((entry) => (
-          <ContextTab key={entry.id} entry={entry} isActive={entry.id === activeTab} />
+          <ContextTab key={entry.id} entry={entry} isActive={entry.id === activeTab} edge={edge} />
         ))}
-        {hasActive ? <TabsIndicator /> : null}
       </TabsList>
       {actions !== undefined ? (
         <Row align="center" className="shrink-0">
@@ -129,6 +138,13 @@ function ContextTabStrip({ ariaLabel, tabs, activeTab, actions }: ContextTabStri
   );
 }
 
+/** The per-edge tab classes: the inward-facing 2px active bar (transparent at rest — no layout shift on
+ *  selection) + the ember active state (tint + primary icon/label — the mock's `.tabbtn.active`). */
+const TAB_EDGE_CLASSES: Readonly<Record<"top" | "bottom", string>> = {
+  top: "border-b-2 border-transparent data-active:border-primary data-active:bg-primary/10 data-active:text-primary",
+  bottom: "border-t-2 border-transparent data-active:border-primary data-active:bg-primary/10 data-active:text-primary",
+};
+
 /** One tab: icon (when the def carries one) + the word label, plus the §4.6 state affordances. The label
  *  is the accessible name in BOTH forms — `aria-label` carries it always, so when shell.css collapses
  *  `.ctx-tab-label` in icon-mode the tab is still named. An icon-mode tab is icon + `title` (the hover name
@@ -138,7 +154,15 @@ function ContextTabStrip({ ariaLabel, tabs, activeTab, actions }: ContextTabStri
  *  tab, and the dot is `aria-hidden` (the tab content states the change). Disabled (PHASE, §4.6): a non-null
  *  `disabledReason` ⇒ `aria-disabled` + `title=<reason>` (the [base-ui-disabled-menuitem-title] pattern —
  *  never a tooltip wrap) + reduced opacity + a lock glyph, staying focusable-discoverable. */
-function ContextTab({ entry, isActive }: { readonly entry: ResolvedContextTab; readonly isActive: boolean }): ReactElement {
+function ContextTab({
+  entry,
+  isActive,
+  edge,
+}: {
+  readonly entry: ResolvedContextTab;
+  readonly isActive: boolean;
+  readonly edge: "top" | "bottom";
+}): ReactElement {
   const hasIcon = entry.icon !== undefined;
   const disabled = entry.disabledReason !== null;
   // The disabled reason owns `title`; otherwise an icon-mode tab uses `title` for the hover name reveal.
@@ -148,7 +172,7 @@ function ContextTab({ entry, isActive }: { readonly entry: ResolvedContextTab; r
     <TabsTab
       value={entry.id}
       aria-label={entry.label}
-      className="relative shrink-0 flex items-center justify-center gap-field px-field aria-disabled:opacity-50"
+      className={`relative shrink-0 flex items-center justify-center gap-field px-field aria-disabled:opacity-50 ${TAB_EDGE_CLASSES[edge]}`}
       {...(hasIcon ? { "data-has-icon": true } : {})}
       {...(title !== undefined ? { title } : {})}
       {...(disabled ? { "aria-disabled": true } : {})}

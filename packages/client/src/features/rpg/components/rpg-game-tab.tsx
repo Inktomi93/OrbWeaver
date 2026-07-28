@@ -29,7 +29,8 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations";
 import { trackColor } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { GmConsoleScalars, Kicker } from "./rpg-gm-scalars";
+import { GmConsoleScalars } from "./rpg-gm-scalars";
+import { Kicker } from "./rpg-kicker";
 
 /** The stat-profile READ display — the attribute vocabulary the sheet keys off (editing it is a full arm). */
 function StatProfileDisplay({ config }: { readonly config: RpgConfigView }): ReactElement {
@@ -83,7 +84,7 @@ function CastFieldsEditor({ chatId, config }: { readonly chatId: ChatId; readonl
                 commit(fields.map((x, j) => (j === i ? { ...x, label: trimmed } : x)));
               }
             }}
-            className="h-control-sm flex-1"
+            className="flex-1"
           />
           {f.kind === "meter" ? (
             <Row gap="field" align="baseline" className="shrink-0">
@@ -159,7 +160,7 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
             display={hint}
             placeholder="how this label steers…"
             onEdit={(next): void => commit({ ...hints, [label]: next.slice(0, RPG_HINT_MAX) })}
-            className="h-control-sm flex-1"
+            className="flex-1"
           />
           <Button
             intent="ghost"

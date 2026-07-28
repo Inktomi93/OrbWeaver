@@ -50,7 +50,7 @@ function AmbientTimePicker({ value, onPick }: { readonly value: string; readonly
         aria-label="Time value"
         title="Click to edit"
         onClick={(): void => setOpen(true)}
-        className="!h-auto min-h-0 justify-start gap-0 !px-field !py-0 text-left font-normal"
+        className="!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal"
       >
         <Text as="span" size="label" tone={empty ? "muted" : "default"}>
           {restText}
@@ -126,7 +126,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, 
               // Content-sized, capped: `!w-auto` beats FIELD_CONTROL's `w-full` so a short value ("rain")
               // is a compact input and pairs pack 2+ per row (the mock's compact ambient card); `max-w-full`
               // + `min-w-0` keep a long location from overflowing the wrapping card (owner density ruling).
-              className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
+              className="!w-auto min-w-0 max-w-full field-sizing-content"
             />
           );
         }

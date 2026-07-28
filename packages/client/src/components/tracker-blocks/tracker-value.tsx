@@ -81,8 +81,10 @@ export function TrackerValue({
           setEditing(true);
         }}
         // Text-height at rest (the display-at-rest posture): the button hugs its datum text; a caller's
-        // width/alignment classes still apply so the rest state lines up with the read-only arm.
-        className={`!h-auto min-h-0 justify-start gap-0 !px-field !py-0 text-left font-normal ${restClassName ?? className ?? ""}`}
+        // width/alignment classes still apply so the rest state lines up with the read-only arm. The
+        // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
+        // pixel-stable — no layout jump (the owner no-shift bar).
+        className={`!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal ${restClassName ?? className ?? ""}`}
       >
         <Text as="span" size={size} tone={empty ? "muted" : tone} className="truncate">
           {restText}
@@ -105,7 +107,12 @@ export function TrackerValue({
       // eslint-disable-next-line jsx-a11y/no-autofocus
       autoFocus={true}
       aria-label={ariaLabel}
-      {...(className === undefined ? {} : { className })}
+      // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display
+      // did — no clip, no overflow, no layout jump): text-height box (`!h-auto py-0`), the rest state's
+      // `px-field` inset, and the display's `text-label` type — over the Input primitive's form-field
+      // skin (h-control-sm/px-block/text-body would grow the row on reveal). Callers append width/
+      // alignment only, never a height.
+      className={`!h-auto min-h-0 !px-field py-0 text-label leading-label ${className ?? ""}`}
       data-slot="tracker-value-edit"
       inputMode={kind === "numeric" ? "numeric" : "text"}
       {...(placeholder === undefined ? {} : { placeholder })}

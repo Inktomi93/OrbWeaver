@@ -26,12 +26,13 @@ import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useUpsertQuest } from "../hooks/use-rpg-mutations";
+import { Kicker } from "./rpg-kicker";
 
 const MIN_CLOCK_SEGMENTS = 2;
 
@@ -100,15 +101,6 @@ function RpgActRail({ plot }: { readonly plot: RpgPlot }): ReactElement {
   );
 }
 
-// A section label — the muted letter-spaced caps idiom (§4.7).
-function SectionLabel({ children }: { readonly children: ReactNode }): ReactElement {
-  return (
-    <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-      {children}
-    </Text>
-  );
-}
-
 interface QuestEdit {
   readonly onEditName: (quest: RpgQuestView, next: string) => void;
   readonly onToggleObjective: (quest: RpgQuestView, objectiveId: string, next: boolean) => void;
@@ -147,7 +139,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
                 {quest.name}
               </Text>
             ) : (
-              <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="h-control-sm w-full" />
+              <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
             )}
             {total > 0 ? (
               <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">
@@ -275,7 +267,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
       {tracker.plot ? <RpgActRail plot={tracker.plot} /> : null}
       {active.length === 0 ? null : (
         <Stack gap="field">
-          <SectionLabel>Active — {active.length}</SectionLabel>
+          <Kicker>Active — {active.length}</Kicker>
           {active.map((quest) => (
             <QuestCard key={quest.id} quest={quest} {...(edit === undefined ? {} : { edit })} />
           ))}
@@ -283,7 +275,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
       )}
       {settled.length === 0 ? null : (
         <Stack gap="field">
-          <SectionLabel>Done — {settled.length}</SectionLabel>
+          <Kicker>Done — {settled.length}</Kicker>
           {settled.map((quest) => (
             <QuestCard key={quest.id} quest={quest} {...(edit === undefined ? {} : { edit })} />
           ))}

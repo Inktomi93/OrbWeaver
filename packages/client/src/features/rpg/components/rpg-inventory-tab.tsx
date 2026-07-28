@@ -14,19 +14,14 @@ import type { RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
 import { Coins, Icon } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInventoryDiff } from "../hooks/use-inventory-diff";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
+import { actorKey } from "../lib/actor-key";
 import { resolveItemGlyph } from "../lib/glyphs";
-
-/** The stable selector key for an actor (the Sheet selector's own derivation — §12.1.3 one scope-selector
- *  semantics across tabs). */
-function actorKey(actor: RpgActorView): string {
-  return `${actor.actorRef.kind}:${actor.name}`;
-}
+import { Kicker } from "./rpg-kicker";
+import { RpgSubjectSelect } from "./rpg-subject-select";
 
 /** The quest-bound tell — the model-written item `type` naming the quest taxonomy (§12.2). */
 const QUEST_TYPE_RE = /quest/i;
@@ -66,25 +61,12 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
-      {/* The shared member-selector pill row (§12.1.3 — the SAME mini-tab primitive Sheet scopes with;
-          whose PACK is shown; self default). Omitted on a one-actor roster (nothing to scope). */}
+      {/* The subject selector IS the identity line (owner ruling 2026-07-28 — no pill shelf): whose PACK
+          is shown; clicking the name opens the member dropdown. Omitted on a one-actor roster. */}
       {state.tracker.actors.length > 1 && actor !== undefined ? (
-        <ToggleGroup
-          aria-label="Whose pack"
-          value={[actorKey(actor)]}
-          onValueChange={(next): void => {
-            const picked = next[0];
-            if (typeof picked === "string") {
-              setSelectedKey(picked);
-            }
-          }}
-        >
-          {state.tracker.actors.map((a) => (
-            <Toggle key={actorKey(a)} value={actorKey(a)}>
-              {a.name}
-            </Toggle>
-          ))}
-        </ToggleGroup>
+        <Row gap="field" align="center">
+          <RpgSubjectSelect actors={state.tracker.actors} value={actor} onChange={setSelectedKey} ariaLabel="Whose pack" />
+        </Row>
       ) : null}
       {totals.size === 0 ? null : (
         <Row gap="field" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="rpg-purse-line">
@@ -110,9 +92,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
         <Text tone="muted">Empty pack — the story fills it.</Text>
       ) : (
         <Stack gap="field">
-          <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-            Pack — {items.length}
-          </Text>
+          <Kicker>Pack — {items.length}</Kicker>
           <Grid cols="cell" gap="field">
             {items.map((item) => {
               const questBound = QUEST_TYPE_RE.test(item.type);

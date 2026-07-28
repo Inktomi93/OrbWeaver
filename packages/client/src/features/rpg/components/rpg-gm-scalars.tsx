@@ -9,7 +9,6 @@ import type { RpgConfigView, RpgExtractionMode } from "@orb/contracts/rpg";
 import { RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
-import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
@@ -19,6 +18,7 @@ import { createAutosaveEntityForm } from "#forms";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations";
 import type { GmConsoleFormValues } from "../lib/gm-console-form-model";
 import { EMPTY_GM_CONSOLE_FORM, fromGmConsoleForm, toGmConsoleForm } from "../lib/gm-console-form-model";
+import { Kicker } from "./rpg-kicker";
 
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
  *  band cue renders), keyed over the closed mode axis. */
@@ -38,20 +38,6 @@ const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBeha
 const GmConsoleFormBoundary = createAutosaveEntityForm<GmConsoleFormValues>({
   defaultValues: EMPTY_GM_CONSOLE_FORM,
 });
-
-/** A muted letter-spaced caps section label with a trailing rule (the mock's `.kicker`). The rule is the
- *  `@orb/ui/separator` primitive (`flex-1` to fill the row) — never a hand-styled raw element in a feature.
- *  Exported for the console's sibling sections in rpg-game-tab.tsx (one kicker anatomy, one home). */
-export function Kicker({ children, crown = false }: { readonly children: string; readonly crown?: boolean }): ReactElement {
-  return (
-    <Row gap="field" align="center">
-      <Text size="micro" transform="caps" weight="semibold" className={crown ? "tracking-micro text-highlight" : "tracking-micro text-muted-foreground"}>
-        {children}
-      </Text>
-      <Separator className="flex-1" />
-    </Row>
-  );
-}
 
 /** The scalar autosave form — play style · hidden channels · steering note · delivery model. */
 export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {

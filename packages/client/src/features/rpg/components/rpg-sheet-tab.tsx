@@ -19,22 +19,75 @@ import { Button } from "@orb/ui/button";
 import { ColorField } from "@orb/ui/color-field";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { StatCell, TrackerChip, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { usePatchSheet } from "../hooks/use-rpg-mutations";
+import { actorKey } from "../lib/actor-key";
 import { resolvePoolColor } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
+import { RpgSubjectSelect } from "./rpg-subject-select";
 
 const DEFAULT_POOL_MAX = 10;
 
-/** The stable selector key for an actor (the roster's own key derivation). */
-function actorKey(actor: RpgActorView): string {
-  return `${actor.actorRef.kind}:${actor.name}`;
+/** The identity line IS the subject selector (owner ruling 2026-07-28): clicking the NAME opens the member
+ *  dropdown — no pill shelf; a one-member roster renders the plain name. The TITLE (the sheet's
+ *  `className`, surfaced as a first-class field — "Warden of House Vane") sits beside it as one
+ *  name + title unit, click-to-edit like every other datum (patchSheet `className`). */
+function SheetIdentityLine({
+  actors,
+  actor,
+  canEdit,
+  onSelect,
+  onEditTitle,
+}: {
+  readonly actors: readonly RpgActorView[];
+  readonly actor: RpgActorView;
+  readonly canEdit: boolean;
+  readonly onSelect: (key: string) => void;
+  readonly onEditTitle: (next: string) => void;
+}): ReactElement {
+  const name =
+    actors.length > 1 ? (
+      <RpgSubjectSelect actors={actors} value={actor} onChange={onSelect} ariaLabel="Whose sheet" />
+    ) : (
+      <Text as="span" size="label" weight="semibold" className="truncate">
+        {actor.name}
+      </Text>
+    );
+  let title: ReactElement | null;
+  if (canEdit) {
+    title = (
+      <Row gap="field" align="center" className="min-w-0">
+        <Text as="span" size="label" tone="muted" aria-hidden={true}>
+          —
+        </Text>
+        <TrackerValue
+          ariaLabel={`${actor.name} title`}
+          display={actor.sheet.className}
+          placeholder="title…"
+          onEdit={onEditTitle}
+          className="!w-auto min-w-0 max-w-full field-sizing-content"
+        />
+      </Row>
+    );
+  } else if (actor.sheet.className === "") {
+    title = null;
+  } else {
+    title = (
+      <Text as="span" size="label" tone="muted" className="truncate">
+        — {actor.sheet.className}
+      </Text>
+    );
+  }
+  return (
+    <Row gap="field" align="center" className="min-w-0 flex-wrap">
+      {name}
+      {title}
+    </Row>
+  );
 }
 
 /** The roster actor that is the viewer's own `user` ref, or the first actor as a fallback. */
@@ -119,7 +172,7 @@ function PoolDefsEditor({ poolDefs, onCommit }: PoolDefsEditorProps): ReactEleme
                   onCommit(replaceAt(i, { name: trimmed }));
                 }
               }}
-              className="h-control-sm flex-1"
+              className="flex-1"
             />
             <Row gap="field" align="baseline" className="shrink-0">
               <Text as="span" size="micro" tone="muted">
@@ -188,34 +241,20 @@ export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-sheet-tab">
-      {tracker.actors.length > 1 ? (
-        <ToggleGroup
-          aria-label="Whose sheet"
-          value={[actorKey(actor)]}
-          onValueChange={(next): void => {
-            const picked = next[0];
-            if (typeof picked === "string") {
-              setSelectedKey(picked);
-            }
-          }}
-        >
-          {tracker.actors.map((a) => (
-            <Toggle key={actorKey(a)} value={actorKey(a)}>
-              {a.name}
-            </Toggle>
-          ))}
-        </ToggleGroup>
-      ) : null}
-
       <Row gap="block" align="center" data-slot="rpg-sheet-identity">
         <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: actor.avatar })}>
           {actor.name.slice(0, 1).toUpperCase()}
         </Avatar>
         <Stack gap="field" className="min-w-0 flex-1">
-          <Text as="span" size="label" weight="semibold" className="truncate">
-            {actor.name}
-            {actor.sheet.className === "" ? "" : ` — ${actor.sheet.className}`}
-          </Text>
+          <SheetIdentityLine
+            actors={tracker.actors}
+            actor={actor}
+            canEdit={canEdit}
+            onSelect={setSelectedKey}
+            onEditTitle={(next): void => {
+              patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { className: next.trim() } });
+            }}
+          />
           <Row gap="field" align="center" className="flex-wrap">
             <SheetLevel
               level={actor.sheet.level}

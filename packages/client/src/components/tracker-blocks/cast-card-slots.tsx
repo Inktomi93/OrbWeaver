@@ -103,7 +103,7 @@ export function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElemen
           display={mood ?? ""}
           placeholder="—"
           onEdit={onEditMood}
-          className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
+          className="!w-auto min-w-0 max-w-full field-sizing-content"
         />
       </Row>
     );

@@ -16,6 +16,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { Kicker } from "./rpg-kicker";
 import { RpgTurnRef } from "./rpg-turn-ref";
 
 /** The reveal read + the crown-gold ledger rows. Suspends on `rpg.revealHidden`; empty ⇒ null. */
@@ -30,9 +31,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
   }
   return (
     <Stack gap="field" data-slot="rpg-veiled-section">
-      <Text size="label" transform="caps" className="tracking-micro text-highlight">
-        Veiled — host only
-      </Text>
+      <Kicker crown={true}>Veiled — host only</Kicker>
       {lies.map((lie) => (
         <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field" className="rounded-card border border-highlight bg-card px-block py-row">
           <Row gap="field" align="baseline" justify="between">
