@@ -35,8 +35,8 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.getChatLineage).toBe("lineage-per-ancestor");
     // abort = the turn owner, never the host (rollback-theft defense)
     expect(CHAT_VERB_AUTHORITY.abort).toBe("turn-owner");
-    // forkChat: a member may fork the source (the fork is a new chat where the forker is host)
-    expect(CHAT_VERB_AUTHORITY.forkChat).toBe("member");
+    // forkChat: HOST-authority (owner policy 2026-07-28) — a non-host may fork only a SOLO room (in-verb widening)
+    expect(CHAT_VERB_AUTHORITY.forkChat).toBe("host");
   });
 
   test("non-membership verbs carry the explicit non-chat-scoped marker (their gate is elsewhere)", () => {
