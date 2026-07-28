@@ -26,6 +26,9 @@ import { listWidgets } from "../persistence/widgets";
 import { currentSnapshotState } from "../snapshot-edit";
 
 const POOL_ORB_COUNT = 3;
+/** The orb-row envelope (§4.11 #5) — the band fits at most this many orbs at the 17rem floor (auto-3 +
+ *  the coin disc + up to a few pins). Caps `auto ∪ pinned` so a host over-pinning can't crush the row. */
+const POOL_ORB_MAX = 6;
 
 /** Slice the durable append-only `recentEvents` log to the last N for the reminder (P3 fold — `keepLast === 0`
  *  drops the block; the durable log is untouched, the journal keeps the full record). */
@@ -61,13 +64,23 @@ function actorView(entry: { actorRef: RpgActorRef; name: string; avatar?: string
   };
 }
 
-/** The first-3-pools orb derivation (§4.8) — the banner reads the first roster actor's first three pools. */
-function poolOrbs(actors: readonly RpgActorView[]): RpgPoolOrb[] {
+/** The band-orb derivation (§4.8 + orb-pinning): the first roster actor's first-3 pools UNION the host's
+ *  `pinnedOrbs` (by pool name), deduped in `auto-then-pinned` order and capped at the orb-row envelope
+ *  (§4.11 #5). A pinned name that isn't one of this actor's pools is silently dropped (it may belong to
+ *  another actor / a since-renamed pool — the band shows what exists, never a phantom orb). */
+function poolOrbs(actors: readonly RpgActorView[], pinnedOrbs: readonly string[]): RpgPoolOrb[] {
   const first = actors.find((a) => a.volatile !== null)?.volatile;
   if (!first) {
     return [];
   }
-  return first.pools.slice(0, POOL_ORB_COUNT).map((p) => ({ label: p.name, value: p.value, max: p.max }));
+  const auto = first.pools.slice(0, POOL_ORB_COUNT).map((p) => p.name);
+  const pinnedExtra = pinnedOrbs.filter((name) => !auto.includes(name) && first.pools.some((p) => p.name === name));
+  const orderedNames = [...auto, ...pinnedExtra].slice(0, POOL_ORB_MAX);
+  const byName = new Map(first.pools.map((p) => [p.name, p]));
+  return orderedNames.flatMap((name) => {
+    const pool = byName.get(name);
+    return pool === undefined ? [] : [{ label: pool.name, value: pool.value, max: pool.max }];
+  });
 }
 
 /** The ambient sub-view, or null when every ambient field is empty (§2.7 — a null-ambient panel shrinks). */
@@ -126,6 +139,6 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     // scene history. `keepLast === 0` drops the block entirely. The tail is the most-recent beats (append order).
     recentBeats: keepLastBeats(state.recentEvents, game.config.features.recentBeatsKeepLast),
     trackersReadOnly,
-    poolOrbs: poolOrbs(actors),
+    poolOrbs: poolOrbs(actors, game.config.features.pinnedOrbs),
   };
 }

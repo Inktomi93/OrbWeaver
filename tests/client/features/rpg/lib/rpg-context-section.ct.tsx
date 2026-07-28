@@ -104,13 +104,44 @@ function revealView(
   };
 }
 
-function stubTakeover(page: Page, opts: { readonly readOnly?: boolean; readonly reveal?: unknown } = {}): ReturnType<typeof routeTrpc> {
+// A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, cast-field schemas,
+// relationship hints, the deception knobs, orb-pinning). Empty-but-valid defaults; the console renders it.
+function configView(): unknown {
+  return {
+    statProfile: {
+      attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
+      range: { min: 1, max: 20 },
+      modifier: { center: 10, step: 2 },
+      skillGoverning: {},
+      defaultAttribute: "str",
+      perceptionAttribute: "str",
+      resolution: { kind: "house-d20" },
+    },
+    steeringNote: "Keep the tone grim.",
+    gmPresetId: null,
+    extractionMode: "reliable",
+    castFields: [{ key: "trust", label: "Trust", kind: "text" }],
+    relationshipHints: { debtor: "owes the party a debt" },
+    deception: false,
+    omniscience: false,
+    hiddenContentReveal: true,
+    recentBeatsKeepLast: 6,
+    pinnedOrbs: [],
+  };
+}
+
+function stubTakeover(
+  page: Page,
+  opts: { readonly readOnly?: boolean; readonly reveal?: unknown; readonly tracker?: unknown } = {},
+): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
     "chat.getChat": () => gameChat(),
     "rpg.getGame": () => gameView(readOnly),
-    "rpg.getTrackerView": () => trackerView(readOnly),
+    "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
+    "rpg.updateConfig": () => undefined,
+    "rpg.getConfigView": () => configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened).
     "chat.listChatInjections": () => [],
@@ -131,9 +162,64 @@ test("the takeover renders the 6 LIVE game tabs + the locked Map (in the Game st
   const mapTab = gameStrip.getByRole("tab", { name: "Map" });
   await expect(mapTab).toBeVisible();
   await expect(mapTab).toHaveAttribute("aria-disabled", "true");
-  // The chat meta set sits in the "Chat" strip below (the bracket's bottom row).
+  // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
+  // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("tablist", { name: "Chat" });
   await expect(metaStrip.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(metaStrip.getByRole("tab", { name: "Game" })).toBeVisible();
+});
+
+test("the band renders EVERY server-derived orb — no client cap drops a pinned orb (orb-pinning)", async ({ mount, page }) => {
+  // The server owns the auto-first-3 ∪ pinned selection + the envelope cap; the client renders them ALL. A
+  // 4-orb `poolOrbs` (as if the host pinned a 4th pool) must yield 4 rendered orb data lines — a client
+  // `.slice(0,3)` would silently drop the 4th (the pinning bug this pins against).
+  await stubTakeover(page, {
+    tracker: {
+      ...(trackerView(false) as Record<string, unknown>),
+      poolOrbs: [
+        { label: "Vitality", value: 24, max: 30 },
+        { label: "Resolve", value: 7, max: 10 },
+        { label: "Supplies", value: 12, max: 20 },
+        { label: "Fatigue", value: 5, max: 8 },
+      ],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // All four orb datums (the visually-hidden `label value/max`) render — including the pinned 4th.
+  await Promise.all(["Vitality 24/30", "Resolve 7/10", "Supplies 12/20", "Fatigue 5/8"].map((datum) => expect(component.getByText(datum)).toBeVisible()));
+});
+
+test("the crown GM console (Game tab, host) renders getConfigView — scalars, orb-pin, cast fields, hints", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  // The Game tab lives in the meta strip (host-only crown console).
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // The crown header + the sections the config read feeds.
+  await expect(component.getByText("GM console — host only")).toBeVisible();
+  // The steering-note scalar (autosave form) — the stubbed value.
+  await expect(component.getByRole("textbox", { name: "Steering note" })).toHaveValue("Keep the tone grim.");
+  // The stat-profile READ display (the vocabulary badge).
+  await expect(component.getByText("Strength")).toBeVisible();
+  // The cast-field schema row (the stubbed "Trust" text field) + the relationship-hint row ("debtor").
+  await expect(component.getByRole("textbox", { name: "Cast field 1 label" })).toHaveValue("Trust");
+  await expect(component.getByText("debtor")).toBeVisible();
+});
+
+test("the GM console pin toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
+  // A tracker with pools so the orb-pinning editor lists pool names to toggle.
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // Pin a pool — the toggle button's accessible name is the pool name ("Vitality"), scoped to the
+  // orb-pin section (its `title` carries "Pin … as a band orb", but the accessible NAME is the text).
+  await component.locator('[data-slot="rpg-game-tab"]').getByRole("button", { name: "Vitality", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
 test("a tab body renders real tracker data (Status: roster row + pool meters + condition + orbs)", async ({ mount, page }) => {

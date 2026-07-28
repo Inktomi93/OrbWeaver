@@ -58,6 +58,7 @@ export function liteConfig(): RpgGameConfig {
       omniscience: false,
       hiddenContentReveal: true,
       recentBeatsKeepLast: RPG_RECENT_BEATS_KEEP_DEFAULT,
+      pinnedOrbs: [],
     },
     userMacros: [],
   };

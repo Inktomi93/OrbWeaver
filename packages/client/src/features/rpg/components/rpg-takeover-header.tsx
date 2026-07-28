@@ -24,8 +24,9 @@ import { resolveWeatherOverlay } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 
-// The band shows up to 3 pool orbs (§2 — satellites), each on its resolved track color.
-const MAX_ORBS = 3;
+// The band renders the SERVER-derived orb set (§2 — satellites): auto-first-3 ∪ the host's pinned pools,
+// deduped + envelope-capped SERVER-SIDE (`poolOrbs`). The client renders them all — no second cap (a client
+// slice would silently drop a pinned orb the host asked for, the orb-pinning bug).
 /** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
 const ORB_TAG_LEN = 3;
 
@@ -145,7 +146,7 @@ export function RpgTakeoverHeader({
 
       {poolOrbs.length === 0 && wallet === null ? null : (
         <Row gap="block" align="start" className="flex-wrap">
-          {poolOrbs.slice(0, MAX_ORBS).map((orb, i) => (
+          {poolOrbs.map((orb, i) => (
             <RingGauge
               key={orb.label}
               value={orb.value}

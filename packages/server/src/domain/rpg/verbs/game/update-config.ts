@@ -46,6 +46,8 @@ function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatu
     omniscience: patch?.omniscience ?? current.omniscience,
     hiddenContentReveal: patch?.hiddenContentReveal ?? current.hiddenContentReveal,
     recentBeatsKeepLast: patch?.recentBeatsKeepLast ?? current.recentBeatsKeepLast,
+    // ORB-PINNING (§4.8): whole-list replace on a passed array; keep on omit.
+    pinnedOrbs: patch?.pinnedOrbs !== undefined ? [...patch.pinnedOrbs] : current.pinnedOrbs,
   };
 }
 

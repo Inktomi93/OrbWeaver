@@ -54,6 +54,9 @@ export const rpgUpdateConfigInputSchema = z.object({
       omniscience: z.boolean().optional(),
       hiddenContentReveal: z.boolean().optional(),
       recentBeatsKeepLast: z.number().int().min(0).optional(),
+      // ORB-PINNING (§4.8): the pool NAMES pinned as band orbs beyond the auto-first-3. Omit keeps the
+      // current list; a passed array REPLACES it (whole-list edit — the pin toggle sends the full set).
+      pinnedOrbs: z.array(z.string().min(1)).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

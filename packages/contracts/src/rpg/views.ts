@@ -122,6 +122,8 @@ export interface RpgConfigView {
   readonly omniscience: boolean;
   readonly hiddenContentReveal: boolean;
   readonly recentBeatsKeepLast: number;
+  /** ORB-PINNING (§4.8) — the pool names the host pinned as band orbs beyond the auto-first-3. */
+  readonly pinnedOrbs: RpgGameConfig["features"]["pinnedOrbs"];
 }
 
 /** ONE parsed hidden span from a stored assistant body (parity-plus §3.6 host-reveal). `tag` is the

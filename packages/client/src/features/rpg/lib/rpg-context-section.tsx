@@ -15,7 +15,7 @@
 // settles. The door injects the `queryClient` + `trpc` proxy (both singletons it already owns), so this stays
 // a plain function `when` (no hooks) while still reading `#data`'s cross-domain channel — never chat's client.
 
-import { Backpack, BookOpen, Drama, Flag, HeartPulse, MapIcon, ScrollText } from "@orb/ui/icons";
+import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon, ScrollText } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -24,6 +24,7 @@ import type { Trpc } from "#data";
 import { peekQueryData, QueryBoundary } from "#data";
 import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
 import { RpgErrorState } from "../components/rpg-error-state";
+import { RpgGameTab } from "../components/rpg-game-tab";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body";
 import { RpgHeaderBand } from "../components/rpg-header-band";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab";
@@ -54,6 +55,17 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     }
     const detail = peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
     return detail !== undefined && detail.rpg !== null;
+  };
+
+  /** Is this a game chat the viewer HOSTS? The crown GM-console gate (§4 "Game" — host-only). Reads the
+   *  same cached `getChat` for `viewerIsHost`; a member never sees the tab (PERMISSION-omit) and the
+   *  server verb is a second host gate. */
+  const isHostGameChat = (s: ChatContextState): boolean => {
+    if (!isGameChat(s)) {
+      return false;
+    }
+    const detail = peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
+    return detail?.viewerIsHost === true;
   };
 
   const gameTab =
@@ -146,6 +158,18 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       when: isGameChat,
       disabledReason: (): string => "Maps unlock with the map arc (MA-3)",
       body: (): ReactNode => null,
+    },
+    {
+      // The crown GM console (panel-redesign §4 "Game") — the host-admin home. `strip:"meta"` (the
+      // bracket's bottom/administration strip, §4.2); host-only (`when: isHostGameChat` — PERMISSION-omit,
+      // a member never sees it). Rides the same `gameTab` wrapper (panel-state resolve + boundary); the
+      // console owns its OWN inner `getConfigView` boundary (a second server-side host gate).
+      id: "rpg.game",
+      label: "Game",
+      icon: Crown,
+      strip: "meta",
+      when: isHostGameChat,
+      body: gameTab("Game", (state) => <RpgGameTab state={state} />),
     },
   ];
 }
