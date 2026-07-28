@@ -94,7 +94,7 @@ import {
 import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
-import { projectViewForMember, scrubStreamReplayForMember, stripChatEventForMember } from "../substrate/member-visibility";
+import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember } from "../substrate/member-visibility";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -679,21 +679,23 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
-    // Per-caller, like the D16 floor: the §3.6 member-strip removes hidden-class spans from any replayed
-    // `view` payload for a non-host caller (the live half applies the identical verdict at the transport). P3:
-    // on a deception game the member also loses the reasoning channel (`view.reasoning` nulled; a durable
-    // `reasoningStreamDone` row WITHHELD — `stripChatEventForMember` returns `null` for it, filtered out here).
     const isHost = membership.role === "host";
-    const reasoningHostOnly = isHost ? false : await resolveReasoningHostOnly(ctx, chatId);
-    return rows
+    // The D16 join-history floor drops pre-join rows FIRST (per-EVENT, on the payload's own anchor), for host
+    // and member alike (a promoted host is floored at 0). The §3.6 member projection then runs STATEFULLY over
+    // the survivors: `scrubChatEventReplayForMember` removes hidden-class `<lie>` spans from every replayed
+    // `view` payload AND — the durable twin of the live transport's `resolveLiveYield` — scrubs raw `delta`
+    // rows per-slot (a resume from `lastEventId:"0"` re-drains the mid-turn token stream, so an unscrubbed
+    // durable replay would leak the model's hidden TEXT bytes the live path scrubs). On a deception game the
+    // member also loses the whole reasoning channel: reasoning deltas + `reasoningStreamDone` dropped,
+    // `view.reasoning` nulled. Host reads verbatim (identity).
+    const floored = rows
       .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
-      .flatMap(({ seq, payload }) => {
-        if (isHost) {
-          return [{ seq, event: payload }];
-        }
-        const event = stripChatEventForMember(payload, reasoningHostOnly);
-        return event === null ? [] : [{ seq, event }];
-      });
+      .map(({ seq, payload }) => ({ seq, event: payload }));
+    if (isHost) {
+      return floored;
+    }
+    const reasoningHostOnly = await resolveReasoningHostOnly(ctx, chatId);
+    return scrubChatEventReplayForMember(floored, membership, reasoningHostOnly);
   };
 }
 

@@ -6,9 +6,10 @@ import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views";
+import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views";
 import {
   projectViewForMember,
+  scrubChatEventReplayForMember,
   scrubDeltaEventForMember,
   scrubStreamReplayForMember,
   stripChatEventForMember,
@@ -227,4 +228,86 @@ test("scrubStreamReplayForMember: reasoning replay rows are DROPPED on a decepti
   // Non-deception member keeps the reasoning row; the host reads verbatim either way.
   expect(scrubStreamReplayForMember(rows, { role: "member" }, false).some((r) => r.kind === "reasoning")).toBe(true);
   expect(scrubStreamReplayForMember(rows, { role: "host" }, true)).toEqual(rows);
+});
+
+// ── §3.6 the DURABLE CHAT-BUS replay (`replayChatEvents`) — the leak the delta-blind `stripChatEventForMember`
+// could not reach: a resume from lastEventId:"0" re-drains the raw mid-turn `delta` rows, so the durable replay
+// MUST scrub them per-slot exactly like the live transport (`scrubChatEventReplayForMember`). ──
+
+/** The delta payload of a row whose event is a `delta` (else undefined) — a typed narrowing accessor so the
+ *  assertions read `.delta.kind`/`.text` off the `ChatBusEvent` union without per-arm access errors. */
+function deltaOf(row: ChatBusReplayEvent): { readonly kind: string; readonly text: string } | undefined {
+  return row.event.type === "delta" ? row.event.delta : undefined;
+}
+
+/** The committed view of a row whose event carries one (else undefined) — the typed narrowing accessor twin. */
+function viewOfRow(row: ChatBusReplayEvent): { readonly content?: string; readonly reasoning?: string | null } | undefined {
+  return row.event.type === "messageCommitted" ? row.event.view : undefined;
+}
+
+/** The at-commit view + its mid-stream delta rows for ONE deception turn, in append order — a raw `<lie>` +
+ *  reasoning delta stream, then the at-commit committed view. This is the exact durable log a member's
+ *  reconnect re-drains. */
+function deceptionTurnRows(): ChatBusReplayEvent[] {
+  return [
+    {
+      seq: 1,
+      event: {
+        type: "turnStarted",
+        chatId,
+        intent: "send",
+        api: "chat-completions",
+        source: "vllm",
+        model: "m",
+        speakerCharacterId: null,
+        targetMessageId: null,
+      },
+    },
+    { seq: 2, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "reasoning", text: REASONING_SPILL } } },
+    { seq: 3, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: `He nods. ${LIE}` } } },
+    { seq: 4, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: ' "Nothing."' } } },
+    { seq: 5, event: { type: "reasoningStreamDone", chatId } },
+    // FABRICATION-OK: the at-commit view probe reads content/reasoning only (viewOf above).
+    { seq: 6, event: { type: "messageCommitted", chatId, messageId, view: viewOf(`He nods. ${LIE} "Nothing."`, REASONING_SPILL) } as ChatBusEvent },
+  ];
+}
+
+test("scrubChatEventReplayForMember: a deception game's DURABLE replay withholds the reasoning channel AND scrubs hidden TEXT deltas for a member", () => {
+  const memberRows = scrubChatEventReplayForMember(deceptionTurnRows(), { role: "member" }, true);
+  const bytes = JSON.stringify(memberRows);
+  // The truth leaks NOWHERE — not in a reasoning delta, not in a raw text delta, not in the committed view.
+  expect(bytes).not.toContain("crypt");
+  expect(bytes).not.toContain("<lie");
+  // No reasoning-channel delta survives, and `reasoningStreamDone` is dropped (its member-visible signal).
+  expect(memberRows.some((r) => deltaOf(r)?.kind === "reasoning")).toBe(false);
+  expect(memberRows.some((r) => r.event.type === "reasoningStreamDone")).toBe(false);
+  // The member STILL gets the text-body deltas (scrubbed of the lie) + the committed view (reasoning nulled).
+  const memberText = memberRows
+    .map((r) => deltaOf(r))
+    .filter((d) => d?.kind === "text")
+    .map((d) => d?.text ?? "")
+    .join("");
+  expect(memberText).toBe('He nods.  "Nothing."');
+  const commit = memberRows.find((r) => r.event.type === "messageCommitted");
+  expect(commit).toBeDefined();
+  // The committed view's reasoning is nulled (not merely absent) — the durable at-commit member truth.
+  expect(viewOfRow(commit as ChatBusReplayEvent)?.reasoning).toBeNull();
+});
+
+test("scrubChatEventReplayForMember: a NON-deception member keeps reasoning but still text-scrubs the lie; the HOST reads verbatim", () => {
+  const rows = deceptionTurnRows();
+  // Non-deception (reasoningHostOnly=false): the reasoning channel is member-visible (its own prose may mention
+  // the same place), but the BODY strip is UNCONDITIONAL — the raw `<lie>` text delta is STILL scrubbed and the
+  // committed view's body stripped. So the `<lie>` tag + the lie's `truth=` bytes are gone from every BODY
+  // surface, while the reasoning channel survives.
+  const member = scrubChatEventReplayForMember(rows, { role: "member" }, false);
+  expect(member.some((r) => deltaOf(r)?.kind === "reasoning")).toBe(true);
+  expect(JSON.stringify(member)).not.toContain("<lie");
+  // The body-carrying surfaces (text deltas + the committed view content) carry no lie truth.
+  const bodyBytes = JSON.stringify(
+    member.map((r) => viewOfRow(r)?.content ?? (deltaOf(r)?.kind === "text" ? deltaOf(r)?.text : undefined)).filter((s) => s !== undefined),
+  );
+  expect(bodyBytes).not.toContain("He is in the crypt");
+  // The host reads every row verbatim (identity — no per-row churn).
+  expect(scrubChatEventReplayForMember(rows, { role: "host" }, true)).toEqual(rows);
 });
