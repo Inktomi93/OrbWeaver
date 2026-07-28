@@ -1,5 +1,6 @@
 import { composeRewriteSteer, neutralizeMacros, resolveGuidedInstruction, ZWSP } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import { createDefaultRegistry, registerUserMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures";
 
 // Fixed macro context — no Date/random, per the determinism gate.
@@ -143,4 +144,15 @@ test("composeRewriteSteer does not double the terminator when a piece already en
 
 test("composeRewriteSteer trims and drops blank pieces", () => {
   expect(composeRewriteSteer(["  Make it concise  ", "   "], "  do it  ")).toBe("Make it concise. do it.");
+});
+
+// ── WAVE MU: the optional per-turn registry param resolves a user macro in a guided template ──
+test("resolveGuidedInstruction resolves a user macro when a per-turn registry is threaded", () => {
+  const registry = createDefaultRegistry();
+  registerUserMacros(registry, [{ name: "vibe", description: "v", args: [], body: "electric", strict: false, inputs: [] }], {
+    source: { kind: "preset", id: "preset-1" },
+  });
+  // With the registry the user macro resolves; without it (the default) the token passes through verbatim.
+  expect(resolveGuidedInstruction("{{input}} — {{vibe}}", "go", macroOpts(), { registry })).toBe("go — electric");
+  expect(resolveGuidedInstruction("{{input}} — {{vibe}}", "go", macroOpts())).toBe("go — {{vibe}}");
 });

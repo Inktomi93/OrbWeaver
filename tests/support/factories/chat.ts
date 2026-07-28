@@ -49,6 +49,7 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
     compactedAtSeq: null,
     metadata: null,
     variableValues: null,
+    userMacroValues: null,
     runtimeVariables: null,
     standaloneVariableDeltas: null,
     importedFrom: null,

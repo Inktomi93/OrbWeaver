@@ -13,6 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
@@ -782,6 +783,35 @@ describe("runTurnPipeline — persona axes stay distinct (card pin + history anc
     // SHAPE half: the null-stamp history row ALSO resolved {{user}} against the anchor (ruling A), never active.
     expect(historyText(result.request)).toContain("Nyx nods");
     expect(historyText(result.request)).not.toContain("Zara nods");
+  });
+});
+
+// ── WAVE MU: the per-turn user-macro registry reaches BUILD (buildPrompt) through the pipeline ──────────
+describe("runTurnPipeline — user-macro registry threading (WAVE MU)", () => {
+  /** A preset with a user macro `{{mood}}` referenced from an enabled literal SYSTEM section. */
+  const moodConfig: PromptConfig = {
+    ...DEFAULT_PROMPT_CONFIG,
+    userMacros: [{ name: "mood", description: "tone", args: [], body: "grim", strict: false, inputs: [] }],
+    sections: [
+      { type: "literal", id: "mood-line", name: "mood", role: "system", content: "Tone: {{mood}}.", enabled: true },
+      ...DEFAULT_PROMPT_CONFIG.sections,
+    ],
+  };
+
+  test("a threaded macroRegistry renders the user macro in BUILD; absent ⇒ byte-identical (the token passes through)", async () => {
+    const turn = buildTurnUserMacros({ defs: moodConfig.userMacros, sourceId: "preset-1", values: {}, prng: () => 0 });
+    if (turn === null) {
+      throw new Error("expected a built registry");
+    }
+    const withReg = await runTurnPipeline(baseArgs({ assembleContext: ctxOf({ promptConfig: moodConfig }), macroRegistry: turn.registry }).args);
+    // The registry reached `buildPrompt` → the macro resolved into the assembled static half.
+    expect(withReg.request.prompt.static).toContain("Tone: grim.");
+
+    // Absent registry: the pipeline's `globalMacroRegistry` default leaves the unknown user macro VERBATIM
+    // (the byte-identical regression pin — no user-macro turn is unaffected).
+    const without = await runTurnPipeline(baseArgs({ assembleContext: ctxOf({ promptConfig: moodConfig }) }).args);
+    expect(without.request.prompt.static).toContain("Tone: {{mood}}.");
+    expect(without.request.prompt.static).not.toContain("Tone: grim.");
   });
 });
 

@@ -508,20 +508,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   // The GM-voice preset REDIRECT (rpg-design/02 §1.1 #1): a present override that resolves owned/system under
   // the host wins; a stale/unowned override (or absent) degrades to the host's normal default — the lenient-id
-  // rule (never a broken turn). One home with `resolvePromptConfigFor` so the fallback can't drift.
+  // rule (never a broken turn). One home with `resolvePromptConfigFor` so the fallback can't drift. Returns the
+  // RESOLVED preset id alongside the config (WAVE MU user-macro source attribution) — the override id when it
+  // resolved, else the host default id, else null when the system `DEFAULT_PROMPT_CONFIG` stood in.
   const resolvePromptConfigWithOverride = async (
     runAsUserId: UserId,
     presetOverride: PresetId | undefined,
     defaultPresetId: string | null,
-  ): Promise<PromptConfig> => {
+  ): Promise<{ config: PromptConfig; presetId: PresetId | null }> => {
     if (presetOverride !== undefined) {
       try {
-        return (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config;
+        return { config: (await input.preset.get({ userId: runAsUserId, id: presetOverride })).config, presetId: presetOverride };
       } catch {
         // A bad/unowned override falls through to the host's normal default (the lenient-id rule).
       }
     }
-    return resolvePromptConfigFor(runAsUserId, defaultPresetId);
+    const config = await resolvePromptConfigFor(runAsUserId, defaultPresetId);
+    // The effective id is the host default only when it actually resolved a preset (not the DEFAULT fallback).
+    return { config, presetId: config === DEFAULT_PROMPT_CONFIG ? null : (defaultPresetId as PresetId | null) };
   };
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
@@ -908,7 +912,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
       // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
       // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
-      const promptConfig = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
+      const { config: promptConfig, presetId } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
 
       // anchor = the chat-open {{user}}; active = the speaking participant's persona (first present).
       const loadPersona = async (
@@ -941,6 +945,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
       return {
         promptConfig,
+        // WAVE MU — the resolved preset id for user-macro source attribution (override id / host default / null).
+        presetId,
         personas: { anchor, active },
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.

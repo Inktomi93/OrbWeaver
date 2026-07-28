@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a480c989-7011-44b8-adde-6cc2a10e6b69",
+  "id": "37c2fa8d-62a8-42fd-9fcd-fb284dcf1f09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1681,6 +1681,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "user_macro_values": {
+          "name": "user_macro_values",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "runtime_variables": {
           "name": "runtime_variables",
           "type": "text",
@@ -1989,6 +1996,13 @@
         },
         "variable_delta": {
           "name": "variable_delta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "macro_draws": {
+          "name": "macro_draws",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

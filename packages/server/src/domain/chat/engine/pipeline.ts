@@ -17,7 +17,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
-import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -85,6 +85,10 @@ interface RunTurnPipelineArgs {
   /** The per-chat macro name producer `toShapeCanon` resolves each history row's own macro stamps
    *  against; absent means empty maps (every row falls through to its speaker-default floor). */
   readonly historyMacroNames?: HistoryMacroNames | undefined;
+  /** The per-turn user-macro RENDER registry (WAVE MU) — the BUILD section walk + the RECEIVE
+   *  AI_OUTPUT/REASONING macro pass resolve user macros against it; absent ⇒ the process `globalMacroRegistry`
+   *  (byte-identical). Closures — rides `TurnPrep`, never the serializable `AssembleContext`. */
+  readonly macroRegistry?: MacroRegistry | undefined;
   /** The M2 keep-last-X card knob (parity-plus §3.5): the X most-recent card spans in the fitted history
    *  ride the wire FULL; every older card collapses to the deterministic `[card: title]` stub. Absent/0 =
    *  immediate total collapse (the argued cache/budget-honest default). Wired from the game config by the
@@ -220,6 +224,7 @@ function applyReceiveTransforms(
           model: args.connection.model,
           chatId: args.chatId,
           onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
+          registry: args.macroRegistry,
         })
       : null;
   if (macroCtx !== null) {
@@ -335,7 +340,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point (04 §6): rewrite the dynamic half only (static is untransformable).
-  const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx));
+  const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx, args.macroRegistry));
 
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];

@@ -5,14 +5,17 @@
 // sibling backend.
 
 import type { ModelsListResponse } from "@openrouter/sdk/models";
+import type { GetModelsResponse } from "@openrouter/sdk/models/operations";
+import type { PageIterator } from "@openrouter/sdk/types";
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { providerErrorFromHttp } from "../kit";
 
 // The structural slice this verb needs off the client port. `models.list()` is the public `/models`
-// endpoint (no auth required) — connection may inject a keyless client.
+// endpoint (no auth required) — connection may inject a keyless client. SDK 1.x returns an auto-paginating
+// `PageIterator`; the first page's `.result` holds the catalog (`/models` returns it un-paginated).
 interface OrCatalogClient {
   readonly models: {
-    readonly list: () => Promise<ModelsListResponse>;
+    readonly list: () => Promise<PageIterator<GetModelsResponse, { offset: number }>>;
   };
 }
 
@@ -35,7 +38,7 @@ function toNumberOrNull(value: string | undefined): number | null {
 export async function fetchOrCatalog(client: OrCatalogClient): Promise<ModelCatalogEntry[]> {
   let response: ModelsListResponse;
   try {
-    response = await client.models.list();
+    response = (await client.models.list()).result;
   } catch (err) {
     throw providerErrorFromHttp(err, "openrouter catalog");
   }

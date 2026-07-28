@@ -42,11 +42,12 @@ import type {
   ChatMetadata,
   StandaloneVariableDelta,
   ToolCallRecord,
+  UserMacroDraws,
 } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS, TURN_INITIATORS } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type {
   AssetId,
   CharacterId,
@@ -136,6 +137,11 @@ export const chats = sqliteTable(
     // `getStoredVariables` reads it. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
     // seam. Nullable (no variables flushed yet).
     variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
+    // WAVE MU user-macro delivery — the per-chat user-macro INPUT picks (`setUserMacroValues` writes it,
+    // the turn build reads it as the `values` bag). A NESTED macro→input→typed-pick map (string / boolean /
+    // string[]), so it CANNOT share the flat `variableValues` column — its own typed JSON, parsed at the read
+    // seam with `userMacroValuesSchema` (never cast). Nullable (no picks authored yet ⇒ the defaults posture).
+    userMacroValues: text("user_macro_values", { mode: "json" }).$type<UserMacroValues>(),
     // DERIVED RUNTIME CACHE (D46 runtime plane): the O(1) materialization of `foldVarOps` over the selected-
     // variant chain's `message_variants.variable_delta`. Recomputed on every mutating event (turn commit / swipe
     // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
@@ -314,6 +320,12 @@ export const messageVariants = sqliteTable(
     // swipe/fork rewinds by re-folding (derive-don't-stamp — avoids the ST swipe-clobber issue #3263). Nullable JSON,
     // parsed at the read seam with `variableDeltaSchema` (never cast); absent/null ⇒ this variant mutated no vars.
     variableDelta: text("variable_delta", { mode: "json" }).$type<readonly VarOp[]>(),
+    // WAVE MU user-macro delivery — the per-turn random-pick draw record (macro → input → drawn value).
+    // Written at commit in the SAME batch as the variant; the swipe/continue path replays it byte-exact
+    // (kit's `frozenDraws`) so a re-generation of this slot resolves the identical draw (freeze-at-commit,
+    // the `{{roll}}` class). Nullable JSON, parsed at the read seam with `userMacroDrawsSchema` (never
+    // cast); absent/null ⇒ this turn drew nothing.
+    macroDraws: text("macro_draws", { mode: "json" }).$type<UserMacroDraws>(),
     // The recorded generation params (D26 `params (UserIntent)`) — typed JSON, parsed at the read seam.
     params: text("params", { mode: "json" }).$type<UserIntent>(),
     // The per-variant assembled-prompt snapshot (D26 — now works per swipe).

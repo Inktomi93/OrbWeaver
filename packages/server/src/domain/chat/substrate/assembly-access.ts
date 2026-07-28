@@ -23,6 +23,7 @@ import {
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape";
 import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace";
+import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
@@ -72,6 +73,13 @@ export function freezeVolatileMacros(...args: Parameters<typeof freezeVolatileMa
  *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
 export function resolveGuidedActionText(...args: Parameters<typeof resolveGuidedActionTextImpl>): ReturnType<typeof resolveGuidedActionTextImpl> {
   return resolveGuidedActionTextImpl(...args);
+}
+
+/** Build the per-turn user-macro registries + draw record (WAVE MU delivery). The legal `verbs/ → assembly/`
+ *  bridge: `verbs/turn.ts` builds the per-turn registry once here (registry closures never touch the
+ *  serializable `AssembleContext` — they ride `TurnPrep`). Returns `null` for the empty-defs fast path. */
+export function buildTurnUserMacros(...args: Parameters<typeof buildTurnUserMacrosImpl>): ReturnType<typeof buildTurnUserMacrosImpl> {
+  return buildTurnUserMacrosImpl(...args);
 }
 
 /** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`

@@ -55,8 +55,8 @@ catalogs:
       specifier: ^8.0.0
       version: 8.0.0
     '@openrouter/sdk':
-      specifier: ^0.13.0
-      version: 0.13.19
+      specifier: ^1.1.0
+      version: 1.1.8
     '@opentelemetry/api':
       specifier: ^1.9.1
       version: 1.9.1
@@ -650,7 +650,7 @@ importers:
         version: 0.32.0
       '@openrouter/sdk':
         specifier: 'catalog:'
-        version: 0.13.19
+        version: 1.1.8
       '@opentelemetry/api':
         specifier: 'catalog:'
         version: 1.9.1
@@ -2287,8 +2287,8 @@ packages:
   '@neon-rs/load@0.0.4':
     resolution: {integrity: sha512-kTPhdZyTQxB+2wpiRcFWrDcejc4JI6tkPuS7UZCG4l6Zvc5kU/gGQ/ozvHTh1XR5tS+UlfAfGuPajjzQjCiHCw==}
 
-  '@openrouter/sdk@0.13.19':
-    resolution: {integrity: sha512-WB5qepQJfoayQVxmrdpb8nbTts/Re/n/WSCxjNNBk6nsmJxRknw+uJ72QuHfnpRjF+bQjKAbPI1ufRuCleoAgg==}
+  '@openrouter/sdk@1.1.8':
+    resolution: {integrity: sha512-/1m1U0tS9lsVAvQlKqhPsWw6FinTrwBsh/ljpRXjLmZJJjn1LFYMJ084F91QsI16qjDV1//UOPEYoLnzUiOP+g==}
 
   '@opentelemetry/api@1.9.1':
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
@@ -8603,7 +8603,7 @@ snapshots:
 
   '@neon-rs/load@0.0.4': {}
 
-  '@openrouter/sdk@0.13.19':
+  '@openrouter/sdk@1.1.8':
     dependencies:
       zod: 4.4.3
 

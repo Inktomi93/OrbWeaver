@@ -16,12 +16,13 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { personas } from "@orb/db";
+import { chats, personas } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
@@ -33,7 +34,13 @@ import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/c
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
-import { loadCanonHistory, loadMaxMessageSeq, loadMessageView, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import {
+  loadCanonHistory,
+  loadMaxMessageSeq,
+  loadMessageView,
+  loadSlotTarget,
+  loadTurnOrigin,
+} from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -132,6 +139,9 @@ function harness(
     replyTape?: readonly ScriptedReply[];
     /** The host's PD-146 turn-behavior arm (custom stops + auto-continue/auto-swipe). Default all-off. */
     chatBehavior?: ChatBehaviorInputs;
+    /** Override the round PRNG (default `seededPrng()`). The WAVE MU delivery pins seed distinct draws across
+     *  chats to prove a NEW turn draws FRESH (a different pool pick), independent of a prior turn's frozen draw. */
+    prng?: () => number;
     /** Replace the provider stream entirely (the return-based-abort pin injects one that honors the signal). */
     runChatTurn?: ChatContext["runChatTurn"];
     /** The `smart` policy's side-LLM turn director (default = the throwing `notStubbed` — every non-smart
@@ -194,7 +204,7 @@ function harness(
     engine,
     activeTurns,
     emit,
-    prng: seededPrng(),
+    prng: over.prng ?? seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(testConnection(over.connectionSource ?? "vllm")),
     resolveForeignInputs: (args) => {
@@ -2061,5 +2071,181 @@ describe("requestTurn — the non-human turn seam (four walls: depth · authorit
     await expect(h.requestTurn({ chatId, initiator: "human", funderUserId: host, automationDepth: 0 })).rejects.toMatchObject({
       code: "forbidden_override",
     });
+  });
+});
+
+// ═══ WAVE MU: the LOAD-BEARING pin — a random-pick user macro resolves in a turn AND a SWIPE replays the ═══
+// ═══ identical draw, through the REAL assembly + persistence path (freeze-at-commit determinism). ══════════
+
+/** A preset with a random-pick user macro `{{mood}}` (one input `tone` over a 4-option pool) referenced from
+ *  an enabled literal SYSTEM section, so the drawn value renders into the assembled prompt's static half. */
+function userMacroPromptConfig(): PromptConfig {
+  return {
+    ...DEFAULT_PROMPT_CONFIG,
+    userMacros: [
+      {
+        name: "mood",
+        description: "the scene tone",
+        args: [],
+        body: "{{tone}}",
+        strict: false,
+        inputs: [
+          {
+            kind: "random-pick",
+            name: "tone",
+            label: "Tone",
+            options: [
+              { label: "Grim", value: "grim" },
+              { label: "Warm", value: "warm" },
+              { label: "Tense", value: "tense" },
+              { label: "Wry", value: "wry" },
+            ],
+            separator: ", ",
+            onValue: "",
+            offValue: "",
+            defaultValue: "",
+          },
+        ],
+      },
+    ],
+    sections: [
+      { type: "literal", id: "mood-line", name: "mood", role: "system", content: "Scene tone: {{mood}}.", enabled: true },
+      ...DEFAULT_PROMPT_CONFIG.sections,
+    ],
+  };
+}
+
+/** The four pool values one of which the draw resolves to (the assertion vocabulary). */
+const MOOD_POOL = ["grim", "warm", "tense", "wry"] as const;
+
+/** The assembled-prompt line the `{{mood}}` macro renders into ("Scene tone: <drawn>."). */
+const MOOD_LINE_RE = /Scene tone: (\w+)\./;
+
+/** Extract the drawn tone from a captured wire request's assembled static prompt ("Scene tone: <v>."). */
+function drawnToneFrom(request: unknown): string | undefined {
+  const staticPrompt = (request as { prompt?: { static?: string } }).prompt?.static ?? "";
+  return MOOD_LINE_RE.exec(staticPrompt)?.[1];
+}
+
+describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL assembly+persistence path)", () => {
+  test("a random-pick macro resolves into the turn's prompt AND persists its draw; a SWIPE replays the identical draw", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r) });
+
+    // ── The SEND: a fresh draw renders into the assembled prompt + persists onto the committed variant. ──
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const drawn = drawnToneFrom(requests.at(-1));
+    expect(drawn).toBeDefined();
+    expect(MOOD_POOL).toContain(drawn);
+
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    expect(replyId).toBeDefined();
+    const target0 = replyId !== undefined ? await loadSlotTarget(db, chatId, replyId) : undefined;
+    // The persisted draw record matches EXACTLY what rendered into the prompt (write ↔ render agree).
+    expect(target0?.macroDraws).toEqual({ mood: { tone: drawn } });
+
+    // ── The SWIPE: re-generates the SAME slot; the prng would draw afresh, but the frozen record replays. ──
+    requests.length = 0;
+    if (replyId === undefined) {
+      throw new Error("expected an assistant reply to swipe");
+    }
+    await h.turn.swipe({ principal: principal(host), chatId, messageId: replyId });
+    const swipeDrawn = drawnToneFrom(requests.at(-1));
+    // THE PIN: the swipe's prompt carries the ORIGINAL drawn value (replay, not a fresh draw).
+    expect(swipeDrawn).toBe(drawn);
+    // …and the appended (now-selected) variant re-persists the identical record.
+    const target1 = await loadSlotTarget(db, chatId, replyId);
+    expect(target1?.macroDraws).toEqual({ mood: { tone: drawn } });
+  });
+
+  test("a pre-feature assistant slot (no persisted draws) swipes with a FRESH draw and records it", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    // Seed an assistant row directly (no macro_draws) — the pre-feature / migrated-slot case.
+    const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: null, content: "an old reply" });
+    const requests: unknown[] = [];
+    const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r) });
+
+    const target = await loadSlotTarget(db, chatId, messageId);
+    expect(target?.macroDraws).toBeNull(); // no record to replay
+
+    await h.turn.swipe({ principal: principal(host), chatId, messageId });
+    const drawn = drawnToneFrom(requests.at(-1));
+    expect(MOOD_POOL).toContain(drawn); // a fresh draw happened
+    const after = await loadSlotTarget(db, chatId, messageId);
+    expect(after?.macroDraws).toEqual({ mood: { tone: drawn } }); // and was recorded on the new variant
+  });
+
+  test("spec §5 item 3: a NEW send AFTER the first draws FRESH — a different draw in BOTH the prompt AND the record", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    // A prng returning a FIXED SEQUENCE of pool indices (floor(v*4)): 0→grim (send #1), 0.9→wry (send #2),
+    // so each fresh send draws a DIFFERENT, deterministic value. A solo natural room consumes the prng only
+    // for the user-macro draw, so index i is turn i's draw.
+    const seq = [0, 0.9];
+    let i = 0;
+    const prng = (): number => seq[Math.min(i++, seq.length - 1)] ?? 0;
+    const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r), prng });
+
+    const sent1 = await h.turn.send({ principal: principal(host), chatId, content: "one" });
+    const drawn1 = drawnToneFrom(requests.at(-1));
+    expect(drawn1).toBe("grim");
+    const reply1 = sent1.messages.find((m) => m.role === "assistant")?.id;
+    expect(reply1 !== undefined ? (await loadSlotTarget(db, chatId, reply1))?.macroDraws : undefined).toEqual({ mood: { tone: "grim" } });
+
+    // ── A NEW send: a FRESH draw (not the prior turn's frozen record) — a new slot, a new value. ──
+    requests.length = 0;
+    const sent2 = await h.turn.send({ principal: principal(host), chatId, content: "two" });
+    const drawn2 = drawnToneFrom(requests.at(-1));
+    expect(drawn2).toBe("wry");
+    expect(drawn2).not.toBe(drawn1); // the new turn drew fresh, in the prompt…
+    const reply2 = sent2.messages.find((m) => m.role === "assistant")?.id;
+    expect(reply2).not.toBe(reply1); // a distinct slot
+    expect(reply2 !== undefined ? (await loadSlotTarget(db, chatId, reply2))?.macroDraws : undefined).toEqual({ mood: { tone: "wry" } }); // …and in the record
+  });
+
+  test("W5 wired store: a STORED single-select pick (chats.user_macro_values) resolves into the turn's prompt", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    // Persist a per-chat pick for the random-pick input `tone` = "warm" (a stored single value NARROWS the
+    // pool to exactly that option, so the draw is deterministic regardless of the prng — the store is wired).
+    await db
+      .update(chats)
+      .set({ userMacroValues: { mood: { tone: ["warm"] } } })
+      .where(eq(chats.id, chatId));
+    const requests: unknown[] = [];
+    // A prng that would draw index 0 (grim) from the FULL pool — proving the STORE, not the prng, chose "warm".
+    const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r), prng: () => 0 });
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    // The stored pick narrowed the pool to ["warm"], so the turn resolves + records "warm" (not the prng's grim).
+    expect(drawnToneFrom(requests.at(-1))).toBe("warm");
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    expect(replyId !== undefined ? (await loadSlotTarget(db, chatId, replyId))?.macroDraws : undefined).toEqual({ mood: { tone: "warm" } });
+  });
+
+  test("spec §5 item 4: continueTurn replays the ORIGINAL draw end-to-end through the verb; the record survives", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    // A length-capped reply so the continue extends it (finishReason:"length" per the continue mechanics).
+    const h = harness(db, names, {
+      promptConfig: userMacroPromptConfig(),
+      onChatRequest: (r) => requests.push(r),
+      replyTape: [{ content: "part one", finishReason: "length" }, { content: " part two" }],
+    });
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const drawn = drawnToneFrom(requests.at(-1));
+    expect(MOOD_POOL).toContain(drawn);
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    if (replyId === undefined) {
+      throw new Error("expected an assistant reply to continue");
+    }
+
+    // ── The CONTINUE: re-assembles through the verb; the prompt carries the ORIGINAL drawn value (replay). ──
+    requests.length = 0;
+    await h.turn.continueTurn({ principal: principal(host), chatId, messageId: replyId });
+    expect(drawnToneFrom(requests.at(-1))).toBe(drawn); // the extension prompt replays the same draw
+    // The continued variant re-stamps the identical record (never nulled by the in-place continue write).
+    expect((await loadSlotTarget(db, chatId, replyId))?.macroDraws).toEqual({ mood: { tone: drawn } });
   });
 });

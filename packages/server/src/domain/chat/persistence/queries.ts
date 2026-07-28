@@ -3,9 +3,19 @@
 // logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
 // `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
 
-import type { ChatBusEvent, JoinHistoryVisibility, MessageView, StandaloneVariableDelta, ToolCallRecord, TurnOrigin } from "@orb/contracts/chat";
-import { standaloneVariableDeltasSchema, toolCallRecordSchema, variableDeltaSchema } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  JoinHistoryVisibility,
+  MessageView,
+  StandaloneVariableDelta,
+  ToolCallRecord,
+  TurnOrigin,
+  UserMacroDraws,
+} from "@orb/contracts/chat";
+import { standaloneVariableDeltasSchema, toolCallRecordSchema, userMacroDrawsSchema, variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { UserMacroValues } from "@orb/contracts/preset";
+import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
@@ -479,6 +489,8 @@ const slotTargetSelection = {
   selectedVariantIdx: messageVariants.idx,
   content: messageVariants.content,
   reasoning: messageVariants.reasoning,
+  // Raw JSON — parsed (safeParse-degrade) into `SlotTarget.macroDraws` by `loadSlotTarget`, never surfaced raw.
+  macroDraws: messageVariants.macroDraws,
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
 } as const;
 
@@ -494,6 +506,10 @@ interface SlotTarget {
   selectedVariantIdx: number;
   content: string;
   reasoning: string | null;
+  /** The slot's selected variant's persisted user-macro draw record (WAVE MU) — the swipe/continue path
+   *  replays it as kit's `frozenDraws`. `null` on a pre-feature variant OR a malformed blob (safeParse
+   *  degrade — never a throw); a fresh draw then happens and is recorded onto the new variant. */
+  macroDraws: UserMacroDraws | null;
   variantCount: number;
 }
 
@@ -516,7 +532,14 @@ export async function loadSlotTarget(db: Db, chatId: ChatId, messageId: MessageI
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.id, messageId), eq(messages.chatId, chatId)))
     .limit(LIMIT_ONE);
-  return rows.at(0);
+  const row = rows.at(0);
+  if (row === undefined) {
+    return;
+  }
+  // Parse the draw record at the read seam (never surface raw JSON) — a malformed blob degrades to null,
+  // so a swipe/continue of it draws fresh rather than throwing (the `variableDelta` degrade precedent).
+  const parsedDraws = userMacroDrawsSchema.safeParse(row.macroDraws);
+  return { ...row, macroDraws: parsedDraws.success ? parsedDraws.data : null };
 }
 
 /** The continue-undo snapshot for a slot's selected variant. All-null ⇒ never continued (undo/revert
@@ -725,6 +748,15 @@ export async function loadVariantDelta(db: Db, variantId: MessageVariantId): Pro
 export async function loadStoredVariables(db: Db, chatId: ChatId): Promise<Record<string, string> | null> {
   const rows = await db.select({ variableValues: chats.variableValues }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   return rows.at(0)?.variableValues ?? null;
+}
+
+/** The persisted per-chat user-macro INPUT picks (WAVE MU) — the `values` bag the turn build feeds
+ *  `buildTurnUserMacros`. Parsed at the read seam (`userMacroValuesSchema`, never cast); a malformed/absent
+ *  blob degrades to `{}` (the defaults posture — unpicked inputs resolve their per-kind defaults). */
+export async function loadStoredUserMacroValues(db: Db, chatId: ChatId): Promise<UserMacroValues> {
+  const rows = await db.select({ userMacroValues: chats.userMacroValues }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
+  const parsed = userMacroValuesSchema.safeParse(rows.at(0)?.userMacroValues);
+  return parsed.success ? parsed.data : {};
 }
 
 /** The persisted positional injections for a chat. Full rows, ordered by depth then the within-depth

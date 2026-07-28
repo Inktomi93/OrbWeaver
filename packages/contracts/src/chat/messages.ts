@@ -115,6 +115,16 @@ export const standaloneVariableDeltaSchema = z.object({ seq: z.number(), delta: 
 export const standaloneVariableDeltasSchema = z.array(standaloneVariableDeltaSchema);
 export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSchema>;
 
+/** The per-turn user-macro random-pick draw record (WAVE MU delivery) — the read-parse boundary for
+ *  `message_variants.macro_draws`: macro name → input name → the drawn option value (a bare string per
+ *  input). Written at turn commit (the frozen ∪ fresh effective record) in the SAME atomic batch as the
+ *  variant; the swipe/continue path replays it as kit's `frozenDraws` so a re-generation of the same slot
+ *  resolves the IDENTICAL draw (freeze-at-commit determinism — the `{{roll}}` class). Absent/null ⇒ this
+ *  turn drew nothing (no random-pick user macro, or none authored). Parsed at the read seam
+ *  (`loadSlotTarget` / the variant read), never cast — a malformed blob degrades to `null`. */
+export const userMacroDrawsSchema = z.record(z.string(), z.record(z.string(), z.string()));
+export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
+
 export const toolCallRecordSchema = z.object({
   // @orb-gate-ignore no-raw-id PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),

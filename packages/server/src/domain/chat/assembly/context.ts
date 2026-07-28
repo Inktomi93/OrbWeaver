@@ -20,7 +20,8 @@ import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/p
 import type { RegexScript } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { resolveInjectionPlacement } from "@orb/kit/injection";
-import type { MacroContext } from "@orb/kit/macro";
+import type { MacroContext, MacroRegistry } from "@orb/kit/macro";
+import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -103,13 +104,13 @@ function budgetInjections(
 }
 
 /** Resolves `{{entry}}` in a wiFormat template without re-rendering the already-resolved entry content. */
-function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext): string {
+function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext, registry: MacroRegistry): string {
   if (!wiFormat.includes("{{entry}}")) {
     return content;
   }
   // Function-replacer, not string replaceAll: the string form treats "$$"/"$&"/"$1" in content as
   // replacement patterns, corrupting lore text that contains them (e.g. "$$50").
-  return renderMacros(wiFormat, ctx, ctx.activePersona).replaceAll("{{entry}}", () => content);
+  return renderMacros(wiFormat, ctx, ctx.activePersona, { registry }).replaceAll("{{entry}}", () => content);
 }
 
 interface WiConversionArgs {
@@ -128,6 +129,9 @@ interface WiConversionArgs {
   readonly lastUserMessage: string | undefined;
   readonly hasBeforeAnchor: boolean;
   readonly hasAfterAnchor: boolean;
+  /** The per-turn user-macro registry (WAVE MU) the WI entry-content + wiFormat renders resolve against
+   *  (carried on the args bundle so `convertWorldInfo` stays under the 4-param cap). */
+  readonly registry: MacroRegistry;
 }
 
 /** The per-conversion runtime bundle (keeps `classifyWiEntry` under the 4-param cap). */
@@ -136,6 +140,8 @@ interface WiConvEnv {
   readonly args: WiConversionArgs;
   /** The turn-stage macro ctx for the WORLD_INFO regex find/replace template passes — built ONCE. */
   readonly regexCtx: MacroContext;
+  /** The per-turn user-macro registry (WAVE MU) the WI entry content + wiFormat renders resolve against. */
+  readonly registry: MacroRegistry;
   readonly haystacks: { full: string; latestUser: string };
   readonly matchedKeys: MatchedKey[];
 }
@@ -198,7 +204,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     recordKeyHits(entry, hits, env);
   }
   const persona = entry.source === "character" ? env.ctx.pinnedPersona : env.ctx.activePersona;
-  const resolved = renderMacros(entry.content, env.ctx, persona);
+  const resolved = renderMacros(entry.content, env.ctx, persona, { registry: env.registry });
   const afterRegex = executeRegexScripts({
     text: resolved,
     scripts: env.args.regexScripts,
@@ -211,7 +217,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
   if (afterRegex.trim().length === 0) {
     return null;
   }
-  return wiCandidate(entry, wrapWiFormat(afterRegex, env.args.wiFormat, env.ctx), env.args);
+  return wiCandidate(entry, wrapWiFormat(afterRegex, env.args.wiFormat, env.ctx, env.registry), env.args);
 }
 
 /** Converts the WI pool to budget candidates + the matched-keys trace; keyword matching sees the
@@ -234,6 +240,7 @@ function convertWorldInfo(
     ctx,
     args,
     regexCtx,
+    registry: args.registry,
     haystacks: {
       full: buildKeywordHaystack(haystackTexts, args.names),
       latestUser: latestUserText.toLowerCase(),
@@ -323,6 +330,13 @@ interface BuildAssembleContextInput {
   /** Effective host-tier regex set (host-global ∪ chat-preset ∪ cast), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
   readonly hostTierRegexScripts?: readonly RegexScript[] | undefined;
+  /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves
+   *  user macros against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). NEVER placed on
+   *  the returned serializable `AssembleContext` — it rides the build INPUT + `TurnPrep` only. */
+  readonly macroRegistry?: MacroRegistry | undefined;
+  /** The per-turn user-macro FREEZE registry (WAVE MU) — the SEND volatile-macro bake resolves user macros
+   *  in composer text against it; absent ⇒ the process `VOLATILE_ONLY_REGISTRY` (byte-identical). */
+  readonly freezeMacroRegistry?: MacroRegistry | undefined;
 }
 
 /** Out-param sink for the SEND USER_INPUT regex result: when both `pendingUserText` and
@@ -460,6 +474,7 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
     model: input.model,
     chatId: input.chatId,
     person: steer.person,
+    registry: input.macroRegistry,
   });
   // A scaffold-only action on a blank steer resolves empty — inject nothing rather than a dangling scaffold.
   if (resolved.trim().length === 0) {
@@ -485,11 +500,11 @@ const ANCHOR_IDENTITY_PREFIX = "The person the character knows as the user is";
 /** The active persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't
  *  inject at depth. Resolved against the active persona itself to avoid cross-contaminating another persona's
  *  macros; unframed so a no-swap turn stays byte-identical to single-persona output. */
-function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePersona | null): InjectionCandidate | null {
+function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePersona | null, registry: MacroRegistry): InjectionCandidate | null {
   if (active === null || active.placement?.kind !== "at_depth") {
     return null;
   }
-  const content = renderMacros(active.description, ctx, active);
+  const content = renderMacros(active.description, ctx, active, { registry });
   if (content.trim().length === 0) {
     return null;
   }
@@ -508,11 +523,11 @@ function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePerso
  *  swap still reaches the model with who the character's card relationships refer to, even though the
  *  active speaker differs. Ignores the anchor's own descriptionPosition (that's its prompt-time preference
  *  for when it IS active, not this role). Null when opted out or empty. */
-function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePersona): InjectionCandidate | null {
+function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePersona, registry: MacroRegistry): InjectionCandidate | null {
   if (anchor.placement?.kind === "none") {
     return null;
   }
-  const resolved = renderMacros(anchor.description, ctx, anchor);
+  const resolved = renderMacros(anchor.description, ctx, anchor, { registry });
   if (resolved.trim().length === 0) {
     return null;
   }
@@ -536,14 +551,14 @@ function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): bo
 /** Resolves the distinct personas in play for `{{user}}` into injection candidates: active per its own
  *  descriptionPosition (unframed); anchor as a fixed card-context block, only on a real swap. Deduped so a
  *  no-swap turn's output is byte-identical to the active-only injection. */
-function resolvePersonaDescriptionCandidates(ctx: AssembleContext, personas: ResolvedPersonas): InjectionCandidate[] {
+function resolvePersonaDescriptionCandidates(ctx: AssembleContext, personas: ResolvedPersonas, registry: MacroRegistry): InjectionCandidate[] {
   const candidates: InjectionCandidate[] = [];
-  const active = activePersonaDepthCandidate(ctx, personas.active);
+  const active = activePersonaDepthCandidate(ctx, personas.active, registry);
   if (active !== null) {
     candidates.push(active);
   }
   if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active)) {
-    const anchor = anchorPersonaCardCandidate(ctx, personas.anchor);
+    const anchor = anchorPersonaCardCandidate(ctx, personas.anchor, registry);
     if (anchor !== null) {
       candidates.push(anchor);
     }
@@ -555,7 +570,10 @@ function resolvePersonaDescriptionCandidates(ctx: AssembleContext, personas: Res
  *  candidates. Every present cast member with a non-empty note injects, with `{{char}}` bound to that
  *  member; `{{user}}` routes to the card (anchor/pinned) persona, not the active speaker. Same-depth
  *  notes keep cast order (primary first) deterministically since neither side sets an explicit `order`. */
-function characterDepthNoteCandidates(ctx: AssembleContext): {
+function characterDepthNoteCandidates(
+  ctx: AssembleContext,
+  registry: MacroRegistry,
+): {
   candidates: InjectionCandidate[];
   contributorNames: string[];
 } {
@@ -572,7 +590,7 @@ function characterDepthNoteCandidates(ctx: AssembleContext): {
       character: member,
       speaker: { kind: "single", character: member },
     };
-    const content = renderMacros(note.prompt, memberCtx, ctx.pinnedPersona);
+    const content = renderMacros(note.prompt, memberCtx, ctx.pinnedPersona, { registry });
     if (content.trim().length === 0) {
       return;
     }
@@ -598,8 +616,8 @@ function depthNoteSource(contributorNames: readonly string[]): string {
 /** The chat's room author's note → an in_chat depth-note candidate on the same injection machinery the
  *  member notes ride. `{{user}}` routes to the active persona; `{{char}}` to the base primary since the
  *  note is chat-scoped, not bound to any one cast member. Null when the rendered note is empty. */
-function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote): InjectionCandidate | null {
-  const content = renderMacros(note.prompt, ctx, ctx.activePersona);
+function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote, registry: MacroRegistry): InjectionCandidate | null {
+  const content = renderMacros(note.prompt, ctx, ctx.activePersona, { registry });
   if (content.trim().length === 0) {
     return null;
   }
@@ -621,19 +639,22 @@ function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote): 
  *  overrides and suppresses the per-member card depthPrompt notes; unset/whitespace-only falls through to
  *  the member notes. Suppression keys on the stored note being non-empty, so a note that renders empty
  *  still suppresses (it just contributes no candidate). */
-function authorsNoteCandidates(ctx: AssembleContext): {
+function authorsNoteCandidates(
+  ctx: AssembleContext,
+  registry: MacroRegistry,
+): {
   candidates: InjectionCandidate[];
   authorsNoteSource?: string;
 } {
   const roomNote = ctx.roomOverrides?.authorsNote;
   if (roomNote !== undefined && roomNote.prompt.trim().length > 0) {
-    const candidate = roomAuthorsNoteCandidate(ctx, roomNote);
+    const candidate = roomAuthorsNoteCandidate(ctx, roomNote, registry);
     return {
       candidates: candidate !== null ? [candidate] : [],
       authorsNoteSource: "room override",
     };
   }
-  const member = characterDepthNoteCandidates(ctx);
+  const member = characterDepthNoteCandidates(ctx, registry);
   return member.contributorNames.length > 0
     ? { candidates: member.candidates, authorsNoteSource: depthNoteSource(member.contributorNames) }
     : { candidates: member.candidates };
@@ -659,13 +680,16 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   });
 
   const base = buildBaseContext(character, cast, castMembers, input);
+  // The per-turn user-macro registries (WAVE MU) — absent ⇒ the process singletons (byte-identical). The
+  // RENDER registry drives every section/WI/persona/note macro pass; the FREEZE registry the SEND bake.
+  const reg = input.macroRegistry ?? globalMacroRegistry;
 
   // SEND — freeze volatile macros then run USER_INPUT regex, between RESOLVE/base and GATHER so the WI
   // haystack and the persisted row (via `out`) are the same post-transform text.
   const hostScripts: readonly RegexScript[] = input.hostTierRegexScripts ?? [];
   let pendingText = input.pendingUserText;
   if (input.pendingUserText !== undefined) {
-    let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng });
+    let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng, registry: input.freezeMacroRegistry });
     // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
     // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
     // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
@@ -679,6 +703,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
         chatId: input.chatId,
         input: frozen,
         onWarn: onMacroWarn,
+        registry: input.macroRegistry,
       });
       frozen = executeRegexScripts({
         text: frozen,
@@ -719,8 +744,9 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       lastUserMessage: input.lastUserMessage,
       hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
       hasAfterAnchor: hasMarker(input.promptConfig, "world_info_after"),
+      registry: reg,
     },
-    buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId }),
+    buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, registry: input.macroRegistry }),
   );
 
   const guided = resolveGuidedSteer(base, input);
@@ -733,9 +759,9 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     entryId: `user:${idx}`,
     bucket: null,
   }));
-  const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas);
+  const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas, reg);
   // Appended after persona so a same-depth tie orders persona-then-note deterministically.
-  const authorsNote = authorsNoteCandidates(base);
+  const authorsNote = authorsNoteCandidates(base, reg);
   const { kept, dropped } = budgetInjections(
     [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates],
     input.injectionTokenBudget,

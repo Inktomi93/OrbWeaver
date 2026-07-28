@@ -1,4 +1,4 @@
-// One chat turn over OpenRouter's `beta.responses.send` (the Responses API). Carries its own stream
+// One chat turn over OpenRouter's `responses.send` (the GA Responses API). Carries its own stream
 // reducer + view→ChatResult mapper since the Responses event/usage shapes differ from chat-completions.
 
 import { createHash } from "node:crypto";
@@ -62,10 +62,8 @@ const PROMPT_CACHE_KEY_LEN = 32;
 const TERMINAL_TYPES = new Set(["response.completed", "response.incomplete"]);
 
 interface OpenRouterResponsesClient {
-  readonly beta: {
-    readonly responses: {
-      readonly send: (request: { readonly responsesRequest: ResponsesRequest }, options?: { readonly signal?: AbortSignal }) => Promise<unknown>;
-    };
+  readonly responses: {
+    readonly send: (request: { readonly responsesRequest: ResponsesRequest }, options?: { readonly signal?: AbortSignal }) => Promise<unknown>;
   };
 }
 
@@ -387,7 +385,7 @@ async function drainOnce(args: {
   const chatId = castId<ChatId>(req.chatId ?? "");
   const idle = turnAbortSignal(req.signal);
   try {
-    const result = await client.beta.responses.send({ responsesRequest: body }, { signal: idle.signal });
+    const result = await client.responses.send({ responsesRequest: body }, { signal: idle.signal });
     if (!isEventStream(result)) {
       throw new ProviderError({
         kind: "server",

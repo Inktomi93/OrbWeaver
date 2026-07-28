@@ -11,7 +11,7 @@
 // No `loadCanonHistory`-style read here: a fresh insert's `MessageView` is fully known from the stamped
 // inputs, so {@link buildCommittedMessageView} reconstructs it instead of a round-trip.
 
-import type { AssembledPrompt, MessageView, ToolCallRecord, TurnInitiator } from "@orb/contracts/chat";
+import type { AssembledPrompt, MessageView, ToolCallRecord, TurnInitiator, UserMacroDraws } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
@@ -60,6 +60,10 @@ interface CanonVariantInput {
   /** The turn's cumulative tool exchange (emission/execution order across every recursion depth).
    *  Null/absent ⇒ a tool-less turn (never []). */
   readonly toolCalls?: readonly ToolCallRecord[] | null | undefined;
+  /** The turn's user-macro random-pick draw record (WAVE MU delivery) — frozen ∪ fresh, resolved once at
+   *  registry build and immutable for the round. Persisted so a swipe/continue of this variant replays the
+   *  identical draw. Absent/null ⇒ the turn drew nothing. */
+  readonly macroDraws?: UserMacroDraws | null | undefined;
 }
 
 /** The slot attribution (slot-level; a swipe never re-voices). All nullable per role. */
@@ -157,6 +161,7 @@ function variantColumns(args: {
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
     toolCalls: args.variant.toolCalls ?? null,
+    macroDraws: args.variant.macroDraws ?? null,
     createdAt: args.now,
   };
 }
@@ -295,6 +300,8 @@ export function continueVariantStatements(
           // A continue re-runs assembly, so its op-log replaces this variant's delta.
           variableDelta: params.variant.variableDelta ?? null,
           toolCalls: params.variant.toolCalls ?? null,
+          // A continue replays the slot's frozen draws (threaded via the prep) — re-stamp the identical record.
+          macroDraws: params.variant.macroDraws ?? null,
           preContinueContent: params.preContinueContent,
           preContinueReasoning: params.preContinueReasoning,
           lastContinuationContent: params.lastContinuationContent,

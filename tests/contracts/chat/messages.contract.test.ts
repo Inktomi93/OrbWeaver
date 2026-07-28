@@ -1,5 +1,5 @@
-import type { MessageSlot, MessageView } from "@orb/contracts/chat";
-import { messageSlotSchema, toolCallRecordSchema } from "@orb/contracts/chat";
+import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
+import { messageSlotSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
@@ -153,4 +153,23 @@ test("toolCallRecordSchema refuses a structurally wrong record (no cast-shaped r
       durationMs: null,
     }).success,
   ).toBe(false);
+});
+
+// ── userMacroDrawsSchema (WAVE MU delivery) — the db read-seam parse for `message_variants.macro_draws` ──
+test("userMacroDrawsSchema round-trips the nested macro→input→drawn-value record", () => {
+  const draws: UserMacroDraws = {
+    mood: { tone: "grim" },
+    weather: { pick: "storm", secondary: "cold" },
+  };
+  expect(userMacroDrawsSchema.parse(draws)).toEqual(draws);
+  // An empty record (a turn that drew nothing but recorded the shape) is valid.
+  expect(userMacroDrawsSchema.parse({})).toEqual({});
+});
+
+test("userMacroDrawsSchema refuses a non-string leaf (the draw is always the DRAWN string, never a pool/bool)", () => {
+  // A random-pick POOL (string[]) is the INPUT VALUE, not the DRAW — the draw is the single chosen option.
+  expect(userMacroDrawsSchema.safeParse({ mood: { tone: ["a", "b"] } }).success).toBe(false);
+  expect(userMacroDrawsSchema.safeParse({ mood: { tone: true } }).success).toBe(false);
+  // A flat (one-level) record is the wrong depth — every value must be an input→string sub-record.
+  expect(userMacroDrawsSchema.safeParse({ mood: "grim" }).success).toBe(false);
 });

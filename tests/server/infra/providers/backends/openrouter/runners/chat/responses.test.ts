@@ -63,12 +63,10 @@ function streamingClient(events: readonly Record<string, unknown>[]): {
 } {
   const captured: Captured = { body: undefined };
   const client: ResponsesClient = {
-    beta: {
-      responses: {
-        send: (req): Promise<unknown> => {
-          captured.body = req.responsesRequest;
-          return Promise.resolve(streamOf(events));
-        },
+    responses: {
+      send: (req): Promise<unknown> => {
+        captured.body = req.responsesRequest;
+        return Promise.resolve(streamOf(events));
       },
     },
   };
