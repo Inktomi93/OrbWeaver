@@ -31,6 +31,8 @@ function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): un
 }
 
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
+// The single clean accessible name for the Attach images row (P1-C — size-hinted, no doubled name).
+const ATTACH_NAME = /^Attach images, up to [\d.]+ MB per file$/u;
 
 test("Send is disabled on an empty draft", async ({ mount }) => {
   // A DRAFT (no committed chat) — the keyboard generate arm (W-E) is committed-only, so an empty draft has
@@ -141,6 +143,23 @@ test("wand v2: Attach images lives in the ✨ menu (image controls re-homed off 
   await component.getByRole("button", UTILITY_TRIGGER).click();
   // The attach row is present in the menu (the sanctioned FileDropzone picker), off the composer bar.
   await expect(page.getByRole("menuitem", { name: "Attach images" })).toBeVisible();
+});
+
+// P1-C: the file input is NOT a focus target inside the menuitem's accessible name. Exactly one control
+// carries the "Attach images…" name (the menuitem), and its name is the single clean size-hinted string —
+// the doubled name ("Attach images Attach images Up to …") + second focus target are gone.
+test("P1-C: Attach images is a SINGLE accessible control (input is aria-hidden, off the accessible name)", async ({ mount, page }) => {
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("button", UTILITY_TRIGGER).click();
+
+  // One clean accessible name (a size-hinted "Attach images, up to N MB per file"); no doubled name.
+  const attach = page.getByRole("menuitem", { name: ATTACH_NAME });
+  await expect(attach).toHaveCount(1);
+  // The real <input type=file> exists for the upload path but is OFF the accessible tree (aria-hidden,
+  // tabIndex -1) — it is not a second focusable control announced under the menuitem.
+  const input = page.locator('[data-slot="file-dropzone-input"]');
+  await expect(input).toHaveAttribute("aria-hidden", "true");
+  await expect(input).toHaveAttribute("tabindex", "-1");
 });
 
 test("the guided cluster shows all four icons on an empty committed composer; Response is always live (wand v2)", async ({ mount }) => {
@@ -395,7 +414,8 @@ test("the wand is disabled while a Send is in flight (clear-on-commit reopened t
 
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
-  const response = component.getByRole("button", { name: "Generate reply" });
+  // P3-dualmode: with text present the Response icon's accessible name is its guided-mode name.
+  const response = component.getByRole("button", { name: "Guided generate reply" });
 
   // With a draft typed and no send in flight, the guided cluster is available.
   await textarea.fill("steer it");
