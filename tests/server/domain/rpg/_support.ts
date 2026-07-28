@@ -64,6 +64,7 @@ export function liteConfig(): RpgGameConfig {
       immersiveHtmlInteractive: true,
       cardKeepLastX: 0,
       cyoa: false,
+      cyoaChoiceBehavior: "compose",
       plotProgression: true,
     },
     userMacros: [],

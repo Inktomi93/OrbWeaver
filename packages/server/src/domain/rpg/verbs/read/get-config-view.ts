@@ -27,6 +27,7 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       cardKeepLastX: game.config.features.cardKeepLastX,
       // P5 play-style knobs (§5.4/§6.4).
       cyoa: game.config.features.cyoa,
+      cyoaChoiceBehavior: game.config.features.cyoaChoiceBehavior,
       plotProgression: game.config.features.plotProgression,
     };
   }

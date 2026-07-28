@@ -1,13 +1,21 @@
-// P5 CYOA click→send — the Provider half (context + consumer: `../hooks/choice-send-context`). Owns its
-// OWN `useSendMessage` instance (separate from the composer's — a choice click must never clear or race
-// the composer draft) and derives `busy` from the shared turn phase, so every option button in the thread
-// disables while a turn is in flight (§5.3). Mounted by the room surface around the message thread; a
-// choice sends exactly like typed input (commit → turn), riding the same bus-driven machinery.
+// P5 CYOA click→choose — the Provider half (context + consumer: `../hooks/choice-send-context`). Owns its
+// OWN `useSendMessage` instance (separate from the composer's — a choice click in `send` mode must never
+// clear or race the composer draft) and derives `busy` from the shared turn phase, so every option button
+// in the thread disables while a turn is in flight (§5.3). Mounted by the room surface around the message
+// thread.
+//
+// The `choose` behavior is gated by the game's `cyoaChoiceBehavior` knob (§5.4), read cache-first off
+// `rpg.getGame.publicConfig` (the composer-wand's exact key — lockdown §12 direct cross-feature tRPC read):
+// `send` fires the option as the user turn immediately; `compose` (the default, and the fallback for a
+// non-game chat / an unsettled query) drops the option into the composer DRAFT for this room's scope +
+// requests composer focus, so the reader appends flavor before sending. Choices only exist on committed
+// chats (an assistant emitted them), so a draft handle provides null (options render disabled until commit).
 
 import type { ReactElement, ReactNode } from "react";
 import { useMemo } from "react";
+import { useGatedQuery, useTRPC } from "#data";
 import type { ChatHandle } from "#state";
-import { isCommitted, useTurnPhase } from "#state";
+import { isCommitted, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { ChoiceSend } from "../hooks/choice-send-context";
 import { ChoiceSendContext } from "../hooks/choice-send-context";
 import { useSendMessage } from "../hooks/use-send-message";
@@ -17,15 +25,34 @@ export interface ChoiceSendProviderProps {
   readonly children: ReactNode;
 }
 
-/** Provides the thread's choice-send capability. Choices only exist on committed chats (an assistant
- *  emitted them), so a draft handle provides null (options render disabled until the room commits). */
+/** Provides the thread's choice capability, branching on the game's `cyoaChoiceBehavior` knob. */
 export function ChoiceSendProvider({ handle, children }: ChoiceSendProviderProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
+  const trpc = useTRPC();
   const phase = useTurnPhase(chatId);
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
   const sender = useSendMessage({ handle });
   const send = sender.send;
   const busy = turnBusy || sender.isPending;
-  const value = useMemo<ChoiceSend | null>(() => (chatId === null ? null : { send, busy }), [chatId, send, busy]);
+  // The game knob — cache-first, only when this room is a game (the composer-wand's precedent). Absent /
+  // unsettled / non-game ⇒ the "compose" default (a lower-commitment interaction; the intended fallback).
+  const gameQuery = useGatedQuery(chatId, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
+  const behavior = gameQuery.data?.publicConfig.cyoaChoiceBehavior ?? "compose";
+
+  const value = useMemo<ChoiceSend | null>(() => {
+    if (chatId === null) {
+      return null;
+    }
+    const choose = (text: string): void => {
+      if (behavior === "send") {
+        send(text);
+        return;
+      }
+      // compose: seed the composer draft for this room's scope (a committed chat keys on its id) + focus it.
+      setComposerDraft(chatId, text);
+      requestComposerFocus(chatId);
+    };
+    return { choose, busy };
+  }, [chatId, behavior, send, busy]);
   return <ChoiceSendContext value={value}>{children}</ChoiceSendContext>;
 }

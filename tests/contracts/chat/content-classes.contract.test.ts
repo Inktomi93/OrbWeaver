@@ -25,8 +25,9 @@ test("the shipped cells match the ratified §3.1 table", () => {
     hidden: { reading: "hide", wire: "full" },
     // html-card: the reader keeps the rich card forever; the model gets the deterministic stub.
     card: { reading: "show", wire: "stub" },
-    // CYOA: buttons for the reader; the model's own one-line options ride the wire.
-    choices: { reading: "show", wire: "full" },
+    // CYOA: buttons for the reader; the fence is STRIPPED from the model wire on later turns (the pick
+    // already became a real user turn — unselected options must not pile up in context).
+    choices: { reading: "show", wire: "drop" },
     // §3.2.1 allowlist-strip: a hallucinated command tag/fence never renders; the wire stays honest.
     "unknown-directive": { reading: "hide", wire: "full" },
   });

@@ -55,6 +55,15 @@ export const RPG_RELATIONSHIP_KINDS = ["lover", "friend", "ally", "neutral", "en
 export type RpgRelationshipKind = (typeof RPG_RELATIONSHIP_KINDS)[number];
 export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
 
+/** P5 — what a CYOA choice CLICK does (§5.4). `compose` = the option text lands in the composer DRAFT + the
+ *  composer focuses (the reader appends flavor, then sends) — the default, a lower-commitment interaction;
+ *  `send` = the option text fires as the user turn IMMEDIATELY (the classic one-tap CYOA). The render is
+ *  toggle-independent — the choice buttons always show (`content-classes` `choices.reading:"show"`); this
+ *  knob only shapes the click handler's behavior. */
+export const RPG_CYOA_CHOICE_BEHAVIORS = ["compose", "send"] as const;
+export type RpgCyoaChoiceBehavior = (typeof RPG_CYOA_CHOICE_BEHAVIORS)[number];
+export const rpgCyoaChoiceBehaviorSchema = z.enum(RPG_CYOA_CHOICE_BEHAVIORS);
+
 /** Custom tracked cast-field kind (parity-plus §2.8) — `text` = a free string chip; `meter` = a 0-max numeric
  *  the panel renders as a `TrackBar` and the delta diffs numerically. The host defines the field SCHEMA per
  *  game (`config.features.castFields`); the model writes DEFINED field keys only (enum-constrained, §2.3). */

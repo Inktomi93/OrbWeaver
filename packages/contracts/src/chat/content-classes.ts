@@ -31,7 +31,9 @@ export interface ContentClassPolicy {
  *  behavior, now DECLARED; `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
  *  MUST remember its own lie/the true event; `card` show/stub — the reader keeps the rich card forever,
  *  the model gets `[card: title]` not the multi-KB blob (M2 keep-last-X excepts the newest X); `choices`
- *  show/full — buttons for the reader, the model's own one-line options on the wire; `unknown-directive`
+ *  show/drop — buttons for the reader, but the CYOA fence is STRIPPED from the model wire on later turns
+ *  (the user's pick already became a real user turn — unselected options must not pile up in context);
+ *  `unknown-directive`
  *  hide/full — the §3.2.1 allowlist-strip (a hallucinated command tag/fence never renders as garbage; the
  *  wire keeps the model's bytes). The `Record<ContentSpanKind, …>` is the compile-force: a new span kind
  *  will not build until it declares its row. */
@@ -40,6 +42,6 @@ export const CONTENT_CLASS_POLICY: Readonly<Record<ContentSpanKind, ContentClass
   image: { reading: "show", wire: "drop" },
   hidden: { reading: "hide", wire: "full" },
   card: { reading: "show", wire: "stub" },
-  choices: { reading: "show", wire: "full" },
+  choices: { reading: "show", wire: "drop" },
   "unknown-directive": { reading: "hide", wire: "full" },
 };

@@ -638,15 +638,19 @@ function resolveFullCards(tokenized: readonly { readonly spans: readonly Content
 }
 
 /** One span → its wire part (§3.5, the total dispatch over the content-class registry's WIRE plane):
- *  `text` rides as-is; `image` = the existing drop-to-alt arm gated by vision; `hidden`/`choices`/
- *  `unknown-directive` ride VERBATIM (wire=full — the model must remember its own lie / the true event /
- *  its own bytes; the transcript is honest); `card` collapses to the deterministic stub unless inside the
- *  keep-last-X window (wire=stub). */
+ *  `text` rides as-is; `image` = the existing drop-to-alt arm gated by vision; `hidden`/`unknown-directive`
+ *  ride VERBATIM (wire=full — the model must remember its own lie / the true event / its own bytes; the
+ *  transcript is honest); `choices` is STRIPPED entirely (wire=drop — the CYOA fence must not re-pile
+ *  unselected options into context on later turns; the user's pick already became a real user turn);
+ *  `card` collapses to the deterministic stub unless inside the keep-last-X window (wire=stub). */
 async function spanToWirePart(span: ContentSpan, env: WirePartsEnv): Promise<ChatContentPart | { droppedAlt: string } | null> {
   if (span.kind === "text") {
     return span.text.length > 0 ? { type: "text", text: span.text } : null;
   }
-  if (span.kind === "hidden" || span.kind === "choices" || span.kind === "unknown-directive") {
+  if (span.kind === "choices") {
+    return null;
+  }
+  if (span.kind === "hidden" || span.kind === "unknown-directive") {
     return { type: "text", text: span.raw };
   }
   if (span.kind === "card") {

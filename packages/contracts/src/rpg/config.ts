@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { RPG_CAST_FIELD_KINDS } from "./enums";
+import { RPG_CAST_FIELD_KINDS, RPG_CYOA_CHOICE_BEHAVIORS } from "./enums";
 import { RPG_PROFILE_FREEFORM, rpgStatProfileSchema } from "./profile";
 
 /** The steering-note cap — a short always-wins user slot (the reminder tail, §4.7). */
@@ -79,6 +79,10 @@ export const rpgGameFeaturesSchema = z.object({
   // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
   // toggle-independent — an emitted fence always renders as buttons (never a stored-content break).
   cyoa: z.boolean().default(false),
+  // P5 — what a CYOA choice CLICK does (§5.4). `compose` (default) drops the option text into the composer
+  // draft + focuses it (append flavor, then send); `send` fires the option as the user turn immediately.
+  // Toggle-independent render — the buttons always show; this only branches the client click handler.
+  cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).default("compose"),
   // P5 — plot progression (§6.4): gates the wand's Plot submenu (steer entries) for this game. Default ON
   // (fires only on click — no always-on prompt cost; broadly useful for un-sticking a scene). The submenu is
   // ABSENT when off, never a disabled twin (applicability, [no-separate-reduced-modes]).

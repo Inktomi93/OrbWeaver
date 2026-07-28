@@ -17,7 +17,7 @@ import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorRefSchema } from "./actor";
 import { RPG_EXTRACTION_MODES, RPG_HINT_MAX, RPG_STEERING_NOTE_MAX, rpgCastFieldSchema } from "./config";
-import { rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
+import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
 import { rpgPoolDefSchema } from "./sheet";
 import { rpgWidgetDefSchema } from "./snapshot";
@@ -61,8 +61,10 @@ export const rpgUpdateConfigInputSchema = z.object({
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
       cardKeepLastX: z.number().int().min(0).optional(),
-      // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the wand Plot submenu gate.
+      // The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the choice-click behavior + the wand
+      // Plot submenu gate. Omit keeps; a passed value replaces.
       cyoa: z.boolean().optional(),
+      cyoaChoiceBehavior: z.enum(RPG_CYOA_CHOICE_BEHAVIORS).optional(),
       plotProgression: z.boolean().optional(),
     })
     .optional(),

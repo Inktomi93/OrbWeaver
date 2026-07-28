@@ -28,6 +28,7 @@ import { isCommitted } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
 import type { PendingAttachment } from "../hooks/use-composer-attachments";
 import { useComposerAttachments } from "../hooks/use-composer-attachments";
+import { useComposerFocusOnRequest } from "../hooks/use-composer-focus";
 import { useContinueTurn } from "../hooks/use-continue-turn";
 import { useGenerateImage } from "../hooks/use-generate-image";
 import type { DraftSeed } from "../hooks/use-send-message";
@@ -180,6 +181,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   useEffect(() => {
     onChangeRef.current = onChange;
   });
+
+  // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
+  // and bumps this room's focus nonce; the hook focuses the textarea on every bump so the reader lands in
+  // the composer ready to append flavor. Keyed by the committed chatId — the only scope choices fire from.
+  const textareaRef = useComposerFocusOnRequest(chatId);
 
   // Not cleared optimistically in submit — onDraftCommitted fires only once the bus confirms the
   // user's own row committed, so a failed send leaves the draft intact for retry.
@@ -377,6 +383,7 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           </Button>
           <SpeakAsSelect handle={handle} />
           <Textarea
+            ref={textareaRef}
             aria-label="Message"
             // Editable-combobox wiring for the slash strip (P2 a11y): while the strip is open the textarea
             // advertises the listbox it CONTROLS and, when a row is highlighted, the active descendant — so a

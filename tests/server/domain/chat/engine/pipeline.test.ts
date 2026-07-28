@@ -2,12 +2,14 @@
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import { contentSpansToBlocks } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -1359,10 +1361,28 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(textsOf(x2.request.history)).toEqual(["[card: c1]", cardBody(2), cardBody(3)]);
   });
 
-  test("an unknown-directive and a choices fence ride VERBATIM ({wire: full} — the transcript is honest)", async () => {
-    const body = ':::teleport to="crypt"\nnow\n:::\n\n:::choices\n1. one\n2. two\n:::';
+  test("an unknown-directive rides VERBATIM ({wire: full} — the transcript is honest)", async () => {
+    const body = ':::teleport to="crypt"\nnow\n:::';
     const result = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: body }]);
+  });
+
+  test("P5: a `:::choices` fence in a PRIOR message is STRIPPED from the model wire ({wire: drop}) — unselected options stop piling up on later turns, but the surrounding prose survives", async () => {
+    // The assistant offered a CYOA menu last turn; the reader picked one (which became a real user turn).
+    // On this turn's assembly the fence must be gone from the model wire — only the prose around it rides.
+    const choicesFence = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+    const body = `You reach the door.\n\n${choicesFence}\n\nWhat now?`;
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    const wire = JSON.stringify(result.request.history);
+    expect(wire).not.toContain("Enter the crypt");
+    expect(wire).not.toContain(":::choices");
+    // The prose on either side of the dropped fence survives (collapsed, the empty fence-neighbours join).
+    expect(wire).toContain("You reach the door.");
+    expect(wire).toContain("What now?");
+
+    // The reading-surface projection is UNCHANGED (reading:"show") — the reader still gets the choice block.
+    const blocks = contentSpansToBlocks(tokenizeContent(body));
+    expect(blocks.some((b) => b.kind === "choices")).toBe(true);
   });
 
   test("squash parity (§3.7): a `\\n\\n`-joined multi-body string tokenizes whole — the tag/fence survive the join", async () => {

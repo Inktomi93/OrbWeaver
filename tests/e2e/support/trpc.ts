@@ -735,6 +735,7 @@ export interface ConfigView {
   readonly immersiveHtml: boolean;
   readonly cardKeepLastX: number;
   readonly cyoa: boolean;
+  readonly cyoaChoiceBehavior: string;
   readonly plotProgression: boolean;
 }
 

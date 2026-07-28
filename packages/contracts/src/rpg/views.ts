@@ -30,12 +30,15 @@ export interface RpgGameView {
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
    *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
    *  the card-archive section per game (member-safe — a play-style option, never a secret). */
-  /** `cyoa`/`plotProgression` (parity-plus P5 §5.4/§6.4) gate the composer wand's game affordances (the Plot
-   *  submenu + the choices mode) — member-safe play-style options, never secrets. */
+  /** `cyoa`/`cyoaChoiceBehavior`/`plotProgression` (parity-plus P5 §5.4/§6.4) gate the composer wand's game
+   *  affordances (the Plot submenu + the choices mode) and shape the choice-CLICK behavior — member-safe
+   *  play-style options, never secrets. `cyoaChoiceBehavior` drives the reading-surface click handler
+   *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
     readonly immersiveHtml: boolean;
     readonly cyoa: boolean;
+    readonly cyoaChoiceBehavior: RpgGameConfig["features"]["cyoaChoiceBehavior"];
     readonly plotProgression: boolean;
   };
 }
@@ -145,8 +148,10 @@ export interface RpgConfigView {
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;
   readonly cardKeepLastX: number;
-  /** The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the wand Plot submenu gate. */
+  /** The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode, the choice-CLICK behavior (`compose`/`send`),
+   *  and the wand Plot submenu gate. */
   readonly cyoa: boolean;
+  readonly cyoaChoiceBehavior: RpgGameConfig["features"]["cyoaChoiceBehavior"];
   readonly plotProgression: boolean;
 }
 

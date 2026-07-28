@@ -362,7 +362,7 @@ function gameView(plotProgression: boolean): unknown {
     status: "active",
     trackersReadOnly: false,
     extractionMode: "reliable",
-    publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: false, plotProgression },
+    publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: false, cyoaChoiceBehavior: "compose", plotProgression },
   };
 }
 

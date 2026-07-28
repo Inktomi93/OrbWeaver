@@ -45,10 +45,12 @@ import {
   MessageToolsRendererRegistryProvider,
   SlashCommandRegistryProvider,
   selectChat,
+  setComposerDraft,
   setDraftGreeting,
   startEditingMessage,
   startNewChat,
   toggleMessageSelected,
+  useComposerDraft,
   useDraftConfig,
   useSectionRegistry,
   useTurnPhase,
@@ -81,6 +83,7 @@ import { ChatCastBar } from "../../../../packages/client/src/features/chat/compo
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
+import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
@@ -374,14 +377,15 @@ export interface MessageContentChoicesStoryProps {
   readonly mode?: "live" | "busy" | "none";
 }
 
-// P5 §5.2-5.3 — the `:::choices` fence rendered as clickable send-affordances. The recorder mirrors the
-// [assert-the-mutation-fired] posture: a click's SEND (not a UI reaction) is what the CT asserts, surfaced
-// through the `sent-choices` probe text.
+// P5 §5.2-5.4 — the `:::choices` fence rendered as clickable choice-affordances. The recorder mirrors the
+// [assert-the-mutation-fired] posture: a click's `choose` call (not a UI reaction) is what the CT asserts,
+// surfaced through the `sent-choices` probe text. (The send-vs-compose BRANCH lives in the provider — its
+// own CT proves it; this story pins the block's click→`choose` wiring + the disabled arms.)
 const CHOICES_BODY = "The corridor forks.\n:::choices\n1. Draw your blade.\n2. Slip into the shadows.\n3. Call out a greeting.\n:::";
 
 function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "busy" | "none" }): ReactElement {
   const [sent, setSent] = useState<readonly string[]>([]);
-  const value = mode === "none" ? null : { send: (text: string): void => setSent((prev) => [...prev, text]), busy: mode === "busy" };
+  const value = mode === "none" ? null : { choose: (text: string): void => setSent((prev) => [...prev, text]), busy: mode === "busy" };
   return (
     <>
       <ChoiceSendContext value={value}>
@@ -395,6 +399,34 @@ function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "bu
 /** The bare `<MessageContent>` over a `:::choices` body with a recording choice-send capability. */
 export function MessageContentChoicesStory({ mode = "live" }: MessageContentChoicesStoryProps = {}): ReactElement {
   return <MessageContentChoicesStoryInner mode={mode} />;
+}
+
+// P5 §5.4 — the REAL `<ChoiceSendProvider>` wired to the real data layer (routeTrpc stubs `rpg.getGame`
+// + `chat.send`), driving the real choices block AND a real `<Composer>` whose value is the real
+// composer-draft store. This proves the provider's send-vs-compose BRANCH end-to-end: `send` fires
+// `chat.send` (the composer stays empty); `compose` seeds the composer draft (observable in the textarea)
+// and fires NO send. The game knob rides `rpg.getGame.publicConfig.cyoaChoiceBehavior` (the CT stubs it).
+
+function ChoiceProviderStoryInner(): ReactElement {
+  const handle: ChatHandle = committedChat(COMPOSER_CHAT_ID);
+  const draft = useComposerDraft(COMPOSER_CHAT_ID);
+  return (
+    <div>
+      <ChoiceSendProvider handle={handle}>
+        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false }} />
+      </ChoiceSendProvider>
+      <Composer handle={handle} value={draft} onChange={(text): void => setComposerDraft(COMPOSER_CHAT_ID, text)} />
+    </div>
+  );
+}
+
+/** The real choice provider + a real composer over the real draft store — proves the send/compose branch. */
+export function ChoiceProviderStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChoiceProviderStoryInner />
+    </CtDataProviders>
+  );
 }
 
 function GhostRowInner(): ReactElement {
