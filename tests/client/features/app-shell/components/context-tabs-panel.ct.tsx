@@ -114,26 +114,33 @@ test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declar
   await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
 });
 
-test("indicator: exactly ONE underline, in the strip that holds the active tab (never a spurious twin)", async ({ mount }) => {
-  // Both strips share the one Tabs.Root value, so a naive per-strip <TabsIndicator/> parks the OTHER strip's
-  // indicator at position 0 — a second underline on the wrong strip. The fix renders the indicator ONLY in
-  // the strip that contains the active tab (§4.2 "exactly ONE tab selected across both strips").
+test("indicator: the per-tab active bar faces INWARD (top strip: bottom edge; bottom strip: top edge) — no sliding twin", async ({ mount }) => {
+  // The bracket rule (panel-redesign `.strip.top`/`.strip.bottom`): the active marker sits on the edge
+  // NEAREST the content — the TOP strip marks the active tab's BOTTOM edge, the BOTTOM strip its TOP
+  // edge. It's a per-tab 2px `--color-primary` border (transparent on inactive tabs — zero layout shift),
+  // replacing the sliding <TabsIndicator/> (which could clip inside the strip's overflow scroll container
+  // and can't flip edges per strip). No tabs-indicator element renders at all.
+  const transparent = "rgba(0, 0, 0, 0)";
   const component = await mount(<ContextBracketStory />);
   const gameStrip = component.getByRole("tablist", { name: "Game" });
   const chatStrip = component.getByRole("tablist", { name: "Chat" });
-  const indicator = component.locator('[data-slot="tabs-indicator"]');
+  await expect(component.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
 
-  // Activate a GAME tab → the underline lives in the GAME strip only, none in the Chat strip.
-  await gameStrip.getByRole("tab", { name: "Status" }).click();
-  await expect(indicator).toHaveCount(1);
-  await expect(gameStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(1);
-  await expect(chatStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
+  // Activate a GAME (top-strip) tab → its BOTTOM border carries the 2px primary bar.
+  const status = gameStrip.getByRole("tab", { name: "Status" });
+  await status.click();
+  await expect(status).toHaveCSS("border-bottom-width", "2px");
+  const statusBar = await status.evaluate((el) => getComputedStyle(el).borderBottomColor);
+  expect(statusBar).not.toBe(transparent);
 
-  // Activate a META tab → the underline moves to the CHAT strip only, none in the Game strip.
-  await chatStrip.getByRole("tab", { name: "Settings" }).click();
-  await expect(indicator).toHaveCount(1);
-  await expect(chatStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(1);
-  await expect(gameStrip.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
+  // Activate a META (bottom-strip) tab → its TOP border carries the bar; the game tab's bar clears.
+  const settings = chatStrip.getByRole("tab", { name: "Settings" });
+  await settings.click();
+  await expect(settings).toHaveCSS("border-top-width", "2px");
+  const settingsBar = await settings.evaluate((el) => getComputedStyle(el).borderTopColor);
+  expect(settingsBar).not.toBe(transparent);
+  const statusCleared = await status.evaluate((el) => getComputedStyle(el).borderBottomColor);
+  expect(statusCleared).toBe(transparent);
 });
 
 test("PHASE disabled: aria-disabled + reason on title, focusable-discoverable (not `disabled`)", async ({ mount }) => {

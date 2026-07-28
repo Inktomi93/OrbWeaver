@@ -23,7 +23,7 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { BeatLine, ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -32,6 +32,7 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useCreateCheckpoint, useRestoreCheckpoint } from "../hooks/use-rpg-mutations";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { Kicker } from "./rpg-kicker";
 import { RpgCardLightbox } from "./rpg-scene-cards";
 
 /** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
@@ -43,15 +44,6 @@ type JournalScope = (typeof JOURNAL_SCOPES)[number];
 
 function isJournalScope(value: string | undefined): value is JournalScope {
   return (JOURNAL_SCOPES as readonly (string | undefined)[]).includes(value);
-}
-
-// A section label — the muted letter-spaced caps idiom (§4.7).
-function SectionLabel({ children }: { readonly children: ReactNode }): ReactElement {
-  return (
-    <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-      {children}
-    </Text>
-  );
 }
 
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
@@ -103,7 +95,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     <Stack gap="section">
       {[...groups.entries()].map(([day, dayRows]) => (
         <Stack key={day} gap="field">
-          <SectionLabel>{day}</SectionLabel>
+          <Kicker>{day}</Kicker>
           {dayRows.map((row) =>
             row.kind === "card" ? (
               <CardRow key={row.card.key} card={row.card} onOpen={setOpenKey} />

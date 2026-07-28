@@ -71,7 +71,10 @@ export function MeterRow({
 }: MeterRowProps): ReactElement {
   return (
     <Stack gap="field" data-slot="meter-row">
-      <Row justify="between" align="baseline" gap="block">
+      {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
+          label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
+          rest→edit swap pixel-stable (the no-layout-shift bar). */}
+      <Row justify="between" align="center" gap="block">
         <Row gap="field" align="center" className="min-w-0">
           {leading}
           <Text as="span" size="label" tone="muted" className="truncate">
@@ -87,7 +90,7 @@ export function MeterRow({
           // collapsed the flex input to ~14px and clipped a 2-digit value's LEADING digit). `px-field` (over
           // FIELD_CONTROL's wider `px-block`) + `text-right` hug the `/max` suffix without clipping. `shrink-0`
           // on the whole cluster keeps the label from stealing its width (the W3c input-clip fix).
-          <Row gap="field" align="baseline" className="shrink-0">
+          <Row gap="field" align="center" className="shrink-0">
             <TrackerValue
               ariaLabel={`${label} value`}
               display={String(value)}
@@ -107,7 +110,7 @@ export function MeterRow({
                 /{max}
               </Text>
             ) : (
-              <Row gap="field" align="baseline">
+              <Row gap="field" align="center">
                 <Text as="span" size="label" tone="muted">
                   /
                 </Text>
@@ -185,7 +188,11 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
               onEditValue(n);
             }
           }}
-          className="w-avatar-md text-center tabular-nums"
+          // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
+          // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its
+          // number (no fixed width — `w-avatar-md` inside the padded button ellipsized a 2-digit value).
+          className="w-avatar-md text-center text-title tabular-nums"
+          restClassName="text-center text-title tabular-nums"
         />
       )}
       <Text as="span" size="micro" tone="muted" transform="caps" className="tracking-micro">
@@ -225,7 +232,7 @@ export function TrackerChip({ label, value, guide = false, onEditValue }: Tracke
           ariaLabel={`${label} value`}
           display={value}
           onEdit={onEditValue}
-          className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
+          className="!w-auto min-w-0 max-w-full field-sizing-content"
           restClassName="min-w-0 max-w-full"
         />
       )}
@@ -359,7 +366,7 @@ export function GoalLine({ text, done = false, clock, onEditText }: GoalLineProp
           {text}
         </Text>
       ) : (
-        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="h-control-sm w-full" />
+        <TrackerValue ariaLabel="Goal" display={text} onEdit={onEditText} className="w-full" />
       )}
       {clock === undefined ? null : (
         <Text as="span" size="label" tone="muted" className="tabular-nums">

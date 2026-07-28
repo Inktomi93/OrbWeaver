@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { Kicker } from "./rpg-kicker";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
  *  home for the card-viewer species; Journal's day-group archive reuses it rather than minting a second
@@ -64,9 +65,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   }
   return (
     <Stack gap="field" data-slot="rpg-card-archive">
-      <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-        Cards — {cards.length}
-      </Text>
+      <Kicker>Cards — {cards.length}</Kicker>
       {cards.map((card) => (
         <Button key={card.key} intent="ghost" size="sm" className="justify-start" onClick={(): void => setOpenKey(card.key)}>
           <Text size="label" className="truncate">

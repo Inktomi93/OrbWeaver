@@ -12,8 +12,7 @@
 import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
 import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Icon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -24,6 +23,7 @@ import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-co
 import { RpgChoiceEcho } from "./rpg-choice-echo";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
+import { Kicker } from "./rpg-kicker";
 import { RpgSceneCards } from "./rpg-scene-cards";
 
 const RECENT_BEATS = 3;
@@ -187,15 +187,6 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   );
 }
 
-// A section label — the muted letter-spaced caps idiom (§4.7).
-function SectionLabel({ children }: { readonly children: ReactNode }): ReactElement {
-  return (
-    <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-      {children}
-    </Text>
-  );
-}
-
 /** Split a cast member's stored `customFields` record against the host-defined field SCHEMAS (§2.8): a `meter`
  *  field becomes a MeterRow (numeric value/max, the value parsed from its stored string); a `text` field becomes
  *  a labelled chip. Only DEFINED fields render (an orphan value from a deleted field-schema is dropped).
@@ -266,10 +257,7 @@ function SceneCast({
   const keyByLabel = new Map(castFields.map((f) => [f.label, f.key]));
   return (
     <Stack gap="field">
-      <Row gap="field" align="center">
-        <SectionLabel>On stage — {cast.length}</SectionLabel>
-        {lockPin}
-      </Row>
+      <Kicker trailing={lockPin}>On stage — {cast.length}</Kicker>
       {cast.map((member) => {
         const { meters, texts } = castFieldViews(member.customFields, castFields);
         const editProps =
@@ -348,7 +336,7 @@ function SceneGoals({
   }
   return (
     <Stack gap="field">
-      <SectionLabel>Goals</SectionLabel>
+      <Kicker>Goals</Kicker>
       {quests.map((quest) => {
         const total = quest.objectives.length;
         const filled = quest.objectives.filter((o) => o.completed).length;
@@ -384,10 +372,7 @@ function SceneWidgets({
     <>
       {[...groups.entries()].map(([subject, subjectWidgets], groupIndex) => (
         <Stack key={subject} gap="field">
-          <Row gap="field" align="center">
-            <SectionLabel>{subject}</SectionLabel>
-            {groupIndex === 0 ? lockPin : null}
-          </Row>
+          <Kicker trailing={groupIndex === 0 ? lockPin : null}>{subject}</Kicker>
           {subjectWidgets.map((widget, i) => (
             <MeterRow
               key={widget.def.label}
@@ -415,7 +400,7 @@ function SceneBeats({ beats }: { readonly beats: readonly string[] }): ReactElem
   }
   return (
     <Stack gap="field">
-      <SectionLabel>Just now</SectionLabel>
+      <Kicker>Just now</Kicker>
       {beats.map((beat, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: recentBeats is a positional, id-less READ-ONLY log (a plain string[]) — beats can repeat verbatim, so content is not unique; immutable within one render, the index IS the beat identity (the character-greeting-preview positional-alternate precedent).
         <BeatLine key={i}>{beat}</BeatLine>
