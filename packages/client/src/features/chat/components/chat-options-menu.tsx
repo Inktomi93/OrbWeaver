@@ -1,7 +1,8 @@
 // The chat options menu: registry-shaped over already-built verbs + store actions, so later features
-// enter as rows, not rework. Unbuilt items are omitted — never a disabled stub pointing at nothing. The
-// turn actions reuse useGuidedActions (the composer wand's own dispatch) with an empty steer, giving
-// the plain continue/reroll/impersonate. Delete cascades hard, through an AlertDialog confirm, never an
+// enter as rows, not rework. Unbuilt items are omitted — never a disabled stub pointing at nothing.
+// #41 CONSOLIDATION: the turn actions (Continue / Regenerate / Impersonate) moved to the composer WAND —
+// the guided-actions home, where the typed composer text optionally steers them; the ⋯ menu keeps only
+// actions with no wand/panel home. Delete cascades hard, through an AlertDialog confirm, never an
 // undo-toast.
 //
 // ONE menu across draft + committed (#8 — the not-yet-ready state renders the SAME options surface with
@@ -26,12 +27,10 @@ import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
-import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY } from "#lib";
-import { committedChat, draftChat, enterSelectionMode, goToLanding, startNewChat } from "#state";
+import { DRAFT_UNLOCK_AFTER_SEND } from "#lib";
+import { enterSelectionMode, goToLanding, startNewChat } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
-import { useGuidedActions } from "../hooks/use-guided-actions";
-import { ImpersonateSubmenu } from "./impersonate-submenu";
 import { RenameChatDialog } from "./rename-chat-dialog";
 
 // The #40 GAME front-door mutations — the ⋯ menu's start/pause/resume rides the rpg procs DIRECTLY
@@ -122,9 +121,6 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters }:
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
-  // A draft has no chatId; the guided fires early-return on a null chatId, so the menu items disable anyway.
-  const guided = useGuidedActions({ handle: chatId === undefined ? draftChat("chat-options-draft") : committedChat(chatId) });
-
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [galleryFor, setGalleryFor] = useState<ChatOptionsCastMember | null>(null);
@@ -132,13 +128,9 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters }:
   const characterIds = characters.map((c) => c.characterId);
   const soloCharacter = characters.length === 1 ? characters[0] : undefined;
 
-  // Canon-requiring actions disable on a draft; the tail-assistant gate additionally disables swipe/continue.
-  const canTargetTail = committed && guided.tailAssistantMessageId !== null;
   // Every disabled item names its unlock condition on hover (owner: "when it's disabled on hover tell why").
-  // draftReason = the generic "send the first message" unlock (undefined on a committed chat — no tooltip);
-  // tailReason = the turn-steering unlock (draft OR committed-with-no-assistant-tail need an assistant reply).
+  // draftReason = the generic "send the first message" unlock (undefined on a committed chat — no tooltip).
   const draftReason = committed ? undefined : DRAFT_UNLOCK_AFTER_SEND;
-  const tailReason = canTargetTail ? undefined : (draftReason ?? NEEDS_ASSISTANT_REPLY);
 
   const openRename = (): void => {
     setRenameValue(title ?? "");
@@ -216,17 +208,9 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters }:
         {/* The #40 GAME front door — start / pause / resume rides here (where New chat lives). */}
         <GameMenuSection chatId={chatId} committed={committed} reason={draftReason} />
 
-        {/* Turn steering needs an assistant reply to work on — disabled (with the tail reason) on a draft
-            OR a committed chat whose latest turn isn't an assistant reply. Same items, never removed. */}
-        <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => guided.fireContinue("")}>
-          Continue
-        </MenuItem>
-        <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => guided.fireSwipe("")}>
-          Regenerate
-        </MenuItem>
-        <ImpersonateSubmenu disabled={!committed} reason={draftReason} onPick={(person): void => guided.fireImpersonate("", person)} />
-
-        <MenuSeparator />
+        {/* #41 consolidation — Continue/Regenerate/Impersonate moved to the composer WAND (the
+            guided-actions home; composer text optional there). The ⋯ menu keeps only actions with no
+            wand/panel home. */}
         {/* IA de-dup (owner rule: an option that has a CONTEXT-panel home does NOT belong in the three dots).
             Removed here because each is already a context-panel tab/section: Chat settings (Settings tab),
             Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host / Leave

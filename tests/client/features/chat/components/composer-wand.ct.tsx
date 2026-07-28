@@ -38,9 +38,33 @@ function roster(...members: unknown[]): unknown {
 const FIRST_SEND_UNLOCK = /send the first message/u;
 const ASSISTANT_REPLY_UNLOCK = /assistant reply/u;
 
-test("the wand trigger is disabled on an empty draft", async ({ mount }) => {
-  const component = await mount(<ComposerStory />);
+test("the wand trigger is disabled on an empty DRAFT (nothing usable without a typed steer pre-commit)", async ({ mount }) => {
+  const component = await mount(<ComposerStory committed={false} />);
   await expect(component.getByRole("button", { name: "Guided generations" })).toBeDisabled();
+});
+
+test("#41: a COMMITTED chat opens the wand text-lessly and Continue fires PLAIN (no guided object)", async ({ mount, page }) => {
+  // The consolidated turn actions moved here from the ⋯ menu — an empty composer fires the plain action,
+  // whose empty steer must OMIT the `guided` object ENTIRELY (§6.4 owner-ruled: an empty-but-present
+  // `guided` would resolve the guided template into a dangling scaffold server-side).
+  const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([tail]),
+    "chat.continueTurn": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  const trigger = component.getByRole("button", { name: "Guided generations" });
+  await expect(trigger).toBeEnabled(); // no text needed on a committed chat (#41)
+  await trigger.click();
+  const continueItem = page.getByRole("menuitem", { name: "Continue", exact: true });
+  await expect(continueItem).toBeEnabled();
+  await continueItem.click();
+
+  await expect.poll(() => trpc.count("chat.continueTurn"), { intervals: [20, 50, 100] }).toBe(1);
+  const input = trpc.lastInput("chat.continueTurn");
+  expect(input).toMatchObject({ chatId: COMPOSER_CHAT_ID, messageId: tail.id });
+  expect(input).not.toHaveProperty("guided");
 });
 
 test("typing a draft enables the trigger; it opens to the committed-chat items", async ({ mount, page }) => {
@@ -52,8 +76,8 @@ test("typing a draft enables the trigger; it opens to the committed-chat items",
   await trigger.click();
 
   await expect(page.getByRole("menuitem", { name: "Guided response" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Continue", exact: true })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Impersonate" })).toBeVisible();
 });
 
@@ -75,20 +99,20 @@ test("Guided response fires chat.generate with the draft as guidance, then clear
   await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
 });
 
-test("Guided swipe/continue are disabled with no tail assistant message to target — reason names the unlock", async ({ mount, page }) => {
+test("Continue/Regenerate are disabled with no tail assistant message to target — reason names the unlock", async ({ mount, page }) => {
   // The default unstubbed `chat.listMessages` resolves `null` (routeTrpc header contract) — no tail.
   const component = await mount(<ComposerStory />);
   await component.getByLabel("Message", { exact: true }).fill("steer it darker");
   await component.getByRole("button", { name: "Guided generations" }).click();
 
-  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toBeDisabled();
-  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Continue", exact: true })).toBeDisabled();
   // On a COMMITTED chat with no assistant tail the reason names the assistant-reply unlock (not first-send).
-  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
-  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Continue", exact: true })).toHaveAttribute("title", ASSISTANT_REPLY_UNLOCK);
 });
 
-test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance", async ({ mount, page }) => {
+test("Regenerate fires chat.swipe with the tail assistant messageId + the typed guidance (#41 label)", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -98,7 +122,7 @@ test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance
 
   await component.getByLabel("Message", { exact: true }).fill("more tension");
   await component.getByRole("button", { name: "Guided generations" }).click();
-  const swipeItem = page.getByRole("menuitem", { name: "Guided swipe" });
+  const swipeItem = page.getByRole("menuitem", { name: "Regenerate" });
   await expect(swipeItem).toBeEnabled();
   await swipeItem.click();
 
@@ -112,7 +136,7 @@ test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance
     });
 });
 
-test("Guided continue fires chat.continueTurn with the tail assistant messageId + guidance", async ({ mount, page }) => {
+test("Continue fires chat.continueTurn with the tail assistant messageId + the typed guidance (#41 label)", async ({ mount, page }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
     "chat.listMessages": () => makeMessagesPage([tail]),
@@ -122,7 +146,7 @@ test("Guided continue fires chat.continueTurn with the tail assistant messageId 
 
   await component.getByLabel("Message", { exact: true }).fill("keep going softly");
   await component.getByRole("button", { name: "Guided generations" }).click();
-  const continueItem = page.getByRole("menuitem", { name: "Guided continue" });
+  const continueItem = page.getByRole("menuitem", { name: "Continue", exact: true });
   await expect(continueItem).toBeEnabled();
   await continueItem.click();
 
@@ -168,14 +192,14 @@ test("draft handle: SAME four items, swipe/continue/impersonate disabled — no 
   // The old swapped sibling label is gone — the committed inventory renders on a draft too.
   await expect(page.getByRole("menuitem", { name: "Guide the opening" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Guided response" })).toBeEnabled();
-  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toBeDisabled();
-  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Continue", exact: true })).toBeDisabled();
   await expect(page.getByRole("menuitem", { name: "Impersonate" })).toBeDisabled();
 
   // Owner ruling: every disabled item explains itself on hover naming the unlock. On a draft that's the
   // first-send unlock (Base UI renders the item aria-disabled, so `title` surfaces on hover).
-  await expect(page.getByRole("menuitem", { name: "Guided swipe" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
-  await expect(page.getByRole("menuitem", { name: "Guided continue" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Regenerate" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
+  await expect(page.getByRole("menuitem", { name: "Continue", exact: true })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
   await expect(page.getByRole("menuitem", { name: "Impersonate" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
 });
 

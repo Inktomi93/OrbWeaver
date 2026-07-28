@@ -63,7 +63,7 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
   const rewrite = useRewriteModal(trimmed, guided.fireRewrite, onChange);
   // All the derived enable/disable flags + hover reasons + the roster/game reads (see useWandFlags below).
   const flags = useWandFlags(handle, trimmed, guided, busy);
-  const { hasText, canOpen, triggerReason, textReason, canTargetTail, canSteerTail, tailReason, draftReason, cast, isMultiRoom, isGame, plotAvailable } = flags;
+  const { hasText, canOpen, triggerReason, textReason, canTargetTail, tailReason, draftReason, cast, isMultiRoom, isGame, plotAvailable } = flags;
 
   // The primary steer: a draft opens the chat (chat.startChat) with the steer; a committed chat generates
   // the next turn (chat.generate). Same item, same intent, phase picks the verb — no swapped sibling item.
@@ -117,11 +117,14 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
               Guided response
             </MenuItem>
           )}
-          <MenuItem disabled={!canSteerTail} title={textReason ?? tailReason} onClick={(): void => fireAndClear(guided.fireSwipe)}>
-            Guided swipe
+          {/* #41 consolidation — Continue/Regenerate live HERE (moved out of the ⋯ menu): the composer
+              text is OPTIONAL (typed nudge steers; empty fires the plain action — the empty steer omits
+              the guided object entirely, the §6.4 owner-ruled shape). */}
+          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireContinue)}>
+            Continue
           </MenuItem>
-          <MenuItem disabled={!canSteerTail} title={textReason ?? tailReason} onClick={(): void => fireAndClear(guided.fireContinue)}>
-            Guided continue
+          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireSwipe)}>
+            Regenerate
           </MenuItem>
           {/* F1 — rewrite the last reply out of character; OPENS the modal (instruction + toggle catalog),
               which fires guided.fireRewrite on Apply. Needs a tail assistant reply to correct. */}
@@ -226,7 +229,6 @@ interface WandFlags {
   readonly triggerReason: string | undefined;
   readonly textReason: string | undefined;
   readonly canTargetTail: boolean;
-  readonly canSteerTail: boolean;
   readonly tailReason: string | undefined;
   readonly draftReason: string | undefined;
   readonly cast: ReturnType<typeof filterCharacters>;
@@ -265,20 +267,20 @@ function useWandFlags(handle: ChatHandle, trimmed: string, guided: UseGuidedActi
 
   const hasText = trimmed.length > 0;
   const idle = !(turnBusy || guided.isPending || busy);
-  const canOpen = (hasText || isGame) && idle;
+  // #41 consolidation — a COMMITTED chat opens the wand text-lessly (it hosts Continue/Regenerate/
+  // Impersonate, whose composer text is optional); a draft still needs a typed steer.
+  const canOpen = (hasText || isGame || committed) && idle;
   // The disabled trigger explains itself on hover — the empty-composer case is the FIRST thing a user sees
   // on a fresh draft, so name the unlock (type a message). A busy/pending disablement is transient.
-  const triggerReason = hasText || isGame ? undefined : WAND_NEEDS_TEXT;
+  const triggerReason = hasText || isGame || committed ? undefined : WAND_NEEDS_TEXT;
   const textReason = hasText ? undefined : WAND_NEEDS_TEXT;
-  // A tail assistant slot to target — never present on a draft (no canon), so swipe/continue/rewrite disable.
+  // A tail assistant slot to target — never present on a draft (no canon), so continue/regenerate/rewrite disable.
   const canTargetTail = committed && guided.tailAssistantMessageId !== null;
-  // Swipe/continue consume the typed steer AND target the tail — both unlocks named on hover.
-  const canSteerTail = canTargetTail && hasText;
   // A draft unlocks on the first send; a committed chat with no assistant tail needs an assistant reply.
   const draftReason = committed ? undefined : DRAFT_UNLOCK_AFTER_SEND;
   const tailReason = canTargetTail ? undefined : (draftReason ?? NEEDS_ASSISTANT_REPLY);
 
-  return { hasText, canOpen, triggerReason, textReason, canTargetTail, canSteerTail, tailReason, draftReason, ...room };
+  return { hasText, canOpen, triggerReason, textReason, canTargetTail, tailReason, draftReason, ...room };
 }
 
 // ── The P5 GAME section (the Plot submenu + the one-shot "Offer choices") ───────────────────────────────
