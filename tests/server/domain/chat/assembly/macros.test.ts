@@ -111,6 +111,48 @@ describe("renderMacros", () => {
   });
 });
 
+// The parity-plus P6 macro × rpg channel (§12): the celBindings + idleDuration + rpgMacros fields on an
+// AssembleContext reach the kit MacroContext through `macroOptionsFor`, so `{{expr::rpg.…}}` / `{{idle_duration}}`
+// / `{{rpgSceneState}}` resolve on a game turn and DEGRADE (byte-identically "") off a game.
+describe("P6 macro × rpg channel — celBindings / idle_duration / rpg macros reach the render", () => {
+  test("{{expr::rpg.…}} evaluates against the staged rpg CEL binding on a game turn", () => {
+    const ctx = ctxOf({
+      celBindings: {
+        rpg: {
+          scene: { location: "Dunmoor", weather: "storm", day: 3 },
+          cast: [
+            { name: "Mari", mood: "wary", relationship: "enemy" },
+            { name: "Kael", mood: "calm", relationship: "ally" },
+          ],
+          quests: [{ name: "The Key", status: "active", objectivesOpen: 1, objectivesTotal: 3 }],
+          delta: { text: "kael HP 12→16 (+4)" },
+        },
+      },
+    });
+    expect(renderMacros("{{expr::rpg.scene.location}}", ctx, null)).toBe("Dunmoor");
+    expect(renderMacros('{{expr::rpg.cast.exists(c, c.relationship == "enemy")}}', ctx, null)).toBe("true");
+    expect(renderMacros('{{expr::rpg.quests.filter(q, q.status == "active").size()}}', ctx, null)).toBe("1");
+  });
+
+  test('{{expr::rpg.…}} errors-to-"" off a game (no rpg binding staged — the built CEL degrade)', () => {
+    // A non-game chat stages no celBindings ⇒ the field reference errors → "" (byte-identical to no expr).
+    expect(renderMacros("{{expr::rpg.scene.location}}", ctxOf(), null)).toBe("");
+    expect(renderMacros('{{expr::rpg.cast.exists(c, c.relationship == "enemy")}}', ctxOf(), null)).toBe("");
+  });
+
+  test('{{idle_duration}} renders the staged human text on a turn, "" when absent', () => {
+    expect(renderMacros("{{idle_duration}}", ctxOf({ idleDuration: "8 minutes" }), null)).toBe("8 minutes");
+    expect(renderMacros("{{idle_duration}}", ctxOf(), null)).toBe("");
+  });
+
+  test('{{rpgSceneState}} renders the staged value on a game, "" off a game (READ mirror)', () => {
+    expect(renderMacros("{{rpgSceneState}}", ctxOf({ rpgMacros: { rpgSceneState: "Scene: Dunmoor" } }), null)).toBe("Scene: Dunmoor");
+    // Off-game (no rpgMacros) AND an unstaged full-mode key both resolve "" — the honest empty.
+    expect(renderMacros("{{rpgSceneState}}", ctxOf(), null)).toBe("");
+    expect(renderMacros("{{rpgMap}}", ctxOf({ rpgMacros: { rpgSceneState: "x" } }), null)).toBe("");
+  });
+});
+
 const ARIA = castId<CharacterId>("char_aria");
 const NYX = castId<PersonaId>("persona_nyx");
 const ZARA = castId<PersonaId>("persona_zara");

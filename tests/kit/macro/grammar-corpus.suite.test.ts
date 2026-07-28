@@ -337,3 +337,11 @@ test("[corpus/invariant] volatileNames still reports the freeze set after the gr
   const registry: MacroRegistry = createDefaultRegistry();
   expect(registry.volatileNames()).toEqual(expect.arrayContaining(["random", "pick", "roll", "time", "setvar", "expr"]));
 });
+
+// parity-plus P6 (§12.3): the rpg data macros + {{idle_duration}} are `volatile:true` so the assembly cache-buster
+// scan (`volatileNames()`) flags a preset placing `{{rpgSceneState}}` in a cached prefix — no silent cache churn.
+test("[corpus/invariant] volatileNames includes the rpg data macros + idle_duration (the cache-buster scan)", () => {
+  const registry: MacroRegistry = createDefaultRegistry();
+  const vol = registry.volatileNames();
+  expect(vol).toEqual(expect.arrayContaining(["rpgscenestate", "rpgcast", "rpgquests", "rpgdelta", "idle_duration"]));
+});

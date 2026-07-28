@@ -9,7 +9,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { chatBooks, chatInjections, chats, worldBooks, worldEntries } from "@orb/db";
+import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -21,6 +21,8 @@ import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support";
+
+const MIN_MS = 60_000;
 
 let db: Db;
 beforeEach(async () => {
@@ -145,6 +147,44 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
     expect(out.variableValues).toEqual({ mood: "calm" });
     // The operator chat_injection survives the (unbudgeted) pass and rides the built injection list.
     expect((out.chatInjections ?? []).some((i) => i.content.includes("OPERATOR"))).toBe(true);
+  });
+
+  // parity-plus P6 (§12, D6): {{idle_duration}} = time since the last activity EXCLUDING the in-flight message.
+  // The in-flight turn here is the newest COMMITTED user row (no pendingUserText) — so idle measures from the row
+  // BEFORE it (the prior beat), never ~0. Two rows: prior at now−8min, in-flight at now ⇒ 8 minutes.
+  test("idleDuration excludes the in-flight (newest committed) message — measures from the prior beat", async () => {
+    const { host, chatId, aria } = await seedRoom("idle");
+    const prior = await seedMessage(db, chatId, 1, { role: "assistant", characterId: aria, content: "earlier" });
+    const inflight = await seedMessage(db, chatId, 2, { role: "user", authorUserId: host, content: "you there?" });
+    // ctx.now() is FROZEN_AT; the prior beat committed 8 minutes before, the in-flight one AT now.
+    await db
+      .update(messages)
+      .set({ createdAt: FROZEN_AT - 8 * MIN_MS })
+      .where(eq(messages.id, prior.messageId));
+    await db.update(messages).set({ createdAt: FROZEN_AT }).where(eq(messages.id, inflight.messageId));
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      foreignOf(),
+    );
+    // The in-flight (seq 2, at now) is excluded ⇒ idle = now − prior(now−8min) = "8 minutes" (NOT ~0).
+    expect(out.idleDuration).toBe("8 minutes");
+  });
+
+  test('idleDuration is unset on a fresh one-message chat (no prior activity ⇒ the marker resolves "")', async () => {
+    const { host, chatId, aria } = await seedRoom("idle-fresh");
+    // The single committed row IS the in-flight message — excluding it leaves NO prior activity.
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "first" });
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      foreignOf(),
+    );
+    expect(out.idleDuration).toBeUndefined();
   });
 
   test("excludedFromPrompt rows are dropped from the recent window + last-message family", async () => {

@@ -17,6 +17,7 @@ import type {
   RpgTrackerView,
   RpgWidgetDef,
 } from "@orb/contracts/rpg";
+import type { CelValue } from "@orb/kit/cel";
 import type {
   ChatId,
   MessageId,
@@ -271,6 +272,21 @@ export interface RpgGatherResult {
   readonly macros: Readonly<Record<string, string>>;
   readonly injections: readonly ChatInjection[];
   readonly tools: readonly string[];
+  // The `{{expr::…}}` CEL activation (parity-plus §12) — a data-only `rpg` binding whose value is the tracker view
+  // shaped as a CelValue tree (scalars/lists/maps, no functions). Chat threads it onto the AssembleContext's
+  // `celBindings` structurally so `{{expr::rpg.scene.location}}` reads state. Absent on a lite gather that stages
+  // no expr surface.
+  readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
+}
+
+/** The macro + CEL feed a game turn's GATHER builds (parity-plus §12) — the string macro map (rpgSceneState/
+ *  rpgCast/rpgQuests/rpgDelta) staged on `rpgMacros`, plus the data-only `rpg` CEL tree staged as the `rpg`
+ *  binding on `celBindings`. Both project from the SAME tracker view the reminder + panel read (one projection,
+ *  three consumers). Built by `chat-ops/macro-view.ts` (§7.4: the feature type homes in contract/, not the
+ *  substrate that produces it). */
+export interface RpgMacroFeed {
+  readonly macros: Readonly<Record<string, string>>;
+  readonly rpg: CelValue;
 }
 
 /** The `buildLiteReminder` inputs the gather resolves and hands in (§4.7). `steeringNote` is

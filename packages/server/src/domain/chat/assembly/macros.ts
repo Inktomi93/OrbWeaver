@@ -98,6 +98,12 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
     // Shared ChoiceBlock variable map by reference — a setvar in one section is visible to the next.
     env: ctx.variableValues ?? {},
   };
+  // parity-plus P6 (§12): the `{{idle_duration}}` value + the CEL activation the `{{expr::…}}` macro reads. A
+  // game turn's GATHER stages `celBindings.rpg` (the tracker view as a data-only CelValue tree); a non-game chat
+  // stages neither ⇒ `{{idle_duration}}` → "" and `{{expr::rpg.…}}` errors-to-"" (both byte-identical off-game).
+  setIf(opts, "rpgMacros", ctx.rpgMacros);
+  setIf(opts, "idleDuration", ctx.idleDuration);
+  setIf(opts, "celBindings", ctx.celBindings);
   setIf(opts, "original", extras.original);
   setIf(opts, "model", extras.model);
   setIf(opts, "chatId", extras.chatId);

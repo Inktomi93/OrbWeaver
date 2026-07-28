@@ -12,7 +12,7 @@ import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/id
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db";
 import type { RpgHarness } from "../_support";
-import { addVariant, emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
+import { addVariant, emptyState, expect, principal, questId, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
 
 /** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
 function kael(hp: number): RpgActorVolatile {
@@ -64,12 +64,17 @@ test("a NON-game chat gathers null (byte-identical no-op)", async () => {
   expect(out).toBeNull();
 });
 
-test("a game contributes ONE depth-0 system reminder injection, no macros", async () => {
+test("a game contributes ONE depth-0 system reminder injection + the rpg macro/CEL feed (parity-plus §12)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
   expect(out).not.toBeNull();
-  expect(out?.macros).toEqual({});
+  // An empty seeded game stages the lite-relevant macro KEYS (all empty-string here) — the full-mode keys
+  // (rpgMap/rpgMorale/…) stay ABSENT ⇒ they resolve "". A READ mirror, never a write.
+  expect(out?.macros).toEqual({ rpgSceneState: "", rpgCast: "", rpgQuests: "", rpgDelta: "" });
+  expect(Object.keys(out?.macros ?? {})).not.toContain("rpgMap");
+  // The `rpg` CEL binding is always staged on a game turn (the whole scene/cast/quests read surface).
+  expect(out?.celBindings).toHaveProperty("rpg");
   expect(out?.injections).toHaveLength(1);
   const inj = out?.injections[0];
   expect(inj?.position).toBe("in_chat");
@@ -153,4 +158,56 @@ test("hand-edit-as-source: a host editSnapshot surfaces as a delta on the next g
   const text = await reminderText(h, chatId);
   // The GM tweak lands next turn: prev(12)→cur(18) = a +6 delta line (the diff is agnostic to the WRITE source).
   expect(text).toContain("kael HP 12→18 (+6)");
+});
+
+// ── the P6 macro × rpg FEED (parity-plus §12) — the gather populates rpgSceneState/rpgCast/rpgQuests + the `rpg`
+// CEL tree from the SAME tracker view the reminder reads (one projection, three consumers). A READ mirror.
+
+/** Seed a COMMITTED snapshot carrying a scene (location + present cast with a relationship + an active quest) —
+ *  the populated-feed input. The tracker view resolves this current head; roster (party sheets) stays empty. */
+async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq: number }): Promise<void> {
+  const { variantId } = await seedMessage(db, opts.chatId, opts.seq, { role: "assistant" });
+  await db.insert(rpgSnapshots).values({
+    ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `scene${opts.seq}` }),
+    ...emptyState(),
+    location: "Village of Dunmoor",
+    presentCharacters: [{ key: "mari", name: "Mari", emoji: "", mood: "wary", customFields: {}, relationship: { kind: "enemy", label: "" } }],
+    quests: [
+      {
+        id: questId("key"),
+        name: "The Missing Key",
+        status: "active",
+        description: "",
+        objectives: [{ id: "o1", text: "find the locksmith", completed: false }],
+      },
+    ],
+    fieldLocks: null,
+    committed: 1,
+  });
+}
+
+test("the gather populates rpgSceneState/rpgCast/rpgQuests from the tracker view (on-game values)", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db);
+  await seedScene(db, { chatId, gameId, seq: 2 });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  expect(out?.macros["rpgSceneState"]).toContain("Village of Dunmoor");
+  expect(out?.macros["rpgSceneState"]).toContain("Mari");
+  expect(out?.macros["rpgSceneState"]).toContain("enemy");
+  expect(out?.macros["rpgCast"]).toContain("Mari");
+  expect(out?.macros["rpgQuests"]).toContain("The Missing Key");
+  expect(out?.macros["rpgQuests"]).toContain("find the locksmith");
+});
+
+test("the gather stages the `rpg` CEL tree so {{expr::rpg.…}} reads scene/cast/quests state", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db);
+  await seedScene(db, { chatId, gameId, seq: 2 });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  // The `rpg` binding is a data-only CelValue tree — its documented read-set (scene.location, cast[].relationship,
+  // quests[].status) carries the tracker view, so an `{{expr}}` predicate on the turn evaluates against real state.
+  const rpg = (out?.celBindings as { rpg: { scene: { location: string }; cast: { relationship: string }[]; quests: { status: string }[] } }).rpg;
+  expect(rpg.scene.location).toBe("Village of Dunmoor");
+  expect(rpg.cast[0]?.relationship).toBe("enemy");
+  expect(rpg.quests[0]?.status).toBe("active");
 });

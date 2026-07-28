@@ -409,6 +409,11 @@ export interface ChatRpgGatherResult {
   readonly macros: Readonly<Record<string, string>>;
   readonly injections: readonly ChatInjection[];
   readonly tools: readonly string[];
+  // The `{{expr::…}}` CEL activation a game turn contributes (parity-plus §12) — a data-only `rpg` binding whose
+  // value is the tracker view shaped as a CelValue tree (scalars/lists/maps, NO functions). STRUCTURAL — chat
+  // threads it onto the AssembleContext's `celBindings` verbatim, never learning the `rpg` shape. Absent ⇒
+  // `{{expr::rpg.…}}` errors-to-"" (non-game).
+  readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
 }
 
 /** The generic injection set the chat-crew's director GATHER contributes (chat-crew-design/04 §1). STRUCTURAL —

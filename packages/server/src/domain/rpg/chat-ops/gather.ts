@@ -28,6 +28,7 @@ import { findGameByChat } from "../persistence/games";
 import { resolveTurnSnapshotPair } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import { buildLiteReminder } from "../substrate/reminder";
+import { buildRpgMacroFeed } from "./macro-view";
 import { buildTrackerView } from "./tracker-view";
 
 export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promise<RpgGatherResult | null> {
@@ -77,5 +78,17 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
   });
 
   const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: reminder };
-  return { macros: {}, injections: [injection], tools: [] };
+
+  // The macro + CEL feed (parity-plus §12) — populates `rpgSceneState`/`rpgCast`/`rpgQuests`/`rpgDelta` from the
+  // SAME tracker view the reminder + panel read (one projection, three consumers), plus the data-only `rpg` CEL
+  // tree so `{{expr::rpg.…}}` reads state on a game turn. A READ mirror, never a write. The delta context mirrors
+  // the reminder's (same rosterNames/castFields/relationshipHints) so the `{{rpgDelta}}` macro == the reminder's
+  // delta block. Full-mode macros (`rpgMap`/`rpgMorale`/…) are ABSENT from the map ⇒ they resolve "" (honest empty).
+  const feed = buildRpgMacroFeed({
+    view,
+    prevSnapshot,
+    curSnapshot,
+    deltaContext: { rosterNames, castFields: game.config.features.castFields, relationshipHints: game.config.features.relationshipHints },
+  });
+  return { macros: feed.macros, injections: [injection], tools: [], celBindings: { rpg: feed.rpg } };
 }

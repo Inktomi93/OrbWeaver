@@ -260,6 +260,11 @@ export interface MacroContext {
   // ONE map (not 8 fields) so the channel is a single seam; a non-game chat / unstaged turn ⇒ every rpg
   // macro renders empty (byte-identical non-game turn).
   rpgMacros?: Readonly<Record<string, string>> | undefined;
+  // {{idle_duration}} — time since the last chat activity as human text ("8 minutes"), computed at assembly
+  // off the message timestamps the chat holds, EXCLUDING the in-flight message (else it always reads ~0 — the
+  // user just sent). Any chat (game or not) stages it; absent / a fresh one-message chat ⇒ the macro renders ""
+  // (no prior activity). Volatile — it changes every turn.
+  idleDuration?: string | undefined;
   // Run-environment shortcuts (legacy card-format compat). Threaded by the chat send/assembly path.
   model?: string | undefined; // → {{model}}
   chatId?: string | undefined; // → {{chatId}}

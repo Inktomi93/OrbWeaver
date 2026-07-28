@@ -308,6 +308,12 @@ interface BuildAssembleContextInput {
   /** The 8 rpg* data-fed macro values (rpg-design/06 §1), keyed by the RpgGatherMacros field names — a game
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
+  // A game turn's `{{expr::…}}` CEL activation (§12) — the data-only `rpg` binding (the tracker view as a CelValue
+  // tree). Absent ⇒ `{{expr}}` sees an empty binding (`{{expr::rpg.…}}` errors-to-"").
+  readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
+  /** The `{{idle_duration}}` value (§12 D6 fold) — human text time-since-last-activity, computed at GATHER off
+   *  the message timestamps (excluding the in-flight message). Absent ⇒ the marker resolves empty. */
+  readonly idleDuration?: string | undefined;
   readonly compactSummary?: string | null | undefined;
   /** The compaction coverage stamp — covered canon rows (`seq <= compactedThroughSeq`) fall out of the shaped
    *  prompt history when a summary is present (full-reset). Null/absent ⇒ no exclusion. */
@@ -413,6 +419,12 @@ function buildBaseContext(
   setIf(base, "compactSummary", input.compactSummary);
   setIf(base, "compactedThroughSeq", input.compactedThroughSeq);
   setIf(base, "guidedInstruction", input.guidedInstruction);
+  // parity-plus P6 (§12): the rpg data-fed macro map + the `{{expr::…}}` CEL activation + the `{{idle_duration}}`
+  // value — each absent (non-game / gather null) ⇒ skipped ⇒ every rpg macro / `{{expr::rpg.…}}` / idle marker
+  // resolves empty (byte-identical non-game build). The gather stages all three; a non-game turn stages none.
+  setIf(base, "rpgMacros", input.rpgMacros);
+  setIf(base, "celBindings", input.celBindings);
+  setIf(base, "idleDuration", input.idleDuration);
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
   // at_depth/none route elsewhere, so the description is never double-injected.
   base.personaMarkerActive = input.personas.active?.placement === undefined || input.personas.active.placement.kind === "in_prompt";
