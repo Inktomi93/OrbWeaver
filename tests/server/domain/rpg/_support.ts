@@ -47,7 +47,13 @@ export function emptyState(): RpgSnapshotState {
 
 /** A lite game config (freeform profile, empty steering note, default extraction mode). */
 export function liteConfig(): RpgGameConfig {
-  return { statProfile: RPG_PROFILE_FREEFORM, lite: { steeringNote: "" }, extractionMode: "reliable" };
+  return {
+    statProfile: RPG_PROFILE_FREEFORM,
+    lite: { steeringNote: "" },
+    extractionMode: "reliable",
+    features: { castFields: [], relationshipHints: {} },
+    userMacros: [],
+  };
 }
 
 /** Insert a lite `rpg_games` row for a chat; returns its id. */
@@ -113,7 +119,7 @@ export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; v
 // exactly what W1b-integration wires to chat/connection; here they're programmable fakes). Deterministic:
 // id mints are stable counters, the clock is FROZEN, `randomInt` is a scripted queue.
 
-/** The narration turn's resolved connection + consent verdict the flush threads into the state round (F1/F2).
+/** The character turn's resolved connection + consent verdict the flush threads into the state round (F1/F2).
  *  Defaults to a WRITER connection (structured + tools capable) with consent ON, so a flush actually runs its
  *  round unless a test overrides it (e.g. a readonly/no-writer capability to pin the F2 gate, or a max-pro-sub
  *  source + `ownerConsented:false` to pin the F1 consent inheritance). */

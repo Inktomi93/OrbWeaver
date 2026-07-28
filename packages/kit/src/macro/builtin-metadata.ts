@@ -3,8 +3,11 @@
 // the registry's lowercase lookup name; `volatile` is intentionally ABSENT (MacroMetadataInput) — the
 // registry composes it from the `registerVolatileMacros` set so the two can't drift (D51). A completeness
 // test (tests/kit/macro/metadata.test.ts) asserts every default-registered name has an entry here.
+// NOTE (M1, §12A.1): block capability is UNIVERSAL — any macro takes a `{{name::args}}body{{/name}}` body
+// (the resolved body arrives as its last unnamed arg) — so there is deliberately NO per-macro
+// "block-capable" field; the flag vocabulary the browser documents is `MACRO_FLAG_DEFS` (types.ts).
 
-import type { MacroArgDef, MacroCategory, MacroMetadataInput } from "./types";
+import type { MacroArgDef, MacroCategory, MacroListSpec, MacroMetadataInput } from "./types";
 
 // Common arg shapes — the var-op family repeats these; naming them keeps the table's intent legible.
 const KEY_ARG = { name: "key", type: "string", optional: false } as const;
@@ -17,9 +20,18 @@ function meta(
   name: string,
   category: MacroCategory,
   description: string,
-  extra: { args?: readonly MacroArgDef[]; aliases?: readonly string[]; variadic?: boolean } = {},
+  extra: { args?: readonly MacroArgDef[]; aliases?: readonly string[]; variadic?: boolean; list?: MacroListSpec } = {},
 ): MacroMetadataInput {
-  return { name, description, category, args: extra.args ?? [], returnType: "string", aliases: extra.aliases ?? [], variadic: extra.variadic ?? false };
+  return {
+    name,
+    description,
+    category,
+    args: extra.args ?? [],
+    returnType: "string",
+    aliases: extra.aliases ?? [],
+    variadic: extra.variadic ?? false,
+    ...(extra.list !== undefined ? { list: extra.list } : {}),
+  };
 }
 
 export const BUILTIN_MACRO_METADATA = {
@@ -72,7 +84,7 @@ export const BUILTIN_MACRO_METADATA = {
     args: [{ name: "predicate", type: "string", optional: true }],
     variadic: true,
   }),
-  else: meta("else", "system", "Marks the alternate branch inside an {{#if}} block."),
+  else: meta("else", "system", "Marks the alternate branch inside an {{if}}…{{/if}} block."),
   newline: meta("newline", "system", "Renders a single newline."),
   space: meta("space", "system", "Renders a single space."),
   noop: meta("noop", "system", "Renders nothing (a no-op placeholder)."),
@@ -121,9 +133,12 @@ export const BUILTIN_MACRO_METADATA = {
     ],
     variadic: true,
   }),
+  // The M3 LIST spec in action: a {{pick}} of nothing is an authoring mistake — min 1 makes it an
+  // author-time diagnostic (the render still degrades to "" per the fail-open posture).
   pick: meta("pick", "random", "Picks one of the given options under the injected PRNG.", {
     args: [{ name: "option", type: "string", optional: true }],
     variadic: true,
+    list: { min: 1 },
   }),
   roll: meta("roll", "random", "Rolls dice: {{roll::NdM}} sums N M-sided dice, {{roll::N}} rolls 1..N.", {
     args: [{ name: "spec", type: "string", optional: false }],

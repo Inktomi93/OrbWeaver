@@ -13,6 +13,7 @@
 import type { PluginMessageView } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { characters, messages, messageVariants } from "@orb/db";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import { and, desc, eq, gte } from "drizzle-orm";
 
@@ -29,11 +30,16 @@ const PLUGIN_MESSAGE_MAX_LIMIT = 50;
  * `opts.floorSeq` is the VIEWER's history floor: rows below it are pre-join for this human and are withheld
  * by the query itself. The caller must obtain it from chat's `resolveViewerVisibility` (a non-member never
  * reaches this function at all — the bridge short-circuits to `[]`).
+ *
+ * `opts.readsHidden` is the §3.6 / D106 hidden-content verdict from the SAME visibility resolve: `false` (a
+ * member) STRIPS hidden-class spans (`<lie>`/`<ofilter>`) from each body BEFORE it crosses the realm boundary,
+ * so an untrusted guest realm running as a non-host member never receives a GM-plane secret; `true` (the host
+ * reveal plane) reads verbatim. Stripping here — not a post-filter — keeps the security predicate at the read.
  */
 export async function loadPluginMessages(
   db: Db,
   chatId: ChatId,
-  opts: { readonly limit?: number | undefined; readonly floorSeq: number },
+  opts: { readonly limit?: number | undefined; readonly floorSeq: number; readonly readsHidden: boolean },
 ): Promise<readonly PluginMessageView[]> {
   const limit = Math.min(opts.limit ?? PLUGIN_MESSAGE_DEFAULT_LIMIT, PLUGIN_MESSAGE_MAX_LIMIT);
   const rows = await db
@@ -52,13 +58,18 @@ export async function loadPluginMessages(
     .orderBy(desc(messages.seq))
     .limit(limit);
   return rows
-    .map((r) => ({
-      id: r.id,
-      role: r.role,
-      authorDisplayName: r.authorName ?? r.role,
-      characterId: r.characterId,
-      seq: r.seq,
-      content: r.content.length > PLUGIN_MESSAGE_CONTENT_CAP ? r.content.slice(0, PLUGIN_MESSAGE_CONTENT_CAP) : r.content,
-    }))
+    .map((r) => {
+      // §3.6 / D106: strip hidden-class spans for a member BEFORE the cap, so the truth never reaches the guest
+      // realm (identity when nothing is hidden; the host reveal plane reads verbatim).
+      const body = opts.readsHidden ? r.content : stripHiddenSpans(r.content).content;
+      return {
+        id: r.id,
+        role: r.role,
+        authorDisplayName: r.authorName ?? r.role,
+        characterId: r.characterId,
+        seq: r.seq,
+        content: body.length > PLUGIN_MESSAGE_CONTENT_CAP ? body.slice(0, PLUGIN_MESSAGE_CONTENT_CAP) : body,
+      };
+    })
     .reverse();
 }

@@ -74,6 +74,11 @@ export interface ExtractionRefs {
   readonly actorRefs: readonly string[];
   /** Existing custom-widget labels the model may write (`widgetRef` on set_widget_value). */
   readonly widgetRefs: readonly string[];
+  /** Host-defined tracked cast-field KEYS the model may write (§2.8) — constrains
+   *  `scene.presentUpsert[].customFields[].name` so a model can only write a DEFINED field, never invent one.
+   *  Empty (no cast-fields configured) leaves the pair name unconstrained (the opaque-record behavior is gone
+   *  only when a schema is defined — an empty schema means the feature is off, so no constraint to apply). */
+  readonly castFieldKeys: readonly string[];
 }
 
 // A projected JSON-schema node (the `projectJsonSchema` output shape — a plain object tree).
@@ -82,8 +87,8 @@ type JsonSchemaNode = Record<string, unknown>;
 // Set `enum` on a leaf string property node IN PLACE (clone-safe: the caller passes a fresh clone). A
 // non-empty enum both constrains the value AND documents the valid set to the model; an empty list is a
 // no-op (never an impossible `enum:[]`).
-function constrainStringProperty(node: unknown, values: readonly string[]): void {
-  if (values.length === 0 || node === null || typeof node !== "object") {
+function constrainStringProperty(node: unknown, values: readonly string[] | undefined): void {
+  if (values === undefined || values.length === 0 || node === null || typeof node !== "object") {
     return;
   }
   (node as JsonSchemaNode)["enum"] = [...values];
@@ -136,13 +141,20 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);
+  // §2.8 — constrain the nested cast-field pair NAME to the host-defined field keys:
+  // scene.presentUpsert[].customFields[].name. A model can then only write a DEFINED field under an enforcing
+  // backend (never an invented key). Empty keys leave it unconstrained (the feature-off arm).
+  const upsertItem = sceneProps?.["presentUpsert"] !== undefined ? itemsOf(sceneProps["presentUpsert"]) : undefined;
+  const customFieldsItem = upsertItem !== undefined ? itemsOf(propsOf(upsertItem)?.["customFields"]) : undefined;
+  const nameNode = customFieldsItem !== undefined ? propsOf(customFieldsItem)?.["name"] : undefined;
+  constrainStringProperty(nameNode, refs.castFieldKeys);
   return clone;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // The CHEAP-mode TOOL ROUND — the parallel-tool-call vehicle (owner ruling 2026-07-27).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Cheap mode is a DEDICATED, state-only request (NOT tools mounted on the narration turn — that fight is
+// Cheap mode is a DEDICATED, state-only request (NOT tools mounted on the character turn — that fight is
 // retired). The model gets the six state-writing tools + a `no_changes` escape, `tool_choice:"required"`, and
 // a state-focused prompt; it emits PARALLEL tool calls in ONE request (LIVE-VERIFIED 2026-07-27: vLLM
 // hermes/Qwen3 + OpenRouter both emit 2-3 parallel calls on a change beat and a single `no_changes` on a

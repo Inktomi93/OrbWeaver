@@ -21,6 +21,8 @@ import {
   THINK_PREFIX_DEFAULT,
   THINK_SUFFIX_DEFAULT,
   userIntentSchema,
+  userMacroSchema,
+  userMacroValuesSchema,
 } from "@orb/contracts/preset";
 import { expect, test } from "../../support/fixtures";
 
@@ -499,4 +501,63 @@ test("importStChatCompletionPreset: a blank prompt slot is omitted (falls back t
   const result = importStChatCompletionPreset(stBlob({ impersonation_prompt: "   ", continue_nudge_prompt: "" }));
   expect(result.config.formatStrings?.impersonateNudge).toBeUndefined();
   expect(result.config.formatStrings?.continueNudge).toBeUndefined();
+});
+
+// ── WAVE MU: user-macro definitions (strict-schema authoring pins) ─────────────────────────────────
+
+test("userMacroSchema fills defaults for a bare {name, body} definition (strict-schema authoring law)", () => {
+  const parsed = userMacroSchema.parse({ name: "greet", body: "Hi {{who}}" });
+  expect(parsed).toEqual({ name: "greet", description: "", args: [], inputs: [], body: "Hi {{who}}", strict: false });
+});
+
+test("userMacroSchema rejects an unparseable macro name (the parser could never tokenize it)", () => {
+  expect(userMacroSchema.safeParse({ name: "2bad", body: "x" }).success).toBe(false);
+  expect(userMacroSchema.safeParse({ name: "has space", body: "x" }).success).toBe(false);
+  expect(userMacroSchema.safeParse({ name: "ok-name_1", body: "x" }).success).toBe(true);
+});
+
+test("userMacroSchema rejects optional args that are NOT a contiguous suffix (the arity model's rule)", () => {
+  const bad = userMacroSchema.safeParse({
+    name: "m",
+    body: "x",
+    args: [
+      { name: "a", type: "string", optional: true },
+      { name: "b", type: "string", optional: false },
+    ],
+  });
+  expect(bad.success).toBe(false);
+  const ok = userMacroSchema.safeParse({
+    name: "m",
+    body: "x",
+    args: [
+      { name: "a", type: "string", optional: false },
+      { name: "b", type: "string", optional: true },
+    ],
+  });
+  expect(ok.success).toBe(true);
+});
+
+test("userMacroSchema fills every typed-input knob default (a def predating a knob self-heals)", () => {
+  const parsed = userMacroSchema.parse({ name: "m", body: "{{x}}", inputs: [{ kind: "random-pick", name: "x" }] });
+  expect(parsed.inputs[0]).toEqual({
+    kind: "random-pick",
+    name: "x",
+    label: "",
+    options: [],
+    separator: ", ",
+    onValue: "true",
+    offValue: "",
+    defaultValue: "",
+  });
+});
+
+test("promptConfig.userMacros defaults to [] (a pre-MU blob parses — additive, no version bump)", () => {
+  const parsed = parsePromptConfig({ schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION, sections: [] });
+  expect(parsed.userMacros).toEqual([]);
+});
+
+test("userMacroValuesSchema accepts the string | boolean | string[] value union (the #24 wire bag)", () => {
+  const parsed = userMacroValuesSchema.parse({ m: { pov: "first", grim: true, themes: ["war", "loss"] } });
+  expect(parsed).toEqual({ m: { pov: "first", grim: true, themes: ["war", "loss"] } });
+  expect(userMacroValuesSchema.safeParse({ m: { bad: { nested: 1 } } }).success).toBe(false);
 });

@@ -16,3 +16,12 @@ test("the steeringNote is capped (a short always-wins user slot)", () => {
   const ok = { lite: { steeringNote: "lean darker" } };
   expect(rpgGameConfigSchema.parse(ok).lite.steeringNote).toBe("lean darker");
 });
+
+// WAVE MU: the GAME-home half of the two-home user-macro rule (§12A.5) — additive defaulted [], the
+// SAME userMacroSchema as preset (imported from #preset), so a pre-MU blob self-heals and a bad def rejects.
+test("userMacros is the game-home for authored macros — defaults [], accepts a valid def, rejects a bad name", () => {
+  expect(rpgGameConfigSchema.parse({}).userMacros).toEqual([]);
+  const withMacro = rpgGameConfigSchema.parse({ userMacros: [{ name: "gmTone", body: "The GM speaks {{tone}}" }] });
+  expect(withMacro.userMacros[0]).toMatchObject({ name: "gmTone", body: "The GM speaks {{tone}}", strict: false });
+  expect(rpgGameConfigSchema.safeParse({ userMacros: [{ name: "2bad", body: "x" }] }).success).toBe(false);
+});

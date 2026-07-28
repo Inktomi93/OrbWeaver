@@ -45,6 +45,16 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
     html: z.string(),
     css: z.string().optional(),
     trust: cardTrustSchema,
+    /** The `:::card title="…"` label (parity-plus §3.2b) — the expand-affordance/lightbox label. Absent on
+     *  a title-less card and on the pre-grammar born-compliant arm (additive, version-tolerant). */
+    title: z.string().optional(),
+  }),
+  /** The parity-plus §5.2 CYOA choice set — the model's `:::choices` fence projected for the reading
+   *  surface. P2 ships the block (rendered as an ordinary list); the P5 wave upgrades the client arm to
+   *  clickable send-affordances without touching this contract. */
+  z.object({
+    kind: z.literal("choices"),
+    options: z.array(z.string()),
   }),
 ]);
 export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
@@ -68,7 +78,33 @@ export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
  * reserved for well-branded refs) — matching the server twin `toContentParts`, which drops a bad/gone
  * ref rather than throwing. This projection NEVER throws on persisted content.
  */
-export function contentSpansToBlocks(spans: readonly ContentSpan[]): MessageContentBlock[] {
+export interface ContentSpansToBlocksOptions {
+  /** The trust tier stamped on `card`-span blocks — resolved by the CALLER from the row's render policy
+   *  (§4.3: model output → `tierB`; ONE trust authority, `render-trust`). Default `tierB` (the fail-closed
+   *  sandbox arm — never default a card into the main DOM). */
+  readonly cardTrust?: CardTrust | undefined;
+}
+
+/** The image-span projection (the original D51 arm — degrade-not-throw on a bad persisted brand). */
+function imageSpanBlock(span: Extract<ContentSpan, { kind: "image" }>): MessageContentBlock {
+  if (span.ref.kind === "external") {
+    return {
+      kind: "media",
+      media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
+      src: { kind: "external", url: span.ref.url },
+      alt: span.alt,
+    };
+  }
+  const branded = typeIdSchema(ID_PREFIX.asset).safeParse(span.ref.assetId);
+  if (branded.success) {
+    return { kind: "media", media: "image", src: { kind: "asset", assetId: branded.data }, alt: span.alt };
+  }
+  // Degrade a malformed persisted asset ref to its literal markdown (never throw — see header).
+  return { kind: "markdown", md: `![${span.alt}](asset:${span.ref.assetId})` };
+}
+
+export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: ContentSpansToBlocksOptions): MessageContentBlock[] {
+  const cardTrust: CardTrust = options?.cardTrust ?? "tierB";
   const blocks: MessageContentBlock[] = [];
   let pendingText = "";
   const flushText = (): void => {
@@ -82,28 +118,25 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[]): MessageCont
       pendingText += span.text;
       continue;
     }
+    // The READING-SURFACE plane (`CONTENT_CLASS_POLICY` `{hide, …}` classes) — the filter IS "the
+    // projection emits nothing": a hidden span's truth/event is simply absent from the displayed body
+    // (§3.4; the server member-strip is the trust boundary — this client arm is defense-in-depth + the
+    // host's own display), and an unknown command-shaped directive is model noise the reader never sees
+    // (§3.2.1 allowlist-strip). Text on either side joins into ONE markdown block.
+    if (span.kind === "hidden" || span.kind === "unknown-directive") {
+      continue;
+    }
     flushText();
-    if (span.ref.kind === "external") {
-      blocks.push({
-        kind: "media",
-        media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
-        src: { kind: "external", url: span.ref.url },
-        alt: span.alt,
-      });
+    if (span.kind === "image") {
+      blocks.push(imageSpanBlock(span));
       continue;
     }
-    const branded = typeIdSchema(ID_PREFIX.asset).safeParse(span.ref.assetId);
-    if (branded.success) {
-      blocks.push({
-        kind: "media",
-        media: "image",
-        src: { kind: "asset", assetId: branded.data },
-        alt: span.alt,
-      });
+    if (span.kind === "card") {
+      blocks.push({ kind: "html-card", html: span.body, trust: cardTrust, ...(span.title === null ? {} : { title: span.title }) });
       continue;
     }
-    // Degrade a malformed persisted asset ref to its literal markdown (never throw — see header).
-    blocks.push({ kind: "markdown", md: `![${span.alt}](asset:${span.ref.assetId})` });
+    // The one remaining kind — a NEW `ContentSpanKind` fails tsc here until it gets an arm (totality).
+    blocks.push({ kind: "choices", options: [...span.options] });
   }
   flushText();
   return blocks;

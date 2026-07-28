@@ -13,6 +13,7 @@ import {
   applyUpdateScene,
   applyUpsertQuest,
   buildRosterRefIndex,
+  extractionToStateDelta,
 } from "../../../../../packages/server/src/domain/rpg/tools/apply";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -36,9 +37,11 @@ function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   };
 }
 
-const idSeq = (prefix: string): (() => string) => {
+// A monotonic id-mint for a test — generic over the branded id so a branded mint (quest) is produced by a
+// REAL `castId`, never a `as unknown as` double-cast that would survive the mint signature changing.
+const idSeq = <T extends string = string>(prefix: string): (() => T) => {
   let n = 0;
-  return () => `${prefix}_${++n}`;
+  return () => castId<T>(`${prefix}_${++n}`);
 };
 
 test("update_party mints a fresh cast actor + applies a pool delta", () => {
@@ -132,11 +135,55 @@ test("update_scene maps timeOfDay to the representative hour + appends a beat", 
 });
 
 test("update_scene presentUpsert is a PATCH — an omitted field keeps the existing value", () => {
-  const state = emptyState({ presentCharacters: [{ key: "Elder", name: "Elder", emoji: "🧙", mood: "calm", customFields: {} }] });
+  const state = emptyState({
+    presentCharacters: [{ key: "Elder", name: "Elder", emoji: "🧙", mood: "calm", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+  });
   const patch = applyUpdateScene(state, { presentUpsert: [{ name: "Elder", mood: "angry" }] });
   const elder = patch.presentCharacters?.[0];
   expect(elder?.mood).toBe("angry");
   expect(elder?.emoji).toBe("🧙"); // kept
+  expect(elder?.relationship).toEqual({ kind: "neutral", label: "" }); // kept (omit = keep)
+});
+
+test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
+  const state = emptyState({
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+  });
+  const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] });
+  expect(toEnemy.presentCharacters?.[0]?.relationship).toEqual({ kind: "enemy", label: "" });
+  const toCustom = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] });
+  expect(toCustom.presentCharacters?.[0]?.relationship).toEqual({ kind: "custom", label: "vassal" });
+});
+
+test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 — not model-authored)", () => {
+  const base = emptyState({
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+  });
+  const extraction = {
+    party: [],
+    inventory: [],
+    scene: { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" as const } }] },
+    widgets: [],
+    quests: [],
+    journal: [],
+  };
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  const beat = delta.journal.find((e) => e.title.startsWith("Mari:"));
+  expect(beat).toBeDefined();
+  expect(beat?.title).toBe("Mari: friend → enemy");
+  expect(beat?.type).toBe("event");
+});
+
+test("extractionToStateDelta does NOT derive a beat when the relationship is unchanged", () => {
+  const base = emptyState({
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+  });
+  // A scene write that changes mood but NOT relationship — no relationship beat.
+  const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, widgets: [], quests: [], journal: [] };
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  expect(delta.journal.find((e) => e.title.startsWith("Mari:"))).toBeUndefined();
 });
 
 test("set_widget_value writes only the provided fields, keeping the rest", () => {

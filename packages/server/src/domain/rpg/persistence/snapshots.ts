@@ -146,6 +146,28 @@ export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef, opts
   return any[0] ? parseSnapshotRow(any[0]) : undefined;
 }
 
+/** The turn's prev→current snapshot PAIR on the selected lineage (parity-plus §2.7 — the delta block's input).
+ *  `cur` is the resolution-ladder head (the same snapshot the tracker view projects from); `prev` is the
+ *  snapshot ONE committed beat back on the SAME lineage — the last visible assistant selected variant strictly
+ *  before `cur`'s message (`findLastAssistantSelectedVariant`, the existing `onUserCommit` lineage walk). Both
+ *  ends re-resolve on the currently-selected chain, so a swipe re-selects prev+current together — the delta is
+ *  swipe-consistent for FREE (§2.7). `prev` is `undefined` when `cur` is the FIRST snapshot on the lineage (no
+ *  prior visible assistant beat — the delta renders the first-state form or omits) OR when `cur` is undefined (a
+ *  turnless game — no rows yet; the caller synthesizes the born default and gets a first-snapshot delta). */
+export async function resolveTurnSnapshotPair(db: Db, game: SnapshotGameRef): Promise<{ cur: RpgSnapshotRow | undefined; prev: RpgSnapshotRow | undefined }> {
+  const cur = await resolveSnapshotForTurn(db, game);
+  if (cur === undefined) {
+    return { cur: undefined, prev: undefined };
+  }
+  const curSeq = await findMessageSeq(db, cur.messageId);
+  if (curSeq === undefined) {
+    return { cur, prev: undefined };
+  }
+  const prevVariant = await findLastAssistantSelectedVariant(db, game.chatId, curSeq);
+  const prev = prevVariant !== undefined ? await findSnapshotByVariant(db, prevVariant) : undefined;
+  return { cur, prev };
+}
+
 /** Insert a snapshot row (the born-committed seed at createGame / checkpoint restore, or a forwarded row),
  *  returning it parsed. The JSON values arrive already-typed (from a parsed base or a validated config), so
  *  the read-side parse on the returned row is the corruption belt. */

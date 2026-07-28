@@ -10,6 +10,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
@@ -1281,5 +1282,92 @@ describe("runTurnPipeline — the STATEFUL (agent-sdk) tool channel (MCP toolSer
     await runTurnPipeline(args);
     expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
     expect(requests[0]).not.toHaveProperty("agentToolServer");
+  });
+});
+
+// ── The parity-plus §3.5 WIRE plane (hidden verbatim · card stub · M2 keep-last-X · §3.9 ordering) ──────
+// These pins hold for ALL six connection modes by construction: they assert on `request.history`
+// (`TurnMessage[]`), the ONE seam every backend consumes — the collapse happens BEFORE any per-backend
+// wire vocabulary exists (`[[per-backend-wire-vocab-differs]]`: the COLLAPSE is wire-agnostic).
+
+describe("runTurnPipeline — the §3 content-class wire plane", () => {
+  const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
+  const cardFence = ':::card title="Terminal"\n<div style="color:red">multi-KB html blob</div>\n:::';
+
+  test("a hidden tag rides the wire VERBATIM ({wire: full} — the model keeps its own lie), byte-identical single text part", async () => {
+    const body = `He nods. ${lieTag} "Nothing," he says.`;
+    const { args } = baseArgs({ canon: [userRow(body)] });
+    const result = await runTurnPipeline(args);
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: body }]);
+  });
+
+  test("a card collapses to the deterministic stub ({wire: stub}) — zero html bytes on the wire, same bytes across assemblies", async () => {
+    const body = `Look at this:\n${cardFence}\ndone.`;
+    const first = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    const second = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    const part = first.request.history.at(-1)?.content;
+    expect(part).toEqual([{ type: "text", text: "Look at this:\n[card: Terminal]\ndone." }]);
+    expect(JSON.stringify(first.request.history)).not.toContain("multi-KB");
+    // Cache-stability: the collapse is byte-deterministic across assemblies (§3.7).
+    expect(second.request.history).toEqual(first.request.history);
+  });
+
+  test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 the newest two (counted from the tail)", async () => {
+    const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
+    // Alternating roles so SHAPE keeps three separate rows (same-role runs squash into one body).
+    const canon = [userRow(cardBody(1)), rowOf("assistant", cardBody(2)), userRow(cardBody(3))];
+    const textsOf = (history: readonly TurnRequest["history"][number][]): string[] =>
+      history.map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
+
+    const x0 = await runTurnPipeline(baseArgs({ canon }).args);
+    expect(textsOf(x0.request.history)).toEqual(["[card: c1]", "[card: c2]", "[card: c3]"]);
+
+    const x1 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 1 }).args);
+    expect(textsOf(x1.request.history)).toEqual(["[card: c1]", "[card: c2]", cardBody(3)]);
+
+    const x2 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 2 }).args);
+    expect(textsOf(x2.request.history)).toEqual(["[card: c1]", cardBody(2), cardBody(3)]);
+  });
+
+  test("an unknown-directive and a choices fence ride VERBATIM ({wire: full} — the transcript is honest)", async () => {
+    const body = ':::teleport to="crypt"\nnow\n:::\n\n:::choices\n1. one\n2. two\n:::';
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: body }]);
+  });
+
+  test("squash parity (§3.7): a `\\n\\n`-joined multi-body string tokenizes whole — the tag/fence survive the join", async () => {
+    // SHAPE's squash joins bodies with `\n\n` BEFORE tokenization; emulate the joined body directly.
+    const joined = `first reply ${lieTag}\n\n${cardFence}`;
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(joined)] }).args);
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: `first reply ${lieTag}\n\n[card: Terminal]` }]);
+  });
+
+  test("§3.9 ordering pin: a prompt-side regex runs on the FULL card bytes upstream; the stub replaces them at the wire seam below it", async () => {
+    // The string-body regex passes (AI_OUTPUT etc.) run in assembly, UPSTREAM of toContentParts — a
+    // promptOnly script sees the full card body (its contract), and the stub is the wire-transport
+    // collapse below it. Emulate the upstream pass exactly as assembly composes it.
+    const body = `alpha prose\n${cardFence}`;
+    const processed = executeRegexScripts({
+      text: body,
+      scripts: [
+        regexScriptSchema.parse({
+          id: "rs_1",
+          name: "s",
+          enabled: true,
+          placement: ["AI_OUTPUT"],
+          findRegex: "alpha",
+          replaceString: "beta",
+          promptOnly: true,
+        }),
+      ],
+      placement: "AI_OUTPUT",
+      ctx: { char: "Aria", user: "Alex", persona: "", scenario: "", env: {} },
+    });
+    // The regex saw + rewrote the non-card text; the card bytes were visible to it (no pre-collapse).
+    expect(processed).toContain("beta prose");
+    expect(processed).toContain("multi-KB");
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(processed)] }).args);
+    // Downstream, the wire stubs the card and keeps the regex's effect on the surrounding prose.
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "beta prose\n[card: Terminal]" }]);
   });
 });

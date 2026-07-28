@@ -3,45 +3,43 @@
 #
 # The reload-on-save problem: `tsx watch` kills + respawns the SERVER on every
 # file save. If the server owned the vLLM engines, each save would cold-respawn
-# the trio (~1-2 min). So this launcher owns the engines ITSELF — they are
-# children of THIS script, not of the watched server — and the server merely
-# ADOPTS the already-warm ports. A save restarts only the server; it re-adopts
-# the same engines. No engine reload, and you run ONE command.
+# the trio (~1-2 min). FLEET MODEL (A.4): the engines are a box-level SINGLETON
+# spawned DETACHED (`engines:start` → setsid + pidfile), owned by NOBODY — so a
+# `pnpm dev` restart (or a dev Ctrl-C) leaves the fleet warm for the next orb, and
+# the in-server supervisor merely ADOPTS the running ports. A save restarts only
+# the server; it re-adopts the same engines. No engine reload, one command.
 #
-# This is neo's stack-leader collapsed into `pnpm dev`: there is no pgid
-# stack-manager — the in-server adoptive supervisor does spawn/adopt/death-couple
-# for itself. This script just (a) owns the engines outside the watch loop and
-# (b) sets STACK_ENGINES=yes so the supervisor WAITS for these engines and adopts
-# them instead of racing to spawn its own (which would re-own → reload-on-save).
+# OWNERSHIP INVERSION: the engines are no longer children of this script (the old
+# death-couple that took them down on session teardown — the bit-us-twice class).
+# `engines:start` is idempotent (a healthy fleet is a no-op), so re-running dev
+# collapses to one spawn. The supervisor's own spawn action also routes through
+# the same detached verb.
 #
-# GPU-less box: engines.sh no-ops (derive roles → jina local-light, summarize →
-# hosted), the supervisor stays disabled, and this is just `tsx watch` + pretty.
+# GPU-less box / ENGINES_POSTURE=off: engines.sh no-ops (derive roles → jina
+# local-light, summarize → hosted) and this is just `tsx watch` + pretty.
 #
-# Ctrl-C tears down the whole thing (the trap kills the engine owner, whose own
-# trap group-kills the three engines).
+# Ctrl-C tears down THIS script + the watched server — the detached fleet SURVIVES
+# (warm for the next orb; `pnpm engines:stop` is the only kill).
 
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="$REPO/node_modules/.bin"
 
-ENGINES_PID=""
 SERVER_PID=""
 cleanup() {
-  # Kill BOTH explicitly so teardown is bulletproof no matter how we're stopped
-  # (Ctrl-C → group SIGINT, an IDE's TERM-to-the-launcher, a closed terminal's
-  # HUP). engines.sh's own trap group-kills the three engines; tsx on TERM stops
-  # the watched server it spawned.
+  # Kill only the watched SERVER — the detached fleet is nobody's child and SURVIVES
+  # (warm for the next orb). No engine teardown here (the ownership-inversion fix for
+  # the bit-us-twice class); `pnpm engines:stop` is the only kill.
   [ -n "$SERVER_PID" ] && kill -TERM "$SERVER_PID" 2>/dev/null
-  [ -n "$ENGINES_PID" ] && kill -TERM "$ENGINES_PID" 2>/dev/null
   wait 2>/dev/null
 }
 trap cleanup INT TERM HUP EXIT
 
-# Own the engines outside the watch loop (engines.sh boots them sequentially and
-# holds them). STACK_ENGINES=yes tells the server to adopt, not spawn.
-export STACK_ENGINES=yes
-bash "$REPO/scripts/dev/engines.sh" &
-ENGINES_PID=$!
+# Ensure the fleet is up, DETACHED (idempotent — a healthy fleet is a no-op). The
+# engines are a box-level singleton owned by nobody; the in-server supervisor adopts
+# them. Runs to completion (does NOT block — the fleet is detached), then the watched
+# server boots and adopts. ENGINES_POSTURE defaults to adopt-or-start (the manager).
+bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a problem (continuing — server will fail-fast if a role needs vllm)"
 
 # The watched server. tsx restarts re-adopt the warm engines. Process-sub for the
 # pretty pipe so SERVER_PID is tsx ITSELF (killable in cleanup), not pino-pretty;

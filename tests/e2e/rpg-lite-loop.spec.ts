@@ -18,7 +18,7 @@
 // THE FLOW OBSERVED, hop by hop (each with its RESULT instrument):
 //   1. createGame        → `rpg.createGame` mints the game + writes the `chats.metadata.rpg` pointer.
 //                          RESULT: the client's CP-4 takeover renders (the game context tabs appear).
-//   2. narration turn    → `chat.send` fires ONE real Agent-SDK turn on the game chat.
+//   2. character turn    → `chat.send` fires ONE real Agent-SDK turn on the game chat.
 //                          RESULT: a durable assistant row lands (chat.listMessages) + a well-formed wire body
 //                          (/api/_debug/wire/captures — the turn's prompt was assembled + sent).
 //   3. extraction/write  → the reliable-mode structured-output extraction folds the beat into an RpgStateDelta.

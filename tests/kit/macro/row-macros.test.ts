@@ -135,6 +135,27 @@ test("resolveRowMacros: a stored row with {{time}} + {{roll}} renders byte-ident
   expect(render1).toBe(stored);
 });
 
+// ── MG grammar constructs in STORED rows stay byte-stable through the ONE shared atom (§12A.0) ─────
+// The names-only registry has no `if`/`setvar`/flagged handlers beyond identity — a stored row carrying
+// the new universal-block / flag syntax re-emits those spans verbatim (raw bytes, closeRaw included)
+// while identity still resolves, identically on server ASSEMBLE and client DISPLAY.
+
+test("resolveRowMacros: universal blocks + reserved flags in a stored row re-emit byte-identical", () => {
+  const stored = "{{if::x}}A{{/if}} {{setvar::k}}body{{/setvar}} {{~mystery}} {{/#box}}";
+  const out = resolveRowMacros(stored, { characterId: null, personaId: null }, ctx());
+  expect(out).toBe(stored);
+});
+
+test("resolveRowMacros: identity resolves INSIDE an unknown stored block, wrapper bytes untouched", () => {
+  const out = resolveRowMacros("{{quote}}{{char}} speaks{{/quote}}", { characterId: ARIA_ID, personaId: null }, ctx());
+  expect(out).toBe("{{quote}}Aria speaks{{/quote}}");
+});
+
+test("resolveRowMacros: a flagged identity macro in a stored row resolves (flags no-op, stable value)", () => {
+  const out = resolveRowMacros("{{#char}} nods", { characterId: ARIA_ID, personaId: null }, ctx());
+  expect(out).toBe("Aria nods");
+});
+
 test("resolveRowMacros: identity names still resolve while volatile macros pass through verbatim", () => {
   const out = resolveRowMacros("{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}", { characterId: ARIA_ID, personaId: MARA_ID }, ctx());
   // Names resolve from the row's stamps; {{time}}/{{roll}} re-emit verbatim (stable).

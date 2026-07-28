@@ -5,8 +5,8 @@
 // "" with a single warning (engine.ts MAX_DEPTH = 64; the guard wraps every evaluateString/evaluateAST
 // re-entry). A hostile card can nest blocks arbitrarily deep; this proves the cap catches it.
 
-import type { ProcessMacroOptions } from "@orb/kit/macro";
-import { processMacros } from "@orb/kit/macro";
+import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
+import { createDefaultRegistry, processMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures";
 
 const MAX_DEPTH = 64; // mirrors engine.ts (the value is @internal; this test-mirror is the intended pin)
@@ -15,13 +15,13 @@ function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
   return { char: "C", user: "U", persona: "P", scenario: "S", env: {}, ...extra };
 }
 
-// Wrap `x` in N levels of `{{#uppercase}}…{{/uppercase}}` — each level is one evaluateAST re-entry, so N
+// Wrap `x` in N levels of `{{uppercase}}…{{/uppercase}}` — each level is one evaluateAST re-entry, so N
 // levels consume N depth units. A pure structural nest (no side effects), so the only thing under test is
 // the depth accounting.
 function nestUppercase(levels: number): string {
   let inner = "x";
   for (let i = 0; i < levels; i += 1) {
-    inner = `{{#uppercase}}${inner}{{/uppercase}}`;
+    inner = `{{uppercase}}${inner}{{/uppercase}}`;
   }
   return inner;
 }
@@ -42,4 +42,63 @@ test("block nesting past MAX_DEPTH aborts to empty and warns exactly once", () =
   const out = processMacros(nestUppercase(MAX_DEPTH * 3), opts({ onWarn: (m) => warnings.push(m) }));
   expect(out).toBe("");
   expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
+});
+
+// ── M1 scoped-block bodies ride the SAME budget (§12A.1: "a body never escapes the MacroBudget") ──
+
+test("deep UNKNOWN-block nesting trips the depth cap (children route through ctx.evaluateAST)", () => {
+  // Each unknown-block level re-enters via ctx.evaluateAST — the guard charges depth exactly like a
+  // known transform, so a hostile card can't stack-bomb through unregistered names.
+  let inner = "x";
+  for (let i = 0; i < MAX_DEPTH * 3; i += 1) {
+    inner = `{{mysterybox}}${inner}{{/mysterybox}}`;
+  }
+  const warnings: string[] = [];
+  processMacros(inner, opts({ onWarn: (m) => warnings.push(m) }));
+  expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
+});
+
+test("a content-as-last-arg block body past the output cap truncates and warns once", () => {
+  // {{setvar::k}}<1.5MB body>{{/setvar}} — the body resolves through the SAME budget before it becomes
+  // the last unnamed arg, so an oversized body trips the 1MB output cap instead of ballooning memory.
+  const half = 500_000;
+  const chunk = "x".repeat(half);
+  const body = `${chunk}{{noop}}${chunk}{{noop}}${chunk}`;
+  const warnings: string[] = [];
+  processMacros(`{{setvar::k}}${body}{{/setvar}}`, opts({ onWarn: (m) => warnings.push(m) }));
+  expect(warnings.filter((w) => w.includes("output limit"))).toHaveLength(1);
+});
+
+// ── M2: the LAZY path (delayArgResolution / `?` + ctx.resolve) rides the SAME budget (§12A.2) ──────
+// "Budget/depth guards apply identically on the lazy path" — a handler resolving its raw args late
+// re-enters through ctx.resolve → the guarded evaluateString/evaluateAST seams, so neither cap is
+// escapable by deferring resolution.
+
+// A lazy echo: raw args in, ctx.resolve on demand — the minimal resolve()-contract handler.
+function lazyEchoRegistry(): MacroRegistry {
+  const registry = createDefaultRegistry();
+  registry.register("lazyecho", (args, ctx) => ctx.resolve(args[0] ?? ""), { delayArgResolution: true });
+  return registry;
+}
+
+test("nested lazy resolve() past MAX_DEPTH trips the depth cap and warns once", () => {
+  // Each {{lazyecho::…}} level defers its arg and resolves it inside the handler — one ctx.resolve
+  // re-entry per level. The depth guard charges the lazy path exactly like the eager one.
+  let inner = "x";
+  for (let i = 0; i < MAX_DEPTH * 3; i += 1) {
+    inner = `{{lazyecho::${inner}}}`;
+  }
+  const warnings: string[] = [];
+  const out = processMacros(inner, opts({ onWarn: (m) => warnings.push(m) }), lazyEchoRegistry());
+  expect(out).toBe("");
+  expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
+});
+
+test("lazy resolve() of expanding content past the output cap truncates and warns once", () => {
+  // The handler lazily resolves an arg whose expansion is huge (an env read via the catch-all) —
+  // the resolved bytes charge the SAME output budget, so repeated lazy expansion trips the 1MB cap.
+  const big = "y".repeat(600_000);
+  const warnings: string[] = [];
+  processMacros("{{lazyecho::{{big}}}}{{lazyecho::{{big}}}}", opts({ env: { big }, onWarn: (m) => warnings.push(m) }), lazyEchoRegistry());
+  expect(warnings.filter((w) => w.includes("output limit"))).toHaveLength(1);
 });

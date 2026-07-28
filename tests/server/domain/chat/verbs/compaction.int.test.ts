@@ -157,6 +157,25 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
     expect(text).not.toContain("SECRET-HIDDEN-LINE");
   });
 
+  test("§3.5 summary plane: a card collapses to the STUB and a hidden tag's truth NEVER reaches the summarizer transcript", async () => {
+    const { host, chatId } = await seedRoom();
+    const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: 'look:\n:::card title="Terminal"\n<div>multi-KB blob</div>\n:::' });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: `He nods. ${lieTag} nothing more.` });
+    const compaction = compactionWith("MARKER");
+
+    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+
+    const text = quietCalls.at(-1)?.userText ?? "";
+    // The card rides as its deterministic stub — the summarizer never eats the blob.
+    expect(text).toContain("[card: Terminal]");
+    expect(text).not.toContain("multi-KB blob");
+    // The member-peekable marker pipeline never sees the truth bytes (the §3.6 leak class, closed here too).
+    expect(text).toContain("He nods.");
+    expect(text).not.toContain("crypt");
+    expect(text).not.toContain("<lie");
+  });
+
   test("a span of ONLY hidden rows advances the checkpoint without a generation (updated:false)", async () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "seed" });

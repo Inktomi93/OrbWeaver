@@ -7,6 +7,7 @@
 // streamed — the spend is attributed by imagery to the initiating principal.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { projectBodyForSummary } from "@orb/kit/content";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -38,7 +39,10 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
       .filter((m) => m.seq >= p.historyFloorSeq)
       .slice(-RECENT_WINDOW)
       .filter((m) => !m.excludedFromPrompt)
-      .map((m) => m.content)
+      // §3.6 / D106 summary-plane strip (the compaction-sink ruling): the extractor's distillation is handed
+      // back on the wire (and can seed a durable, member-peekable prompt), so hidden-class spans NEVER enter the
+      // model's scene — a lie's truth must not launder into an image prompt. Cards collapse to their stub too.
+      .map((m) => projectBodyForSummary(m.content))
       .join("\n");
 
     // Resolve the template's identity macros against the ONE MacroContext. {{user}} defaults to "User" until a

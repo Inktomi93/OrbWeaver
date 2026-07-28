@@ -29,7 +29,7 @@ const POOL_ORB_COUNT = 3;
 
 /** The default sheet a roster actor with no row renders (§4.3 — a missing row = the default sheet). */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "" };
+  return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
 }
 
 /** The `RpgActorRef` a sheet row addresses (character XOR user; the XOR is DB-enforced). */
@@ -50,7 +50,7 @@ function actorView(entry: { actorRef: RpgActorRef; name: string; avatar?: string
     actorRef: entry.actorRef,
     name: entry.name,
     ...(entry.avatar !== undefined ? { avatar: entry.avatar } : {}),
-    sheet: { className: sheet.className, attributes: sheet.attributes, poolDefs: sheet.poolDefs, maxHp: sheet.maxHp },
+    sheet: { className: sheet.className, attributes: sheet.attributes, poolDefs: sheet.poolDefs, maxHp: sheet.maxHp, level: sheet.level },
     volatile,
   };
 }
@@ -110,6 +110,9 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     ambient: ambientView(state),
     actors,
     cast: state.presentCharacters,
+    // The host-defined tracked cast-field schemas (§2.8) — the Scene tab + reminder join them against each cast
+    // member's `customFields` record to render meters/text kind-aware. One home (game config); no per-row copy.
+    castFields: game.config.features.castFields,
     widgets,
     quests,
     recentBeats: state.recentEvents,

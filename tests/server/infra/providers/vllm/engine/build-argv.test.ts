@@ -26,6 +26,9 @@ const FLOOR = {
   VLLM_POOLING_MAX_PIXELS: 1_843_200,
   VLLM_GEN_MAX_PIXELS: 4_194_304,
   VLLM_GEN_REPETITION_PENALTY: 1.05,
+  VLLM_SLEEP_MODE: true,
+  VLLM_DEBUG_REQUESTS: false,
+  VLLM_SHUTDOWN_TIMEOUT_S: 0,
   VLLM_EMBED_PORT: 8701,
   VLLM_RERANK_PORT: 8702,
   VLLM_GEN_PORT: 8703,
@@ -94,6 +97,11 @@ describe("buildEngineArgv snapshots", () => {
         "--max-model-len",
         "8192",
         "--trust-remote-code",
+        "--disable-access-log-for-endpoints",
+        "/health,/metrics,/ping",
+        "--enable-request-id-headers",
+        "--enable-force-include-usage",
+        "--enable-sleep-mode",
       ]
     `);
   });
@@ -122,6 +130,11 @@ describe("buildEngineArgv snapshots", () => {
         "/repo/scripts/dev/qwen3_vl_reranker_serve.jinja",
         "--mm-processor-kwargs",
         "{"max_pixels": 1843200}",
+        "--disable-access-log-for-endpoints",
+        "/health,/metrics,/ping",
+        "--enable-request-id-headers",
+        "--enable-force-include-usage",
+        "--enable-sleep-mode",
       ]
     `);
   });
@@ -153,6 +166,11 @@ describe("buildEngineArgv snapshots", () => {
         "{"max_pixels": 4194304}",
         "--override-generation-config",
         "{"temperature":0.7,"top_p":0.8,"top_k":20,"repetition_penalty":1.05}",
+        "--disable-access-log-for-endpoints",
+        "/health,/metrics,/ping",
+        "--enable-request-id-headers",
+        "--enable-force-include-usage",
+        "--enable-sleep-mode",
       ]
     `);
   });
@@ -218,6 +236,74 @@ describe("buildEngineArgv — settings-overridden config changes the flags", () 
   test("an admin gpu-util override changes --gpu-memory-utilization", () => {
     const config = resolveEngineLaunchConfig(FLOOR, { genGpuUtilMulti: 0.35 });
     expect(flagVal(buildEngineArgv("gen", config, CTX), "--gpu-memory-utilization")).toBe("0.35");
+  });
+});
+
+describe("buildEngineArgv — sleep mode (--enable-sleep-mode)", () => {
+  test("sleepMode on (env floor default) → every engine argv ends with --enable-sleep-mode", () => {
+    const config = resolveEngineLaunchConfig(FLOOR, undefined);
+    expect(config.sleepMode).toBe(true);
+    for (const engine of ["embed", "rerank", "gen"] as const) {
+      expect(buildEngineArgv(engine, config, CTX)).toContain("--enable-sleep-mode");
+    }
+  });
+
+  test("sleepMode off (env floor false) → no engine emits the flag", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_SLEEP_MODE: false }, undefined);
+    expect(config.sleepMode).toBe(false);
+    for (const engine of ["embed", "rerank", "gen"] as const) {
+      expect(buildEngineArgv(engine, config, CTX)).not.toContain("--enable-sleep-mode");
+    }
+  });
+
+  test("an override false wins over the env-floor true (false is a real override, not CLEAR)", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_SLEEP_MODE: true }, { sleepMode: false });
+    expect(config.sleepMode).toBe(false);
+    expect(buildEngineArgv("gen", config, CTX)).not.toContain("--enable-sleep-mode");
+  });
+
+  test("a null override falls to the env floor (CLEAR sentinel)", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_SLEEP_MODE: true }, { sleepMode: null });
+    expect(config.sleepMode).toBe(true);
+  });
+});
+
+describe("buildEngineArgv — always-on hygiene flags (every engine)", () => {
+  const config = resolveEngineLaunchConfig(FLOOR, undefined);
+  for (const engine of ["embed", "rerank", "gen"] as const) {
+    test(`${engine} silences probe/poller access logs + request-id + force-include-usage`, () => {
+      const argv = buildEngineArgv(engine, config, CTX);
+      expect(flagVal(argv, "--disable-access-log-for-endpoints")).toBe("/health,/metrics,/ping");
+      expect(argv).toContain("--enable-request-id-headers");
+      expect(argv).toContain("--enable-force-include-usage");
+    });
+  }
+});
+
+describe("buildEngineArgv — VLLM_DEBUG_REQUESTS (engine-side flight recorder)", () => {
+  test("off (default) → no request/output logging flags", () => {
+    const argv = buildEngineArgv("gen", resolveEngineLaunchConfig(FLOOR, undefined), CTX);
+    expect(argv).not.toContain("--enable-log-requests");
+    expect(argv).not.toContain("--enable-log-outputs");
+  });
+  test("on → --enable-log-requests --enable-log-outputs --max-log-len 2048 on every engine", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_DEBUG_REQUESTS: true }, undefined);
+    for (const engine of ["embed", "rerank", "gen"] as const) {
+      const argv = buildEngineArgv(engine, config, CTX);
+      expect(argv).toContain("--enable-log-requests");
+      expect(argv).toContain("--enable-log-outputs");
+      expect(flagVal(argv, "--max-log-len")).toBe("2048");
+    }
+  });
+});
+
+describe("buildEngineArgv — VLLM_SHUTDOWN_TIMEOUT_S (graceful drain)", () => {
+  test("0 (default) → no --shutdown-timeout flag (immediate abort, today's behavior)", () => {
+    expect(buildEngineArgv("gen", resolveEngineLaunchConfig(FLOOR, undefined), CTX)).not.toContain("--shutdown-timeout");
+  });
+  test("a positive value → --shutdown-timeout N", () => {
+    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_SHUTDOWN_TIMEOUT_S: 30 }, undefined);
+    expect(flagVal(buildEngineArgv("gen", config, CTX), "--shutdown-timeout")).toBe("30");
   });
 });
 

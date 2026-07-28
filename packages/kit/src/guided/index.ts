@@ -1,5 +1,5 @@
 import type { ProcessMacroOptions } from "#macro";
-import { processMacros } from "#macro";
+import { neutralizeMacros, processMacros } from "#macro";
 
 // Guided Generations — the pure resolver for an owner-editable guided-action prompt template.
 //
@@ -13,23 +13,13 @@ import { processMacros } from "#macro";
 // this leaf owns only the side-effect-free transformation: template + person + untrusted input +
 // macro context → resolved string.
 
-// Neutralize `{{`/`}}` in untrusted text so it can't be mistaken for a macro by ANY downstream pass.
+// The ZWSP macro-re-injection defense — RE-HOMED to `#macro` (content.ts) so the M5 user-macro
+// handler can use it without a kit-internal cycle (guided already imports #macro; macro cannot import
+// guided). Re-exported here so every existing `@orb/kit/guided` consumer keeps its import unchanged.
 // The current engine doesn't re-parse handler return values, but `evaluateString` IS called on
 // macro args containing `{{`, so a template like `{{x::{{input}}}}` would re-evaluate substituted
 // user text. Defense-in-depth floor that's cheaper than reasoning about every future template shape.
-//
-// IMPORTANT: U+200B goes BETWEEN the two braces, not before/after the pair. The macro parser scans
-// with `text.indexOf("{{", pos)` — placing the zero-width-space outside the pair leaves the `{{`
-// token intact and indexOf still finds it, so the defense would be a no-op. Inserting U+200B
-// between the braces gives `{<ZWSP>{`, which the indexOf scan can no longer match. Output looks
-// identical to a human (U+200B is invisible) and round-trips through every storage layer that
-// preserves Unicode.
-// Exported because the ZWSP macro-re-injection defense is reusable: any other untrusted-text→macro
-// splice needs exactly this transform. The U+200B codepoint is load-bearing — keep it exact.
-export const ZWSP = "​";
-export function neutralizeMacros(s: string): string {
-  return s.replace(/\{\{/g, `{${ZWSP}{`).replace(/\}\}/g, `}${ZWSP}}`);
-}
+export { neutralizeMacros, ZWSP } from "#macro";
 
 // `{{person}}` is the guided-impersonate perspective token (1st/2nd/3rd-person word). Unset ⇒
 // "first" (plain impersonate / any non-impersonate template that happens to contain the token).

@@ -139,6 +139,55 @@ test("CastCard editable: editing a field fires onEditField with (name, value)", 
   expect(captured).toEqual(["Trust", "high"]);
 });
 
+test("CastCard: a known relationship kind badges with its label (feature 1, §2.1)", async ({ mount }) => {
+  const component = await mount(<CastCard name="Mari" relationship={{ kind: "enemy", label: "" }} />);
+  await expect(component).toContainText("Mari");
+  await expect(component).toContainText("enemy"); // the badge label is the accessible datum (tracker-kit a11y)
+});
+
+test("CastCard: a custom relationship renders its label chip", async ({ mount }) => {
+  const component = await mount(<CastCard name="Kade" relationship={{ kind: "custom", label: "vassal" }} />);
+  await expect(component).toContainText("vassal");
+});
+
+test("CastCard: a LONG custom relationship label truncates + titles, and the NAME keeps non-zero width (FIX 2)", async ({ mount }) => {
+  // The regression: a realistic free-text label grew the badge to ~236px and starved the name to 0px. The name
+  // must retain width (it's `shrink-0`); the badge label truncates and carries the full text on `title` for hover.
+  const longLabel = "disgraced former lieutenant of the crown"; // 40 chars — the untested long case
+  const component = await mount(
+    <div style={{ width: "17rem" }}>
+      <CastCard name="Aldric" relationship={{ kind: "custom", label: longLabel }} />
+    </div>,
+  );
+  const name = component.getByText("Aldric");
+  const nameBox = await name.boundingBox();
+  expect(nameBox?.width ?? 0).toBeGreaterThan(0); // the name is NOT starved to 0px
+
+  const badge = component.locator("[data-slot=relationship-badge]");
+  await expect(badge).toHaveAttribute("title", longLabel); // full text on hover
+  await expect(badge.locator("span")).toHaveCSS("text-overflow", "ellipsis"); // the label truncates
+});
+
+test("CastCard: a neutral relationship badges NOTHING (no clutter)", async ({ mount }) => {
+  const component = await mount(<CastCard name="Bob" relationship={{ kind: "neutral", label: "" }} />);
+  await expect(component).toContainText("Bob");
+  await expect(component).not.toContainText("neutral");
+});
+
+test("CastCard: numeric cast-field meters render above the text chips (feature C, §2.8)", async ({ mount }) => {
+  const component = await mount(
+    <CastCard
+      name="Mari"
+      relationship={{ kind: "friend", label: "" }}
+      meters={<MeterRow label="Suspicion" value={7} max={10} color={1} />}
+      fields={[{ name: "Trust", value: "guarded" }]}
+    />,
+  );
+  await expect(component).toContainText("Suspicion");
+  await expect(component).toContainText("7/10"); // the meter's value/max text is the datum
+  await expect(component).toContainText("guarded");
+});
+
 // ── BeatLine ──────────────────────────────────────────────────────────────────────────────────────
 
 test("BeatLine: renders a muted one-liner", async ({ mount }) => {

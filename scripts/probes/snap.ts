@@ -246,7 +246,11 @@
  *                                          # only YOUR rsync ever touches those files (never a concurrent
  *                                          # lane's live edits — the crash-loop immunity is preserved).
  *                                          # `--dirty --fresh` forces a full rebuild of the dirty stage.
- *   pnpm snap --stage-down                 # stop the stage stack + remove the worktree/dir (ignores route)
+ *   pnpm snap --stage-down                 # stop the stage stack + remove the worktree/dir (ignores route);
+ *                                          # falls back to a marker-less teardown (kill by stage-band port +
+ *                                          # sweep stage dirs) when a lost marker left an ownerless stage
+ *   pnpm snap --stage-status               # the engines:status-style read, stage edition: marker + stage-band
+ *                                          # port owners + worktree dirs (surfaces a lost-marker stage)
  *   First-boot cost: one `git worktree add` (or, for --dirty, an rsync) + `pnpm install` (shared store →
  *   cheap) + a stack boot; the stage then stays WARM across snap calls. A new HEAD sha auto-rebuilds the
  *   commit-pinned stage (the stale one is torn down); --dirty always re-syncs instead. A ref/tree predating
@@ -277,7 +281,7 @@ import type { Viewport } from "./_kit/flags.ts";
 import { parseGotoTarget, parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
-import { ensureStage, teardownStage } from "./_kit/snap-stage.ts";
+import { ensureStage, stageStatus, teardownStage } from "./_kit/snap-stage.ts";
 import type { Rgb } from "./design-audit-checks.ts";
 import { contrastRatio, isLargeText, LARGE_MIN_RATIO, NORMAL_MIN_RATIO } from "./design-audit-checks.ts";
 
@@ -497,6 +501,9 @@ type Args = {
   dirty: boolean;
   /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
   stageDown: boolean;
+  /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
+   *  engines:status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
+  stageStatus: boolean;
 };
 
 // ── Flag dispatch ───────────────────────────────────────────────────────────
@@ -741,6 +748,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--stage-down": (a) => {
     a.stageDown = true;
   },
+  "--stage-status": (a) => {
+    a.stageStatus = true;
+  },
 };
 
 function parseArgs(argv: string[]): Args {
@@ -790,6 +800,7 @@ function parseArgs(argv: string[]): Args {
     fresh: false,
     dirty: false,
     stageDown: false,
+    stageStatus: false,
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -2239,6 +2250,10 @@ function resolveContextsMode(opts: Args): { readonly users: readonly FixtureUser
 }
 
 async function main(opts: Args): Promise<number> {
+  if (opts.stageStatus) {
+    print(stageStatus());
+    return 0;
+  }
   if (opts.stageDown) {
     print(`[snap-stage] ${teardownStage()}`);
     return 0;

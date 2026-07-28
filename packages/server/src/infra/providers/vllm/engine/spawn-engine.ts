@@ -132,6 +132,14 @@ export function buildEngineSpawnSpec(
   return {
     command: vllm,
     args,
-    env: { ...caches, ...(cuda !== null ? { CUDA_VISIBLE_DEVICES: cuda } : {}) },
+    // VLLM_SERVER_DEV_MODE=1 (vLLM's own env, child-scoped only — never app env) registers the loopback
+    // /sleep, /wake_up, /is_sleeping endpoints; gated on the SAME sleepMode as the `--enable-sleep-mode`
+    // argv flag so both halves land together. Loopback bind is already enforced by the `--host 127.0.0.1`
+    // argv, satisfying vLLM's SECURITY-warning precondition for registering these endpoints.
+    env: {
+      ...caches,
+      ...(cuda !== null ? { CUDA_VISIBLE_DEVICES: cuda } : {}),
+      ...(config.sleepMode ? { VLLM_SERVER_DEV_MODE: "1" } : {}),
+    },
   };
 }

@@ -21,7 +21,7 @@ const NON_MEMBER = castId<UserId>("user_non_member");
 const CHAT = castId<ChatId>("chat_1");
 // `historyFloorSeq: 0` = the UNCLAMPED probe (a host / a `full` member / any born-here seat) — the arm every
 // pre-D16 assertion in this file was written against, so the clamp is provably invisible to it.
-const BOUNDS = { minSeq: 1, maxSeq: 3, historyFloorSeq: 0 };
+const BOUNDS = { minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: false };
 
 const event = (type: "chatUpdated" | "chatDeleted" = "chatUpdated"): ChatBusEvent => ({
   type,
@@ -137,7 +137,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
 
   test("PD-135: a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
     // minSeq=5 ⇒ events 1..4 were dropped; resume cursor 1 predates the window (1 < 5 - 1) ⇒ truncated.
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 5, maxSeq: 8, historyFloorSeq: 0 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 5, maxSeq: 8, historyFloorSeq: 0, viewerIsHost: false }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [
       { seq: 5, event: event("chatDeleted") },
       { seq: 6, event: event() },
@@ -167,7 +167,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
 
   test("PD-135: a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
     // minSeq=1 ⇒ nothing dropped; resume cursor 3 is caught up within the window (3 < 1 - 1 is false).
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 6, historyFloorSeq: 0 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 6, historyFloorSeq: 0, viewerIsHost: false }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatDeleted") }]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -189,7 +189,7 @@ describe("chat.streamMessages — synthesized attach/resume events (PD-134/PD-13
   test("PD-134 round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same lastEventId", async () => {
     // Even caught-up-at-window-floor (minSeq=1, cursor 0): resume replay uses the client cursor unchanged,
     // and the synthetic id equals that cursor (never a faked/advanced durable seq).
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 2, historyFloorSeq: 0 }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 2, historyFloorSeq: 0, viewerIsHost: false }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [{ seq: (afterSeq ?? 0) + 1, event: event() }]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -281,7 +281,7 @@ describe("chat.streamMessages — the D16 join-history clamp on the LIVE fan-out
 
   /** The subscription's own attach probe, stubbed at a given floor (`0` = unclamped). */
   function streamAt(historyFloorSeq: number): ReturnType<typeof makeContext> {
-    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 20, historyFloorSeq }));
+    const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({ minSeq: 1, maxSeq: 20, historyFloorSeq, viewerIsHost: false }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     return makeContext({
       auth: principal("user", { userId: MEMBER }),

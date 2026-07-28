@@ -16,5 +16,11 @@ export const rpgSheetSchema = z.object({
   poolDefs: z.array(z.object({ name: z.string().min(1), max: z.number().int().min(1) })).default([]),
   maxHp: z.number().int().min(1).nullable(),
   flavor: z.string().default(""),
+  // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
+  // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven
+  // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable by the model, proven by test),
+  // reachable only through `patchSheet`. A model bumping "level" off a vibe is the progression-inflation footgun
+  // the no-`update_stats` posture exists to prevent; matching marinara's restraint here is the honest call.
+  level: z.number().int().min(0).nullable().default(null),
 });
 export type RpgSheet = z.infer<typeof rpgSheetSchema>;

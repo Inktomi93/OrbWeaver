@@ -4,6 +4,7 @@
 // fields are deliberately excluded — they dilute identity signal and hurt card-similarity retrieval.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { swapIdentityMacros } from "@orb/kit/macro";
 import { env } from "#foundation/env";
 
 type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality" | "scenario" | "greetings">;
@@ -46,8 +47,9 @@ function cleanText(text: string): string {
 }
 
 function normalizePlaceholders(text: string, charName: string, userName: string): string {
-  // Function-replacement form: a name containing $$/$& must splice verbatim (string form interprets $-patterns).
-  return text.replace(/\{\{char\}\}/gi, () => charName).replace(/\{\{user\}\}/gi, () => userName);
+  // The kit identity-swap helper splices names verbatim (function-replacement form) so a name containing
+  // $$/$& is not interpreted as a $-pattern; here both macros project to a literal name (no inversion).
+  return swapIdentityMacros(text, { char: charName, user: userName });
 }
 
 /** Field ORDER is load-bearing: last-token pooling weights later text less, so identity fields lead.

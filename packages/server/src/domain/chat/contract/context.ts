@@ -327,6 +327,11 @@ export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
 export interface ViewerVisibility {
   readonly role: ParticipantRole;
   readonly historyFloorSeq: HistoryFloorSeq;
+  /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
+   *  (`<lie>`/`<ofilter>`) verbatim — the host reveal plane; `false` ⇒ a member, whose canon must be
+   *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
+   *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
+  readonly readsHidden: boolean;
 }
 
 /** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must
@@ -430,14 +435,14 @@ interface ChatCrewOps {
  *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
  *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
  *  the override; rpg-design/02 §1.1 #1). */
-/** The narration turn's RESOLVED route + consent verdict, handed to {@link ChatRpgOps.onTurnCompleted} so the
+/** The character turn's RESOLVED route + consent verdict, handed to {@link ChatRpgOps.onTurnCompleted} so the
  *  post-commit rpg state round rides the EXACT connection + owner-consent the engine already resolved + enforced
  *  for THIS turn — the [foreign-inputs-seam] shape (an already-resolved value threaded IN, never re-derived).
  *  This is the F1 fix: without it the state round resolved the host's GLOBAL chat default (`resolveRole`) and
  *  force-stamped `ownerConsented:true`, so a room pinned to vllm could fire a metered-sub round the turn's
  *  consent belt never approved. `connection.capability` also gates the round's readonly verdict (F2). */
 export interface RpgTurnConnection {
-  /** The narration turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
+  /** The character turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
    *  round connection; the state round runs on THIS, never a re-resolve. */
   readonly connection: ResolvedConnection;
   /** The engine's enforced owner-consent verdict for this turn (`resolveOwnerConsented`, engine.ts) — the state

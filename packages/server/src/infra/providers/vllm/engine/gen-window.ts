@@ -6,7 +6,7 @@
 // / unexpected shape) so the caller degrades to the env default — never a guessed cap. Applies to all three
 // engines (gen for the fit ceiling; embed + rerank for the 8192-consumers' pooling window).
 
-import { engineBaseUrl } from "./client";
+import { engineBaseUrl } from "./engine-url";
 import type { VLLM_ENGINES } from "./engines";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];

@@ -64,10 +64,19 @@ export interface RpgTakeoverHeaderProps {
   readonly extractionMode: RpgExtractionMode;
   /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
   readonly freshnessPending: boolean;
+  /** The viewer's-actor hand-only progression level (§2.6) — a compact `Lv N` badge; null omits it. */
+  readonly viewerLevel: number | null;
 }
 
 /** The scene banner + pool orbs + read-only pill + freshness indicator (§4.5). */
-export function RpgTakeoverHeader({ ambient, poolOrbs, trackersReadOnly, extractionMode, freshnessPending }: RpgTakeoverHeaderProps): ReactElement {
+export function RpgTakeoverHeader({
+  ambient,
+  poolOrbs,
+  trackersReadOnly,
+  extractionMode,
+  freshnessPending,
+  viewerLevel,
+}: RpgTakeoverHeaderProps): ReactElement {
   const when = ambient === null ? "" : whenLine(ambient);
   return (
     <Stack gap="block" data-slot="rpg-takeover-header">
@@ -91,6 +100,13 @@ export function RpgTakeoverHeader({ ambient, poolOrbs, trackersReadOnly, extract
 
       <Row gap="field" align="center" className="flex-wrap">
         <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
+        {viewerLevel === null ? null : (
+          <Badge tone="soft" size="sm" title="Your character's level (set it by hand on the Sheet tab).">
+            <Text as="span" size="micro" weight="medium" className="tabular-nums">
+              Lv {viewerLevel}
+            </Text>
+          </Badge>
+        )}
         {trackersReadOnly ? (
           <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
             <Icon icon={Lock} size="xs" />

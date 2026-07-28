@@ -142,31 +142,31 @@ test("[parity] multi-line comment body is removed whole (MacroEngine:122)", () =
   expect(render("Start{{// line one\nline two\nline three}}End")).toBe("StartEnd");
 });
 
-// ── Trim scoped block {{#trim}}…{{/trim}} (MacroEngine.e2e.js:130-172) ──────────────────────────────
-// ST writes `{{trim}}…{{/trim}}` (its scoped-macro syntax); orbweaver's block-open marker is `{{#trim}}`
-// (parser.ts: `#` opens a block). Same SEMANTICS — the scenario is "trim the evaluated body".
+// ── Trim scoped block {{trim}}…{{/trim}} (MacroEngine.e2e.js:130-172) ──────────────────────────────
+// Post-MG (§12A.1 universal blocks) orbweaver's scoped-block syntax matches ST's EXACTLY —
+// `{{trim}}…{{/trim}}`, no block-open marker. Byte-for-byte the ST scenario inputs now.
 
 test("[parity] scoped trim strips leading + trailing whitespace of its body (MacroEngine:130)", () => {
-  expect(render("{{#trim}}  hello world  {{/trim}}")).toBe("hello world");
+  expect(render("{{trim}}  hello world  {{/trim}}")).toBe("hello world");
 });
 
 test("[parity] scoped trim strips leading newlines (MacroEngine:136)", () => {
-  expect(render("{{#trim}}\n\n  content{{/trim}}")).toBe("content");
+  expect(render("{{trim}}\n\n  content{{/trim}}")).toBe("content");
 });
 
 test("[parity] scoped trim strips trailing newlines (MacroEngine:142)", () => {
-  expect(render("{{#trim}}content  \n\n{{/trim}}")).toBe("content");
+  expect(render("{{trim}}content  \n\n{{/trim}}")).toBe("content");
 });
 
 test("[parity] scoped trim resolves macros inside its body before trimming (MacroEngine:148)", () => {
-  expect(render("{{#trim}}  Hello {{user}}  {{/trim}}")).toBe("Hello User");
+  expect(render("{{trim}}  Hello {{user}}  {{/trim}}")).toBe("Hello User");
 });
 
 test("[parity] nested scoped trims collapse inner + outer whitespace (adapted MacroEngine:154)", () => {
   // ST: `{{trim}}  outer {{trim}}  inner  {{/trim}} outer  {{/trim}}` → "outer inner outer". Orbweaver's
-  // inner {{#trim}} trims only ITS body ("inner"), the outer trims the whole; interior single spaces
+  // inner {{trim}} trims only ITS body ("inner"), the outer trims the whole; interior single spaces
   // between "outer", the trimmed "inner", and "outer" are preserved (ST agrees).
-  expect(render("{{#trim}}  outer {{#trim}}  inner  {{/trim}} outer  {{/trim}}")).toBe("outer inner outer");
+  expect(render("{{trim}}  outer {{trim}}  inner  {{/trim}} outer  {{/trim}}")).toBe("outer inner outer");
 });
 
 // ── Legacy identity markers <USER>/<BOT>/<CHAR> (MacroEngine.e2e.js:194-216) ────────────────────────

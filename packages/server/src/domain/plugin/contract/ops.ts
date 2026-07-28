@@ -64,8 +64,18 @@ export interface PluginHostOps {
      *  this op resolves membership only (`can(installer,"read",chat)` / `loadPresentRole`), and membership
      *  alone is not visibility: a `from-join`-clamped member is admitted to their room yet may not read its
      *  pre-join rows. A caller therefore cannot obtain the value without asking chat's `resolveViewerVisibility`
-     *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there. */
-    readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly floorSeq: HistoryFloorSeq }) => Promise<readonly PluginMessageView[]>;
+     *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there.
+     *
+     *  `readsHidden` is the SECOND half of the same viewer verdict (parity-plus §3.6 / D106): `true` when the
+     *  human this read runs for is the chat HOST (they read hidden-class spans — the reveal plane), `false` for a
+     *  member (hidden `<lie>`/`<ofilter>` spans are STRIPPED from the body before it crosses the realm boundary —
+     *  the plugin realm is a member-reachable surface, so an unstripped body would launder a GM-plane secret to a
+     *  non-host member's snippet). REQUIRED BY TYPE for the same reason as `floorSeq`: the only source is chat's
+     *  `resolveViewerVisibility` (its `role`), so a caller cannot obtain it without the visibility resolve. */
+    readonly listMessages: (
+      chatId: ChatId,
+      opts: { readonly limit?: number; readonly floorSeq: HistoryFloorSeq; readonly readsHidden: boolean },
+    ) => Promise<readonly PluginMessageView[]>;
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the bridge
      *  resolves the INSTALLER's membership + history floor with it before any canon read crosses the realm
      *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only

@@ -10,7 +10,7 @@ import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { StatCell } from "#components";
+import { StatCell, TrackerChip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { usePatchSheet } from "../hooks/use-rpg-mutations";
@@ -19,6 +19,40 @@ import { usePatchSheet } from "../hooks/use-rpg-mutations";
  *  where the human plays through a character sheet still shows something). */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
+}
+
+/** The hand-only progression LEVEL (§2.6) — `Level N`, editable-in-place for the sheet owner/host. A null level
+ *  is omitted from a READ-ONLY view (nullable-honesty: no phantom "Level 0"); an editable view shows an empty
+ *  field so the owner can SET it. A blank/non-numeric commit clears the level (null). */
+function SheetLevel({ level, onEditLevel }: { readonly level: number | null; readonly onEditLevel?: (next: number | null) => void }): ReactElement | null {
+  if (level === null && onEditLevel === undefined) {
+    return null;
+  }
+  if (onEditLevel === undefined) {
+    return (
+      <Row gap="field" align="baseline" data-slot="sheet-level">
+        <Text as="span" size="label" tone="muted" transform="caps" className="tracking-micro">
+          Level
+        </Text>
+        <Text as="span" size="label" className="tabular-nums">
+          {level}
+        </Text>
+      </Row>
+    );
+  }
+  return (
+    <Row gap="field" align="baseline" data-slot="sheet-level" className="flex-wrap">
+      <TrackerChip
+        label="Level"
+        value={level === null ? "" : String(level)}
+        onEditValue={(next: string): void => {
+          const trimmed = next.trim();
+          const n = Number.parseInt(trimmed, 10);
+          onEditLevel(trimmed === "" || Number.isNaN(n) ? null : n);
+        }}
+      />
+    </Row>
+  );
 }
 
 export interface RpgSheetTabProps {
@@ -49,6 +83,17 @@ export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
         {actor.name}
         {actor.sheet.className === "" ? "" : ` — ${actor.sheet.className}`}
       </Text>
+
+      <SheetLevel
+        level={actor.sheet.level}
+        {...(canEdit
+          ? {
+              onEditLevel: (next: number | null): void => {
+                patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { level: next } });
+              },
+            }
+          : {})}
+      />
 
       {attrDefs.length === 0 ? (
         <Text tone="muted">This game steers on prose — no attribute sheet to fill.</Text>

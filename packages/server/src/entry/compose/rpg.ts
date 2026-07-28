@@ -12,7 +12,7 @@
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 //
 // THE `runExtraction` IMPL (§4.6 reliable mode — the delivery-model amendment): a DEDICATED structured-output
-// turn. It rides the NARRATION turn's ALREADY-RESOLVED connection + consent verdict (`input.turnConnection`,
+// turn. It rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict (`input.turnConnection`,
 // threaded from the engine through the flush — stickler F1), reads the committed beat text, and drives ONE model
 // call with `responseFormat` = the projected `rpgExtractionSchema` (the shared-plane proof: the extraction is "a
 // batch of the tool calls the model would otherwise have made"). It NEVER re-resolves the host's global chat
@@ -34,6 +34,7 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
 import type { RpgContext, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
 import {
   buildRosterRefIndex,
@@ -67,15 +68,15 @@ export interface RpgComposeDeps {
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];
   /** `resolveChat` resolves the ROOM's connection (per-chat routing overlay, `metadata.providerRouting`) for the
-   *  READ-side `trackersReadOnly` pill — the SAME verb the narration turn resolves through (`compose/chat.ts`),
+   *  READ-side `trackersReadOnly` pill — the SAME verb the character turn resolves through (`compose/chat.ts`),
    *  never the host's global `resolveRole` default (stickler F1). `getOrSkinTierModels` feeds the agent-sdk
-   *  extraction arm's mode-2 tier→slug map. The state ROUNDS re-resolve NOTHING — they ride the narration turn's
+   *  extraction arm's mode-2 tier→slug map. The state ROUNDS re-resolve NOTHING — they ride the character turn's
    *  already-resolved `input.turnConnection` threaded from the engine. */
   readonly connection: Pick<ConnectionService, "resolveChat" | "getOrSkinTierModels">;
   /** The extraction rides the `structured` role on the array/vLLM backends (the one-shot schema-constrained
    *  PRIMITIVE — owner ruling 2026-07-27, split from summarize) AND `runChatTurn` (the SDK outputFormat path)
    *  when the host connection is `agent-sdk` — the metered-sub credential firewall stays intact (D17), the
-   *  chat role gates `max-pro-sub` behind owner consent (funded by the host, inherited from the narration turn). */
+   *  chat role gates `max-pro-sub` behind owner consent (funded by the host, inherited from the character turn). */
   readonly executor: Pick<ProviderExecutor, "structured" | "runChatTurn">;
   /** The host's REAL `Principal` by userId — the READ-side `trackersReadOnly` pill resolves the room connection
    *  as the host (D19). The state rounds no longer need it (they ride the threaded turn connection). */
@@ -123,7 +124,7 @@ function extractionUserPrompt(stateJson: string, beat: string): string {
  *  owner consent — the host funds this turn, so consent is the host's (§4.6 / D17). Depends on
  *  `getOrSkinTierModels` because the agent-sdk arm requires the mode-2 tier→slug map even on a sub turn
  *  (the firewall builds the OR skin env only for the OR source, but the request field is non-optional). */
-/** The resolved per-call inputs both extraction arms consume — the NARRATION turn's resolved connection + its
+/** The resolved per-call inputs both extraction arms consume — the CHARACTER turn's resolved connection + its
  *  enforced consent verdict + the prompts + the ref-constrained response schema (R1). Bundled to keep each arm
  *  under the param-count gate. `conn`/`ownerConsented` come from `input.turnConnection` — never a re-resolve
  *  or a force-stamped `true` (stickler F1). */
@@ -146,7 +147,7 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
     systemPrompt: { static: ctx.systemPrompt, dynamic: "" },
     prompt: ctx.userPrompt,
     orSkinTierModels,
-    // The chat-role firewall requires owner consent for a max-pro-sub credential. This is the narration turn's
+    // The chat-role firewall requires owner consent for a max-pro-sub credential. This is the character turn's
     // ENFORCED verdict (`resolveOwnerConsented`, engine.ts), inherited — NOT a force-stamped `true`: a
     // member-triggered turn on a non-consented sub already refused before commit, so no round ever fires.
     ownerConsented: ctx.ownerConsented,
@@ -197,7 +198,7 @@ interface ResolvedRefs {
  *  Deduped (a scene NPC promoted to a cast actor appears once). A model can then only target a REAL, resolvable
  *  ref under an enforcing backend, and the cast-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState): Promise<ResolvedRefs> {
-  const roster = await deps.rpgChatOps.resolveRpgRoster(chatId);
+  const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgRoster(chatId), findGameByChat(deps.db, chatId)]);
   const player = roster.find((r) => r.actorRef.kind === "user");
   const rosterOwnsPlayerName = roster.some((r) => r.name.toLowerCase() === PLAYER_SEMANTIC_REF);
   // Insertion-ordered dedup (case-insensitive) — the enum offers each resolvable target exactly once.
@@ -225,7 +226,13 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
       add(actor.actorRef.castKey); // an existing first-class cast actor — party/inventory/wallet reach it (F4)
     }
   }
-  return { refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues) }, playerDisplayName: player?.name ?? null };
+  // §2.8 — the host-defined tracked cast-field KEYS constrain the nested `presentUpsert[].customFields[].name`,
+  // so the model can only write DEFINED fields (never invent a junk key). Empty (feature off) leaves it free.
+  const castFieldKeys = game?.config.features.castFields.map((f) => f.key) ?? [];
+  return {
+    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys },
+    playerDisplayName: player?.name ?? null,
+  };
 }
 
 /** Append the valid-ref enumeration to the extraction system prompt (the FALLBACK arm for a model whose
@@ -251,7 +258,7 @@ function extractionSystemWithRefs(refs: ExtractionRefs, playerDisplayName: strin
   return `${EXTRACTION_SYSTEM}\n\n${lines.join("\n")}`;
 }
 
-/** Build the reliable-mode `runExtraction` op (§4.6). Rides the NARRATION turn's ALREADY-RESOLVED connection +
+/** Build the reliable-mode `runExtraction` op (§4.6). Rides the CHARACTER turn's ALREADY-RESOLVED connection +
  *  consent verdict (`input.turnConnection` — stickler F1: never a re-resolve of the host's global default, never
  *  a force-stamped consent), reads the beat, drives ONE structured-output call ROUTED BY API (agent-sdk → the
  *  chat structured-output path; every other api → the `structured` dispatcher), and folds the parsed extraction
@@ -359,7 +366,7 @@ function safeJson(text: string): unknown {
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // CHEAP mode — the DEDICATED TOOL ROUND (owner ruling 2026-07-27). The sibling of `runExtraction`.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// A state-only request (NOT tools on the narration turn): the 6 state tools + a `no_changes` escape, with
+// A state-only request (NOT tools on the character turn): the 6 state tools + a `no_changes` escape, with
 // ref-enum-constrained args (R1) + `tool_choice:"required"` (LIVE-VERIFIED: vLLM hermes/Qwen3 + OpenRouter
 // both emit PARALLEL calls on a change beat + a single `no_changes` on a quiet one). No prose expected. The
 // parsed calls fold to the SAME `RpgStateDelta` reliable produces (the shared-plane proof). Portable across
@@ -421,7 +428,7 @@ function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; descript
 }
 
 /** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
- *  `runExtraction`). Rides the NARRATION turn's ALREADY-RESOLVED connection + consent verdict
+ *  `runExtraction`). Rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict
  *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
  *  `required`. On an agent-sdk host (no wire tools) it degrades to the structured extraction (identical delta,
  *  shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data — never corrupts
@@ -450,8 +457,8 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         history: [{ role: "user", content: [{ type: "text", text: extractionUserPrompt(JSON.stringify(baseState), beat) }] }],
         tools: buildToolRoundWireTools(refs),
         toolChoice: { mode: "required" },
-        // The narration turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
-        // backends ignore it; a max-pro-sub round only ever runs because the narration turn already consented.
+        // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
+        // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
         ownerConsented: turnConnection.ownerConsented,
       });
       calls = result.toolCalls ?? [];
@@ -523,7 +530,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
 }
 
 /** Read the chat's per-chat routing overlay (`metadata.providerRouting`) as a `RouteChatAssignment` — the SAME
- *  derivation the narration turn's `resolveConnection` uses (`compose/chat.ts`). A malformed/absent metadata
+ *  derivation the character turn's `resolveConnection` uses (`compose/chat.ts`). A malformed/absent metadata
  *  degrades to the empty assignment (falls through to the host's role default), never a throw. */
 async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssignment> {
   const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
@@ -534,9 +541,10 @@ async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssign
 /** Build the honest-arms `resolveTrackersReadOnly` op (§4.6 — the READ-side CP pill): resolve the ROOM's chat
  *  connection capability (via `resolveChat` — the SAME per-chat-routing verb a turn resolves through, NOT the
  *  host's global `resolveRole` default, stickler F1) for THIS game's mode, and delegate to the rpg-owned
- *  `deriveTrackersReadOnly` mapping. A game with no host, or an unresolvable connection, is readonly by
- *  construction (never assume a write path). This mirrors the flush's F2 gate so the pill and the actual
- *  round-eligibility agree. */
+ *  `deriveTrackersReadOnly` mapping. A game with no host, or an unresolvable connection (a `resolveChat` that
+ *  THROWS a connection-resolution error — incoherent (api,source) or the agent-sdk model-heal fail-loud), is
+ *  readonly by construction (never assume a write path; a READ degrades to read-only trackers, never a 500).
+ *  This mirrors the flush's F2 gate so the pill and the actual round-eligibility agree. */
 function buildResolveTrackersReadOnly(deps: RpgComposeDeps): RpgContext["resolveTrackersReadOnly"] {
   return async (chatId) => {
     const game = await findGameByChat(deps.db, chatId);
@@ -549,7 +557,21 @@ function buildResolveTrackersReadOnly(deps: RpgComposeDeps): RpgContext["resolve
     }
     const host = await deps.resolveHostPrincipal(hostUserId);
     const routableChat = await readRoutableChat(deps.db, chatId);
-    const conn = await deps.connection.resolveChat({ principal: host, routableChat });
+    // An unresolvable/incoherent chat connection (a stale routing setting whose (api,source) pair maps to no
+    // backend) is READONLY BY CONSTRUCTION — the same contract as the missing-game/missing-host arms above.
+    // `resolveChat` THROWS the connection-resolution error classes on that (routing-incoherent + the agent-sdk
+    // model-heal fail-loud); catch THOSE specifically so a misconfigured backend degrades a game READ to
+    // read-only trackers instead of 500ing the panel. Anything else (a DB fault, a transient catalog gap) is a
+    // genuine failure and RETHROWS — the catch never swallows a real bug.
+    let conn: ResolvedConnection;
+    try {
+      conn = await deps.connection.resolveChat({ principal: host, routableChat });
+    } catch (err) {
+      if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
+        return true;
+      }
+      throw err;
+    }
     return deriveTrackersReadOnly(game.config.extractionMode, conn.capability);
   };
 }

@@ -53,3 +53,51 @@ test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad ass
     expect(messageContentBlockSchema.parse(b)).toEqual(b);
   }
 });
+
+// ── The parity-plus §3.4 READING-SURFACE plane (render arms over the §3.2 span grammar) ──────────────────
+
+test("messageContentBlockSchema — round-trips the parity-plus members (titled html-card + choices)", () => {
+  for (const block of [
+    { kind: "html-card", html: "<div/>", trust: "tierB", title: "A letter" },
+    { kind: "choices", options: ["Draw your blade.", "Play along."] },
+  ]) {
+    expect(messageContentBlockSchema.parse(block)).toEqual(block);
+  }
+});
+
+test("a HIDDEN span projects to NO block, and the text around it joins into ONE markdown block (§3.4 — the render filter)", () => {
+  const blocks = contentSpansToBlocks([
+    { kind: "text", text: "He nods." },
+    { kind: "hidden", tag: "lie", attrs: { truth: "the crypt" }, raw: '<lie truth="the crypt"/>' },
+    { kind: "text", text: " Nothing more." },
+  ]);
+  expect(blocks).toEqual([{ kind: "markdown", md: "He nods. Nothing more." }]);
+  // The consequence, not the artifact: zero truth bytes reach the render model.
+  expect(JSON.stringify(blocks)).not.toContain("crypt");
+});
+
+test("an unknown-directive span projects to NO block (§3.2.1 allowlist-strip — model noise never renders)", () => {
+  expect(
+    contentSpansToBlocks([
+      { kind: "text", text: "before " },
+      { kind: "unknown-directive", raw: ':::teleport to="crypt"\nnow\n:::' },
+      { kind: "text", text: " after" },
+    ]),
+  ).toEqual([{ kind: "markdown", md: "before  after" }]);
+});
+
+test("a card span projects to an html-card block — tierB by DEFAULT (fail-closed sandbox), caller-resolved trust threads (§4.3)", () => {
+  const span = { kind: "card", title: "Zandik's letter", body: "<div>x</div>", origin: "fence", raw: ":::card\n<div>x</div>\n:::" } as const;
+  expect(contentSpansToBlocks([span])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", title: "Zandik's letter" }]);
+  expect(contentSpansToBlocks([span], { cardTrust: "tierA" })).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierA", title: "Zandik's letter" }]);
+  // A title-less card omits the optional field (exactOptionalPropertyTypes-honest).
+  expect(contentSpansToBlocks([{ ...span, title: null }])).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB" }]);
+});
+
+test("a choices span projects to a choices block (buttons are the client arm; the options are the datum)", () => {
+  const blocks = contentSpansToBlocks([{ kind: "choices", options: ["one", "two"], raw: ":::choices\n1. one\n2. two\n:::" }]);
+  expect(blocks).toEqual([{ kind: "choices", options: ["one", "two"] }]);
+  for (const b of blocks) {
+    expect(messageContentBlockSchema.parse(b)).toEqual(b);
+  }
+});

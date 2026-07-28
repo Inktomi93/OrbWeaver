@@ -15,14 +15,64 @@
 // The two low-level geometry PARTS (TrackBar, RingGauge) live in @orb/ui (a raw <div>/<svg> with a
 // token fill can only be painted at the kit tier — the client paint law); these blocks compose them.
 
+import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
-import { Gauge, Icon, MapPin } from "@orb/ui/icons";
+import { Gauge, Heart, Icon, MapPin, Star, Users, UserX } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { TrackerValue } from "./tracker-value";
+
+type BadgeIntent = NonNullable<ComponentProps<typeof Badge>["intent"]>;
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// RELATIONSHIP BADGE — the five known kinds get a distinct token color + icon; `custom` = a neutral label
+// chip (parity-plus §2.1/§2.5). TEXT is the accessible datum (the tracker-kit a11y model): the badge carries a
+// visible label, the color + icon are decoration. A NEUTRAL default renders nothing (no steering signal to badge).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The per-kind badge decoration — the intent color + the glyph. `custom` has none (a plain neutral label chip).
+ *  Ordered lover→enemy along the warmth axis (§2.1). */
+const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly intent: BadgeIntent; readonly glyph: typeof Heart }>> = {
+  lover: { intent: "primary", glyph: Heart },
+  friend: { intent: "success", glyph: Star },
+  ally: { intent: "info", glyph: Users },
+  neutral: { intent: "neutral", glyph: Users },
+  enemy: { intent: "danger", glyph: UserX },
+};
+
+/** A cast member's relationship badge (§2.1). The five known kinds get a color + icon; a `custom` kind renders
+ *  its `label` as a neutral chip. A neutral default is silent (returns null — no badge to clutter). */
+function RelationshipBadge({ relationship }: { readonly relationship: RpgRelationship }): ReactElement | null {
+  if (relationship.kind === "custom") {
+    const label = relationship.label !== "" ? relationship.label : "custom";
+    // A free-text custom label can be arbitrarily long ("disgraced former lieutenant of the crown"); left
+    // unbounded it grew the badge to ~236px and starved the character NAME to 0px. Cap + truncate the label so
+    // the badge yields width to the name (which is `shrink-0` in CastCard), and carry the full text on `title`
+    // for hover. `min-w-0` lets the truncating child actually shrink inside the flex badge.
+    return (
+      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="min-w-0 max-w-control-col" title={label}>
+        <Text as="span" size="micro" weight="medium" className="truncate">
+          {label}
+        </Text>
+      </Badge>
+    );
+  }
+  if (relationship.kind === "neutral") {
+    return null;
+  }
+  const decor = RELATIONSHIP_DECOR[relationship.kind];
+  return (
+    <Badge tone="soft" size="sm" intent={decor.intent} data-slot="relationship-badge">
+      <Icon icon={decor.glyph} size="xs" />
+      <Text as="span" size="micro" weight="medium">
+        {relationship.kind}
+      </Text>
+    </Badge>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 1. METER ROW — pools / per-member meters: `label · value/max` text + a 6px decorative track bar.
@@ -175,20 +225,27 @@ export interface CastCardProps {
   readonly name: string;
   readonly mood?: string;
   readonly fields?: readonly CastField[];
+  /** The cast member's relationship stance (§2.1) — badged in the header row; a neutral default shows nothing. */
+  readonly relationship?: RpgRelationship;
   /** Meter blocks for numeric per-NPC trackers (rendered above the text-field chips). */
   readonly meters?: ReactNode;
   /** Commit a field value by field name — present ⇒ its chips are editable; absent ⇒ read-only. */
   readonly onEditField?: (fieldName: string, next: string) => void;
 }
 
-/** A present-character card: name · mood · numeric meters · text-field chips. */
-export function CastCard({ name, mood, fields, meters, onEditField }: CastCardProps): ReactElement {
+/** A present-character card: name · relationship badge · mood · numeric meters · text-field chips. */
+export function CastCard({ name, mood, fields, relationship, meters, onEditField }: CastCardProps): ReactElement {
   return (
     <Stack gap="block" className="rounded-card border border-border bg-card px-block py-row" data-slot="cast-card">
       <Row justify="between" align="baseline" gap="block">
-        <Text as="span" size="label" weight="semibold">
-          {name}
-        </Text>
+        <Row gap="field" align="baseline" className="min-w-0">
+          {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
+              the badge yields width to the name (it truncates), never the reverse. */}
+          <Text as="span" size="label" weight="semibold" className="shrink-0">
+            {name}
+          </Text>
+          {relationship === undefined ? null : <RelationshipBadge relationship={relationship} />}
+        </Row>
         {mood === undefined ? null : (
           <Text as="span" size="label" tone="muted">
             mood — {mood}

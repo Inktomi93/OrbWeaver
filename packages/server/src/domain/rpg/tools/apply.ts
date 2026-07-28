@@ -239,6 +239,21 @@ function carry<T>(next: T | undefined, existing: T | undefined): T | undefined {
   return next ?? existing;
 }
 
+/** The default relationship a fresh cast member is born with (neutral, no label). */
+const DEFAULT_RELATIONSHIP: RpgPresentCharacter["relationship"] = { kind: "neutral", label: "" };
+
+/** Merge a `presentUpsert.relationship` patch onto the existing stance (§2.1). Omit = keep (MA-4). A `custom`
+ *  kind carries its `label`; a non-custom kind clears the label (the built-ins carry their own meaning). */
+function mergeRelationship(
+  up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number]["relationship"],
+  existing: RpgPresentCharacter["relationship"] | undefined,
+): RpgPresentCharacter["relationship"] {
+  if (up === undefined) {
+    return existing ?? DEFAULT_RELATIONSHIP;
+  }
+  return { kind: up.kind, label: up.kind === "custom" ? (up.label ?? "") : "" };
+}
+
 /** Merge one `presentUpsert` entry onto its existing cast row (or a fresh one) — a per-cast PATCH by `key`. */
 function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgPresentCharacter | undefined): RpgPresentCharacter {
   const customFields = up.customFields === undefined ? (existing?.customFields ?? {}) : Object.fromEntries(up.customFields.map((f) => [f.name, f.value]));
@@ -251,6 +266,7 @@ function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numbe
     emoji: pick(up.emoji, existing?.emoji, ""),
     mood: pick(up.mood, existing?.mood, ""),
     customFields,
+    relationship: mergeRelationship(up.relationship, existing?.relationship),
     ...(appearance !== undefined ? { appearance } : {}),
     ...(outfit !== undefined ? { outfit } : {}),
     ...(thoughts !== undefined ? { thoughts } : {}),
@@ -428,5 +444,32 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   // Drop a genuinely-empty beat (no content AND no title — nothing to log); a content-full but title-less
   // entry is KEPT (title derived from the content head — the small-model-robust arm, ruling #10).
   const journal = extraction.journal.filter((e) => e.content.trim().length > 0 || (e.title?.trim().length ?? 0) > 0).map(toStagedJournalEntry);
-  return { statePatch, journal };
+  // §2.4 — DERIVE a journal beat for each relationship-KIND change (a durable, swipe-consistent record of "when
+  // did she turn"). Derived at the fold (both old + new state are in hand), NOT model-authored (a second write
+  // is a second failure point). Appended AFTER the model's own beats. Only fires when the scene plane changed.
+  const relationshipBeats = state.presentCharacters === base.presentCharacters ? [] : deriveRelationshipBeats(base.presentCharacters, state.presentCharacters);
+  return { statePatch, journal: [...journal, ...relationshipBeats] };
+}
+
+/** Derive the relationship-change journal beats (§2.4) — one `event` entry per cast member whose relationship
+ *  KIND flipped from its base snapshot value (`Mari: friend → enemy`). Matched by cast key; a first-seen member
+ *  or a label-only change (same kind) is NOT a beat (the kind is the arc-turning datum). A custom→custom kind
+ *  with a changed label IS a turn (both read as "custom" by kind, so we also fire when the label moved). */
+function deriveRelationshipBeats(prev: readonly RpgPresentCharacter[], cur: readonly RpgPresentCharacter[]): StagedJournalEntry[] {
+  const before = new Map(prev.map((c) => [c.key, c.relationship]));
+  const beats: StagedJournalEntry[] = [];
+  for (const c of cur) {
+    const was = before.get(c.key);
+    if (was === undefined) {
+      continue; // a newly-present member has no prior stance to have "turned" from
+    }
+    const kindChanged = was.kind !== c.relationship.kind;
+    const customLabelChanged = was.kind === "custom" && c.relationship.kind === "custom" && was.label !== c.relationship.label;
+    if (kindChanged || customLabelChanged) {
+      const from = was.kind === "custom" && was.label !== "" ? was.label : was.kind;
+      const to = c.relationship.kind === "custom" && c.relationship.label !== "" ? c.relationship.label : c.relationship.kind;
+      beats.push({ type: "event", title: `${c.name}: ${from} → ${to}`, content: `${c.name}'s relationship shifted from ${from} to ${to}.` });
+    }
+  }
+  return beats;
 }

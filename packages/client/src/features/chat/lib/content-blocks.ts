@@ -10,11 +10,15 @@
 // persona / cast / env) is threaded to the row; and the `<speaker>`-span split (#21) consumes the
 // same string before projection. Both leave this projection untouched (§12.4: spans survive it).
 
-import type { MessageContentBlock } from "@orb/contracts/chat";
+import type { ContentSpansToBlocksOptions, MessageContentBlock } from "@orb/contracts/chat";
 import { contentSpansToBlocks } from "@orb/contracts/chat";
 import { tokenizeContent } from "@orb/kit/content";
 
-/** Project a stored/authored message body into the typed render-block sequence (§12.4). Pure. */
-export function toContentBlocks(content: string): readonly MessageContentBlock[] {
-  return contentSpansToBlocks(tokenizeContent(content));
+/** Project a stored/authored message body into the typed render-block sequence (§12.4). Pure. This is the
+ *  READING-SURFACE plane of the parity-plus §3 visibility registry: hidden-class tags and unknown
+ *  command-shaped directives project to NO block (the client defense-in-depth arm — the server member-strip
+ *  is the trust boundary); `:::card`/`:::choices` fences project to their render blocks. `options.cardTrust`
+ *  is the row's resolved render trust (§4.3 — the caller maps `render-trust`'s verdict; default tierB). */
+export function toContentBlocks(content: string, options?: ContentSpansToBlocksOptions): readonly MessageContentBlock[] {
+  return contentSpansToBlocks(tokenizeContent(content), options);
 }

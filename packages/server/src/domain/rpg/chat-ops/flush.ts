@@ -27,7 +27,7 @@ import { defaultSnapshotState } from "../substrate/default-state";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
 
 /** The committed assistant slot a completed turn flushes onto (the snapshot key + the journal lineage stamp)
- *  PLUS the narration turn's already-resolved route + consent verdict the state round rides (F1/F2). */
+ *  PLUS the character turn's already-resolved route + consent verdict the state round rides (F1/F2). */
 interface CompletedTurn {
   readonly turnId: ChatTurnId;
   readonly messageId: MessageId;
@@ -49,7 +49,7 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
  *  byte-identical to a non-writing turn). The delta is resolved by the mode's injected op below. */
 // `runRound` is the mode's injected op — `RpgRunExtraction` (reliable) or `RpgRunToolRound` (cheap); they
 // share this exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
-// (the narration turn's already-resolved route + consent verdict) is threaded straight through to the round.
+// (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
   const baseState = await extractionBase(ctx, game);
   const delta = await runRound({
@@ -134,7 +134,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
  *  (`cheap` needs `tools`, `reliable` needs `output.structured`) runs NO round — a per-turn model call that
  *  would predictably fail (`rpg.extraction.*`/`rpg.toolround.failed`) and, on hosted creds, cost real spend for
  *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
- *  narration turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
+ *  character turn's `turnConnection`, F1) — never a re-resolve of the host's global default. The header law
  *  ("a game whose model has no writer capability never reaches here", compose/rpg.ts) is now ENFORCED here. */
 export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGameRow["config"]["extractionMode"], turn: CompletedTurn): Promise<void> {
   if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {

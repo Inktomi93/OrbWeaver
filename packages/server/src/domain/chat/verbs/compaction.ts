@@ -26,6 +26,7 @@ import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context";
@@ -163,7 +164,10 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
       await ctx.db.update(chats).set({ compactedAtSeq: coveredThroughSeq, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
       return { summary: chat.compactSummary ?? "", compactedAtSeq: coveredThroughSeq, updated: false };
     }
-    const transcript = window.map((m) => `${m.role}: ${m.content}`).join("\n");
+    // §3.5 summary-plane projection: cards collapse to the stub (the summarizer never eats the blob) and
+    // HIDDEN-class spans are STRIPPED — the marker is durable + member-peekable, so a folded-in lie truth
+    // would re-open the exact §3.6 leak the payload strip closes (fail-closed; trade named at the kit fn).
+    const transcript = window.map((m) => `${m.role}: ${projectBodyForSummary(m.content)}`).join("\n");
     return await buildMarker(ctx, quietGenerate, {
       chatId,
       connection,

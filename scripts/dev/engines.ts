@@ -25,16 +25,33 @@
  */
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import { mkdirSync, openSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import process from "node:process";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "@orb/server/foundation/env";
-import type { EngineLaunchConfig, EngineSpawnSpec } from "@orb/server/infra/providers/vllm/engine";
-import { buildEngineSpawnSpec, countGpus, resolveEngineLaunchConfig, VLLM_ENGINES } from "@orb/server/infra/providers/vllm/engine";
+import type { EngineLaunchConfig, EngineSpawnSpec, EngineUtilFractions } from "@orb/server/infra/providers/vllm/engine";
+import {
+  buildEngineSpawnSpec,
+  countGpus,
+  decideWakeBudget,
+  engineVramNeed,
+  fleetRunDir,
+  queryGpuVram,
+  reapOrphanedFamily,
+  resolveEngineLaunchConfig,
+  VLLM_ENGINES,
+} from "@orb/server/infra/providers/vllm/engine";
 
 const REPO_ROOT = process.cwd();
 const HEALTH_POLL_MAX = 180;
 const HEALTH_POLL_INTERVAL_MS = 2000;
 const HEALTH_TIMEOUT_MS = 2000;
 const MS_PER_SECOND = 1000;
+// `--detach`: boot the fleet, record engine pgids to the pidfile, then EXIT (no foreground hold, no
+// kill-trap) — the detached fleet model (A.4). Each engine is its own setsid group leader, so they survive
+// the launcher's death; the bit-us-twice class is unmakeable. Default (no flag) = the old foreground owner.
+const DETACH = process.argv.includes("--detach");
+const PIDFILE = path.join(fleetRunDir(REPO_ROOT), "engines.pgid");
 
 function log(msg: string): void {
   process.stdout.write(`engines: ${msg}\n`);
@@ -70,15 +87,55 @@ async function waitHealthy(engine: string, port: number): Promise<void> {
   log(`WARNING — ${engine} not healthy after ${(HEALTH_POLL_MAX * HEALTH_POLL_INTERVAL_MS) / MS_PER_SECOND}s; continuing.`);
 }
 
-function spawnEngine(spec: EngineSpawnSpec): ChildProcess {
+function spawnEngine(engine: string, spec: EngineSpawnSpec): ChildProcess {
   // setsid: the engine leads its own process group so one group-kill takes the APIServer + EngineCore.
   const argv = ["setsid", spec.command, ...spec.args];
+  // Each engine's stdout/stderr → its OWN vllm-<engine>.log (matching the supervisor's convention + what
+  // `pnpm engines`'s log-follow tails). In DETACH mode the launcher exits, so "inherit" would break the
+  // engine's stdout on launcher death — a dedicated file fd keeps the detached engine's logs flowing.
+  const logPath = path.join(fleetRunDir(REPO_ROOT), `vllm-${engine}.log`);
+  mkdirSync(fleetRunDir(REPO_ROOT), { recursive: true });
+  const logFd = openSync(logPath, "a");
   return spawn(argv[0] as string, argv.slice(1), {
     cwd: REPO_ROOT,
     env: { ...processEnvSnapshot(), ...spec.env },
-    stdio: "inherit",
+    stdio: ["ignore", logFd, logFd],
     detached: false,
   });
+}
+
+/** The launch-floor util fractions the cold-start VRAM pre-check reads (SAME source as the serve argv). */
+function utilFractions(): EngineUtilFractions {
+  const f = engineLaunchEnvFloor();
+  return {
+    embedGpuUtil: f.VLLM_EMBED_GPU_UTIL,
+    rerankGpuUtilMulti: f.VLLM_RERANK_GPU_UTIL_MULTI,
+    rerankGpuUtilSingle: f.VLLM_RERANK_GPU_UTIL_SINGLE,
+    genGpuUtilMulti: f.VLLM_GEN_GPU_UTIL_MULTI,
+    genGpuUtilSingle: f.VLLM_GEN_GPU_UTIL_SINGLE,
+  };
+}
+
+/** The cold-start headroom gate (B.6): vLLM's memory profiler OOMs mid-boot into insufficient free VRAM
+ *  (the 0.28-era coexistence pain). The SAME budget check the wake gate runs — refuse loudly, name the
+ *  holders, and skip the boot rather than OOM. Returns false to skip this engine's boot. Reconcile has
+ *  already run, so a held GPU is a REAL foreign tenant, never our own corpse. */
+async function headroomOk(engine: (typeof VLLM_ENGINES)[number], gpuCount: number): Promise<boolean> {
+  const verdict = decideWakeBudget(engine, engineVramNeed(engine, gpuCount, utilFractions()), await queryGpuVram());
+  if (!verdict.ok) {
+    log(`${engine}: BOOT REFUSED — ${verdict.message}`);
+    return false;
+  }
+  return true;
+}
+
+/** Write the detached pidfile: one `engine pgid startTime` row per booted engine. The bash stop verb reads
+ *  the pgids to group-kill the family; start-time makes the pid pgid-reuse-safe (bash re-reads /proc/stat). */
+function writePidfile(rows: readonly (readonly [string, number])[]): void {
+  mkdirSync(fleetRunDir(REPO_ROOT), { recursive: true });
+  const lines = rows.map(([engine, pgid]) => `${engine} ${pgid}`).join("\n");
+  writeFileSync(PIDFILE, `${lines}\n`);
+  log(`wrote pidfile ${PIDFILE} (${rows.length} engines)`);
 }
 
 async function main(): Promise<void> {
@@ -91,38 +148,63 @@ async function main(): Promise<void> {
   const gpuCount = countGpus();
   const ports = launch.ports;
   const children: ChildProcess[] = [];
+  const booted: [string, number][] = [];
 
-  const cleanup = (): void => {
-    log("stopping…");
-    for (const c of children) {
-      if (c.pid !== undefined) {
-        try {
-          process.kill(-c.pid, "SIGTERM");
-        } catch {
-          // already gone
+  // Reconcile-before-spawn: reap any orphaned engine-family process (a dead APIServer's core still holding
+  // VRAM) so the headroom pre-check names a REAL foreign tenant, never our own corpse.
+  const reaped = await reapOrphanedFamily(REPO_ROOT);
+  if (reaped.length > 0) {
+    log(`reaped orphaned engine-family process(es) before boot: ${reaped.join(", ")}`);
+  }
+
+  // Foreground mode (default) owns the children + group-kills them on a signal (the pre-fleet behavior for
+  // `pnpm dev` adoption). --detach records the pidfile and exits, leaving the engines warm (fleet model).
+  if (!DETACH) {
+    const cleanup = (): void => {
+      log("stopping…");
+      for (const c of children) {
+        if (c.pid !== undefined) {
+          try {
+            process.kill(-c.pid, "SIGTERM");
+          } catch {
+            // already gone
+          }
         }
       }
-    }
-  };
-  process.on("SIGINT", () => {
-    cleanup();
-    process.exit(0);
-  });
-  process.on("SIGTERM", () => {
-    cleanup();
-    process.exit(0);
-  });
+    };
+    process.on("SIGINT", () => {
+      cleanup();
+      process.exit(0);
+    });
+    process.on("SIGTERM", () => {
+      cleanup();
+      process.exit(0);
+    });
+  }
 
   const portOf: Record<string, number> = { embed: ports.embed, rerank: ports.rerank, gen: ports.gen };
   const baseEnv = processEnvSnapshot();
   for (const engine of VLLM_ENGINES) {
+    // biome-ignore lint/performance/noAwaitInLoops: sequential boot — vLLM's memory profiler cannot run two at once.
+    if (!(await headroomOk(engine, gpuCount))) {
+      continue; // no breaker charge for a held GPU — a foreign tenant is not a crash loop.
+    }
     log(`starting ${engine} :${portOf[engine]}`);
     const spec = buildEngineSpawnSpec(engine, launch, { repoRoot: REPO_ROOT, gpuCount, deployment, baseEnv });
-    children.push(spawnEngine(spec));
-    // biome-ignore lint/performance/noAwaitInLoops: sequential boot — vLLM's memory profiler cannot run two at once.
+    const child = spawnEngine(engine, spec);
+    children.push(child);
+    if (child.pid !== undefined) {
+      booted.push([engine, child.pid]); // setsid ⇒ pid == the engine's process-group leader (pgid)
+    }
     await waitHealthy(engine, portOf[engine] as number);
   }
-  log(`all booted — embed:${ports.embed} rerank:${ports.rerank} gen:${ports.gen}`);
+  log(`booted ${booted.length}/${VLLM_ENGINES.length} — embed:${ports.embed} rerank:${ports.rerank} gen:${ports.gen}`);
+
+  if (DETACH) {
+    writePidfile(booted);
+    log("detached — the fleet stays warm (each engine is its own setsid group). `pnpm engines:stop` kills it.");
+    return; // exit WITHOUT the kill trap; the engines keep running, owned by nothing.
+  }
   log("owning them in the foreground; `pnpm dev` will ADOPT. Ctrl-C to stop.");
   // Hold the process open owning the children until a signal tears it down.
   await new Promise<void>(() => undefined);

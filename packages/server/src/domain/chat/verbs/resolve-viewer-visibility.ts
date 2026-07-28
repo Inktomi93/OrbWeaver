@@ -23,6 +23,7 @@ import type { ChatContext } from "../context";
 import type { ResolveViewerVisibility } from "../contract/context";
 import { loadPresentVisibilityRow } from "../persistence/roster";
 import { resolveHistoryFloorSeq } from "../substrate/auth";
+import { viewerReadsHidden } from "../substrate/member-visibility";
 
 /** Only the db — the verdict is a pure function of the caller's own participant row (the `guard.ts::GuardCtx`
  *  narrowing precedent), so the composition root can build this op without the full chat DI bundle. */
@@ -36,6 +37,6 @@ export function createResolveViewerVisibility(ctx: VisibilityCtx): ResolveViewer
     if (membership === null) {
       return null;
     }
-    return { role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership) };
+    return { role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) };
   };
 }

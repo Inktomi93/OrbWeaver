@@ -53,7 +53,15 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         if (visibility === null) {
           return [];
         }
-        return await ops.chat.listMessages(chatId, { ...(limit === undefined ? {} : { limit }), floorSeq: visibility.historyFloorSeq });
+        // The §3.6 / D106 hidden-content verdict rides the SAME visibility answer as the D16 floor (chat DERIVES
+        // it via its ONE `viewerReadsHidden` home — the bridge never re-derives `role === "host"`). Threaded as a
+        // required param (like `floorSeq`) so the read site — not a post-filter — owns the predicate; a non-host
+        // member's snippet has hidden `<lie>`/`<ofilter>` spans stripped before the body crosses the realm boundary.
+        return await ops.chat.listMessages(chatId, {
+          ...(limit === undefined ? {} : { limit }),
+          floorSeq: visibility.historyFloorSeq,
+          readsHidden: visibility.readsHidden,
+        });
       },
       getVariables: (chatId) => ops.chat.getVariables(chatId),
       applyVariableOps: (chatId, varOps) => ops.chat.applyVariableOps(chatId, varOps),

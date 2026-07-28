@@ -1591,6 +1591,7 @@ function triggerGatedConfig(): PromptConfig {
     params: {},
     regexScripts: [],
     variables: [],
+    userMacros: [],
   } satisfies PromptConfig;
 }
 

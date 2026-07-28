@@ -21,10 +21,15 @@ const e2eLive = process.env.E2E_LIVE === "1";
 
 // The env pin floor — MUST match scripts/dev/stack.sh (the script `: "${VAR:=default}"`-defaults the
 // same values, so this map only matters for determinism when the invoking shell carries strays; the
-// secrets are DEV-ONLY deterministic literals, insecure by design). RUNNER_OVERRIDE is deliberately
-// absent — the scripted-runner seam rides through from the caller unclobbered.
+// secrets are DEV-ONLY deterministic literals, insecure by design).
+//
+// ENGINES_POSTURE=adopt-only (A.4): the e2e stack ADOPTS the shared box-level fleet when it's up and NEVER
+// spawns/manages it. Routine `pnpm e2e` is model-free (the @live spec is grep-excluded), so nothing touches
+// the engines; the pin matters for the `E2E_LIVE=1` runs — the live cell needs the vllm backend REGISTERED
+// (adopt-only registers it, off/VLLM_DISABLED=true would not) and adopts the fleet, so engines-down fails
+// fast with the named "engines down — pnpm engines:start" message instead of a timeout.
 const stackEnv = {
-  VLLM_DISABLED: "true",
+  ENGINES_POSTURE: "adopt-only",
   AUTH_MODE: "single-user",
   SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
   CREDENTIALS_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",

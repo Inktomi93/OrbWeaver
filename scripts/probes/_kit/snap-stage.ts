@@ -43,7 +43,7 @@
 // `tsx watch` on the stage picks up the synced diff itself. `--fresh` still forces the full rebuild.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
@@ -52,9 +52,10 @@ import { print } from "./result.ts";
 // The canonical dev ports (mirrors stack.sh BACKEND_PORT + vite.config strictPort). The stage offsets both.
 export const DEV_SERVER_PORT = 8788;
 export const DEV_VITE_PORT = 5173;
-// Offset both dev ports into a free band (8788→8888, 5173→5273): dodges the vLLM loopback engines
-// (8701-8703, disabled in-stack) and the live dev pair. One stage runs at a time, so a single fixed offset
-// never self-collides.
+// Offset both dev ports into a free band (8788→8888, 5173→5273): dodges the live dev pair. The vLLM engine
+// ports 8701-8703 sit outside this band anyway (the stage ADOPTS the shared fleet — see bootStage's
+// ENGINES_POSTURE pin — it never offsets or spawns engines). One stage runs at a time, so a single fixed
+// offset never self-collides.
 export const STAGE_PORT_OFFSET = 100;
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -288,13 +289,19 @@ function stopStage(dir: string): void {
 
 function bootStage(paths: StagePaths, ports: StagePorts): void {
   const env: NodeJS.ProcessEnv = {
-    // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH, VLLM pins) — harness plumbing, not app config.
+    // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
     PORT: String(ports.server),
     VITE_PORT: String(ports.vite),
     VITE_API_TARGET: `http://127.0.0.1:${ports.server}`,
     DATABASE_URL: paths.databaseUrl,
     ASSETS_DIR: paths.assetsDir,
+    // ADOPT-ONLY (A.4/A.5-1): the stage ADOPTS the shared box-level fleet when it's up (so live-model
+    // surfaces snap correctly) and NEVER spawns or manages it — pinned so an ambient VLLM_DISABLED=false
+    // can't make a visual-review surface cold-start (and, post-sleep-mode, become a second auto-sleep
+    // manager fighting the primary). The stage runs no supervisor management; exactly one auto-sleep
+    // timer exists (the dev/prod server's) — the single-manager assumption made true by construction.
+    ENGINES_POSTURE: "adopt-only",
     // A stray .env in the worktree must never clobber these explicit stage knobs (dotenv override:true).
     ORB_ENV_NO_OVERRIDE: "1",
   };
@@ -412,12 +419,90 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
   return built;
 }
 
-/** `--stage-down`: stop the active stage's stack and remove its worktree/dir. Returns a one-line status. */
+const SS_PID_RE = /pid=(\d+)/u;
+
+/** The pid bound to a stage-band port (via `ss -tlnp`), or null — the marker-less teardown's index. */
+function stageBandPortPid(port: number): number | null {
+  const out = spawnSync("ss", ["-tlnp"], { encoding: "utf8" });
+  if (out.status !== 0) {
+    return null;
+  }
+  for (const line of (out.stdout ?? "").split("\n")) {
+    if (line.includes(`:${port} `)) {
+      const m = SS_PID_RE.exec(line);
+      if (m !== null) {
+        return Number(m[1]);
+      }
+    }
+  }
+  return null;
+}
+
+/** Stage worktree/dir names present under `.cache/snap-stage/` (excludes active.json). */
+function stageDirs(root: string): string[] {
+  const dir = join(root, STAGE_ROOT_REL);
+  if (!existsSync(dir)) {
+    return [];
+  }
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+}
+
+/** `snap --stage-status`: the `engines:status`-style visibility, stage edition — the marker, the stage-band
+ *  port owners, and the worktree dirs on disk (so a LOST-marker / ownerless stage is SEEN, not invisible). */
+export function stageStatus(): string {
+  const root = repoRoot();
+  const active = readActive(root);
+  const ports = stagePorts();
+  const serverPid = stageBandPortPid(ports.server);
+  const vitePid = stageBandPortPid(ports.vite);
+  const dirs = stageDirs(root);
+  const lines = [
+    `marker      : ${active === null ? "none" : `${active.shortSha} → ${active.baseUrl}`}`,
+    `stage ports : server :${ports.server} pid ${serverPid ?? "—"} · vite :${ports.vite} pid ${vitePid ?? "—"}`,
+    `stage dirs  : ${dirs.length === 0 ? "none" : dirs.join(", ")}`,
+  ];
+  // Flag the ownerless case the marker-index alone can't teardown: ports bound but no marker.
+  if (active === null && (serverPid !== null || vitePid !== null)) {
+    lines.push("WARNING     : stage ports are bound but NO marker — a lost-marker stage; `--stage-down` will kill by port + sweep dirs.");
+  }
+  return lines.join("\n");
+}
+
+/** Marker-less teardown fallback: no active.json (a killed-mid-write / lost marker) but a stage may still be
+ *  bound. Kill the stage-band port owners' groups and sweep the stage dirs. Returns a one-line status. */
+function teardownStageMarkerless(root: string): string {
+  const ports = stagePorts();
+  const killed: number[] = [];
+  for (const port of [ports.server, ports.vite]) {
+    const pid = stageBandPortPid(port);
+    if (pid !== null) {
+      const pgid = spawnSync("ps", ["-o", "pgid=", "-p", String(pid)], { encoding: "utf8" }).stdout?.trim();
+      if (pgid !== undefined && pgid.length > 0) {
+        spawnSync("kill", ["-TERM", `-${pgid}`]);
+        killed.push(pid);
+      }
+    }
+  }
+  const dirs = stageDirs(root);
+  for (const name of dirs) {
+    rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
+  }
+  spawnSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+  if (killed.length === 0 && dirs.length === 0) {
+    return "no active stage to tear down (no marker, no bound stage ports, no stage dirs)";
+  }
+  return `marker-less teardown: killed ${killed.length} stage-band port owner(s), swept ${dirs.length} stage dir(s)`;
+}
+
+/** `--stage-down`: stop the active stage's stack and remove its worktree/dir. Falls back to a marker-less
+ *  teardown (kill by stage-band port + sweep dirs) when there's no marker but a stage may still be bound. */
 export function teardownStage(): string {
   const root = repoRoot();
   const active = readActive(root);
   if (active === null) {
-    return "no active stage to tear down";
+    return teardownStageMarkerless(root);
   }
   try {
     stopStage(active.dir);

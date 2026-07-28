@@ -21,8 +21,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
-import { peekQueryData, QueryBoundary, QueryErrorState } from "#data";
+import { peekQueryData, QueryBoundary } from "#data";
 import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
+import { RpgErrorState } from "../components/rpg-error-state";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body";
 import { RpgHeaderBand } from "../components/rpg-header-band";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab";
@@ -59,7 +60,10 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       isGameChat(s) ? (
         <QueryBoundary
           fallback={<Text tone="muted">{`Loading ${label.toLowerCase()}…`}</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label={label.toLowerCase()} onRetry={retry} />}
+          // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
+          // collapses to nothing on error (below) so a failed read is a single `role="alert"` region, never two
+          // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`.
+          renderError={(_error, retry): ReactElement => <RpgErrorState onRetry={retry} />}
         >
           <RpgGameTabBody chatId={s.chatId} render={render} />
         </QueryBoundary>
@@ -79,7 +83,15 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // The scene banner + pool orbs ride the `.shell-panel-header` BAND slot ABOVE both strips (§4.2/§4.11
       // #3), NOT a tab body — supplied on this (always-present) game tab via the W3c header-contributor seam,
       // gated on the SAME `isGameChat` `when` (a game chat with no game clears the whole takeover, band too).
-      header: (s) => (isGameChat(s) ? <RpgHeaderBand chatId={s.chatId} /> : null),
+      // The band is DECORATION over the same reads the body owns: on error it collapses to nothing (its own
+      // boundary, `renderError → null`) so the body's `RpgErrorState` is the SINGLE announced failure surface
+      // (FIX 3 — never a second generic "Couldn't load this." block beside it).
+      header: (s) =>
+        isGameChat(s) ? (
+          <QueryBoundary fallback={null} renderError={(): null => null}>
+            <RpgHeaderBand chatId={s.chatId} />
+          </QueryBoundary>
+        ) : null,
     },
     {
       id: "rpg.sheet",

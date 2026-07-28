@@ -13,7 +13,7 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -84,6 +84,7 @@ import { buildHistoryBudget, buildPrompt, buildShapeTrace, fitHistory, previewSe
 import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
+import { scrubStreamReplayForMember, stripChatEventForMember, stripHiddenForMember } from "../substrate/member-visibility";
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
@@ -328,11 +329,15 @@ const MAX_LIMIT = 100;
  *  same terminal signal an exhausted backward walk gives), never a fabricated one. */
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
   return async ({ principal, chatId, beforeSeq, limit }: ListMessagesParams): Promise<MessagesPage> => {
-    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
-    const page = await loadMessagesPage(ctx.db, chatId, { beforeSeq, limit: pageSize, floorSeq: historyFloorSeq });
+    const page = await loadMessagesPage(ctx.db, chatId, { beforeSeq, limit: pageSize, floorSeq: membership.historyFloorSeq });
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
-    const messages = page.reverse();
+    // The §3.6 MEMBER-STRIP trust boundary: hidden-class spans never reach a NON-HOST viewer's payload
+    // (a client-only hide would leak the truth bytes in the wire). The host reads unstripped — the reveal
+    // eye / standing-lie inventory are host-plane reads over the full body.
+    const chronological = page.reverse();
+    const messages = membership.role === "host" ? chronological : chronological.map(stripHiddenForMember);
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants, messages });
@@ -586,11 +591,14 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
 
 /** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up).
  *  D16-clamped: a stream row is raw transcript text, so a `from-join` caller only gets rows anchored to a
- *  slot at/above their `historyFloorSeq` (see `loadStreamReplay`). */
+ *  slot at/above their `historyFloorSeq` (see `loadStreamReplay`). §3.6 member-scrub: the replayed `text`
+ *  deltas carry the model's raw output (hidden spans included), so a NON-HOST caller's rows run through the
+ *  per-slot stream scrubber — the durable twin of the live delta scrubber the transport applies. */
 function createReplayStreamEvents(ctx: ChatContext): ChatService["replayStreamEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayStreamEventsParams): Promise<ChatStreamReplayEvent[]> => {
-    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
-    return await loadStreamReplay(ctx.db, chatId, afterSeq, historyFloorSeq);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const rows = await loadStreamReplay(ctx.db, chatId, afterSeq, membership.historyFloorSeq);
+    return scrubStreamReplayForMember(rows, membership);
   };
 }
 
@@ -617,9 +625,14 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
  *  so a resume never re-offers a withheld row and never stalls. */
 function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
-    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
-    return rows.filter(({ payload }) => !isBelowHistoryFloor(payload, historyFloorSeq)).map(({ seq, payload }) => ({ seq, event: payload }));
+    // Per-caller, like the D16 floor: the §3.6 member-strip removes hidden-class spans from any replayed
+    // `view` payload for a non-host caller (the live half applies the identical verdict at the transport).
+    const project = membership.role === "host" ? (e: ChatBusEvent): ChatBusEvent => e : stripChatEventForMember;
+    return rows
+      .filter(({ payload }) => !isBelowHistoryFloor(payload, membership.historyFloorSeq))
+      .map(({ seq, payload }) => ({ seq, event: project(payload) }));
   };
 }
 
@@ -636,8 +649,10 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
  *  from anything the client sends. */
 function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
   return async ({ principal, chatId }: ChatEventBoundsParams): Promise<ChatEventAttach> => {
-    const { historyFloorSeq } = await requireParticipant(ctx, principal, chatId);
-    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq };
+    const membership = await requireParticipant(ctx, principal, chatId);
+    // `viewerIsHost` piggybacks on the same member-gated probe as the D16 floor (one read per yield): the
+    // LIVE fan-out applies the §3.6 member-strip off it, exactly as the durable replay does per caller.
+    return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: membership.role === "host" };
   };
 }
 

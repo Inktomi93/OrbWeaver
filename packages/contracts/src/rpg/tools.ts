@@ -14,7 +14,7 @@
 
 import { z } from "zod";
 import { TIME_OF_DAY } from "./ambient";
-import { RPG_JOURNAL_TYPES } from "./enums";
+import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums";
 
 /** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
  *  its names to its own tuple; these 7 are byte-stable at graft (the ambient/wallet args are already
@@ -34,8 +34,19 @@ export type RpgToolName = (typeof RPG_LITE_TOOL_NAMES)[number];
 // A model-facing actor reference: a NAME the server alias-resolves to a character/user/cast actor (never
 // a branded id — projection-clean). The wallet/inventory-on-every-actor ruling means this reaches cast too.
 const targetRefField = z.string().min(1);
-// customFields as array-of-pairs (D79 regime) — a bare record projects an open additionalProperties.
+// customFields as array-of-pairs (D79 regime) — a bare record projects an open additionalProperties. The pair
+// `name` is ENUM-CONSTRAINED at projection to the host-defined cast-field KEYS (§2.8, the R1 machinery applied to
+// field keys) so a model can only write DEFINED fields — never invent `customFields.randomJunk`.
 const customFieldPairSchema = z.object({ name: z.string().min(1), value: z.string() });
+
+// A present-cast RELATIONSHIP write (parity-plus §2.1) — `kind` rides the closed vocab (ENUM-constrained at the
+// token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
+// (kind required); `label` optional-omit keeps the derive-server-side arm (§10.1 — omission is plausible for a
+// non-custom kind). The whole `relationship` field is optional on the patch (MA-4: omit = keep the current stance).
+const relationshipUpsertSchema = z.object({
+  kind: z.enum(RPG_RELATIONSHIP_KINDS),
+  label: z.string().optional(),
+});
 
 /** `update_party` — pool deltas, conditions, hp delta, status on any party-side actor OR cast key.
  *  An `hpDelta` on a null-hp actor → an `ok:false` legality result (the errors-as-data lane, handler-side). */
@@ -84,6 +95,7 @@ export const updateSceneArgsSchema = z.object({
         outfit: z.string().optional(),
         thoughts: z.string().optional(),
         customFields: z.array(customFieldPairSchema).optional(),
+        relationship: relationshipUpsertSchema.optional(),
       }),
     )
     .optional(),

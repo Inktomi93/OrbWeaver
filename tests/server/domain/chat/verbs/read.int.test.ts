@@ -742,7 +742,7 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     // The attach probe carries the caller's own D16 floor alongside the window (the SSE live loop clamps on
     // it) — `me` is the born-here host, so it is the unclamped 0.
     const bounds = await chatEventBounds({ principal: principal(me), chatId });
-    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0 });
+    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: true });
 
     // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
     await expect(replayChatEvents({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
@@ -946,5 +946,61 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.compactSummary).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// The §3.6 hidden-content MEMBER-STRIP (parity-plus) — a TRUST BOUNDARY, pinned at the PAYLOAD level: the
+// instrument is the server-side strip at the read/replay projections; the CONSEQUENCE asserted is that a
+// member's serialized payload contains ZERO truth bytes (a client-only hide leaks in the wire). The model's
+// wire is untouched (pipeline pins own {wire: full}); the host reads unstripped (the P3 reveal eye's plane).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("read — the §3.6 hidden-content member-strip", () => {
+  const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
+
+  test("listMessages: a MEMBER's payload carries ZERO hidden bytes; the HOST reads the full stored body", async () => {
+    const host = await seedUser(db, "ms_host");
+    const member = await seedUser(db, "ms_member");
+    const chatId = await seedRoom("ms", host);
+    await seedParticipant(db, { chatId, key: "ms_m", userId: member, role: "member" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: `He nods. ${lieTag} "Nothing," he says.` });
+
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+
+    const memberPage = await listMessages({ principal: principal(member), chatId });
+    const memberPayload = JSON.stringify(memberPage);
+    expect(memberPayload).not.toContain("crypt");
+    expect(memberPayload).not.toContain("<lie");
+    expect(memberPage.messages[0]?.content).toBe('He nods.  "Nothing," he says.');
+
+    const hostPage = await listMessages({ principal: principal(host), chatId });
+    expect(hostPage.messages[0]?.content).toBe(`He nods. ${lieTag} "Nothing," he says.`);
+  });
+
+  test("replayChatEvents: a replayed view payload is stripped for a MEMBER, full for the HOST; chatEventBounds resolves viewerIsHost", async () => {
+    const host = await seedUser(db, "mr_host");
+    const member = await seedUser(db, "mr_member");
+    const chatId = await seedRoom("mr", host);
+    await seedParticipant(db, { chatId, key: "mr_m", userId: member, role: "member" });
+    const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", content: `prose ${lieTag}` });
+
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const view = await loadMessageView(db, messageId);
+    await bus.emit({ type: "messageCommitted", chatId, messageId, ...(view === undefined ? {} : { view }) });
+
+    const { replayChatEvents, chatEventBounds } = createRead(ctx, makeDeps());
+
+    const memberReplay = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    expect(memberReplay).toHaveLength(1);
+    expect(JSON.stringify(memberReplay)).not.toContain("crypt");
+    expect(JSON.stringify(memberReplay)).not.toContain("<lie");
+
+    const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
+    expect(JSON.stringify(hostReplay)).toContain("crypt");
+
+    // The LIVE half's verdict input: the same member-gated probe hands the transport `viewerIsHost`.
+    expect((await chatEventBounds({ principal: principal(host), chatId })).viewerIsHost).toBe(true);
+    expect((await chatEventBounds({ principal: principal(member), chatId })).viewerIsHost).toBe(false);
   });
 });

@@ -49,6 +49,12 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
+      // The parity-plus feature knobs (§2.8/§2.1 M1) — omit keeps, a passed array/record REPLACES (whole-list
+      // edit; the host owns the cast-field schema + relationship hints authoritatively).
+      features: {
+        castFields: params.patch?.castFields ?? game.config.features.castFields,
+        relationshipHints: params.patch?.relationshipHints ?? game.config.features.relationshipHints,
+      },
     });
 
     await updateGame(ctx.db, game.id, {

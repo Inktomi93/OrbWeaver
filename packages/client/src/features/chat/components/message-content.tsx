@@ -46,10 +46,20 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return block.trust === "tierB" ? (
-        <SandboxFrame key={key} html={block.html} {...(block.css === undefined ? {} : { css: block.css })} title="Rich content card" />
+        <SandboxFrame key={key} html={block.html} {...(block.css === undefined ? {} : { css: block.css })} title={block.title ?? "Rich content card"} />
       ) : (
         <Markdown key={key} trust="untrusted" mode="static">
           {block.html}
+        </Markdown>
+      );
+    // The parity-plus §5.2 choice set — P2 renders the model's options as an ordinary numbered list (the
+    // reading surface never sees the raw `:::choices` fence); the P5 wave upgrades this arm to clickable
+    // send-affordances (`use-send-message`) without touching the block contract.
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
+    case "choices":
+      return (
+        <Markdown key={key} trust={trust} mode="static">
+          {block.options.map((option, index) => `${index + 1}. ${option}`).join("\n")}
         </Markdown>
       );
     default:
@@ -64,7 +74,9 @@ interface SegmentContext {
 }
 
 function renderSegment(text: string, ctx: SegmentContext): ReactElement {
-  const blocks = toContentBlocks(text);
+  // §4.3 trust routing: ONE trust authority (`render-trust`) — an untrusted row's card renders in the
+  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA.
+  const blocks = toContentBlocks(text, { cardTrust: ctx.render.trust === "trusted" ? "tierA" : "tierB" });
   return (
     <Stack key={ctx.listKey} gap="row">
       {blocks.map((block, index) => renderBlock(block, `${ctx.keyPrefix}${index}-${block.kind}`, ctx.render))}

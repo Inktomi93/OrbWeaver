@@ -46,6 +46,18 @@ export interface EngineLaunchConfig {
    *  ships 1.0 (no penalty → the sampler-less agent-sdk wire loops to the output cap); 1.05 is the launch
    *  default that stops it. Only gen carries a value today — see GENERATION_CONFIG_OVERRIDES. */
   readonly genRepetitionPenalty: number;
+  /** Emit `--enable-sleep-mode` on every engine (force-enables vLLM's cumem allocator so /sleep can pin
+   *  weights→CPU and free VRAM on idle). Resolved `override ?? env floor` (VLLM_SLEEP_MODE), default true.
+   *  Paired with `VLLM_SERVER_DEV_MODE=1` on the child (spawn-engine.ts) to register the loopback /sleep,
+   *  /wake_up, /is_sleeping endpoints — loopback bind is already enforced by `--host 127.0.0.1`. */
+  readonly sleepMode: boolean;
+  /** The ENGINE-SIDE flight recorder (VLLM_DEBUG_REQUESTS, default off). On, adds --enable-log-requests
+   *  --enable-log-outputs --max-log-len 2048: wire captures show what WE sent, these show what the engine
+   *  PARSED (post-chat-template, post-tool-parser) — the gap where tool-call debugging burned time. */
+  readonly debugRequests: boolean;
+  /** `--shutdown-timeout N` — a graceful in-flight drain window on engine shutdown. `0` (default) keeps
+   *  today's immediate-abort behavior; a positive value lets engines:stop drain first (VLLM_SHUTDOWN_TIMEOUT_S). */
+  readonly shutdownTimeoutS: number;
   readonly ports: { readonly embed: number; readonly rerank: number; readonly gen: number };
 }
 
@@ -66,6 +78,9 @@ export interface EngineLaunchEnvFloor {
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
   readonly VLLM_GEN_REPETITION_PENALTY: number;
+  readonly VLLM_SLEEP_MODE: boolean;
+  readonly VLLM_DEBUG_REQUESTS: boolean;
+  readonly VLLM_SHUTDOWN_TIMEOUT_S: number;
   readonly VLLM_EMBED_PORT: number;
   readonly VLLM_RERANK_PORT: number;
   readonly VLLM_GEN_PORT: number;
@@ -88,12 +103,30 @@ export interface EngineLaunchOverride {
   readonly poolingMaxPixels?: number | null | undefined;
   readonly genMaxPixels?: number | null | undefined;
   readonly genRepetitionPenalty?: number | null | undefined;
+  readonly sleepMode?: boolean | null | undefined;
+  readonly debugRequests?: boolean | null | undefined;
+  readonly shutdownTimeoutS?: number | null | undefined;
+}
+
+/** The launch flags whose `??` coalesce is lifted out of the main resolver so their operators don't count
+ *  against its cognitive-complexity budget. Booleans where `false` is a real override (`?? floor` is correct
+ *  — only null/undefined falls through); the shutdown timeout is a plain number. */
+function resolveExtraLaunch(
+  floor: EngineLaunchEnvFloor,
+  o: EngineLaunchOverride,
+): Pick<EngineLaunchConfig, "sleepMode" | "debugRequests" | "shutdownTimeoutS"> {
+  return {
+    sleepMode: o.sleepMode ?? floor.VLLM_SLEEP_MODE,
+    debugRequests: o.debugRequests ?? floor.VLLM_DEBUG_REQUESTS,
+    shutdownTimeoutS: o.shutdownTimeoutS ?? floor.VLLM_SHUTDOWN_TIMEOUT_S,
+  };
 }
 
 /** Resolve the launch config: `admin override ?? env floor` per field (the layer.ts precedent). Ports stay
  *  env-only (DEPLOYMENT facts — displayed, never admin-edited). Pure. */
 export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?: EngineLaunchOverride | null): EngineLaunchConfig {
   const o = override ?? {};
+  const extra = resolveExtraLaunch(floor, o);
   return {
     embedModel: o.embedModel ?? floor.VLLM_EMBED_MODEL,
     rerankModel: o.rerankModel ?? floor.VLLM_RERANK_MODEL,
@@ -109,6 +142,7 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
     poolingMaxPixels: o.poolingMaxPixels ?? floor.VLLM_POOLING_MAX_PIXELS,
     genMaxPixels: o.genMaxPixels ?? floor.VLLM_GEN_MAX_PIXELS,
     genRepetitionPenalty: o.genRepetitionPenalty ?? floor.VLLM_GEN_REPETITION_PENALTY,
+    ...extra,
     ports: { embed: floor.VLLM_EMBED_PORT, rerank: floor.VLLM_RERANK_PORT, gen: floor.VLLM_GEN_PORT },
   };
 }
@@ -265,10 +299,36 @@ const ARGV_BUILDERS: Record<VllmEngine, (config: EngineLaunchConfig, ctx: Engine
   gen: genArgv,
 };
 
+// The endpoints whose per-request access log we SILENCE — the supervisor /health probe + the auto-sleep
+// /metrics poller hit these every tick and would otherwise flood the engine log. Hygiene constant (no knob).
+const SILENCED_ACCESS_LOG_ENDPOINTS = "/health,/metrics,/ping";
+// The engine-side debug flight recorder's log-body cap (VLLM_DEBUG_REQUESTS on).
+const DEBUG_MAX_LOG_LEN = "2048";
+
+/** The flags appended to EVERY engine (embed/rerank/gen), after each arm's own flags:
+ *   • always-on hygiene: silence the probe/poller access-log spam; request-id headers (correlate a wire
+ *     capture to the engine's own log line); force-include usage (unconditional streamed token accounting).
+ *   • `--enable-sleep-mode` when sleepMode (B.3 — cumem allocator so /sleep frees VRAM; endpoints register
+ *     only with VLLM_SERVER_DEV_MODE=1 on the child).
+ *   • `--enable-log-requests --enable-log-outputs --max-log-len` when debugRequests (the engine-side flight
+ *     recorder: what the engine PARSED, post-chat-template/tool-parser — the wire-capture blind spot).
+ *   • `--shutdown-timeout N` when a positive graceful-drain window is configured. */
+function commonSuffixArgv(config: EngineLaunchConfig): string[] {
+  return [
+    "--disable-access-log-for-endpoints",
+    SILENCED_ACCESS_LOG_ENDPOINTS,
+    "--enable-request-id-headers",
+    "--enable-force-include-usage",
+    ...(config.sleepMode ? ["--enable-sleep-mode"] : []),
+    ...(config.debugRequests ? ["--enable-log-requests", "--enable-log-outputs", "--max-log-len", DEBUG_MAX_LOG_LEN] : []),
+    ...(config.shutdownTimeoutS > 0 ? ["--shutdown-timeout", String(config.shutdownTimeoutS)] : []),
+  ];
+}
+
 /** Build the `vllm serve …` argv (WITHOUT the leading binary) for one engine. Pure: `(engine, config, ctx)`
  *  → argv. The caller prepends the vllm binary + owns CUDA_VISIBLE_DEVICES, backgrounding, and logging. */
 export function buildEngineArgv(engine: VllmEngine, config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
-  return ARGV_BUILDERS[engine](config, ctx);
+  return [...ARGV_BUILDERS[engine](config, ctx), ...commonSuffixArgv(config)];
 }
 
 /** The GPU pinning per engine: embed on GPU0; rerank on GPU1 (multi-GPU) else GPU0; gen spans both via TP.

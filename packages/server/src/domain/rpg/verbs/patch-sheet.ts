@@ -32,7 +32,7 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
 
 /** The default sheet a first-write patch merges onto (a missing row = the default sheet, §4.3). */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "" };
+  return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
 }
 
 /** The actor-id split the persistence upsert takes (a `character` ref → characterId; a `user` ref → userId). */
@@ -47,6 +47,21 @@ function actorIds(ref: RpgActorRef): { characterId: CharacterId | null; userId: 
   throw new DomainOperationError("rpg_cast_has_no_sheet", "a cast actor has no identity sheet");
 }
 
+/** Merge the MA-4 patch onto the current sheet (omit = keep). `maxHp`/`level` use key-presence (`"k" in patch`),
+ *  NOT `??`, because a passed `null` is a REAL clear value ("clear the health bar" / "clear the level") — `??`
+ *  would swallow it. Hoisted so `patchSheet` stays under the cognitive-complexity gate. */
+function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgSheet {
+  return {
+    className: patch.className ?? current.className,
+    attributes: patch.attributes !== undefined ? { ...patch.attributes } : current.attributes,
+    poolDefs: patch.poolDefs !== undefined ? [...patch.poolDefs] : current.poolDefs,
+    maxHp: "maxHp" in patch ? (patch.maxHp ?? null) : current.maxHp,
+    flavor: patch.flavor ?? current.flavor,
+    // §2.6 hand-only level — `patchSheet` is the ONLY write door (absent from extraction + tool args).
+    level: "level" in patch ? (patch.level ?? null) : current.level,
+  };
+}
+
 export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"> {
   async function patchSheet(params: PatchSheetParams): Promise<void> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
@@ -59,15 +74,7 @@ export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"
 
     const actor = characterId !== null ? { characterId } : { userId: userId as UserId };
     const current = (await findSheet(ctx.db, game.id, actor))?.sheet ?? defaultSheet();
-    // MA-4: an omitted field keeps its current value. `maxHp` uses key-presence (`"maxHp" in patch`), NOT
-    // `??`, because a passed `null` is a REAL value ("clear the health bar") — `??` would swallow it.
-    const next: RpgSheet = {
-      className: params.patch.className ?? current.className,
-      attributes: params.patch.attributes !== undefined ? { ...params.patch.attributes } : current.attributes,
-      poolDefs: params.patch.poolDefs !== undefined ? [...params.patch.poolDefs] : current.poolDefs,
-      maxHp: "maxHp" in params.patch ? (params.patch.maxHp ?? null) : current.maxHp,
-      flavor: params.patch.flavor ?? current.flavor,
-    };
+    const next = mergeSheet(current, params.patch);
 
     const row = await upsertSheet(ctx.db, { id: ctx.ids.sheet(), gameId: game.id, characterId, userId, sheet: next, now: ctx.now() });
 

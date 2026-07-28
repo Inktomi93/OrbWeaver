@@ -3,10 +3,12 @@
 // to a retryable {@link ProviderError} enriched with the supervisor's known status (`failed` is the one
 // non-retryable lifecycle state). Two seams: `enginePost` (typed JSON) and `engineStream` (raw SSE bytes).
 
-import { env } from "#foundation/env";
 import { ProviderError } from "../../contract";
 import { getEngineStatus } from "./engine-status";
+// engineBaseUrl lives in the engine-url LEAF (extracted to break the client↔wake-gate↔fleet-control cycle).
+import { engineBaseUrl } from "./engine-url";
 import type { VLLM_ENGINES } from "./engines";
+import { ensureAwake } from "./wake-gate";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
@@ -33,17 +35,6 @@ const DEFAULT_ENGINE_TIMEOUT_MS = 120_000;
 function withTimeout(signal: AbortSignal | undefined): AbortSignal {
   const timeout = AbortSignal.timeout(DEFAULT_ENGINE_TIMEOUT_MS);
   return signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
-}
-
-const PORTS: Record<VllmEngine, number> = {
-  embed: env.VLLM_EMBED_PORT,
-  rerank: env.VLLM_RERANK_PORT,
-  gen: env.VLLM_GEN_PORT,
-};
-
-/** Loopback base URL for an engine — `http://127.0.0.1:<port>`. */
-export function engineBaseUrl(engine: VllmEngine): string {
-  return `http://127.0.0.1:${PORTS[engine]}`;
 }
 
 /** The injected HTTP surface the surfaces close over (the real impl, or a test fake). One generic POST +
@@ -94,6 +85,10 @@ async function httpError(engine: VllmEngine, path: string, res: Response): Promi
 
 /** POST a JSON body to an engine endpoint; typed JSON back or a mapped {@link ProviderError}. */
 async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  // Pre-dispatch AUTO-WAKE gate (B.1/B.6): a request to a SLEEPING engine silently queues forever, so wake it
+  // FIRST (single-flight, VRAM/hold-gated) rather than react to an error that never comes. A no-op for an
+  // awake engine (one process-local status read). A wake refusal throws a named, non-retryable ProviderError.
+  await ensureAwake(engine);
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {
@@ -116,6 +111,7 @@ async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, si
 
 /** POST a JSON body and return the raw SSE byte stream (the chat surface drives the reducer over it). */
 async function engineStream(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+  await ensureAwake(engine); // pre-dispatch auto-wake gate (see enginePost) — the streaming chat path.
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {

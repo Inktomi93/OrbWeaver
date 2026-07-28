@@ -27,6 +27,21 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect(game?.config.extractionMode).toBe("cheap");
   });
 
+  test("sets the parity-plus feature knobs — castFields + relationshipHints (§2.8/§2.1 M1)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    const castFields = [
+      { key: "suspicion", label: "Suspicion", kind: "meter" as const, max: 10 },
+      { key: "trust", label: "Trust", kind: "text" as const },
+    ];
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { castFields, relationshipHints: { vassal: "sworn but resentful" } } });
+    const game = await findGameByChat(db, chatId);
+    expect(game?.config.features.castFields).toEqual(castFields);
+    expect(game?.config.features.relationshipHints).toEqual({ vassal: "sworn but resentful" });
+    // Omit keeps the features (a later unrelated patch does not wipe them).
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "x" } });
+    expect((await findGameByChat(db, chatId))?.config.features.castFields).toHaveLength(2);
+  });
+
   test("an explicit null gmPresetId clears back to augment", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const preset = await seedPreset(db, "x", "pox");

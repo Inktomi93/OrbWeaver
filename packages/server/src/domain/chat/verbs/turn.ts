@@ -64,6 +64,7 @@ import {
 import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { freezeVolatileMacros } from "../substrate/assembly-access";
+import { stripHiddenForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
@@ -997,7 +998,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         chatId,
       })
     ) {
-      return { messages: [userView], aborted: false };
+      // The user's own row carries no model-emitted hidden content, but route it through the ONE §3.6 return
+      // projection anyway (host-identity fast-path) so every `send` exit strips uniformly.
+      return stripMessagesForViewer({ messages: [userView], aborted: false }, membership);
     }
 
     // Registered before base so the abort signal threads into every round turn + the auto-mode chain.
@@ -1027,7 +1030,11 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         signal: handle.signal,
         forcedIds: resolveMentionsVia(content, room.castNames),
       });
-      return await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
+      // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
+      // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
+      // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
+      const outcome = await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
+      return stripMessagesForViewer(outcome, membership);
     } finally {
       handle.release();
     }
@@ -1182,11 +1189,14 @@ async function resolveTurnBase(
 }
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
- *  releasing the handle in a `finally`. */
-async function runRegistered(deps: TurnDeps, chatId: ChatId, triggeredBy: UserId, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
-  const handle = deps.activeTurns.register(chatId, triggeredBy);
+ *  releasing the handle in a `finally`. The outcome is §3.6-projected for the CALLER: a non-host member who
+ *  ran the turn (swipe/continue/impersonate/generate) never receives the assistant reply's hidden spans in the
+ *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb. */
+async function runRegistered(deps: TurnDeps, triggeredBy: UserId, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
+  const handle = deps.activeTurns.register(prep.chatId, triggeredBy);
   try {
-    return await deps.engine.runTurn({ ...prep, signal: handle.signal });
+    const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
+    return stripMessagesForViewer(outcome, viewer);
   } finally {
     handle.release();
   }
@@ -1236,7 +1246,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       guided,
     });
     const shape = speakerShapeFor(room, target.characterId);
-    return await runRegistered(deps, chatId, identity.triggeredBy, {
+    return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1278,7 +1288,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       guided,
     });
     const shape = speakerShapeFor(room, target.characterId);
-    return await runRegistered(deps, chatId, identity.triggeredBy, {
+    return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1321,7 +1331,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
       guided,
     });
-    return await runRegistered(deps, chatId, identity.triggeredBy, {
+    return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1382,7 +1392,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       speaker = speakerCharacterId;
     }
     const shape = speakerShapeFor(room, speaker);
-    return await runRegistered(deps, chatId, identity.triggeredBy, {
+    return await runRegistered(deps, identity.triggeredBy, membership, {
       chatId,
       assembleContext,
       connection,
@@ -1431,19 +1441,24 @@ async function restoreContinue(
   return view;
 }
 
-/** `undoContinue` — revert the last continuation on a slot's variant. */
+/** `undoContinue` — revert the last continuation on a slot's variant. The restored slot is an ASSISTANT reply
+ *  that may carry hidden spans, so a NON-HOST member's returned view is §3.6-stripped (the bus/list already
+ *  strip; this closes the mutation-return sibling). */
 function createUndoContinue(ctx: ChatContext, deps: TurnDeps): ChatService["undoContinue"] {
   return async ({ principal, chatId, messageId }: UndoContinueParams): Promise<MessageView> => {
-    await requireParticipant(ctx, principal, chatId);
-    return await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "undo" });
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "undo" });
+    return viewerReadsHidden(membership) ? view : stripHiddenForMember(view);
   };
 }
 
-/** `revertContinue` — re-apply the last reverted continuation. */
+/** `revertContinue` — re-apply the last reverted continuation. §3.6-stripped for a non-host member (same
+ *  reason as `undoContinue`: the restored assistant slot may carry hidden spans). */
 function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["revertContinue"] {
   return async ({ principal, chatId, messageId }: RevertContinueParams): Promise<MessageView> => {
-    await requireParticipant(ctx, principal, chatId);
-    return await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "revert" });
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const view = await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "revert" });
+    return viewerReadsHidden(membership) ? view : stripHiddenForMember(view);
   };
 }
 

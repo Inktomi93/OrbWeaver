@@ -1,13 +1,27 @@
-import type { MacroAST, MacroBlockNode, MacroNode, MacroSpan } from "./types";
+// kit/macro/parser — the hand-rolled `{{…}}` scanner (parity-plus §12A.parser: LINEAR extensions of a
+// depth-aware scan, never a parser framework). The MG grammar (§12A.1 + §12A.4, FINAL at launch):
+//   • flags sit BETWEEN `{{` and the identifier as a flag RUN (`{{<flags><name>::args}}`), parsed into a
+//     `flags` object on the node from the ONE `MACRO_FLAG_DEFS` vocabulary (types.ts);
+//   • ANY macro may take a body — `{{name::args}}content{{/name}}` opens a scoped block for any name; the
+//     close is the `/` CLOSING_BLOCK flag on a name-matching tag. There is no dedicated block-open marker:
+//     a tag is a block IFF a matching close arrives in scope, else it stays an inline call (the old
+//     `{{#name}}` block-open syntax is REPLACED; `#` now reads as the PRESERVE_WHITESPACE flag).
+// Degrade-don't-throw posture throughout: unclosed/invalid tags re-emit their literal bytes, an unmatched
+// close re-emits verbatim, and every re-emit uses the ORIGINAL source span (`raw`) for byte-identity.
 
-interface FlatBlockOpen {
-  type: "blockOpen";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroFlagKey, MacroNode, MacroSpan } from "./types";
+import { MACRO_FLAG_DEFS } from "./types";
+
+// A `/`-flagged tag — consumed structurally by buildBlocks (it closes a block, or re-emits verbatim).
+interface FlatClose {
+  type: "blockClose";
   name: string;
-  args: string[];
-  raw?: string;
-  span?: MacroSpan;
+  raw: string;
 }
-type FlatNode = MacroNode | FlatBlockOpen | { type: "blockClose"; name: string };
+type FlatNode = MacroNode | FlatClose;
+
+// char → flag key, derived from the ONE flag vocabulary (types.ts) so the parser can never drift from it.
+const FLAG_KEY_BY_CHAR: ReadonlyMap<string, MacroFlagKey> = new Map(MACRO_FLAG_DEFS.map((def) => [def.char, def.key]));
 
 // The 1-based line/col of `offset` in `text`, paired with the tag's byte length — the diagnostic span
 // (02 §5). Linear in `offset`; a prompt template is tiny so this per-tag scan never matters.
@@ -25,15 +39,6 @@ function spanAt(text: string, offset: number, length: number): MacroSpan {
   return { offset, line, col, length };
 }
 
-interface StackFrame {
-  node: MacroNode | null;
-  children: MacroAST;
-}
-
-// What kind of tag a `{{…}}` opened — drives the re-emitted prefix and the built node.
-const TAG_KINDS = ["macro", "blockOpen", "blockClose"] as const;
-type TagKind = (typeof TAG_KINDS)[number];
-
 // Length of the `{{` opener / `}}` closer / `//` comment marker. The scanner advances by this whole
 // token rather than a bare literal so the intent ("skip the delimiter") reads at each site.
 const BRACE_LEN = 2;
@@ -45,16 +50,10 @@ const NOT_FOUND = -1;
 // Leading char of an identifier, then word-chars or `-` (`\w` already covers `_`/digits/letters).
 const MACRO_IDENT = /^[a-zA-Z][\w-]*/;
 
-// The literal text re-emitted for an invalid/unclosed inline-or-block tag, by which prefix it had.
-function prefixFor(kind: TagKind): "{{#" | "{{/" | "{{" {
-  if (kind === "blockOpen") {
-    return "{{#";
-  }
-  if (kind === "blockClose") {
-    return "{{/";
-  }
-  return "{{";
-}
+/** The fully-anchored form of {@link MACRO_IDENT} — "is this whole string a parseable macro name?".
+ *  ONE vocabulary home: `registerUserMacros` (user-macros.ts) and the contracts-side authoring schema
+ *  both validate against THIS, so a stored name the parser can't tokenize is impossible by construction. */
+export const MACRO_NAME_RE = /^[a-zA-Z][\w-]*$/;
 
 // {{// … }} comment — depth-aware scan (mirroring the arg reader) so a nested {{…}} inside the
 // comment doesn't close it early. `from` is the index just past the `//`. Returns the index just
@@ -111,17 +110,6 @@ function scanMacroBody(text: string, from: number): MacroBody {
   return { argStr, endMacroPos: NOT_FOUND };
 }
 
-function makeFlatNode(kind: TagKind, name: string, tag: { args: string[]; raw: string; span: MacroSpan }): FlatNode {
-  if (kind === "blockClose") {
-    return { type: "blockClose", name };
-  }
-  const { args, raw, span } = tag;
-  if (kind === "blockOpen") {
-    return { type: "blockOpen", name, args, raw, span };
-  }
-  return { type: "macro", name, args, raw, span };
-}
-
 interface TagResult {
   nodes: FlatNode[];
   // Position the main scanner should resume from.
@@ -130,8 +118,35 @@ interface TagResult {
   stop: boolean;
 }
 
-// Parse one tag whose `{{` begins at `tagStart`; `bodyPos` = tagStart + BRACE_LEN points just past
-// the opener. Handles comments, the `#`/`/` block prefixes, the identifier, and the arg span.
+// The parsed flag run — `run` is the original chars (for byte-exact literal re-emit of an invalid tag).
+interface FlagRun {
+  flags: { [K in MacroFlagKey]?: true } | undefined;
+  run: string;
+  pos: number;
+}
+
+// Consume the flag run between `{{` and the identifier (§12A.4). A repeated char just re-sets its key
+// (idempotent — `{{##name}}` carries one preserveWhitespace, its raw stays byte-exact regardless).
+function readFlagRun(text: string, from: number): FlagRun {
+  let flags: FlagRun["flags"];
+  let run = "";
+  let pos = from;
+  while (pos < text.length) {
+    const key = FLAG_KEY_BY_CHAR.get(text.charAt(pos));
+    if (key === undefined) {
+      break;
+    }
+    flags = flags ?? {};
+    flags[key] = true;
+    run += text.charAt(pos);
+    pos += 1;
+  }
+  return { flags, run, pos };
+}
+
+// Parse one tag whose `{{` begins at `tagStart`; `bodyPos` = tagStart + BRACE_LEN points just past the
+// opener. Handles comments, the flag run, the identifier, and the arg span. The comment check PRECEDES
+// the flag run so `{{//…}}` is always a comment, never a doubled `/` closing flag.
 function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
   // Comment macro: {{// … }} — consumed whole, emits nothing.
   if (text.startsWith("//", bodyPos)) {
@@ -147,37 +162,89 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
     return { nodes: [], pos: commentEnd, stop: false };
   }
 
-  let pos = bodyPos;
-  let kind: TagKind = "macro";
-  if (text.charAt(pos) === "#") {
-    kind = "blockOpen";
-    pos += 1;
-  } else if (text.charAt(pos) === "/") {
-    kind = "blockClose";
-    pos += 1;
-  }
+  const { flags, run, pos: afterFlags } = readFlagRun(text, bodyPos);
+  let pos = afterFlags;
 
   const idMatch = text.slice(pos).match(MACRO_IDENT);
   if (!idMatch) {
-    return { nodes: [{ type: "text", value: prefixFor(kind) }], pos, stop: false };
+    // No identifier after the flags — the opener + flag chars are literal text; scanning resumes right
+    // after them so a later valid `{{` still parses.
+    return { nodes: [{ type: "text", value: `{{${run}` }], pos, stop: false };
   }
   const name = idMatch[0];
   pos += name.length;
 
   const { argStr, endMacroPos } = scanMacroBody(text, pos);
   if (endMacroPos === NOT_FOUND) {
-    // Unclosed macro → re-emit verbatim and stop.
-    const value = prefixFor(kind) + name + argStr;
-    return { nodes: [{ type: "text", value }], pos: text.length, stop: true };
+    // Unclosed macro → re-emit verbatim (flags included) and stop.
+    return { nodes: [{ type: "text", value: `{{${run}${name}${argStr}` }], pos: text.length, stop: true };
   }
 
   pos = endMacroPos + BRACE_LEN;
-  const args = parseArgs(argStr);
   // Original source span of this tag (`{{name:one,two}}` exactly as typed) — carried on the node so
-  // unrecognized macros re-emit byte-identical text.
+  // unrecognized macros re-emit byte-identical text, flags verbatim.
   const raw = text.slice(tagStart, endMacroPos + BRACE_LEN);
+  if (flags?.closing === true) {
+    // The `/` CLOSING_BLOCK flag — a structural close, never an evaluable node. Args on a close are
+    // ignored (only the name matches); `raw` keeps its exact bytes for the unmatched-close re-emit.
+    return { nodes: [{ type: "blockClose", name, raw }], pos, stop: false };
+  }
+  const args = parseArgs(argStr);
   const span = spanAt(text, tagStart, raw.length);
-  return { nodes: [makeFlatNode(kind, name, { args, raw, span })], pos, stop: false };
+  const node: MacroCallNode = { type: "macro", name, args, raw, span, ...(flags !== undefined ? { flags } : {}) };
+  return { nodes: [node], pos, stop: false };
+}
+
+/** One flat display run of a template string: literal prose, or a `{{macro}}` reference. Distinct from the
+ *  full {@link MacroAST} — a lighter text/macro projection for display surfaces (assembly-preview chips)
+ *  that need the escape rule the engine honors but not block structure. */
+export interface MacroRun {
+  readonly kind: "text" | "macro";
+  /** For `text` — the literal run; for `macro` — the inner reference, inner whitespace trimmed. */
+  readonly value: string;
+}
+
+// Inner of a display macro run: any non-brace content (the grammar the preview chips), inner-trimmed by
+// scanMacroRuns. `[^{}]` (not the parser's strict identifier) keeps display parity with what authors see.
+const DISPLAY_MACRO_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
+
+/** Split a template string into flat text / `{{macro}}` runs for DISPLAY, honoring the ONE escape rule the
+ *  real parser honors: a `\{{` opener is LITERAL, never a macro (`\{{char}}` yields the text `{{char}}`, not
+ *  a chip). Empty text runs are dropped, so a string that is exactly one macro yields a single macro run.
+ *  Pure display projection — no resolution, no env, no registry. */
+export function scanMacroRuns(text: string): readonly MacroRun[] {
+  const runs: MacroRun[] = [];
+  let pendingText = "";
+  let lastIndex = 0;
+  const pushText = (value: string): void => {
+    if (value.length > 0) {
+      pendingText += value;
+    }
+  };
+  const flushText = (): void => {
+    if (pendingText.length > 0) {
+      runs.push({ kind: "text", value: pendingText });
+      pendingText = "";
+    }
+  };
+  DISPLAY_MACRO_RE.lastIndex = 0;
+  for (let match = DISPLAY_MACRO_RE.exec(text); match !== null; match = DISPLAY_MACRO_RE.exec(text)) {
+    const start = match.index;
+    pushText(text.slice(lastIndex, start));
+    // Escaped opener (`\{{…}}`) — the backslash makes it literal: drop the backslash, keep the braces as
+    // text, and do NOT emit a macro run (matching the parser's `\{{` escape).
+    if (start > 0 && text.charAt(start - 1) === "\\") {
+      pendingText = pendingText.slice(0, -1);
+      pushText(match[0]);
+    } else {
+      flushText();
+      runs.push({ kind: "macro", value: (match[1] ?? "").trim() });
+    }
+    lastIndex = start + match[0].length;
+  }
+  pushText(text.slice(lastIndex));
+  flushText();
+  return runs;
 }
 
 export function parseMacros(text: string): MacroAST {
@@ -278,74 +345,81 @@ function parseArgs(argStr: string): string[] {
   return splitArgs(trimmedArgStr, " ").filter((s) => s.length > 0);
 }
 
-function openBlock(stack: StackFrame[], node: FlatBlockOpen): void {
+// One structuring frame: `open` is the candidate tag that MAY become a block open (null = the root
+// sentinel); `children` accumulates everything parsed while the candidate is pending.
+interface StackFrame {
+  open: MacroCallNode | null;
+  children: MacroAST;
+}
+
+// The tip candidate never saw a matching close in its scope — it was an INLINE call all along. Splice
+// the tag + its accumulated children back into the parent in document order. (Under the universal
+// grammar this is the common case: every `{{setvar::k::v}}` is a candidate until proven inline.)
+function revertTip(stack: StackFrame[]): void {
+  const frame = stack.pop();
+  const parent = stack.at(-1);
+  if (frame === undefined || parent === undefined || frame.open === null) {
+    return;
+  }
+  parent.children.push(frame.open, ...frame.children);
+}
+
+// A `/`-flagged close: pair it with the NEAREST same-name candidate (innermost-first, so nested
+// same-name blocks pair correctly). Candidates stacked ABOVE the match close OUTSIDE their scope —
+// they revert to inline calls (a crossing pair degrades, never throws). No candidate matches → the
+// close re-emits its literal bytes (the raw posture).
+function closeBlock(stack: StackFrame[], close: FlatClose): void {
+  let openIdx = NOT_FOUND;
+  for (let i = stack.length - 1; i >= 1; i -= 1) {
+    if (stack[i]?.open?.name === close.name) {
+      openIdx = i;
+      break;
+    }
+  }
+  if (openIdx === NOT_FOUND) {
+    stack.at(-1)?.children.push({ type: "text", value: close.raw });
+    return;
+  }
+  while (stack.length - 1 > openIdx) {
+    revertTip(stack);
+  }
+  const frame = stack.pop();
+  const parent = stack.at(-1);
+  if (frame === undefined || frame.open === null || parent === undefined) {
+    return;
+  }
+  const { name, args, raw, span, flags } = frame.open;
   const blockNode: MacroBlockNode = {
     type: "block",
-    name: node.name,
-    args: node.args,
-    children: [],
-    ...(node.raw !== undefined ? { raw: node.raw } : {}),
-    ...(node.span !== undefined ? { span: node.span } : {}),
+    name,
+    args,
+    children: frame.children,
+    ...(raw !== undefined ? { raw } : {}),
+    ...(span !== undefined ? { span } : {}),
+    ...(flags !== undefined ? { flags } : {}),
+    closeRaw: close.raw,
   };
-  stack.at(-1)?.children.push(blockNode);
-  stack.push({ node: blockNode, children: blockNode.children });
+  parent.children.push(blockNode);
 }
 
-// Close down to the matching open block; an unmatched close is emitted as literal text.
-function closeBlock(stack: StackFrame[], name: string): void {
-  for (let i = stack.length - 1; i >= 1; i -= 1) {
-    const stackNode = stack[i]?.node;
-    if (stackNode?.type === "block" && stackNode.name === name) {
-      stack.length = i;
-      return;
-    }
-  }
-  stack.at(-1)?.children.push({ type: "text", value: `{{/${name}}}` });
-}
-
-// Unclosed blocks: any frame still open at EOF (stack deeper than the root sentinel) never saw its
-// matching `{{/name}}`. Rather than DROP the open tag + its children (a recognized handler like `if`
-// would silently evaluate the trailing text as a complete body), rescue them as literal text —
-// mirroring the inline "Unclosed macro" path which re-emits `{{name…}}` verbatim. Unwind tip → root
-// so an inner unclosed block is flattened before its (also unclosed) parent.
-function rescueUnclosed(stack: StackFrame[]): void {
-  for (let i = stack.length - 1; i >= 1; i -= 1) {
-    const frame = stack[i];
-    if (frame?.node?.type !== "block") {
-      continue;
-    }
-    const blockNode = frame.node;
-    const parentChildren = stack[i - 1]?.children;
-    if (!parentChildren) {
-      continue;
-    }
-    const idx = parentChildren.lastIndexOf(blockNode);
-    if (idx === NOT_FOUND) {
-      continue;
-    }
-    const argSuffix = blockNode.args.length > 0 ? `::${blockNode.args.join("::")}` : "";
-    const openTag: MacroNode = {
-      type: "text",
-      value: blockNode.raw ?? `{{#${blockNode.name}${argSuffix}}}`,
-    };
-    parentChildren.splice(idx, 1, openTag, ...blockNode.children);
-  }
-}
-
+// Universal block pairing (§12A.1): EVERY macro tag is a candidate open; a matching `{{/name}}` in scope
+// makes it a MacroBlockNode, EOF (or an enclosing close) makes it the inline call it always was.
 function buildBlocks(flatAst: FlatNode[]): MacroAST {
   const root: MacroAST = [];
-  const stack: StackFrame[] = [{ node: null, children: root }];
+  const stack: StackFrame[] = [{ open: null, children: root }];
 
   for (const node of flatAst) {
-    if (node.type === "blockOpen") {
-      openBlock(stack, node);
-    } else if (node.type === "blockClose") {
-      closeBlock(stack, node.name);
+    if (node.type === "blockClose") {
+      closeBlock(stack, node);
+    } else if (node.type === "macro") {
+      stack.push({ open: node, children: [] });
     } else {
       stack.at(-1)?.children.push(node);
     }
   }
 
-  rescueUnclosed(stack);
+  while (stack.length > 1) {
+    revertTip(stack);
+  }
   return root;
 }
