@@ -451,6 +451,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     return rpgOpsHolder;
   };
   const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
+    startGame: (chatId, params) => rpgOps().startGame(chatId, params),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
     gatherTurnContext: (chatId, pending, responds) => rpgOps().gatherTurnContext(chatId, pending, responds),
     markDicePreRollEligible: (turnId) => rpgOps().markDicePreRollEligible(turnId),

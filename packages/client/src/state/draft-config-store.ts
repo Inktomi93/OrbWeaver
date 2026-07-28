@@ -5,6 +5,7 @@
 // crash-survival localStorage mirror. Sparse by construction — absent key/field means server default.
 
 import type { ChatInjectionInput, GroupConfigInput, RoomOverrides } from "@orb/contracts/chat";
+import type { RpgStatProfile } from "@orb/contracts/rpg";
 import type { CharacterId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store";
 
@@ -25,6 +26,9 @@ export interface DraftConfig {
   readonly groupConfig?: GroupConfigInput;
   readonly roomOverrides?: RoomOverrides;
   readonly injections?: readonly ChatInjectionInput[];
+  /** #40 — the staged "turn on RPG" overlay intent: the first send carries it to `chat.startChat`, which
+   *  mints the lite game BEFORE the opening turn (turn 1 in-game). `profile` omitted = freeform. */
+  readonly startAsGame?: { readonly profile?: RpgStatProfile };
 }
 
 /** The frozen default-ref (selector-stability floor, UI-Gates §7 row 4) — every read of an untouched
@@ -78,6 +82,26 @@ export function setDraftRoomOverrides(draftKey: string, roomOverrides: RoomOverr
 }
 
 /** Replace the draft's authored injections (the injections manager's save seam). */
+/** Stage / clear the draft's #40 "turn on RPG" overlay intent (`undefined` clears — the toggle's off). */
+export function setDraftStartAsGame(draftKey: string, startAsGame: { readonly profile?: RpgStatProfile } | undefined): void {
+  // exactOptionalPropertyTypes: a clear DELETES the key (never stores an explicit-undefined slot).
+  patchDraftConfig(draftKey, startAsGame === undefined ? {} : { startAsGame });
+  if (startAsGame === undefined) {
+    clearDraftConfigField(draftKey);
+  }
+}
+
+/** Remove the `startAsGame` key from one draft's config (the exactOptionalPropertyTypes-safe clear). */
+function clearDraftConfigField(draftKey: string): void {
+  const { configs } = useDraftConfigStore.getState();
+  const current = configs[draftKey];
+  if (current === undefined || current.startAsGame === undefined) {
+    return;
+  }
+  const { startAsGame: _cleared, ...rest } = current;
+  useDraftConfigStore.setState({ configs: { ...configs, [draftKey]: rest } }, false, "draft-config/clear-start-as-game");
+}
+
 export function setDraftInjections(draftKey: string, injections: readonly ChatInjectionInput[]): void {
   patchDraftConfig(draftKey, { injections });
 }

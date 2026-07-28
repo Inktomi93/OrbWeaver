@@ -38,7 +38,7 @@ function DraftChatOptionsMenu({ draftKey }: { readonly draftKey: string }): Reac
   const characterIds: readonly CharacterId[] = [...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])];
   const results = useQueries({ queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })) });
   const characters = results.flatMap((r) => (r.data === undefined ? [] : [{ characterId: r.data.id, name: r.data.name }]));
-  return <ChatOptionsMenu committed={false} title={draftSeed?.title ?? null} characters={characters} />;
+  return <ChatOptionsMenu committed={false} draftKey={draftKey} title={draftSeed?.title ?? null} characters={characters} />;
 }
 
 /** Resolves the active chat's roster + server host gate (`viewerIsHost`) from the shared getChat query and

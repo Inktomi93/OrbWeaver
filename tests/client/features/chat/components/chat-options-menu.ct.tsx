@@ -20,14 +20,15 @@ import { CHAT_ID } from "../fixtures";
 // The full row label set the ⋯ menu renders (committed + draft, character-gated rows included via withCast).
 // IA de-dup (owner rule, W3c): items with a CONTEXT-panel home are GONE from the ⋯ menu — Chat settings
 // (Settings tab), Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host /
-// Leave (all in the Members tab); the turn actions live on the WAND (#41). "Start a game" is the #40 game
-// front door (a submenu trigger — same role=menuitem surface).
-const FULL_ITEM_SET = ["New chat with same cast", "Start a game", "Select messages…", "Rename", "Download transcript", "Close chat", "Delete chat"];
+// Leave (all in the Members tab); the turn actions live on the WAND (#41). "Turn on RPG" is the #40
+// RPG-overlay toggle (a submenu trigger — same role=menuitem surface) — LIVE on a draft too (enabling
+// the overlay is a PRE-CANON decision: the first send mints the game before the opening turn).
+const FULL_ITEM_SET = ["New chat with same cast", "Turn on RPG", "Select messages…", "Rename", "Download transcript", "Close chat", "Delete chat"];
 
 // The items DISABLED on a draft (everything that needs a committed server row / canon), each with a reason.
-const DRAFT_DISABLED = ["Start a game", "Select messages…", "Rename", "Download transcript", "Delete chat"];
-// The items that stay LIVE on a draft (canon-less: cast-based new-chat + navigation).
-const DRAFT_ENABLED = ["New chat with same cast", "Close chat"];
+const DRAFT_DISABLED = ["Select messages…", "Rename", "Download transcript", "Delete chat"];
+// The items that stay LIVE on a draft (canon-less: cast-based new-chat + navigation + the overlay stage).
+const DRAFT_ENABLED = ["New chat with same cast", "Turn on RPG", "Close chat"];
 // The unlock-condition reason must NAME when it becomes available, not just say "unavailable".
 const UNLOCK_REASON = /send/u;
 const FIRST_SEND_UNLOCK = /send the first message/u;
@@ -86,16 +87,39 @@ test("#8: a DRAFT-disabled item is not activatable (Playwright refuses to click 
 
 // ── #40: the Game front-door section — start a game from the ⋯ menu. ──────────────────────────────────
 
-test("#40: 'Start a game' → 'Freeform story' fires rpg.createGame (mode lite, no profile)", async ({ mount, page }) => {
+test("#40: committed 'Turn on RPG' → 'Freeform story' fires rpg.createGame (mode lite, no profile)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "rpg.createGame": () => ({ gameId: "rpg_game_ct", trackersReadOnly: false }) });
   const component = await mount(<ChatOptionsMenuStory withCast={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
-  await page.getByRole("menuitem", { name: "Start a game" }).hover();
+  await page.getByRole("menuitem", { name: "Turn on RPG" }).hover();
   await page.getByRole("menuitem", { name: "Freeform story" }).click();
 
   await expect.poll(() => trpc.count("rpg.createGame"), { intervals: [20, 50, 100] }).toBe(1);
   const input = trpc.lastInput("rpg.createGame");
   expect(input).toMatchObject({ chatId: CHAT_ID, mode: "lite" });
   expect(input).not.toHaveProperty("profile"); // freeform = the create default (no packaged profile)
+});
+
+test("#40: a DRAFT stages the overlay intent locally — the item flips to 'Turn off RPG' and back, no network", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {});
+  const component = await mount(<ChatOptionsMenuStory committed={false} withCast={true} />);
+  const trigger = component.getByRole("button", { name: "Chat options" });
+
+  await trigger.click();
+  await page.getByRole("menuitem", { name: "Turn on RPG" }).hover();
+  await page.getByRole("menuitem", { name: "Freeform story" }).click();
+
+  // STAGED (a local draft-config write — no verb fires pre-commit; the first send carries it).
+  await trigger.click();
+  const offItem = page.getByRole("menuitem", { name: "Turn off RPG" });
+  await expect(offItem).toBeVisible();
+  // ONESHOT-OK: staging is a SYNCHRONOUS local draft-config write (no mutation fires pre-commit), and the
+  // staged re-render is already proven settled by the retrying toBeVisible above — a zero here is final.
+  expect(trpc.count("rpg.createGame")).toBe(0);
+
+  // Clearing flips back to the on-submenu (the toggle is reversible pre-send too).
+  await offItem.click();
+  await trigger.click();
+  await expect(page.getByRole("menuitem", { name: "Turn on RPG" })).toBeVisible();
 });

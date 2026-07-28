@@ -21,6 +21,8 @@ export interface DraftCarry {
   readonly groupConfig?: NonNullable<DraftConfig["groupConfig"]>;
   readonly roomOverrides?: NonNullable<DraftConfig["roomOverrides"]>;
   readonly injections?: NonNullable<DraftConfig["injections"]>[number][];
+  /** #40 — the staged "turn on RPG" overlay intent (mints the lite game before the opening turn). */
+  readonly startAsGame?: NonNullable<DraftConfig["startAsGame"]>;
 }
 
 /** A resolved draft commit: the founding cast, the sparse carry, and the `draftKey` to clear on success
@@ -43,6 +45,7 @@ export function resolveDraftCommit(handle: ChatHandle, draftSeed: DraftSeed | un
     ...(config.groupConfig !== undefined ? { groupConfig: config.groupConfig } : {}),
     ...(config.roomOverrides !== undefined ? { roomOverrides: config.roomOverrides } : {}),
     ...(config.injections !== undefined ? { injections: [...config.injections] } : {}),
+    ...(config.startAsGame !== undefined ? { startAsGame: config.startAsGame } : {}),
   };
   return { draftKey, characterIds, carry };
 }

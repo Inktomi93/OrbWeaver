@@ -38,9 +38,24 @@ function roster(...members: unknown[]): unknown {
 const FIRST_SEND_UNLOCK = /send the first message/u;
 const ASSISTANT_REPLY_UNLOCK = /assistant reply/u;
 
-test("the wand trigger is disabled on an empty DRAFT (nothing usable without a typed steer pre-commit)", async ({ mount }) => {
+test("owner ruling: an EMPTY draft opens the wand and 'Guided response' fires a PLAIN opening (no guided object)", async ({ mount, page }) => {
+  // "A guided generation can BE the first message" — the ONE primary item (same label both phases,
+  // [[no-separate-reduced-modes]]) is valid steer-less on a draft: an empty composer fires
+  // chat.startChat opening:"generate" with the guided object OMITTED ENTIRELY (§6.4).
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
   const component = await mount(<ComposerStory committed={false} />);
-  await expect(component.getByRole("button", { name: "Guided generations" })).toBeDisabled();
+
+  const trigger = component.getByRole("button", { name: "Guided generations" });
+  await expect(trigger).toBeEnabled(); // no typed steer needed — the draft's opening is reachable
+  await trigger.click();
+  const openingItem = page.getByRole("menuitem", { name: "Guided response" });
+  await expect(openingItem).toBeEnabled();
+  await openingItem.click();
+
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+  const input = trpc.lastInput("chat.startChat");
+  expect(input).toMatchObject({ opening: "generate" });
+  expect(input).not.toHaveProperty("guided");
 });
 
 test("#41: a COMMITTED chat opens the wand text-lessly and Continue fires PLAIN (no guided object)", async ({ mount, page }) => {
@@ -189,7 +204,7 @@ test("draft handle: SAME four items, swipe/continue/impersonate disabled — no 
   await component.getByLabel("Message", { exact: true }).fill("start mid-chase");
   await component.getByRole("button", { name: "Guided generations" }).click();
 
-  // The old swapped sibling label is gone — the committed inventory renders on a draft too.
+  // The old swapped sibling label is gone — the SAME "Guided response" renders on a draft (steer optional).
   await expect(page.getByRole("menuitem", { name: "Guide the opening" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Guided response" })).toBeEnabled();
   await expect(page.getByRole("menuitem", { name: "Regenerate" })).toBeDisabled();
@@ -203,7 +218,7 @@ test("draft handle: SAME four items, swipe/continue/impersonate disabled — no 
   await expect(page.getByRole("menuitem", { name: "Impersonate" })).toHaveAttribute("title", FIRST_SEND_UNLOCK);
 });
 
-test("draft handle: 'Guided response' fires chat.startChat with a forced generate + the steer, then clears", async ({ mount, page }) => {
+test("draft handle: a TYPED 'Guided response' fires chat.startChat with a forced generate + the steer, then clears", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
   });

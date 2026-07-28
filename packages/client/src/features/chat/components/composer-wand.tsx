@@ -73,6 +73,17 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
     run(trimmed);
     onChange("");
   };
+  // ONE primary item, BOTH phases ([[no-separate-reduced-modes]] — same item, same label; phase picks
+  // the VERB via firePrimarySteer and the GATE only): a COMMITTED chat's typed draft IS the steer (text-
+  // gated as ever); a DRAFT's opening is valid steer-less (owner ruling — "a guided generation can BE the
+  // first message"): empty composer = plain generated opening (fireOpening omits the guided object, §6.4),
+  // typed = steered opening. Never a swapped/relabeled sibling.
+  const primaryDisabled = committed && !hasText;
+  const primaryItem = (
+    <MenuItem disabled={primaryDisabled} title={primaryDisabled ? textReason : undefined} onClick={(): void => fireAndClear(firePrimarySteer)}>
+      Guided response
+    </MenuItem>
+  );
   // F5 — fire "Guided response" at a chosen speaker (or Auto) in a multi-room, clearing the draft.
   const fireResponseAs = (speakerCharacterId: CharacterId | null): void => {
     guided.fireResponse(trimmed, speakerCharacterId);
@@ -113,9 +124,7 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
               </MenuPopup>
             </MenuSubmenuRoot>
           ) : (
-            <MenuItem disabled={!hasText} title={textReason} onClick={(): void => fireAndClear(firePrimarySteer)}>
-              Guided response
-            </MenuItem>
+            primaryItem
           )}
           {/* #41 consolidation — Continue/Regenerate live HERE (moved out of the ⋯ menu): the composer
               text is OPTIONAL (typed nudge steers; empty fires the plain action — the empty steer omits
@@ -263,16 +272,14 @@ function useWandFlags(handle: ChatHandle, trimmed: string, guided: UseGuidedActi
   const phase = useTurnPhase(chatId);
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
   const room = useWandRoomFlags(handle);
-  const { isGame } = room;
 
   const hasText = trimmed.length > 0;
   const idle = !(turnBusy || guided.isPending || busy);
-  // #41 consolidation — a COMMITTED chat opens the wand text-lessly (it hosts Continue/Regenerate/
-  // Impersonate, whose composer text is optional); a draft still needs a typed steer.
-  const canOpen = (hasText || isGame || committed) && idle;
-  // The disabled trigger explains itself on hover — the empty-composer case is the FIRST thing a user sees
-  // on a fresh draft, so name the unlock (type a message). A busy/pending disablement is transient.
-  const triggerReason = hasText || isGame || committed ? undefined : WAND_NEEDS_TEXT;
+  // The wand opens TEXT-LESSLY everywhere (owner ruling): a committed chat hosts the text-optional
+  // Continue/Regenerate/Impersonate (#41), and a DRAFT's "Generate opening" is valid steer-less ("a
+  // guided generation can BE the first message"). Only the transient busy state gates the trigger.
+  const canOpen = idle;
+  const triggerReason = undefined;
   const textReason = hasText ? undefined : WAND_NEEDS_TEXT;
   // A tail assistant slot to target — never present on a draft (no canon), so continue/regenerate/rewrite disable.
   const canTargetTail = committed && guided.tailAssistantMessageId !== null;

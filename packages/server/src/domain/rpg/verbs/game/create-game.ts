@@ -3,20 +3,14 @@
 // ruling; the read layer synthesizes the default state), and writes the opaque `chats.metadata.rpg` pointer
 // through the injected chat op.
 
-import type { RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_GAME_MODES, RPG_PROFILE_FREEFORM, rpgGameConfigSchema } from "@orb/contracts/rpg";
+import { RPG_GAME_MODES } from "@orb/contracts/rpg";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { RpgModeUnbuiltError } from "../../contract/errors";
 import type { CreateGameParams } from "../../contract/params";
 import type { CreateGameResult } from "../../contract/results";
 import type { RpgContext, RpgService } from "../../contract/service";
-import { findGameByChat, insertGame } from "../../persistence/games";
-
-/** The lite born config — the caller-picked profile (or `freeform`, lite's default) + the empty steering note +
- *  the default `extractionMode` (the schema fills it). */
-function bornConfig(profile: RpgStatProfile | undefined): Record<string, unknown> {
-  return { statProfile: profile ?? RPG_PROFILE_FREEFORM, lite: { steeringNote: "" }, extractionMode: "reliable" };
-}
+import { mintLiteGame } from "../../game-mint";
+import { findGameByChat } from "../../persistence/games";
 
 export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"> {
   async function createGame(params: CreateGameParams): Promise<CreateGameResult> {
@@ -46,37 +40,12 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
       throw new DomainOperationError("rpg_already_a_game", "this chat is already a game");
     }
 
-    const now = ctx.now();
-    const gameId = ctx.ids.game();
-    // Validate/normalize the born config through the contract schema (defaults fill; a bad profile throws).
-    const config = rpgGameConfigSchema.parse(bornConfig(params.profile));
-    const game = await insertGame(ctx.db, {
-      id: gameId,
-      chatId: params.chatId,
-      mode: "lite",
-      status: "active",
-      sessionNumber: 1,
-      gmUserId: null,
-      gmPresetId: null,
-      config,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // NO born snapshot (orchestrator ruling): `rpg_snapshots.messageId/variantId` are NON-nullable (they key a
-    // real committed variant), so a game with no turns yet has ZERO snapshot rows. The resolution ladder returns
-    // `undefined` for such a game (W1a rung 4), and the READ layer SYNTHESIZES the default empty state from
-    // `config` — see `substrate/default-state.ts` + `getTrackerView`. The first tool turn writes the first row.
-
-    // The opaque pointer — written at birth (the client's takeover gate reads it off ChatDetail); the
-    // #40 engaged flip re-writes the same mirror later (updateConfig). Born engaged.
-    await ctx.setPointer(params.chatId, { gameId: game.id, engaged: true });
-
-    // The game row is born — the takeover + config reads refetch (§4.9). Emit AFTER the durable write.
-    ctx.emitBus({ type: "gameChanged", chatId: params.chatId });
+    // The birth mechanics (row + pointer mirror + bus emit, no born snapshot) live in the ONE shared
+    // mint (`game-mint.ts`) — the chat-ops draft-time `startGame` door births through the same code.
+    const gameId = await mintLiteGame(ctx, { chatId: params.chatId, profile: params.profile });
 
     const trackersReadOnly = await ctx.resolveTrackersReadOnly(params.chatId);
-    return { gameId: game.id, trackersReadOnly };
+    return { gameId, trackersReadOnly };
   }
   return { createGame };
 }

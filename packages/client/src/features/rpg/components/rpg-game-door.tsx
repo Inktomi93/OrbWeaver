@@ -1,11 +1,13 @@
-// The #40 GAME DOOR — the Game meta-tab body for a committed HOST chat that is NOT a live game: the
-// product front door rpg-lite never had (`rpg.createGame` was seed/E2E-only). Two arms off the SAME
-// `chat.getChat` pointer read the takeover gate uses:
-//   • NO game — the "Start a game" empty-state CTA with the freeform|d20 profile pick (`createGame`,
-//     mode "lite"; freeform omits the profile — the create default).
-//   • a PAUSED game (pointer `engaged:false`) — the game exists with ALL its state preserved; the door
-//     offers "Turn the game back on" (`updateConfig { engaged:true }` — reversible, never a re-create).
-// A LIVE game never reaches this component (the section routes it to the GM console).
+// The #40 RPG-overlay DOOR — the Game meta-tab body for a committed HOST chat whose overlay is not
+// LIVE. Owner model: rpg-lite is an OVERLAY on the roleplay, togglable on/off at ANY time — never a
+// game session with pause/resume framing. Two arms off the SAME `chat.getChat` pointer read the
+// takeover gate uses:
+//   • never enabled — the "Turn on RPG" empty-state CTA with the freeform|d20 profile pick
+//     (`createGame`, mode "lite"; freeform omits the profile — the create default).
+//   • overlay OFF (pointer `engaged:false`) — the game rows exist with ALL state preserved; the door
+//     offers "Turn the overlay on" (`updateConfig { engaged:true }` — reversible, never a re-create,
+//     never a profile re-pick).
+// A LIVE overlay never reaches this component (the section routes it to the GM console).
 
 import { isRpgEngaged, RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -33,33 +35,33 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
 
   const pointer = chat.rpg ?? null;
   if (pointer !== null && !isRpgEngaged(pointer)) {
-    // The PAUSED arm — the state is kept; re-enable restores the sheet/scene/quests as they were.
+    // Overlay OFF — the state is kept; turning it on restores the sheets/scene/quests as they were.
     return (
       <Stack gap="section" data-slot="rpg-game-door" align="start">
         <Row gap="field" align="center">
           <Icon icon={Crown} size="sm" className="text-highlight" />
           <Text size="micro" transform="caps" weight="semibold" className="tracking-micro text-highlight">
-            Game paused
+            RPG overlay off
           </Text>
         </Row>
-        <Text tone="muted">The game is off — its sheets, scene, and quests are kept exactly as you left them.</Text>
+        <Text tone="muted">The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
         <Button intent="primary" size="sm" onClick={(): void => updateConfig.mutate({ chatId, patch: { engaged: true } })}>
-          <Icon icon={Play} size="xs" /> Turn the game back on
+          <Icon icon={Play} size="xs" /> Turn the overlay on
         </Button>
       </Stack>
     );
   }
 
-  // The EMPTY-STATE arm — no game yet: the start CTA with the freeform|d20 profile pick.
+  // The EMPTY-STATE arm — never enabled here: the first-ever "Turn on RPG" with the profile pick.
   return (
     <Stack gap="section" data-slot="rpg-game-door" align="start">
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" className="text-highlight" />
         <Text size="micro" transform="caps" weight="semibold" className="tracking-micro text-highlight">
-          Start a game
+          Turn on RPG
         </Text>
       </Row>
-      <Text tone="muted">Turn this chat into a game — tracked state, quests, and a scene the story keeps current.</Text>
+      <Text tone="muted">An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
       <Row gap="field" className="flex-wrap">
         <Button intent="primary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite" })}>
           <Icon icon={WandSparkles} size="xs" /> Freeform story

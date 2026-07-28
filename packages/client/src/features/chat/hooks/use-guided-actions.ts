@@ -87,7 +87,7 @@ interface GuidedStartChatVars extends DraftCarry {
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
   opening: "generate";
-  guided: GuidedSteerInput;
+  guided?: GuidedSteerInput;
 }
 
 interface GuidedStartChatResult {
@@ -176,7 +176,9 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
         title: opts.draftSeed?.title ?? null,
         opening: "generate",
-        guided: { action: "opening", input },
+        // §6.4 empty-steer shape: an EMPTY opening steer OMITS the guided object entirely (a plain
+        // generated opening) — the owner's "a guided generation can BE the first message" draft path.
+        ...(input.trim().length === 0 ? {} : { guided: { action: "opening", input } }),
         ...carry,
       });
       opts.onCommitted?.(result.chat.id);

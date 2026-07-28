@@ -328,6 +328,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     injections,
     temporary,
     guided,
+    startAsGame,
   }: StartChatParams): Promise<StartChatResult> => {
     const now = ctx.now();
     const chatId = ctx.newChatId();
@@ -413,6 +414,14 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       now,
     });
     await ctx.db.batch(batchMany(stmts));
+
+    // #40 DRAFT-TIME game birth: a `startAsGame` carry mints the lite game NOW — after the chat+roster
+    // committed (the caller is the just-minted host) and BEFORE any opening turn runs, so turn 1's gather
+    // already sees the game (rpg steering rides the very first beat). Chat threads the intent BLIND (the
+    // pointer foreign-schema precedent); a null `ctx.rpg` (rpg unwired) is the byte-identical no-op.
+    if (startAsGame !== undefined && ctx.rpg !== null) {
+      await ctx.rpg.startGame(chatId, startAsGame);
+    }
 
     await deps.emit({ type: "chatCreated", chatId });
     // Fan `chatsChanged` to the new room's present human members so each device refetches its list.

@@ -55,6 +55,9 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *    read/write + terminal side-effect writes — shared by the post-turn FLUSH and the human-GM CONSOLE arms so
  *    a tool-path and console-path terminal round produce byte-equivalent durable state; the `turn-staging.ts`
  *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT),
+ *    `game-mint.ts` (the ONE lite-game BIRTH mechanism — row + pointer mirror + bus emit — shared by the
+ *    caller-gated createGame verb AND the chat-ops draft-time `startGame` door so the #40 front door never
+ *    re-spells the birth; the `snapshot-edit.ts` I/O-wrapping-root precedent),
  *    `flush-barrier.ts` (the per-chat in-flight-flush BARRIER singleton — an in-memory Map the post-turn flush
  *    registers into + the next turn's gather awaits, so a fast re-send reads the just-committed state, not stale
  *    state; the `staging.ts`/`bus.ts` in-memory-singleton precedent; the dedicated state round made the flush a
@@ -62,7 +65,7 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
   crew: ["bus.ts"],
-  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts", "flush-barrier.ts"],
+  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts", "flush-barrier.ts", "game-mint.ts"],
   preset: ["constants.ts", "seed.ts"],
   "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],
