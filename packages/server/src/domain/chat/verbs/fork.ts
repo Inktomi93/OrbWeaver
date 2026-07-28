@@ -1,8 +1,10 @@
 // domain/chat/verbs/fork — `forkChat`: a fork is a deep copy into a new membership-scoped chat; the only
-// link is `chats.parentChatId`, no shared rows. A member may fork the source, and the forker becomes the
-// new chat's host (a fork grants no parent membership). Every copied row gets a fresh id, and the slot's
-// `selectedVariantId` pointer is remapped to the copied variant. The whole copy commits in one atomic
-// `db.batch`.
+// link is `chats.parentChatId`, no shared rows. FORK GATE (owner policy 2026-07-28): the HOST may fork any
+// room, and a non-host may fork ONLY a solo room (they are the sole present human) — a non-host in a
+// MULTI-HUMAN room is refused (the member→host laundering case). A host who wants a member to fork a
+// multi-human room transfers the room via `acceptHostHandoff` first. The forker becomes the new chat's host
+// (a fork grants no parent membership). Every copied row gets a fresh id, and the slot's `selectedVariantId`
+// pointer is remapped to the copied variant. The whole copy commits in one atomic `db.batch`.
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
@@ -21,7 +23,7 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
-import { ChatNotFoundError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ForkChatParams } from "../contract/params";
 import type { ForkResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
@@ -254,15 +256,17 @@ async function resolveOwnedCharacterSeats(
   return characterSeats.filter((_, i) => cards[i] !== null);
 }
 
-/** `forkChat` — deep copy. Gate membership (a member may fork), copy the chat + cast + canon + injections
- *  with fresh ids into a new chat where the forker is host, in one atomic batch. Emits `chatCreated`.
+/** `forkChat` — deep copy. Gate the fork (host, OR the sole present human — owner policy 2026-07-28), copy
+ *  the chat + cast + canon + injections with fresh ids into a new chat where the forker is host, in one atomic
+ *  batch. Emits `chatCreated`.
  *
  *  D16 join-history clamp: a fork COPIES canon into a room the forker HOSTS, so it is a read path with a
  *  permanent product — an unfloored copy would launder every pre-join row past the forker's own
  *  `joinHistoryVisibility` and hand them host authority over it. The copy floor is the forker's
  *  `historyFloorSeq` (`loadMessageSlots`), and the compaction checkpoint only rides along for an UNCLAMPED
  *  forker (the summary covers canon from seq 1, so a clamped forker would carry a distillation of exactly
- *  the rows the floor withheld). `full` forkers are unaffected. */
+ *  the rows the floor withheld). A host forker is unclamped; a solo non-host forker carries only their own
+ *  floor-allowed rows — the clamp stays correct under the refined gate. */
 /** P3 §3.6: does the fork copy strip the REASONING channel? Only when the forker is a NON-HOST of the source
  *  AND the source game is DECEPTION-ACTIVE (resolved via the injected rpg op; `false` for a non-game / a host
  *  forker / a non-deception chat — no regression). Hoisted to keep `createForkChat` under the complexity gate. */
@@ -294,8 +298,11 @@ function forkMetadataWithoutGame(meta: ChatMetadata | null): ChatMetadata | null
  *  A clone FAILURE is DEGRADED-not-broken: the fork already committed as a valid plain chat, so LOG and ship it
  *  plain rather than fail the whole fork (the stopgap posture — a plain fork never crashes; the W-G
  *  dangling-pointer heal covers any desync). Runs BEFORE the fork's read-back so the returned `ChatDetail`
- *  carries the fresh pointer. Non-host forker ⇒ host secrets stripped in the clone (steeringNote / foreign
- *  gmPresetId / hidden-span tracker prose) — the §3.6 member→host boundary. */
+ *  carries the fresh pointer. The clone still passes the forker's `readsHidden` posture so its host-secret
+ *  strips (steeringNote / foreign gmPresetId / hidden-span tracker prose) stay wired as DEFENSE-IN-DEPTH —
+ *  the verb gate already closes the multi-human member→host §3.6 laundering case (a non-host may fork only a
+ *  solo room, which has no other human to launder to), so these strips are belt, retained against a future
+ *  gate relaxation. */
 async function forkGameOntoFork(
   ctx: ChatContext,
   args: {
@@ -321,18 +328,33 @@ async function forkGameOntoFork(
   }
 }
 
+/** THE FORK GATE (owner policy 2026-07-28): the member→host secret-laundering risk exists ONLY when ANOTHER
+ *  human could receive a laundered secret, so a fork is allowed when the caller is the HOST (role==="host",
+ *  D19/D64 — a transferred-to NEW host qualifies, NOT first-join-seq) OR the SOLE present HUMAN in the room (a
+ *  solo game/chat — nothing to launder; the sole remaining human forking their own room is always safe, even
+ *  when the host left without a handoff). ONLY a non-host caller with ANOTHER present human member is refused —
+ *  `ChatOperationError('not_host')`, a known-existence authority refusal (the caller IS a present member; the
+ *  non-member case already threw the leak-free `ChatNotFoundError` at `requireParticipant`). Human = a
+ *  `kind:"human"` present row (a seated character / agent is never a human recipient of a laundered secret). */
+function assertForkAllowed(
+  role: (typeof chatParticipants.$inferSelect)["role"],
+  roster: readonly (typeof chatParticipants.$inferSelect)[],
+  chatId: ChatId,
+): void {
+  const presentHumanCount = roster.filter((r) => r.kind === "human").length;
+  if (role !== "host" && presentHumanCount > 1) {
+    throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: only the host may fork a multi-human room`);
+  }
+}
+
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
   return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
+    // `requireParticipant` first — a non-member gets a leak-free `ChatNotFoundError` (never reveal existence);
+    // then `assertForkAllowed` enforces the host-or-sole-human fork gate (owner policy 2026-07-28). The
+    // member→host strips downstream are DEFENSE-IN-DEPTH: this gate closes the multi-human laundering case at
+    // the source, and the solo arm has no OTHER human to launder to, so the strips are belt (safe if it relaxes).
     const membership = await requireParticipant(ctx, principal, chatId);
     const { chat: source, historyFloorSeq } = membership;
-    // §3.6 member-strip across the fork boundary — the forker's SOURCE-room role decides whether the copied
-    // bodies keep their hidden-class spans. A non-host member never had host-plane access to the source's GM
-    // secrets; the copy must not launder them past the member→host transition (they become the fork's host).
-    const forkerReadsHidden = viewerReadsHidden(membership);
-    // P3 §3.6: on a DECEPTION-active source, a NON-HOST forker also loses the reasoning channel in the copy (a
-    // deceptive model can spell a lie's truth in its thinking; the forker becomes HOST of the copy, so an
-    // unstripped reasoning twin would launder that leak past the member→host transition). See `resolveForkStripReasoning`.
-    const stripReasoning = await resolveForkStripReasoning(ctx, chatId, forkerReadsHidden);
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
@@ -343,6 +365,19 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       loadRoster(ctx.db, chatId),
       loadStandaloneVariableDeltas(ctx.db, chatId),
     ]);
+
+    assertForkAllowed(membership.role, roster, chatId);
+
+    // §3.6 member-strip across the fork boundary (now DEFENSE-IN-DEPTH — the gate above closes the multi-human
+    // member→host laundering case; the solo arm has no other human to launder to). The forker's SOURCE-room
+    // role decides whether the copied bodies keep their hidden-class spans. A HOST forker copies verbatim; the
+    // only forker reaching here who is NOT the host is a SOLO human (no other human present), whose strip is
+    // harmless belt. Retained against a future gate relaxation.
+    const forkerReadsHidden = viewerReadsHidden(membership);
+    // P3 §3.6 (belt): on a DECEPTION-active source, a NON-HOST forker also loses the reasoning channel in the
+    // copy — reachable now only for the solo non-host human arm (belt); a host forker keeps it. See
+    // `resolveForkStripReasoning`.
+    const stripReasoning = await resolveForkStripReasoning(ctx, chatId, forkerReadsHidden);
     // Standalone (out-of-turn) variable deltas carry into the fork only up to the fork point — a truncated
     // fork must not claim a delta stamped past its horizon (mirrors the compaction-checkpoint gate below).
     const forkStandaloneDeltas = standaloneDeltas.filter((s) => throughSeq === undefined || s.seq <= throughSeq);
