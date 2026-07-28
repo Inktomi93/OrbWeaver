@@ -41,6 +41,7 @@ function state(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
     actorState: [],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
     ...over,
   };
@@ -284,4 +285,37 @@ test("roster names — a character-kind actor names via the roster map, not the 
   const cur = state({ actorState: [kael({ hp: { value: 16, max: 20 } })] });
   const out = buildDeltaBlock(prev, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
   expect(out).toContain("Kael HP 12→16 (+4)"); // named, not "character HP …"
+});
+
+// ── P5 — the plot plane renderer ────────────────────────────────────────────────────────────────────────
+
+test("plot — an act ADVANCE renders the transition with act titles (P5)", () => {
+  const prev = state({ plot: { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] } });
+  const cur = state({
+    plot: {
+      act: 2,
+      title: "The Bone Key",
+      acts: [
+        { title: "Arrival", summary: "" },
+        { title: "Descent", summary: "" },
+      ],
+    },
+  });
+  const out = buildDeltaBlock(prev, cur, ctx());
+  expect(out).toContain('act 1 "Arrival" → act 2 "Descent"');
+});
+
+test("plot — the plane APPEARING renders a story-begins line; same-act title edits are silent", () => {
+  const born = state({ plot: { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] } });
+  const out = buildDeltaBlock(state(), born, ctx());
+  expect(out).toContain('story begins: "The Bone Key" — act 1 "Arrival"');
+  // A summary/title polish WITHIN the same act is authoring, not a beat.
+  const polished = state({ plot: { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "notes" }] } });
+  expect(buildDeltaBlock(born, polished, ctx())).toBeNull();
+});
+
+test("plot — a null→null / unchanged plot renders nothing (byte-stable quiet turn)", () => {
+  expect(buildDeltaBlock(state(), state(), ctx())).toBeNull();
+  const p = { act: 1, title: "", acts: [] };
+  expect(buildDeltaBlock(state({ plot: p }), state({ plot: { ...p } }), ctx())).toBeNull();
 });

@@ -20,6 +20,7 @@ import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta";
 import type { RpgMacroFeed } from "../contract/params";
 import { buildDeltaBlock } from "../substrate/delta";
+import { plotLine } from "../substrate/reminder";
 
 /** The steering display of a present character's relationship (§2.1) — the bare kind, or a custom `label`.
  *  Mirrors the reminder's `relationshipSeg` (a neutral default carries no steering signal ⇒ ""). */
@@ -110,6 +111,10 @@ function sceneStateString(view: RpgTrackerView): string {
   if (ambient !== "") {
     lines.push(ambient);
   }
+  // The P5 plot spine (same line grammar as the reminder's Story line — one helper, two consumers).
+  if (view.plot !== null) {
+    lines.push(`Story: ${plotLine(view.plot)}`);
+  }
   if (view.cast.length > 0) {
     lines.push("Present:");
     lines.push(...view.cast.map((c) => castMemberLine(c, view.castFields, true)));
@@ -176,6 +181,14 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
       objectivesOpen: q.objectives.filter((o) => !o.completed).length,
       objectivesTotal: q.objectives.length,
     })),
+    // The P5 plot plane for `{{expr::rpg.plot.act}}` / `rpg.plot.actTitle` predicates. A plot-less game
+    // reads act 0 + empty titles (data-only degrade — never an absent key that errors a whole expr chain).
+    plot: {
+      act: view.plot !== null ? view.plot.act : 0,
+      title: view.plot !== null ? view.plot.title : "",
+      actTitle: view.plot?.acts[view.plot.act - 1]?.title ?? "",
+      acts: view.plot !== null ? view.plot.acts.map((a) => a.title) : [],
+    },
     delta: { text: deltaText },
   };
 }

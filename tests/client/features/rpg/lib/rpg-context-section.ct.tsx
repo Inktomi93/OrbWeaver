@@ -99,8 +99,10 @@ function trackerView(trackersReadOnly: boolean): unknown {
       { label: "Vitality", value: 24, max: 30 },
       { label: "Resolve", value: 7, max: 10 },
     ],
-    // A hand-lock on the ambient `location` path (§12.3) — the Scene ambient renders its pin + Release.
+    // A hand-lock on the ambient `location` path (�12.3) — the Scene ambient renders its pin + Release.
     lockedPaths: ["location"],
+    // P5 — the plot plane (null = no story spine yet; the act-rail CT overrides with a real plot).
+    plot: null,
   };
 }
 
@@ -318,6 +320,37 @@ test("the host New-quest affordance fires upsertQuest (create) — the mutation 
   await nameField.blur();
   await component.getByRole("button", { name: "New quest" }).click();
   await expect.poll(() => trpc.count("rpg.upsertQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; null plot ⇒ no rail)", async ({ mount, page }) => {
+  // The default stub carries `plot: null` — the sibling Quests CTs prove the rail ABSENT there (no
+  // client-invented acts). This mount overrides the tracker with a real plot plane.
+  const tracker = {
+    ...(trackerView(false) as Record<string, unknown>),
+    plot: {
+      act: 2,
+      title: "The Bone Key",
+      acts: [
+        { title: "Arrival", summary: "" },
+        { title: "Descent", summary: "" },
+        { title: "", summary: "" },
+      ],
+    },
+  };
+  await stubTakeover(page, { tracker });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+
+  const rail = component.locator('[data-slot="rpg-act-rail"]');
+  await expect(rail).toBeVisible();
+  // The TEXT is the datum: the current act's heading + the story title chip.
+  await expect(rail).toContainText("Act II — Descent");
+  await expect(rail).toContainText("The Bone Key");
+  // Three act stops on the (aria-hidden) dot row — past, current (embered ◉), future.
+  await expect(rail).toContainText("◉ II");
+  await expect(rail).toContainText("● I");
+  await expect(rail).toContainText("○ III");
 });
 
 test("lowering a pool max below its value drags the value + fires editSnapshot (§12.3 max-drag)", async ({ mount, page }) => {

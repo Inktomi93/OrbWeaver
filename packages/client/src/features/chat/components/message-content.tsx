@@ -20,6 +20,7 @@ import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
 import type { RowRenderPolicy } from "../lib/render-trust";
 import { colorForCharacter } from "../lib/speaker-color";
+import { MessageChoicesBlock } from "./message-choices-block";
 import { MessageMediaBlock } from "./message-media-block";
 
 function assertNever(value: never): never {
@@ -60,16 +61,12 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
           {block.html}
         </Markdown>
       );
-    // The parity-plus §5.2 choice set — P2 renders the model's options as an ordinary numbered list (the
-    // reading surface never sees the raw `:::choices` fence); the P5 wave upgrades this arm to clickable
-    // send-affordances (`use-send-message`) without touching the block contract.
+    // The parity-plus §5.2-5.3 choice set — clickable send-affordances: a click sends the option as the
+    // user's next turn through the room's choice-send capability (P5; provider-less mounts render the
+    // same buttons disabled). The block contract is untouched.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "choices":
-      return (
-        <Markdown key={key} trust={trust} mode="static">
-          {block.options.map((option, index) => `${index + 1}. ${option}`).join("\n")}
-        </Markdown>
-      );
+      return <MessageChoicesBlock key={key} options={block.options} />;
     default:
       return assertNever(block);
   }

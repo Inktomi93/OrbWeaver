@@ -4,6 +4,7 @@
 // settings (shared-dissolution §7 #4): these are chat verb / assemble / client-form shapes, NOT the
 // settings KV. ONE HOME here so the `db` `$type` and the server parser derive, never re-spell.
 
+import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -200,6 +201,12 @@ export const guidedSteerSchema = z
       .optional(),
     /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
     person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
+    /** A wand-fired one-shot GAME steer KIND (parity-plus P5 — the Plot submenu + "Offer choices"). When
+     *  present, the assembly resolves the kit-homed SYSTEM template (`GUIDED_GAME_STEERS`) through the macro
+     *  engine (the rpg data macros read the game turn's gather feed) and delivers it as a depth-0 system
+     *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
+     *  never template text (a member cannot smuggle macros onto the trusted template side). */
+    gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
   })
   .strict();
 export type GuidedSteer = z.infer<typeof guidedSteerSchema>;

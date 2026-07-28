@@ -78,6 +78,17 @@ export const updateInventoryArgsSchema = z.object({
 });
 export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
+// The P5 PLOT patch (parity-plus — the snapshot-resident plot plane's model-facing write). Deliberately
+// FLAT (the small-model-robust arm, ruling #10): the model declares the CURRENT act number and/or the
+// current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
+// acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
+const plotPatchSchema = z.object({
+  act: z.number().int().min(1).optional(),
+  title: z.string().optional(),
+  actTitle: z.string().optional(),
+  actSummary: z.string().optional(),
+});
+
 /** `update_scene` — ambient fields (§2.7) + a present-cast PATCH (MA-4: omit = keep, null = clear). */
 export const updateSceneArgsSchema = z.object({
   location: z.string().optional(),
@@ -101,6 +112,8 @@ export const updateSceneArgsSchema = z.object({
     .optional(),
   presentRemove: z.array(z.string().min(1)).optional(),
   recentEvent: z.string().optional(),
+  // P5 — the plot-plane patch (advance the act / retitle the story or current act). Omit = keep.
+  plot: plotPatchSchema.optional(),
 });
 export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
 

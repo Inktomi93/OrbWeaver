@@ -10,7 +10,7 @@ import type { RpgClockTime, RpgWeather } from "./ambient";
 import type { RpgCastField, RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
 import type { RpgPoolDef } from "./sheet";
-import type { RpgPresentCharacter, RpgWidgetDef } from "./snapshot";
+import type { RpgPlot, RpgPresentCharacter, RpgWidgetDef } from "./snapshot";
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
  *  lite/full trim decision (§2.1). `publicConfig` is the member-safe config slice (never the host-only
@@ -30,7 +30,14 @@ export interface RpgGameView {
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
    *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
    *  the card-archive section per game (member-safe — a play-style option, never a secret). */
-  readonly publicConfig: { readonly statProfile: RpgGameConfig["statProfile"]; readonly immersiveHtml: boolean };
+  /** `cyoa`/`plotProgression` (parity-plus P5 §5.4/§6.4) gate the composer wand's game affordances (the Plot
+   *  submenu + the choices mode) — member-safe play-style options, never secrets. */
+  readonly publicConfig: {
+    readonly statProfile: RpgGameConfig["statProfile"];
+    readonly immersiveHtml: boolean;
+    readonly cyoa: boolean;
+    readonly plotProgression: boolean;
+  };
 }
 
 /** An actor row in the tracker view — roster ∪ sheets projection (§4.3). A participant without a sheet row
@@ -91,6 +98,9 @@ export interface RpgTrackerView {
   readonly castFields: readonly RpgCastField[];
   readonly widgets: readonly RpgWidgetView[];
   readonly quests: readonly RpgQuestView[];
+  /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one (the rail
+   *  renders nothing; no client-invented acts, ever). Swipe-consistent like every other plane here. */
+  readonly plot: RpgPlot | null;
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
   readonly poolOrbs: readonly RpgPoolOrb[];
@@ -135,6 +145,9 @@ export interface RpgConfigView {
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;
   readonly cardKeepLastX: number;
+  /** The P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the wand Plot submenu gate. */
+  readonly cyoa: boolean;
+  readonly plotProgression: boolean;
 }
 
 /** ONE parsed hidden span from a stored assistant body (parity-plus §3.6 host-reveal). `tag` is the

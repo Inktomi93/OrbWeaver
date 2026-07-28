@@ -144,7 +144,8 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
       name: "update_scene",
       description:
         "Update the shared scene: location, calendar date, time of day, weather, present cast (a patch — " +
-        "omitted fields keep), or append a recent-events beat. Call when the scene moves or changes.",
+        "omitted fields keep), append a recent-events beat, or advance the plot (`plot`: the current act " +
+        "number, the story title, or the current act's title/summary). Call when the scene moves or changes.",
       argsSchema: updateSceneArgsSchema,
       capability: null,
       source: "builtin",

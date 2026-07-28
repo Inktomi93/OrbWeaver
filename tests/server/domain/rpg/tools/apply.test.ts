@@ -32,6 +32,7 @@ function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
     actorState: [],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
     ...over,
   };
@@ -153,6 +154,68 @@ test("update_scene writes a relationship — a custom kind carries its label, a 
   expect(toEnemy.presentCharacters?.[0]?.relationship).toEqual({ kind: "enemy", label: "" });
   const toCustom = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] });
   expect(toCustom.presentCharacters?.[0]?.relationship).toEqual({ kind: "custom", label: "vassal" });
+});
+
+// ── P5 — the plot plane (`update_scene.plot`, the snapshot-resident act spine) ──────────────────────────
+
+test("update_scene plot: a first-ever patch births the plane (act 1, padded acts, titles applied)", () => {
+  const patch = applyUpdateScene(emptyState(), { plot: { title: "The Bone Key", actTitle: "Arrival" } });
+  expect(patch.plot).toEqual({ act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] });
+});
+
+test("update_scene plot: an act ADVANCE pads untitled acts up to the new act and writes its title in place", () => {
+  const state = emptyState({ plot: { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] } });
+  const patch = applyUpdateScene(state, { plot: { act: 3, actTitle: "The Reckoning", actSummary: "All debts come due." } });
+  expect(patch.plot).toEqual({
+    act: 3,
+    title: "The Bone Key",
+    acts: [
+      { title: "Arrival", summary: "" },
+      { title: "", summary: "" },
+      { title: "The Reckoning", summary: "All debts come due." },
+    ],
+  });
+  // The base plane is untouched (a fresh object, never a shared ref — the clone-forward posture).
+  expect(state.plot?.acts).toHaveLength(1);
+});
+
+test("update_scene plot: omit = keep (MA-4) — a patch naming only actSummary keeps act/title/actTitle", () => {
+  const state = emptyState({
+    plot: {
+      act: 2,
+      title: "T",
+      acts: [
+        { title: "A1", summary: "" },
+        { title: "A2", summary: "" },
+      ],
+    },
+  });
+  const patch = applyUpdateScene(state, { plot: { actSummary: "quiet before the storm" } });
+  expect(patch.plot).toEqual({
+    act: 2,
+    title: "T",
+    acts: [
+      { title: "A1", summary: "" },
+      { title: "A2", summary: "quiet before the storm" },
+    ],
+  });
+});
+
+test("extractionToStateDelta includes the plot plane in the statePatch when the scene wrote it", () => {
+  const delta = extractionToStateDelta(
+    emptyState(),
+    { party: [], inventory: [], scene: { plot: { act: 2, actTitle: "Descent" } }, widgets: [], quests: [], journal: [] },
+    { item: () => "i", quest: () => castId<RpgQuestId>("q"), objective: () => "o" },
+    NO_ROSTER,
+  );
+  expect(delta.statePatch["plot"]).toEqual({
+    act: 2,
+    title: "",
+    acts: [
+      { title: "", summary: "" },
+      { title: "Descent", summary: "" },
+    ],
+  });
 });
 
 test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 — not model-authored)", () => {

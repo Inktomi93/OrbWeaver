@@ -17,7 +17,13 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       status: game.status,
       trackersReadOnly,
       extractionMode: game.config.extractionMode,
-      publicConfig: { statProfile: game.config.statProfile, immersiveHtml: game.config.features.immersiveHtml },
+      publicConfig: {
+        statProfile: game.config.statProfile,
+        immersiveHtml: game.config.features.immersiveHtml,
+        // P5 (§5.4/§6.4) — the wand's game affordance gates (member-safe play-style options).
+        cyoa: game.config.features.cyoa,
+        plotProgression: game.config.features.plotProgression,
+      },
     };
   }
   return { getGame };

@@ -108,6 +108,7 @@ import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/cli
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
+import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
@@ -365,6 +366,35 @@ export function MessageContentSpansStory({
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
   return <MessageContent content={content} render={{ trust, allowExternal, lenientCards: false }} renderContext={renderContext} />;
+}
+
+export interface MessageContentChoicesStoryProps {
+  /** `live` = a room-scoped send capability (clicks record); `busy` = a turn in flight (buttons disable);
+   *  `none` = a provider-less mount (the CT-story/read-only-preview arm — buttons disable). */
+  readonly mode?: "live" | "busy" | "none";
+}
+
+// P5 §5.2-5.3 — the `:::choices` fence rendered as clickable send-affordances. The recorder mirrors the
+// [assert-the-mutation-fired] posture: a click's SEND (not a UI reaction) is what the CT asserts, surfaced
+// through the `sent-choices` probe text.
+const CHOICES_BODY = "The corridor forks.\n:::choices\n1. Draw your blade.\n2. Slip into the shadows.\n3. Call out a greeting.\n:::";
+
+function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "busy" | "none" }): ReactElement {
+  const [sent, setSent] = useState<readonly string[]>([]);
+  const value = mode === "none" ? null : { send: (text: string): void => setSent((prev) => [...prev, text]), busy: mode === "busy" };
+  return (
+    <>
+      <ChoiceSendContext value={value}>
+        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false }} />
+      </ChoiceSendContext>
+      <p data-testid="sent-choices">{sent.join("|")}</p>
+    </>
+  );
+}
+
+/** The bare `<MessageContent>` over a `:::choices` body with a recording choice-send capability. */
+export function MessageContentChoicesStory({ mode = "live" }: MessageContentChoicesStoryProps = {}): ReactElement {
+  return <MessageContentChoicesStoryInner mode={mode} />;
 }
 
 function GhostRowInner(): ReactElement {

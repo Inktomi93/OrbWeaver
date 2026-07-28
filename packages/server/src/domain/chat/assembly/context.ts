@@ -18,6 +18,7 @@ import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE, speakerKey } fro
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
+import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { resolveInjectionPlacement } from "@orb/kit/injection";
 import type { MacroContext, MacroRegistry } from "@orb/kit/macro";
@@ -478,6 +479,15 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   const steer = input.guided;
   if (steer === undefined) {
     return { candidates: [] };
+  }
+  // The P5 one-shot GAME steer (the wand's Plot submenu + "Offer choices"): the wire carries only an enum
+  // KIND; the SYSTEM template (kit `GUIDED_GAME_STEERS` — trusted, never the neutralized `{{input}}` splice)
+  // resolves through the normal macro engine, so `{{rpgSceneState}}`/`{{rpgQuests}}`/`{{random}}` read the
+  // game turn's gather feed. Delivered as a depth-0 system injection — the ephemeral channel the reminder
+  // rides (never a `chat_injections` row, never the preset's per-action config). `input` is ignored by design.
+  if (steer.gameSteer !== undefined) {
+    const resolved = renderMacros(GUIDED_GAME_STEERS[steer.gameSteer].template, base, base.activePersona, { registry: input.macroRegistry }).trim();
+    return { candidates: resolved.length === 0 ? [] : [guidedInjectionCandidate(resolved, "system")] };
   }
   const config = input.promptConfig.guidedActions?.[steer.action] ?? DEFAULT_GUIDED_ACTIONS[steer.action];
   const resolved = resolveGuidedActionText(base, {

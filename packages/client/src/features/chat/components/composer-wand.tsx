@@ -20,10 +20,11 @@
 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
-import { composeRewriteSteer } from "@orb/kit/guided";
+import type { GuidedGameSteerKind } from "@orb/kit/guided";
+import { composeRewriteSteer, RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Drama, History, Icon, Pencil, WandSparkles } from "@orb/ui/icons";
+import { Compass, Drama, History, Icon, ListOrdered, Pencil, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -31,6 +32,7 @@ import { useGatedQuery, useTRPC } from "#data";
 import { DRAFT_UNLOCK_AFTER_SEND, NEEDS_ASSISTANT_REPLY, testId, WAND_NEEDS_TEXT } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted, useRecentSteers, useTurnPhase } from "#state";
+import type { UseGuidedActionsResult } from "../hooks/use-guided-actions";
 import { useGuidedActions } from "../hooks/use-guided-actions";
 import { filterCharacters } from "../lib/roster";
 import { ImpersonateSubmenu } from "./impersonate-submenu";
@@ -48,81 +50,23 @@ export interface ComposerWandProps {
 }
 
 export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, busy = false }: ComposerWandProps): ReactElement {
-  const trpc = useTRPC();
   const committed = isCommitted(handle);
-  const chatId = committed ? handle.id : null;
-  const phase = useTurnPhase(chatId);
-  const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
   // F3 — restore the just-fired steer to the composer when a guided mutation fails (the input isn't lost).
   const guided = useGuidedActions({ handle, draftSeed, onCommitted, onFireError: (firedText): void => onChange(firedText) });
   const recentSteers = useRecentSteers();
 
   const trimmed = value.trim();
 
-  // Rewrite modal state — OWNED HERE (not in the dialog) so an Esc/Cancel preserves the typed instruction
-  // and the toggle selection (the source's sacred input-recovery posture, D57): closing the modal never
-  // destroys the state; only an explicit Apply (fire + reset) or a fresh seed clears it.
-  const [rewriteOpen, setRewriteOpen] = useState(false);
-  const [rewriteInstruction, setRewriteInstruction] = useState("");
-  const [rewriteToggles, setRewriteToggles] = useState<ReadonlySet<RewriteToggleId>>(new Set<RewriteToggleId>());
+  // Rewrite modal state — extracted to the local hook (state ownership + D57 input-recovery semantics
+  // unchanged; see useRewriteModal below). Extraction keeps this component under the complexity ceiling.
+  const rewrite = useRewriteModal(trimmed, guided.fireRewrite, onChange);
+  // All the derived enable/disable flags + hover reasons + the roster/game reads (see useWandFlags below).
+  const flags = useWandFlags(handle, trimmed, guided, busy);
+  const { hasText, canOpen, triggerReason, textReason, canTargetTail, canSteerTail, tailReason, draftReason, cast, isMultiRoom, isGame, plotAvailable } = flags;
 
-  const openRewrite = (): void => {
-    // Pre-seed the instruction from the current composer draft when one exists — the existing wand gesture
-    // (type a steer, fire Rewrite) is not orphaned; an empty composer opens with whatever the last modal
-    // session preserved (a cancelled draft the user is returning to).
-    if (trimmed.length > 0) {
-      setRewriteInstruction(trimmed);
-    }
-    setRewriteOpen(true);
-  };
-  const toggleRewrite = (id: RewriteToggleId, on: boolean): void => {
-    setRewriteToggles((prev) => {
-      const next = new Set(prev);
-      if (on) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
-      return next;
-    });
-  };
-  const applyRewrite = (): void => {
-    // Compose in CATALOG ORDER (map REWRITE_TOGGLES, keep only selected) so the fired steer is deterministic
-    // regardless of click order — the composed string becomes {{input}} inside the preset's rewrite template.
-    const fragments = REWRITE_TOGGLES.filter((t) => rewriteToggles.has(t.id)).map((t) => t.fragment);
-    const steer = composeRewriteSteer(fragments, rewriteInstruction);
-    if (steer.length === 0) {
-      return;
-    }
-    guided.fireRewrite(steer);
-    // Reset the modal + clear the composer draft (the steer was consumed) — mirrors fireAndClear.
-    setRewriteOpen(false);
-    setRewriteInstruction("");
-    setRewriteToggles(new Set<RewriteToggleId>());
-    onChange("");
-  };
-
-  // F5 — the room roster (same warm cache speak-as reads); a >1-character room makes "Guided response" a
-  // speaker submenu. Gated on a committed chatId (a draft has no roster yet), degrades to [] until populated.
-  const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  const cast = filterCharacters(rosterQuery.data?.participants ?? []);
-  const isMultiRoom = committed && cast.length > 1;
-
-  const hasText = trimmed.length > 0;
-  const canOpen = hasText && !turnBusy && !guided.isPending && !busy;
-  // The disabled trigger explains itself on hover (owner: "when it's disabled on hover tell why"). The
-  // empty-composer case is the FIRST thing a user sees on a fresh draft — name the unlock (type a message).
-  // A busy/pending disablement is transient (a turn is running) — no persistent reason to surface there.
-  const triggerReason = hasText ? undefined : WAND_NEEDS_TEXT;
-  // A tail assistant slot to target — never present on a draft (no canon), so swipe/continue/rewrite disable.
-  const canTargetTail = committed && guided.tailAssistantMessageId !== null;
   // The primary steer: a draft opens the chat (chat.startChat) with the steer; a committed chat generates
   // the next turn (chat.generate). Same item, same intent, phase picks the verb — no swapped sibling item.
   const firePrimarySteer = committed ? guided.fireResponse : guided.fireOpening;
-  // Every disabled item names its unlock condition on hover (owner: "when it's disabled on hover tell why").
-  // A draft unlocks on the first send; a committed chat with no assistant tail needs an assistant reply.
-  const draftReason = committed ? undefined : DRAFT_UNLOCK_AFTER_SEND;
-  const tailReason = canTargetTail ? undefined : (draftReason ?? NEEDS_ASSISTANT_REPLY);
 
   const fireAndClear = (run: (input: string) => void): void => {
     run(trimmed);
@@ -151,9 +95,12 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
         />
         <MenuPopup>
           {isMultiRoom ? (
-            // A targeted nudge: the steer + a chosen speaker (or Auto) on one turn (F5).
+            // A targeted nudge: the steer + a chosen speaker (or Auto) on one turn (F5). Text-gated:
+            // the typed draft IS the steer (a game chat opens the menu text-lessly, so gate per item).
             <MenuSubmenuRoot>
-              <MenuSubmenuTrigger>Guided response</MenuSubmenuTrigger>
+              <MenuSubmenuTrigger disabled={!hasText} title={textReason}>
+                Guided response
+              </MenuSubmenuTrigger>
               <MenuPopup>
                 <MenuItem onClick={(): void => fireResponseAs(null)}>Auto (arbitrate)</MenuItem>
                 {cast.map((member) => (
@@ -165,17 +112,19 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
               </MenuPopup>
             </MenuSubmenuRoot>
           ) : (
-            <MenuItem onClick={(): void => fireAndClear(firePrimarySteer)}>Guided response</MenuItem>
+            <MenuItem disabled={!hasText} title={textReason} onClick={(): void => fireAndClear(firePrimarySteer)}>
+              Guided response
+            </MenuItem>
           )}
-          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireSwipe)}>
+          <MenuItem disabled={!canSteerTail} title={textReason ?? tailReason} onClick={(): void => fireAndClear(guided.fireSwipe)}>
             Guided swipe
           </MenuItem>
-          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={(): void => fireAndClear(guided.fireContinue)}>
+          <MenuItem disabled={!canSteerTail} title={textReason ?? tailReason} onClick={(): void => fireAndClear(guided.fireContinue)}>
             Guided continue
           </MenuItem>
           {/* F1 — rewrite the last reply out of character; OPENS the modal (instruction + toggle catalog),
               which fires guided.fireRewrite on Apply. Needs a tail assistant reply to correct. */}
-          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={openRewrite}>
+          <MenuItem disabled={!canTargetTail} title={tailReason} onClick={rewrite.open}>
             <Icon icon={Pencil} size="sm" />
             Rewrite…
           </MenuItem>
@@ -185,38 +134,210 @@ export function ComposerWand({ handle, value, onChange, draftSeed, onCommitted, 
             reason={draftReason}
             onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))}
           />
-          {/* F3 — recall a steer fired earlier this session back into the composer (the source's input
-              recovery). Rendered only when the ring has entries; picking one refills the draft, it does not
-              re-fire (the user re-aims it). */}
-          {recentSteers.length > 0 ? (
-            <>
-              <MenuSeparator />
-              <MenuSubmenuRoot>
-                <MenuSubmenuTrigger>
-                  <Icon icon={History} size="sm" />
-                  Recent steers
-                </MenuSubmenuTrigger>
-                <MenuPopup>
-                  {recentSteers.map((steer) => (
-                    <MenuItem key={steer} onClick={(): void => onChange(steer)}>
-                      {steer}
-                    </MenuItem>
-                  ))}
-                </MenuPopup>
-              </MenuSubmenuRoot>
-            </>
-          ) : null}
+          {isGame ? <WandGameSection plotAvailable={plotAvailable} onSteer={guided.fireGameSteer} /> : null}
+          {recentSteers.length > 0 ? <WandRecentSteers steers={recentSteers} onRecall={onChange} /> : null}
         </MenuPopup>
       </Menu>
       <RewriteDialog
-        open={rewriteOpen}
-        onOpenChange={setRewriteOpen}
-        instruction={rewriteInstruction}
-        onInstructionChange={setRewriteInstruction}
-        selected={rewriteToggles}
-        onToggle={toggleRewrite}
-        onApply={applyRewrite}
+        open={rewrite.isOpen}
+        onOpenChange={rewrite.setOpen}
+        instruction={rewrite.instruction}
+        onInstructionChange={rewrite.setInstruction}
+        selected={rewrite.toggles}
+        onToggle={rewrite.toggle}
+        onApply={rewrite.apply}
       />
+    </>
+  );
+}
+
+// ── The Rewrite modal state hook (F1 — extracted verbatim from the component body) ──────────────────────
+// State OWNED at the wand (not the dialog) so an Esc/Cancel preserves the typed instruction and the toggle
+// selection (the source's sacred input-recovery posture, D57): closing the modal never destroys the state;
+// only an explicit Apply (fire + reset) or a fresh seed clears it.
+
+interface RewriteModal {
+  readonly isOpen: boolean;
+  readonly setOpen: (open: boolean) => void;
+  readonly instruction: string;
+  readonly setInstruction: (text: string) => void;
+  readonly toggles: ReadonlySet<RewriteToggleId>;
+  readonly toggle: (id: RewriteToggleId, on: boolean) => void;
+  readonly open: () => void;
+  readonly apply: () => void;
+}
+
+function useRewriteModal(trimmed: string, fireRewrite: (steer: string) => void, onChange: (text: string) => void): RewriteModal {
+  const [isOpen, setOpen] = useState(false);
+  const [instruction, setInstruction] = useState("");
+  const [toggles, setToggles] = useState<ReadonlySet<RewriteToggleId>>(new Set<RewriteToggleId>());
+
+  const open = (): void => {
+    // Pre-seed the instruction from the current composer draft when one exists — the existing wand gesture
+    // (type a steer, fire Rewrite) is not orphaned; an empty composer opens with whatever the last modal
+    // session preserved (a cancelled draft the user is returning to).
+    if (trimmed.length > 0) {
+      setInstruction(trimmed);
+    }
+    setOpen(true);
+  };
+  const toggle = (id: RewriteToggleId, on: boolean): void => {
+    setToggles((prev) => {
+      const next = new Set(prev);
+      if (on) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+  const apply = (): void => {
+    // Compose in CATALOG ORDER (map REWRITE_TOGGLES, keep only selected) so the fired steer is deterministic
+    // regardless of click order — the composed string becomes {{input}} inside the preset's rewrite template.
+    const fragments = REWRITE_TOGGLES.filter((t) => toggles.has(t.id)).map((t) => t.fragment);
+    const steer = composeRewriteSteer(fragments, instruction);
+    if (steer.length === 0) {
+      return;
+    }
+    fireRewrite(steer);
+    // Reset the modal + clear the composer draft (the steer was consumed) — mirrors fireAndClear.
+    setOpen(false);
+    setInstruction("");
+    setToggles(new Set<RewriteToggleId>());
+    onChange("");
+  };
+
+  return { isOpen, setOpen, instruction, setInstruction, toggles, toggle, open, apply };
+}
+
+// ── The derived wand flags (extracted so the component stays under the complexity ceiling) ──────────────
+// Every enable/disable verdict + its named hover reason (owner: "when it's disabled on hover tell why"),
+// plus the roster + game reads. P5: a committed GAME chat opens the wand text-lessly (the game items fire
+// a picked KIND, not the draft); the text-consuming items then disable individually with WAND_NEEDS_TEXT.
+// Game-ness rides the same getChat cache key (`chatDetail.rpg`, the message-list-surface precedent); the
+// knobs ride `rpg.getGame.publicConfig` (cache-first — the rpg panel shares this exact key; lockdown §12
+// direct cross-feature tRPC read). Until the knob query settles the Plot submenu stays absent (no flash).
+
+interface WandFlags {
+  readonly hasText: boolean;
+  readonly canOpen: boolean;
+  readonly triggerReason: string | undefined;
+  readonly textReason: string | undefined;
+  readonly canTargetTail: boolean;
+  readonly canSteerTail: boolean;
+  readonly tailReason: string | undefined;
+  readonly draftReason: string | undefined;
+  readonly cast: ReturnType<typeof filterCharacters>;
+  readonly isMultiRoom: boolean;
+  readonly isGame: boolean;
+  readonly plotAvailable: boolean;
+}
+
+/** The roster + game half of the flags (its own hook so each half stays under the complexity ceiling). */
+function useWandRoomFlags(handle: ChatHandle): Pick<WandFlags, "cast" | "isMultiRoom" | "isGame" | "plotAvailable"> {
+  const trpc = useTRPC();
+  const committed = isCommitted(handle);
+  const chatId = committed ? handle.id : null;
+
+  // F5 — the room roster (same warm cache speak-as reads); a >1-character room makes "Guided response" a
+  // speaker submenu. Gated on a committed chatId (a draft has no roster yet), degrades to [] until populated.
+  const rosterQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const cast = filterCharacters(rosterQuery.data?.participants ?? []);
+  const isMultiRoom = committed && cast.length > 1;
+
+  const isGame = committed && (rosterQuery.data?.rpg ?? null) !== null;
+  const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
+  const plotAvailable = isGame && gameQuery.data?.publicConfig.plotProgression === true;
+
+  return { cast, isMultiRoom, isGame, plotAvailable };
+}
+
+function useWandFlags(handle: ChatHandle, trimmed: string, guided: UseGuidedActionsResult, busy: boolean): WandFlags {
+  const committed = isCommitted(handle);
+  const chatId = committed ? handle.id : null;
+  const phase = useTurnPhase(chatId);
+  const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
+  const room = useWandRoomFlags(handle);
+  const { isGame } = room;
+
+  const hasText = trimmed.length > 0;
+  const idle = !(turnBusy || guided.isPending || busy);
+  const canOpen = (hasText || isGame) && idle;
+  // The disabled trigger explains itself on hover — the empty-composer case is the FIRST thing a user sees
+  // on a fresh draft, so name the unlock (type a message). A busy/pending disablement is transient.
+  const triggerReason = hasText || isGame ? undefined : WAND_NEEDS_TEXT;
+  const textReason = hasText ? undefined : WAND_NEEDS_TEXT;
+  // A tail assistant slot to target — never present on a draft (no canon), so swipe/continue/rewrite disable.
+  const canTargetTail = committed && guided.tailAssistantMessageId !== null;
+  // Swipe/continue consume the typed steer AND target the tail — both unlocks named on hover.
+  const canSteerTail = canTargetTail && hasText;
+  // A draft unlocks on the first send; a committed chat with no assistant tail needs an assistant reply.
+  const draftReason = committed ? undefined : DRAFT_UNLOCK_AFTER_SEND;
+  const tailReason = canTargetTail ? undefined : (draftReason ?? NEEDS_ASSISTANT_REPLY);
+
+  return { hasText, canOpen, triggerReason, textReason, canTargetTail, canSteerTail, tailReason, draftReason, ...room };
+}
+
+// ── The P5 GAME section (the Plot submenu + the one-shot "Offer choices") ───────────────────────────────
+// Rendered only in a committed GAME chat. The Plot submenu is APPLICABILITY-gated on the game's
+// `plotProgression` knob (absent when off — never a disabled twin, [no-separate-reduced-modes]); the
+// "Offer choices" one-shot shows for every game chat (M5 — the this-turn-only ask, independent of the
+// standing `cyoa` mode). Both fire a KIND through the same guided path (`fireGameSteer`).
+
+interface WandGameSectionProps {
+  readonly plotAvailable: boolean;
+  readonly onSteer: (kind: GuidedGameSteerKind) => void;
+}
+
+function WandGameSection({ plotAvailable, onSteer }: WandGameSectionProps): ReactElement {
+  return (
+    <>
+      <MenuSeparator />
+      {plotAvailable ? (
+        <MenuSubmenuRoot>
+          <MenuSubmenuTrigger>
+            <Icon icon={Compass} size="sm" />
+            Plot
+          </MenuSubmenuTrigger>
+          <MenuPopup>
+            {RPG_PLOT_STEER_KINDS.map((kind) => (
+              <MenuItem key={kind} onClick={(): void => onSteer(kind)}>
+                {RPG_PLOT_STEERS[kind].label}
+              </MenuItem>
+            ))}
+          </MenuPopup>
+        </MenuSubmenuRoot>
+      ) : null}
+      <MenuItem onClick={(): void => onSteer("choices")}>
+        <Icon icon={ListOrdered} size="sm" />
+        Offer choices
+      </MenuItem>
+    </>
+  );
+}
+
+// ── The F3 Recent-steers recall submenu (extracted verbatim) ────────────────────────────────────────────
+// Recall a steer fired earlier this session back into the composer (the source's input recovery).
+// Rendered only when the ring has entries; picking one refills the draft, it does not re-fire.
+
+function WandRecentSteers({ steers, onRecall }: { readonly steers: readonly string[]; readonly onRecall: (steer: string) => void }): ReactElement {
+  return (
+    <>
+      <MenuSeparator />
+      <MenuSubmenuRoot>
+        <MenuSubmenuTrigger>
+          <Icon icon={History} size="sm" />
+          Recent steers
+        </MenuSubmenuTrigger>
+        <MenuPopup>
+          {steers.map((steer) => (
+            <MenuItem key={steer} onClick={(): void => onRecall(steer)}>
+              {steer}
+            </MenuItem>
+          ))}
+        </MenuPopup>
+      </MenuSubmenuRoot>
     </>
   );
 }

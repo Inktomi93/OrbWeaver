@@ -347,3 +347,61 @@ test("the wand trigger is disabled while a turn is mid-flight, even with draft t
 
   await expect(component.getByRole("button", { name: "Guided generations" })).toBeDisabled();
 });
+
+// ── P5 — the GAME affordances (the Plot submenu + the one-shot "Offer choices") ───────────────────
+
+// A game-chat `chat.getChat` (the rpg pointer non-null) — the wand's game-ness read.
+function gameRoster(): unknown {
+  return { participants: [character("aria", "Aria")], rpg: { gameId: "rpg_game_ct", mode: "lite", status: "active" } };
+}
+function gameView(plotProgression: boolean): unknown {
+  return {
+    id: "rpg_game_ct",
+    chatId: COMPOSER_CHAT_ID,
+    mode: "lite",
+    status: "active",
+    trackersReadOnly: false,
+    extractionMode: "reliable",
+    publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: false, plotProgression },
+  };
+}
+
+test("a GAME chat opens the wand text-lessly; a Plot steer fires chat.generate with the gameSteer KIND", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => gameRoster(),
+    "rpg.getGame": () => gameView(true),
+    "chat.generate": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  // Empty composer, but a game chat — the trigger is ENABLED (the game items fire a picked KIND).
+  const trigger = component.getByRole("button", { name: "Guided generations" });
+  await expect(trigger).toBeEnabled();
+  await trigger.click();
+
+  // The text-consuming primary item disables with the named unlock; the game items are live.
+  await expect(page.getByRole("menuitem", { name: "Guided response" })).toBeDisabled();
+  await page.getByRole("menuitem", { name: "Plot" }).hover();
+  await page.getByRole("menuitem", { name: "Grounded twist" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.generate")).toMatchObject({ chatId: COMPOSER_CHAT_ID, guided: { action: "response", gameSteer: "twist" } });
+});
+
+test("'Offer choices' (M5 one-shot) fires gameSteer:'choices'; the Plot submenu is ABSENT when the knob is off", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => gameRoster(),
+    "rpg.getGame": () => gameView(false),
+    "chat.generate": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: "Guided generations" }).click();
+  // plotProgression OFF ⇒ NO Plot submenu (applicability — absent, never a disabled twin)…
+  await expect(page.getByRole("menuitem", { name: "Plot" })).toHaveCount(0);
+  // …but the one-shot "Offer choices" rides every game chat (M5 — independent of the standing cyoa mode).
+  await page.getByRole("menuitem", { name: "Offer choices" }).click();
+
+  await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.generate")).toMatchObject({ chatId: COMPOSER_CHAT_ID, guided: { action: "response", gameSteer: "choices" } });
+});

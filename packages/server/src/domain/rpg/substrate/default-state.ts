@@ -21,6 +21,7 @@ export function defaultSnapshotState(): RpgSnapshotState {
     actorState: [],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
   };
 }

@@ -77,6 +77,8 @@ const CONFIG: RpgGameConfig = {
     immersiveHtml: true,
     immersiveHtmlInteractive: true,
     cardKeepLastX: 0,
+    cyoa: false,
+    plotProgression: true,
   },
   userMacros: [],
 };

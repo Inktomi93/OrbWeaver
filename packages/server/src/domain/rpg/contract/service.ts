@@ -113,6 +113,10 @@ export function snapshotRowToState(row: RpgSnapshotRow): RpgSnapshotState {
     actorState: [...(row.actorState ?? [])],
     widgetValues: { ...(row.widgetValues ?? {}) },
     quests: [...(row.quests ?? [])],
+    // P5 — clone-forward like quests, never a SHARED ref: a forwarded snapshot's plot must not alias its
+    // base row's parsed object (swipe-consistency by copy — the quests spread precedent, one level deeper
+    // because plot nests the acts array).
+    plot: row.plot === null ? null : { ...row.plot, acts: row.plot.acts.map((a) => ({ ...a })) },
     fieldLocks: row.fieldLocks,
   };
 }

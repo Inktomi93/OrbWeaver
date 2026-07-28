@@ -33,3 +33,12 @@ export const IMAGE_GEN_NEEDS_TEXT = "Type a message to turn into an image";
 /** The generate-image-from-text button on a DRAFT — image generation posts into a real chat, so it needs
  *  the chat to exist first (the draft's first send commits it). */
 export const IMAGE_GEN_NEEDS_CHAT = "Send the first message, then generate images from your text";
+
+// P5 CYOA — the choice-button disabled reasons (§5.3: the button disables once a turn is in flight; a
+// provider-less/preview mount has no send capability at all). Named unlocks, never a bare "unavailable".
+
+/** A choice button while a turn is already running — it re-enables when the turn settles. */
+export const CHOICE_WAIT_FOR_TURN = "Wait for the current reply to finish, then pick";
+
+/** A choice button in a surface with no send capability (a preview / read-only mount). */
+export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";

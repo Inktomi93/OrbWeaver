@@ -10,12 +10,15 @@
 
 import type { RpgConfigView, RpgExtractionMode } from "@orb/contracts/rpg";
 
-/** The console's flat scalar values (the autosave form's bag). */
+/** The console's flat scalar values (the autosave form's bag). P5 adds the play-style knobs (`cyoa`
+ *  standing mode + the wand Plot submenu gate) — same autosave pattern as the deception toggles. */
 export interface GmConsoleFormValues {
   readonly steeringNote: string;
   readonly extractionMode: RpgExtractionMode;
   readonly deception: boolean;
   readonly omniscience: boolean;
+  readonly cyoa: boolean;
+  readonly plotProgression: boolean;
 }
 
 export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
@@ -23,6 +26,8 @@ export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
   extractionMode: "reliable",
   deception: false,
   omniscience: false,
+  cyoa: false,
+  plotProgression: true,
 };
 
 /** Project the host config read into the form's scalar bag. */
@@ -32,19 +37,33 @@ export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
     extractionMode: config.extractionMode,
     deception: config.deception,
     omniscience: config.omniscience,
+    cyoa: config.cyoa,
+    plotProgression: config.plotProgression,
   };
 }
 
 /** The `updateConfig` patch for the scalar bag — the steering note rides `patch.steeringNote`; the
  *  extraction mode + deception knobs are top-level/`patch`-level per the wire schema. */
 export interface GmConsoleScalarPatch {
-  readonly patch: { readonly steeringNote: string; readonly deception: boolean; readonly omniscience: boolean };
+  readonly patch: {
+    readonly steeringNote: string;
+    readonly deception: boolean;
+    readonly omniscience: boolean;
+    readonly cyoa: boolean;
+    readonly plotProgression: boolean;
+  };
   readonly extractionMode: RpgExtractionMode;
 }
 
 export function fromGmConsoleForm(values: GmConsoleFormValues): GmConsoleScalarPatch {
   return {
-    patch: { steeringNote: values.steeringNote, deception: values.deception, omniscience: values.omniscience },
+    patch: {
+      steeringNote: values.steeringNote,
+      deception: values.deception,
+      omniscience: values.omniscience,
+      cyoa: values.cyoa,
+      plotProgression: values.plotProgression,
+    },
     extractionMode: values.extractionMode,
   };
 }

@@ -7,6 +7,7 @@ import { rpgSnapshots } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { snapshotRowToState } from "../../../../../packages/server/src/domain/rpg/contract/service";
 import {
   commitSnapshotForVariant,
   findSnapshotByVariant,
@@ -136,6 +137,38 @@ describe("clone-forward + the committed lifecycle", () => {
     await commitSnapshotForVariant(db, variantId);
     const reread = await findSnapshotByVariant(db, variantId);
     expect(reread?.committed).toBe(1);
+  });
+
+  test("P5: the plot plane round-trips the staged write and clones forward as a FRESH object (never a shared ref)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const plot = {
+      act: 2,
+      title: "The Bone Key",
+      acts: [
+        { title: "Arrival", summary: "" },
+        { title: "Descent", summary: "" },
+      ],
+    };
+    const state = { ...emptyState(), plot };
+
+    const written = await writeStagedSnapshot(db, state, target({ gameId, chatId, seq: 1, variantId, key: "fwd" }));
+    expect(written.ok ? written.row.plot : undefined).toEqual(plot);
+
+    // Clone-forward like quests, NEVER a shared ref: projecting the row back to state deep-copies the plot
+    // (a mutation on the forwarded state must not reach the parsed base row — swipe-consistency by copy).
+    const row = await findSnapshotByVariant(db, variantId);
+    const forwarded = row === undefined ? undefined : snapshotRowToState(row);
+    expect(forwarded?.plot).toEqual(plot);
+    expect(forwarded?.plot).not.toBe(row?.plot);
+    expect(forwarded?.plot?.acts).not.toBe(row?.plot?.acts);
+    if (forwarded?.plot !== null && forwarded?.plot !== undefined) {
+      forwarded.plot.act = 99;
+      forwarded.plot.acts[0] = { title: "mutated", summary: "" };
+    }
+    expect(row?.plot?.act).toBe(2);
+    expect(row?.plot?.acts[0]?.title).toBe("Arrival");
   });
 
   test("fieldLocks carry forward on the staged write (tools never author locks)", async () => {

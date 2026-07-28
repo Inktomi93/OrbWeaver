@@ -159,6 +159,7 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
     ],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
   });
   h.ctx.staging.stageJournal(TURN, { type: "note", title: "beat", content: "c" });

@@ -15,6 +15,8 @@ export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
 export {
   ASSISTANT_PREFILL_WARNING,
+  CHOICE_NEEDS_LIVE_CHAT,
+  CHOICE_WAIT_FOR_TURN,
   DRAFT_UNLOCK_AFTER_SEND,
   IMAGE_GEN_NEEDS_CHAT,
   IMAGE_GEN_NEEDS_TEXT,

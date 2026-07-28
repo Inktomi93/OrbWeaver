@@ -41,6 +41,7 @@ export function emptyState(): RpgSnapshotState {
     actorState: [],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
   };
 }
@@ -62,6 +63,8 @@ export function liteConfig(): RpgGameConfig {
       immersiveHtml: true,
       immersiveHtmlInteractive: true,
       cardKeepLastX: 0,
+      cyoa: false,
+      plotProgression: true,
     },
     userMacros: [],
   };

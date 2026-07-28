@@ -785,6 +785,44 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     expect(out.guidedInstruction).toBeUndefined();
   });
 
+  // P5 — the wand's one-shot GAME steers (`guided.gameSteer`): the kit template resolves through the
+  // macro engine (rpg data macros read the gather feed) and lands as ONE depth-0 SYSTEM injection —
+  // the ephemeral channel; `input` and the preset action config are ignored by design.
+  test("P5 gameSteer twist: the kit template resolves rpg macros from the gather feed → depth-0 system injection; input ignored", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      rpgMacros: { rpgSceneState: "Scene: the tavern", rpgQuests: "- Find the bone key" },
+      guided: { action: "response", input: "MUST-NOT-APPEAR", gameSteer: "twist" },
+    });
+    const steer = out.chatInjections?.find((i) => i.content.includes("complication"));
+    expect(steer).toMatchObject({ position: "in_chat", depth: 0, role: "system" });
+    // The template's {{rpgSceneState}}/{{rpgQuests}} resolved against the staged feed (live state).
+    expect(steer?.content).toContain("the tavern");
+    expect(steer?.content).toContain("Find the bone key");
+    // `input` is IGNORED on the gameSteer arm (the wire carries only the enum kind).
+    expect(steer?.content).not.toContain("MUST-NOT-APPEAR");
+    // Never the marker channel — the game steer is an ephemeral injection, not the preset's guided slot.
+    expect(out.guidedInstruction).toBeUndefined();
+  });
+
+  test("P5 gameSteer choices: the one-shot 'Offer choices' steer teaches the :::choices fence for THIS turn", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "response", gameSteer: "choices" },
+    });
+    const steer = out.chatInjections?.find((i) => i.content.includes(":::choices"));
+    expect(steer).toMatchObject({ position: "in_chat", depth: 0, role: "system" });
+    expect(out.guidedInstruction).toBeUndefined();
+  });
+
   test("F2: a scaffold-only action (response) with a BLANK steer injects NOTHING (no dangling scaffold)", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");

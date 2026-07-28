@@ -116,6 +116,9 @@ export interface UpdateConfigParams {
         readonly immersiveHtml?: boolean | undefined;
         readonly immersiveHtmlInteractive?: boolean | undefined;
         readonly cardKeepLastX?: number | undefined;
+        // P5 play-style knobs (§5.4/§6.4) — CYOA standing mode + the wand Plot submenu gate.
+        readonly cyoa?: boolean | undefined;
+        readonly plotProgression?: boolean | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;

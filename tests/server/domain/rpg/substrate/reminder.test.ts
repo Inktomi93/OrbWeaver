@@ -10,6 +10,7 @@ import {
   buildLiteReminder,
   RPG_CARD_TEACH,
   RPG_CARD_TEACH_STATIC,
+  RPG_CYOA_TEACH,
   RPG_DECEPTION_TEACH,
   RPG_OFILTER_TEACH,
   RPG_STEERING_LICENSE,
@@ -30,6 +31,8 @@ function features(over: Partial<RpgGameFeatures> = {}): RpgGameFeatures {
     immersiveHtml: false,
     immersiveHtmlInteractive: true,
     cardKeepLastX: 0,
+    cyoa: false,
+    plotProgression: true,
     ...over,
   };
 }
@@ -44,6 +47,7 @@ function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
     castFields: [],
     widgets: [],
     quests: [],
+    plot: null,
     recentBeats: [],
     trackersReadOnly: false,
     poolOrbs: [],
@@ -64,6 +68,7 @@ function emptyState(): RpgSnapshotState {
     actorState: [],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
   };
 }
@@ -278,6 +283,40 @@ test("immersiveHtml OFF emits NO card teach (applicability — absent, not a stu
   const out = buildLiteReminder(input({ features: features({ immersiveHtml: false }) }));
   expect(out).not.toContain(":::card");
   expect(out).toBe(RPG_STEERING_LICENSE);
+});
+
+// ── P5 — the CYOA teach (§5.4) + the plot Story line ────────────────────────────────────────────────────
+
+test("cyoa ON composes RPG_CYOA_TEACH before the license; OFF emits nothing (applicability)", () => {
+  const on = buildLiteReminder(input({ features: features({ cyoa: true }) }));
+  expect(on).toContain(RPG_CYOA_TEACH);
+  expect(on.indexOf(RPG_CYOA_TEACH)).toBeLessThan(on.indexOf(RPG_STEERING_LICENSE));
+  const off = buildLiteReminder(input());
+  expect(off).not.toContain(":::choices");
+  expect(off).toBe(RPG_STEERING_LICENSE);
+});
+
+test("the CYOA teach teaches the exact fence grammar the tokenizer recognizes (:::choices … :::)", () => {
+  expect(RPG_CYOA_TEACH).toContain(":::choices");
+  // The teach names numbered options — the CHOICE_LINE grammar (`N. text`) the fence body parses.
+  expect(RPG_CYOA_TEACH).toContain("numbered");
+});
+
+test("a plot plane renders a Story line in the state block (act n/total + the act title)", () => {
+  const view = emptyView({
+    plot: {
+      act: 2,
+      title: "The Bone Key",
+      acts: [
+        { title: "Arrival", summary: "" },
+        { title: "Descent", summary: "Down the stair." },
+      ],
+    },
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("Story: The Bone Key — act 2/2: Descent — Down the stair.");
+  // A plot-less game renders NO Story line (null plane, byte-identical pre-P5 reminder).
+  expect(buildLiteReminder(input())).not.toContain("Story:");
 });
 
 test("M3 interactive OFF swaps the ASK to the static variant (the render is untouched by design)", () => {

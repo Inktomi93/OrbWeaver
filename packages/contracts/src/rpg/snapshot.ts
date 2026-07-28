@@ -25,6 +25,30 @@ export const rpgRelationshipSchema = z.object({
 });
 export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
+// The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
+// RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same
+// machinery (a swipe rewinds the act with everything else). `act` is the 1-based CURRENT act into `acts`;
+// `title` is the overall story title; each act carries its own title + a short summary. Model-writable via
+// `update_scene.plot` (a compact patch — the applier maintains the acts array so a small model never
+// manages a nested list); hand-locked via the `plot` fieldLocks prefix. The panel act rail renders `acts`
+// with the current act embered; null = no plot authored yet (the rail renders nothing — no invented acts).
+
+/** One act of the plot spine — a title (the rail's label) + a short optional summary. */
+export const rpgPlotActSchema = z.object({
+  title: z.string().default(""),
+  summary: z.string().default(""),
+});
+export type RpgPlotAct = z.infer<typeof rpgPlotActSchema>;
+
+/** The snapshot-resident plot object (P5). `act` indexes 1-based into `acts` (the applier keeps
+ *  `acts.length >= act`, padding untitled acts, so the rail is total). */
+export const rpgPlotSchema = z.object({
+  act: z.number().int().min(1).default(1),
+  title: z.string().default(""),
+  acts: z.array(rpgPlotActSchema).default([]),
+});
+export type RpgPlot = z.infer<typeof rpgPlotSchema>;
+
 /** A quest objective — a stable-`id` line with a completion flag (`n/m` derives from these). The objective
  *  `id` is a plain in-blob string (`id` doesn't trip `no-raw-id`; a per-objective brand buys nothing at
  *  this cardinality — the objective is addressed only within its quest). */
@@ -113,6 +137,9 @@ export const rpgSnapshotStateSchema = z.object({
   actorState: z.array(rpgActorVolatileSchema).default([]),
   widgetValues: z.record(z.string(), rpgWidgetValueSchema).default({}),
   quests: z.array(rpgQuestSchema).default([]),
+  // The P5 plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
+  // Defaulted null so a pre-P5 state blob self-heals at the parse seam (the quests `.default` posture).
+  plot: rpgPlotSchema.nullable().default(null),
   fieldLocks: rpgFieldLocksSchema.nullable(),
 });
 export type RpgSnapshotState = z.infer<typeof rpgSnapshotStateSchema>;

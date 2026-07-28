@@ -400,6 +400,7 @@ function baseWithCast(): RpgSnapshotState {
     actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
     widgetValues: {},
     quests: [],
+    plot: null,
     fieldLocks: null,
   };
 }

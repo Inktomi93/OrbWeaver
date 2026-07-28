@@ -38,6 +38,8 @@ export const TEST_IDS = {
   composer: "composer",
   composerSend: "composer-send",
   composerWand: "composer-wand",
+  // P5 CYOA — one `:::choices` option button in a message body (click sends the option as the user turn).
+  messageChoiceOption: "message-choice-option",
   composerGenerateImage: "composer-generate-image",
   speakAsSelect: "speak-as-select",
   messageList: "message-list",

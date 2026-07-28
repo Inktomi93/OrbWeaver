@@ -4,7 +4,7 @@
 // wrapper, in document order, with the text routed to the right span).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MessageContentSpansStory } from "../_ct-stories";
+import { MessageContentChoicesStory, MessageContentSpansStory } from "../_ct-stories";
 
 const THEME_SCOPE = '[data-slot="theme-scope"]';
 const SPANS_CONTAINER = '[data-slot="message-content-spans"]';
@@ -144,4 +144,37 @@ test("the EXPAND affordance opens the lightbox dialog labelled by the card title
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-slot="immersive-card-lightbox-header"]')).toContainText("Poster");
   await expect(dialog.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+});
+
+// ── P5 §5.2-5.3 — the `:::choices` fence renders CLICKABLE send-affordances ───────────────────────
+
+const CHOICE_OPTION = '[data-testid="message-choice-option"]';
+const SENT_PROBE = '[data-testid="sent-choices"]';
+
+test("a :::choices fence renders one button per option; a click SENDS that option's text (assert-the-mutation-fired)", async ({ mount }) => {
+  const component = await mount(<MessageContentChoicesStory />);
+  const options = component.locator(CHOICE_OPTION);
+  await expect(options).toHaveCount(3);
+  await expect(options.nth(1)).toContainText("2. Slip into the shadows.");
+  // The raw fence never reaches the reading surface.
+  await expect(component.getByText(":::choices")).toHaveCount(0);
+  // The click's SEND is the assertion target — the option TEXT (sans numbering) fires as the user turn.
+  await options.nth(1).click();
+  await expect(component.locator(SENT_PROBE)).toHaveText("Slip into the shadows.");
+  // A second pick sends again (the buttons stay live until a turn is actually in flight).
+  await options.nth(0).click();
+  await expect(component.locator(SENT_PROBE)).toHaveText("Slip into the shadows.|Draw your blade.");
+});
+
+test("choices DISABLE while a turn is in flight — a click sends nothing (§5.3 send-in-flight)", async ({ mount }) => {
+  const component = await mount(<MessageContentChoicesStory mode="busy" />);
+  const first = component.locator(CHOICE_OPTION).first();
+  await expect(first).toBeDisabled();
+  await expect(component.locator(SENT_PROBE)).toHaveText("");
+});
+
+test("a provider-less mount (preview/CT) renders the SAME buttons disabled — never a crash, never a send", async ({ mount }) => {
+  const component = await mount(<MessageContentChoicesStory mode="none" />);
+  await expect(component.locator(CHOICE_OPTION)).toHaveCount(3);
+  await expect(component.locator(CHOICE_OPTION).first()).toBeDisabled();
 });
