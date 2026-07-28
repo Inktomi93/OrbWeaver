@@ -130,7 +130,9 @@ function resolvePlaceholder(committed: boolean, emptyAction: "continue" | "gener
     return "Continue, or type a message…";
   }
   if (emptyAction === "generate") {
-    return "Type a message, or hit ▷ to let the reply come…";
+    // Name the ▷ Response icon in the cluster ABOVE — the adjacent Send button is a paper-plane, not ▷, so
+    // "hit ▷" pointed at the wrong control (side-eye P3-placeholder). The ▷ affordance lives in row 1.
+    return "Type a message, or hit ▷ above to let the reply come…";
   }
   return "Type a message…";
 }
@@ -369,9 +371,10 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
           className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
           {/* ROW 1 — the guided cluster (wand v2): four always-visible dual-mode icons (impersonate·swipe·
-              response·continue) + the ✨ utility menu (Recover input · Corrections · Undo/Revert · Clear ·
-              Simple send · Regenerate · game steers · the image controls). The composer text is the steer. */}
-          <Row gap="field" align="center" data-slot="composer-actions">
+              response·continue) + the ✨ utility menu (Input · Reply · Continuation · Images · Plot groups). The
+              composer text is the steer. `justify="end"` anchors the cluster over the Send corner (row 2's right
+              edge) instead of floating flush-left with a dead gutter — side-eye UGLY-1 (detached-toolbar impression). */}
+          <Row gap="field" align="center" justify="end" data-slot="composer-actions">
             <ComposerGuidedCluster
               handle={handle}
               value={value}

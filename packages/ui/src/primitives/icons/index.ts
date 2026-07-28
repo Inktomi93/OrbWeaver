@@ -94,6 +94,7 @@ export {
   Play,
   Plus,
   Redo2,
+  RefreshCw,
   RotateCcw,
   Scroll,
   ScrollText,
