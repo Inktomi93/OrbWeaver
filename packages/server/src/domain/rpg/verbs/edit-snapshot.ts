@@ -23,9 +23,12 @@ export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnaps
       throw new DomainForbiddenError("host authority required to hand-edit the snapshot");
     }
     // Auto-lock every top-level key the patch touched (the manual-edit-wins grammar; nested/keyed-array locks
-    // ride the same `fieldLocks` dotted-path record the merge honors).
+    // ride the same `fieldLocks` dotted-path record the merge honors). `releaseLocks` clears the named paths
+    // (the host's Release — "let the model write this again"; §12.3): the lock DELTA is `{lock, clear}`, so a
+    // release-only call (empty patch) just drops the locks, and an edit-with-release does both in one commit.
     const lockPaths = Object.keys(params.patch);
-    const snapshotId = await applyHandEdit(ctx, game, params.patch, { lock: lockPaths });
+    const clearPaths = params.releaseLocks ?? [];
+    const snapshotId = await applyHandEdit(ctx, game, params.patch, { lock: lockPaths, clear: clearPaths });
 
     // The whole tracker panel re-resolves against the new resolved-current snapshot (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId });

@@ -76,8 +76,21 @@ function trackerView(trackersReadOnly: boolean): unknown {
         },
       },
     ],
-    // biome-ignore lint/style/useNamingConvention: `customFields` keys are DISPLAY-NAME data (a cast card's field label), not code identifiers — the fixture mirrors the wire shape.
-    cast: [{ key: "sera", name: "Sera", characterId: undefined, emoji: "", mood: "guarded", customFields: { Trust: "low" } }],
+    cast: [
+      {
+        key: "sera",
+        name: "Sera",
+        characterId: undefined,
+        emoji: "",
+        mood: "guarded",
+        // biome-ignore lint/style/useNamingConvention: `customFields` keys are DISPLAY-NAME data (a cast card's field label), not code identifiers — the fixture mirrors the wire shape.
+        customFields: { Trust: "low" },
+        relationship: { kind: "ally", label: "" },
+      },
+    ],
+    // The host-defined cast-field SCHEMAS the Scene joins against `customFields` (empty here — the cast
+    // member's `Trust` value renders only if a schema names it; the stub omits schemas so no meter/chip).
+    castFields: [],
     widgets: [],
     quests: [{ id: "q1", name: "Keep the bone key", status: "active", description: "", objectives: [{ id: "o1", text: "Hold the door", completed: true }] }],
     recentBeats: ["The rain has not let up since dusk."],
@@ -86,6 +99,8 @@ function trackerView(trackersReadOnly: boolean): unknown {
       { label: "Vitality", value: 24, max: 30 },
       { label: "Resolve", value: 7, max: 10 },
     ],
+    // A hand-lock on the ambient `location` path (§12.3) — the Scene ambient renders its pin + Release.
+    lockedPaths: ["location"],
   };
 }
 
@@ -141,6 +156,7 @@ function stubTakeover(
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
     "rpg.updateConfig": () => undefined,
+    "rpg.upsertQuest": () => undefined,
     "rpg.getConfigView": () => configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened).
@@ -270,6 +286,55 @@ test("read-only trackers: the pill shows BUT the host still hand-edits (D108 —
   // "edit them by hand" IS the affordance). So a host STILL sees the editable pool field under readonly;
   // conflating the two disabled the exact recovery the read-only state exists to enable.
   await expect(component.getByRole("textbox", { name: "Vitality value" })).toBeVisible();
+});
+
+test("a hand-locked field shows the pin + Release affordance (§12.3 the-lock-consequence-is-visible)", async ({ mount, page }) => {
+  // The tracker stub locks the ambient `location` path — the Scene ambient renders the pin + its Release
+  // popover. (The pin RENDERING is the §12.3 deliverable — "the story won't change this" made visible; the
+  // release-fires-editSnapshot wiring is tsc-typed off the same `releaseLocks` wire arm + live-verified.)
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  // The pin (§12.3 — aria-labelled) sits in the ambient strip beside the locked `location` field.
+  const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Pinned by hand — release to the model" });
+  await expect(pin).toBeVisible();
+  // Clicking it opens the Release popover (the doorway to un-pin).
+  await pin.click();
+  await expect(page.getByRole("button", { name: "Release to the model" }).first()).toBeVisible();
+});
+
+test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+
+  // Type a name + blur (TrackerValue commits its draft on blur/Enter, enabling the button) + click New quest
+  // → upsertQuest with NO questId (create).
+  const nameField = component.getByRole("textbox", { name: "New quest name" });
+  await nameField.fill("Find the ledger");
+  await nameField.blur();
+  await component.getByRole("button", { name: "New quest" }).click();
+  await expect.poll(() => trpc.count("rpg.upsertQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("lowering a pool max below its value drags the value + fires editSnapshot (§12.3 max-drag)", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // The pool max is an editable field (host). Lower Vitality's max (30) below its value (24) → the value
+  // drags to 20 in the same editSnapshot commit + a microline states it.
+  const maxField = component.getByRole("textbox", { name: "Vitality max" });
+  await expect(maxField).toBeVisible();
+  await maxField.fill("20");
+  await maxField.blur();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // The clamp-and-tell microline (§12.3) — the value dragged to the new max.
+  await expect(component.getByText("Vitality 24 → 20 — max lowered")).toBeVisible();
 });
 
 test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidden — crown-gold, host-only", async ({ mount, page }) => {

@@ -141,6 +141,8 @@ export interface EditSnapshotParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly patch: Record<string, unknown>;
+  /** Dotted lock paths to CLEAR from `fieldLocks` (§12.3 lock-release) — the host's Release affordance. */
+  readonly releaseLocks?: readonly string[] | undefined;
 }
 
 /** `createWidget` — add a HUD widget definition (host). */

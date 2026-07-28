@@ -22,6 +22,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import { MeterRow, RelationshipBadge, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
@@ -53,6 +54,10 @@ function actorStatePatch(
  *  in lite, never rendered). The health pool (VIT etc.) rides the pool arm like any other. */
 interface StatusCardEdit {
   readonly onEditPool: (poolName: string, next: number) => void;
+  /** Lower/raise a pool's MAX (§12.3 clamp-and-tell). Returns the consequence when lowering below the value
+   *  (the value is DRAGGED to the new max in the SAME commit) so the caller can show the microline; `null`
+   *  ⇒ no drag (max ≥ value, or raised). Enforces the `max ≥ 1` floor. */
+  readonly onEditPoolMax: (poolName: string, nextMax: number) => { readonly draggedTo: number } | null;
   readonly onAddCondition: (name: string) => void;
   readonly onRemoveCondition: (name: string) => void;
 }
@@ -64,6 +69,52 @@ function castRowFor(actor: RpgActorView, cast: RpgTrackerView["cast"]): RpgTrack
   return cast.find((c) => (ref.kind === "character" ? c.characterId === ref.characterId : ref.kind === "cast" && c.key === ref.castKey));
 }
 
+type ActorPool = ActorVolatile["pools"][number];
+
+/** One editable pool meter with the §12.3 max-lowering value-drag TELL: lowering the max below the value
+ *  drags the value down (in `onEditPoolMax`'s one commit) and shows a transient microline ("Vitality 24 →
+ *  20 — max lowered"); an overfull value (value above max) reads in warning tone. The note clears on the next
+ *  server render (the pool prop changes) — a purely local, ephemeral consequence line. */
+function StatusPoolMeter({
+  pool,
+  ordinal,
+  color,
+  edit,
+}: {
+  readonly pool: ActorPool;
+  readonly ordinal: number;
+  readonly color: string | null;
+  readonly edit?: StatusCardEdit;
+}): ReactElement {
+  const [note, setNote] = useState<string | null>(null);
+  // Clear a stale note when the server value/max changes under us (a fresh render = the drag landed).
+  const [seen, setSeen] = useState(`${pool.value}/${pool.max}`);
+  const key = `${pool.value}/${pool.max}`;
+  if (key !== seen) {
+    setSeen(key);
+    setNote(null);
+  }
+  return (
+    <MeterRow
+      label={pool.name}
+      value={pool.value}
+      max={pool.max}
+      valueWarning={pool.value > pool.max}
+      {...trackColorProps(resolvePoolColor(color, ordinal))}
+      {...(edit === undefined
+        ? {}
+        : {
+            onEditValue: (next: number): void => edit.onEditPool(pool.name, next),
+            onEditMax: (next: number): void => {
+              const result = edit.onEditPoolMax(pool.name, next);
+              setNote(result === null ? null : `${pool.name} ${pool.value} → ${result.draggedTo} — max lowered`);
+            },
+          })}
+      {...(note === null ? {} : { note })}
+    />
+  );
+}
+
 /** The card's meter stack: the actor's pools on their resolved colors (lite health is one of these pools —
  *  D86; there is no separate HP field in lite). Pools are hand-editable when `edit` is supplied (host). */
 function actorMeters(actor: RpgActorView, edit?: StatusCardEdit): readonly ReactNode[] {
@@ -73,16 +124,7 @@ function actorMeters(actor: RpgActorView, edit?: StatusCardEdit): readonly React
   }
   return volatile.pools.map((pool, i) => {
     const def = actor.sheet.poolDefs.find((d) => d.name === pool.name);
-    return (
-      <MeterRow
-        key={pool.name}
-        label={pool.name}
-        value={pool.value}
-        max={pool.max}
-        {...trackColorProps(resolvePoolColor(def?.color ?? null, i))}
-        {...(edit === undefined ? {} : { onEditValue: (next: number): void => edit.onEditPool(pool.name, next) })}
-      />
-    );
+    return <StatusPoolMeter key={pool.name} pool={pool} ordinal={i} color={def?.color ?? null} {...(edit === undefined ? {} : { edit })} />;
   });
 }
 
@@ -113,6 +155,17 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
     return {
       onEditPool: (poolName, next): void =>
         patch(key, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: Math.max(0, next) } : p)) })),
+      onEditPoolMax: (poolName, nextMax): { readonly draggedTo: number } | null => {
+        const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (§12.3 Tier-1)
+        const pool = actor.volatile?.pools.find((p) => p.name === poolName);
+        // Lowering below the value drags the value down in the SAME commit (never a silent truncate).
+        const drag = pool !== undefined && pool.value > clampedMax;
+        patch(key, (v) => ({
+          ...v,
+          pools: v.pools.map((p) => (p.name === poolName ? { ...p, max: clampedMax, value: Math.min(p.value, clampedMax) } : p)),
+        }));
+        return drag ? { draggedTo: clampedMax } : null;
+      },
       onAddCondition: (name): void =>
         patch(key, (v) =>
           v.conditions.some((c) => c.name === name) ? v : { ...v, conditions: [...v.conditions, { name, stat: null, modifier: 0, turnsLeft: null }] },

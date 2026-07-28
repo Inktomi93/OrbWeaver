@@ -18,6 +18,7 @@ import { expect, test } from "../../../../support/fixtures";
 function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
   return {
     ambient: null,
+    lockedPaths: [],
     actors: [],
     cast: [],
     castFields: [],

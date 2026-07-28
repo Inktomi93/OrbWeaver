@@ -12,11 +12,14 @@
 // the ring is aria-hidden geometry (role="meter" is SegmentedClock's own contract).
 
 import type { RpgQuestView } from "@orb/contracts/rpg";
+import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
 import { TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
@@ -124,7 +127,32 @@ export interface RpgQuestsTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Quests tab — active clock-ring cards + the dimmed done/failed archive. */
+/** The host "New quest" affordance (§12.4 flow — no dead ends): an inline name field + create button that
+ *  fires `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal: an empty name never sends. */
+function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
+  const [draft, setDraft] = useState("");
+  return (
+    <Row gap="field" align="center">
+      <TrackerValue ariaLabel="New quest name" display={draft} placeholder="Start a quest…" onEdit={setDraft} className="h-control-sm flex-1" />
+      <Button
+        intent="primary"
+        size="sm"
+        disabled={draft.trim() === ""}
+        onClick={(): void => {
+          const name = draft.trim();
+          if (name !== "") {
+            onCreate(name);
+            setDraft("");
+          }
+        }}
+      >
+        <Icon icon={Plus} size="xs" /> New quest
+      </Button>
+    </Row>
+  );
+}
+
+/** The Quests tab — active clock-ring cards + the dimmed done/failed archive + the host New-quest affordance. */
 export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const { tracker, canEditShared, chatId } = state;
   const trpc = useTRPC();
@@ -133,6 +161,8 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
 
   const active = tracker.quests.filter((q) => q.status === "active");
   const settled = tracker.quests.filter((q) => q.status !== "active");
+
+  const onCreate = (name: string): void => upsertQuest.mutate({ chatId, name });
 
   const edit: QuestEdit | undefined = canEditShared
     ? {
@@ -155,7 +185,13 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
     : undefined;
 
   if (tracker.quests.length === 0) {
-    return <Text tone="muted">No quests yet — the story starts them.</Text>;
+    // No dead end (§4.3 rule 1): the empty state offers the create affordance to a host, teaches a member.
+    return (
+      <Stack gap="section" data-slot="rpg-quests-tab">
+        <Text tone="muted">No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
+        {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
+      </Stack>
+    );
   }
 
   return (
@@ -176,6 +212,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
           ))}
         </Stack>
       )}
+      {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
     </Stack>
   );
 }

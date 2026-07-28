@@ -13,6 +13,7 @@ import { Coins, Icon } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useInventoryDiff } from "../hooks/use-inventory-diff";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { resolveItemGlyph } from "../lib/glyphs";
 
@@ -46,6 +47,8 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const items = volatile?.inventory ?? [];
   const totals = partyTotals(state.tracker.actors);
   const carried = volatile?.wallet ?? [];
+  // The ephemeral "last change" line (§12.2.8) — a client-side diff, no TurnRef, cleared on reload.
+  const lastChange = useInventoryDiff(items);
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
@@ -116,6 +119,11 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
               data-slot="rpg-pack-ghost"
             />
           </Grid>
+          {lastChange === null ? null : (
+            <Text size="micro" tone="muted" data-slot="rpg-pack-last-change">
+              last change — {lastChange}
+            </Text>
+          )}
         </Stack>
       )}
     </Stack>

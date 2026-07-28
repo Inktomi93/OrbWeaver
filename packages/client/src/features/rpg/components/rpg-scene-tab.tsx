@@ -22,6 +22,7 @@ import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
 import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
 import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
+import { RpgFieldLock } from "./rpg-field-lock";
 
 const RECENT_BEATS = 3;
 
@@ -74,6 +75,16 @@ export interface RpgSceneTabProps {
   readonly state: RpgPanelState;
 }
 
+/** The ambient field → snapshot lock-path map (§12.3) — the domain knowledge that lives in the feature,
+ *  not the shared AmbientStrip. A hand edit of `date` locks the `calendarDate` path, `timeOfDay` locks
+ *  `clock`; `location`/`weather` are their own paths. */
+const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", string>> = {
+  location: "location",
+  date: "calendarDate",
+  timeOfDay: "clock",
+  weather: "weather",
+};
+
 /** The Scene tab's edit callbacks, gated once on `canEditShared` (host on a game — hand edits are NOT
  *  gated by `trackersReadOnly`, D108). Splitting them out keeps the tab body under the complexity gate. */
 interface SceneEditCallbacks {
@@ -81,6 +92,8 @@ interface SceneEditCallbacks {
   readonly onEditGoal?: (questId: RpgSceneQuest["id"], next: string) => void;
   readonly castEdit?: SceneCastEdit;
   readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
+  /** Release a hand-lock path back to the model (§12.3). Present only for a host (same gate as the edits). */
+  readonly onReleaseLock?: (path: string) => void;
 }
 
 function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
@@ -104,16 +117,19 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
     // Widget VALUES ride editSnapshot's `widgetValues` record (keyed by widget label — the value plane's key).
     onEditWidget: (label, current, next): void =>
       editSnapshot.mutate({ chatId, patch: { widgetValues: { [label]: { ...(current ?? {}), value: Math.max(0, next) } } } }),
+    // Release-only edit: an empty patch + the lock path to clear (§12.3 — a lock is metadata, not a leaf).
+    onReleaseLock: (path): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [path] }),
   };
 }
 
 /** The lite Scene tab — ambient, cast, goals, widgets, beats. */
 export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   const { tracker } = state;
-  const { onEditAmbient, onEditGoal, castEdit, onEditWidget } = useSceneEdits(state);
+  const { onEditAmbient, onEditGoal, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
 
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
   const groups = widgetsBySubject(tracker.widgets);
+  const locked = new Set(tracker.lockedPaths);
 
   const ambient = tracker.ambient;
   const ambientProps: Parameters<typeof AmbientStrip>[0] = {
@@ -122,6 +138,15 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
     ...(ambient !== null && ambient.clock !== null ? { timeOfDay: timeOfDayLabel(ambient.clock) } : {}),
     ...(ambient !== null && ambient.weather !== null ? { weather: ambient.weather.type } : {}),
     ...(onEditAmbient === undefined ? {} : { onEditField: onEditAmbient }),
+    // The pin + Release on a hand-locked ambient field (§12.3) — host-only (rides `onReleaseLock`).
+    ...(onReleaseLock === undefined
+      ? {}
+      : {
+          lockSlot: (field: "location" | "date" | "timeOfDay" | "weather"): ReactNode => {
+            const path = AMBIENT_LOCK_PATH[field];
+            return locked.has(path) ? <RpgFieldLock onRelease={(): void => onReleaseLock(path)} /> : null;
+          },
+        }),
   };
 
   return (

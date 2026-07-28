@@ -46,10 +46,29 @@ export interface MeterRowProps {
   readonly dangerBelow?: number;
   /** Commit a new numeric value — present ⇒ editable-in-place; absent ⇒ read-only. */
   readonly onEditValue?: (next: number) => void;
+  /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell, §12.3). */
+  readonly onEditMax?: (next: number) => void;
+  /** A transient consequence microline under the row (§12.3 clamp-and-tell — "Vitality 24 → 20, max
+   *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
+  readonly note?: ReactNode;
+  /** Render the value TEXT in warning tone (§12.3 — an overfull `34/30` reads in warning, never hidden). */
+  readonly valueWarning?: boolean;
 }
 
 /** A labeled magnitude meter. The `value/max` text is the datum; the bar underneath is decoration. */
-export function MeterRow({ label, value, max, color = 1, customColor, leading, dangerBelow, onEditValue }: MeterRowProps): ReactElement {
+export function MeterRow({
+  label,
+  value,
+  max,
+  color = 1,
+  customColor,
+  leading,
+  dangerBelow,
+  onEditValue,
+  onEditMax,
+  note,
+  valueWarning,
+}: MeterRowProps): ReactElement {
   return (
     <Stack gap="field" data-slot="meter-row">
       <Row justify="between" align="baseline" gap="block">
@@ -60,7 +79,7 @@ export function MeterRow({ label, value, max, color = 1, customColor, leading, d
           </Text>
         </Row>
         {onEditValue === undefined ? (
-          <Text as="span" size="label" className="tabular-nums">
+          <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
             {value}/{max}
           </Text>
         ) : (
@@ -79,11 +98,31 @@ export function MeterRow({ label, value, max, color = 1, customColor, leading, d
                   onEditValue(n);
                 }
               }}
-              className="!w-avatar-lg px-field text-right tabular-nums"
+              className={valueWarning === true ? "!w-avatar-lg px-field text-right tabular-nums text-warning" : "!w-avatar-lg px-field text-right tabular-nums"}
             />
-            <Text as="span" size="label" tone="muted" className="tabular-nums">
-              /{max}
-            </Text>
+            {onEditMax === undefined ? (
+              <Text as="span" size="label" tone="muted" className="tabular-nums">
+                /{max}
+              </Text>
+            ) : (
+              <Row gap="field" align="baseline">
+                <Text as="span" size="label" tone="muted">
+                  /
+                </Text>
+                <TrackerValue
+                  ariaLabel={`${label} max`}
+                  display={String(max)}
+                  kind="numeric"
+                  onEdit={(next): void => {
+                    const n = Number.parseInt(next, 10);
+                    if (!Number.isNaN(n)) {
+                      onEditMax(n);
+                    }
+                  }}
+                  className="!w-avatar-lg px-field text-right tabular-nums"
+                />
+              </Row>
+            )}
           </Row>
         )}
       </Row>
@@ -94,6 +133,11 @@ export function MeterRow({ label, value, max, color = 1, customColor, leading, d
         {...(customColor === undefined ? {} : { customColor })}
         {...(dangerBelow === undefined ? {} : { dangerBelow })}
       />
+      {note === undefined || note === null ? null : (
+        <Text size="micro" tone="muted">
+          {note}
+        </Text>
+      )}
     </Stack>
   );
 }
@@ -284,6 +328,10 @@ export interface AmbientStripProps {
   readonly weather?: string;
   /** Commit an ambient field — present ⇒ editable; absent ⇒ read-only. */
   readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
+  /** Optional per-field lock indicator (§12.3 the-lock-consequence-is-visible) — the feature supplies a
+   *  render (the pin + Release) for a field whose hand-edit auto-stamped a lock; `undefined` ⇒ no pin. The
+   *  field→lock-path mapping is domain knowledge, so it lives in the caller (this shared block is agnostic). */
+  readonly lockSlot?: (field: "location" | "date" | "timeOfDay" | "weather") => ReactNode;
 }
 
 const AMBIENT_FIELDS = [
@@ -294,7 +342,7 @@ const AMBIENT_FIELDS = [
 ] as const;
 
 /** The scene's where/when strip (mode-agnostic scene DATA — §3.2). Hand-editable; empty fields omit. */
-export function AmbientStrip({ location, date, timeOfDay, weather, onEditField }: AmbientStripProps): ReactElement {
+export function AmbientStrip({ location, date, timeOfDay, weather, onEditField, lockSlot }: AmbientStripProps): ReactElement {
   const values: Record<string, string | undefined> = { location, date, timeOfDay, weather };
   return (
     <Row gap="block" align="center" className="flex-wrap rounded-card border border-border bg-card px-block py-row" data-slot="ambient-strip">
@@ -329,6 +377,7 @@ export function AmbientStrip({ location, date, timeOfDay, weather, onEditField }
                 className="h-control-sm !w-auto min-w-0 max-w-full field-sizing-content"
               />
             )}
+            {lockSlot?.(key)}
           </Row>
         );
       })}
