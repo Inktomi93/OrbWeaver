@@ -109,3 +109,39 @@ test("with a renderContext, {{char}}/{{user}} resolve to real names before Markd
   await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
 });
+
+// ── P4 — the immersive html-card lifecycle chrome (parity-plus §4.7) ──────────────────────────────
+
+const LETTER_CARD_BODY = 'before\n:::card title="Zandik\'s letter"\n<div>secret page</div>\n:::\nafter';
+const TERMINAL_CARD_BODY = ':::card title="Terminal"\n<div>x</div>\n:::';
+const POSTER_CARD_BODY = ':::card title="Poster"\n<div>x</div>\n:::';
+
+test("an untrusted card fence renders the tierB ImmersiveCard chrome around a sandboxed iframe", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={LETTER_CARD_BODY} />);
+  const card = component.locator('[data-slot="immersive-card"]');
+  await expect(card).toHaveCount(1);
+  // The chrome: title label + the sandboxed frame (an iframe, never main-DOM HTML).
+  await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText("Zandik's letter");
+  await expect(card.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+  // The card's HTML never lands in the main DOM.
+  await expect(component.locator("div", { hasText: "secret page" })).toHaveCount(0);
+});
+
+test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and back)", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={TERMINAL_CARD_BODY} />);
+  const card = component.locator('[data-slot="immersive-card"]');
+  await card.getByRole("button", { name: "View raw source" }).click();
+  await expect(card.locator('[data-slot="immersive-card-raw"]')).toContainText("<div>x</div>");
+  await expect(card.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(0);
+  await card.getByRole("button", { name: "Show rendered card" }).click();
+  await expect(card.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+});
+
+test("the EXPAND affordance opens the lightbox dialog labelled by the card title", async ({ mount, page }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={POSTER_CARD_BODY} />);
+  await component.locator('[data-slot="immersive-card"]').getByRole("button", { name: "Expand card" }).click();
+  const dialog = page.locator('[data-slot="dialog-popup"]');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-slot="immersive-card-lightbox-header"]')).toContainText("Poster");
+  await expect(dialog.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+});

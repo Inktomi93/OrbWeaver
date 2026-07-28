@@ -6,6 +6,7 @@ import {
   DIRECTIVE_FENCE_NAMES,
   HIDDEN_TAGS,
   projectBodyForSummary,
+  scanGhostContent,
   stripHiddenSpans,
   tokenizeContent,
 } from "@orb/kit/content";
@@ -381,5 +382,46 @@ describe("createHiddenSpanStreamScrubber — the §3.6 MID-STREAM member scrubbe
     for (const p of prefixes) {
       expect(p).not.toContain("secret");
     }
+  });
+});
+
+describe("scanGhostContent — the §4.5 forming-card ghost scan (P4)", () => {
+  test("no card open → one byte-identical text segment", () => {
+    expect(scanGhostContent("hello **world**")).toEqual([{ kind: "text", text: "hello **world**" }]);
+    expect(scanGhostContent("")).toEqual([{ kind: "text", text: "" }]);
+  });
+
+  test("an INCOMPLETE open line (no newline yet) stays text — recognition waits for the completed line", () => {
+    expect(scanGhostContent('prose\n:::card title="Zan')).toEqual([{ kind: "text", text: 'prose\n:::card title="Zan' }]);
+  });
+
+  test("a completed open line suppresses the accumulating body behind a forming-card segment", () => {
+    const segments = scanGhostContent('The letter reads:\n:::card title="Zandik\'s letter"\n<div>half-streamed HT');
+    expect(segments).toEqual([
+      { kind: "text", text: "The letter reads:\n" },
+      { kind: "forming-card", title: "Zandik's letter", closed: false },
+    ]);
+  });
+
+  test("a title-less open forms with title null", () => {
+    expect(scanGhostContent(":::card\n<div>")).toEqual([{ kind: "forming-card", title: null, closed: false }]);
+  });
+
+  test("a CLOSED card mid-stream stays a chip (no iframe ever in the ghost) and trailing prose resumes", () => {
+    const segments = scanGhostContent(':::card title="Poster"\n<div>done</div>\n:::\nAnd the crowd gasps');
+    expect(segments).toEqual([
+      { kind: "forming-card", title: "Poster", closed: true },
+      { kind: "text", text: "And the crowd gasps" },
+    ]);
+  });
+
+  test("a markdown code-fence region never forms a card (the author is SHOWING the syntax)", () => {
+    const text = '```\n:::card title="shown"\n```\nprose';
+    expect(scanGhostContent(text)).toEqual([{ kind: "text", text }]);
+  });
+
+  test("a non-card directive open (:::choices) stays text in the ghost", () => {
+    const text = ":::choices\n1. Run.\n";
+    expect(scanGhostContent(text)).toEqual([{ kind: "text", text }]);
   });
 });

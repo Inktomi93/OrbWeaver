@@ -80,6 +80,10 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
   expect(inj?.position).toBe("in_chat");
   expect(inj?.depth).toBe(0);
   expect(inj?.role).toBe("system");
+  // P4: the M2 card wire knob rides the structural gather contract (default 0 = every card stubs), and the
+  // default-on `immersiveHtml` composes the card teach into the reminder (the `:::card` grammar line).
+  expect(out?.cardKeepLastX).toBe(0);
+  expect(inj?.content).toContain(":::card");
 });
 
 test("reliable mode: the char turn is tool-less, guidance omitted (state round fires post-turn)", async () => {

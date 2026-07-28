@@ -70,7 +70,7 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
     steeringNote: game.config.lite.steeringNote,
     curSnapshot,
     prevSnapshot,
-    relationshipHints: game.config.features.relationshipHints,
+    features: game.config.features,
     rosterNames,
     // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.
     deception: game.config.features.deception,
@@ -90,5 +90,6 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
     curSnapshot,
     deltaContext: { rosterNames, castFields: game.config.features.castFields, relationshipHints: game.config.features.relationshipHints },
   });
-  return { macros: feed.macros, injections: [injection], tools: [], celBindings: { rpg: feed.rpg } };
+  // `cardKeepLastX` (M2, parity-plus §3.5) rides the structural gather contract to the engine's wire seam.
+  return { macros: feed.macros, injections: [injection], tools: [], celBindings: { rpg: feed.rpg }, cardKeepLastX: game.config.features.cardKeepLastX };
 }

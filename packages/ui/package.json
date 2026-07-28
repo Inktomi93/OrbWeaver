@@ -37,6 +37,7 @@
     "./highlighted-text": "./src/primitives/highlighted-text/index.ts",
     "./histogram": "./src/charts/histogram/index.ts",
     "./icons": "./src/primitives/icons/index.ts",
+    "./immersive-card": "./src/content/immersive-card/index.ts",
     "./input": "./src/primitives/input/index.ts",
     "./kbd": "./src/primitives/kbd/index.ts",
     "./labeled-chart-frame": "./src/charts/labeled-chart-frame/index.ts",

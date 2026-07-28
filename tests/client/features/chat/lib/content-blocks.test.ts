@@ -39,8 +39,18 @@ test("a hidden tag projects to NO block (the reading-surface filter — client d
 
 test("a card fence projects to an html-card block; the row-resolved trust threads (§4.3 — ONE trust authority)", () => {
   const body = ':::card title="Terminal"\n<div>x</div>\n:::';
-  expect(toContentBlocks(body)).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", title: "Terminal" }]);
-  expect(toContentBlocks(body, { cardTrust: "tierA" })).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierA", title: "Terminal" }]);
+  expect(toContentBlocks(body)).toEqual([{ kind: "html-card", html: "<div>x</div>", trust: "tierB", origin: "fence", title: "Terminal" }]);
+  expect(toContentBlocks(body, { cardTrust: "tierA" })).toEqual([
+    { kind: "html-card", html: "<div>x</div>", trust: "tierA", origin: "fence", title: "Terminal" },
+  ]);
+});
+
+test("the §4.8 lenient arm is OFF by default and opt-in via `lenientHtml` (game + immersiveHtml only)", () => {
+  const naked = "<div>\n<p>an in-world page</p>\n</div>";
+  // Default (a non-game chat): today's literal-text behavior — never a surprise card in a coding chat.
+  expect(toContentBlocks(naked)).toEqual([{ kind: "markdown", md: naked }]);
+  // Lenient (a game with immersiveHtml on): the naked block wraps into an implicit tierB card, origin-tagged.
+  expect(toContentBlocks(naked, { lenientHtml: true })).toEqual([{ kind: "html-card", html: naked, trust: "tierB", origin: "lenient" }]);
 });
 
 test("a choices fence projects to a choices block; an unknown directive projects to nothing (allowlist-strip)", () => {

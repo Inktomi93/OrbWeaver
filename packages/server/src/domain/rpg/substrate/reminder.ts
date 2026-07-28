@@ -48,6 +48,19 @@ export const RPG_DECEPTION_TEACH =
 export const RPG_OFILTER_TEACH =
   'PERCEPTION: the player perceives only what their character can. When something happens beyond their perception (offscreen, hidden, a secret another character keeps), emit a self-closing tag recording it: <ofilter event="what happened out of their perception" reason="why they cannot perceive it" />. This tag is INVISIBLE to the player but you REMEMBER it — narrate only what the player CAN perceive, and let the unperceived event shape the world consistently.';
 
+// The card TEACHING injection (parity-plus §7.5 — owner-authored copy, deliberately SHORT + permissive:
+// no schema, no component vocabulary, no allowlist; the sandbox is the wall, §4.2). A versioned constant
+// (the RPG_STEERING_LICENSE pattern). Emitted only when `features.immersiveHtml` is on; the M3
+// `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
+// the model emits renders in the same sandbox either way).
+export const RPG_CARD_TEACH =
+  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Embed everything inline (no external scripts/fonts/images). Do not wrap it in a code fence.';
+
+// The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
+// for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
+export const RPG_CARD_TEACH_STATIC =
+  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Embed everything inline (no external fonts/images). Do not wrap it in a code fence.';
+
 /** Derive the nearest time-of-day label from a stored clock hour (the ONE inverse of `TIME_OF_DAY_HOURS`,
  *  §2.7 — the banner + the reminder both read the label back through this one home). */
 function timeOfDayLabel(clock: RpgClockTime): string {
@@ -197,6 +210,23 @@ function questLine(quest: RpgTrackerView["quests"][number]): string {
   return `${head}\n${open.map((o) => `  ○ ${o.text}`).join("\n")}`;
 }
 
+/** The config-gated teaching blocks (parity-plus §3.3) — composed AFTER the state/delta, BEFORE the license,
+ *  each gated by its knob (all off ⇒ `[]`, byte-identical to a pre-feature reminder). Extracted so
+ *  `buildLiteReminder` stays under the cognitive-complexity ceiling — a NEW teach is one arm here. */
+function teachingBlocks(input: LiteReminderInput): string[] {
+  const blocks: string[] = [];
+  if (input.deception) {
+    blocks.push(RPG_DECEPTION_TEACH);
+  }
+  if (input.omniscience) {
+    blocks.push(RPG_OFILTER_TEACH);
+  }
+  if (input.features.immersiveHtml) {
+    blocks.push(input.features.immersiveHtmlInteractive ? RPG_CARD_TEACH : RPG_CARD_TEACH_STATIC);
+  }
+  return blocks;
+}
+
 /** Build the lite steering reminder (§4.7). Returns the assembled block; the gather wraps it as ONE depth-0
  *  `role:"system"` `ChatInjection`. Empty sections are omitted so a fresh game's reminder is just the license
  *  (+ note) — no phantom empty headers. No tool guidance: the char turn is tool-less (see the file header). */
@@ -217,7 +247,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
   if (view.cast.length > 0) {
     stateLines.push("Present:");
-    stateLines.push(...view.cast.map((c) => castLine(c, view.castFields, input.relationshipHints)));
+    stateLines.push(...view.cast.map((c) => castLine(c, view.castFields, input.features.relationshipHints)));
   }
   if (view.widgets.length > 0) {
     stateLines.push("Trackers:");
@@ -242,21 +272,16 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   const delta = buildDeltaBlock(input.prevSnapshot, input.curSnapshot, {
     rosterNames: input.rosterNames,
     castFields: view.castFields,
-    relationshipHints: input.relationshipHints,
+    relationshipHints: input.features.relationshipHints,
   });
   if (delta !== null) {
     blocks.push(delta);
   }
 
-  // P3 hidden-channel teaching (§3.3) — composed AFTER the state/delta, BEFORE the license, each gated by its
-  // config knob. Both off ⇒ nothing added (byte-identical to a pre-P3 reminder). The blocks teach the
-  // `<lie …/>`/`<ofilter …/>` grammar the tokenizer's `HIDDEN_TAGS` registry recognizes + server-strips.
-  if (input.deception) {
-    blocks.push(RPG_DECEPTION_TEACH);
-  }
-  if (input.omniscience) {
-    blocks.push(RPG_OFILTER_TEACH);
-  }
+  // The config-gated TEACHING blocks (parity-plus §3.3) — after the state/delta, before the license. P3 teaches
+  // the `<lie …/>`/`<ofilter …/>` grammar the `HIDDEN_TAGS` registry recognizes + server-strips; P4 teaches the
+  // `:::card` fence (the M3 sub-toggle picks the interactive vs static ask — the ask, never the render).
+  blocks.push(...teachingBlocks(input));
 
   blocks.push(RPG_STEERING_LICENSE);
 

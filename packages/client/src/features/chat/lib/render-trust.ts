@@ -15,6 +15,10 @@ const SAFE_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true }
 export interface RowRenderPolicy {
   readonly trust: RenderTrust;
   readonly allowExternal: boolean;
+  /** The §4.8 lenient naked-HTML wrap gate — a CHAT-level verdict (game chat + `features.immersiveHtml`),
+   *  carried on the row policy so the block projection reads ONE render-policy object. False by default:
+   *  outside a card-teaching game, raw HTML stays literal text / a code block. */
+  readonly lenientCards: boolean;
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -23,6 +27,8 @@ export interface ResolveRowRenderPolicyInput {
   readonly characterId: CharacterId | null;
   readonly viewerUserId: UserId | null;
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
+  /** The chat-level §4.8 lenient-wrap verdict the surface resolved (game + immersiveHtml). Absent ⇒ off. */
+  readonly lenientHtmlCards?: boolean | undefined;
 }
 
 export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowRenderPolicy {
@@ -33,5 +39,5 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
 
   const trust: RenderTrust = isOwnUserMessage || policy.trustHtml ? "trusted" : "untrusted";
-  return { trust, allowExternal: !policy.forbidExternalMedia };
+  return { trust, allowExternal: !policy.forbidExternalMedia, lenientCards: input.lenientHtmlCards === true };
 }

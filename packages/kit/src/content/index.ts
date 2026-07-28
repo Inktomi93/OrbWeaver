@@ -758,6 +758,94 @@ export function createHiddenSpanStreamScrubber(): HiddenSpanStreamScrubber {
   };
 }
 
+// ── The GHOST forming-card scan (§4.5 — the streaming placeholder's pure half) ───────────────────────────
+//
+// The ghost row streams raw model text per-token; once a card's OPENING fence line completes (the line plus
+// its newline — unambiguous, no body speculation), the reader should see a pretty forming-state chip instead
+// of the accumulating raw HTML. This scanner is that recognition, PURE: split the accumulating ghost text
+// into ordered text/forming-card segments. A card segment runs from its completed open line to its balanced
+// close (or the end of the text while still streaming — the chip stays up as body bytes accumulate behind
+// it). NO iframe, NO partial-HTML render ever rides this — the CLIENT renders a chip for a card segment and
+// markdown for text; the real card mounts only at commit (the committed path re-tokenizes the stored body).
+// Markdown code-fence regions are excluded exactly like the committed grammar (a ```-shown fence stays text).
+
+/** One segment of the accumulating ghost text: literal text to stream as markdown, or a forming card
+ *  (open-fence recognized) to render as the §4.5 building-state chip. `closed` reports whether the balanced
+ *  `:::` close has arrived (the chip may subtly settle); the body bytes are deliberately NOT exposed. */
+export type GhostContentSegment =
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "forming-card"; readonly title: string | null; readonly closed: boolean };
+
+/** True when line `i` is a COMPLETED `:::card …` open (its newline arrived — §4.5's unambiguous trigger). */
+function completedCardOpen(content: string, lines: readonly Line[], i: number): Readonly<Record<string, string>> | null {
+  const line = lines[i];
+  if (line === undefined || line.end >= content.length) {
+    return null; // the open line is still streaming (no newline yet) — not recognized.
+  }
+  const open = FENCE_OPEN_RE.exec(matchText(line));
+  if (open === null || open[1] !== "card") {
+    return null;
+  }
+  return parseFenceAttrs(open[2] ?? "");
+}
+
+/** One consumed forming-card block: its segment + where the next text run / line scan resumes. A card whose
+ *  close hasn't arrived consumes the REST of the text (everything after the open is the card's body). */
+interface GhostCardStep {
+  readonly segment: GhostContentSegment;
+  readonly pendingStart: number;
+  readonly next: number;
+}
+
+function ghostCardStep(content: string, lines: readonly Line[], i: number, attrs: Readonly<Record<string, string>>): GhostCardStep {
+  const closeIdx = findFenceClose(lines, i + 1);
+  const closeLine = closeIdx === -1 ? undefined : lines[closeIdx];
+  const segment: GhostContentSegment = { kind: "forming-card", title: attrs["title"] ?? null, closed: closeLine !== undefined };
+  if (closeLine === undefined) {
+    return { segment, pendingStart: content.length, next: lines.length }; // still streaming — the tail is the card's body.
+  }
+  return { segment, pendingStart: lines[closeIdx + 1]?.start ?? content.length, next: closeIdx + 1 };
+}
+
+/** Split accumulating GHOST text into text/forming-card segments (§4.5). Pure + degrade-never-throw: text
+ *  with no completed `:::card` open is one text segment (byte-identical). */
+export function scanGhostContent(content: string): GhostContentSegment[] {
+  const lines = splitLines(content);
+  const segments: GhostContentSegment[] = [];
+  let pendingStart = 0;
+  const flushText = (endExclusive: number): void => {
+    if (endExclusive > pendingStart) {
+      segments.push({ kind: "text", text: content.slice(pendingStart, endExclusive) });
+    }
+  };
+  let inCode = false;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const text = line === undefined ? "" : matchText(line);
+    if (text.startsWith(CODE_FENCE_MARK)) {
+      inCode = !inCode;
+      i += 1;
+      continue;
+    }
+    const attrs = inCode ? null : completedCardOpen(content, lines, i);
+    if (line === undefined || attrs === null) {
+      i += 1;
+      continue;
+    }
+    flushText(line.start);
+    const step = ghostCardStep(content, lines, i, attrs);
+    segments.push(step.segment);
+    pendingStart = step.pendingStart;
+    i = step.next;
+  }
+  flushText(content.length);
+  if (segments.length === 0) {
+    segments.push({ kind: "text", text: content });
+  }
+  return segments;
+}
+
 /** The deterministic card WIRE STUB (§3.5): same bytes every assembly (cache-stable), compact, honest —
  *  `[card: <title>]`, or `[card]` when the card carries no title. ONE home so the turn wire, compaction /
  *  summarize reads, and any future consumer collapse identically. */

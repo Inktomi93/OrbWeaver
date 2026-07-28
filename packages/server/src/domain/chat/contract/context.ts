@@ -414,6 +414,10 @@ export interface ChatRpgGatherResult {
   // threads it onto the AssembleContext's `celBindings` verbatim, never learning the `rpg` shape. Absent ⇒
   // `{{expr::rpg.…}}` errors-to-"" (non-game).
   readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
+  /** The M2 keep-last-X card wire knob (parity-plus §3.5) — a plain number chat threads to
+   *  `runTurnPipeline.cardKeepLastX` (0 = every history card collapses to its stub). STRUCTURAL: chat
+   *  learns a wire-projection scalar, never an rpg type. */
+  readonly cardKeepLastX: number;
 }
 
 /** The generic injection set the chat-crew's director GATHER contributes (chat-crew-design/04 §1). STRUCTURAL —

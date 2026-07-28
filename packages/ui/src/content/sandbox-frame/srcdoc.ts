@@ -3,10 +3,19 @@
 /**
  * NO `allow-same-origin` (null origin — no cookies/localStorage/DOM access), NO `allow-scripts`
  * (doored, not walled), no `allow-popups`/`allow-forms`. Owned in this ONE place.
+ *
+ * SECURITY-GATED: `allow-scripts` enablement + its tierB trust review is owned by a security-executor
+ * pass before merge (parity-plus §4.2 / §10 flag #1). The ratified target posture is the artifact
+ * sandbox — `SANDBOX_ATTR = "allow-scripts"` (NEVER paired with `allow-same-origin`: that combo lets the
+ * frame read the app origin) plus `script-src 'unsafe-inline'` added to the CSP below (still no
+ * `connect-src`, so a script can compute/animate but never phone home). Until that pass clears, scripts
+ * stay OFF (the safe default) — the flip is this one constant + the one CSP directive, nothing else.
  */
 export const SANDBOX_ATTR = "";
 
-/** `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil. */
+/** `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil.
+ *  SECURITY-GATED (see `SANDBOX_ATTR`): the scripts flip adds `script-src 'unsafe-inline'` HERE, in the
+ *  same review that enables the sandbox attribute — never one without the other. */
 const CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'";
 
 // A theme var carrying CSS-escape chars could break out of the <style> — drop it (the caller already clamps).

@@ -8,12 +8,13 @@
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
+import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+import { useMemo } from "react";
 import type { MessageRenderContext } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
@@ -42,11 +43,18 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     case "media":
       return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
     // tierA renders through the sanitized untrusted markdown seal with css discarded (Tier-A forbids
-    // <style>); tierB renders inside the sandboxed SandboxFrame (null-origin iframe + per-frame CSP).
+    // <style>); tierB renders the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
+    // lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP).
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return block.trust === "tierB" ? (
-        <SandboxFrame key={key} html={block.html} {...(block.css === undefined ? {} : { css: block.css })} title={block.title ?? "Rich content card"} />
+        <ImmersiveCard
+          key={key}
+          html={block.html}
+          {...(block.css === undefined ? {} : { css: block.css })}
+          {...(block.title === undefined ? {} : { title: block.title })}
+          {...(block.origin === undefined ? {} : { origin: block.origin })}
+        />
       ) : (
         <Markdown key={key} trust="untrusted" mode="static">
           {block.html}
@@ -67,21 +75,22 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
   }
 }
 
-interface SegmentContext {
+interface MessageSegmentProps {
+  readonly text: string;
   readonly render: RowRenderPolicy;
   readonly keyPrefix: string;
-  readonly listKey?: string | undefined;
 }
 
-function renderSegment(text: string, ctx: SegmentContext): ReactElement {
+function MessageSegment({ text, render, keyPrefix }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) — an untrusted row's card renders in the
-  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA.
-  const blocks = toContentBlocks(text, { cardTrust: ctx.render.trust === "trusted" ? "tierA" : "tierB" });
-  return (
-    <Stack key={ctx.listKey} gap="row">
-      {blocks.map((block, index) => renderBlock(block, `${ctx.keyPrefix}${index}-${block.kind}`, ctx.render))}
-    </Stack>
+  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA. Memoized on
+  // the body + policy (§4.5 wiring-reality hygiene #1) so a chrome-only re-render never re-tokenizes —
+  // and, with the index+kind keys below stable for an unchanged body, never reloads a card's srcdoc.
+  const blocks = useMemo(
+    () => toContentBlocks(text, { cardTrust: render.trust === "trusted" ? "tierA" : "tierB", lenientHtml: render.lenientCards }),
+    [text, render.trust, render.lenientCards],
   );
+  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render))}</Stack>;
 }
 
 export interface MessageContentProps {
@@ -103,7 +112,7 @@ export function MessageContent({ content, render, renderContext, rowCharacterId,
 
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return renderSegment(onlySpan.text, { render, keyPrefix: "" });
+    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" />;
   }
 
   return (
@@ -111,12 +120,12 @@ export function MessageContent({ content, render, renderContext, rowCharacterId,
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return renderSegment(span.text, { render, keyPrefix: `${key}-`, listKey: key });
+          return <MessageSegment key={key} text={span.text} render={render} keyPrefix={`${key}-`} />;
         }
         const spanTokens = speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker);
         return (
           <ThemeScope key={key} tokens={spanTokens}>
-            {renderSegment(span.text, { render, keyPrefix: `${key}-` })}
+            <MessageSegment text={span.text} render={render} keyPrefix={`${key}-`} />
           </ThemeScope>
         );
       })}

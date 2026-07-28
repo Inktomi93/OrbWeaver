@@ -58,6 +58,25 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect(game?.config.features.hiddenContentReveal).toBe(true); // M4 default preserved
   });
 
+  test("sets the P4 card knobs; an unrelated patch never resets an unnamed knob (§9 #7 + M2/M3)", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    await h.service.updateConfig({
+      principal: principal("host"),
+      chatId,
+      patch: { immersiveHtml: false, immersiveHtmlInteractive: false, cardKeepLastX: 2 },
+    });
+    let game = await findGameByChat(db, chatId);
+    expect(game?.config.features.immersiveHtml).toBe(false);
+    expect(game?.config.features.immersiveHtmlInteractive).toBe(false);
+    expect(game?.config.features.cardKeepLastX).toBe(2);
+    // The preserve pin ([versioned-config-lift-drops-overrides] class): a later patch naming OTHER knobs
+    // carries the card knobs through unchanged — a config write can never silently reset them to defaults.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "keep going" } });
+    game = await findGameByChat(db, chatId);
+    expect(game?.config.features.immersiveHtml).toBe(false);
+    expect(game?.config.features.cardKeepLastX).toBe(2);
+  });
+
   test("an explicit null gmPresetId clears back to augment", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const preset = await seedPreset(db, "x", "pox");

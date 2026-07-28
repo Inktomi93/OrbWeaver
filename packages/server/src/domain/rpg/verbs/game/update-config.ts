@@ -33,11 +33,13 @@ async function assertProfileMutable(ctx: RpgContext, gameId: RpgGameId, next: Rp
   }
 }
 
-/** Merge the parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — omit keeps the EXISTING value (a passed
- *  array/record/scalar REPLACES; the host owns these authoritatively). Threading EVERY field explicitly is
- *  load-bearing: the `rpgGameConfigSchema.parse` in the caller would otherwise reset an OMITTED field to its
- *  default, so a host who turned deception on and then edits the steeringNote must NOT silently lose deception
- *  (or the reasoning-host-only strip that rides it). `?? current` = MA-4 keep-on-omit. */
+/** Merge the parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + the P4 card knobs) — omit keeps the
+ *  EXISTING value (a passed array/record/scalar REPLACES; the host owns these authoritatively). Threading
+ *  EVERY field explicitly is load-bearing: the `rpgGameConfigSchema.parse` in the caller would otherwise
+ *  reset an OMITTED field to its default, so a host who turned deception on and then edits the steeringNote
+ *  must NOT silently lose deception (or the reasoning-host-only strip / the card knobs / the orb pins that
+ *  ride the same slice). `?? current` = MA-4 keep-on-omit. A NEW features field added to the schema MUST be
+ *  added here too, or it silently resets on the next unrelated write ([versioned-config-lift-drops-overrides]). */
 function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatures): RpgGameFeatures {
   return {
     castFields: [...(patch?.castFields ?? current.castFields)],
@@ -48,6 +50,10 @@ function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatu
     recentBeatsKeepLast: patch?.recentBeatsKeepLast ?? current.recentBeatsKeepLast,
     // ORB-PINNING (§4.8): whole-list replace on a passed array; keep on omit.
     pinnedOrbs: patch?.pinnedOrbs !== undefined ? [...patch.pinnedOrbs] : current.pinnedOrbs,
+    // P4 card knobs (§9 #7 + M2/M3): the teaching gate, the interactivity ASK, the keep-last-X wire knob.
+    immersiveHtml: patch?.immersiveHtml ?? current.immersiveHtml,
+    immersiveHtmlInteractive: patch?.immersiveHtmlInteractive ?? current.immersiveHtmlInteractive,
+    cardKeepLastX: patch?.cardKeepLastX ?? current.cardKeepLastX,
   };
 }
 
@@ -67,8 +73,12 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       statProfile: nextProfile ?? game.config.statProfile,
       lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
       extractionMode: params.extractionMode ?? game.config.extractionMode,
-      // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — merged with keep-on-omit (see mergeFeatures).
+      // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
       features: mergeFeatures(params.patch, game.config.features),
+      // Not a write-door field, but carried through verbatim so a config write never resets game macros to
+      // the schema default `[]` (the same silent-reset trap the features merge guards — MU landed userMacros
+      // but no write door names them, so `parse` would drop them without this).
+      userMacros: game.config.userMacros,
     });
 
     await updateGame(ctx.db, game.id, {

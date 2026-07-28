@@ -31,6 +31,7 @@ export {
   CircleGauge,
   CircleUser,
   Clock,
+  Code,
   Coins,
   Command,
   Compass,

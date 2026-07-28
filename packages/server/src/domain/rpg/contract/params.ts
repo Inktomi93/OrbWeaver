@@ -9,6 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type {
   RpgActorRef,
   RpgCastField,
+  RpgGameFeatures,
   RpgJournalType,
   RpgPoolDef,
   RpgQuestStatus,
@@ -111,6 +112,10 @@ export interface UpdateConfigParams {
         readonly recentBeatsKeepLast?: number | undefined;
         // ORB-PINNING (§4.8): pool names pinned as band orbs beyond the auto-first-3 (whole-list replace).
         readonly pinnedOrbs?: readonly string[] | undefined;
+        // P4 card knobs (§9 #7 + M2/M3) — omit keeps the current value (MA-4 patch semantics).
+        readonly immersiveHtml?: boolean | undefined;
+        readonly immersiveHtmlInteractive?: boolean | undefined;
+        readonly cardKeepLastX?: number | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;
@@ -277,6 +282,10 @@ export interface RpgGatherResult {
   // `celBindings` structurally so `{{expr::rpg.scene.location}}` reads state. Absent on a lite gather that stages
   // no expr surface.
   readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
+  /** The M2 card wire knob (`config.features.cardKeepLastX`, parity-plus §3.5) — threaded to the chat
+   *  engine's `runTurnPipeline` so the X newest cards ride the wire full; 0 = every card stubs. A plain
+   *  number on the STRUCTURAL gather contract (chat names no rpg type). */
+  readonly cardKeepLastX: number;
 }
 
 /** The macro + CEL feed a game turn's GATHER builds (parity-plus §12) — the string macro map (rpgSceneState/
@@ -303,10 +312,11 @@ export interface LiteReminderInput {
   readonly steeringNote: string;
   readonly curSnapshot: RpgSnapshotState;
   readonly prevSnapshot: RpgSnapshotState | null;
-  /** Per-custom-relationship-kind steering HINTS (M1 — `config.features.relationshipHints`, a `label → gloss`
-   *  map). The reminder's cast line renders a custom relationship as `label (gloss)` so a bare "vassal" steers as
-   *  precisely as the five built-ins. Empty ⇒ bare labels (backward-compatible). */
-  readonly relationshipHints: Readonly<Record<string, string>>;
+  /** The game's WHOLE feature-knob slice (`config.features`) — ONE home for every knob the reminder reads:
+   *  `relationshipHints` (M1 — a custom relationship renders `label (gloss)`), `immersiveHtml` +
+   *  `immersiveHtmlInteractive` (the §3.3/§7.5 card teaching + its M3 ask variant), and the future P3/P5
+   *  teaching gates. Passing the slice whole keeps the knob vocabulary one-homed (never re-picked per field). */
+  readonly features: RpgGameFeatures;
   /** The delta's roster-name map (P0 fold-in #5 — actorRefKey → display name) so volatile-plane delta lines name
    *  roster actors ("Kael HP 12→16", not "character HP 12→16"). Resolved by the gather from `ctx.resolveRoster`;
    *  the pure delta reads it as DATA (no I/O in the registry — delta.ts stays pure). */

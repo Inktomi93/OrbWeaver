@@ -23,6 +23,7 @@ import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
 import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
+import { RpgSceneCards } from "./rpg-scene-cards";
 
 const RECENT_BEATS = 3;
 
@@ -159,6 +160,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
       <RpgChoiceEcho choices={[]} />
       <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} />
       <SceneBeats beats={beats} />
+      <RpgSceneCards chatId={state.chatId} enabled={state.game.publicConfig.immersiveHtml} />
     </Stack>
   );
 }

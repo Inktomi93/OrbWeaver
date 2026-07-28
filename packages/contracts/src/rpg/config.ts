@@ -64,6 +64,16 @@ export const rpgGameFeaturesSchema = z.object({
   // Pool names (not ids) because pools are per-actor blob data keyed by name everywhere (the wallet/pool
   // vocabulary is name-addressed, D86).
   pinnedOrbs: z.array(z.string().min(1)).default([]),
+  // Feature 7 — immersive HTML cards (parity-plus §4/§9 #7). `immersiveHtml` gates the TEACHING ask + the
+  // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
+  // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
+  immersiveHtml: z.boolean().default(true),
+  // M3 — governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
+  // the model emits renders in the same sandbox regardless (§4.2 — the toggle shapes the PROMPT).
+  immersiveHtmlInteractive: z.boolean().default(true),
+  // M2 — the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
+  // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture — §3.5).
+  cardKeepLastX: z.number().int().min(0).default(0),
 });
 export type RpgGameFeatures = z.infer<typeof rpgGameFeaturesSchema>;
 
@@ -93,10 +103,11 @@ export const rpgGameConfigSchema = z.object({
     })
     .default({ steeringNote: "" }),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).default("reliable"),
-  // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6) — additive, self-healing at the parse seam (a
-  // pre-feature blob absent from a stored config parses to the all-defaults features via the sub-schema, so the
-  // P3 knobs heal in without a version stamp). The function default parses `{}` through the sub-schema so EVERY
-  // inner default fills (a bare `{}` object literal wouldn't satisfy the fully-required output type).
+  // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + the P4 card options) — additive,
+  // self-healing at the parse seam (a pre-feature blob absent from a stored config parses to the
+  // all-defaults features via the sub-schema, so the knobs heal in without a version stamp). The function
+  // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
+  // wouldn't satisfy the fully-required output type).
   features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
   // WAVE MU (§12A.5 M5, owner ruling #20): GAME-authored user macros — the game half of the two-home
   // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
