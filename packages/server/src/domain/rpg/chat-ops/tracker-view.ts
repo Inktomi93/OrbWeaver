@@ -140,5 +140,8 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     recentBeats: keepLastBeats(state.recentEvents, game.config.features.recentBeatsKeepLast),
     trackersReadOnly,
     poolOrbs: poolOrbs(actors, game.config.features.pinnedOrbs),
+    // The manual-edit-wins lock paths (§12.3) — the presence-key record projected to its key list. The
+    // panel renders a pin glyph + Release on a locked field.
+    lockedPaths: state.fieldLocks === null ? [] : Object.keys(state.fieldLocks),
   };
 }

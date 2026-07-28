@@ -85,10 +85,15 @@ export const rpgPatchSheetInputSchema = z.object({
 
 /** `editSnapshot` — the hand-edit door (host any; a member their own actor's volatile). `patch` is a partial
  *  snapshot-state overlay under the [merge-clear] contract — an OPAQUE object the domain validates/locks (the
- *  `editSnapshot` verb owns the per-path legality; a bad path is errors-as-data, never a wire reject). */
+ *  `editSnapshot` verb owns the per-path legality; a bad path is errors-as-data, never a wire reject).
+ *  `releaseLocks` (§12.3 lock-release) are dotted lock paths to CLEAR from `fieldLocks` — the host's Release
+ *  affordance ("let the model write this again"). Clearing rides the SAME verb (not a null on the lock path):
+ *  a lock is snapshot-metadata, not a state leaf, so it clears via the `applyHandEdit` lock-DELTA, not a
+ *  [merge-clear] null. Omit/`[]` = no release. A release may accompany an empty `patch` (release-only). */
 export const rpgEditSnapshotInputSchema = z.object({
   chatId: chatIdField,
   patch: z.record(z.string(), z.unknown()),
+  releaseLocks: z.array(z.string().min(1)).optional(),
 });
 
 /** `createWidget` — add a HUD widget definition (host). `def` is the DERIVED `rpgWidgetDefSchema`. */

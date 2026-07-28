@@ -92,6 +92,11 @@ export interface RpgTrackerView {
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
   readonly poolOrbs: readonly RpgPoolOrb[];
+  /** The manual-edit-wins LOCK paths (§12.3 the-lock-consequence-is-visible) — the dotted top-level/keyed
+   *  paths a hand edit auto-stamped (`editSnapshot` writes them; tools honor them). The panel renders a pin
+   *  glyph on a locked field ("the story won't change this") + a Release affordance. A `[]` = nothing pinned.
+   *  Surfaced as an ARRAY of paths (not the record) — the client only needs presence, never the `true` value. */
+  readonly lockedPaths: readonly string[];
 }
 
 /** A single journal entry in the paged `listJournal` view — lineage-filtered server-side (§2.5). */
