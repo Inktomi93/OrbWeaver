@@ -1,7 +1,8 @@
 // E2E SPEND-GUARD (@live): the settings-are-what's-USED proof — the regression test that goes RED before
 // credits burn if someone breaks the local-routing pin. Two halves, one turn:
 //   1. STORED — settings.getUserSettings().config.routing.roleDefaults.chat is the local pin globalSetup
-//      wrote ({ api: "agent-sdk", source: "vllm" }). Guards against the seed silently drifting.
+//      wrote ({ api: "chat-completions", source: "vllm" } — the D109 local wire; agent-sdk × vllm retired).
+//      Guards against the seed silently drifting.
 //   2. USED — drive one real turn and prove it rode the LOCAL engine, not a hosted one: the gen engine log
 //      (.cache/stack/vllm-gen.log) gains a message-POST during the turn, AND the new assistant canon row's
 //      `model` is the local leaf alias "Qwen3-VL-8B-Instruct". Stored-config alone is not proof (a broken
@@ -21,7 +22,7 @@ import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-r
 import { getUserSettings, listCanon, listCharacters, startChat } from "./support/trpc";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
-const GEN_POST_MARKER = "POST /v1/messages";
+const GEN_POST_MARKER = "POST /v1/chat/completions";
 const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";
 
 async function genPostCount(): Promise<number> {
@@ -37,7 +38,7 @@ test("routing pin is what's stored AND what the turn actually rides (local vLLM)
   // ── 1. STORED — the pin globalSetup wrote is present (the seed hasn't drifted). ──
   const settings = await getUserSettings();
   const chatRoute = settings.config.routing?.roleDefaults?.chat;
-  expect(chatRoute?.api).toBe("agent-sdk");
+  expect(chatRoute?.api).toBe("chat-completions");
   expect(chatRoute?.source).toBe("vllm");
 
   // ── 2. USED — a real turn rides the local engine. ── Self-seed a fresh chat so the canon read below is

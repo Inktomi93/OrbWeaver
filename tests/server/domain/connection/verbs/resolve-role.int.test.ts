@@ -104,6 +104,27 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
+  // FRESH-DB DEFAULT-ROUTE REGRESSION (fresh-install rpg-lite born WRITABLE): the E2E global-setup seed used to
+  // pin roleDefaults.chat = { agent-sdk, vllm } — RETIRED 2026-07-27 — so a fresh install's default chat route
+  // THREW at resolveChat, `deriveTrackersReadOnly` returned readonly-by-construction, and every rpg-lite game
+  // was born read-only OOTB (the state round never fired). The seed is now the LIVE local wire
+  // chat-completions × vllm: it must resolve WITHOUT throwing to a real capability that carries a MODEL WRITE
+  // PATH — `output.structured` (reliable-mode extraction) AND `tools` (cheap-mode round) — so lite is writable.
+  test("the fresh-DB local default (chat-completions × vllm) resolves live + carries the rpg-lite write path (structured + tools)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.api).toBe("chat-completions");
+    expect(conn.credential.source).toBe("vllm");
+    // The write path both rpg-lite modes gate on (deriveTrackersReadOnly): reliable needs `output.structured`,
+    // cheap needs `tools`. Present ⇒ the lite game is born WRITABLE (never the retired-route readonly).
+    expect(conn.capability.output.structured).toBe(true);
+    expect(conn.capability.tools).not.toBeUndefined();
+  });
+
   // The OR skin: `agent-sdk × openrouter` legitimately runs Claude models — assertCoherent admits the pair,
   // so the heal must route it through the curated Claude heal (the arm was dropped in the burn-down alongside
   // the dead `anthropic` source and threw AgentModelHealError on a coherent selection).

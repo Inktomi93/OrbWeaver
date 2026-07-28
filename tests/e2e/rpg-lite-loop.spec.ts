@@ -6,7 +6,7 @@
 // and none is needed: the flush/snapshot RESULT is `rpg.getTrackerView`, the turn's wire is
 // /api/_debug/wire/captures, and the message landing is chat.listMessages. That is "observe every part" for lite.
 //
-// OPT-IN (`@live`): this fires a real Agent-SDK subprocess turn (up to ~120s of live generation) PLUS a second
+// OPT-IN (`@live`): this fires a real local vLLM chat turn (up to ~120s of live generation) PLUS a second
 // reliable-extraction structured-output call, so it is SKIPPED by default (playwright.config.ts `grepInvert:
 // /@live/` UNLESS E2E_LIVE=1) — routine `pnpm e2e` + the CI smoke gate never spend live model credits. Run with:
 //   E2E_LIVE=1 pnpm e2e rpg-lite-loop.spec.ts
@@ -18,7 +18,7 @@
 // THE FLOW OBSERVED, hop by hop (each with its RESULT instrument):
 //   1. createGame        → `rpg.createGame` mints the game + writes the `chats.metadata.rpg` pointer.
 //                          RESULT: the client's CP-4 takeover renders (the game context tabs appear).
-//   2. character turn    → `chat.send` fires ONE real Agent-SDK turn on the game chat.
+//   2. character turn    → `chat.send` fires ONE real chat-completions × vllm turn on the game chat.
 //                          RESULT: a durable assistant row lands (chat.listMessages) + a well-formed wire body
 //                          (/api/_debug/wire/captures — the turn's prompt was assembled + sent).
 //   3. extraction/write  → the reliable-mode structured-output extraction folds the beat into an RpgStateDelta.
@@ -78,7 +78,7 @@ function trackerHasState(view: TrackerView): boolean {
 test("rpg-lite: seed a game, narrate a state change, and observe every hop's result (DOM + server truth)", {
   tag: "@live",
 }, async ({ page }) => {
-  // A real Agent-SDK turn (cold spin-up + stream) PLUS the reliable-extraction structured-output call — give the
+  // A real local vLLM chat turn (cold spin-up + stream) PLUS the reliable-extraction structured-output call — give the
   // whole loop room well beyond Playwright's 30s default (the precedent uses 180s for one turn; this drives two
   // model calls back-to-back at commit, so budget generously).
   test.setTimeout(300_000);
@@ -105,7 +105,7 @@ test("rpg-lite: seed a game, narrate a state change, and observe every hop's res
     // non-game chat contributes no game tabs / no "Game" tablist).
     await expect(page.locator('[data-slot="rpg-status-tab"], [data-slot="rpg-takeover-header"]').first()).toBeVisible({ timeout: 15_000 });
 
-    // ── HOP 2: narrate the state-changing beat — ONE real Agent-SDK turn on the game chat. `typeAndSend` drives
+    // ── HOP 2: narrate the state-changing beat — ONE real chat-completions × vllm turn on the game chat. `typeAndSend` drives
     // React's onChange + retries past the composer re-mount (the shared helper). ──
     const composer = page.getByRole("textbox", { name: "Message" });
     await expect(composer).toBeVisible();
@@ -151,17 +151,18 @@ test("rpg-lite: seed a game, narrate a state change, and observe every hop's res
     expect(expectedDomText.length).toBeGreaterThan(0);
     await expect(page.locator('[data-slot="rpg-scene-tab"]')).toContainText(expectedDomText, { timeout: 15_000 });
 
-    // ── HOP 2 wire RESULT (the turn's provider body was well-formed): read the captured Agent-SDK request back
-    // off /api/_debug/wire/captures (WIRE_CAPTURE=on, set in the e2e stackEnv). The agent-sdk capture is the SDK
-    // QUERY INPUT — `api`/`backend` = "agent-sdk", a non-empty `prompt` string (never a fabricated Anthropic
-    // body). Its presence, chatId-correlated, proves the turn's prompt assembled + shipped. ──
+    // ── HOP 2 wire RESULT (the turn's provider body was well-formed): read the captured vLLM request back off
+    // /api/_debug/wire/captures (WIRE_CAPTURE=on, set in the e2e stackEnv). Since D109 the local chat wire is
+    // chat-completions × vllm (the agent-sdk × vllm loopback skin is retired) — the capture is the LITERAL
+    // openai-compat /v1/chat/completions body: `api`/`backend` = "chat-completions"/"vllm", a non-empty
+    // `messages` array. Its presence, chatId-correlated, proves the turn's prompt assembled + shipped. ──
     const captures = await fetchWireCaptures(chatId);
     expect(captures.length).toBeGreaterThan(0);
-    const turnCapture = captures.find((c) => c.backend === "agent-sdk");
+    const turnCapture = captures.find((c) => c.backend === "vllm");
     expect(turnCapture).toBeDefined();
-    expect(turnCapture?.api).toBe("agent-sdk");
-    expect(typeof turnCapture?.body["prompt"]).toBe("string");
-    expect((turnCapture?.body["prompt"] as string).length).toBeGreaterThan(0);
+    expect(turnCapture?.api).toBe("chat-completions");
+    expect(Array.isArray(turnCapture?.body["messages"])).toBe(true);
+    expect((turnCapture?.body["messages"] as unknown[]).length).toBeGreaterThan(0);
 
     // ── The message landing (chat.listMessages = DB canon): the user narration + the assistant reply both
     // committed as durable rows. The turn hop's persistence RESULT, independent of the rendered DOM. ──

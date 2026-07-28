@@ -65,14 +65,17 @@ export default async function globalSetup(): Promise<void> {
   const characterId = await ensureCharacter();
   await ensureChat(characterId);
 
-  // Guarantee the tests run on vLLM using the agent-sdk backend, preventing unpredictable E2E fallbacks
+  // Pin every role to the local vLLM engine on its LIVE wire so the suite never falls back to a hosted
+  // (spend) backend. The generation roles ride chat-completions × vllm — the ONLY coherent local chat wire
+  // since D109 retired the agent-sdk × vllm loopback skin (2026-07-27). A stale agent-sdk × vllm pin here
+  // made resolveChat THROW → every rpg-lite game was born read-only (fresh-install lite broken OOTB).
   await trpcMutation("settings.updateUserSettingsSection", {
     section: "routing",
     patch: {
       roleDefaults: {
-        chat: { api: "agent-sdk", source: "vllm" },
-        agent: { api: "agent-sdk", source: "vllm" },
-        summarize: { api: "agent-sdk", source: "vllm" },
+        chat: { api: "chat-completions", source: "vllm" },
+        agent: { api: "chat-completions", source: "vllm" },
+        summarize: { api: "chat-completions", source: "vllm" },
         embed: { source: "vllm" },
         rerank: { source: "vllm" },
         imageEmbed: { source: "vllm" },
