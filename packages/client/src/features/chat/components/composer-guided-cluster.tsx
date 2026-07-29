@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import {
   CONTINUE_NEEDS_REPLY,
-  IMPERSONATE_NEEDS_CHAT,
+  IMPERSONATE_WAIT_FOR_TURN,
   STEER_CUE_CONTINUE,
   STEER_CUE_IMPERSONATE,
   STEER_CUE_RESPONSE,
@@ -109,11 +109,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         game={game}
         image={imageControls}
       />
-      <ImpersonateGuidedButton
-        disabled={!(committed && idle)}
-        hasText={hasText}
-        onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))}
-      />
+      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))} />
       <GuidedIconButton
         icon={RotateCcw}
         label={hasText ? "Swipe with this steering" : "Swipe"}
@@ -258,7 +254,9 @@ function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
  *  typed-text-becomes-steer contract taught at the action), else the plain label. */
 function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: string; steerCue: string; reason: string }): string {
   if (args.disabled) {
-    return args.reason;
+    // Name WHAT the button is AND why it's off (owner): "Swipe — needs an assistant reply first". The label
+    // stays legible so a disabled icon isn't a mystery glyph with a bare reason.
+    return `${args.label} — ${args.reason}`;
   }
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
@@ -282,7 +280,7 @@ function ImpersonateGuidedButton({
   readonly hasText: boolean;
   readonly onPick: (person: GuidedImpersonatePerson) => void;
 }): ReactElement {
-  const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason: IMPERSONATE_NEEDS_CHAT });
+  const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason: IMPERSONATE_WAIT_FOR_TURN });
   const name = resolveGuidedName("Impersonate", hasText);
   return (
     <Menu>
