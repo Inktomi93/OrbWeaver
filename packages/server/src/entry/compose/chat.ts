@@ -638,6 +638,17 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
+    // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
+    // fail-closes to [] rather than throwing into the member-card read.
+    resolveCharacterTags: async ({ ownerId, characterId }) => {
+      try {
+        const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
+        return detail.tags.map((t) => t.name);
+      } catch {
+        return [];
+      }
+    },
     // ONE character read → the whole per-seat decoration (render policy layered over the deployment floor,
     // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
     // or an unreadable card resolves to the bare global floor + a null card (fail-closed, never a throw into

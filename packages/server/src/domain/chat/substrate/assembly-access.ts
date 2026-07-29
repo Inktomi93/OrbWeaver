@@ -18,6 +18,7 @@ import {
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
+  renderMacros as renderMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
   resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros";
@@ -25,6 +26,7 @@ import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape";
 import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace";
 import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros";
+import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/world-info/pool";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
@@ -67,6 +69,20 @@ export function buildTurnMacroContext(...args: Parameters<typeof buildTurnMacroC
  *  the greeting FIRST-USER-TURN freeze (Task #77 / D51) — a verb reaches assembly ONLY through this bridge. */
 export function freezeVolatileMacros(...args: Parameters<typeof freezeVolatileMacrosImpl>): ReturnType<typeof freezeVolatileMacrosImpl> {
   return freezeVolatileMacrosImpl(...args);
+}
+
+/** RENDER `{{macros}}` in `text` against a card + section-appropriate persona (the per-section render). The
+ *  legal `verbs/ → assembly/` bridge for the D22 member-card DISPLAY read (`getMemberCard`), which renders the
+ *  surviving card fields against the anchor persona exactly as the assemble binds them for card-derived sections. */
+export function renderMacros(...args: Parameters<typeof renderMacrosImpl>): ReturnType<typeof renderMacrosImpl> {
+  return renderMacrosImpl(...args);
+}
+
+/** LOAD one character's OWN world-info entry contents (the `sheet+lore` slice of the D22 member card). The legal
+ *  `verbs/ → assembly/world-info/` bridge for `getMemberCard` — the card's lore is a world-info subsystem read,
+ *  reached through this substrate seam like every other assembly touch. */
+export function loadCharacterCardLore(...args: Parameters<typeof loadCharacterCardLoreImpl>): ReturnType<typeof loadCharacterCardLoreImpl> {
+  return loadCharacterCardLoreImpl(...args);
 }
 
 /** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).

@@ -362,6 +362,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
+    // D22 member-card tags — default "no accepted tags" (safe floor); a member-card test overrides it.
+    resolveCharacterTags: () => Promise.resolve([]),
     // D44 §12.0/§12.1/§12.5 + BG-C — ONE seat-decoration read: default to the safe floor (untrusted; external
     // media gated), no theme/background override, no card. Overridable per test.
     resolveSeatDeco: () =>
