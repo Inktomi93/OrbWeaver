@@ -46,12 +46,10 @@ import {
   migrateComposerDraft,
   SlashCommandRegistryProvider,
   selectChat,
-  setComposerDraft,
   setDraftGreeting,
   startEditingMessage,
   startNewChat,
   toggleMessageSelected,
-  useComposerDraft,
   useDraftConfig,
   useSectionRegistry,
   useTurnPhase,
@@ -412,13 +410,12 @@ export function MessageContentChoicesStory({ mode = "live" }: MessageContentChoi
 
 function ChoiceProviderStoryInner(): ReactElement {
   const handle: ChatHandle = committedChat(COMPOSER_CHAT_ID);
-  const draft = useComposerDraft(COMPOSER_CHAT_ID);
   return (
     <div>
       <ChoiceSendProvider handle={handle}>
         <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false }} />
       </ChoiceSendProvider>
-      <Composer handle={handle} value={draft} onChange={(text): void => setComposerDraft(COMPOSER_CHAT_ID, text)} />
+      <Composer handle={handle} scopeKey={COMPOSER_CHAT_ID} />
     </div>
   );
 }
@@ -701,15 +698,12 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
   // observable: after commit, `fireImpersonate` writes the drafted text to the NEW chatId's scope directly
   // (the promoted composer no longer reads the stale draftKey scope), and the story reads that same store.
   const scopeKey = startedChatId ?? "draft_ct_composer";
-  const value = useComposerDraft(scopeKey);
-  const setValue = (text: string): void => setComposerDraft(scopeKey, text);
 
   return (
     <div>
       <Composer
         handle={handle}
-        value={value}
-        onChange={setValue}
+        scopeKey={scopeKey}
         onCommitted={(id): void => {
           // Mirror chat-room-surface's promotion: carry the in-flight draft across the draftKey → chatId
           // scope flip, then flip the handle draft→committed IN PLACE (no unmount).

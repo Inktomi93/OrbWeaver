@@ -16,7 +16,7 @@ import { useGatedQuery, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
-import { committedChat, isCommitted, migrateComposerDraft, setComposerDraft, useComposerDraft } from "#state";
+import { committedChat, isCommitted, migrateComposerDraft } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
 import { ChatCastBar } from "../components/chat-cast-bar";
 import { ChoiceSendProvider } from "../components/choice-send-provider";
@@ -75,10 +75,11 @@ export function ChatRoomSurface({
   toolRenderers,
 }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
-  // The composer draft, keyed by this room's stable scope (a committed chat's id, else the draft key).
+  // This room's stable composer-draft scope (a committed chat's id, else the draft key). Only the stable
+  // string is handed down — the reactive draft SUBSCRIPTION lives inside <Composer>, so a keystroke never
+  // re-renders this surface (and the message thread it builds); the draft is read imperatively where a
+  // one-shot value is needed (via the store's getState).
   const scopeKey = roomScopeKey(handle);
-  const draftText = useComposerDraft(scopeKey);
-  const setDraftText = (text: string): void => setComposerDraft(scopeKey, text);
   const trpc = useTRPC();
 
   const onCommitted = (chatId: ChatId): void => {
@@ -163,7 +164,7 @@ export function ChatRoomSurface({
         {aboveComposerContributions.map((c) => (
           <Fragment key={c.id}>{c.node}</Fragment>
         ))}
-        <ComposerSlot handle={handle} value={draftText} onChange={setDraftText} draftSeed={draftSeed} onCommitted={onCommitted} />
+        <ComposerSlot handle={handle} scopeKey={scopeKey} draftSeed={draftSeed} onCommitted={onCommitted} />
       </Stack>
     </ThemeScope>
   );
@@ -171,8 +172,7 @@ export function ChatRoomSurface({
 
 interface ComposerSlotProps {
   readonly handle: ChatHandle;
-  readonly value: string;
-  readonly onChange: (text: string) => void;
+  readonly scopeKey: string;
   readonly draftSeed: DraftSeed | undefined;
   readonly onCommitted: (chatId: ChatId) => void;
 }
