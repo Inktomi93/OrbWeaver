@@ -38,14 +38,15 @@ const AI_TURN_SCOPE = "ai-turn";
 // typed map of the chat router's $-spending verbs") — a new spending verb is classified by adding (or
 // deliberately omitting) its key here, never a silent free-turn leak. The generating verbs are the ones
 // the chat turn front-door (domain/chat/verbs/turn.ts header) drives through the engine: send / swipe /
-// continueTurn / impersonate / generate / forceCharacterTurn, plus the imagery generateImage. Deliberately
-// EXCLUDED (no $/GPU spend at call time): chat.fork (copies canon), chat.abort / undoContinue /
-// revertContinue (control + canon-shuffle, no generation), and every read/config verb.
+// continueTurn / impersonateDraft / generate / forceCharacterTurn, plus the imagery generateImage.
+// impersonateDraft persists nothing but STILL runs a real generation (GPU/$ spend), so it's rate-limited
+// like every other turn. Deliberately EXCLUDED (no $/GPU spend at call time): chat.fork (copies canon),
+// chat.abort / undoContinue / revertContinue (control + canon-shuffle, no generation), and every read verb.
 const AI_TURN_PATHS = {
   "chat.send": true,
   "chat.swipe": true,
   "chat.continueTurn": true,
-  "chat.impersonate": true,
+  "chat.impersonateDraft": true,
   "chat.generate": true,
   "chat.forceCharacterTurn": true,
   "chat.generateImage": true,

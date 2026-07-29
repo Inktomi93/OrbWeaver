@@ -147,14 +147,12 @@ const swipeSchema = z.object({
   guided: guidedSteerSchema.optional(),
 });
 
-// The three remaining guided-generations verbs (chat-surface-lane task #27 — the composer WAND):
-// `ChatService.continueTurn`/`impersonate`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
-// createImpersonate/createGenerate) were ALL already fully implemented — participant-gated, D26-correct,
-// bus-emitting, EVERY generating verb already threading an optional `guided: GuidedSteer` steer — but none
-// had ever been exposed on this router (the same MISSING-API shape `abort`/`selectVariant`/the per-message
-// action cluster were in before 2026-07-04c; swept via grep before this addition, no call site referenced
-// any of the three). Thin pass-throughs, same shape as `swipe` (continueTurn: messageId-scoped) or `send`
-// minus the persisted content (impersonate/generate: chatId-scoped, no message row of their own to target).
+// The remaining guided-generation verbs (chat-surface-lane task #27 — the composer WAND):
+// `ChatService.continueTurn`/`impersonateDraft`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
+// createImpersonateDraft/createGenerate). continueTurn/generate persist + bus-emit; `impersonateDraft` is the
+// NON-PERSISTING one (owner ruling) — it RETURNS the drafted user line for the composer to fill, writing no
+// canon. Every generating verb threads an optional `guided: GuidedSteer` steer. Thin pass-throughs, same
+// shape as `swipe` (continueTurn: messageId-scoped) or chatId-scoped (impersonateDraft/generate).
 const continueTurnSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
@@ -174,7 +172,7 @@ const restoreContinueSchema = z.object({
   messageId: brandedId<MessageId>(),
 });
 
-const impersonateSchema = z.object({
+const impersonateDraftSchema = z.object({
   chatId: brandedId<ChatId>(),
   personaId: brandedId<PersonaId>().nullish(),
   intent: userIntentSchema.optional(),
@@ -458,7 +456,13 @@ export const chatRouter = t.router({
   revertContinue: authedProcedure
     .input(restoreContinueSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.revertContinue({ principal: ctx.auth, ...input })),
-  impersonate: authedProcedure.input(impersonateSchema).mutation(({ ctx, input }) => ctx.services.chat.impersonate({ principal: ctx.auth, ...input })),
+  // Guided impersonate is NON-PERSISTING (owner ruling): it drafts the user's next line and RETURNS it for the
+  // composer to fill (ST review flow), writing no user turn — the client puts `text` in the composer and the
+  // user commits it with a normal send. Replaced the persisting `impersonate` (which flashed-and-vanished a
+  // committed user row on the post-commit refetch race). chatId-scoped, participant-gated inside the verb.
+  impersonateDraft: authedProcedure
+    .input(impersonateDraftSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.impersonateDraft({ principal: ctx.auth, ...input })),
   generate: authedProcedure.input(generateSchema).mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
   abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // The per-message ACTION cluster's four verbs (see the schemas' header note above).

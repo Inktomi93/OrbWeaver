@@ -35,14 +35,23 @@ import type {
   ForceCharacterTurnParams,
   GenerateParams,
   GuidedSteer,
-  ImpersonateParams,
+  ImpersonateDraftParams,
   RequestTurnParams,
   RevertContinueParams,
   SendParams,
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
-import type { DrainDeferredTurnsScope, DrainReport, RequestTurnOp, TurnEngine, TurnKind, TurnOutcome, TurnPrep } from "../contract/results";
+import type {
+  DrainDeferredTurnsScope,
+  DrainReport,
+  ImpersonateDraftResult,
+  RequestTurnOp,
+  TurnEngine,
+  TurnKind,
+  TurnOutcome,
+  TurnPrep,
+} from "../contract/results";
 import { KIND_TO_INTENT } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
@@ -104,7 +113,7 @@ type TurnVerbs = Pick<
   | "abort"
   | "swipe"
   | "continueTurn"
-  | "impersonate"
+  | "impersonateDraft"
   | "generate"
   | "undoContinue"
   | "revertContinue"
@@ -1621,18 +1630,17 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
   };
 }
 
-/** `impersonate` — generate the user's next line in the active persona's voice and persist it as a
- *  role:"user" slot, authored by the responsible human + the chosen persona. */
-function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
-  return async ({ principal, chatId, personaId, intent, guided }: ImpersonateParams): Promise<TurnOutcome> => {
+/** `impersonateDraft` — generate the user's next line in the active persona's voice and RETURN it for the
+ *  composer to fill (the ST review flow). Persists NOTHING: no user slot, no canon, no bus event — the user
+ *  reviews the drafted line and commits it with a normal send. Replaced the persisting `impersonate` turn,
+ *  which flashed-and-vanished a committed user row on the post-commit refetch race (owner, live dogfood). */
+function createImpersonateDraft(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateDraft"] {
+  return async ({ principal, chatId, personaId, intent, guided }: ImpersonateDraftParams): Promise<ImpersonateDraftResult> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    // An EXPLICIT personaId must be owned by the acting caller — never trust the branded id from the wire to
-    // name any persona. It is stamped onto a role:"user" row (authored by the caller) and the message-stamped
-    // persona name/avatar producers resolve chrome for it, so a foreign personaId would render another user's
-    // private persona name+portrait in this chat = a cross-tenant identity read. Mirrors reattributePersona's
-    // belt (d) (verifyPersonaOwned by the row author). An omitted id falls back to the caller's OWN active
-    // persona (server-derived, trusted — no check). A non-owned id is refused notPersonaOwner (same code the
-    // re-stamp path returns).
+    // An EXPLICIT personaId must be owned by the acting caller — even for a non-persisting draft, the persona
+    // binds the assembled prompt's `{{user}}`/name, so a foreign id would read another user's private persona
+    // name into the generation = a cross-tenant identity read. Mirrors the send/impersonate ownership belt; an
+    // omitted id falls back to the caller's OWN active persona (server-derived, trusted — no check).
     await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
     const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws, cardKeepLastX } =
       await resolveTurnBase(ctx, deps, {
@@ -1640,11 +1648,13 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
         chatId,
         kind: "impersonate",
         anchorPersonaId: membership.chat.anchorPersonaId,
-        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the slot stamp below).
+        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
         triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
         guided,
       });
-    return await runRegistered(ctx, deps, membership, {
+    // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
+    // through the engine's generate-only path (no lock, no canon write, no bus emit). Returns the text.
+    const { text } = await deps.engine.generateText({
       chatId,
       assembleContext,
       connection,
@@ -1661,14 +1671,10 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: null,
       appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
-      persist: {
-        mode: "new-slot",
-        role: "user",
-        authorUserId: identity.triggeredBy,
-        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
-        personaId: personaId !== undefined ? personaId : membership.activePersonaId,
-      },
+      // new-slot user shape — a draft reads the full canon as context; nothing is written.
+      persist: { mode: "new-slot", role: "user" },
     });
+    return { text };
   };
 }
 
@@ -2092,7 +2098,7 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     abort: createAbort(ctx, deps),
     swipe,
     continueTurn,
-    impersonate: createImpersonate(ctx, deps),
+    impersonateDraft: createImpersonateDraft(ctx, deps),
     generate: createGenerate(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),
     revertContinue: createRevertContinue(ctx, deps),

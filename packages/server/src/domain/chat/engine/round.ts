@@ -18,7 +18,9 @@ import { committedOutcome } from "./result";
 type RoundBase = Omit<TurnPrep, "speakerCharacterId" | "groupNudge" | "shape">;
 
 interface DriveRoundParams {
-  readonly engine: TurnEngine;
+  /** The round driver only ever RUNS turns — it never drafts (the non-persisting `generateText` is a
+   *  verb-level composer-fill path, not part of a persisted round), so it depends on the `runTurn` slice only. */
+  readonly engine: Pick<TurnEngine, "runTurn">;
   readonly base: RoundBase;
   readonly group: GroupConfig;
   /** The arbitration result, name-resolved + ordered. Ignored for `narrator` (one cast turn). */

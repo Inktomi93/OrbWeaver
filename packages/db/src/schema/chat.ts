@@ -171,9 +171,9 @@ export const chats = sqliteTable(
 // a copy). Attribution is slot-level. NO `parentId` (D27). `characterId` keys on `characters.id` (D28).
 //
 // THE ATTRIBUTION INVARIANT (owner-ordered schema-hardening, 2026-07-17; D82 delete/recreate sanction).
-// Derived exhaustively from EVERY `messages` writer — the engine persist (engine.ts `buildCommitPlan`), the
-// user-send (turn.ts `persistUserMessage`), impersonate (turn.ts `persist.role='user'`), the greeting seed
-// (start-chat.ts), the image message (generate-image.ts `role='user'`), the fork deep-copy (fork.ts, a
+// Derived exhaustively from EVERY `messages` writer — the engine persist (engine.ts `buildCommitPlan`,
+// which supports a generic `new-slot role='user'` slot), the user-send (turn.ts `persistUserMessage`), the
+// greeting seed (start-chat.ts), the image message (generate-image.ts `role='user'`), the fork deep-copy (fork.ts, a
 // verbatim `...slot` copy), the edit-dup (edit.ts, a verbatim attribution copy), and the ST bulk-import
 // (import-write.ts). The born per-role shape:
 //   • role='user'      — authorUserId SET (the sender/importer), characterId NULL, personaId OPTIONAL.

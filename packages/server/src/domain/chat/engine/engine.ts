@@ -29,7 +29,7 @@ import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscr
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
-import type { HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
+import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
 import { KIND_TO_INTENT } from "../contract/results";
 import {
   appendVariantStatements,
@@ -1287,9 +1287,87 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
   }
 }
 
+/** The NON-PERSISTING generation ({@link TurnEngine.generateText}): assemble → shape → generate, then RETURN
+ *  the reduced text. It pays the SAME consent + budget belts a real turn does (a generation spends the host's
+ *  box, persisted or not) but takes NO lock, writes NO canon, and emits NO bus event — there is no slot to
+ *  animate, so deltas are dropped (no `onDelta` fan-out). Backs the composer-fill flows (guided impersonate
+ *  drafts the user's next line INTO the composer for review; the user commits it with a normal send). Reads
+ *  the FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a
+ *  clean outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
+/** The delta sink for a non-persisting generation — there is no live turn slot to stream into, so streamed
+ *  chunks are dropped (the reduced text is the whole product). */
+function dropDelta(): void {
+  // intentionally empty — no live slot to fan deltas to.
+}
+
+async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<GeneratedText> {
+  // No persist target — a draft generation reads the full canon (new-slot semantics).
+  const persist: TurnPersist = { mode: "new-slot", role: prep.persist?.mode === "new-slot" ? prep.persist.role : "user" };
+  const connection = gateAndResolveConnection(ctx, prep, persist, null);
+  // The SAME security belts a persisted turn runs (consent + budget), attributed to triggeredBy on the
+  // effective connection — a generation is billable whether or not it lands in canon.
+  const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
+  const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
+  assertMaxProSubConsent({ source: connection.credential.source, identity, ownerConsent: policy.allowNonOwnerMaxProSub });
+  const ownerConsented = resolveOwnerConsented({ identity, ownerConsent: policy.allowNonOwnerMaxProSub });
+  await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
+
+  const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
+  const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canonAll });
+  const historyMacroNames: HistoryMacroNames = {
+    characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
+    personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
+  };
+  try {
+    const result = await runTurnPipeline({
+      runChatTurn: ctx.runChatTurn,
+      applyRegexReplace: ctx.applyRegexReplace,
+      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      assembleContext: prep.assembleContext,
+      canon: canonAll,
+      historyMacroNames,
+      macroRegistry: prep.macroRegistry,
+      applyPromptTransforms: ctx.promptTransforms,
+      connection,
+      intent: prep.intent,
+      extraStopSequences: prep.extraStopSequences,
+      kind: prep.kind,
+      ownerConsented,
+      chatId: prep.chatId,
+      appendUserTurn: prep.appendUserTurn,
+      groupNudge: prep.groupNudge,
+      shape: prep.shape,
+      signal: prep.signal,
+      tools: ctx.tools,
+      attachedToolNames: prep.attachedToolNames ?? [],
+      cardKeepLastX: prep.cardKeepLastX,
+      toolRecurseLimit: prep.toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT,
+      toolExecFrame: {
+        runAsUserId: prep.runAsUserId,
+        triggeredBy: prep.triggeredBy,
+        chatId: prep.chatId,
+        roster: prep.toolRoster ?? null,
+        turnId: ctx.newChatTurnId(),
+        signal: prep.signal,
+      },
+      // No live slot to animate — a draft generation streams to nothing (the text lands in the composer).
+      onDelta: dropDelta,
+    });
+    return { text: result.content, aborted: false };
+  } catch (err) {
+    // An abort (caller-cancel) is a clean outcome — return what streamed. A real provider/DB fault throws.
+    // No lock/canon/bus to unwind (this path took none), so nothing to emit on the way out.
+    if (abortReasonFor(err, prep.signal) === "error") {
+      throw err;
+    }
+    return { text: "", aborted: true };
+  }
+}
+
 /** Builds the per-turn engine. `runTurn` acquires the per-chat lock (refusing `locked` if a turn is in
  *  flight), runs the lifecycle in-lock under a TTL heartbeat, and always releases it. A `prep.lockFree`
- *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send. */
+ *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send.
+ *  `generateText` is the non-persisting, lock-free, bus-silent sibling (composer-fill). */
 export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine {
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {
     if (prep.lockFree === true) {
@@ -1307,7 +1385,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
     }
     return await runInLockWithHeartbeat(ctx, deps, prep);
   };
-  return { runTurn };
+  return { runTurn, generateText: (prep) => generateTextUnpersisted(ctx, deps, prep) };
 }
 
 /** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,

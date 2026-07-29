@@ -693,15 +693,12 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
   });
 });
 
-describe("chat.impersonate — the guided-impersonate verb (composer wand wire-through)", () => {
-  test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb", async () => {
-    const impersonate = vi.fn<ChatService["impersonate"]>(async () => ({
-      messages: [MESSAGE],
-      aborted: false,
-    }));
+describe("chat.impersonateDraft — the NON-PERSISTING guided-impersonate verb (composer fill)", () => {
+  test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; returns { text }", async () => {
+    const impersonateDraft = vi.fn<ChatService["impersonateDraft"]>(async () => ({ text: "drafted opening line" }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
-      services: { chat: { impersonate } },
+      services: { chat: { impersonateDraft } },
     });
 
     const guided = {
@@ -709,24 +706,24 @@ describe("chat.impersonate — the guided-impersonate verb (composer wand wire-t
       input: "ask about the ruins",
       person: "third" as const,
     };
-    const result = await caller(ctx).chat.impersonate({ chatId: CHAT, guided });
+    const result = await caller(ctx).chat.impersonateDraft({ chatId: CHAT, guided });
 
-    expect(impersonate).toHaveBeenCalledWith({
+    expect(impersonateDraft).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       chatId: CHAT,
       guided,
     });
-    expect(result.messages).toEqual([MESSAGE]);
+    expect(result.text).toBe("drafted opening line");
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
-    const impersonate = vi.fn<ChatService["impersonate"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const impersonateDraft = vi.fn<ChatService["impersonateDraft"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
-      services: { chat: { impersonate } },
+      services: { chat: { impersonateDraft } },
     });
 
-    await expect(caller(ctx).chat.impersonate({ chatId: CHAT })).rejects.toMatchObject({
+    await expect(caller(ctx).chat.impersonateDraft({ chatId: CHAT })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });

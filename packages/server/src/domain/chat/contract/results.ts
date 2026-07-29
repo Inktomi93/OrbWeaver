@@ -270,9 +270,23 @@ export interface TurnPrep {
  * The injected per-turn driver the composition root builds once and hands the verbs. `runTurn` executes the
  * lifecycle shell and resolves with the {@link TurnOutcome}; streaming deltas fan out over the chat bus, not
  * the return value.
+ *
+ * `generateText` is the NON-PERSISTING sibling: it runs the same assemble→shape→generate half (with the same
+ * consent + budget belts a real turn pays) and RETURNS the generated text — acquiring NO lock, writing NO
+ * canon slot, emitting NO bus event. It backs the composer-fill flows (guided impersonate drafts the user's
+ * next line INTO the composer for review; nothing is committed until the user sends). Deltas are NOT streamed
+ * (there is no live turn slot to animate).
  */
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
+  readonly generateText: (prep: TurnPrep) => Promise<GeneratedText>;
+}
+
+/** The {@link TurnEngine.generateText} product — the reduced generation, unpersisted. `aborted` is true when
+ *  the turn's signal fired mid-generation (the caller cancelled); `text` is then whatever streamed before. */
+export interface GeneratedText {
+  readonly text: string;
+  readonly aborted: boolean;
 }
 
 /** The PRINCIPAL-FREE non-human turn op (automation-design/03 §4 / 05 §AC-B). Built once at the chat
@@ -313,6 +327,12 @@ export interface StartChatResult {
 /** `forkChat` — the new deep-copied, membership-scoped fork. */
 export interface ForkResult {
   readonly chat: ChatDetail;
+}
+
+/** `impersonateDraft` — the generated user line, unpersisted, for the composer to fill (the user reviews it
+ *  and commits it with a normal send). `text` is empty when the caller aborted the generation. */
+export interface ImpersonateDraftResult {
+  readonly text: string;
 }
 
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and

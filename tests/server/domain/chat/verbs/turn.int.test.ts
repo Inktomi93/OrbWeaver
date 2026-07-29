@@ -592,16 +592,19 @@ describe("send / impersonate — persona attribution fallback (PD-100)", () => {
     return { host, chatId, hostPersona, spare, names: { [cid]: "aria" } };
   }
 
-  test("an OMITTED personaId stamps the participant's activePersonaId (send + impersonate)", async () => {
+  test("an OMITTED personaId stamps the participant's activePersonaId (send); impersonateDraft returns text, persisting nothing", async () => {
     const { host, chatId, hostPersona, names } = await seedPersonaRoom();
     const h = harness(db, names);
 
     const sent = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
     expect(sent.messages[0]?.personaId).toBe(hostPersona);
 
-    const imp = await h.turn.impersonate({ principal: principal(host), chatId });
-    expect(imp.messages[0]?.role).toBe("user");
-    expect(imp.messages[0]?.personaId).toBe(hostPersona);
+    // impersonateDraft is NON-PERSISTING: it RETURNS the drafted user line (resolved under the host's active
+    // persona for `{{user}}`) and writes NO canon — the seq after the send round is unchanged.
+    const seqBefore = await loadMaxMessageSeq(db, chatId);
+    const imp = await h.turn.impersonateDraft({ principal: principal(host), chatId });
+    expect(imp.text.length).toBeGreaterThan(0);
+    expect(await loadMaxMessageSeq(db, chatId)).toBe(seqBefore);
   });
 
   test("an EXPLICIT personaId wins over the active persona; an explicit null stays null", async () => {
@@ -1560,7 +1563,11 @@ describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross
     });
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
 
-    await expect(h.turn.impersonate({ principal: principal(member), chatId, personaId: foreignPersona })).rejects.toMatchObject({ code: "not_persona_owner" });
+    // impersonateDraft persists nothing, but the persona still binds the generation's `{{user}}` — a foreign id
+    // would read a stranger's private persona name into the assembled prompt, so the ownership belt still fires.
+    await expect(h.turn.impersonateDraft({ principal: principal(member), chatId, personaId: foreignPersona })).rejects.toMatchObject({
+      code: "not_persona_owner",
+    });
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
   });
 });
@@ -1626,12 +1633,12 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
     expect(JSON.stringify(requests)).not.toContain("special consideration");
   });
 
-  test("impersonate's guided steer threads {{person}} (composer wand's 1st/2nd/3rd-person picker)", async () => {
+  test("impersonateDraft's guided steer threads {{person}} (composer wand's 1st/2nd/3rd-person picker)", async () => {
     const { host, chatId, names } = await seedRoom("list", ["aria"]);
     const requests: unknown[] = [];
     const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
 
-    await h.turn.impersonate({
+    await h.turn.impersonateDraft({
       principal: principal(host),
       chatId,
       guided: { action: "impersonate", input: "ask about the ruins", person: "third" },
@@ -1644,12 +1651,12 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
     expect(wire).toContain("ask about the ruins");
   });
 
-  test("impersonate with NO person picked falls back to the kit resolver's 'first' default", async () => {
+  test("impersonateDraft with NO person picked falls back to the kit resolver's 'first' default", async () => {
     const { host, chatId, names } = await seedRoom("list", ["aria"]);
     const requests: unknown[] = [];
     const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
 
-    await h.turn.impersonate({
+    await h.turn.impersonateDraft({
       principal: principal(host),
       chatId,
       guided: { action: "impersonate", input: "ask about the ruins" },
@@ -1832,18 +1839,18 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
   });
 });
 
-describe("impersonate — a model-generated role:user slot (D26)", () => {
-  test("commits a human-voiced user message authored by the caller", async () => {
+describe("impersonateDraft — a NON-PERSISTING user-line generation (composer fill)", () => {
+  test("returns the drafted user line and writes NO canon (the user reviews + commits with a normal send)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.impersonate({ principal: principal(host), chatId });
+    // A 0-message chat: impersonate drafts the user's OPENING line (the ST sibling of "generate opening").
+    const result = await h.turn.impersonateDraft({ principal: principal(host), chatId });
 
-    expect(outcome.messages).toHaveLength(1);
-    expect(outcome.messages[0]?.role).toBe("user");
-    expect(outcome.messages[0]?.authorUserId).toBe(host);
-    expect(outcome.messages[0]?.characterId).toBeNull();
-    expect(outcome.messages[0]?.content).toBe("Hi there");
+    // The scripted provider replies "Hi there"; the draft RETURNS it verbatim.
+    expect(result.text).toBe("Hi there");
+    // Nothing persisted — the canon is still empty (no user slot flashed into the conversation).
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 });
 
