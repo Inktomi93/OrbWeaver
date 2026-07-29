@@ -12,6 +12,7 @@ import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { MemberCardViewerStory } from "../_ct-stories";
 
 const CHARACTER_ID = "character_ct_membercard";
+const NAME_RE = /Aria Vex/u;
 
 // The always-present name-avatar floor every clamp level carries.
 const FLOOR = {
@@ -65,10 +66,18 @@ test("a sheet-clamped card shows the sheet fields and HIDES the prompt internals
   await mount(<MemberCardViewerStory />);
   const viewer = page.getByTestId("member-card-viewer");
 
-  // The name-avatar floor + the sheet content render.
+  // The name-avatar floor + the sheet content render. The name renders exactly ONCE (side-eye P2 — the
+  // avatar+name block IS the dialog title; no duplicate span beneath the h2).
+  await expect(viewer.getByText("Aria Vex", { exact: true })).toHaveCount(1);
   await expect(viewer.getByText("Card sheet", { exact: false })).toBeVisible();
   await expect(viewer.getByText("wandering cartographer", { exact: false })).toBeVisible();
   await expect(viewer.getByText("explorer", { exact: true })).toBeVisible();
+
+  // Section titles are REAL h3 headings in the ARIA tree (side-eye P2 a11y — an SR user navigates by
+  // heading), visual style unchanged. The dialog title is the h2 (the name); the sections are h3.
+  await expect(viewer.getByRole("heading", { level: 3, name: "Description" })).toBeVisible();
+  await expect(viewer.getByRole("heading", { level: 3, name: "Personality" })).toBeVisible();
+  await expect(viewer.getByRole("heading", { level: 2, name: NAME_RE })).toBeVisible();
 
   // The `full` tier (system prompt) is ABSENT — never sent over the wire — and its withholding is
   // surfaced as the quiet hidden-tier note, never an empty box. A `sheet` card withholds BOTH the
@@ -103,7 +112,8 @@ test("a name-avatar-clamped card shows ONLY the floor, with a single hidden-tier
   await mount(<MemberCardViewerStory />);
   const viewer = page.getByTestId("member-card-viewer");
 
-  await expect(viewer.getByText("Aria Vex", { exact: true }).first()).toBeVisible();
+  // The name renders exactly once even at the floor clamp (side-eye P2 — single title, no duplicate span).
+  await expect(viewer.getByText("Aria Vex", { exact: true })).toHaveCount(1);
   await expect(viewer.getByText("Name & avatar only", { exact: false })).toBeVisible();
   // One note — the sheet gate — never three stacked tier notes.
   await expect(viewer.getByTestId("member-card-hidden-note")).toHaveCount(1);
@@ -120,6 +130,11 @@ test("a full card renders every tier (description + lore + system prompt) with n
   await expect(viewer.getByText("wandering cartographer", { exact: false })).toBeVisible();
   await expect(viewer.getByText("Grey Shelf", { exact: false })).toBeVisible();
   await expect(viewer.getByText("You are Aria", { exact: false })).toBeVisible();
+
+  // The name renders once (the h2 title); the full-tier sections are real h3 headings in the ARIA tree.
+  await expect(viewer.getByText("Aria Vex", { exact: true })).toHaveCount(1);
+  await expect(viewer.getByRole("heading", { level: 3, name: "System prompt" })).toBeVisible();
+  await expect(viewer.getByRole("heading", { level: 3, name: "Lore" })).toBeVisible();
 
   // Nothing is clamped away — no hidden-tier note anywhere.
   await expect(viewer.getByTestId("member-card-hidden-note")).toHaveCount(0);

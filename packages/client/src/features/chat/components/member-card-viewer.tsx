@@ -29,7 +29,7 @@ import { BookOpen, Drama, EyeOff, Icon, Lock, ScrollText, SlidersHorizontal, Spa
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Separator } from "@orb/ui/separator";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
@@ -139,15 +139,15 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
 function MemberCard({ card }: { readonly card: MemberCardView }): ReactElement {
   return (
     <Stack gap="block" className="min-h-0 overflow-y-auto">
-      <DialogTitle>{card.name}</DialogTitle>
+      {/* The name renders exactly ONCE (side-eye P2): the visible name text IS the `DialogTitle` — a real
+          `<h2>` that carries the accessible dialog name — sitting beside the avatar in the hero Row. No
+          duplicate span beneath the title. */}
       <Row gap="row" align="center">
         <Avatar size="lg" fallbackDelay={0} hueSeed={card.characterId} {...(card.avatarHash === null ? {} : { src: blobUrl(card.avatarHash) })}>
           {initialsFor(card.name)}
         </Avatar>
         <Stack gap="field" className="min-w-0">
-          <Text as="span" size="body" weight="medium" className="truncate">
-            {card.name}
-          </Text>
+          <DialogTitle className="truncate">{card.name}</DialogTitle>
           <Row gap="field" align="center">
             <Badge size="sm" intent="neutral" tone="soft">
               <Icon icon={Lock} size="xs" />
@@ -241,18 +241,19 @@ function FullTier({ card }: { readonly card: MemberCardView }): ReactElement | n
 }
 
 /** A single prose field: rendered untrusted-Markdown when present-and-non-blank, else the section is
- *  omitted entirely (an absent-on-the-card field is not "hidden" — the tier note covers real clamping). */
+ *  omitted entirely (an absent-on-the-card field is not "hidden" — the tier note covers real clamping).
+ *  NO per-field bubble (side-eye P3): the heading + spacing carry the structure; boxing a lone prose block
+ *  inside the already-elevated dialog reads as a recessed well. Bubbles are reserved for REPEATED-item
+ *  sections (openings/lore) where the box disambiguates list members. */
 function ProseSection({ icon, title, text }: { readonly icon: typeof ScrollText; readonly title: string; readonly text: string | null }): ReactElement | null {
   if (text === null || text.trim() === "") {
     return null;
   }
   return (
     <SectionShell icon={icon} title={title}>
-      <Bubble>
-        <Markdown trust="untrusted" mode="static">
-          {text}
-        </Markdown>
-      </Bubble>
+      <Markdown trust="untrusted" mode="static">
+        {text}
+      </Markdown>
     </SectionShell>
   );
 }
@@ -318,11 +319,14 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
 function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollText; readonly title: string; readonly children: ReactNode }): ReactElement {
   return (
     <Stack gap="field" data-slot="member-card-section">
+      {/* A REAL `<h3>` (side-eye P2 a11y): section titles land in the ARIA heading tree so an SR user
+          navigates the card by heading. Visual style is UNCHANGED — the label size/weight/muted/caps
+          skin is preserved via the Heading overrides; only the element rank changes. */}
       <Row gap="field" align="center">
         <Icon icon={icon} size="sm" className="text-muted-foreground" />
-        <Text as="span" size="label" weight="medium" tone="muted" transform="caps">
+        <Heading level={3} size="label" weight="medium" tone="muted" transform="caps">
           {title}
-        </Text>
+        </Heading>
       </Row>
       {children}
     </Stack>
