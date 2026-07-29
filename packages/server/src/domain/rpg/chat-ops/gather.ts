@@ -31,7 +31,7 @@ import { buildLiteReminder } from "../substrate/reminder";
 import { buildRpgMacroFeed } from "./macro-view";
 import { buildTrackerView } from "./tracker-view";
 
-export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promise<RpgGatherResult | null> {
+export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId, activePersonaName?: string): Promise<RpgGatherResult | null> {
   const game: RpgGameRow | undefined = await findGameByChat(ctx.db, chatId);
   if (game === undefined || !game.config.engaged) {
     // Non-game chat, or a DISENGAGED game (#40 front-door toggle OFF) — byte-identical no-op: no
@@ -64,12 +64,20 @@ export async function gatherTurnContext(ctx: RpgContext, chatId: ChatId): Promis
   for (const entry of roster) {
     rosterNames[actorRefKey(entry.actorRef)] = entry.name;
   }
+  // The host-authored steeringNote's identity-macro binding (the substitution fix): `{{user}}` = the triggering
+  // human's ACTIVE persona name (threaded from chat — the same current-action binding the guided/nudge path
+  // uses, NOT the pinned anchor); `{{char}}` = the game's protagonist (the first CHARACTER-kind roster actor).
+  // Both default to the kit resolver floor ("User"/"") when absent, and `buildLiteReminder` renders the note
+  // through the guided-safe resolver (identity substitution only — never full macro/variable power).
+  const protagonistName = roster.find((a) => a.actorRef.kind === "character")?.name ?? "";
+  const steerMacros = { user: activePersonaName ?? "User", char: protagonistName };
   // The character turn is tool-less prose in every mode — the reminder injects state as FLAVOR only (no
   // tool-update guidance; the char turn is NEVER asked to call a tool, the dedicated post-commit state round
   // does the writing — its checklist prompt is `toolRoundSystem`, entry/compose/rpg.ts).
   const reminder = buildLiteReminder({
     view,
     steeringNote: game.config.lite.steeringNote,
+    steerMacros,
     curSnapshot,
     prevSnapshot,
     features: game.config.features,

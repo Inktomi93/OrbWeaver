@@ -19,7 +19,7 @@ export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroA
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns } from "./parser";
-export { createDefaultRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry";
+export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry";
 export type {
   RowCharacterName,
   RowMacroNameContext,

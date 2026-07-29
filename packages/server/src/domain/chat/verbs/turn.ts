@@ -446,7 +446,13 @@ async function buildTurnContext(
   });
   // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
   // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
-  const rpg = ctx.rpg !== null ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false) : null;
+  // `foreign.personas.active?.name` is chat's `{{user}}` binding (the active/triggering persona — NOT the
+  // pinned anchor; a steeringNote is a current-action steer, exactly like the guided/nudge path) — threaded so
+  // rpg can render the host's steeringNote identity macros ({{user}}/{{char}}) instead of shipping literal braces.
+  const rpg =
+    ctx.rpg !== null
+      ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false, foreign.personas.active?.name)
+      : null;
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
   // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
   const crew = ctx.crew !== null ? await ctx.crew.gatherTurnContext(args.chatId) : null;
