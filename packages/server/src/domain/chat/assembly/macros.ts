@@ -226,6 +226,26 @@ export function resolveGuidedActionText(
 }
 
 /**
+ * Render an UNSTEERED trailing-user NUDGE template (impersonate/continue/response `formatStrings`) against the
+ * turn ctx — the SAME macro path the steered guided template rides (`resolveGuidedInstruction`), so a nudge's
+ * `{{user}}`/`{{char}}`/`{{person}}` substitute instead of shipping LITERAL braces to the model (the gap that
+ * made the impersonate nudge send `[… write as {{user}} …]` raw). There is no user steering text here, so
+ * `{{input}}` resolves empty (the nudge templates never reference it); `{{person}}` gets the impersonate
+ * perspective pick (guided-only pre-substitution), defaulting to "first" for continue/response (which carry no
+ * `{{person}}` today — a safe no-op). Resolved against the active persona (the `{{user}}` binding).
+ */
+export function resolveNudgeText(
+  ctx: AssembleContext,
+  template: string,
+  opts: { readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined } = {},
+): string {
+  return resolveGuidedInstruction(template, "", macroOptionsFor(ctx, ctx.activePersona), {
+    ...(opts.person !== undefined ? { person: opts.person } : {}),
+    ...(opts.registry !== undefined ? { registry: opts.registry } : {}),
+  });
+}
+
+/**
  * Build the turn-stage `MacroContext` the engine threads through regex execution + guided-instruction
  * resolution. Built once per turn and reused everywhere so live variable state stays consistent.
  */

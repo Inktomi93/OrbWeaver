@@ -19,6 +19,7 @@ import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
+  resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros";
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape";
 import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
@@ -73,6 +74,13 @@ export function freezeVolatileMacros(...args: Parameters<typeof freezeVolatileMa
  *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
 export function resolveGuidedActionText(...args: Parameters<typeof resolveGuidedActionTextImpl>): ReturnType<typeof resolveGuidedActionTextImpl> {
   return resolveGuidedActionTextImpl(...args);
+}
+
+/** Render an unsteered trailing-user NUDGE template's macros (`{{user}}`/`{{char}}`/`{{person}}`) — the same
+ *  macro path the steered guided template rides, so `verbs/turn.ts`'s `nudgeOf` substitutes instead of shipping
+ *  literal braces. The legal `verbs/ → assembly/` bridge for the impersonate/continue/response nudges. */
+export function resolveNudgeText(...args: Parameters<typeof resolveNudgeTextImpl>): ReturnType<typeof resolveNudgeTextImpl> {
+  return resolveNudgeTextImpl(...args);
 }
 
 /** Build the per-turn user-macro registries + draw record (WAVE MU delivery). The legal `verbs/ → assembly/`

@@ -111,6 +111,16 @@ test("processMacros substitutes core character/user macros", () => {
   expect(processMacros("{{char}} & {{user}}", opts())).toBe("Alice & Bob");
 });
 
+// {{scenario}} is card-author PROSE — a scenario field that itself embeds {{user}}/{{char}} must RE-PROCESS
+// those nested identity macros (the charField family + the {{charscenario}} alias), never ship literal braces
+// to the model (the live gap: `{{user}} keeps running into {{char}}…` came through raw). Both the SCENARIO
+// name and its charScenario alias resolve the nested names.
+test("processMacros re-processes nested identity macros inside {{scenario}} (not literal braces)", () => {
+  const scenario = "{{user}} keeps running into {{char}} at the 24-hour konbini.";
+  expect(processMacros("{{scenario}}", opts({ scenario }))).toBe("Bob keeps running into Alice at the 24-hour konbini.");
+  expect(processMacros("{{charscenario}}", opts({ scenario }))).toBe("Bob keeps running into Alice at the 24-hour konbini.");
+});
+
 test("processMacros resolves a nested macro in an argument then reads it back", () => {
   expect(processMacros("{{setvar::g::Hi {{user}}}}{{getvar::g}}", opts())).toBe("Hi Bob");
 });
