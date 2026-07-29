@@ -11,7 +11,7 @@
 import type { AssembleContext, ChatBusEvent, ChatInjection, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { GenerationType, UserMacroValues } from "@orb/contracts/preset";
+import type { GenerationType, GuidedImpersonatePerson, UserMacroValues } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
@@ -75,7 +75,7 @@ import {
 } from "../persistence/queries";
 import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildTurnUserMacros, freezeVolatileMacros } from "../substrate/assembly-access";
+import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access";
 import { projectViewForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
@@ -145,9 +145,19 @@ function composeBodyWithAttachments(text: string, attachmentAssetIds: readonly A
  *  (`formatStrings`) so an editable/ST-imported nudge actually steers the turn; an absent field falls back to
  *  `DEFAULT_FORMAT_STRINGS`. `responseNudge` rides a `generate` that fires on an ASSISTANT tail (the wand's
  *  Response icon / empty-send-generate) — a reply after the model's own last line, which needs something to
- *  respond to; a Response on a USER tail appends no nudge (the user message is the prompt). */
-const nudgeOf = (assembleContext: AssembleContext, key: "continueNudge" | "impersonateNudge" | "responseNudge"): string =>
-  assembleContext.promptConfig.formatStrings?.[key] ?? DEFAULT_FORMAT_STRINGS[key];
+ *  respond to; a Response on a USER tail appends no nudge (the user message is the prompt).
+ *
+ *  RENDERED through the SAME macro path the steered guided template uses (`resolveNudgeText`), so a nudge's
+ *  `{{user}}`/`{{char}}`/`{{person}}` SUBSTITUTE (persona name / character name / the perspective pick) instead
+ *  of shipping LITERAL braces to the model — the gap that made the impersonate nudge send `write as {{user}}`
+ *  raw and drift back into the character's voice. `person` is the impersonate perspective pick (impersonate
+ *  only; continue/response carry no `{{person}}`, so it's a safe no-op there); `registry` is the per-turn
+ *  user-macro registry. */
+const nudgeOf = (
+  assembleContext: AssembleContext,
+  key: "continueNudge" | "impersonateNudge" | "responseNudge",
+  opts: { readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined } = {},
+): string => resolveNudgeText(assembleContext, assembleContext.promptConfig.formatStrings?.[key] ?? DEFAULT_FORMAT_STRINGS[key], opts);
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
  *  their display names, the character cast ids (WI/memory), and the present personas. */
@@ -1623,7 +1633,9 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
-      appendUserTurn: nudgeOf(assembleContext, "continueNudge"),
+      // RENDERED (macro path parity): continue carries no `{{person}}` today; the registry render is a safe no-op
+      // that substitutes any `{{user}}/{{char}}` an edited/ST-imported continue nudge holds.
+      appendUserTurn: nudgeOf(assembleContext, "continueNudge", macroRegistry !== null ? { registry: macroRegistry } : {}),
       persist: { mode: "continue", targetMessageId: messageId },
       ...(shape !== undefined ? { shape } : {}),
     });
@@ -1733,7 +1745,12 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           ...recursePatch(membership.chat.metadata.toolRecurseLimit),
           ...prepMacroFields(macroRegistry, userMacroDraws),
           speakerCharacterId: null,
-          appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
+          // The unsteered impersonate voice-lock nudge, RENDERED: `{{user}}`→persona, `{{char}}`→character,
+          // `{{person}}`→the picked perspective (guided-only). Threads the same macro registry a steered turn uses.
+          appendUserTurn: nudgeOf(assembleContext, "impersonateNudge", {
+            person: guided?.person,
+            ...(macroRegistry !== null ? { registry: macroRegistry } : {}),
+          }),
           // new-slot user shape — a draft reads the full canon as context; nothing is written.
           persist: { mode: "new-slot", role: "user" },
           ...(signal !== undefined ? { signal } : {}),
@@ -1819,7 +1836,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       // `responseNudge` trailing-user turn so the reply has something to respond to (rudderless otherwise).
       // A guided steer composes with it (the `guided` injection + this appendUserTurn are independent
       // channels, exactly like continue/impersonate). A USER-tail Response omits it — the user row is the prompt.
-      ...(afterAssistant === true ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge") } : {}),
+      // RENDERED (macro path parity): response carries no `{{person}}` today; the registry render substitutes any
+      // `{{user}}/{{char}}` an edited/ST-imported response nudge holds (a safe no-op for the default string).
+      ...(afterAssistant === true
+        ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge", macroRegistry !== null ? { registry: macroRegistry } : {}) }
+        : {}),
       ...(shape !== undefined ? { shape } : {}),
     });
   };

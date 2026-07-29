@@ -1679,6 +1679,39 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
 
     expect(JSON.stringify(requests)).toContain("first-person perspective");
   });
+
+  // The load-bearing fix (impersonate-writes-as-the-character): the UNSTEERED nudge — appended when NO guided
+  // steer rides — must reach the wire with its `{{user}}/{{char}}/{{person}}` SUBSTITUTED, never literal (the
+  // gap that shipped `write as {{user}}` raw and let the weak 8B drift into the character's voice). Fires with
+  // NO `guided` at all → the `appendUserTurn` nudge, rendered via `nudgeOf` → `resolveNudgeText`.
+  test("the UNSTEERED impersonate nudge reaches the wire with {{user}}/{{char}}/{{person}} SUBSTITUTED (never literal)", async () => {
+    // A room with a host persona + a named character "aria". The harness's foreign-inputs resolver binds the
+    // active persona name to "Alex" ({{user}}); the character is "aria" ({{char}}) — the two names that must
+    // appear SUBSTITUTED in the wire nudge (not literal `{{user}}/{{char}}`).
+    const host = await seedUser(db, "host");
+    const hostPersona = await seedPersona(host, "host_pov");
+    const chatId = await seedChat(db, "a", { metadata: { group: { output: "per-speaker", policy: "natural" } } });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host", activePersonaId: hostPersona });
+    const cid = await seedCharacter(db, host, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: cid, joinSeq: 0 });
+    const requests: unknown[] = [];
+    const h = harness(db, { [cid]: "aria" }, { onChatRequest: (r) => requests.push(r) });
+
+    // NO guided steer → the unsteered impersonate nudge is the only steering appended.
+    await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
+
+    const wire = JSON.stringify(requests);
+    // {{user}}→persona name (harness "Alex"), {{char}}→character name ("aria"), {{person}}→the "first"
+    // default — all RESOLVED, so the nudge reads "... AS Alex (not aria) ..." not "... AS {{user}} (not {{char}})".
+    expect(wire).toContain("AS Alex (not aria)"); // {{user}} + {{char}} both substituted, in the right slots
+    expect(wire).toContain("first-person perspective"); // {{person}} default
+    // The proven voice-lock lead survived to the wire.
+    expect(wire).toContain("Ignore all previous instructions");
+    // NOT literal braces — the exact substitution bug this fix closes.
+    expect(wire).not.toContain("{{user}}");
+    expect(wire).not.toContain("{{char}}");
+    expect(wire).not.toContain("{{person}}");
+  });
 });
 
 // F1 (the ST `injection_trigger` gate, live-wired): the verb maps its `TurnKind` → the assemble ctx's

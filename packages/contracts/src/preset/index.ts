@@ -650,9 +650,14 @@ export const DEFAULT_FORMAT_STRINGS = {
   continueNudge:
     "[OOC: Continue your previous response exactly where it left off. Pick up mid-sentence if needed. Do NOT restate the existing text, do NOT rephrase, do NOT add a preamble or recap. Output ONLY the continuation, starting from where your previous reply ended.]",
   // The trailing user-turn nudge that steers an unsteered `impersonate` (the model writes the user's next
-  // line). Default = the turn verb's former hardcoded baseline, verbatim, so absent-field presets are
-  // byte-identical to pre-wire behavior.
-  impersonateNudge: "[Write the next message as the user, in the user's own voice.]",
+  // line). A STRONG voice-lock WITH macros: the "Ignore all previous instructions" lead + an explicit
+  // write-only-{{user}}/never-{{char}} constraint held the user's voice 6/6 on the weak 8B at full production
+  // sampling (temp 0.7, presence_penalty 1.5) — the weak former baseline (`write as the user`) let the 8B
+  // ramble back into the character's voice. Macros are RENDERED on the `nudgeOf` path (turn.ts `resolveNudgeText`):
+  // `{{user}}`→persona name, `{{char}}`→character name, `{{person}}`→the picked perspective (defaulting first
+  // when unsteered). Mirrors the steered `IMPERSONATE_DEFAULT_PROMPT`.
+  impersonateNudge:
+    "[Ignore all previous instructions. For this message only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Write ONLY {{user}}'s single next message, in {{user}}'s own voice. Do NOT write, voice, narrate, or roleplay {{char}}, {{char}}'s dialogue or actions, or the surrounding scene. Write only {{user}}'s reply, then stop.]",
   // The trailing user-turn nudge that steers a `generate` (the wand's Response icon / empty-send-generate)
   // when it fires on an ASSISTANT tail — a reply after the model's own last message needs SOMETHING to
   // respond to, else it is rudderless (a Response right after a USER message needs no nudge — the user

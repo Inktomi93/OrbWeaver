@@ -3,7 +3,7 @@
 // room-override/{{group}}), {{original}} threading, the SHARED env (a setvar in one render is visible to the
 // next), and the injected clock (nowMs) → deterministic output.
 import type { AssembleContext } from "@orb/contracts/chat";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
@@ -13,6 +13,7 @@ import {
   renderHistoryMacros,
   renderMacros,
   resolveGuidedActionText,
+  resolveNudgeText,
 } from "../../../../../packages/server/src/domain/chat/assembly/macros";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { expect, test } from "../../../../support/fixtures";
@@ -294,6 +295,38 @@ describe("resolveGuidedActionText — the blank-steer per-action guard (F2)", ()
     const out = resolveGuidedActionText(ctx, { action: "impersonate", input: "" });
     expect(out.length).toBeGreaterThan(0);
     expect(out).toContain("Nyx"); // {{user}} resolves to the active persona
+  });
+});
+
+// The UNSTEERED nudge render seam (the impersonate-writes-as-the-character fix): the default impersonate
+// nudge (`DEFAULT_FORMAT_STRINGS.impersonateNudge`) rides the `nudgeOf` → `resolveNudgeText` path, which MUST
+// substitute `{{user}}`→persona, `{{char}}`→character, `{{person}}`→the pick — NEVER ship literal braces (the
+// bug that let the weak-8B drift back into the character's voice). This is the load-bearing substitution.
+describe("resolveNudgeText — the unsteered nudge macro render (impersonate voice-lock)", () => {
+  const ctx = ctxOf({ activePersona: { name: "Nyx", description: "scholar" } }); // character.name = "Aria"
+  const nudge = DEFAULT_FORMAT_STRINGS.impersonateNudge;
+
+  test("substitutes {{user}}→persona, {{char}}→character, {{person}}→the pick (no literal braces)", () => {
+    const out = resolveNudgeText(ctx, nudge, { person: "third" });
+    expect(out).toContain("Nyx"); // {{user}}
+    expect(out).toContain("Aria"); // {{char}}
+    expect(out).toContain("third-person"); // {{person}}
+    expect(out).not.toContain("{{user}}");
+    expect(out).not.toContain("{{char}}");
+    expect(out).not.toContain("{{person}}");
+  });
+
+  test("an OMITTED person defaults {{person}}→first (the kit resolver floor)", () => {
+    const out = resolveNudgeText(ctx, nudge, {});
+    expect(out).toContain("first-person");
+    expect(out).not.toContain("{{person}}");
+  });
+
+  test("the continue/response nudges (no {{person}}) render as a safe no-op — no literal braces, text intact", () => {
+    for (const key of ["continueNudge", "responseNudge"] as const) {
+      const out = resolveNudgeText(ctx, DEFAULT_FORMAT_STRINGS[key], {});
+      expect(out).toBe(DEFAULT_FORMAT_STRINGS[key]); // no macros in the defaults ⇒ byte-identical
+    }
   });
 });
 

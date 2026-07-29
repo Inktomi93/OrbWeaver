@@ -507,7 +507,15 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("charname", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("username", (_args, ctx) => ctx.user, { requires: "char" });
   registry.register("persona", (_args, ctx) => ctx.persona, { requires: "char" });
-  registry.register("scenario", (_args, ctx) => ctx.scenario, { requires: "char" });
+  // `{{scenario}}` is card-author PROSE (e.g. "{{user}} keeps running into {{char}}…"), so it re-processes
+  // nested macros like every other card field (`charField`) + its own `{{charscenario}}` alias below — NOT raw
+  // (the gap that shipped literal `{{user}}/{{char}}` braces to the model). `{{char}}/{{user}}/{{persona}}` above
+  // stay raw: they are leaf names/values, never macro-bearing prose.
+  registry.register(
+    "scenario",
+    charField((ctx) => ctx.scenario),
+    { requires: "char" },
+  );
   registry.register("model", (_args, ctx) => ctx.model ?? "", { requires: "chat" });
   registry.register("chatid", (_args, ctx) => ctx.chatId ?? "", { requires: "chat" });
 
@@ -709,7 +717,13 @@ export function createNamesOnlyRegistry(): MacroRegistry {
   registry.register("charname", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("username", (_args, ctx) => ctx.user, { requires: "char" });
   registry.register("persona", (_args, ctx) => ctx.persona, { requires: "char" });
-  registry.register("scenario", (_args, ctx) => ctx.scenario, { requires: "char" });
+  // Mirror the default registry: `{{scenario}}` PROSE re-processes its nested identity macros on stored-history
+  // read too (names are stable; volatile macros in the nested content stay literal — unregistered here).
+  registry.register(
+    "scenario",
+    charField((ctx) => ctx.scenario),
+    { requires: "char" },
+  );
   return registry;
 }
 
