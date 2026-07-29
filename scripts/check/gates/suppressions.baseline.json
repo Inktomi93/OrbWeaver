@@ -73,7 +73,7 @@
   "packages/server/src/domain/chat/substrate/backfill.ts": 3,
   "packages/server/src/domain/chat/substrate/stats-delta.ts": 1,
   "packages/server/src/domain/chat/verbs/start-chat.ts": 1,
-  "packages/server/src/domain/chat/verbs/turn.ts": 6,
+  "packages/server/src/domain/chat/verbs/turn.ts": 7,
   "packages/server/src/domain/credentials/substrate/parse-metadata.ts": 1,
   "packages/server/src/domain/databank/ingest/index.ts": 2,
   "packages/server/src/domain/databank/verbs/scrape/scrape-web.ts": 1,

@@ -274,12 +274,13 @@ export interface TurnPrep {
  * `generateText` is the NON-PERSISTING sibling: it runs the same assemble→shape→generate half (with the same
  * consent + budget belts a real turn pays) and RETURNS the generated text — acquiring NO lock, writing NO
  * canon slot, emitting NO bus event. It backs the composer-fill flows (guided impersonate drafts the user's
- * next line INTO the composer for review; nothing is committed until the user sends). Deltas are NOT streamed
- * (there is no live turn slot to animate).
+ * next line INTO the composer for review; nothing is committed until the user sends). `onText`, when supplied,
+ * receives each TEXT delta AS IT ARRIVES off the generation stream (reasoning deltas excluded) so a caller can
+ * stream the generation progressively into the composer; absent ⇒ deltas dropped, only the final text returns.
  */
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
-  readonly generateText: (prep: TurnPrep) => Promise<GeneratedText>;
+  readonly generateText: (prep: TurnPrep, onText?: (text: string) => void) => Promise<GeneratedText>;
 }
 
 /** The {@link TurnEngine.generateText} product — the reduced generation, unpersisted. `aborted` is true when
@@ -329,10 +330,11 @@ export interface ForkResult {
   readonly chat: ChatDetail;
 }
 
-/** `impersonateDraft` — the generated user line, unpersisted, for the composer to fill (the user reviews it
- *  and commits it with a normal send). `text` is empty when the caller aborted the generation. */
-export interface ImpersonateDraftResult {
-  readonly text: string;
+/** `impersonateStream` — ONE text delta yielded by the impersonation stream, appended to the composer as it
+ *  arrives (progressive fill). The client accumulates the deltas; the stream completes when the generation
+ *  ends (or the caller aborts — the partial text stays in the composer). Nothing is persisted. */
+export interface ImpersonateStreamDelta {
+  readonly delta: string;
 }
 
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and

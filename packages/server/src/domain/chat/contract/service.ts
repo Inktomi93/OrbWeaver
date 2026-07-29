@@ -46,7 +46,7 @@ import type {
   GetShapeTraceParams,
   GetStoredVariablesParams,
   GetVariablesParams,
-  ImpersonateDraftParams,
+  ImpersonateStreamParams,
   KickParticipantParams,
   ListChatInjectionsParams,
   ListChatsParams,
@@ -99,7 +99,7 @@ import type {
   DrainDeferredTurnsScope,
   DrainReport,
   ForkResult,
-  ImpersonateDraftResult,
+  ImpersonateStreamDelta,
   ReapResult,
   RedeemInviteResult,
   StartChatResult,
@@ -183,10 +183,12 @@ export interface ChatService {
   readonly commitMessage: (params: CommitMessageParams) => Promise<TurnOutcome>;
   /** Append a fresh variant to an assistant slot (reroll; slot attribution unchanged). */
   readonly swipe: (params: SwipeParams) => Promise<TurnOutcome>;
-  /** Generate the user's next line as the active persona and RETURN it for the composer to fill — persists
-   *  NOTHING (the user reviews the drafted line and commits it with a normal send). Replaced the persisting
-   *  `impersonate` turn: a persisted user turn flashed-and-vanished on the post-commit refetch race. */
-  readonly impersonateDraft: (params: ImpersonateDraftParams) => Promise<ImpersonateDraftResult>;
+  /** STREAM the user's next line (active persona's voice) into the composer as it generates — yields text
+   *  deltas the client accumulates and fills the composer with progressively. Persists NOTHING (the user
+   *  reviews the drafted line and commits it with a normal send). Replaced the persisting `impersonate` turn
+   *  (a persisted user turn flashed-and-vanished on the post-commit refetch race) and its one-shot draft
+   *  predecessor (the text plopped in all at once after the wait). Aborting keeps the partial text. */
+  readonly impersonateStream: (params: ImpersonateStreamParams) => AsyncIterable<ImpersonateStreamDelta>;
   /** A lock-free auxiliary generation (runs concurrent with a locked send; active-turns Set). */
   readonly generate: (params: GenerateParams) => Promise<TurnOutcome>;
   /** Extend the tail assistant message in place (continue snapshot per-variant). */

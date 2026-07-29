@@ -64,7 +64,7 @@ import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
-import type { ChatService } from "#domain/chat";
+import type { ChatService, ImpersonateStreamDelta } from "#domain/chat";
 import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, toolRecurseLimitSchema } from "#domain/chat";
 import { notifyChatOpened } from "../automation-chat-open-tap";
 import { subscribeChatEvents } from "../chat-events-bus";
@@ -148,11 +148,12 @@ const swipeSchema = z.object({
 });
 
 // The remaining guided-generation verbs (chat-surface-lane task #27 — the composer WAND):
-// `ChatService.continueTurn`/`impersonateDraft`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
-// createImpersonateDraft/createGenerate). continueTurn/generate persist + bus-emit; `impersonateDraft` is the
-// NON-PERSISTING one (owner ruling) — it RETURNS the drafted user line for the composer to fill, writing no
-// canon. Every generating verb threads an optional `guided: GuidedSteer` steer. Thin pass-throughs, same
-// shape as `swipe` (continueTurn: messageId-scoped) or chatId-scoped (impersonateDraft/generate).
+// `ChatService.continueTurn`/`impersonateStream`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
+// createImpersonateStream/createGenerate). continueTurn/generate persist + bus-emit + are mutations;
+// `impersonateStream` is the NON-PERSISTING, STREAMING one (owner ruling) — a SUBSCRIPTION that yields text
+// deltas the composer fills progressively, writing no canon (wired below as a subscription, not here). Every
+// generating verb threads an optional `guided: GuidedSteer` steer. continueTurn is messageId-scoped; the
+// rest are chatId-scoped.
 const continueTurnSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
@@ -172,7 +173,7 @@ const restoreContinueSchema = z.object({
   messageId: brandedId<MessageId>(),
 });
 
-const impersonateDraftSchema = z.object({
+const impersonateStreamSchema = z.object({
   chatId: brandedId<ChatId>(),
   personaId: brandedId<PersonaId>().nullish(),
   intent: userIntentSchema.optional(),
@@ -456,13 +457,19 @@ export const chatRouter = t.router({
   revertContinue: authedProcedure
     .input(restoreContinueSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.revertContinue({ principal: ctx.auth, ...input })),
-  // Guided impersonate is NON-PERSISTING (owner ruling): it drafts the user's next line and RETURNS it for the
-  // composer to fill (ST review flow), writing no user turn — the client puts `text` in the composer and the
-  // user commits it with a normal send. Replaced the persisting `impersonate` (which flashed-and-vanished a
-  // committed user row on the post-commit refetch race). chatId-scoped, participant-gated inside the verb.
-  impersonateDraft: authedProcedure
-    .input(impersonateDraftSchema)
-    .mutation(({ ctx, input }) => ctx.services.chat.impersonateDraft({ principal: ctx.auth, ...input })),
+  // Guided impersonate is NON-PERSISTING (owner ruling) and STREAMING: a SUBSCRIPTION that yields text deltas
+  // as the user's next line generates, so the composer fills progressively (not a one-shot dump at the end) —
+  // the client accumulates the deltas into the composer draft. Writes no user turn; the user commits it with a
+  // normal send. Replaced the persisting `impersonate` (flash-and-vanish on the post-commit refetch race) + its
+  // one-shot draft mutation (text plopped in after the wait). chatId-scoped, participant-gated inside the verb;
+  // `signal` (subscription teardown) cancels the in-flight generation, keeping the partial text in the composer.
+  impersonateStream: authedProcedure
+    .input(impersonateStreamSchema)
+    .subscription(({ ctx, input, signal }) =>
+      withSubscriptionErrors(
+        trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...input, signal: signal ?? new AbortController().signal })),
+      ),
+    ),
   generate: authedProcedure.input(generateSchema).mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
   abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // The per-message ACTION cluster's four verbs (see the schemas' header note above).
@@ -557,6 +564,18 @@ export const chatRouter = t.router({
     ),
   ),
 });
+
+// Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape
+// `withSubscriptionErrors` + the client SSE link require). The id is the delta index — MONOTONIC but NOT a
+// durable resume cursor (this stream is one-shot + non-resumable: a reconnect re-drafts, it never resumes
+// "from delta N"), so the tracked id only satisfies the wire discriminant, never a `lastEventId` resume.
+async function* trackedImpersonationDeltas(source: AsyncIterable<ImpersonateStreamDelta>): AsyncGenerator<TrackedEnvelope<ImpersonateStreamDelta>> {
+  let i = 0;
+  for await (const delta of source) {
+    yield tracked(String(i), delta);
+    i += 1;
+  }
+}
 
 // The live-first / replay-second per-chat event generator (dedup by monotonic durable `seq`).
 async function* chatEventStream(args: {
