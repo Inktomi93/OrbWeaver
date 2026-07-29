@@ -90,7 +90,10 @@ interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
-  opening: "generate";
+  // `generate` = a server-written opening (the Response/Generate-opening draft path); `none` = commit the
+  // room with no auto-opening so an impersonate turn can BE the first move (the owner's "a guided generation
+  // can BE the first message" principle — impersonate writes the USER's opening line, not a greeting).
+  opening: "generate" | "none";
   guided?: GuidedSteerInput;
 }
 
@@ -177,35 +180,51 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     return tail !== undefined && tail.role === "assistant" && tail.hasContinuation;
   }, [tailQuery.data]);
 
-  const [openingPending, setOpeningPending] = useState(false);
+  // A draft has no committed chatId to fire a turn against, so a guided generation that must BE the first
+  // message (Generate-opening; guided impersonate) first COMMITS the draft via `startChat` (carrying the
+  // founding cast + the draft-config edits, exactly like the composer Send), then fires on the new chatId.
+  // Tracked as one pending flag so the cluster idles across the commit + the follow-on turn.
+  const [draftCommitPending, setDraftCommitPending] = useState(false);
+
+  /** Commit the active draft and hand back the new chatId, threading the `startChat` `opening` policy + an
+   *  optional opening steer. Clears the consumed draft config on success (mirrors the composer Send). */
+  const commitDraft = async (opening: "generate" | "none", guided?: GuidedSteerInput): Promise<ChatId> => {
+    const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
+    const result = await startChat.mutateAsync({
+      characterIds,
+      anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
+      title: opts.draftSeed?.title ?? null,
+      opening,
+      ...(guided !== undefined ? { guided } : {}),
+      ...carry,
+    });
+    opts.onCommitted?.(result.chat.id);
+    if (draftKey !== null) {
+      clearDraftConfig(draftKey);
+    }
+    return result.chat.id;
+  };
+
+  /** Run a draft-commit-then-fire flow under the shared pending flag, threading the D57 restore-on-failure
+   *  side effect (the just-fired steer text is handed back to the composer on a non-abort error). */
+  const runDraftFlow = (input: string, flow: () => Promise<void>): void => {
+    setDraftCommitPending(true);
+    const restore = perFire(input);
+    flow()
+      .catch((error: unknown) => restore?.onError(error))
+      .finally(() => setDraftCommitPending(false));
+  };
 
   const fireOpening = (input: string): void => {
-    setOpeningPending(true);
-    const restore = perFire(input);
-    const run = async (): Promise<void> => {
-      const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
-      const result = await startChat.mutateAsync({
-        characterIds,
-        anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
-        title: opts.draftSeed?.title ?? null,
-        opening: "generate",
-        // §6.4 empty-steer shape: an EMPTY opening steer OMITS the guided object entirely (a plain
-        // generated opening) — the owner's "a guided generation can BE the first message" draft path.
-        ...(input.trim().length === 0 ? {} : { guided: { action: "opening", input } }),
-        ...carry,
-      });
-      opts.onCommitted?.(result.chat.id);
-      if (draftKey !== null) {
-        clearDraftConfig(draftKey);
-      }
-    };
-    run()
-      .catch((error: unknown) => restore?.onError(error))
-      .finally(() => setOpeningPending(false));
+    runDraftFlow(input, async () => {
+      // §6.4 empty-steer shape: an EMPTY opening steer OMITS the guided object entirely (a plain generated
+      // opening) — the owner's "a guided generation can BE the first message" draft path.
+      await commitDraft("generate", input.trim().length === 0 ? undefined : { action: "opening", input });
+    });
   };
 
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonate.isPending || openingPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonate.isPending || draftCommitPending,
     tailAssistantMessageId,
     tailHasContinuation,
     fireResponse: (input, respOpts): void => {
@@ -267,10 +286,19 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       rewrite.mutate({ chatId, messageId: tailAssistantMessageId, guided }, perFire(input));
     },
     fireImpersonate: (input, person): void => {
+      const guided = steerFor("impersonate", input, person);
+      // A DRAFT has no committed chat: impersonate writes the USER's opening line, so on a fresh chat it IS
+      // the first move (the ST "generate opening" sibling — owner: "a guided generation can BE the first
+      // message"). Commit the room with NO auto-opening (`opening:"none"` — impersonate provides the first
+      // line, we don't also want a generated greeting), then fire impersonate on the new chatId with the same
+      // steer/person. The server impersonate verb already runs on a 0-message chat (turn.int.test.ts).
       if (chatId === null) {
+        runDraftFlow(input, async () => {
+          const committedId = await commitDraft("none");
+          await impersonate.mutateAsync(guided === undefined ? { chatId: committedId } : { chatId: committedId, guided });
+        });
         return;
       }
-      const guided = steerFor("impersonate", input, person);
       impersonate.mutate(guided === undefined ? { chatId } : { chatId, guided }, perFire(input));
     },
     fireOpening,

@@ -47,19 +47,26 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 // never hidden or swapped ([[no-separate-reduced-modes]]); a phase-unavailable icon renders aria-disabled
 // with its reason LEGIBLE + touch-surfaced (not hover-only). Named unlocks, plain language, no jargon.
 
-/** Impersonate on a DRAFT — it needs the turn machinery a committed chat has (it writes a USER line, so it
- *  is valid on BOTH committed phases; only a draft lacks the chat to write into). */
-export const IMPERSONATE_NEEDS_CHAT = "Send your first message to impersonate a reply.";
+// The composer guided-icon disabled reasons read as the CLAUSE after the icon's label + em-dash (the title
+// is composed `"<Label> — <reason>"`, so a disabled icon names WHAT it is AND why it's off), e.g.
+// "Swipe — needs a reply to reroll". Lowercase, no trailing period, phrased as the unlock condition.
 
-/** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a draft, or a user-tail chat, has none). */
-export const SWIPE_NEEDS_REPLY = "Needs a reply to regenerate.";
+/** Impersonate while a turn is already running — it writes the USER's next (or opening) line, so it is valid
+ *  on a draft AND every committed phase; the ONLY block is a turn in flight (it re-enables when idle). On a
+ *  draft, firing commits the chat with no auto-opening and the impersonated line IS the first message. */
+export const IMPERSONATE_WAIT_FOR_TURN = "wait for the current reply to finish";
+
+/** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a draft, or a user-tail chat, has none;
+ *  on a fresh draft, use Generate opening or Impersonate to write the first message). */
+export const SWIPE_NEEDS_REPLY = "needs a reply to reroll (try Generate opening or Impersonate first)";
 
 /** The ✨-menu Regenerate row's hover helper — distinguishes it from the top-row Swipe icon: Regenerate is a
  *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
 export const REGENERATE_PLAIN_HELPER = "Plain reroll of the last reply — ignores your typed steer.";
 
-/** Continue — needs an assistant reply to extend (a draft, or a user-tail chat, has none). */
-export const CONTINUE_NEEDS_REPLY = "Needs a reply to continue.";
+/** Continue — needs an assistant reply to extend (a draft, or a user-tail chat, has none; on a fresh draft,
+ *  use Generate opening or Impersonate to write the first message). */
+export const CONTINUE_NEEDS_REPLY = "needs a reply to continue (try Generate opening or Impersonate first)";
 
 /** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
  *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */

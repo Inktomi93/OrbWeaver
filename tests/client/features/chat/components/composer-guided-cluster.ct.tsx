@@ -21,8 +21,11 @@ const RESPONSE = "Generate reply";
 const RESPONSE_GUIDED = "Guided generate reply";
 const RESPONSE_DRAFT = "Generate opening";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
-const NEEDS_REPLY = /reply to regenerate/iu;
+const NEEDS_REPLY = /needs a reply to reroll/iu;
 const PLAIN_REROLL = /plain reroll/iu;
+const SWIPE_DISABLED_TITLE = /^Swipe — needs a reply to reroll/u;
+const CONTINUE_DISABLED_TITLE = /^Continue — needs a reply to continue/u;
+const ANY_ATTR = /.*/u;
 const GROUP_LABELS = ["Input", "Reply", "Continuation", "Images"] as const;
 
 test("all four guided icons ALWAYS render on a committed chat (never hidden/swapped)", async ({ mount }) => {
@@ -90,14 +93,73 @@ test("Swipe KEEPS the steer (reroll again with the same guidance — no composer
   await expect(box).toHaveValue("darker tone");
 });
 
-test("phase matrix: a DRAFT disables Swipe/Continue/Impersonate with a legible reason; Response stays live", async ({ mount }) => {
+test("phase matrix: a DRAFT disables Swipe/Continue with a legible reason; Response + Impersonate stay live", async ({ mount }) => {
   const component = await mount(<ComposerStory committed={false} />);
   // aria-disabled (focusableWhenDisabled) — visible + hoverable, never hidden.
   await expect(component.getByRole("button", { name: "Swipe" })).toBeDisabled();
   await expect(component.getByRole("button", { name: "Continue" })).toBeDisabled();
-  await expect(component.getByRole("button", { name: "Impersonate" })).toBeDisabled();
-  // Response is always live (Generate opening on a draft).
+  // Response is always live (Generate opening on a draft); Impersonate now writes the USER's opening line, so
+  // it's live on a draft too (firing commits the chat + fires impersonate — proven below).
   await expect(component.getByRole("button", { name: RESPONSE_DRAFT })).toBeEnabled();
+  await expect(component.getByRole("button", { name: "Impersonate" })).toBeEnabled();
+});
+
+// The disabled guided icons render aria-disabled (focusableWhenDisabled) — NOT native-disabled — so their
+// hover `title` surfaces, and the title names WHAT the button is AND why it's off ("<Label> — <reason>").
+test("a DRAFT's disabled Swipe/Continue are aria-disabled (not native) with a label + reason title", async ({ mount }) => {
+  const component = await mount(<ComposerStory committed={false} />);
+  const swipe = component.getByRole("button", { name: "Swipe" });
+  // aria-disabled pattern: the accessibility-disabled attr is set, the NATIVE disabled attr is absent (so the
+  // browser doesn't swallow the hover tooltip). Mirrors [[base-ui-disabled-menuitem-title]].
+  await expect(swipe).toHaveAttribute("aria-disabled", "true");
+  await expect(swipe).not.toHaveAttribute("disabled", ANY_ATTR);
+  await expect(swipe).toHaveAttribute("title", SWIPE_DISABLED_TITLE);
+  await expect(component.getByRole("button", { name: "Continue" })).toHaveAttribute("title", CONTINUE_DISABLED_TITLE);
+});
+
+test("Impersonate on a DRAFT commits the chat (startChat opening:none) then fires chat.impersonate", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
+    "chat.impersonate": () => ({}),
+  });
+  const component = await mount(<ComposerStory committed={false} />);
+
+  // The perspective picker opens on the Impersonate trigger; pick 1st person.
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+
+  // Both mutations fire: the draft commits with NO auto-opening, then impersonate runs on the new chatId.
+  await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: both polls above settled each recorder at exactly 1 call, so the inputs are stable at read.
+  expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
+  // Impersonate fires against the freshly-committed chat id (empty composer ⇒ no steer object).
+  const imp = trpc.lastInput("chat.impersonate") as { chatId?: string; guided?: unknown };
+  // ONESHOT-OK: the impersonate poll settled its recorder at 1; the input is stable at read.
+  expect(imp.chatId).toBe(COMPOSER_CHAT_ID);
+  expect(imp.guided).toBeUndefined();
+});
+
+test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + person after commit", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
+    "chat.impersonate": () => ({}),
+  });
+  const component = await mount(<ComposerStory committed={false} />);
+
+  await component.getByRole("textbox", { name: "Message" }).fill("greet the innkeeper warmly");
+  // With text present the icon is in guided mode ("Guided impersonate").
+  await component.getByRole("button", { name: "Guided impersonate" }).click();
+  await page.getByRole("menuitem", { name: "3rd person" }).click();
+
+  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: impersonate AWAITS the commit, so once its recorder settled at 1 the startChat call already fired.
+  expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
+  // ONESHOT-OK: the impersonate poll above settled its recorder at 1 — the input is stable at read.
+  expect(trpc.lastInput("chat.impersonate")).toMatchObject({
+    chatId: COMPOSER_CHAT_ID,
+    guided: { action: "impersonate", input: "greet the innkeeper warmly", person: "third" },
+  });
 });
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
