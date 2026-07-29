@@ -21,7 +21,17 @@ finding against that frame.
 
 ## ═══ ▶▶▶ SESSION STATE 2026-07-29 — READ THIS FIRST (supersedes every block below) ═══
 
-**HEAD = `82a8a97a` (main). origin/main = `adec7490` (last PUSH). Everything below adec7490 is COMMITTED-not-pushed**
+**DAY-2 (2026-07-29) ADDENDUM:** since `82a8a97a`, also landed unpushed: `7a5991dc` composer **send-availability
+gate** (#54 — engine-AGNOSTIC honest-refusal: `connection.checkChatAvailability` runs the turn's own resolveChat,
+no side effects; off/no-conn=unavailable, asleep/hosted-configured=available, drafts never refused) + `b29f4086`
+(pin its `useQuery` verdict type — skipToken+spread degrades data to `any`). IN FLIGHT: **#55** down-engine
+extension (executor `af8ef7f3ae4549555`) — the gate is posture-based so a DEAD engine under `adopt-only` still reads
+available; adding VllmSupervisor reachability so adopt-only+down refuses (`engine-down` cause). LIVE STACK NOW:
+engines KILLED (GPU idle), server UP on `adopt-only`, vite UP standalone — do NOT loop `stack.sh restart` from host
+([[dev-stack-fights-host-automation]] — NOT containerized; stack.sh PINS env; each start spawns a detached fleet).
+Once #55 lands the current adopt-only+dead-engine state itself trips the refusal (no posture flip needed).
+
+**HEAD = `b29f4086` (main). origin/main = `adec7490` (last PUSH). Everything below adec7490 is COMMITTED-not-pushed**
 — a live-dogfood fix run + one finished feature, all on main, ready for `verify:push` on owner's word
 ([[verify-push-stricter-than-commit-gate]] — pre-push runs check+tests:node+e2e-smoke; have the stack up first).
 
