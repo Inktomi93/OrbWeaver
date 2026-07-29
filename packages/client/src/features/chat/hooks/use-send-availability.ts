@@ -12,6 +12,7 @@
 // `available:false`. A draft's first send is what commits the chat; refusing before we know the verdict
 // would break the happy path on every fresh chat.
 
+import type { ChatSendAvailability } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -37,9 +38,12 @@ export function useSendAvailability(chatId: ChatId | null): SendAvailability {
     staleTime: AVAILABILITY_POLL_MS,
     refetchInterval: AVAILABILITY_POLL_MS,
   });
+  // Pin the verdict to its contract type — the `skipToken`+spread `useQuery` inference can degrade `data` to
+  // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
+  const verdict: ChatSendAvailability | undefined = data;
   // No verdict yet (query unresolved) ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`.
-  if (!data || data.available) {
+  if (verdict === undefined || verdict.available) {
     return { unavailable: false, reason: undefined };
   }
-  return { unavailable: true, reason: sendUnavailableReason(data.cause) };
+  return { unavailable: true, reason: sendUnavailableReason(verdict.cause) };
 }
