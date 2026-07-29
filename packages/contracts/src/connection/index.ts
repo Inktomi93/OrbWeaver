@@ -277,6 +277,25 @@ export interface RouteChatAssignment {
   readonly providerRouting?: OpenRouterProviderRouting | undefined;
 }
 
+/** Why a chat's resolved connection CANNOT deterministically serve a turn — the honest-refusal cause the
+ *  composer maps to a specific reason (#54). ENGINE-AGNOSTIC: `engine-off` is a local engine that is
+ *  disabled/absent; `no-connection` is an unconfigured/incoherent connection (no credential row, a routing
+ *  pairing with no backend); `unavailable` is the generic fallback (the resolved backend isn't wired).
+ *  Deterministic-only — a configured hosted connection reads available and is never pre-flighted (a bad key
+ *  still fails at send with the existing provider error). Client single-homes the reason copy per cause. */
+export const CHAT_UNAVAILABLE_CAUSES = ["engine-off", "no-connection", "unavailable"] as const;
+export type ChatUnavailableCause = (typeof CHAT_UNAVAILABLE_CAUSES)[number];
+export const chatUnavailableCauseSchema = z.enum(CHAT_UNAVAILABLE_CAUSES);
+
+/** The composer's pre-send availability signal for a chat's OWN resolved connection — "would
+ *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn or an API call?" `cause` is
+ *  present iff `!available`. Not a turn/execution result — purely the deterministic serveability verdict. */
+export const chatSendAvailabilitySchema = z.union([
+  z.object({ available: z.literal(true) }),
+  z.object({ available: z.literal(false), cause: chatUnavailableCauseSchema }),
+]);
+export type ChatSendAvailability = z.infer<typeof chatSendAvailabilitySchema>;
+
 // The brand ENDS at the curated shortlist: OpenRouter ids are plain strings; only curated entries
 // carry this brand. `isChatModelId` is the runtime discriminator.
 declare const chatModelBrand: unique symbol;

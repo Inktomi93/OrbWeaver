@@ -19,9 +19,8 @@ import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
-import { Icon, Send, Square, X } from "@orb/ui/icons";
+import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { Spinner } from "@orb/ui/spinner";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -36,6 +35,7 @@ import { useComposerAttachments } from "../hooks/use-composer-attachments";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus";
 import { useContinueTurn } from "../hooks/use-continue-turn";
 import { useGenerateImage } from "../hooks/use-generate-image";
+import { useSendAvailability } from "../hooks/use-send-availability";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useSlashCommands } from "../hooks/use-slash-commands";
@@ -44,6 +44,7 @@ import { shouldSendOnEnter } from "../lib/composer-send-keys";
 import { resolveEmptySendAction } from "../lib/continue-on-empty";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command";
 import { ComposerGuidedCluster } from "./composer-guided-cluster";
+import { ComposerSendControl } from "./composer-send-control";
 import { ComposerSlashStrip } from "./composer-slash-strip";
 import type { ComposerImageControls } from "./composer-utility-menu";
 import { SpeakAsSelect } from "./speak-as-select";
@@ -186,6 +187,10 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   const stopTurn = useStopTurn(chatId);
   const behaviorPrefs = useChatBehaviorPrefs();
   const continueOnEmpty = useContinueTurn();
+  // The honest-refusal pre-send gate (#54): when the chat's resolved connection can't deterministically serve
+  // a turn, SEND + the guided fire actions disable with the cause-specific reason (never a doomed late-failing
+  // turn). A draft (null chatId) is never refused — its first send is what commits the chat.
+  const sendAvailability = useSendAvailability(chatId);
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
 
   // The commit signal fires AFTER the draft→committed promotion has flipped the composer's scope key
@@ -287,6 +292,11 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
   };
 
   const submit = (): void => {
+    // The pre-send gate: a chat whose resolved connection can't serve refuses up front (the disabled Send is
+    // the click path; this guards the Enter-key path the keydown handler calls). A draft is never unavailable.
+    if (sendAvailability.unavailable) {
+      return;
+    }
     if (!canSubmit) {
       if (emptySend !== null && !continueOnEmpty.isPending) {
         if (emptySend.kind === "continue") {
@@ -384,6 +394,8 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
               busy={sendMessage.isPending}
               tailIsAssistant={tailRole === "assistant"}
               imageControls={imageControls}
+              sendUnavailable={sendAvailability.unavailable}
+              sendUnavailableReason={sendAvailability.reason}
             />
           </Row>
           {/* ROW 2 — the textarea + speaker picker + Send/Stop. */}
@@ -411,34 +423,16 @@ export function Composer({ handle, value, onChange, draftSeed, onCommitted, tail
               className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
               rows={1}
             />
-            {showStop ? (
-              <Button
-                type="button"
-                intent="secondary"
-                size="icon"
-                loading={stopping}
-                disabled={stopping}
-                aria-label={stopping ? "Stopping…" : "Stop generating"}
-                onClick={stopTurn.stop}
-                className="rounded-full"
-              >
-                {stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                intent="primary"
-                size="icon"
-                data-testid={testId("composerSend")}
-                disabled={!(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
-                loading={sendMessage.isPending || continueOnEmpty.isPending}
-                aria-label="Send message"
-                onClick={submit}
-                className="rounded-full"
-              >
-                <Icon icon={Send} size="sm" />
-              </Button>
-            )}
+            <ComposerSendControl
+              showStop={showStop}
+              stopping={stopping}
+              onStop={stopTurn.stop}
+              onSend={submit}
+              sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+              sendPending={sendMessage.isPending || continueOnEmpty.isPending}
+              unavailable={sendAvailability.unavailable}
+              unavailableReason={sendAvailability.reason}
+            />
           </Row>
         </Stack>
       </Stack>

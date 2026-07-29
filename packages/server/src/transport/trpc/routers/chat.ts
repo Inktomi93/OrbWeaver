@@ -449,6 +449,12 @@ export const chatRouter = t.router({
   getChat: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
+  // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
+  // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
+  // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
+  checkSendAvailability: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
   getMemberCard: authedProcedure.input(getMemberCardSchema).query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),

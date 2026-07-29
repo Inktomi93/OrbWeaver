@@ -16,7 +16,7 @@ import type {
   TurnAbortReason,
   TurnInitiator,
 } from "@orb/contracts/chat";
-import type { CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
+import type { ChatSendAvailability, CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
@@ -824,6 +824,10 @@ export interface ChatServiceDeps {
   /** The inter-turn delay for the auto-mode chain. */
   readonly delay: (ms: number) => Promise<void>;
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
+  /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54) — the
+   *  honest-refusal gate the composer disables SEND on. Reads the SAME chat-row routing overlay
+   *  `resolveConnection` reads; fires no turn or API call. Wired at the entry composition root. */
+  readonly checkSendAvailability: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ChatSendAvailability>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The creator's per-user default GroupConfig — `start-chat` seeds a new chat's `metadata.group` from it. */
   readonly resolveCreatorGroupDefaults: ResolveCreatorGroupDefaultsOp;

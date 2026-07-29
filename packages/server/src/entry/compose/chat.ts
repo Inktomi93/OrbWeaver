@@ -920,6 +920,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
       return resolveChatVia(runAsUserId, routable);
     },
+    // The honest-refusal pre-send gate (#54): read the SAME chat-row routing overlay `resolveConnection` reads,
+    // then ask the connection domain the deterministic serveability question (no turn, no API call).
+    checkSendAvailability: async ({ runAsUserId, chatId }) => {
+      const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
+      const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
+      const routable: RouteChatAssignment = meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
+      return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
+    },
     resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);

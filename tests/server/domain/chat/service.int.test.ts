@@ -100,6 +100,7 @@ function makeService(
     prng: seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(testConnection()),
+    checkSendAvailability: () => Promise.resolve({ available: true }),
     resolveCreatorGroupDefaults: () => Promise.resolve(DEFAULT_GROUP_CONFIG),
     resolveForeignInputs: () =>
       Promise.resolve({

@@ -52,6 +52,7 @@ function readDeps(): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews: () => Promise.resolve([]),
     resolveConnection: () => Promise.reject(new Error("unused: the stream generator never previews a connection")),
+    checkSendAvailability: () => Promise.reject(new Error("unused: the stream generator never checks availability")),
     resolveForeignInputs: () => Promise.reject(new Error("unused: the stream generator never resolves foreign inputs")),
   };
 }

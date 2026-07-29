@@ -42,6 +42,73 @@ test("Send is disabled on an empty draft", async ({ mount }) => {
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 });
 
+// ── #54 honest-refusal pre-send gate: SEND + the guided fire actions refuse when the connection can't serve ─
+// The composer reads `chat.checkSendAvailability` (a deterministic verdict, no turn fired). When it returns
+// `available:false`, Send disables WITH the cause-specific reason surfaced via the base-ui-disabled idiom
+// (aria-disabled + `title`, native `disabled` absent so the title is hoverable). The reason string is
+// asserted per cause; an available verdict leaves Send in its normal (draft-empty-disabled) state.
+const ENGINE_OFF_REASON = "Local engine is off — enable it to send.";
+const NO_CONNECTION_REASON = "This chat has no working connection — configure one to send.";
+
+test("#54: engine-off — Send is aria-disabled with the engine-off reason (native disabled absent, title hoverable)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
+  await component.getByLabel("Message", { exact: true }).fill("hello");
+  const send = component.getByRole("button", { name: "Send message" });
+  // The base-ui-disabled idiom: aria-disabled + title, NOT native disabled (so the reason shows on hover).
+  await expect(send).toHaveAttribute("aria-disabled", "true");
+  await expect(send).not.toHaveAttribute("disabled", "");
+  await expect(send).toHaveAttribute("title", ENGINE_OFF_REASON);
+});
+
+test("#54: no-connection — Send carries the no-connection reason (the cause drives the copy)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("hello");
+  const send = component.getByRole("button", { name: "Send message" });
+  await expect(send).toHaveAttribute("aria-disabled", "true");
+  await expect(send).toHaveAttribute("title", NO_CONNECTION_REASON);
+});
+
+test("#54: an unserveable connection refuses the SEND click — no chat.send fires", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }),
+    "chat.send": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("doomed turn");
+  // The verdict is async — wait until it has landed as unavailable before probing the refusal.
+  await expect.poll(() => trpc.count("chat.checkSendAvailability"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(component.getByRole("button", { name: "Send message" })).toHaveAttribute("aria-disabled", "true");
+  // A forced click on the aria-disabled Send must not fire the turn (the Enter path is guarded in `submit`).
+  await component.getByRole("button", { name: "Send message" }).click({ force: true });
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+test("#54: engine-off idles the guided fire actions with the engine-off reason (Response, Impersonate)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-off" }) });
+  const component = await mount(<ComposerStory />);
+  // Response is otherwise NEVER disabled — an off engine is its only disabled state; the reason surfaces.
+  const response = component.getByRole("button", { name: "Generate reply" });
+  await expect(response).toHaveAttribute("aria-disabled", "true");
+  await expect(response).toHaveAttribute("title", new RegExp(`— ${ENGINE_OFF_REASON.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u"));
+  // Impersonate (always fires a turn/draft) idles too, with the send cause winning over its phase reason.
+  await expect(component.getByRole("button", { name: "Impersonate" })).toHaveAttribute("aria-disabled", "true");
+});
+
+test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed composer sends)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.checkSendAvailability": () => ({ available: true }),
+    "chat.send": () => ({ ok: true }),
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("serve me");
+  const send = component.getByRole("button", { name: "Send message" });
+  await expect(send).toBeEnabled();
+  await send.click();
+  await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
 // ── imagery I5 base slice: the in-chat AI generate-image affordance ─────────────────────────────────────
 // Wand v2: the image controls (attach + generate-from-text) moved OFF the composer bar and INTO the ✨ utility
 // menu (owner). Generate-image is now a menu ITEM — open the ✨ menu (the composerUtility trigger), then act on

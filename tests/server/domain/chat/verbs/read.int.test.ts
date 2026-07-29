@@ -56,10 +56,12 @@ function principal(userId: UserId): Principal {
 }
 
 /** The read deps — the roster resolver + the (preview-only) connection/assemble resolvers. */
-function makeDeps(): Parameters<typeof createRead>[1] {
+function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
     resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+    checkSendAvailability: () => Promise.resolve({ available: true }),
+    ...overrides,
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -217,6 +219,40 @@ describe("read — single reads", () => {
     expect(detail.viewerUserId).toBe(member);
     expect(detail.viewerIsHost).toBe(false);
     expect(detail.viewerActivePersonaId).toBeNull();
+  });
+
+  // #54 — the honest-refusal pre-send gate. The verb resolves the room host, calls the injected
+  // deterministic verdict (no turn fired), and is member-gated; a non-participant/hostless room is a
+  // leak-free NOT_FOUND. The verdict-classification itself is proven in connection/verbs/check-chat-
+  // availability.int.test.ts; here we prove the chat-verb WIRING (host resolution + gate + pass-through).
+  test("checkSendAvailability returns the injected verdict for a member (available)", async () => {
+    const host = await seedUser(db, "avail_host");
+    const chatId = await seedRoom("avail_room", host);
+
+    const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
+    const verdict = await checkSendAvailability({ principal: principal(host), chatId });
+    expect(verdict).toEqual({ available: true });
+  });
+
+  test("checkSendAvailability passes an UNAVAILABLE verdict through (engine-off)", async () => {
+    const host = await seedUser(db, "off_host");
+    const chatId = await seedRoom("off_room", host);
+
+    const { checkSendAvailability } = createRead(
+      makeChatContext(db),
+      makeDeps({ checkSendAvailability: () => Promise.resolve({ available: false, cause: "engine-off" }) }),
+    );
+    const verdict = await checkSendAvailability({ principal: principal(host), chatId });
+    expect(verdict).toEqual({ available: false, cause: "engine-off" });
+  });
+
+  test("checkSendAvailability is member-gated — a non-participant is a leak-free NOT_FOUND", async () => {
+    const host = await seedUser(db, "gate_host");
+    const stranger = await seedUser(db, "gate_stranger");
+    const chatId = await seedRoom("gate_room", host);
+
+    const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
+    await expect(checkSendAvailability({ principal: principal(stranger), chatId })).rejects.toThrow(ChatNotFoundError);
   });
 
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {
@@ -808,6 +844,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     return {
       loadParticipantViews,
       resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability })),
+      checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: () =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -1114,6 +1151,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
       // getMemberCard never resolves a connection (a card DISPLAY is not a turn) — a real factory keeps the
       // dep type-honest without the double-cast the `no-test-fabrication` gate forbids.
       resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+      checkSendAvailability: () => Promise.resolve({ available: true }),
       resolveForeignInputs: () =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
