@@ -53,6 +53,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "composer-guided-cluster",
     why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",
   },
+  "composer-send-control": {
+    coveredBy: "composer",
+    why: "the row-2 Send/Stop control renders only inside Composer; composer.ct drives it end-to-end — the #54 honest-refusal gate (aria-disabled + title, no chat.send fires), the disabled/empty send arms, and Stop/stopping/second-click.",
+  },
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
   "add-member-popover": { coveredBy: "chat-cast-bar", why: "the add-member popover anchors on the cast bar; chat-cast-bar.ct drives it." },
   "chat-content": { coveredBy: "chat-room-surface", why: "ChatContent is the room-surface body; chat-room-surface.ct mounts it." },

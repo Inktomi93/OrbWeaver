@@ -142,3 +142,37 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
   await expect(component.getByRole("spinbutton", { name: "Tool-call limit" })).toHaveCount(0);
 });
+
+// The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
+// override fields, from the roomOverrides prop) and a "N" chip on Injections (from listChatInjections).
+test("count chips: Field overrides shows 'N set' and Injections shows its count when non-empty", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [
+      { id: "inj_1", position: "in_prompt", role: "system", depth: 0, content: "a" },
+      { id: "inj_2", position: "in_chat", role: "system", depth: 3, content: "b" },
+    ],
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+
+  // Two set override fields (mainPrompt + scenario) → "2 set"; two injections → "2".
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} roomOverrides={{ mainPrompt: "hi", scenario: "there" }} />);
+
+  await expect(component.getByRole("heading", { name: "Field overrides 2 set", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Injections 2", level: 3 })).toBeVisible();
+});
+
+test("count chips: no chip when nothing is set (a '0' chip would be noise)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  // The heading names are the bare labels — no trailing count (substring match would still hit "Field
+  // overrides", so assert the exact name has no chip suffix via the accessible name).
+  await expect(component.getByRole("heading", { name: "Field overrides", exact: true, level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Injections", exact: true, level: 3 })).toBeVisible();
+});

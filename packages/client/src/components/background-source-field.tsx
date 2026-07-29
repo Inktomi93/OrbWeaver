@@ -49,9 +49,13 @@ export interface BackgroundSourceFieldProps {
   readonly onChange: (value: ThemeBackground) => void;
   /** Non-host / read-only viewers get the picker rendered inert (chat Control A's member branch). */
   readonly readOnly?: boolean;
+  /** Drop the primary select's VISIBLE "Background" label when the field sits under a titled Section that
+   *  already reads "Background" (the chat context tab) — otherwise "Background" is announced twice. The
+   *  `aria-label` stays (a nameless combobox is a WCAG 4.1.2 fail); only the visible duplicate is removed. */
+  readonly hideLabel?: boolean;
 }
 
-export function BackgroundSourceField({ value, onChange, readOnly = false }: BackgroundSourceFieldProps): ReactElement {
+export function BackgroundSourceField({ value, onChange, readOnly = false, hideLabel = false }: BackgroundSourceFieldProps): ReactElement {
   const current = value ?? EMPTY_BACKGROUND;
   const commit = (patch: Partial<ThemeBackground>): void => onChange({ ...EMPTY_BACKGROUND, ...patch });
 
@@ -88,9 +92,9 @@ export function BackgroundSourceField({ value, onChange, readOnly = false }: Bac
         aria-label="Background"
         disabled={readOnly}
         items={BACKGROUND_KIND_ITEMS}
-        label="Background"
         onValueChange={(kind): void => onKindChange(kind as ThemeBackground["kind"])}
         value={inExternalMode ? "external" : current.kind}
+        {...(hideLabel ? {} : { label: "Background" })}
       />
       {current.kind === "seeded" && !inExternalMode && (
         <Select

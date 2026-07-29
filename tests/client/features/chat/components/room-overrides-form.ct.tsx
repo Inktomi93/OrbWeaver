@@ -34,3 +34,24 @@ test("SWITCH pin — switching chats reseeds the form on the new chat, never the
   await expect(component.locator(SAVED)).toContainText('"scenario":"B-scenario"');
   await expect(component.locator(SAVED)).not.toContainText("A-prompt");
 });
+
+// Full-row tap target (side-eye P2, WCAG 2.5.8): the block padding lives on the CollapsibleTrigger, not the
+// Card, so the WHOLE row is the click/tap surface — previously the trigger was a ~23px band with dead Card
+// padding above/below. Probe an UNSET field (Post-history — no snippet, so the card IS just the trigger row):
+// a point 2px below the card's top edge (the old dead zone) must now resolve into the trigger button, and the
+// trigger must fill the card height (± the 1px borders).
+test("full-row tap target — the trigger fills its row; the card's top edge hits the trigger, not dead padding", async ({ mount }) => {
+  const component = await mount(<RoomOverridesSwitchStory />);
+  const trigger = component.getByRole("button", { name: "Post-history" });
+  await expect(trigger).toBeVisible();
+
+  const probe = await trigger.evaluate((btn) => {
+    const card = btn.closest('[data-slot="card-root"]') as HTMLElement;
+    const rect = card.getBoundingClientRect();
+    const topEdgeHit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + 2);
+    return { inTrigger: btn.contains(topEdgeHit), triggerHeight: btn.getBoundingClientRect().height, cardHeight: rect.height };
+  });
+
+  expect(probe.inTrigger).toBe(true);
+  expect(Math.abs(probe.triggerHeight - probe.cardHeight)).toBeLessThanOrEqual(2);
+});
