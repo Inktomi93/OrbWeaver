@@ -208,7 +208,7 @@ function orUndefined(value: string): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
-function toRoleConfig(slot: RoleSlotForm): { source?: string; model?: string } | undefined {
+function toRoleConfig(slot: RoleSlotForm): { source?: string; model?: string | null } | undefined {
   const source = orUndefined(slot.source);
   const model = orUndefined(slot.model);
   if (source === undefined && model === undefined) {
@@ -216,14 +216,18 @@ function toRoleConfig(slot: RoleSlotForm): { source?: string; model?: string } |
   }
   return {
     ...(source !== undefined ? { source } : {}),
-    ...(model !== undefined ? { model } : {}),
+    // An empty model on a LIVE slot (one that still carries a source) emits an explicit `null` — the
+    // deepMergePlain clear signal — not an omitted key. Omitting is a no-op merge, so a provider switch
+    // (source changes ⇒ model reset to "") would otherwise leave the previous provider's model id pinned
+    // and mis-route the turn. `null` on an already-empty field is a harmless no-op clear.
+    model: model ?? null,
   };
 }
 
-function toChatConfig(slot: ChatSlotForm): Record<string, string> | undefined {
+function toChatConfig(slot: ChatSlotForm): Record<string, string | null> | undefined {
   const base = toRoleConfig(slot) ?? {};
   const api = orUndefined(slot.api);
-  const config: Record<string, string> = {
+  const config: Record<string, string | null> = {
     ...base,
     ...(api !== undefined ? { api } : {}),
   };
@@ -232,7 +236,9 @@ function toChatConfig(slot: ChatSlotForm): Record<string, string> | undefined {
 
 /**
  * Project the flat form back into the sparse `routing` section written by `updateUserSettingsSection`.
- * Empty picker values collapse to omitted keys (unset means "no preference").
+ * A fully-empty slot collapses to an omitted key (unset means "no preference"). A slot that still
+ * carries a source but has an empty model emits an explicit `model: null` clear (deepMergePlain
+ * null=clear), so switching provider drops the previous provider's stale model id.
  */
 export function toRoutingSection(form: RoutingForm): { roleDefaults: Record<string, unknown> } {
   const roleDefaults: Record<string, unknown> = {};

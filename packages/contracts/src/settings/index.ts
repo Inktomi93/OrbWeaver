@@ -350,17 +350,19 @@ export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
 export const GENERATE_IMAGE_SOURCES = ["openrouter"] as const;
 
 const inferenceRoleSourceSchema = z.enum(INFERENCE_SOURCES);
+// `model` accepts `null` (the client's explicit deepMergePlain clear on a provider switch), mirroring
+// chatRoleConfigSchema.model. `.min(1)` still self-heals a stale empty string to undefined.
 const inferenceRoleConfigSchema = z.object({
   source: inferenceRoleSourceSchema.optional().catch(undefined),
-  model: z.string().min(1).optional().catch(undefined),
+  model: z.string().min(1).nullable().optional().catch(undefined),
 });
 const summarizeRoleConfigSchema = z.object({
   source: z.enum(SUMMARIZE_SOURCES).optional().catch(undefined),
-  model: z.string().min(1).optional().catch(undefined),
+  model: z.string().min(1).nullable().optional().catch(undefined),
 });
 const generateImageRoleConfigSchema = z.object({
   source: z.enum(GENERATE_IMAGE_SOURCES).optional().catch(undefined),
-  model: z.string().min(1).optional().catch(undefined),
+  model: z.string().min(1).nullable().optional().catch(undefined),
 });
 const chatRoleConfigSchema = z.object({
   api: chatApiSchema.optional().catch(undefined),

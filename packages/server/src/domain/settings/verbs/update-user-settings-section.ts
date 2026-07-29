@@ -14,7 +14,9 @@ import { deepMergePlain } from "../substrate/merge";
  *  routing patch that leaves BOTH untouched (or a patch to any other section) must not enqueue a reindex. */
 function embedModelIds(config: UserSettings): readonly [embed: string | undefined, imageEmbed: string | undefined] {
   const rd = config.routing.roleDefaults;
-  return [rd.embed?.model, rd.imageEmbed?.model];
+  // `model` is now nullable (the client's explicit clear). Fold `null` → `undefined` so a no-op clear on
+  // an already-unset field compares equal (no spurious reindex); a real string→cleared change still fires.
+  return [rd.embed?.model ?? undefined, rd.imageEmbed?.model ?? undefined];
 }
 
 export function createUpdateUserSettingsSection(ctx: SettingsContext): SettingsService["updateUserSettingsSection"] {
