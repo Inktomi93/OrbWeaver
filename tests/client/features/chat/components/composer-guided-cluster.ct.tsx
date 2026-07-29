@@ -268,6 +268,11 @@ test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
     "chat.generate": () => ({}),
   });
+  // The nested (two-level) Plot submenu rides the anchored-popup scale/opacity transition on open;
+  // reduced-motion collapses that transition to the ~0 floor (globals.css) so the submenu item's
+  // bounding box is stable the instant it mounts — otherwise Playwright's actionability check can
+  // catch it mid-animation and report "element is not stable / detached from the DOM, retrying".
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
 
