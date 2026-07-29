@@ -19,11 +19,20 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
-## ═══ ▶▶▶ SESSION STATE 2026-07-28 LATE — READ THIS FIRST (supersedes every block below) ═══
+## ═══ ▶▶▶ SESSION STATE 2026-07-28 NIGHT — READ THIS FIRST (supersedes every block below) ═══
 
-**HEAD = `85e6781a`** (main, commit-only, NEVER pushed) — a MERGE commit folding the fork-clone lane into main.
-Owner is heading into DOGFOODING — the bar is: rpg working IN FULL · all guided options exposed+usable+working ·
-forking working properly.
+**HEAD = `adec7490`, PUSHED to origin/main** (2026-07-28 — owner explicitly authorized the push, overriding the
+standing never-push rule; `verify:push` GREEN — the pre-push gate is STRICTER than the commit gate, see
+[[verify-push-stricter-than-commit-gate]]). The whole crunchy-cluster is on main AND published:
+W-A silent-slots · W-B transcript-extraction · W-C reconcile+resyncFromStory (sec-reviewed) · W-D+wand-v2+side-eye
+polish · W-F fork-clone · W-G dangling-heal · CT drift fixes (`adec7490`). Owner is DOGFOODING —
+bar: rpg working IN FULL · all guided options exposed+usable+working · forking working properly.
+
+**DEV STACK IS UP** (server :8788 · vite :5173 · fleet embed/rerank/gen-8B loaded) — reachable for dogfood; the 8B
+is warm so extraction runs live. (Stack wrangling was painful this session — [[stack-restart-vs-battery-contention]].)
+
+**REMAINING (both gated on owner dogfood):** W-H panel-beauty (needs live-populated panels for side-eye) · W-I
+D111 ledger + docs. Deferred: the live 8B extraction-quality probe = owner's own dogfooding.
 
 **➤ FORK LANE MERGED (this turn):** the security-executor's W-F worktree branch (`b5faacd9` clone + `05b76fbb`
 host-or-sole-human gate) merged into main CLEANLY — `ort` auto-merged the 4 intersecting files (chat/contract/
