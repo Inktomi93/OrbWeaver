@@ -1,12 +1,15 @@
 // Merges the canonical MessageView[] with the live ghost row into one id-keyed item list. Consumes only
-// the lifecycle signal (useTurnPhase), never token text, so a delta re-renders the ghost row alone, not
-// the list. The ghost carries a stable synthetic key, so the ghost->canonical swap on turn-complete is
-// a key change the virtualizer handles cleanly.
+// the lifecycle signals (useTurnPhase + the swipe target selector), never token text, so a delta
+// re-renders the ghost row alone, not the list. A fresh reply / continue / generate appends the ghost at
+// the tail under a stable synthetic key, so the ghost->canonical swap on turn-complete is a clean key
+// change for the virtualizer. A SWIPE reroll instead places the ghost INTO its target message's slot
+// (keyed by that message id) and suppresses the committed row for that id while streaming — one row
+// throughout, the new variant streaming in place, never a transient second row beside the old one.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
-import { isLiveTurnPhase, useTurnPhase } from "#state";
+import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnPhase } from "#state";
 import type { ArrivalDiff } from "../lib/new-arrivals";
 import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals";
 
@@ -44,12 +47,31 @@ export function isStateAnchorSlot(view: { readonly content: string }): boolean {
 
 export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
+  // A live SWIPE reroll's target: the committed row the new variant replaces IN PLACE. Non-null only for a
+  // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
+  // reading it never re-renders the list on a delta.
+  const swipeTargetId = useSwipeTargetMessageId(chatId);
   const base: ChatRowItem[] = messages.filter((view) => !isStateAnchorSlot(view)).map((view) => ({ kind: "message", view }));
 
   const live = isLiveTurnPhase(phase);
   if (!live) {
     return base;
   }
+  // Swipe: the ghost OCCUPIES the target message's slot (keyed by that message id, so ghost→canonical is a
+  // same-key content swap — one row throughout, never a transient second row). The committed row for that id
+  // is suppressed while streaming; the reroll refetch restores it in place on turnCompleted. A missing target
+  // (never for a real swipe — the target is a committed message) falls through to the tail append.
+  if (swipeTargetId !== null) {
+    const targetIndex = base.findIndex((item) => item.kind === "message" && item.view.id === swipeTargetId);
+    if (targetIndex !== -1) {
+      const withGhost = [...base];
+      withGhost[targetIndex] = { kind: "ghost", id: swipeTargetId };
+      return withGhost;
+    }
+  }
+  // Send/continue/generate/impersonate: the ghost appends at the tail (a fresh reply, or the continuation
+  // streaming after its still-visible target). Its stable synthetic key makes the turn-complete ghost→canon
+  // swap a clean key change for the virtualizer.
   return [...base, { kind: "ghost", id: GHOST_APPEND_KEY }];
 }
 

@@ -66,6 +66,7 @@ export {
   setFrameScheduler,
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
+  useSwipeTargetMessageId,
   useTurnPhase,
   useTurnSlot,
   useTurnSpeakerCharacterId,

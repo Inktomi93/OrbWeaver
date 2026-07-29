@@ -6,10 +6,11 @@
 // Reading the slot directly (not a subscribe+setState effect) also means no missed initial state and
 // no synchronous set-state-in-effect.
 //
-// PLACEMENT NOTE (#19): the keystone appends the ghost at the tail (fresh send). In-place ghosting over
-// the tip for a swipe/continue regeneration needs the slot's stable `targetMessageId` read WITHOUT
-// re-rendering the surface per delta (a lifecycle-only store selector) — that lands with the fuller
-// variant UX in #19; until then a swipe streams into an appended ghost.
+// PLACEMENT NOTE: the keystone appends the ghost at the tail for a fresh send / continue / generate. A
+// SWIPE reroll instead ghosts IN PLACE over its target — `useMessageItems` reads the slot's stable
+// `targetMessageId` via the lifecycle-only `useSwipeTargetMessageId` selector (no per-delta surface
+// re-render) and places the ghost into that message's slot, suppressing the committed row until the
+// reroll refetch restores it. Continue still appends (its old text stays visible below its extension).
 
 import type { ChatId } from "@orb/kit/ids";
 import { useTurnSlot } from "#state";

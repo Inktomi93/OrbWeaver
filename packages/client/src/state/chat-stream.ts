@@ -316,6 +316,25 @@ export function useTurnSpeakerCharacterId(chatId: ChatId | null): CharacterId | 
   });
 }
 
+/** The message id a live SWIPE turn rerolls IN PLACE — the reroll's ghost occupies THIS committed row's
+ *  slot (one row throughout, live nav) instead of appending a second row beside the old variant. Only a
+ *  `swipe` intent replaces-in-place: `continue` also carries a `targetMessageId` but legitimately extends
+ *  its target with a ghost APPENDED after it (the old text stays visible), and send/generate/impersonate
+ *  carry none. Stable across every token delta (only text/reasoning change), so reading it never
+ *  re-renders the list on a token. `null` off-turn, for a non-swipe intent, or a swipe with no target. */
+export function useSwipeTargetMessageId(chatId: ChatId | null): MessageId | null {
+  return useChatStreamStore((s) => {
+    if (chatId === null) {
+      return null;
+    }
+    const slot = s.turns[chatId] ?? IDLE_TURN;
+    if (slot.phase !== "pending" && slot.phase !== "streaming" && slot.phase !== "stopping") {
+      return null;
+    }
+    return slot.intent === "swipe" ? slot.targetMessageId : null;
+  });
+}
+
 /** True for pending/streaming/stopping — the render side must agree stopping is still live, or the
  *  ghost row unmounts the instant Stop is clicked. */
 export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
