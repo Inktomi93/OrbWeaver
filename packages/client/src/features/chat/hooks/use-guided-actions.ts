@@ -10,7 +10,7 @@ import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { clearDraftConfig, isCommitted, pushFiredSteer } from "#state";
+import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
 import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
@@ -94,10 +94,11 @@ interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
-  // `generate` = a server-written opening (the Response/Generate-opening draft path); `none` = commit the
-  // room with no auto-opening so an impersonate turn can BE the first move (the owner's "a guided generation
-  // can BE the first message" principle — impersonate writes the USER's opening line, not a greeting).
-  opening: "generate" | "none";
+  // `generate` = a server-written opening (the Response/Generate-opening draft path). OMITTED = the server's
+  // DEFAULT opening policy (greet-all/first-message by roster size) — the same as a plain draft-send, so the
+  // card GREETING is preserved. The guided-impersonate draft path OMITS this (it must NOT discard the
+  // greeting — it drafts the user's RESPONSE to it), never `none` (which would seed an empty chat).
+  opening?: "generate";
   guided?: GuidedSteerInput;
 }
 
@@ -194,16 +195,18 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // Tracked as one pending flag so the cluster idles across the commit + the follow-on turn.
   const [draftCommitPending, setDraftCommitPending] = useState(false);
 
-  /** Commit the active draft and hand back the new chatId, threading the `startChat` `opening` policy + an
-   *  optional opening steer. Clears the consumed draft config on success (mirrors the composer Send). */
-  const commitDraft = async (opening: "generate" | "none", guided?: GuidedSteerInput): Promise<ChatId> => {
+  /** Commit the active draft and hand back the new chatId. `opening` is OMITTED by default (the server's
+   *  default policy — greet-all/first-message by roster size — so the card GREETING is preserved, exactly
+   *  like a plain draft-send); pass `"generate"` for the server-written-opening path. Clears the consumed
+   *  draft config on success (mirrors the composer Send). */
+  const commitDraft = async (over: { opening?: "generate"; guided?: GuidedSteerInput } = {}): Promise<ChatId> => {
     const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
     const result = await startChat.mutateAsync({
       characterIds,
       anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
       title: opts.draftSeed?.title ?? null,
-      opening,
-      ...(guided !== undefined ? { guided } : {}),
+      ...(over.opening !== undefined ? { opening: over.opening } : {}),
+      ...(over.guided !== undefined ? { guided: over.guided } : {}),
       ...carry,
     });
     opts.onCommitted?.(result.chat.id);
@@ -227,7 +230,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     runDraftFlow(input, async () => {
       // §6.4 empty-steer shape: an EMPTY opening steer OMITS the guided object entirely (a plain generated
       // opening) — the owner's "a guided generation can BE the first message" draft path.
-      await commitDraft("generate", input.trim().length === 0 ? undefined : { action: "opening", input });
+      await commitDraft({ opening: "generate", ...(input.trim().length === 0 ? {} : { guided: { action: "opening", input } }) });
     });
   };
 
@@ -295,16 +298,29 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     },
     fireImpersonate: (input, person, onDrafted): void => {
       const guided = steerFor("impersonate", input, person);
-      // NON-PERSISTING (owner ruling): impersonate DRAFTS the user's next line and hands it back via
-      // `onDrafted` for the composer to FILL — nothing is committed, so the old persist→refetch flash-and-
-      // vanish is mooted. The typed steer is consumed and REPLACED by the drafted line (that IS the review).
+      // NON-PERSISTING (owner ruling): impersonate DRAFTS the user's next line and FILLS the composer with it
+      // for review — nothing about the user's line is committed, so the old persist→refetch flash-and-vanish
+      // is mooted. The typed steer is consumed and REPLACED by the drafted line (that IS the review).
+      if (chatId !== null) {
+        // Committed chat — no navigation, so the composer stays mounted; fill via the caller's own onChange.
+        runDraftFlow(input, async () => {
+          const { text } = await impersonateDraft.mutateAsync(guided === undefined ? { chatId } : { chatId, guided });
+          onDrafted(text);
+        });
+        return;
+      }
+      // DRAFT — server can't assemble impersonation context without a chat row (a bare card+persona gather is
+      // a large parallel surface), so FALLBACK: commit the room FIRST. Two things the first attempt got wrong:
+      //   (1) commit with the DEFAULT opening policy (omit `opening`) so the card GREETING is preserved
+      //       (`opening:"none"` seeded an EMPTY chat and lost it) — impersonate then drafts the user's RESPONSE
+      //       to that greeting.
+      //   (2) the commit flips the room draft→committed and the OLD draft-scope `onChange` (`onDrafted`) is now
+      //       stale (it writes the old draftKey scope the promoted composer no longer reads). Write the drafted
+      //       text to the NEW chatId's composer-draft store directly, which the freshly-scoped composer reads.
       runDraftFlow(input, async () => {
-        // A DRAFT has no committed chat to draft against. FALLBACK (server can't assemble impersonation
-        // context without a chat row): commit the room with NO auto-opening first, then draft the opening
-        // user line into the composer. Tradeoff — an empty chat exists even if the user discards the draft.
-        const targetId = chatId ?? (await commitDraft("none"));
+        const targetId = await commitDraft();
         const { text } = await impersonateDraft.mutateAsync(guided === undefined ? { chatId: targetId } : { chatId: targetId, guided });
-        onDrafted(text);
+        setComposerDraft(targetId, text);
       });
     },
     fireOpening,
