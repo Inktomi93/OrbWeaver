@@ -6,6 +6,10 @@
 //     surface renders is the explainer) AND is NOT reverse-gated away from it (no half-broken shell — the
 //     bug this fix closes). An authed forward-header session passes through and never loops back to /login.
 //   • local/oidc — unauthenticated → /login; authenticated → pass + reverse-gate.
+// A RESOLVED verdict is acted on immediately; a THROWN read (server momentarily unreachable — a vite HMR
+// reconnect blipping `/api/auth/me`) is RETRIED before concluding "unreachable", so an authed owner never
+// strands on /login across a transient blip. A blip that recovers → the recovered verdict; a persistently
+// down server → still fails toward /login. Retry tests drive fake timers so the backoff doesn't stall.
 // `fetch` is stubbed at the global boundary (the upload-asset.test.ts precedent). Deep imports, not
 // barrels (node lane — a feature barrel drags browser TSX into the dom-less program).
 
@@ -20,6 +24,17 @@ const ANON: AuthMe = { authenticated: false, handle: null, role: null };
 /** Stub `/api/auth/me` with the given identity (the guards only read `/me` now — no `/config`). */
 function stubMe(me: AuthMe): void {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(me), { status: 200 })));
+}
+
+/** Run a guard under fake timers, draining the retry backoff so a THROWN-read path resolves without a real
+ *  wall-clock stall. `advanceTimersByTimeAsync` flushes the interleaved microtasks between each retry's
+ *  post-await continuation and the setTimeout it schedules next, so one large advance drains the whole
+ *  bounded chain. Returns the guard's settled promise. */
+async function runWithDrainedTimers<T>(run: () => Promise<T>): Promise<T> {
+  vi.useFakeTimers();
+  const settled = run();
+  await vi.advanceTimersByTimeAsync(5000);
+  return settled;
 }
 
 /** Run a guard and return the thrown redirect's `to` target (fails the test on a pass-through or a
@@ -42,8 +57,19 @@ async function redirectTargetOf(guard: () => Promise<void>): Promise<string> {
   throw new Error("expected the guard to throw a redirect");
 }
 
+/** A `fetch` stub that REJECTS `failures` times, then resolves with `me` — models a transient blip (an
+ *  HMR reconnect) that recovers mid-retry-window. */
+function stubMeAfterFailures(failures: number, me: AuthMe): void {
+  let calls = 0;
+  vi.stubGlobal("fetch", () => {
+    calls += 1;
+    return calls <= failures ? Promise.reject(new Error("ECONNREFUSED")) : Promise.resolve(new Response(JSON.stringify(me), { status: 200 }));
+  });
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 // ── requireAuthed (the `/` gate) ──
@@ -58,9 +84,21 @@ test("requireAuthed: an unauthenticated request → /login (a broken forward-hea
   expect(await redirectTargetOf(requireAuthed)).toBe("/login");
 });
 
-test("requireAuthed: a bootstrap failure (server unreachable) fails toward /login, never a blank shell", async () => {
+test("requireAuthed: a PERSISTENTLY unreachable server (retries exhausted) fails toward /login, never a blank shell", async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("ECONNREFUSED")));
+  expect(await runWithDrainedTimers(() => redirectTargetOf(requireAuthed))).toBe("/login");
+});
+
+test("requireAuthed: a transient blip that RECOVERS (HMR reconnect) resolves to the authed verdict — the owner never strands on /login", async () => {
+  stubMeAfterFailures(2, AUTHED);
+  await runWithDrainedTimers(() => expect(requireAuthed()).resolves.toBeUndefined());
+});
+
+test("requireAuthed: a RESOLVED unauthenticated verdict redirects immediately — anon is NOT retried (no HMR-recovery masking a real logout)", async () => {
+  stubMe(ANON);
+  const spy = vi.spyOn(globalThis, "fetch");
   expect(await redirectTargetOf(requireAuthed)).toBe("/login");
+  expect(spy).toHaveBeenCalledTimes(1);
 });
 
 // ── redirectIfAuthed (the /login reverse-gate) ──
@@ -75,7 +113,7 @@ test("redirectIfAuthed: an UNauthenticated caller STAYS on /login so the surface
   await expect(redirectIfAuthed()).resolves.toBeUndefined();
 });
 
-test("redirectIfAuthed: a bootstrap failure stays (the login surface renders the unreachable state)", async () => {
+test("redirectIfAuthed: a persistently unreachable server stays (the login surface renders the unreachable state)", async () => {
   vi.stubGlobal("fetch", () => Promise.reject(new Error("ECONNREFUSED")));
-  await expect(redirectIfAuthed()).resolves.toBeUndefined();
+  await runWithDrainedTimers(() => expect(redirectIfAuthed()).resolves.toBeUndefined());
 });

@@ -4,17 +4,36 @@
 // both single-user AND forward-header, which would make the forward-header explainer unreachable and
 // let a broken forward-header proxy render the full authed shell with silently-failing queries. The
 // server stays authoritative: every tRPC procedure re-gates; these exist so the UI lands on the right surface.
+//
+// A RESOLVED verdict (the fetch completed) is acted on immediately — `authenticated:false` (a broken
+// forward-header proxy) still lands on the /login explainer with no delay. Only a THROWN read (server
+// momentarily unreachable — the classic case is a vite HMR reconnect blipping `/api/auth/me`) is
+// retried over a short window before we conclude "unreachable": a transient blip resolves on retry and
+// an authed owner stays on their route instead of stranding on /login, while a genuinely-down server
+// exhausts the retries and still fails toward /login. We never redirect on a not-yet-known session.
 
 import { redirect } from "@tanstack/react-router";
 import type { AuthMe } from "#data";
 import { fetchAuthMe } from "#data";
 
-/** This request's auth state, or null when the server is unreachable. */
-async function meOrNull(): Promise<AuthMe | null> {
+// Only a transient blip should retry; ~600ms total comfortably covers a vite HMR reconnect without a
+// perceptible stall on a truly-down server (the router paints RoutePending across this window).
+const UNREACHABLE_RETRIES = 3;
+const UNREACHABLE_RETRY_DELAY_MS = 200;
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** This request's auth state, or null only when the server stays unreachable across a short retry window.
+ *  A completed fetch (authed OR anon) short-circuits immediately — retries cover a THROWN read only. */
+async function meOrNull(retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
   try {
     return await fetchAuthMe();
   } catch {
-    return null;
+    if (retriesLeft <= 0) {
+      return null;
+    }
+    await wait(UNREACHABLE_RETRY_DELAY_MS);
+    return meOrNull(retriesLeft - 1);
   }
 }
 
