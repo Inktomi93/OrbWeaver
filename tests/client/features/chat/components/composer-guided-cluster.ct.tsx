@@ -5,8 +5,9 @@
 // afterAssistant nudge flag on an assistant tail; Swipe KEEPS the steer (no composer clear — the reroll
 // ergonomic) while Response/Continue CONSUME it; Simple send fires chat.commitMessage; Impersonate is
 // NON-PERSISTING — it drafts the user's next line via chat.impersonateDraft and FILLS the composer for
-// review (draft chat: commit opening:none first, then draft); the phase matrix disables swipe/continue on a
-// draft with a legible reason (Impersonate + Response stay live).
+// review (draft chat: commit with the DEFAULT opening so the greeting is PRESERVED, then draft the response,
+// then fill the PROMOTED composer via the new chatId's draft store); the phase matrix disables swipe/continue
+// on a draft with a legible reason (Impersonate + Response stay live).
 //
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
@@ -136,7 +137,7 @@ test("Impersonate on a COMMITTED chat FILLS the composer with the drafted line a
   expect(trpc.count("chat.startChat")).toBe(0);
 });
 
-test("Impersonate on a DRAFT commits the chat (startChat opening:none) then DRAFTS into the composer (no user turn)", async ({ mount, page }) => {
+test("Impersonate on a DRAFT commits WITH the greeting preserved (no opening:none) then FILLS the promoted composer", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
     "chat.impersonateDraft": () => ({ text: "Good evening — is there a room to spare?" }),
@@ -147,21 +148,27 @@ test("Impersonate on a DRAFT commits the chat (startChat opening:none) then DRAF
   await component.getByRole("button", { name: "Impersonate" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
 
-  // Fallback path: commit the empty chat (opening:none), then DRAFT the opening line — no user turn persisted.
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.count("chat.impersonateDraft"), { intervals: [20, 50, 100] }).toBe(1);
   // ONESHOT-OK: both polls above settled each recorder at exactly 1 call, so the inputs are stable at read.
-  expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
+  // GREETING PRESERVED — the commit uses the server's DEFAULT opening policy (NO `opening` field). The first
+  // attempt sent `opening:"none"`, which seeded an EMPTY chat and lost the card greeting (the owner's bug #1).
+  expect(trpc.lastInput("chat.startChat")).not.toHaveProperty("opening");
   // The draft fires against the freshly-committed chat id (empty composer ⇒ no steer object).
   const imp = trpc.lastInput("chat.impersonateDraft") as { chatId?: string; guided?: unknown };
   // ONESHOT-OK: the draft poll settled its recorder at 1; the input is stable at read.
   expect(imp.chatId).toBe(COMPOSER_CHAT_ID);
   expect(imp.guided).toBeUndefined();
-  // The drafted opening line lands in the composer for review.
+  // The FILL LANDS (bug #2): the drafted line is written to the NEW chatId's composer-draft store, which the
+  // PROMOTED composer (draft→committed, same scopeKey now the new id) reads — proving the fill survives the
+  // navigation, not landing on the unmounted draft's stale onChange.
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("Good evening — is there a room to spare?");
 });
 
-test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + person, then fills the composer", async ({ mount, page }) => {
+test("Impersonate on a DRAFT with a typed steer threads the steer + person, preserves the greeting, and fills the promoted composer", async ({
+  mount,
+  page,
+}) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
     "chat.impersonateDraft": () => ({ text: "I greet the innkeeper with a warm smile." }),
@@ -175,13 +182,14 @@ test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + 
 
   await expect.poll(() => trpc.count("chat.impersonateDraft"), { intervals: [20, 50, 100] }).toBe(1);
   // ONESHOT-OK: the draft AWAITS the commit, so once its recorder settled at 1 the startChat call already fired.
-  expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
+  // Greeting preserved — the commit carries NO `opening` field (the server default keeps the card greeting).
+  expect(trpc.lastInput("chat.startChat")).not.toHaveProperty("opening");
   // ONESHOT-OK: the draft poll above settled its recorder at 1 — the input is stable at read.
   expect(trpc.lastInput("chat.impersonateDraft")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     guided: { action: "impersonate", input: "greet the innkeeper warmly", person: "third" },
   });
-  // The typed steer is CONSUMED and REPLACED by the drafted line (that IS the review).
+  // The typed steer is CONSUMED and REPLACED by the drafted line in the PROMOTED composer (fill survives nav).
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("I greet the innkeeper with a warm smile.");
 });
 

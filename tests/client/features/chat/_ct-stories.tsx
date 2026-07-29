@@ -43,6 +43,7 @@ import {
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
+  migrateComposerDraft,
   SlashCommandRegistryProvider,
   selectChat,
   setComposerDraft,
@@ -692,9 +693,15 @@ export interface ComposerStoryProps {
 }
 
 function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMessageId = null }: ComposerStoryProps): ReactElement {
-  const [value, setValue] = useState("");
   const [startedChatId, setStartedChatId] = useState<ChatId | null>(committed ? COMPOSER_CHAT_ID : null);
   const handle: ChatHandle = startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
+  // Wire the composer value to the REAL composer-draft store keyed by the room scope (a draft's draftKey, a
+  // committed chat's id) — exactly like chat-room-surface. This makes the guided-impersonate DRAFT fill
+  // observable: after commit, `fireImpersonate` writes the drafted text to the NEW chatId's scope directly
+  // (the promoted composer no longer reads the stale draftKey scope), and the story reads that same store.
+  const scopeKey = startedChatId ?? "draft_ct_composer";
+  const value = useComposerDraft(scopeKey);
+  const setValue = (text: string): void => setComposerDraft(scopeKey, text);
 
   return (
     <div>
@@ -702,7 +709,12 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
         handle={handle}
         value={value}
         onChange={setValue}
-        onCommitted={(id): void => setStartedChatId(id)}
+        onCommitted={(id): void => {
+          // Mirror chat-room-surface's promotion: carry the in-flight draft across the draftKey → chatId
+          // scope flip, then flip the handle draft→committed IN PLACE (no unmount).
+          migrateComposerDraft("draft_ct_composer", id);
+          setStartedChatId(id);
+        }}
         tailRole={tailRole}
         tailAssistantMessageId={tailAssistantMessageId}
       />
