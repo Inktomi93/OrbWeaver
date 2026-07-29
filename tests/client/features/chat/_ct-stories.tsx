@@ -93,6 +93,7 @@ import { GroupConfigForm } from "../../../../packages/client/src/features/chat/c
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section";
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
+import { MemberCardViewer } from "../../../../packages/client/src/features/chat/components/member-card-viewer";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
 import { MemorySettingsSection } from "../../../../packages/client/src/features/chat/components/memory-settings-section";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
@@ -1648,6 +1649,20 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
     <CtDataProviders>
       <div>
         <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName={characterName} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The D22 read-only, level-clamped member card-viewer (member-card-viewer.tsx). Starts OPEN so the
+ *  `.ct.tsx` drives the loaded card directly; the read is `chat.getMemberCard` over routeTrpc. The CT
+ *  scripts three shapes: a `sheet`-clamped card (description shown, systemPrompt section absent + the
+ *  hidden-tier note), a `full` card (every section), and the transport NOT_FOUND typed gone-arm. */
+export function MemberCardViewerStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <MemberCardViewer chatId={CHAT_ID} characterId={castId<CharacterId>("character_ct_membercard")} open={true} onOpenChange={(): void => undefined} />
       </div>
     </CtDataProviders>
   );

@@ -26,6 +26,8 @@ const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/chat/anchors/join-invite-dialog.tsx":
     "the /join preview→confirm landing (loading/invalid/ready states) — a multi-state flow, not a form; chat lane.",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx": "a character-gallery picker surface (owns its Dialog root); chat lane.",
+  "packages/client/src/features/chat/components/member-card-viewer.tsx":
+    "the D22 read-only, level-clamped member card VIEWER (getMemberCard) — a content-display species like character-gallery-dialog/readable-overlay: no bound fields, a single Close, owns its Dialog root.",
   "packages/client/src/features/chat/components/add-party-dialog.tsx":
     "a saved-party PICKER surface (cmdk RosterPresetPicker owns search/keyboard-nav) — a picker species like character-gallery-dialog, not a form (RP2, saved-rosters §6).",
   "packages/client/src/features/chat/components/save-as-party-dialog.tsx":

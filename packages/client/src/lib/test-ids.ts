@@ -80,6 +80,11 @@ export const TEST_IDS = {
   inviteOutstandingList: "invite-outstanding-list",
   joinInviteDialog: "join-invite-dialog",
   joinInviteConfirm: "join-invite-confirm",
+  // D22 — the read-only, level-clamped member card-viewer opened from a roster Cast row ("View
+  // character"). `memberCardHiddenNote` marks the "hidden at this visibility level" affordance the
+  // viewer renders in place of a clamped-away (null) section.
+  memberCardViewer: "member-card-viewer",
+  memberCardHiddenNote: "member-card-hidden-note",
   corpusListSurface: "corpus-list-surface",
   corpusSearchInput: "corpus-search-input",
   corpusSearchTarget: "corpus-search-target",

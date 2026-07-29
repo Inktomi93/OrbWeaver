@@ -7,12 +7,13 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { goToLanding, selectCharacter, setActiveSection, useTurnSpeakerCharacterId } from "#state";
+import { goToLanding, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations";
 import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
 import { InviteDialog } from "./invite-dialog";
+import { MemberCardViewer } from "./member-card-viewer";
 import { MembersPanel } from "./members-panel";
 
 function toPersonRows(participants: readonly ParticipantView[], viewerUserId: UserId | null, pendingHostUserId: UserId | null): MemberPersonRow[] {
@@ -75,6 +76,11 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
   const setHistoryVisibility = useSetMemberHistoryVisibility({ trpc, invalidation });
   const [inviteOpen, setInviteOpen] = useState(false);
+  // The D22 member card-viewer target — a Cast row's "View character" opens the CLAMPED in-room card
+  // (getMemberCard) for THIS characterId, NOT a jump to the owner's editable characters library (a
+  // member may not own the card, and the library isn't visibility-clamped). `null` = closed; the
+  // useQuery inside the viewer is gated on `open`, so no read fires until a row is picked.
+  const [viewCardCharacterId, setViewCardCharacterId] = useState<CharacterId | null>(null);
 
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
   const people = multiHumanCapable ? toPersonRows(chat.participants, chat.viewerUserId, chat.pendingHostUserId) : [];
@@ -124,13 +130,22 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
         }
         onForceTurn={isHost ? (characterId): void => forceTurn.mutate({ chatId, characterId }) : undefined}
         onRemoveCharacter={isHost ? (characterId): void => removeCharacter.mutate({ chatId, characterId }) : undefined}
-        onViewCharacter={(characterId): void => {
-          selectCharacter(characterId);
-          setActiveSection("characters");
-        }}
+        onViewCharacter={(characterId): void => setViewCardCharacterId(characterId)}
       />
 
       {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} /> : null}
+      {viewCardCharacterId === null ? null : (
+        <MemberCardViewer
+          chatId={chatId}
+          characterId={viewCardCharacterId}
+          open={true}
+          onOpenChange={(open): void => {
+            if (!open) {
+              setViewCardCharacterId(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
