@@ -28,7 +28,7 @@ import { useUploadCaps } from "#data";
 import type { SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_CHAT, IMAGE_GEN_NEEDS_TEXT, testId } from "#lib";
 import type { ChatHandle } from "#state";
-import { isCommitted } from "#state";
+import { isCommitted, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
 import type { PendingAttachment } from "../hooks/use-composer-attachments";
 import { useComposerAttachments } from "../hooks/use-composer-attachments";
@@ -161,8 +161,9 @@ function AttachmentPreview({ attachment, onRemove }: { readonly attachment: Pend
 
 export interface ComposerProps {
   readonly handle: ChatHandle;
-  readonly value: string;
-  readonly onChange: (text: string) => void;
+  /** This room's stable composer-draft scope key. The draft subscription lives HERE (not in the ancestor
+   *  ChatRoomSurface) so a keystroke re-renders only the composer subtree, never the message thread. */
+  readonly scopeKey: string;
   readonly draftSeed?: DraftSeed | undefined;
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
   /** Null for a draft or an empty chat. */
@@ -171,8 +172,12 @@ export interface ComposerProps {
   readonly tailAssistantMessageId?: MessageId | null | undefined;
 }
 
-export function Composer({ handle, value, onChange, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
+export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
+  // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
+  // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
+  const value = useComposerDraft(scopeKey);
+  const onChange = (text: string): void => setComposerDraft(scopeKey, text);
   // A composer attachment is an image, so the pre-check ceiling is the SERVED image cap (the tighter of the
   // route cap and the admin `maxImageBytes`); the server re-caps + magic-byte checks regardless.
   const maxAttachmentBytes = useUploadCaps().image;
