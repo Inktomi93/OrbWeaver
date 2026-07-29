@@ -454,7 +454,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
     startGame: (chatId, params) => rpgOps().startGame(chatId, params),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
-    gatherTurnContext: (chatId, pending, responds, activePersonaName) => rpgOps().gatherTurnContext(chatId, pending, responds, activePersonaName),
+    gatherTurnContext: (chatId, pending, responds, steerIdentity) => rpgOps().gatherTurnContext(chatId, pending, responds, steerIdentity),
     markDicePreRollEligible: (turnId) => rpgOps().markDicePreRollEligible(turnId),
     onUserCommit: (chatId, messageId) => rpgOps().onUserCommit(chatId, messageId),
     // biome-ignore lint/complexity/useMaxParams: mirrors the injected `ChatRpgOps.onTurnCompleted` contract signature (positional delegate).

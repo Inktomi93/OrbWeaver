@@ -427,6 +427,12 @@ async function buildTurnContext(
     /** The slot's persisted user-macro draw record (WAVE MU) on a swipe/continue turn — replayed byte-exact
      *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
     readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
+    /** The Ruling-B `{{char}}` for a HOST-authored / null-speaker context (Chat-Macro-Resolution.md ruling B):
+     *  the JOINED CAST names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
+     *  authority on this identity resolution — threaded into the rpg gather so the host `steeringNote`'s
+     *  `{{char}}` follows the SAME value every other human-authored `{{char}}` uses (never a re-derived
+     *  protagonist). Empty for an empty cast. */
+    readonly castCharForHostRow: string;
   },
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
@@ -446,12 +452,19 @@ async function buildTurnContext(
   });
   // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
   // names to attach. Null op / non-game ⇒ null ⇒ a byte-identical non-game turn (no macros, no injection, no tools).
-  // `foreign.personas.active?.name` is chat's `{{user}}` binding (the active/triggering persona — NOT the
-  // pinned anchor; a steeringNote is a current-action steer, exactly like the guided/nudge path) — threaded so
-  // rpg can render the host's steeringNote identity macros ({{user}}/{{char}}) instead of shipping literal braces.
+  // The host `steeringNote`'s identity-macro binding, both computed CHAT-SIDE (chat owns identity resolution):
+  //   `{{user}}` = `foreign.personas.active?.name` — the active/triggering persona (NOT the pinned anchor; a
+  //      steeringNote is a current-action steer, exactly like the guided/nudge path).
+  //   `{{char}}` = `args.castCharForHostRow` — the Ruling-B host/null-speaker `{{char}}` (the JOINED CAST in a
+  //      multi-character room, the single character in solo), so the steeringNote's `{{char}}` matches every
+  //      other human-authored `{{char}}` (rpg splices chat's value, never re-derives a protagonist).
+  // Threaded so rpg renders the steeringNote's macros (guided-safe) instead of shipping literal braces.
   const rpg =
     ctx.rpg !== null
-      ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false, foreign.personas.active?.name)
+      ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false, {
+          user: foreign.personas.active?.name,
+          char: args.castCharForHostRow,
+        })
       : null;
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
   // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
@@ -1173,6 +1186,8 @@ async function commitUserTurn(
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
       guided,
+      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+      castCharForHostRow: joinedCastName(room.castNames),
     },
     sendOut,
   );
@@ -1335,6 +1350,8 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
       guided,
+      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+      castCharForHostRow: joinedCastName(room.castNames),
     });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
@@ -1473,6 +1490,8 @@ async function resolveTurnBase(
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
     guided: args.guided,
     ...(args.frozenUserMacroDraws !== undefined ? { frozenUserMacroDraws: args.frozenUserMacroDraws } : {}),
+    // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+    castCharForHostRow: joinedCastName(room.castNames),
   });
   return {
     room,
@@ -1952,6 +1971,8 @@ async function runDeferredRound(
       // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
       // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
       respondsToLatestUserTurn: true,
+      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+      castCharForHostRow: joinedCastName(room.castNames),
     },
   );
   const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
@@ -2144,6 +2165,8 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
         triggerPersonaId: null,
         ...(guided !== undefined ? { guided } : {}),
+        // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
+        castCharForHostRow: joinedCastName(room.castNames),
       },
     );
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);

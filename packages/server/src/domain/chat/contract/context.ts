@@ -519,15 +519,18 @@ export interface ChatRpgOps {
    *  the assistant slot that DIRECTLY responds to the latest user message? It drives the `playerRolledDice`
    *  reminder flag (and, paired with {@link markDicePreRollEligible}, the dice feed) so a stale die never
    *  re-feeds a later GM/auto round. Chat computes it (slot mechanics stay chat-owned); rpg consumes it blind.
-   *  `activePersonaName` is the triggering human's ACTIVE persona display name (chat's `{{user}}` binding) —
-   *  threaded so rpg can render the host-authored `steeringNote`'s `{{user}}`/`{{char}}` identity macros
-   *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces. Undefined
-   *  ⇒ no active persona (the "User" fallback rpg-side); rpg resolves `{{char}}` from its own roster. */
+   *  `steerIdentity` is chat's authoritative identity binding for the host-authored `steeringNote`, both values
+   *  resolved CHAT-SIDE (chat owns `{{user}}`/`{{char}}` resolution): `user` = the triggering human's ACTIVE
+   *  persona display name (`undefined` ⇒ no active persona → the "User" floor); `char` = the Ruling-B
+   *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CAST in a multi-character
+   *  room / the single character in solo). Threaded so rpg can render the steeringNote's identity macros
+   *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces — rpg SPLICES
+   *  chat's values, never re-deriving identity. Absent ⇒ the steeringNote ships verbatim (byte-identical). */
   readonly gatherTurnContext: (
     chatId: ChatId,
     pendingUserText: string | undefined,
     respondsToLatestUserTurn: boolean,
-    activePersonaName?: string,
+    steerIdentity?: { readonly user: string | undefined; readonly char: string },
   ) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
    *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
