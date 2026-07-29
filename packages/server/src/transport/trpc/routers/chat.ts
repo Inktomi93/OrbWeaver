@@ -102,6 +102,16 @@ const startChatSchema = z.object({
   startAsGame: z.object({ profile: rpgStatProfileSchema.optional() }).optional(),
 });
 
+// `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.
+// Member-gated + roster-scoped INSIDE the verb (`requireParticipant` + a present-character-seat check on
+// `characterId`), so a stranger's chatId OR a not-in-roster characterId is a leak-free NOT_FOUND (the
+// `getChat`/`listMessages` member-gated collapse). Fields above the effective level are NULL server-side —
+// never sent over the wire. Cross-tenant sweep: PROBED (the chatId gate refuses before any card load).
+const getMemberCardSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+});
+
 const listMessagesSchema = z.object({
   chatId: brandedId<ChatId>(),
   beforeSeq: z.number().optional(),
@@ -439,6 +449,9 @@ export const chatRouter = t.router({
   getChat: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
+  // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
+  // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
+  getMemberCard: authedProcedure.input(getMemberCardSchema).query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),
   // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
   // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
   listMessages: authedProcedure.input(listMessagesSchema).query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),

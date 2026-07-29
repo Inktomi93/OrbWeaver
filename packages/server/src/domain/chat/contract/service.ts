@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -42,6 +42,7 @@ import type {
   GetChatLineageParams,
   GetChatParams,
   GetGroupConfigForChatParams,
+  GetMemberCardParams,
   GetRoomOverridesForChatParams,
   GetShapeTraceParams,
   GetStoredVariablesParams,
@@ -142,6 +143,12 @@ export interface ChatService {
   /** One chat resolved (row + present roster + effective room behavior). Throws `ChatNotFoundError` when
    *  missing or the caller is not a participant (leak-free). */
   readonly getChat: (params: GetChatParams) => Promise<ChatDetail>;
+  /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
+   *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
+   *  THIS chat is a leak-free NOT_FOUND. Fields above the effective level are NULL server-side (never sent);
+   *  surviving text fields render display macros against the chat ANCHOR persona (this is a read-only display,
+   *  not an editor). */
+  readonly getMemberCard: (params: GetMemberCardParams) => Promise<MemberCardView>;
   /** The assembled prompt + trace for a hypothetical turn (host/admin debug surface). */
   readonly previewAssembly: (params: PreviewAssemblyParams) => Promise<AssemblyPreview>;
   /** The resolved `PromptConfig` the chat assembles against. */

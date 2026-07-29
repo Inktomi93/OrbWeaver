@@ -46,6 +46,7 @@ export const CHAT_VERB_AUTHORITY = {
   listForks: "member", // the parent chatId — a member may list its forks (children filtered to the caller's own memberships)
   getChatLineage: "lineage-per-ancestor", // the ancestry chain — each ancestor gated independently (inv §16)
   getChat: "member",
+  getMemberCard: "member-card", // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load).
   previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface
   getActivePresetConfig: "member",
   previewSection: "member",

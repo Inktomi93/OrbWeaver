@@ -94,6 +94,13 @@ export interface GetChatLineageParams extends ChatScopedParams {}
 
 export interface GetChatParams extends ChatScopedParams {}
 
+/** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
+ *  (D22). The `characterId` MUST be a present character seat of THIS chat; a not-in-roster / foreign id is a
+ *  leak-free NOT_FOUND (you cannot read an arbitrary card through a chat you happen to be in). */
+export interface GetMemberCardParams extends ChatScopedParams {
+  readonly characterId: CharacterId;
+}
+
 /** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). */
 export interface PreviewAssemblyParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;

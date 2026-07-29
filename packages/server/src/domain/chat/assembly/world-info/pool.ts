@@ -122,3 +122,24 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
     characterRows.map((r) => fromBookExpansion(r, "character")),
   ]);
 }
+
+/** The `sheet+lore` slice of the D22 member card: ONE character's OWN world-info entry contents (its
+ *  character-scope books), for the member-card read (`clampMemberCard` clamps them at `sheet+lore`). This is
+ *  the character's own lore ONLY — NOT the per-turn 4-scope pool (`loadWorldInfoPool`): a card viewer sees the
+ *  card's world-info, not the room's chat/persona/global books. TENANT-SCOPED to the chat host via the
+ *  `world_books.ownerId` join (the `FLAG[global-scope]` guard, applied here too): a card's books are the
+ *  host's books, so a foreign-owned book can never leak through this read even if a junction row survived.
+ *  Enabled entries only, priority-ordered (highest first) then stable by id. Content strings only — no
+ *  keyword/injection metadata (a card display is not a live activation). */
+export async function loadCharacterCardLore(db: Db, args: { readonly characterId: CharacterId; readonly ownerId: UserId }): Promise<string[]> {
+  const rows = await db
+    .select({ content: worldEntries.content, priority: worldEntries.priority, id: worldEntries.id })
+    .from(characterBooks)
+    .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
+    .innerJoin(worldBooks, eq(worldBooks.id, characterBooks.worldBookId))
+    .where(and(eq(characterBooks.characterId, args.characterId), eq(worldBooks.ownerId, args.ownerId), eq(worldEntries.enabled, true)));
+  return rows
+    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+    .map((r) => r.content)
+    .filter((c) => c.trim().length > 0);
+}
