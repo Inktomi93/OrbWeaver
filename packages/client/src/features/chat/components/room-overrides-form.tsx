@@ -73,9 +73,12 @@ interface OverrideCollapseCardProps {
 
 function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, footer, children }: OverrideCollapseCardProps): ReactElement {
   return (
-    <Card padding="block" className={isSet ? "border-l-2 border-l-primary" : undefined}>
+    // padding="none" on the Card so the block padding lives on the trigger instead — the whole ~49px row is
+    // then one tap target (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel
+    // carry their own horizontal + bottom padding (the trigger's pad only reaches its own row).
+    <Card padding="none" className={isSet ? "border-l-2 border-l-primary" : undefined}>
       <Collapsible open={open} onOpenChange={onOpenChange}>
-        <CollapsibleTrigger className="w-full">
+        <CollapsibleTrigger className="w-full p-block" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">
             <Text weight="medium">{label}</Text>
             <Text size="micro" tone="muted">
@@ -84,12 +87,12 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           </Row>
         </CollapsibleTrigger>
         {isSet && !open ? (
-          <Text size="micro" tone="muted" className="line-clamp-1">
+          <Text size="micro" tone="muted" className="line-clamp-1 px-block pb-block">
             {snippet}
           </Text>
         ) : null}
         <CollapsiblePanel>
-          <Stack gap="field">
+          <Stack gap="field" className="px-block pb-block">
             {children}
             <Row align="center" gap="field">
               {footer}

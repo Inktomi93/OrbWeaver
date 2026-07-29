@@ -46,6 +46,7 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
 
   return (
     <BackgroundSourceField
+      hideLabel={true}
       onChange={(next): void => {
         setBackground.mutate({ chatId, background: next });
       }}

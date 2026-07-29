@@ -14,9 +14,11 @@
 import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { Section, Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { useQuery } from "@tanstack/react-query";
+import type { ReactElement, ReactNode } from "react";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
 import { InjectionsManager } from "./injections-manager";
@@ -25,6 +27,43 @@ import { ToolRecurseControl } from "./tool-recurse-control";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
+
+// A section-heading with an at-a-glance kicker-count chip (panel-redesign) — the label plus a small soft
+// badge when the count is non-zero (a "0" chip is noise). Rendered as the Section's `heading` ReactNode, so
+// its content lands INSIDE the <h3>; the count rides the heading's accessible name ("Injections 3"). Only
+// phrasing content here (a Badge is an inline span) — never a Row/div, which is illegal inside a heading.
+function HeadingWithCount({ label, count, unit }: { readonly label: string; readonly count: number; readonly unit?: string }): ReactNode {
+  return (
+    <>
+      {label}
+      {count > 0 ? (
+        <>
+          {" "}
+          <Badge className="align-middle" intent="neutral" size="sm" tone="soft">
+            {count}
+            {unit}
+          </Badge>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+// Count the SET override fields (exactly the four `RoomOverrides` slots) — a stored field is only ever
+// present when non-empty (empty omits on save, `fromRoomOverridesForm`), so truthiness IS "overridden".
+function countSetOverrides(overrides: RoomOverrides): number {
+  const set = (value: string | undefined): number => (value !== undefined && value !== "" ? 1 : 0);
+  return set(overrides.mainPrompt) + set(overrides.postHistory) + set(overrides.scenario) + set(overrides.authorsNote?.prompt);
+}
+
+// The Injections heading's count reads the SAME `listChatInjections` query the section body suspends on, but
+// NON-suspending (shares the query cache — one fetch) so the heading paints immediately and the chip fills in
+// when the list lands (the chat-list-header count precedent). No chip until the read resolves / when empty.
+function InjectionsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
+  return <HeadingWithCount count={data?.length ?? 0} label="Injections" />;
+}
 
 export interface CommittedSettingsTabProps {
   readonly chatId: ChatId;
@@ -41,10 +80,10 @@ export interface CommittedSettingsTabProps {
 export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup }: CommittedSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section heading="Field overrides">
+      <Section heading={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
         <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} />
       </Section>
-      <Section heading="Injections">
+      <Section heading={<InjectionsHeading chatId={chatId} />}>
         <QueryBoundary
           fallback={<SkeletonRows count={1} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}

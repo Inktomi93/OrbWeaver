@@ -61,6 +61,7 @@ import type {
   MessageView,
   ParticipantView,
   PersonaNameEntry,
+  RoomOverrides,
   ToolCallRecord,
 } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
@@ -1207,17 +1208,19 @@ export interface CommittedSettingsTabStoryProps {
   readonly isHost?: boolean;
   /** The group-level gate the section carries — host of a group chat (CP-1). @defaultValue false */
   readonly showGroup?: boolean;
+  /** Seed the Field-overrides section's set-count chip (panel-redesign). @defaultValue `{}` (no chip) */
+  readonly roomOverrides?: RoomOverrides;
 }
 
 /** The consolidated "This chat" CONTEXT tab (settings-context-tab.tsx, panel-redesign) mounted DIRECTLY as
  *  the component it is — the `.ct.tsx` pins its own section-composition contract (Field overrides +
  *  Injections always; Group behavior gated by `showGroup`) independent of the section-registry resolve. The
  *  `.ct.tsx` routeTrpc-stubs `chat.getGroupConfig` + `chat.setRoomOverrides` + `chat.listChatInjections`. */
-export function CommittedSettingsTabStory({ isHost = true, showGroup = false }: CommittedSettingsTabStoryProps): ReactElement {
+export function CommittedSettingsTabStory({ isHost = true, showGroup = false, roomOverrides = {} }: CommittedSettingsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 380 }}>
-        <CommittedSettingsTab chatId={CHAT_ID} roomOverrides={{}} isHost={isHost} background={null} showGroup={showGroup} />
+        <CommittedSettingsTab chatId={CHAT_ID} roomOverrides={roomOverrides} isHost={isHost} background={null} showGroup={showGroup} />
       </div>
     </CtDataProviders>
   );
