@@ -19,20 +19,40 @@ and silently weren't.** That class keeps being found (the knob-wire audit; the s
 was a real a11y defect) — "drive it live, then pin it" is the posture, not paranoia. Judge every
 finding against that frame.
 
-## ═══ ▶▶▶ SESSION STATE 2026-07-28 NIGHT — READ THIS FIRST (supersedes every block below) ═══
+## ═══ ▶▶▶ SESSION STATE 2026-07-29 — READ THIS FIRST (supersedes every block below) ═══
 
-**HEAD = `adec7490`, PUSHED to origin/main** (2026-07-28 — owner explicitly authorized the push, overriding the
-standing never-push rule; `verify:push` GREEN — the pre-push gate is STRICTER than the commit gate, see
-[[verify-push-stricter-than-commit-gate]]). The whole crunchy-cluster is on main AND published:
-W-A silent-slots · W-B transcript-extraction · W-C reconcile+resyncFromStory (sec-reviewed) · W-D+wand-v2+side-eye
-polish · W-F fork-clone · W-G dangling-heal · CT drift fixes (`adec7490`). Owner is DOGFOODING —
-bar: rpg working IN FULL · all guided options exposed+usable+working · forking working properly.
+**HEAD = `82a8a97a` (main). origin/main = `adec7490` (last PUSH). Everything below adec7490 is COMMITTED-not-pushed**
+— a live-dogfood fix run + one finished feature, all on main, ready for `verify:push` on owner's word
+([[verify-push-stricter-than-commit-gate]] — pre-push runs check+tests:node+e2e-smoke; have the stack up first).
 
-**DEV STACK IS UP** (server :8788 · vite :5173 · fleet embed/rerank/gen-8B loaded) — reachable for dogfood; the 8B
-is warm so extraction runs live. (Stack wrangling was painful this session — [[stack-restart-vs-battery-contention]].)
+**LANDED SINCE THE PUSH (all unpushed, each whole-tree green):**
+- **Impersonate/guided saga** — `23bcfe62` streaming impersonate (SSE subscription, non-persisting, fills composer
+  progressively) · `22ec5de7` the NUDGE macro-substitution fix (unsteered nudges were appended RAW, no renderMacros
+  — now ride `resolveNudgeText`→`resolveGuidedInstruction` w/ the ignore-all voice-lock template; ACTIVE persona)
+  + the `{{scenario}}` kit-registry leak (lone card field registered raw) · `b7ad92df` steeringNote macro render
+  · `caf8f7e6` steeringNote `{{char}}` follows Ruling-B (joined CAST, threaded from chat, not rpg-derived protagonist).
+  Diagnosed via the WIRE_CAPTURE harness: impersonate-writes-as-char = OVER-GENERATION drift, killed by the voice-lock
+  nudge (proven 6/6 at prod sampling). See [[nudge-macro-substitution-seam]], [[identity-macro-resolution-is-chat-owned]].
+- **D22 member-card-viewer FINISHED** (was abandoned-mid-build, test-only) — `29f25983` server `chat.getMemberCard`
+  (present-participant+roster gate, level-clamp, anchor-persona display render, PROBED sweep) · `bceac4e3` a HIGH
+  clamp-bypass fix (macro render re-leaked systemPrompt via `{{charsysinfo}}` → render from CLAMPED view; caught by
+  fresh security review) · `8dada55b` client viewer (read-only clamped display; roster "View character" repointed
+  from the editable library to the clamped in-room viewer) · `82a8a97a` side-eye fixes (single h2 name, section h3s,
+  prose bubbles dropped). GATE GREEN (8205 tests).
 
-**REMAINING (both gated on owner dogfood):** W-H panel-beauty (needs live-populated panels for side-eye) · W-I
-D111 ledger + docs. Deferred: the live 8B extraction-quality probe = owner's own dogfooding.
+**DEV STACK IS UP** with `WIRE_CAPTURE=on DEBUG_TOKEN=dbg` (server :8788 · vite :5173 · fleet gen-8B :8703 loaded).
+Wire replay: `GET /api/_debug/wire/captures?chatId=…` (x-debug-token: dbg) → replay `messages` at `POST :8703/v1/chat/completions`.
+vite refused to boot via stack.sh's orchestration — start standalone: `cd packages/client && exec node_modules/.bin/vite`.
+
+**OPEN / OWED:** (1) impersonate LIVE receipt — owner triggers one impersonate, orch reads the fresh capture to
+confirm the substituted nudge + held voice end-to-end (int-test-proven; live is belt). (2) D22 sub-`full` member
+tiers (name-avatar/sheet/+lore + HiddenTierNote) code+CT verified, NOT live (needs a multi-user non-host view — fold
+into next MU E2E). (3) the unpushed pile → `verify:push`. (4) rpg game-data macro fields (quest titles/pool hints/
+widget labels) do NOT render macros — owner scoped OUT for now. (5) dead-code purge candidates parked: `permitsHost`
+(auth/decide.ts, true orphan), `clampMemberCard` NO LONGER dead (D22 wired it).
+
+**PRIOR CRUNCHY-CLUSTER (pushed @ adec7490):** W-A/W-B/W-C/W-D+wand/W-F fork/W-G heal all shipped. W-H panel-beauty +
+W-I D111 ledger still DEFERRED (gated on owner dogfood populating panels).
 
 **➤ FORK LANE MERGED (this turn):** the security-executor's W-F worktree branch (`b5faacd9` clone + `05b76fbb`
 host-or-sole-human gate) merged into main CLEANLY — `ort` auto-merged the 4 intersecting files (chat/contract/
