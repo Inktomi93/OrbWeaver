@@ -8,6 +8,15 @@
 #   bash scripts/dev/stack.sh stop           kill the stack it started (process
 #                                            group by pgid — never pattern-kill)
 #   bash scripts/dev/stack.sh restart
+#   bash scripts/dev/stack.sh restart --force   (or: force-restart) NUKE then boot
+#                                            — force teardown by PORT-HOLDER +
+#                                            detached vLLM fleet + pidfile group,
+#                                            ignoring ownership/pins, then a fresh
+#                                            start where the CALLER's ENGINES_POSTURE/
+#                                            VLLM_DISABLED/WIRE_CAPTURE/DEBUG_TOKEN
+#                                            WIN over any pinned posture. For when the
+#                                            stack is wedged (unknown-owner ports,
+#                                            stale pin, accumulated detached fleets).
 #   bash scripts/dev/stack.sh status         ports, pids, healthz, env pins, DB
 #   bash scripts/dev/stack.sh logs [server|client] [n]
 #
@@ -55,6 +64,9 @@ VITE_PORT="${VITE_PORT:-5173}"
 : "${VITE_API_TARGET:=http://127.0.0.1:$BACKEND_PORT}"
 export VITE_PORT VITE_API_TARGET
 HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
+# vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after
+# SIGKILLing the detached fleet. Match scripts/dev/engines.ts launch ports.
+FLEET_PORTS=(8701 8702 8703)
 mkdir -p "$RUN_DIR"
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
@@ -183,6 +195,91 @@ do_stop() {
   echo "RESULT stack status=stopped pgid=$pgid"
 }
 
+# ── FORCE teardown (--force only) ────────────────────────────────────────────
+# Ignores ownership + pidfile: kills whatever HOLDS our ports and the full
+# DETACHED vLLM fleet (which survives the manager's death), then verifies release.
+# Kills only orbweaver's OWN procs (:8788 server, :5173 vite, the .cache/vllm/venv
+# fleet, the pidfile group) — never a broad node/python sweep, never the qemu VM.
+# Kills by EXPLICIT PID (not a group that could contain the invoking shell) except
+# the pidfile group, which by construction is the setsid leader tree (not us).
+
+# vLLM fleet cmdline signatures — the detached procs the manager-kill misses.
+FLEET_PATTERNS='scripts/dev/engines\.ts|\.cache/vllm/venv|VLLM::EngineCore|EngineCore|Worker_TP'
+
+fleet_pids() {
+  # Drop the grep we just spawned (its own cmdline carries the pattern) via a
+  # negative match on the ps/grep pipeline itself, then emit pids.
+  ps -eo pid=,cmd= | /usr/bin/grep -aE "$FLEET_PATTERNS" | /usr/bin/grep -av 'pid=,cmd=' \
+    | awk '$0 !~ /grep -aE/ {print $1}'
+}
+
+gpu_idle() { # true when every GPU's used VRAM is below the idle floor (~1GiB)
+  local used
+  while read -r used; do
+    [ -z "$used" ] && continue
+    [ "$used" -gt 1024 ] && return 1
+  done < <(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null)
+  return 0
+}
+
+force_teardown() {
+  local pgid bpid vpid pid p
+  echo "force-restart: TEARDOWN — ignoring ownership + pidfile"
+
+  # 1) Port holders (server :8788, vite :5173) by holder PID, regardless of owner.
+  bpid="$(port_pid "$BACKEND_PORT")"
+  vpid="$(port_pid "$VITE_PORT")"
+  for pid in "$bpid" "$vpid"; do
+    if [ -n "$pid" ]; then
+      echo "force-restart: killing port holder pid $pid"
+      kill -KILL "$pid" 2>/dev/null
+    fi
+  done
+
+  # 2) The stack process group, if a pidfile group is still alive (setsid leader
+  #    tree — never the invoking shell).
+  pgid="$(own_pgid)"
+  if group_alive "$pgid"; then
+    echo "force-restart: killing stack group pgid $pgid"
+    kill -KILL -- "-$pgid" 2>/dev/null
+  fi
+
+  # 3) The FULL detached vLLM fleet (survives manager death) — SIGKILL by cmdline.
+  local fp
+  fp="$(fleet_pids)"
+  if [ -n "$fp" ]; then
+    echo "force-restart: SIGKILL vLLM fleet pids: $fp"
+    # shellcheck disable=SC2086 # word-split intentional: kill a list of pids
+    kill -KILL $fp 2>/dev/null
+  fi
+
+  # 4) Drop the stale pidfile.
+  rm -f "$PIDFILE"
+
+  # 5) POLL until ports free AND VRAM idle — SIGKILL releases sockets/VRAM with a
+  #    few-second LAG, so verify, don't assume.
+  local free
+  for _ in $(seq 1 30); do
+    free=1
+    for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
+      [ -n "$(port_pid "$p")" ] && free=""
+    done
+    [ -n "$(fleet_pids)" ] && free=""
+    if [ -n "$free" ] && gpu_idle; then
+      echo "force-restart: teardown complete — ports free, GPU idle"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "force-restart: WARNING — after 30s teardown poll, some resource not fully released:"
+  for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
+    pid="$(port_pid "$p")"
+    [ -n "$pid" ] && echo "force-restart:   :$p still held by pid $pid"
+  done
+  gpu_idle || echo "force-restart:   GPU VRAM still above idle floor"
+  return 0 # proceed to start regardless — a lagging release usually clears during boot
+}
+
 do_status() {
   local pgid bpid vpid health
   pgid="$(own_pgid)"
@@ -224,10 +321,14 @@ preflight() { # refuses ports owned by a stack we don't know about (idempotent s
 }
 
 do_start() {
-  preflight
-  local pf=$?
-  [ "$pf" = 2 ] && return 0
-  [ "$pf" = 1 ] && return 1
+  # --force skips the ownership preflight entirely — force_teardown already freed
+  # the ports, and the whole point of force is to NOT refuse an unknown owner.
+  if [ -z "${FORCE:-}" ]; then
+    preflight
+    local pf=$?
+    [ "$pf" = 2 ] && return 0
+    [ "$pf" = 1 ] && return 1
+  fi
 
   : >"$LOG"
   # setsid: new session ⇒ new process group whose PGID == the leader's PID.
@@ -265,6 +366,41 @@ do_start() {
   return 1
 }
 
+do_force_restart() {
+  # NUKE everything (ports + detached fleet + pidfile group, ignoring ownership),
+  # then boot fresh. Because we actually kill the old server, the CALLER's env
+  # (ENGINES_POSTURE/VLLM_DISABLED/WIRE_CAPTURE/DEBUG_TOKEN — all resolved at the
+  # top of this script, host export winning over the `:=` pin defaults) is what
+  # the NEW server starts under: the stale pinned posture cannot survive a real
+  # restart. Pinned SECRETS (SESSION_SECRET/CREDENTIALS_KEY/…) still default in.
+  FORCE=1
+  # dev.sh → engines.sh gates the in-stack fleet on VLLM_DISABLED, not ENGINES_POSTURE.
+  # A caller who forces ENGINES_POSTURE=off means "no engines" — bridge it to
+  # VLLM_DISABLED=true (the documented off⇔disabled mapping) so the fresh boot
+  # does NOT cold-spawn a fleet the caller just tore down. The exported var is
+  # inherited by the setsid leader re-exec (and by dev.sh under it). Force-only:
+  # normal start/restart are untouched. Non-off postures reach engines.sh as before.
+  if [ "${ENGINES_POSTURE:-}" = off ]; then export VLLM_DISABLED=true; fi
+  echo "force-restart: caller posture — ENGINES_POSTURE=${ENGINES_POSTURE:-—} VLLM_DISABLED=${VLLM_DISABLED:-—} (wins over any pin)"
+  force_teardown
+  do_start
+  local rc=$?
+  # Confirm what ACTUALLY took by reading the live backend's /proc environ — the
+  # env resolver exports ENGINES_POSTURE (VLLM_DISABLED=true maps to off), so it's
+  # present in the new server's environ.
+  local bpid live vd
+  bpid="$(port_pid "$BACKEND_PORT")"
+  if [ -n "$bpid" ]; then
+    live="$(backend_env_var "$bpid" ENGINES_POSTURE)"
+    if [ -z "$live" ]; then
+      vd="$(backend_env_var "$bpid" VLLM_DISABLED)"
+      [ "$vd" = true ] && live="off(via VLLM_DISABLED)"
+    fi
+    echo "force-restart: live backend ENGINES_POSTURE=${live:-?}"
+  fi
+  return $rc
+}
+
 do_start_fg() {
   # Playwright's webServer entrypoint: no setsid, no pidfile — the caller owns
   # and reaps the child tree. Same leader body, same ordering, same env pins.
@@ -295,13 +431,18 @@ case "${1:-status}" in
   _leader) run_leader ;; # internal: the setsid re-exec target — not for humans
   stop) do_stop ;;
   restart)
-    do_stop
-    do_start
+    if [ "${2:-}" = "--force" ]; then
+      do_force_restart
+    else
+      do_stop
+      do_start
+    fi
     ;;
+  force-restart) do_force_restart ;; # alias for `restart --force`
   status) do_status ;;
   logs) shift; do_logs "$@" ;;
   *)
-    echo "usage: stack.sh {start|start-fg|stop|restart|status|logs [server|client] [n]}"
+    echo "usage: stack.sh {start|start-fg|stop|restart [--force]|force-restart|status|logs [server|client] [n]}"
     exit 2
     ;;
 esac
