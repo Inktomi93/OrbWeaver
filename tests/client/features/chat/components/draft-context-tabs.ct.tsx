@@ -15,40 +15,44 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures";
 import { DraftContextPanelStory } from "../_ct-stories";
 
-test("a draft's CONTEXT panel renders the editable Settings tab (host — autosaving)", async ({ mount }) => {
+test("a draft's CONTEXT panel renders the editable This chat tab (host — autosaving)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
-  // The Settings tab (was Overrides) is present and active (no server read gated it; Members is hidden
-  // at solo-cast so Settings is the first visible tab). Appearance overrides is its first section.
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  // The "This chat" tab (was Overrides → Settings) is present and active (no server read gated it; Members
+  // is hidden at solo-cast so it is the first visible tab). Field overrides is its first section.
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   // Host copy — a draft is authored by (and only visible to) its creator, so it is always editable. The
   // per-field guidance collapsed to ONE intro line (N4); it ends with the autosave affordance.
   await expect(component.getByText("Empty fields inherit from the character or preset. Saved automatically.")).toBeVisible();
 
-  // The four host-allowlist override fields render, editable (not disabled — the draft is host).
-  const labels = ["Main prompt", "Post-history instructions", "Scenario", "Author's note"];
-  await Promise.all(
-    labels.map(async (label) => {
-      const field = component.getByRole("textbox", { name: label });
-      await expect(field).toBeVisible();
-      await expect(field).toBeEnabled();
-    }),
-  );
+  // The four host-allowlist override fields are collapse-until-needed rows — expand each and confirm its
+  // editor is present + editable (not disabled — the draft is host).
+  const expectEditableField = async (label: string): Promise<void> => {
+    await component.getByRole("button", { name: label }).click();
+    const field = component.getByRole("textbox", { name: label });
+    await expect(field).toBeVisible();
+    await expect(field).toBeEnabled();
+  };
+  await expectEditableField("Main prompt");
+  await expectEditableField("Post-history");
+  await expectEditableField("Scenario");
+  await expectEditableField("Author's note");
 });
 
 test("editing a draft override field is accepted (the autosaving textarea is live)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
+  await component.getByRole("button", { name: "Scenario" }).click();
   const scenario = component.getByRole("textbox", { name: "Scenario" });
   await scenario.fill("A rooftop bar at midnight.");
   await expect(scenario).toHaveValue("A rooftop bar at midnight.");
 });
 
-test("a draft's Injections tab adds a LOCAL injection row (no network — the draft array grows)", async ({ mount }) => {
+test("a draft's Injections section adds a LOCAL injection row (no network — the draft array grows)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);
 
-  await component.getByRole("tab", { name: "Injections" }).click();
+  // Injections is a section inside the default "This chat" tab (no separate tab).
   await expect(component.getByText("No injections yet.")).toBeVisible();
 
   // Add → the draft-config array grows → a row appears (its Remove control), no server round-trip.
@@ -66,7 +70,7 @@ const BOLT_SUMMARY = makeCharacterSummary({ id: BOLT_ID, name: "Bolt" });
 const ARIA_DETAIL = makeCharacterDetail({ id: ARIA_ID, handle: ARIA_ID, name: "Aria" });
 const BOLT_DETAIL = makeCharacterDetail({ id: BOLT_ID, handle: BOLT_ID, name: "Bolt" });
 
-test("a draft with ≥2 cast shows Members + the Settings Group behavior section (hidden at cast<2) and the add-member popover", async ({ mount, page }) => {
+test("a draft with ≥2 cast shows Members + the This chat Group behavior section (hidden at cast<2) and the add-member popover", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": { items: [ARIA_SUMMARY, BOLT_SUMMARY], nextCursor: null },
     "character.get": (input: unknown): unknown => ((input as { readonly characterId: string }).characterId === ARIA_ID ? ARIA_DETAIL : BOLT_DETAIL),
@@ -75,16 +79,16 @@ test("a draft with ≥2 cast shows Members + the Settings Group behavior section
   const component = await mount(<DraftContextPanelStory characterIds={[ARIA_ID, BOLT_ID]} />);
 
   // Members declared first ⇒ the default active tab (the Members-default, §6b). The former Group tab is now
-  // a SECTION inside the always-present Settings tab (CP-1), gated at cast≥2 at the section level.
+  // a SECTION inside the always-present "This chat" tab, gated at cast≥2 at the section level.
   await expect(component.getByRole("tab", { name: "Members" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Group" })).toHaveCount(0);
   await expect(component.getByText("Aria")).toBeVisible();
   await expect(component.getByText("Bolt")).toBeVisible();
 
-  // Open Settings: both the Appearance overrides and the ≥2-cast Group behavior sections render as h3s.
-  await component.getByRole("tab", { name: "Settings" }).click();
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  // Open "This chat": both the Field overrides and the ≥2-cast Group behavior sections render as h3s.
+  await component.getByRole("tab", { name: "This chat" }).click();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 
   // The persistent add-member trigger rides the strip-trail `actions` slot (§6b `actions` binding),

@@ -1,6 +1,7 @@
 // CT: the chats section's COMMITTED context (chats-section.tsx's `defineContextTabs` over the committed
-// arm of ChatContextState, rendered through the real SectionContextHost — members · overrides · group ·
-// preview · injections). Drives the production path over the stubbed network (routeTrpc):
+// arm of ChatContextState, rendered through the real SectionContextHost — members · "This chat" (field
+// overrides + injections + group + background + tool-use sections) · preview). Drives the production path
+// over the stubbed network (routeTrpc):
 // `chat.getChat` supplies the roster (the host gate + the Members rows) + the current room overrides;
 // `chat.listChatInjections` + `chat.previewAssembly` feed the tabs; `invites.*` feeds the mint dialog.
 // Asserts the host vs member split (member loses the Preview tab and edits nothing), the Members tab
@@ -135,7 +136,7 @@ function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, u
   };
 }
 
-test("host sees all three tabs (Settings · Preview · Injections)", async ({ mount, page }) => {
+test("host sees the consolidated tabs (This chat · Preview)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host", { mainPrompt: "Be terse." }),
     "chat.listChatInjections": () => [],
@@ -144,15 +145,18 @@ test("host sees all three tabs (Settings · Preview · Injections)", async ({ mo
 
   const component = await mount(<ChatContextPanelStory />);
 
-  // Overrides + Group consolidated into ONE "Settings" tab (CP-1): the strip is now Settings · Preview ·
-  // Injections (Members gated out in this solo chat) — never the pre-CP-1 5-tab clip.
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  // Overrides + Injections + Group consolidated into ONE "This chat" tab (panel-redesign): the strip is now
+  // This chat · Preview (Members gated out in this solo chat). Overrides + Injections are no longer their
+  // own tabs — they are SECTIONS inside "This chat".
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Settings" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Overrides" })).toHaveCount(0);
+  await expect(component.getByRole("tab", { name: "Injections" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Group" })).toHaveCount(0);
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
-  // The Appearance overrides + (host+group) Group behavior are SECTIONS inside the tab, with real h3s.
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  // Field overrides + Injections are SECTIONS inside the tab, with real h3s.
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
 });
 
 test("host in a SOLO (1-character) chat sees no Members tab (D16 size-gate)", async ({ mount, page }) => {
@@ -202,10 +206,10 @@ test("CP-1: HOST of a group chat sees the Group behavior section inside Settings
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  // Members is the default in a group; open Settings to reach the sections.
-  await component.getByRole("tab", { name: "Settings" }).click();
+  // Members is the default in a group; open "This chat" to reach the sections.
+  await component.getByRole("tab", { name: "This chat" }).click();
 
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
@@ -216,10 +220,10 @@ test("CP-1: MEMBER of a group chat sees Settings but NOT the Group behavior sect
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Settings" }).click();
+  await component.getByRole("tab", { name: "This chat" }).click();
 
-  // Appearance overrides is present (read-only for a member); Group behavior is omitted for a non-host.
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  // Field overrides is present (read-only for a member); Group behavior is omitted for a non-host.
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
 });
 
@@ -233,7 +237,7 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   // The default story mounts WITHOUT the capability prop — the single-user composition.
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   // One character + one human, no capability ⇒ no Members tab at all (both sections empty).
   await expect(component.getByRole("tab", { name: "Members" })).toHaveCount(0);
 });
@@ -303,14 +307,17 @@ test("member loses the Preview tab and the overrides are read-only", async ({ mo
 
   const component = await mount(<ChatContextPanelStory />);
 
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
-  await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
+  // Injections is now a SECTION inside "This chat", not its own tab.
+  await expect(component.getByRole("tab", { name: "Injections" })).toHaveCount(0);
+  await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   // Preview is host-only (previewAssembly is a host debug surface) — hidden for a member.
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
   // A non-host member sees NO "Group behavior" section (the §8.1 host-only omit, moved to section level).
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
-  // The Appearance-overrides main-prompt field seeded from the server value, but disabled (a member
-  // cannot edit) — the override control is still reachable inside the merged Settings tab.
+  // The Field-overrides main-prompt field seeded from the server value, but disabled (a member cannot edit)
+  // — the override control is still reachable inside "This chat" (expand the collapse-until-needed row).
+  await component.getByRole("button", { name: "Main prompt" }).click();
   const mainPrompt = component.getByLabel("Main prompt", { exact: true });
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();
@@ -332,12 +339,13 @@ test("migrated tabs obey the server host field, NOT the first-seat proxy (member
   const component = await mount(<ChatContextPanelStory />);
 
   // Preview is host-only → hidden despite the host-first roster that would trip the proxy.
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Preview" })).toHaveCount(0);
   // The Group-behavior SECTION obeys the server host field too — a member behind a host seat sees none.
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
   // Overrides seed from the server value but stay read-only — the member cannot edit even though a
-  // host holds the first human seat.
+  // host holds the first human seat (expand the collapse-until-needed row to reach the editor).
+  await component.getByRole("button", { name: "Main prompt" }).click();
   const mainPrompt = component.getByLabel("Main prompt", { exact: true });
   await expect(mainPrompt).toHaveValue("Be terse.");
   await expect(mainPrompt).toBeDisabled();
@@ -381,7 +389,8 @@ test("host adds an injection (setChatInjection fires with no id ⇒ create)", as
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Injections" }).click();
+  // Injections is a section inside "This chat" (the default tab for this solo host chat).
+  await component.getByRole("tab", { name: "This chat" }).click();
   await expect(component.getByText("No injections yet.")).toBeVisible();
 
   await component.getByRole("button", { name: "Add injection" }).click();
@@ -409,7 +418,8 @@ test("host removes an injection (deleteChatInjection fires with the row id)", as
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("tab", { name: "Injections" }).click();
+  // Injections is a section inside "This chat" (the default tab for this solo host chat).
+  await component.getByRole("tab", { name: "This chat" }).click();
   await expect(component.getByText("It is raining.")).toBeVisible();
 
   await component.getByRole("button", { name: "Remove injection" }).click();
@@ -428,6 +438,8 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   });
 
   const component = await mount(<ChatContextPanelStory />);
+  // Field overrides are collapse-until-needed rows — expand Scenario, then edit it.
+  await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
 
   await expect.poll(() => trpc.count("chat.setRoomOverrides"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
@@ -448,6 +460,8 @@ test("host sets the author's-note depth — the injection directive is saved (ta
   });
 
   const component = await mount(<ChatContextPanelStory />);
+  // The author's-note override is a collapse-until-needed row — expand it to reach the note + depth + role.
+  await component.getByRole("button", { name: "Author's note" }).click();
   await component.getByLabel("Author's note", { exact: true }).fill("Keep it tense.");
   // The NumberField seeds the house default depth; clear before typing so the value replaces, not appends.
   await component.getByLabel("Depth", { exact: true }).clear();
@@ -481,6 +495,7 @@ test("assistant role at depth 0 surfaces the author's-note prefill warning", asy
   });
 
   const component = await mount(<ChatContextPanelStory />);
+  await component.getByRole("button", { name: "Author's note" }).click();
   await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
   await component.getByLabel("Depth", { exact: true }).clear();
   await component.getByLabel("Depth", { exact: true }).fill("0");
@@ -499,7 +514,8 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  // Put the note into the invalid assistant@depth-0 prefill combo.
+  // Put the note into the invalid assistant@depth-0 prefill combo (expand the author's-note collapse row).
+  await component.getByRole("button", { name: "Author's note" }).click();
   await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
   await component.getByLabel("Depth", { exact: true }).clear();
   await component.getByLabel("Depth", { exact: true }).fill("0");
@@ -508,6 +524,7 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
   await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
 
   // A sibling edit STILL persists — the whole-blob write carries scenario with the invalid note WITHHELD.
+  await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
   await expect
     .poll(() => {
@@ -547,7 +564,7 @@ test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it 
 
 // ── The chat-context CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8) ──────────────────────
 // The seam itself was built at M3 (`defineContextTabs`'s `contributors` arm), but no CT had ever mounted
-// a LIVE contributor through it — every prior test drove the panel's OWN 5 tabs. This proves a fake
+// a LIVE contributor through it — every prior test drove the panel's OWN tabs. This proves a fake
 // `ContextTabDef<ChatContextState>`, registered at a door-mirroring `CtChatContributorSectionRegistry` in
 // place of main.tsx's empty registry, renders as a real tab AND `when`-gates, through the REAL
 // section → factory → mint → resolve path (not a bespoke test double of the seam).
@@ -575,6 +592,6 @@ test("a fake context-tab contributor's `when:false` hides it from the real tab s
 
   const component = await mount(<ChatContextTabContributorStory visible={false} />);
 
-  await expect(component.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Fake Tab" })).toHaveCount(0);
 });

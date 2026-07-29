@@ -1,14 +1,11 @@
 // The Chats rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — rail
 // identity, panel defaults, placeholder copy, list, content, header, and CONTEXT model in one place.
 // CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the phase-discriminated
-// projection, unifying the committed panel and its draft twin into one 5-tab set; `useChatContextState`
+// projection, unifying the committed panel and its draft twin into one tab set; `useChatContextState`
 // pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes the chat-context
 // contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat.
 
-import { Eye, MessagesSquare, Settings, Syringe, Users } from "@orb/ui/icons";
-import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState } from "#data";
+import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import type { ChatContextState, ChatContextTabId, ChatSurfaceContribution, CommittedChatContext, ContextTabDef, ContributorRegistry, ToolRenderer } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
@@ -21,8 +18,7 @@ import { ChatListHeader } from "../components/chat-list-header";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab";
 import { CommittedMembersTab } from "../components/committed-members-tab";
-import { DraftInjectionsTab, DraftMembersTabBody } from "../components/draft-context-tabs";
-import { InjectionsManager } from "../components/injections-manager";
+import { DraftMembersTabBody } from "../components/draft-context-tabs";
 import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab";
 import { useChatContextState } from "../hooks/use-chat-context-state";
 import { ChatListSurface } from "../surfaces/chat-list-surface";
@@ -44,10 +40,6 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
   };
 }
 
-function queryFallback(label: string): ReactElement {
-  return <Text tone="muted">{`Loading ${label}…`}</Text>;
-}
-
 // Flat declared order encodes the Members-default (§6b): members first ⇒ the generic resolve picks it as
 // the active tab whenever visible, else the first visible tab. Each body narrows on `s.phase`.
 const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly id: ChatContextTabId })[] = [
@@ -58,14 +50,15 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable) : s.cast.length >= GROUP_FLOOR),
     body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
-  // Overrides + Group consolidated into ONE "Settings" tab (Context-Panel-Program §1 CP-1). Always
-  // visible (Appearance overrides shows for everyone); the former Group tab's host+group-chat gate moves
-  // DOWN to the "Group behavior" SECTION inside the body (`showGroup`) — the §8.1 permission-omit, now at
-  // section granularity so the strip drops a slot without dropping a control.
+  // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
+  // (panel-redesign; the former "Appearance overrides" tab and the separate "Injections" meta-tab merged).
+  // Always visible (Field overrides + Injections show for everyone); the former Group tab's host+group-chat
+  // gate + the Tool-use host gate + the Background host gate live at SECTION granularity inside the body —
+  // the §8.1 permission-omit, now per-section so the strip drops slots without dropping controls.
   {
     id: "settings",
-    label: "Settings",
-    icon: Settings,
+    label: "This chat",
+    icon: SlidersHorizontal,
     body: (s) =>
       s.phase === "committed" ? (
         <CommittedSettingsTab
@@ -85,22 +78,6 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     icon: Eye,
     when: (s) => s.phase === "committed" && s.isHost,
     body: (s) => (s.phase === "committed" ? <AssemblyPreviewPanel chatId={s.chatId} /> : null),
-  },
-  {
-    id: "injections",
-    label: "Injections",
-    icon: Syringe,
-    body: (s) =>
-      s.phase === "committed" ? (
-        <QueryBoundary
-          fallback={queryFallback("injections")}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
-        >
-          <InjectionsManager chatId={s.chatId} isHost={s.isHost} />
-        </QueryBoundary>
-      ) : (
-        <DraftInjectionsTab draftKey={s.draftKey} />
-      ),
   },
 ];
 

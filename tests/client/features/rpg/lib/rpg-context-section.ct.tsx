@@ -199,7 +199,7 @@ test("the takeover renders the 6 LIVE game tabs + the locked Map (in the Game st
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("tablist", { name: "Chat" });
-  await expect(metaStrip.getByRole("tab", { name: "Settings" })).toBeVisible();
+  await expect(metaStrip.getByRole("tab", { name: "This chat" })).toBeVisible();
   await expect(metaStrip.getByRole("tab", { name: "Game" })).toBeVisible();
 });
 

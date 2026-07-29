@@ -214,7 +214,7 @@ export type ChatContextState = CommittedChatContext | DraftChatContext;
  *  error at every site instead of a silent first-visible fallback (the CP-1 overrides→settings rename
  *  orphaned two deep-links exactly that way). The chats `defineContextTabs` defs derive their `id`s
  *  from this type. */
-export const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview", "injections"] as const;
+export const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview"] as const;
 export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 
 /** The Analytics CONTEXT-panel state projection (O5 strict — a real named type, never void/any). The
