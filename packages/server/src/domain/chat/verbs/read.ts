@@ -13,10 +13,23 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { ChatInjection, ChatMacroNameProducer, ContextFitPreview, MessageView, ParticipantView } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { CharacterCard } from "@orb/contracts/character";
+import type {
+  AssembleCharacter,
+  AssembleContext,
+  AssemblePersona,
+  ChatInjection,
+  ChatMacroNameProducer,
+  ContextFitPreview,
+  MemberCardView,
+  MemberCardVisibility,
+  MessageView,
+  ParticipantView,
+} from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -25,11 +38,13 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
+import type { ChatMetadata } from "../contract/metadata";
 import type {
   ChatEventBoundsParams,
   GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
+  GetMemberCardParams,
   GetShapeTraceParams,
   GuidedSteer,
   ListChatsParams,
@@ -87,11 +102,13 @@ import {
   buildShapeTrace,
   buildTurnUserMacros,
   fitHistory,
+  loadCharacterCardLore,
   previewSection,
+  renderMacros,
   shapeTurn,
   toShapeCanon,
 } from "../substrate/assembly-access";
-import { isBelowHistoryFloor, NO_HISTORY_FLOOR } from "../substrate/auth";
+import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember } from "../substrate/member-visibility";
@@ -120,6 +137,7 @@ type ReadVerbs = Pick<
   | "listForks"
   | "getChatLineage"
   | "getChat"
+  | "getMemberCard"
   | "previewAssembly"
   | "getActivePresetConfig"
   | "previewSection"
@@ -354,6 +372,126 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
   };
+}
+
+/** The host-configured member-card level for a chat (D22): `chatMetadata.group.memberCardVisibility`, or the
+ *  `DEFAULT_GROUP_CONFIG` floor (`sheet`) when the room carries no group blob. Read straight off the already-
+ *  loaded membership row — no extra read. */
+function configuredCardVisibility(chat: { readonly metadata: ChatMetadata }): MemberCardVisibility {
+  return chat.metadata.group?.memberCardVisibility ?? DEFAULT_GROUP_CONFIG.memberCardVisibility;
+}
+
+/** Build the MINIMAL render context for the D22 card DISPLAY — just the two macro bindings the card fields
+ *  need: `{{char}}` = THIS card's name, `{{user}}`/`{{persona}}` = the chat ANCHOR persona (the source the
+ *  assemble binds for card-derived sections — `renderMemberField`/`char_description` use `ctx.pinnedPersona`).
+ *  This is deliberately NOT the full turn gather (`buildPreviewContext`): a card read renders card text against
+ *  the anchor, it does not assemble a prompt, so it must not depend on a resolvable connection / memory recall /
+ *  variable fold. The macro option mapper (`macroOptionsFor`) reads only `character`/`pinnedPersona` off this —
+ *  every other field is optional-safe — so a bare ctx renders `{{char}}`/`{{user}}`/`{{persona}}` faithfully. */
+function cardRenderContext(card: CharacterCard, anchor: AssemblePersona | null): AssembleContext {
+  const character: AssembleCharacter = {
+    name: card.name,
+    description: card.description ?? "",
+    personality: card.personality,
+    scenario: card.scenario,
+    exampleMessages: card.exampleMessages,
+    systemPrompt: card.systemPrompt,
+    postHistoryInstructions: card.postHistoryInstructions,
+    depthPrompt: null,
+  };
+  return {
+    character,
+    cast: [character],
+    speaker: { kind: "single", character },
+    pinnedPersona: anchor,
+    activePersona: anchor,
+    // Required on the ctx type, but the macro option mapper never reads it (card fields render off
+    // `character`/`pinnedPersona` only) — the system default satisfies the type without a preset read.
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    recentMessages: [],
+    variableValues: {},
+  };
+}
+
+/** Render a surviving card field's display macros against the anchor context — `null` passes through
+ *  unchanged (a clamped-away field), a non-null string resolves `{{char}}`/`{{user}}`/… so the wire never
+ *  carries literal braces. This is a READ-ONLY DISPLAY, so macros RENDER (the owner's rule: raw only in
+ *  type-as-you-type editors, and a member card is not an editor). */
+function renderCardField(value: string | null, renderCtx: AssembleContext): string | null {
+  return value === null ? value : renderMacros(value, renderCtx, renderCtx.pinnedPersona);
+}
+
+/** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
+ *  (D22 — Part III §11). The gate is TWO belts:
+ *   1. `requireParticipant` (matrix `member-card`) — a non-participant (or a stranger's chatId) collapses to a
+ *      leak-free `ChatNotFoundError` BEFORE any card bytes are loaded (the cross-tenant sweep's PROBED verdict).
+ *   2. the `characterId` MUST be a PRESENT character seat of THIS chat — a not-in-roster / foreign id is the
+ *      SAME leak-free NOT_FOUND (you cannot read an arbitrary character's card through a chat you happen to be
+ *      in). Checked against the roster's present character seats, never against the character table directly.
+ *
+ *  The room host always resolves to `full` (`resolveCardVisibility`); every other present member sees the
+ *  host-configured level. `clampMemberCard` NULLS every field above the effective level SERVER-SIDE (the
+ *  prompt-steering internals — `systemPrompt`/`postHistoryInstructions` — and the character's rendered `lore`
+ *  never cross the wire below `full`/`sheet+lore`). The surviving TEXT fields then render display macros
+ *  against the ANCHOR persona (the same source the assemble resolves card fields against). `lore` (world-info
+ *  contents) and `tags` are already stored resolved — no macro pass. */
+function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["getMemberCard"] {
+  return async ({ principal, chatId, characterId }: GetMemberCardParams): Promise<MemberCardView> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    // Belt 2 + the host owner: resolve the room's present roster ONCE — the host (card owner for every load
+    // below) and the present character seats (the roster-scope gate). A hostless room is unusable (leak-free).
+    const roster = await loadRoster(ctx.db, chatId);
+    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const seated = roster.some((r) => r.kind === "character" && r.characterId === characterId);
+    if (hostUserId === null || !seated) {
+      throw new ChatNotFoundError(chatId);
+    }
+    // Load the card under the HOST's ownership (the seat's card belongs to the host, D18) — the caller-supplied
+    // bits `clampMemberCard` needs. A gone/mid-delete card is a leak-free NOT_FOUND (nothing to project).
+    const card = await ctx.getCard({ ownerId: hostUserId, characterId });
+    if (card === null) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const visibility = resolveCardVisibility(membership.role, configuredCardVisibility(membership.chat));
+    const [tags, lore, avatarHash, anchorPersona] = await Promise.all([
+      ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
+      loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
+      ctx.resolveAssetHash(card.avatarAssetId),
+      resolveAnchorPersona(deps, chatId, hostUserId, membership.chat.anchorPersonaId),
+    ]);
+    // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
+    // wire). `clampMemberCard` fabricates nothing: it gates the caller-resolved `tags`/`lore`/`avatarHash`.
+    const clamped = clampMemberCard({ characterId, card, tags, lore, avatarHash, visibility });
+    // Render display macros on the SURVIVING text fields against the anchor persona (a null field was clamped
+    // away and passes through). Greetings render per-entry. `lore`/`tags` are stored resolved (no macro pass).
+    const renderCtx = cardRenderContext(card, anchorPersona);
+    return {
+      ...clamped,
+      description: renderCardField(clamped.description, renderCtx),
+      personality: renderCardField(clamped.personality, renderCtx),
+      scenario: renderCardField(clamped.scenario, renderCtx),
+      greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
+      exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
+      creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
+      systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
+      postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
+    };
+  };
+}
+
+/** Resolve the chat ANCHOR persona to its `{name, description}` the way the assemble does — through the FOREIGN
+ *  persona read (`ResolveForeignInputsOp`, the ONE sanctioned persona-resolution path chat holds). `model:""`
+ *  is a stub: a card DISPLAY resolves personas, not a connection-specific preset, so the foreign resolver's
+ *  model arg (which only tunes preset selection) is irrelevant here — no `resolveConnection` hop is needed. */
+async function resolveAnchorPersona(deps: ReadDeps, chatId: ChatId, hostUserId: UserId, anchorPersonaId: PersonaId | null): Promise<AssemblePersona | null> {
+  const foreign = await deps.resolveForeignInputs({
+    chatId,
+    runAsUserId: hostUserId,
+    model: "",
+    anchorPersonaId,
+    personaIds: anchorPersonaId !== null ? [anchorPersonaId] : [],
+  });
+  return foreign.personas.anchor;
 }
 
 // An unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole.
@@ -733,6 +871,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listForks: createListForks(ctx, deps),
     getChatLineage: createGetChatLineage(ctx, deps),
     getChat: createGetChat(ctx, deps),
+    getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),

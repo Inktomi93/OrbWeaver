@@ -4,13 +4,15 @@
 // prompt WITHOUT persisting or running a turn, the stream-ring reads return the resumable slice, and a
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
+import type { CharacterCard } from "@orb/contracts/character";
+import type { AssemblePersona, MemberCardVisibility } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats as chatsTable, messages } from "@orb/db";
+import { characterBooks, chatParticipants, chats as chatsTable, messages, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -1050,5 +1052,204 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(hostBytes).toContain("crypt");
     expect(hostReplay.some((e) => e.event.type === "delta" && e.event.delta.kind === "reasoning")).toBe(true);
     expect(hostReplay.some((e) => e.event.type === "reasoningStreamDone")).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// D22 `getMemberCard` — the per-member VISIBILITY read. A present member may READ a roster character's card,
+// but ONLY the fields at/below the room's host-set `memberCardVisibility`. The RISK this proves closed: a
+// card's prompt-steering internals (systemPrompt/postHistory) or its lore leaking to a member below the level,
+// and a non-participant (or a not-in-roster characterId) reading any card. Every assertion below checks the
+// WIRE payload (fields ABSENT/null), not a client-side hide — the strip is server-side by construction.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("read — getMemberCard (D22 member-card visibility)", () => {
+  const cardChar = castId<CharacterId>("character_mc_card");
+
+  /** A card whose text fields carry `{{user}}`/`{{char}}` macros — so a passing render proves the anchor +
+   *  character bind (never literal braces on the wire), and the field values double as visibility sentinels. */
+  const macroCard: CharacterCard = {
+    name: "Seraphine",
+    description: "{{char}} greets {{user}} warmly",
+    personality: "curious",
+    scenario: "{{user}} meets {{char}}",
+    greetings: [{ text: "Hi {{user}}, I am {{char}}" }],
+    exampleMessages: "{{char}}: hello {{user}}",
+    systemPrompt: "SECRET: {{char}} manipulates {{user}}",
+    postHistoryInstructions: "SECRET-JB: stay in character as {{char}}",
+    depthPrompt: { depth: 4, prompt: "note" },
+    creatorNotes: "made by nate",
+    creator: "nate",
+    cardVersion: "1.0",
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
+    regexScripts: [],
+    extensions: null,
+    residualData: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+
+  const anchorPersona: AssemblePersona = { name: "Nate", description: "the anchor persona" };
+
+  /** A ChatContext wired for the member-card read: the card via `getCard` (keyed to `cardChar`), the tags via
+   *  `resolveCharacterTags`, the avatar hash via `resolveAssetHash`. Everything else is the harness default. */
+  function makeCardCtx(overrides: { tags?: string[]; avatarHash?: string | null } = {}): ChatContext {
+    return makeChatContext(db, {
+      getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? macroCard : null),
+      resolveCharacterTags: () => Promise.resolve(overrides.tags ?? ["fantasy", "rogue"]),
+      resolveAssetHash: () => Promise.resolve(overrides.avatarHash ?? null),
+    });
+  }
+
+  /** The anchor-persona render deps: `resolveForeignInputs` returns the anchorPersona as `personas.anchor` — the same
+   *  DTO the composition root produces, so the display render binds `{{user}}` to it exactly as the assemble does. */
+  function makeCardDeps(): Parameters<typeof createRead>[1] {
+    return {
+      loadParticipantViews,
+      // getMemberCard never resolves a connection (a card DISPLAY is not a turn) — a real factory keeps the
+      // dep type-honest without the double-cast the `no-test-fabrication` gate forbids.
+      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: anchorPersona, active: anchorPersona },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    };
+  }
+
+  /** Seed a room whose group config sets `memberCardVisibility`, with a host + the card character seated +
+   *  a plain member. Returns the ids. The card char's WI (`loadCharacterCardLore` source) is seeded separately. */
+  async function seedCardRoom(key: string, visibility: MemberCardVisibility): Promise<{ host: UserId; member: UserId; chatId: ChatId }> {
+    const host = await seedUser(db, `${key}_host`);
+    const member = await seedUser(db, `${key}_member`);
+    const chatId = await seedChat(db, key, { metadata: { group: { output: "per-speaker", policy: "natural", memberCardVisibility: visibility } } });
+    await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: `${key}_m`, userId: member, role: "member" });
+    await seedCharacter(db, host, "mc_card", { id: cardChar });
+    await seedParticipant(db, { chatId, key: `${key}_c`, characterId: cardChar });
+    return { host, member, chatId };
+  }
+
+  /** Seed a character-scope world-info book (owned by `owner`) + one enabled entry, linked to `characterId`. */
+  async function seedCardLore(owner: UserId, key: string, content: string): Promise<void> {
+    const bookId = castId<WorldBookId>(`world_book_${key}`);
+    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+    await db.insert(worldEntries).values({
+      id: castId<WorldEntryId>(`world_entry_${key}`),
+      worldBookId: bookId,
+      title: key,
+      content,
+      keys: null,
+      enabled: true,
+      priority: 0,
+      ignoreBudget: false,
+      metadata: null,
+      createdAt: FROZEN_AT,
+    });
+    await db.insert(characterBooks).values({ characterId: cardChar, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT });
+  }
+
+  test("a MEMBER at `sheet` sees name/description/personality/scenario but NOT systemPrompt/postHistory/lore (wire payload)", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_sheet", "sheet");
+    // The card HAS lore, but a `sheet` member is below `sheet+lore` — it must be clamped null regardless.
+    await seedCardLore(host, "mc_sheet_lore", "hidden lore");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    // sheet-tier fields present…
+    expect(view.name).toBe("Seraphine");
+    expect(view.description).not.toBeNull();
+    expect(view.personality).toBe("curious");
+    expect(view.scenario).not.toBeNull();
+    // …the prompt-steering internals + lore are NULL, and the SECRET bytes never cross the wire.
+    expect(view.systemPrompt).toBeNull();
+    expect(view.postHistoryInstructions).toBeNull();
+    expect(view.lore).toBeNull();
+    const bytes = JSON.stringify(view);
+    expect(bytes).not.toContain("SECRET");
+    expect(bytes).not.toContain("hidden lore");
+  });
+
+  test("at `sheet+lore` the character's rendered lore appears; the prompt internals stay NULL", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_lore", "sheet+lore");
+    // The lore book is the HOST's (the card owner) — the read is host-owner-scoped.
+    await seedCardLore(host, "mc_lore_entry", "the ancient prophecy");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    expect(view.lore).toEqual(["the ancient prophecy"]);
+    expect(view.systemPrompt).toBeNull();
+    expect(view.postHistoryInstructions).toBeNull();
+  });
+
+  test("the HOST always sees `full` — systemPrompt/postHistory/lore all present even when the room is set to `sheet`", async () => {
+    const { host, chatId } = await seedCardRoom("mc_host", "sheet");
+    await seedCardLore(host, "mc_host_lore", "host-visible lore");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+
+    expect(view.visibility).toBe("full");
+    expect(view.systemPrompt).not.toBeNull();
+    expect(view.postHistoryInstructions).not.toBeNull();
+    expect(view.lore).toEqual(["host-visible lore"]);
+  });
+
+  test("surviving text fields RENDER display macros against the anchorPersona persona — no literal braces on the wire", async () => {
+    const { host, chatId } = await seedCardRoom("mc_macro", "full");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    // Host = full, so every field survives and every field renders.
+    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+
+    // `{{user}}` → anchor name (Nate), `{{char}}` → the card name (Seraphine); never literal braces.
+    expect(view.scenario).toBe("Nate meets Seraphine");
+    expect(view.description).toBe("Seraphine greets Nate warmly");
+    expect(view.greetings).toEqual(["Hi Nate, I am Seraphine"]);
+    expect(view.systemPrompt).toBe("SECRET: Seraphine manipulates Nate");
+    expect(JSON.stringify(view)).not.toContain("{{");
+  });
+
+  test("a NON-PARTICIPANT gets a leak-free NOT_FOUND (no card bytes)", async () => {
+    const { chatId } = await seedCardRoom("mc_stranger", "full");
+    const stranger = await seedUser(db, "mc_the_stranger");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    const err = await getMemberCard({ principal: principal(stranger), chatId, characterId: cardChar }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatNotFoundError);
+    // The refusal carries no card content — it names the chat, not the character.
+    expect(JSON.stringify((err as ChatNotFoundError).message)).not.toContain("Seraphine");
+  });
+
+  test("a characterId NOT in THIS chat's roster is NOT_FOUND (you cannot read an arbitrary card through your chat)", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_foreign", "full");
+    // A character the host owns but that is NOT seated in this chat.
+    const foreignChar = await seedCharacter(db, host, "mc_foreign_char");
+
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    // Even the host cannot read a not-in-roster card through this chat.
+    await expect(getMemberCard({ principal: principal(host), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(getMemberCard({ principal: principal(member), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
+  });
+
+  test("at `name-avatar` even the sheet identity is withheld — only name/avatarHash/tags-null survive", async () => {
+    const { member, chatId } = await seedCardRoom("mc_floor", "name-avatar");
+
+    const { getMemberCard } = createRead(makeCardCtx({ avatarHash: "hash_seraphine" }), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    expect(view.name).toBe("Seraphine");
+    expect(view.avatarHash).toBe("hash_seraphine");
+    expect(view.description).toBeNull();
+    expect(view.personality).toBeNull();
+    expect(view.tags).toBeNull();
+    expect(view.systemPrompt).toBeNull();
   });
 });

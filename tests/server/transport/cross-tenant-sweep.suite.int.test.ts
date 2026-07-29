@@ -491,6 +491,9 @@ const PROBES: readonly Probe[] = [
   { path: "stats.character", call: (c, i) => c.stats.character({ characterId: i.characterId }) },
   // ── chat (membership-scoped; the chatId gate is the chokepoint for every secondary id) ──
   { path: "chat.getChat", call: (c, i) => c.chat.getChat({ chatId: i.chatId }) },
+  // D22 member-card read — the chatId membership gate refuses a stranger BEFORE any card load (the secondary
+  // `characterId` is roster-scoped inside the verb, but the chatId chokepoint is what the sweep probes).
+  { path: "chat.getMemberCard", call: (c, i) => c.chat.getMemberCard({ chatId: i.chatId, characterId: i.characterId }) },
   { path: "chat.listMessages", call: (c, i) => c.chat.listMessages({ chatId: i.chatId }) },
   {
     path: "chat.listMessageVariants",
