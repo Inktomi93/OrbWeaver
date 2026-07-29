@@ -180,13 +180,17 @@ export interface SwipeParams extends MessageScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `impersonateDraft` — generates the user's next line in the active persona's voice and RETURNS it (composer
- *  fill), persisting NOTHING. The user reviews the drafted line in the composer and commits it with a normal
- *  send. Same steer/perspective picker as a real turn; `personaId` selects the authoring persona's voice. */
-export interface ImpersonateDraftParams extends ChatScopedParams {
+/** `impersonateStream` — STREAMS the user's next line (active persona's voice) into the composer as it
+ *  generates, persisting NOTHING. The user reviews the drafted line in the composer and commits it with a
+ *  normal send. Same steer/perspective picker as a real turn; `personaId` selects the authoring persona's
+ *  voice. The verb yields text deltas (see {@link ChatService.impersonateStream}). */
+export interface ImpersonateStreamParams extends ChatScopedParams {
   readonly personaId?: PersonaId | null | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
+  /** The subscription's abort signal (transport-supplied) — cancels the in-flight generation when the client
+   *  tears down the stream (unmount / user cancel). Absent in a non-streaming caller (a test driving it directly). */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send). */

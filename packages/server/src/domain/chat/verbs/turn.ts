@@ -35,7 +35,7 @@ import type {
   ForceCharacterTurnParams,
   GenerateParams,
   GuidedSteer,
-  ImpersonateDraftParams,
+  ImpersonateStreamParams,
   RequestTurnParams,
   RevertContinueParams,
   SendParams,
@@ -45,7 +45,7 @@ import type {
 import type {
   DrainDeferredTurnsScope,
   DrainReport,
-  ImpersonateDraftResult,
+  ImpersonateStreamDelta,
   RequestTurnOp,
   TurnEngine,
   TurnKind,
@@ -113,7 +113,7 @@ type TurnVerbs = Pick<
   | "abort"
   | "swipe"
   | "continueTurn"
-  | "impersonateDraft"
+  | "impersonateStream"
   | "generate"
   | "undoContinue"
   | "revertContinue"
@@ -1630,12 +1630,70 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
   };
 }
 
-/** `impersonateDraft` — generate the user's next line in the active persona's voice and RETURN it for the
- *  composer to fill (the ST review flow). Persists NOTHING: no user slot, no canon, no bus event — the user
- *  reviews the drafted line and commits it with a normal send. Replaced the persisting `impersonate` turn,
- *  which flashed-and-vanished a committed user row on the post-commit refetch race (owner, live dogfood). */
-function createImpersonateDraft(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateDraft"] {
-  return async ({ principal, chatId, personaId, intent, guided }: ImpersonateDraftParams): Promise<ImpersonateDraftResult> => {
+/** A single-producer/single-consumer bridge from the engine's `onText` CALLBACK to an async generator: the
+ *  generation pushes text deltas via `push`, the generator drains them in order, and `close()` ends the drain.
+ *  Backpressure-free (chat deltas are tiny + bounded); a LOCAL queue, NOT the transport bus channel — this is a
+ *  one-shot, single-consumer stream with no durability/replay/fan-out (so it never rides the shared EventEmitter
+ *  home). The consumer parks on `arrival` (re-armed after each wake), so a yield fires per delta, not batched. */
+interface DeltaBridge {
+  readonly push: (delta: string) => void;
+  readonly close: () => void;
+  readonly drain: () => AsyncGenerator<string>;
+}
+
+function createDeltaBridge(): DeltaBridge {
+  const queue: string[] = [];
+  let done = false;
+  let wake: (() => void) | null = null;
+  // The "next arrival" promise — resolved by push/close, then re-armed. Single-slot: one consumer only.
+  let arrival = new Promise<void>((resolve) => {
+    wake = resolve;
+  });
+  const signalArrival = (): void => {
+    const w = wake;
+    if (w !== null) {
+      wake = null;
+      arrival = new Promise<void>((resolve) => {
+        wake = resolve;
+      });
+      w();
+    }
+  };
+  async function* drain(): AsyncGenerator<string> {
+    let draining = true;
+    while (draining) {
+      const next = queue.shift();
+      if (next !== undefined) {
+        yield next;
+      } else if (done) {
+        draining = false;
+      } else {
+        // biome-ignore lint/performance/noAwaitInLoops: a stream drain is inherently sequential — park until the next push/close.
+        await arrival;
+      }
+    }
+  }
+  return {
+    push: (delta): void => {
+      queue.push(delta);
+      signalArrival();
+    },
+    close: (): void => {
+      done = true;
+      signalArrival();
+    },
+    drain,
+  };
+}
+
+/** `impersonateStream` — STREAM the user's next line (active persona's voice) into the composer as it
+ *  generates, yielding text deltas. Persists NOTHING: no user slot, no canon, no bus event — the user reviews
+ *  the drafted line in the composer and commits it with a normal send. Replaced the persisting `impersonate`
+ *  turn (flash-and-vanish on the post-commit refetch race) + its one-shot draft predecessor (text plopped in
+ *  all at once). The signal (transport-supplied) cancels the in-flight generation on teardown; the partial
+ *  text already yielded stays in the composer. */
+function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateStream"] {
+  return async function* ({ principal, chatId, personaId, intent, guided, signal }: ImpersonateStreamParams): AsyncGenerator<ImpersonateStreamDelta> {
     const membership = await requireParticipant(ctx, principal, chatId);
     // An EXPLICIT personaId must be owned by the acting caller — even for a non-persisting draft, the persona
     // binds the assembled prompt's `{{user}}`/name, so a foreign id would read another user's private persona
@@ -1653,28 +1711,43 @@ function createImpersonateDraft(ctx: ChatContext, deps: TurnDeps): ChatService["
         guided,
       });
     // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
-    // through the engine's generate-only path (no lock, no canon write, no bus emit). Returns the text.
-    const { text } = await deps.engine.generateText({
-      chatId,
-      assembleContext,
-      connection,
-      triggeredBy: identity.triggeredBy,
-      runAsUserId: identity.runAsUserId,
-      kind: "impersonate",
-      intent: intent ?? {},
-      extraStopSequences: chatBehavior.customStoppingStrings,
-      memoryConfig,
-      ...(memoryRecall !== null ? { memoryRecall } : {}),
-      attachedToolNames,
-      cardKeepLastX,
-      ...recursePatch(membership.chat.metadata.toolRecurseLimit),
-      ...prepMacroFields(macroRegistry, userMacroDraws),
-      speakerCharacterId: null,
-      appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
-      // new-slot user shape — a draft reads the full canon as context; nothing is written.
-      persist: { mode: "new-slot", role: "user" },
-    });
-    return { text };
+    // through the engine's generate-only path (no lock, no canon write, no bus emit). Each text delta is pushed
+    // onto the bridge and yielded to the transport AS IT ARRIVES (progressive composer fill). The engine pays
+    // the consent + GPU-budget belts; the caller's `signal` (subscription teardown) aborts the in-flight run.
+    const bridge = createDeltaBridge();
+    const run = deps.engine
+      .generateText(
+        {
+          chatId,
+          assembleContext,
+          connection,
+          triggeredBy: identity.triggeredBy,
+          runAsUserId: identity.runAsUserId,
+          kind: "impersonate",
+          intent: intent ?? {},
+          extraStopSequences: chatBehavior.customStoppingStrings,
+          memoryConfig,
+          ...(memoryRecall !== null ? { memoryRecall } : {}),
+          attachedToolNames,
+          cardKeepLastX,
+          ...recursePatch(membership.chat.metadata.toolRecurseLimit),
+          ...prepMacroFields(macroRegistry, userMacroDraws),
+          speakerCharacterId: null,
+          appendUserTurn: nudgeOf(assembleContext, "impersonateNudge"),
+          // new-slot user shape — a draft reads the full canon as context; nothing is written.
+          persist: { mode: "new-slot", role: "user" },
+          ...(signal !== undefined ? { signal } : {}),
+        },
+        (text) => bridge.push(text),
+      )
+      // Close the drain on completion OR failure so the consumer never hangs; a real fault re-throws below.
+      .then(() => undefined)
+      .finally(() => bridge.close());
+    for await (const delta of bridge.drain()) {
+      yield { delta };
+    }
+    // Surface a provider/DB fault (generateText returns cleanly on abort, so this only rethrows a real error).
+    await run;
   };
 }
 
@@ -2098,7 +2171,7 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     abort: createAbort(ctx, deps),
     swipe,
     continueTurn,
-    impersonateDraft: createImpersonateDraft(ctx, deps),
+    impersonateStream: createImpersonateStream(ctx, deps),
     generate: createGenerate(ctx, deps),
     undoContinue: createUndoContinue(ctx, deps),
     revertContinue: createRevertContinue(ctx, deps),

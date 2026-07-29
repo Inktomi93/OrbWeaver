@@ -8,7 +8,7 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
-import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
@@ -71,15 +71,10 @@ const useGuidedRewriteMutation = createEntityMutation<GuidedSlotVars, unknown>({
   errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't rewrite that reply."),
 });
 
-// impersonateDraft is NON-PERSISTING (owner ruling): it RETURNS the drafted user line for the composer to
-// fill — it writes no canon and emits no bus event, so it's neither bus-driven NOR cache-invalidating
-// (`invalidates: []` — nothing to reconcile). The caller reads `{ text }` off `mutateAsync` and fills the
-// composer for review; the user commits it with a normal send.
-const useGuidedImpersonateDraftMutation = createEntityMutation<GuidedTurnVars, { readonly text: string }>({
-  options: (trpc) => trpc.chat.impersonateDraft.mutationOptions(),
-  invalidates: () => [],
-  errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't impersonate with that guidance."),
-});
+// Guided impersonate is NON-PERSISTING + STREAMING (owner ruling): it rides the `chat.impersonateStream`
+// SUBSCRIPTION (not a mutation), yielding text deltas the client accumulates into the composer AS THEY ARRIVE
+// (progressive fill, not a one-shot dump). It's driven IMPERATIVELY off the vanilla tRPC client (a
+// button-click one-shot, not a mounted `useSubscription`); nothing persists, so there's no cache to reconcile.
 
 // An empty steer omits the whole `guided` object — `input:""` isn't enough, the server would still
 // resolve the guided template into a dangling scaffold.
@@ -148,6 +143,7 @@ export interface UseGuidedActionsResult {
 
 export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedActionsResult {
   const trpc = useTRPC();
+  const trpcClient = useTRPCClient();
   const invalidation = useInvalidation();
   const chatId = isCommitted(opts.handle) ? opts.handle.id : null;
 
@@ -155,8 +151,10 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const swipe = useGuidedSwipeMutation({ trpc, invalidation });
   const continueTurn = useGuidedContinueMutation({ trpc, invalidation });
   const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
-  const impersonateDraft = useGuidedImpersonateDraftMutation({ trpc, invalidation });
   const startChat = useGuidedStartChatMutation({ trpc, invalidation });
+  // The impersonation stream is in flight — idles the cluster (one action at a time) exactly like a pending
+  // mutation. Set when the subscription starts, cleared on complete/error.
+  const [impersonatePending, setImpersonatePending] = useState(false);
 
   // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
   // the session recovery ring, and on a NON-ABORT failure hand the text back so the wand can restore the
@@ -234,8 +232,33 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     });
   };
 
+  /** Drive the `chat.impersonateStream` SUBSCRIPTION imperatively: accumulate each text delta and hand the
+   *  GROWING text to `fill` as it arrives (progressive composer fill). Resolves when the stream completes; on a
+   *  domain-error terminal frame OR a transport error it rejects (the flow's restore-on-failure surfaces it).
+   *  A partial fill already applied stays in the composer (the nicer review-flow UX on cancel). */
+  const streamImpersonation = (targetChatId: ChatId, guided: GuidedSteerInput | undefined, fill: (accumulated: string) => void): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      let accumulated = "";
+      trpcClient.chat.impersonateStream.subscribe(guided === undefined ? { chatId: targetChatId } : { chatId: targetChatId, guided }, {
+        // The yields are `tracked()` envelopes: the payload rides `envelope.data` — a `{ delta }` chunk OR the
+        // typed `__subscriptionError` terminal frame `withSubscriptionErrors` emits for a domain error (the
+        // participant gate / a provider fault), which we surface as a rejection rather than a silent stall.
+        onData: (envelope) => {
+          const payload = envelope.data;
+          if ("__subscriptionError" in payload) {
+            reject(new Error(payload.message));
+            return;
+          }
+          accumulated += payload.delta;
+          fill(accumulated);
+        },
+        onComplete: () => resolve(),
+        onError: (error) => reject(error),
+      });
+    });
+
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonateDraft.isPending || draftCommitPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonatePending || draftCommitPending,
     tailAssistantMessageId,
     tailHasContinuation,
     fireResponse: (input, respOpts): void => {
@@ -298,30 +321,30 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     },
     fireImpersonate: (input, person, onDrafted): void => {
       const guided = steerFor("impersonate", input, person);
-      // NON-PERSISTING (owner ruling): impersonate DRAFTS the user's next line and FILLS the composer with it
-      // for review — nothing about the user's line is committed, so the old persist→refetch flash-and-vanish
-      // is mooted. The typed steer is consumed and REPLACED by the drafted line (that IS the review).
-      if (chatId !== null) {
-        // Committed chat — no navigation, so the composer stays mounted; fill via the caller's own onChange.
-        runDraftFlow(input, async () => {
-          const { text } = await impersonateDraft.mutateAsync(guided === undefined ? { chatId } : { chatId, guided });
-          onDrafted(text);
-        });
-        return;
-      }
-      // DRAFT — server can't assemble impersonation context without a chat row (a bare card+persona gather is
-      // a large parallel surface), so FALLBACK: commit the room FIRST. Two things the first attempt got wrong:
-      //   (1) commit with the DEFAULT opening policy (omit `opening`) so the card GREETING is preserved
-      //       (`opening:"none"` seeded an EMPTY chat and lost it) — impersonate then drafts the user's RESPONSE
-      //       to that greeting.
-      //   (2) the commit flips the room draft→committed and the OLD draft-scope `onChange` (`onDrafted`) is now
-      //       stale (it writes the old draftKey scope the promoted composer no longer reads). Write the drafted
-      //       text to the NEW chatId's composer-draft store directly, which the freshly-scoped composer reads.
-      runDraftFlow(input, async () => {
+      // NON-PERSISTING + STREAMING (owner ruling): impersonate STREAMS the user's next line into the composer
+      // AS IT GENERATES (progressive fill) — nothing about the user's line is committed, so the old
+      // persist→refetch flash-and-vanish is mooted. The typed steer is consumed and REPLACED by the streamed
+      // line (that IS the review). Idles the cluster while streaming; restores the steer on a non-abort error.
+      setImpersonatePending(true);
+      const restore = perFire(input);
+      const flow = async (): Promise<void> => {
+        if (chatId !== null) {
+          // Committed chat — no navigation, the composer stays mounted; fill via the caller's own onChange,
+          // called with the GROWING accumulation on each delta (progressive fill).
+          await streamImpersonation(chatId, guided, onDrafted);
+          return;
+        }
+        // DRAFT — the server can't assemble impersonation context without a chat row (a bare card+persona
+        // gather is a large parallel surface), so commit the room FIRST (the DEFAULT opening policy — omit
+        // `opening` — preserves the card GREETING; impersonate then drafts the user's RESPONSE to it). The
+        // commit flips the room draft→committed, so stream into the NEW chatId's composer-draft store directly
+        // (the promoted composer reads that scope; the old draft-scope `onChange` is stale post-promotion).
         const targetId = await commitDraft();
-        const { text } = await impersonateDraft.mutateAsync(guided === undefined ? { chatId: targetId } : { chatId: targetId, guided });
-        setComposerDraft(targetId, text);
-      });
+        await streamImpersonation(targetId, guided, (accumulated) => setComposerDraft(targetId, accumulated));
+      };
+      flow()
+        .catch((error: unknown) => restore?.onError(error))
+        .finally(() => setImpersonatePending(false));
     },
     fireOpening,
   };

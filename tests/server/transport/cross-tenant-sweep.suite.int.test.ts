@@ -110,6 +110,20 @@ async function leakVerdict(path: string, thunk: () => Promise<unknown>): Promise
   return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
 }
 
+/** Drain a subscription probe to a plain array (the gate runs on the first `.next()`), so a streaming probe
+ *  reaches the participant chokepoint AND its yields land in the marker-leak check. A tRPC caller returns the
+ *  subscription as a Promise<AsyncIterable>, so await it first. NOTE: the router's `withSubscriptionErrors`
+ *  converts a domain NOT_FOUND into a `__subscriptionError` FRAME (not a throw) — a marker-free frame carrying
+ *  `code:"NOT_FOUND"`, which `leakVerdict` correctly reads as leak-free (no owner-A data). */
+async function drainAsyncIterable(source: Promise<AsyncIterable<unknown>>): Promise<unknown[]> {
+  const iter = await source;
+  const out: unknown[] = [];
+  for await (const v of iter) {
+    out.push(v);
+  }
+  return out;
+}
+
 /** One probe: the router path + the stranger call built from owner A's ids. */
 interface Probe {
   readonly path: string;
@@ -670,7 +684,9 @@ const PROBES: readonly Probe[] = [
     path: "chat.revertContinue",
     call: (c, i) => c.chat.revertContinue({ chatId: i.chatId, messageId: i.messageId }),
   },
-  { path: "chat.impersonateDraft", call: (c, i) => c.chat.impersonateDraft({ chatId: i.chatId }) },
+  // A SUBSCRIPTION (async iterable) — the `requireParticipant` gate runs on the first `.next()`, so DRAIN it
+  // to trigger the gate (a stranger's iteration must throw the leak-free NOT_FOUND before yielding a byte).
+  { path: "chat.impersonateStream", call: (c, i) => drainAsyncIterable(c.chat.impersonateStream({ chatId: i.chatId })) },
   { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId }) },
   {
     path: "chat.generateImage",

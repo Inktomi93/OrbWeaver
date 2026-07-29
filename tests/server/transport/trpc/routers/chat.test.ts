@@ -693,12 +693,32 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
   });
 });
 
-describe("chat.impersonateDraft — the NON-PERSISTING guided-impersonate verb (composer fill)", () => {
-  test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; returns { text }", async () => {
-    const impersonateDraft = vi.fn<ChatService["impersonateDraft"]>(async () => ({ text: "drafted opening line" }));
+describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impersonate verb (composer fill)", () => {
+  /** An async iterable over fixed deltas (each resolved through a microtask, so it's a genuine async stream) —
+   *  the verb returns an AsyncIterable, so a mock just needs one. */
+  function deltaStream(deltas: readonly string[]): AsyncIterable<{ delta: string }> {
+    let i = 0;
+    return {
+      [Symbol.asyncIterator]: (): AsyncIterator<{ delta: string }> => ({
+        next: (): Promise<IteratorResult<{ delta: string }>> =>
+          Promise.resolve(i < deltas.length ? { value: { delta: deltas[i++] as string }, done: false } : { value: undefined, done: true }),
+      }),
+    };
+  }
+  /** An async iterable whose first `.next()` throws (the participant gate before any yield). */
+  function throwingStream(error: unknown): AsyncIterable<{ delta: string }> {
+    return {
+      [Symbol.asyncIterator]: (): AsyncIterator<{ delta: string }> => ({
+        next: (): Promise<IteratorResult<{ delta: string }>> => Promise.reject(error),
+      }),
+    };
+  }
+
+  test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; yields text deltas", async () => {
+    const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["drafted ", "opening line"]));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
-      services: { chat: { impersonateDraft } },
+      services: { chat: { impersonateStream } },
     });
 
     const guided = {
@@ -706,26 +726,41 @@ describe("chat.impersonateDraft — the NON-PERSISTING guided-impersonate verb (
       input: "ask about the ruins",
       person: "third" as const,
     };
-    const result = await caller(ctx).chat.impersonateDraft({ chatId: CHAT, guided });
+    const sub = await caller(ctx).chat.impersonateStream({ chatId: CHAT, guided });
+    // The router wraps each `{ delta }` in a `tracked()` envelope: `[id, data, symbol]`, data at index 1.
+    const deltas: string[] = [];
+    for await (const yielded of sub as AsyncIterable<unknown>) {
+      const data = Array.isArray(yielded) ? (yielded[1] as { delta: string }) : (yielded as { delta: string });
+      deltas.push(data.delta);
+    }
 
-    expect(impersonateDraft).toHaveBeenCalledWith({
-      principal: expect.objectContaining({ userId: MEMBER }),
-      chatId: CHAT,
-      guided,
-    });
-    expect(result.text).toBe("drafted opening line");
+    expect(impersonateStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        principal: expect.objectContaining({ userId: MEMBER }),
+        chatId: CHAT,
+        guided,
+      }),
+    );
+    // The deltas stream through in order and accumulate to the full line.
+    expect(deltas).toEqual(["drafted ", "opening line"]);
   });
 
-  test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
-    const impersonateDraft = vi.fn<ChatService["impersonateDraft"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+  test("a non-member gets a leak-free NOT_FOUND terminal FRAME (withSubscriptionErrors converts the gate throw)", async () => {
+    const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => throwingStream(new ChatNotFoundError(CHAT)));
     const ctx = makeContext({
       auth: principal("user", { userId: NON_MEMBER }),
-      services: { chat: { impersonateDraft } },
+      services: { chat: { impersonateStream } },
     });
 
-    await expect(caller(ctx).chat.impersonateDraft({ chatId: CHAT })).rejects.toMatchObject({
-      code: "NOT_FOUND",
-    });
+    // The verb's gate throws on the first `.next()`; `withSubscriptionErrors` (router) catches the domain
+    // NOT_FOUND and yields a typed `__subscriptionError` terminal frame (code NOT_FOUND) rather than tearing
+    // the stream down with an opaque 500 — the client surfaces the code instead of an untyped error.
+    const sub = await caller(ctx).chat.impersonateStream({ chatId: CHAT });
+    const frames: unknown[] = [];
+    for await (const yielded of sub as AsyncIterable<unknown>) {
+      frames.push(dataOf(yielded));
+    }
+    expect(frames).toEqual([expect.objectContaining({ __subscriptionError: true, code: "NOT_FOUND" })]);
   });
 });
 

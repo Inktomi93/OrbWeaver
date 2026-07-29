@@ -1287,20 +1287,21 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
   }
 }
 
-/** The NON-PERSISTING generation ({@link TurnEngine.generateText}): assemble → shape → generate, then RETURN
- *  the reduced text. It pays the SAME consent + budget belts a real turn does (a generation spends the host's
- *  box, persisted or not) but takes NO lock, writes NO canon, and emits NO bus event — there is no slot to
- *  animate, so deltas are dropped (no `onDelta` fan-out). Backs the composer-fill flows (guided impersonate
- *  drafts the user's next line INTO the composer for review; the user commits it with a normal send). Reads
- *  the FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a
- *  clean outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
-/** The delta sink for a non-persisting generation — there is no live turn slot to stream into, so streamed
- *  chunks are dropped (the reduced text is the whole product). */
+/** The delta sink for a non-persisting generation with no streaming consumer — chunks are dropped (the
+ *  reduced text is the whole product). Callers that stream (impersonateStream → the composer) pass their own. */
 function dropDelta(): void {
-  // intentionally empty — no live slot to fan deltas to.
+  // intentionally empty — no consumer for this generation's text deltas.
 }
 
-async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<GeneratedText> {
+/** The NON-PERSISTING generation ({@link TurnEngine.generateText}): assemble → shape → generate, then RETURN
+ *  the reduced text. It pays the SAME consent + budget belts a real turn does (a generation spends the host's
+ *  box, persisted or not) but takes NO lock, writes NO canon, and emits NO bus event. `onText`, when supplied,
+ *  receives each TEXT delta AS IT ARRIVES off `runTurnPipeline`'s stream (reasoning deltas are not surfaced) —
+ *  so a caller can stream the generation into the composer progressively; absent ⇒ deltas dropped. Backs the
+ *  composer-fill flows (guided impersonate drafts the user's next line INTO the composer for review). Reads the
+ *  FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a clean
+ *  outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
+async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
   // No persist target — a draft generation reads the full canon (new-slot semantics).
   const persist: TurnPersist = { mode: "new-slot", role: prep.persist?.mode === "new-slot" ? prep.persist.role : "user" };
   const connection = gateAndResolveConnection(ctx, prep, persist, null);
@@ -1350,8 +1351,13 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
         turnId: ctx.newChatTurnId(),
         signal: prep.signal,
       },
-      // No live slot to animate — a draft generation streams to nothing (the text lands in the composer).
-      onDelta: dropDelta,
+      // Surface each TEXT delta to the caller AS IT ARRIVES (reasoning deltas aren't composer-bound); a caller
+      // with no stream consumer passed `dropDelta`, so this is a no-op there.
+      onDelta: (delta) => {
+        if (delta.kind === "text") {
+          onText(delta.text);
+        }
+      },
     });
     return { text: result.content, aborted: false };
   } catch (err) {
@@ -1385,7 +1391,7 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
     }
     return await runInLockWithHeartbeat(ctx, deps, prep);
   };
-  return { runTurn, generateText: (prep) => generateTextUnpersisted(ctx, deps, prep) };
+  return { runTurn, generateText: (prep, onText) => generateTextUnpersisted(ctx, deps, prep, onText) };
 }
 
 /** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,
