@@ -64,6 +64,14 @@ VITE_PORT="${VITE_PORT:-5173}"
 : "${VITE_API_TARGET:=http://127.0.0.1:$BACKEND_PORT}"
 export VITE_PORT VITE_API_TARGET
 HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
+# Boot readiness bounds (seconds). Under adopt-or-start the vLLM fleet cold-spawns
+# DURING server boot, so the server-healthz gate has to clear a full model cold-load
+# (the gen 8B alone runs well past a minute) — 60s falsely tore down a server that was
+# still coming up. The wrapper readiness poll must stay AHEAD of the server gate + a
+# cold vite compile (~55s) so it never declares boot-timeout while the leader is
+# legitimately still booting. Override via env for slower/faster hardware.
+SERVER_HEALTHZ_TIMEOUT="${SERVER_HEALTHZ_TIMEOUT:-180}"
+READINESS_TIMEOUT="${READINESS_TIMEOUT:-240}"
 # vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after
 # SIGKILLing the detached fleet. Match scripts/dev/engines.ts launch ports.
 FLEET_PORTS=(8701 8702 8703)
@@ -140,7 +148,7 @@ run_leader() {
   bash "$REPO/scripts/dev/dev.sh" >"$SERVER_LOG" 2>&1 &
   server_pid=$!
   local up=""
-  for _ in $(seq 1 60); do
+  for _ in $(seq 1 "$SERVER_HEALTHZ_TIMEOUT"); do
     if healthz_ok; then up=1; break; fi
     if ! kill -0 "$server_pid" 2>/dev/null; then
       echo "stack: server exited during boot — last log lines:"
@@ -150,7 +158,7 @@ run_leader() {
     sleep 1
   done
   if [ -z "$up" ]; then
-    echo "stack: TIMEOUT (60s) waiting for $HEALTHZ — last log lines:"
+    echo "stack: TIMEOUT (${SERVER_HEALTHZ_TIMEOUT}s) waiting for $HEALTHZ — last log lines:"
     tail -15 "$SERVER_LOG"
     kill -TERM "$server_pid" 2>/dev/null
     return 1
@@ -340,9 +348,10 @@ do_start() {
   echo "stack: booting (pgid $leader, log $LOG)…"
 
   # Readiness = vite answering (the leader gates server-healthz BEFORE vite, so
-  # vite-up ⇒ everything-up). Bounded: 60s server healthz gate + a cold vite
-  # boot — a cold tsx compile alone measured ~55s in-container, hence 150.
-  for _ in $(seq 1 150); do
+  # vite-up ⇒ everything-up). Bounded by READINESS_TIMEOUT, which stays ahead of the
+  # SERVER_HEALTHZ_TIMEOUT gate + a cold tsx/vite compile (~55s) — otherwise the
+  # wrapper false-times-out while the leader is still legitimately booting the fleet.
+  for _ in $(seq 1 "$READINESS_TIMEOUT"); do
     sleep 1
     if vite_ok && healthz_ok; then
       echo "stack: up — server :$BACKEND_PORT (healthz ok) · vite :$VITE_PORT"
