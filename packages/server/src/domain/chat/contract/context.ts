@@ -125,6 +125,12 @@ type MaybeRevokeOnAuthFailedOp = (params: { readonly runAsUserId: UserId; readon
  *  treats null as skip, never an error. */
 type GetCardOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
 
+/** A character's ACCEPTED canonical tag NAMES under the host's ownership — the `sheet`-tier slice of the D22
+ *  member card (`clampMemberCard` clamps it). Names only (the member card shows chips, not the full `TagView`),
+ *  resolved through the character domain so chat stays character-table-blind (the {@link GetCardOp} precedent).
+ *  Empty ⇒ no accepted tags / a gone card. */
+type ResolveCharacterTagsOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<string[]>;
+
 /** The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
  *  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to
  *  be four separate reads of the same `characters` row per participant. `card` is null for a human/agent
@@ -733,6 +739,7 @@ export interface ChatContext {
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
+  readonly resolveCharacterTags: ResolveCharacterTagsOp;
   readonly resolveSeatDeco: ResolveSeatDecoOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
