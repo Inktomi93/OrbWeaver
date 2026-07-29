@@ -1094,10 +1094,13 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
   const anchorPersona: AssemblePersona = { name: "Alex", description: "the anchor persona" };
 
   /** A ChatContext wired for the member-card read: the card via `getCard` (keyed to `cardChar`), the tags via
-   *  `resolveCharacterTags`, the avatar hash via `resolveAssetHash`. Everything else is the harness default. */
-  function makeCardCtx(overrides: { tags?: string[]; avatarHash?: string | null } = {}): ChatContext {
+   *  `resolveCharacterTags`, the avatar hash via `resolveAssetHash`. Everything else is the harness default.
+   *  `card` overrides the served card (the clamp-bypass tests inject a card with a full-only macro in a
+   *  surviving sheet-tier field). */
+  function makeCardCtx(overrides: { tags?: string[]; avatarHash?: string | null; card?: CharacterCard } = {}): ChatContext {
+    const served = overrides.card ?? macroCard;
     return makeChatContext(db, {
-      getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? macroCard : null),
+      getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? served : null),
       resolveCharacterTags: () => Promise.resolve(overrides.tags ?? ["fantasy", "rogue"]),
       resolveAssetHash: () => Promise.resolve(overrides.avatarHash ?? null),
     });
@@ -1251,5 +1254,90 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     expect(view.personality).toBeNull();
     expect(view.tags).toBeNull();
     expect(view.systemPrompt).toBeNull();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  // THE CLAMP-BYPASS REGRESSION (security review 2026-07-28 — CONFIRMED HIGH, was untested). The bug: the
+  // display-render context was built from the FULL card, so a SURVIVING sheet-tier field embedding a full-only
+  // card macro (`{{charsysinfo}}` ← systemPrompt, `{{charposthistory}}` ← postHistoryInstructions) re-expanded
+  // the exact bytes the clamp nulled. Exploitable via imported/shared cards (author ≠ room host). The fix binds
+  // the render context from the CLAMPED view, so the macro renders EMPTY for a below-`full` member.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** A malicious/imported card: its SURVIVING sheet-tier fields embed full-only macros. If the render context
+   *  is the full card, a `sheet` member's `description`/`scenario` leak the systemPrompt/post-history bytes. */
+  const bypassCard: CharacterCard = {
+    ...macroCard,
+    description: "A rogue. LEAK[{{charsysinfo}}]",
+    personality: "sly LEAK[{{charposthistory}}]",
+    scenario: "a tavern; {{charsysinfo}}",
+    greetings: [{ text: "hi — {{charposthistory}}" }],
+    exampleMessages: "ex: {{charsysinfo}}",
+    creatorNotes: "notes: {{charsysinfo}}",
+    systemPrompt: "TOP_SECRET_SYSTEM_PROMPT",
+    postHistoryInstructions: "TOP_SECRET_JAILBREAK",
+  };
+
+  test("a `sheet` member CANNOT surface systemPrompt/post-history via a {{charsysinfo}}/{{charposthistory}} macro in a surviving field (the clamp-bypass fix)", async () => {
+    const { member, chatId } = await seedCardRoom("mc_bypass", "sheet");
+
+    const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    // The full-only fields are NULL…
+    expect(view.systemPrompt).toBeNull();
+    expect(view.postHistoryInstructions).toBeNull();
+    // …AND the macros that reference them render EMPTY inside the surviving fields (not the secret bytes).
+    // The macro expands to "" in place (no mid-string trim), so the surrounding literal text is unchanged
+    // minus the secret. The load-bearing assertion is the ABSENCE of the secret bytes (checked below).
+    expect(view.description).toBe("A rogue. LEAK[]");
+    expect(view.personality).toBe("sly LEAK[]");
+    expect(view.scenario).toBe("a tavern; ");
+    expect(view.greetings).toEqual(["hi — "]);
+    expect(view.exampleMessages).toBe("ex: ");
+    expect(view.creatorNotes).toBe("notes: ");
+    // THE WIRE PROOF: the serialized view is byte-clean of the secret content, anywhere.
+    const bytes = JSON.stringify(view);
+    expect(bytes).not.toContain("TOP_SECRET_SYSTEM_PROMPT");
+    expect(bytes).not.toContain("TOP_SECRET_JAILBREAK");
+  });
+
+  test("`name-avatar` (below sheet) also can't leak — the surviving-field surface is empty, and no macro re-adds a secret", async () => {
+    const { member, chatId } = await seedCardRoom("mc_bypass_floor", "name-avatar");
+
+    const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    // Below `sheet`, description/scenario/etc. are themselves clamped null — nothing to render, nothing to leak.
+    expect(view.description).toBeNull();
+    expect(view.scenario).toBeNull();
+    expect(view.systemPrompt).toBeNull();
+    expect(JSON.stringify(view)).not.toContain("TOP_SECRET");
+  });
+
+  test("`sheet+lore` member: lore appears, but the {{charsysinfo}} macro in a surviving field STILL renders empty (full-only stays clamped)", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_bypass_lore", "sheet+lore");
+    await seedCardLore(host, "mc_bypass_lore_entry", "the prophecy");
+
+    const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+
+    expect(view.lore).toEqual(["the prophecy"]);
+    expect(view.systemPrompt).toBeNull();
+    expect(view.description).toBe("A rogue. LEAK[]");
+    expect(JSON.stringify(view)).not.toContain("TOP_SECRET");
+  });
+
+  test("the HOST (full) DOES see the {{charsysinfo}} macro expand — the render obeys the level, it doesn't blanket-strip", async () => {
+    const { host, chatId } = await seedCardRoom("mc_bypass_host", "full");
+
+    const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
+    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+
+    // At `full`, systemPrompt survives, so `{{charsysinfo}}` in the description resolves to it (render-on-display
+    // for the fields the viewer IS allowed to see — the fix clamps the render context to the LEVEL, not to empty).
+    expect(view.systemPrompt).toBe("TOP_SECRET_SYSTEM_PROMPT");
+    expect(view.description).toBe("A rogue. LEAK[TOP_SECRET_SYSTEM_PROMPT]");
+    expect(view.personality).toBe("sly LEAK[TOP_SECRET_JAILBREAK]");
   });
 });

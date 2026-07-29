@@ -13,7 +13,6 @@
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
 
-import type { CharacterCard } from "@orb/contracts/character";
 import type {
   AssembleCharacter,
   AssembleContext,
@@ -381,22 +380,34 @@ function configuredCardVisibility(chat: { readonly metadata: ChatMetadata }): Me
   return chat.metadata.group?.memberCardVisibility ?? DEFAULT_GROUP_CONFIG.memberCardVisibility;
 }
 
-/** Build the MINIMAL render context for the D22 card DISPLAY — just the two macro bindings the card fields
- *  need: `{{char}}` = THIS card's name, `{{user}}`/`{{persona}}` = the chat ANCHOR persona (the source the
- *  assemble binds for card-derived sections — `renderMemberField`/`char_description` use `ctx.pinnedPersona`).
- *  This is deliberately NOT the full turn gather (`buildPreviewContext`): a card read renders card text against
- *  the anchor, it does not assemble a prompt, so it must not depend on a resolvable connection / memory recall /
- *  variable fold. The macro option mapper (`macroOptionsFor`) reads only `character`/`pinnedPersona` off this —
- *  every other field is optional-safe — so a bare ctx renders `{{char}}`/`{{user}}`/`{{persona}}` faithfully. */
-function cardRenderContext(card: CharacterCard, anchor: AssemblePersona | null): AssembleContext {
+/** Build the MINIMAL render context for the D22 card DISPLAY. The `AssembleCharacter` is built from the
+ *  ALREADY-CLAMPED view, NEVER the full card — this is the clamp-bypass fix (security review, 2026-07-28):
+ *  `macroOptionsFor` binds this character's fields onto card-field MACROS (`{{charsysinfo}}` ← systemPrompt,
+ *  `{{charposthistory}}` ← postHistoryInstructions, `{{description}}`/`{{personality}}`/`{{scenario}}`/
+ *  `{{exampleMessages}}`), and those macros resolve UNCONDITIONALLY. If the render context carried the full
+ *  card, a SURVIVING sheet-tier field like `description = "A rogue. {{charsysinfo}}"` would re-expand the exact
+ *  systemPrompt bytes the clamp nulled — a below-`full` member reading a full-only field through a macro. By
+ *  binding from the clamped view, every above-level field is already null here, so its macro renders EMPTY:
+ *  the render context obeys the SAME level clamp as the fields, and no macro can re-introduce a clamped secret.
+ *
+ *  Bindings: `{{char}}` = the card name (the always-present floor); `{{user}}`/`{{persona}}` = the chat ANCHOR
+ *  persona (the source the assemble binds for card-derived sections — `renderMemberField`/`char_description`
+ *  use `ctx.pinnedPersona`). Deliberately NOT the full turn gather (`buildPreviewContext`): a card read renders
+ *  card text against the anchor, it does not assemble a prompt, so it must not depend on a resolvable
+ *  connection / memory recall / variable fold. `macroOptionsFor` reads only `character`/`pinnedPersona` off
+ *  this — every other field is optional-safe. */
+function cardRenderContext(clamped: MemberCardView, anchor: AssemblePersona | null): AssembleContext {
   const character: AssembleCharacter = {
-    name: card.name,
-    description: card.description ?? "",
-    personality: card.personality,
-    scenario: card.scenario,
-    exampleMessages: card.exampleMessages,
-    systemPrompt: card.systemPrompt,
-    postHistoryInstructions: card.postHistoryInstructions,
+    name: clamped.name,
+    // A clamped-away field is null ⇒ its macro renders EMPTY (never the underlying secret). `description` is
+    // `string` on AssembleCharacter, so a null (below `sheet`) collapses to "".
+    description: clamped.description ?? "",
+    personality: clamped.personality,
+    scenario: clamped.scenario,
+    exampleMessages: clamped.exampleMessages,
+    // The FULL-only internals: null below `full` ⇒ `{{charsysinfo}}`/`{{charposthistory}}` render EMPTY.
+    systemPrompt: clamped.systemPrompt,
+    postHistoryInstructions: clamped.postHistoryInstructions,
     depthPrompt: null,
   };
   return {
@@ -433,8 +444,13 @@ function renderCardField(value: string | null, renderCtx: AssembleContext): stri
  *  host-configured level. `clampMemberCard` NULLS every field above the effective level SERVER-SIDE (the
  *  prompt-steering internals — `systemPrompt`/`postHistoryInstructions` — and the character's rendered `lore`
  *  never cross the wire below `full`/`sheet+lore`). The surviving TEXT fields then render display macros
- *  against the ANCHOR persona (the same source the assemble resolves card fields against). `lore` (world-info
- *  contents) and `tags` are already stored resolved — no macro pass. */
+ *  against the ANCHOR persona (the same source the assemble resolves card fields against). CRITICALLY, the
+ *  macro render context is built from the CLAMPED view (`cardRenderContext(clamped, …)`), NOT the full card:
+ *  card-field macros (`{{charsysinfo}}`/`{{charposthistory}}`/`{{description}}`/…) resolve unconditionally, so
+ *  a full-card render context would let a surviving sheet-tier field re-expand a nulled full-only field. Binding
+ *  from the clamped view makes every above-level macro render EMPTY — the "never below `full`" promise is
+ *  ENFORCED by the render seam, not merely asserted. `lore` (world-info contents) and `tags` are already stored
+ *  resolved — no macro pass. */
 function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["getMemberCard"] {
   return async ({ principal, chatId, characterId }: GetMemberCardParams): Promise<MemberCardView> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -464,7 +480,10 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const clamped = clampMemberCard({ characterId, card, tags, lore, avatarHash, visibility });
     // Render display macros on the SURVIVING text fields against the anchor persona (a null field was clamped
     // away and passes through). Greetings render per-entry. `lore`/`tags` are stored resolved (no macro pass).
-    const renderCtx = cardRenderContext(card, anchorPersona);
+    // The render context is built from the CLAMPED view, NOT the full card (the 2026-07-28 clamp-bypass fix):
+    // an above-level card-field macro (`{{charsysinfo}}`/`{{charposthistory}}`/…) inside a surviving field can
+    // ONLY resolve to the clamped (empty) value, so no macro can smuggle a nulled secret back onto the wire.
+    const renderCtx = cardRenderContext(clamped, anchorPersona);
     return {
       ...clamped,
       description: renderCardField(clamped.description, renderCtx),
