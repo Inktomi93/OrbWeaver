@@ -22,6 +22,8 @@
 
 import type { RpgCastField, RpgClockTime, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
 import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { resolveGuidedInstruction } from "@orb/kit/guided";
+import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
 import { buildDeltaBlock } from "./delta";
 
@@ -330,10 +332,33 @@ export function buildLiteReminder(input: LiteReminderInput): string {
 
   blocks.push(RPG_STEERING_LICENSE);
 
-  const note = input.steeringNote.trim();
+  const note = renderSteeringNote(input.steeringNote, input.steerMacros);
   if (note !== "") {
     blocks.push(note);
   }
 
   return blocks.join("\n\n");
+}
+
+// The IDENTITY-ONLY registry for the steeringNote render (module-scoped — one compile, the row-macros.ts
+// precedent): char/user/name macros resolve; volatile/variable/injection macros re-emit VERBATIM.
+const STEER_NAMES_REGISTRY = createNamesOnlyRegistry();
+
+/** Render the host-authored `steeringNote`'s identity macros (`{{user}}`/`{{char}}`) — the substitution fix.
+ *  Routes through the SAME guided resolver the nudge/wand path uses (`resolveGuidedInstruction`) so a host who
+ *  types `{{user}}/{{char}}` gets the names, NEVER literal braces. GUIDED-SAFE via {@link STEER_NAMES_REGISTRY}:
+ *  ONLY identity/name macros resolve — `{{random}}/{{setvar}}/{{expr}}/…` re-emit VERBATIM (a host steer gets
+ *  identity substitution, never full macro/variable/injection power, per the steer-neutralization ruling).
+ *  Absent binding ⇒ the note ships verbatim (the byte-identical pre-fix path — a caller that supplies none). */
+function renderSteeringNote(steeringNote: string, macros: { readonly user: string; readonly char: string } | undefined): string {
+  const trimmed = steeringNote.trim();
+  if (trimmed === "" || macros === undefined) {
+    return trimmed;
+  }
+  return resolveGuidedInstruction(
+    trimmed,
+    "", // no user-steer text — this is the trusted template side; only identity macros substitute
+    { char: macros.char, user: macros.user, persona: "", scenario: "", env: {} },
+    { registry: STEER_NAMES_REGISTRY },
+  ).trim();
 }

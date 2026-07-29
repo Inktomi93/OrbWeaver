@@ -12,7 +12,7 @@ import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/id
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db";
 import type { RpgHarness } from "../_support";
-import { addVariant, emptyState, expect, principal, questId, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
+import { addVariant, emptyState, expect, principal, questId, rosterCharacter, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
 
 /** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
 function kael(hp: number): RpgActorVolatile {
@@ -94,6 +94,39 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
   // default-on `immersiveHtml` composes the card teach into the reminder (the `:::card` grammar line).
   expect(out?.cardKeepLastX).toBe(0);
   expect(inj?.content).toContain(":::card");
+});
+
+// The steeringNote substitution fix (end-to-end through the gather): a host-authored steeringNote with
+// {{user}}/{{char}} renders to the ACTIVE persona name (threaded via the gather's 4th arg) / the protagonist
+// (the first CHARACTER roster actor) — NEVER literal braces reaching the wire injection.
+test("the reminder RENDERS the steeringNote's {{user}}/{{char}} — active persona name + protagonist (not literal)", async () => {
+  const db = await freshDb();
+  // Seed a roster with a protagonist character "Niko" so {{char}} binds; steeringNote embeds both macros.
+  const { chatId, h } = await seedLiteGame(db, { roster: [rosterCharacter("niko", "Niko")] });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "{{user}} keeps running into {{char}} at the konbini." } });
+
+  // The 4th arg is chat's {{user}} binding (the active/triggering persona name).
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, "Nate");
+  const reminder = out?.injections[0]?.content ?? "";
+
+  expect(reminder).toContain("Nate keeps running into Niko at the konbini.");
+  expect(reminder).not.toContain("{{user}}");
+  expect(reminder).not.toContain("{{char}}");
+});
+
+// GUIDED-SAFE end-to-end: a steeringNote's non-identity macros ({{random}}/{{setvar}}) do NOT resolve through
+// the gather — only identity substitution (the steer-neutralization ruling).
+test("the gather does NOT grant the steeringNote full macro power — {{random}}/{{setvar}} stay literal", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { roster: [rosterCharacter("niko", "Niko")] });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "As {{user}}: {{random::a::b}}{{setvar::x::1}}" } });
+
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, "Nate");
+  const reminder = out?.injections[0]?.content ?? "";
+
+  expect(reminder).toContain("As Nate:"); // {{user}} resolved
+  expect(reminder).toContain("{{random::a::b}}"); // volatile — NOT rolled
+  expect(reminder).toContain("{{setvar::x::1}}"); // variable — NOT executed
 });
 
 test("reliable mode: the char turn is tool-less, guidance omitted (state round fires post-turn)", async () => {

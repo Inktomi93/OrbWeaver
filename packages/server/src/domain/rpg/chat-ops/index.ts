@@ -107,8 +107,10 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     resolvePresetOverride,
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
     // (reliable / readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
-    // has no checks, so the gather ignores them. `null` for a non-game chat (byte-identical).
-    gatherTurnContext: (chatId): Promise<ChatRpgGatherResult | null> => gatherTurnContext(ctx, chatId),
+    // has no checks, so the gather ignores them. `activePersonaName` is chat's `{{user}}` binding, threaded so
+    // the reminder renders the host steeringNote's identity macros. `null` for a non-game chat (byte-identical).
+    gatherTurnContext: (chatId, _pending, _responds, activePersonaName): Promise<ChatRpgGatherResult | null> =>
+      gatherTurnContext(ctx, chatId, activePersonaName),
     // Lite has no d20 checks to feed a die into — a no-op (full's staging eligibility set).
     markDicePreRollEligible: (): void => undefined,
     onUserCommit,

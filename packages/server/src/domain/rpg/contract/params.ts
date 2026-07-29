@@ -348,6 +348,13 @@ export interface RpgMacroFeed {
 export interface LiteReminderInput {
   readonly view: RpgTrackerView;
   readonly steeringNote: string;
+  /** The identity-macro binding for the host-authored `steeringNote` — `user` = the triggering human's ACTIVE
+   *  persona name (chat's `{{user}}`, threaded through the gather op), `char` = the game's protagonist name.
+   *  `buildLiteReminder` renders the note's `{{user}}`/`{{char}}` through the GUIDED-SAFE resolver (identity
+   *  substitution only — never full macro/variable/injection power, per the steer-neutralization ruling) so a
+   *  host who types `{{user}}/{{char}}` gets the names, not literal braces. Absent ⇒ the note ships verbatim
+   *  (no substitution — the byte-identical pre-fix path for a caller that supplies no binding, e.g. a test). */
+  readonly steerMacros?: { readonly user: string; readonly char: string } | undefined;
   readonly curSnapshot: RpgSnapshotState;
   readonly prevSnapshot: RpgSnapshotState | null;
   /** The game's WHOLE feature-knob slice (`config.features`) — ONE home for every knob the reminder reads:

@@ -210,6 +210,42 @@ test("the steering note is the always-wins tail (LAST)", () => {
   expect(out.indexOf("Keep it grim.")).toBeGreaterThan(out.indexOf(RPG_STEERING_LICENSE));
 });
 
+// The substitution fix (same class as the impersonate nudge): a host-authored steeringNote embedding
+// {{user}}/{{char}} must render to the ACTIVE persona name / character name — NEVER literal braces (the gap
+// that shipped `{{user}} keeps running into {{char}}` raw to the model every game turn).
+test("the steering note SUBSTITUTES {{user}}/{{char}} when a steerMacros binding is supplied (never literal)", () => {
+  const out = buildLiteReminder(
+    input({
+      steeringNote: "{{user}} keeps running into {{char}} at the konbini.",
+      steerMacros: { user: "Nate", char: "Niko" },
+    }),
+  );
+  expect(out).toContain("Nate keeps running into Niko at the konbini.");
+  expect(out).not.toContain("{{user}}");
+  expect(out).not.toContain("{{char}}");
+});
+
+// GUIDED-SAFE (the steer-neutralization ruling): a host steer gets IDENTITY substitution only — NOT full
+// macro/variable/injection power. Non-identity macros ({{random}}/{{setvar}}/{{expr}}) re-emit VERBATIM.
+test("the steering note does NOT resolve non-identity macros — {{random}}/{{setvar}} stay literal", () => {
+  const out = buildLiteReminder(
+    input({
+      steeringNote: "As {{user}}: {{random::a::b}} then {{setvar::x::1}}.",
+      steerMacros: { user: "Nate", char: "Niko" },
+    }),
+  );
+  expect(out).toContain("As Nate:"); // {{user}} resolved
+  expect(out).toContain("{{random::a::b}}"); // NOT rolled — no volatile power
+  expect(out).toContain("{{setvar::x::1}}"); // NOT executed — no variable power
+});
+
+// Absent binding (a caller that supplies no steerMacros — e.g. a legacy path) ⇒ the note ships VERBATIM
+// (the byte-identical pre-fix behavior; every existing reminder test relies on this default).
+test("an ABSENT steerMacros binding ships the steering note verbatim (byte-identical pre-fix path)", () => {
+  const out = buildLiteReminder(input({ steeringNote: "Stay in {{char}}'s voice." }));
+  expect(out).toContain("Stay in {{char}}'s voice."); // literal — no binding, no substitution
+});
+
 test("an active-only quest filter (completed quests never clutter the reminder)", () => {
   const view = emptyView({
     quests: [

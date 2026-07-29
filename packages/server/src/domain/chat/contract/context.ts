@@ -518,8 +518,17 @@ export interface ChatRpgOps {
    *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (rpg-design/05 §6): is THIS turn (re)generating
    *  the assistant slot that DIRECTLY responds to the latest user message? It drives the `playerRolledDice`
    *  reminder flag (and, paired with {@link markDicePreRollEligible}, the dice feed) so a stale die never
-   *  re-feeds a later GM/auto round. Chat computes it (slot mechanics stay chat-owned); rpg consumes it blind. */
-  readonly gatherTurnContext: (chatId: ChatId, pendingUserText: string | undefined, respondsToLatestUserTurn: boolean) => Promise<ChatRpgGatherResult | null>;
+   *  re-feeds a later GM/auto round. Chat computes it (slot mechanics stay chat-owned); rpg consumes it blind.
+   *  `activePersonaName` is the triggering human's ACTIVE persona display name (chat's `{{user}}` binding) —
+   *  threaded so rpg can render the host-authored `steeringNote`'s `{{user}}`/`{{char}}` identity macros
+   *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces. Undefined
+   *  ⇒ no active persona (the "User" fallback rpg-side); rpg resolves `{{char}}` from its own roster. */
+  readonly gatherTurnContext: (
+    chatId: ChatId,
+    pendingUserText: string | undefined,
+    respondsToLatestUserTurn: boolean,
+    activePersonaName?: string,
+  ) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
    *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
    *  (later GM/auto/director round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
