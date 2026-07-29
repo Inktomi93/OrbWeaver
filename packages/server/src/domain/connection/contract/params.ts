@@ -30,6 +30,15 @@ export interface ResolveChatParams {
   readonly routableChat: RouteChatAssignment;
 }
 
+/** `checkChatAvailability(params)` — the deterministic pre-send serveability verdict for a chat's own
+ *  resolved connection (#54). Mirrors `resolveChat`'s selection + coherence + credential-presence + engine
+ *  presence WITHOUT firing a turn or an API call; `routableChat` carries the chat row's routing overlay
+ *  (the same layer `resolveChat` reads), so a per-chat routing pin resolves identically to turn time. */
+export interface CheckChatAvailabilityParams {
+  readonly principal: Principal;
+  readonly routableChat: RouteChatAssignment;
+}
+
 /** `resolveChatCapability(params)` — resolve the caller's OWN chat-role `ModelCapability` end-to-end
  *  (selection → descriptor) in one hop, for the client params-panel + the rpg lite gate. Reads the acting
  *  principal's settings ONLY — no caller-supplied user id (the cross-tenant-safe posture). */

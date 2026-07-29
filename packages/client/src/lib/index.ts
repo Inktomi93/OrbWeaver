@@ -30,6 +30,7 @@ export {
   STEER_CUE_RESPONSE,
   STEER_CUE_SWIPE,
   SWIPE_NEEDS_REPLY,
+  sendUnavailableReason,
   WAND_NEEDS_TEXT,
 } from "./injection-copy";
 export type { SeededBackground } from "./list-seeded-backgrounds";

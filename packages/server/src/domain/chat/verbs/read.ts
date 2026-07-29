@@ -26,7 +26,7 @@ import type {
   ParticipantView,
 } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -124,6 +124,9 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 interface ReadDeps {
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
+  /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
+   *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
+  readonly checkSendAvailability: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ChatSendAvailability>;
   /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
    *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -136,6 +139,7 @@ type ReadVerbs = Pick<
   | "listForks"
   | "getChatLineage"
   | "getChat"
+  | "checkSendAvailability"
   | "getMemberCard"
   | "previewAssembly"
   | "getActivePresetConfig"
@@ -370,6 +374,23 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       viewerUserId: principal.userId,
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
+  };
+}
+
+/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for THIS chat's own
+ *  resolved connection. Member-gated (any participant may read it — the composer disables SEND on it). The
+ *  connection resolves under the ROOM HOST (matching `resolveConnection`'s `runAsUserId`), so the verdict is
+ *  the host's connection the turn actually runs on — a member's own settings never enter the room's routing.
+ *  A hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
+function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
+  return async ({ principal, chatId }: GetChatParams): Promise<ChatSendAvailability> => {
+    await requireParticipant(ctx, principal, chatId);
+    const roster = await loadRoster(ctx.db, chatId);
+    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    if (hostUserId === null) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return deps.checkSendAvailability({ runAsUserId: hostUserId, chatId });
   };
 }
 
@@ -890,6 +911,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listForks: createListForks(ctx, deps),
     getChatLineage: createGetChatLineage(ctx, deps),
     getChat: createGetChat(ctx, deps),
+    checkSendAvailability: createCheckSendAvailability(ctx, deps),
     getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),

@@ -5,6 +5,7 @@
 
 import type { ConnectionContext } from "./context";
 import type { ConnectionService } from "./contract/service";
+import { createCheckChatAvailability } from "./verbs/check-chat-availability";
 import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog";
 import { createGetCatalog } from "./verbs/get-catalog";
 import { createGetGenerationCost } from "./verbs/get-generation-cost";
@@ -21,10 +22,12 @@ import { createTestClaudeAuth } from "./verbs/test-claude-auth";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
   const resolveRole = createResolveRole(ctx);
+  const resolveChat = createResolveChat(resolveRole);
   return {
     resolveRole,
-    resolveChat: createResolveChat(resolveRole),
+    resolveChat,
     resolveChatCapability: createResolveChatCapability(ctx),
+    checkChatAvailability: createCheckChatAvailability(ctx, resolveChat),
     getModelCapability: createGetModelCapability(ctx),
     getModelsForSource: createGetModelsForSource(ctx),
 

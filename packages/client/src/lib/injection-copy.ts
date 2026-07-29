@@ -2,6 +2,8 @@
 // `isAssistantPrefill` (`@orb/kit/injection`) consumer editors (character-advanced-tab, room-overrides-
 // form, persona-editor) and had already drifted ("pick depth ≥ 1" vs "Use depth ≥ 1").
 
+import type { ChatUnavailableCause } from "@orb/contracts/connection";
+
 export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill — unsupported across providers. Use depth ≥ 1, or role system/user.";
 
 // The disabled-affordance hover reasons for a DRAFT chat (#8 grey-out — owner: "when it's disabled on
@@ -74,3 +76,23 @@ export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
 export const STEER_CUE_SWIPE = "Uses your typed text to steer the reroll";
 export const STEER_CUE_CONTINUE = "Uses your typed text to steer the continuation";
 export const STEER_CUE_IMPERSONATE = "Uses your typed text as impersonation direction";
+
+// The honest-refusal pre-send reasons (#54) — when the chat's resolved connection cannot deterministically
+// serve a turn, SEND + the guided fire actions are disabled with the reason surfaced (title + aria-disabled).
+// The copy adapts to the CAUSE (the gate is ONE engine-agnostic check); each names the ACTIONABLE unlock,
+// never a bare "unavailable". Full sentences (composed alone, not after an em-dash) with a trailing period.
+
+const SEND_UNAVAILABLE_REASON: Record<ChatUnavailableCause, string> = {
+  // A local inference engine is disabled/absent — enable it (or switch the chat to a hosted connection).
+  "engine-off": "Local engine is off — enable it to send.",
+  // No working connection (no credential row / no configured connection / broken routing).
+  "no-connection": "This chat has no working connection — configure one to send.",
+  // The generic fallback: the resolved backend isn't serveable and no specific cause fits.
+  unavailable: "No engine connected.",
+};
+
+/** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire
+ *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `ChatUnavailableCause`. */
+export function sendUnavailableReason(cause: ChatUnavailableCause): string {
+  return SEND_UNAVAILABLE_REASON[cause];
+}

@@ -2,7 +2,7 @@
 // ConnectionService (selection, not execution). Every cross-feature/infra dep arrives as an injected op,
 // wired at the composition root; connection sideways-imports no sibling runtime.
 
-import type { AgentSdkModel, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatSendAvailability, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -10,6 +10,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type {
+  CheckChatAvailabilityParams,
   GetCatalogParams,
   GetGenerationCostParams,
   GetModelCapabilityParams,
@@ -100,6 +101,10 @@ export interface ConnectionService {
    *  the client params-panel + rpg lite gate read this directly (a vLLM-default chat resolves the same as the
    *  engine). Collapses the former selection→getModelCapability round-trip. */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ModelCapability>;
+  /** The deterministic pre-send serveability verdict for a chat's OWN resolved connection (#54) — "would
+   *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn/API call?" Mirrors the turn's
+   *  selection + coherence + credential-presence + engine-presence and NEVER pre-flights a hosted api. */
+  readonly checkChatAvailability: (params: CheckChatAvailabilityParams) => Promise<ChatSendAvailability>;
   readonly getModelCapability: (params: GetModelCapabilityParams) => Promise<ModelCapability>;
   /** Derive the mode-2 (OR-Anthropic skin) tier→OpenRouter-slug map from the two live catalogs this domain
    *  holds. Never throws — a cold catalog degrades to the curated shortlist. */

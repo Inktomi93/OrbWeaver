@@ -136,6 +136,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   const read = createRead(ctx, {
     loadParticipantViews,
     resolveConnection: deps.resolveConnection,
+    checkSendAvailability: deps.checkSendAvailability,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
   const startChat = createStartChat(ctx, {

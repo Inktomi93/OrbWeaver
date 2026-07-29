@@ -58,12 +58,17 @@ export interface ComposerGuidedClusterProps {
   readonly tailIsAssistant: boolean;
   /** The image controls, re-homed into the ✨ utility menu (owner). */
   readonly imageControls: ComposerImageControls;
+  /** The honest-refusal pre-send gate (#54): the chat's resolved connection can't deterministically serve a
+   *  turn, so EVERY fire action (impersonate/swipe/response/continue + the ✨-menu turn rows) disables with
+   *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
+  readonly sendUnavailable: boolean;
+  readonly sendUnavailableReason: string | undefined;
 }
 
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant, imageControls } = props;
+  const { handle, value, onChange, draftSeed, onCommitted, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason } = props;
   const committed = isCommitted(handle);
   const chatId = committed ? handle.id : null;
   const guided = useGuidedActions({ handle, draftSeed, onCommitted, onFireError: (firedText): void => onChange(firedText) });
@@ -76,7 +81,12 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const game = useGameSteer(chatId);
 
   const canTargetTail = committed && guided.tailAssistantMessageId !== null;
-  const idle = !(guided.isPending || busy);
+  // The honest-refusal gate (#54) folds into `idle`: an unserveable connection idles EVERY fire action (they
+  // all fire a doomed turn). `reasonFor` then lets the send cause WIN over the phase reason (both persistent):
+  // a disabled icon on an off engine reads "Local engine is off…", not "needs a reply first".
+  const anyBusy = guided.isPending || busy === true;
+  const idle = !(anyBusy || sendUnavailable);
+  const reasonFor = (phaseReason: string): string => (sendUnavailable && sendUnavailableReason !== undefined ? sendUnavailableReason : phaseReason);
 
   // CONSUME actions clear the composer on fire; onFireError restores it on failure (D57).
   const fireAndClear = (run: (input: string) => void): void => {
@@ -115,26 +125,33 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         game={game}
         image={imageControls}
       />
-      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} />
+      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
       <GuidedIconButton
         icon={RotateCcw}
         label={hasText ? "Swipe with this steering" : "Swipe"}
         steerCue={STEER_CUE_SWIPE}
         hasText={hasText}
         disabled={!(canTargetTail && idle)}
-        reason={SWIPE_NEEDS_REPLY}
+        reason={reasonFor(SWIPE_NEEDS_REPLY)}
         buttonTestId="composerGuidedSwipe"
         // Swipe KEEPS the steer (reroll again with the same guidance) — no onChange clear.
         onFire={(): void => guided.fireSwipe(trimmed)}
       />
-      <ResponseGuidedButton hasText={hasText} idle={idle} committed={committed} cast={cast} onFire={fireResponse} />
+      <ResponseGuidedButton
+        hasText={hasText}
+        idle={idle}
+        committed={committed}
+        cast={cast}
+        onFire={fireResponse}
+        sendUnavailableReason={sendUnavailable ? sendUnavailableReason : undefined}
+      />
       <GuidedIconButton
         icon={FastForward}
         label={hasText ? "Continue with this steering" : "Continue"}
         steerCue={STEER_CUE_CONTINUE}
         hasText={hasText}
         disabled={!(canTargetTail && idle)}
-        reason={CONTINUE_NEEDS_REPLY}
+        reason={reasonFor(CONTINUE_NEEDS_REPLY)}
         buttonTestId="composerGuidedContinue"
         onFire={(): void => fireAndClear(guided.fireContinue)}
       />
@@ -267,6 +284,15 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
 
+/** Response's title: the honest-refusal reason wins (#54 — Response has no other disabled state), else the
+ *  steer cue when the composer has text, else the plain label. */
+function responseTitle(label: string, hasText: boolean, sendUnavailableReason: string | undefined): string {
+  if (sendUnavailableReason !== undefined) {
+    return `${label} — ${sendUnavailableReason}`;
+  }
+  return hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
+}
+
 /** The dual-mode ACCESSIBLE NAME (side-eye P3-dualmode): when the composer has text the icon is in its guided
  *  mode, so its announced name says so ("Impersonate" → "Guided impersonate") — the mode-switch a sighted user
  *  reads off the icon's charge state is now spoken too. Empty composer keeps the plain action name. */
@@ -281,12 +307,15 @@ function ImpersonateGuidedButton({
   disabled,
   hasText,
   onPick,
+  reason,
 }: {
   readonly disabled: boolean;
   readonly hasText: boolean;
   readonly onPick: (person: GuidedImpersonatePerson) => void;
+  /** The disabled reason (the send cause wins over the phase reason — computed by the parent's `reasonFor`). */
+  readonly reason: string;
 }): ReactElement {
-  const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason: IMPERSONATE_WAIT_FOR_TURN });
+  const title = resolveGuidedTitle({ disabled, hasText, label: "Impersonate", steerCue: STEER_CUE_IMPERSONATE, reason });
   const name = resolveGuidedName("Impersonate", hasText);
   return (
     <Menu>
@@ -325,15 +354,19 @@ function ResponseGuidedButton({
   committed,
   cast,
   onFire,
+  sendUnavailableReason,
 }: {
   readonly hasText: boolean;
   readonly idle: boolean;
   readonly committed: boolean;
   readonly cast: ReturnType<typeof filterCharacters>;
   readonly onFire: (speakerCharacterId: CharacterId | null) => void;
+  /** The honest-refusal reason (#54) — present only when the connection can't serve. Response is otherwise
+   *  never phase-disabled, so this is its ONLY disabled reason; it surfaces on `title` + focusableWhenDisabled. */
+  readonly sendUnavailableReason: string | undefined;
 }): ReactElement {
   const label = committed ? "Generate reply" : "Generate opening";
-  const title = hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
+  const title = responseTitle(label, hasText, sendUnavailableReason);
   // The dual-mode accessible name (P3-dualmode): guided when the composer has text, plain when empty.
   const name = resolveGuidedName(label, hasText);
   // Solo/draft: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
@@ -344,6 +377,9 @@ function ResponseGuidedButton({
         intent={hasText ? "primary" : "ghost"}
         size="icon"
         disabled={!idle}
+        // An unserveable connection disables Response too (it fires a turn) — keep it hoverable so the reason
+        // shows (Response has no OTHER disabled state, so focusableWhenDisabled only matters here).
+        focusableWhenDisabled={sendUnavailableReason !== undefined}
         title={title}
         aria-label={name}
         data-testid={testId("composerGuidedResponse")}
