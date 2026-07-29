@@ -12,7 +12,7 @@ import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/id
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db";
 import type { RpgHarness } from "../_support";
-import { addVariant, emptyState, expect, principal, questId, rosterCharacter, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
+import { addVariant, emptyState, expect, principal, questId, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
 
 /** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
 function kael(hp: number): RpgActorVolatile {
@@ -97,16 +97,16 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
 });
 
 // The steeringNote substitution fix (end-to-end through the gather): a host-authored steeringNote with
-// {{user}}/{{char}} renders to the ACTIVE persona name (threaded via the gather's 4th arg) / the protagonist
-// (the first CHARACTER roster actor) — NEVER literal braces reaching the wire injection.
-test("the reminder RENDERS the steeringNote's {{user}}/{{char}} — active persona name + protagonist (not literal)", async () => {
+// {{user}}/{{char}} renders to the ACTIVE persona name / the Ruling-B `{{char}}` — BOTH resolved CHAT-SIDE and
+// threaded in via the `steerIdentity` arg (chat owns identity resolution; rpg splices, never re-derives).
+// NEVER literal braces reaching the wire injection.
+test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's threaded identity (not literal)", async () => {
   const db = await freshDb();
-  // Seed a roster with a protagonist character "Niko" so {{char}} binds; steeringNote embeds both macros.
-  const { chatId, h } = await seedLiteGame(db, { roster: [rosterCharacter("niko", "Niko")] });
+  const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "{{user}} keeps running into {{char}} at the konbini." } });
 
-  // The 4th arg is chat's {{user}} binding (the active/triggering persona name).
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, "Nate");
+  // chat's threaded binding: {{user}} = the active persona, {{char}} = the SOLO single cast name (Ruling B).
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko" });
   const reminder = out?.injections[0]?.content ?? "";
 
   expect(reminder).toContain("Nate keeps running into Niko at the konbini.");
@@ -114,14 +114,30 @@ test("the reminder RENDERS the steeringNote's {{user}}/{{char}} — active perso
   expect(reminder).not.toContain("{{char}}");
 });
 
+// Ruling B (Chat-Macro-Resolution.md): a host/null-speaker `{{char}}` is the CAST — the JOINED cast names in a
+// multi-character room (== {{group}}), the single name in solo. Chat computes the joined value and threads it;
+// the reminder splices it verbatim (NOT a re-derived first-roster protagonist, the corrected binding).
+test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINED CAST (chat's value, not one protagonist)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
+
+  // Chat threads the Ruling-B joined cast (`joinedCastName(room.castNames)` — roster order): "Niko, Aria".
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko, Aria" });
+  const reminder = out?.injections[0]?.content ?? "";
+
+  expect(reminder).toContain("Keep Niko, Aria distinct in voice.");
+  expect(reminder).not.toContain("{{char}}");
+});
+
 // GUIDED-SAFE end-to-end: a steeringNote's non-identity macros ({{random}}/{{setvar}}) do NOT resolve through
 // the gather — only identity substitution (the steer-neutralization ruling).
 test("the gather does NOT grant the steeringNote full macro power — {{random}}/{{setvar}} stay literal", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db, { roster: [rosterCharacter("niko", "Niko")] });
+  const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "As {{user}}: {{random::a::b}}{{setvar::x::1}}" } });
 
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, "Nate");
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko" });
   const reminder = out?.injections[0]?.content ?? "";
 
   expect(reminder).toContain("As Nate:"); // {{user}} resolved
