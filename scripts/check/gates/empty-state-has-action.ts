@@ -22,6 +22,9 @@ const ALLOWLIST: Record<string, string> = {
     "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
     'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
+  "packages/client/src/features/chat/components/member-card-viewer.tsx":
+    'the D22 NOT_FOUND gone-arm ("This card isn\'t available" — the character left the chat / no access) has no next step; the ' +
+    "dialog's own Close is the only affordance, so this state legitimately carries no action of its own.",
   "packages/client/src/features/preset/components/preset-section-inspector.tsx":
     'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
     "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
