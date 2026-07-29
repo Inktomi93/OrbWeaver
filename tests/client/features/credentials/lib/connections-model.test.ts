@@ -1,7 +1,8 @@
 // Unit: the CONNECTIONS pane's pure model (features/credentials/lib/connections-model). No DOM — the
 // node lane. Guards the W10 load-bearing logic: the embedding-dimension mismatch advisory (both slots
-// feed one 1024-dim shared space), the routing project ⇄ patch round-trip (unset ⇒ omitted "no
-// preference", never a pinned empty), and the per-role source constraints matching the settings schema
+// feed one 1024-dim shared space), the routing project ⇄ patch round-trip (a fully-unset slot ⇒ omitted
+// "no preference"; a live slot with a blank model ⇒ explicit `model: null` clear so a provider switch
+// drops the stale model id), and the per-role source constraints matching the settings schema
 // (a stricter/looser list than the server would hide or mis-offer a legal choice).
 
 import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
@@ -89,11 +90,34 @@ test("a configured chat slot round-trips through the projection with its api kno
   });
 });
 
-test("a whitespace model collapses to an omitted slot (no preference), not a pinned blank", () => {
+test("a blank model on a LIVE slot emits an explicit null clear (deepMergePlain null=clear), not an omitted key", () => {
   const form = projectRoutingForm({ roleDefaults: {} });
   const withBlank = { ...form, embed: { source: "vllm", model: "   " } };
-  // source set but model blank ⇒ the sparse config keeps only the source (model omitted).
-  expect(toRoutingSection(withBlank)).toEqual({ roleDefaults: { embed: { source: "vllm" } } });
+  // source set but model blank ⇒ the sparse config keeps the source AND sends `model: null` so the
+  // server merge drops any stale model id (an omitted key would be a no-op merge — the mis-route bug).
+  expect(toRoutingSection(withBlank)).toEqual({ roleDefaults: { embed: { source: "vllm", model: null } } });
+});
+
+test("switching provider (source changes ⇒ model reset) emits a null-clear for the stale model — chat + non-chat", () => {
+  // Start configured on OpenRouter, then the provider Select resets the model to "" (role-slot-row).
+  const configured = projectRoutingForm({
+    roleDefaults: {
+      chat: { source: "openrouter", model: "anthropic/claude-opus-4-8", api: "chat-completions" },
+      rerank: { source: "openrouter", model: "rerank-v3.5" },
+    },
+  });
+  const switched = {
+    ...configured,
+    chat: { ...configured.chat, source: "vllm", api: "", model: "" },
+    rerank: { source: "vllm", model: "" },
+  };
+  // Every switched slot carries `model: null` — the explicit clear deepMergePlain honours (absent = no-op).
+  expect(toRoutingSection(switched)).toEqual({
+    roleDefaults: {
+      chat: { source: "vllm", model: null },
+      rerank: { source: "vllm", model: null },
+    },
+  });
 });
 
 test("clearing a previously-set slot releases it (the section replaces roleDefaults wholesale)", () => {
