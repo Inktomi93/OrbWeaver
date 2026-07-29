@@ -27,7 +27,7 @@ import { createVllmStructured, createVllmSummarize } from "./surfaces/summarize"
 
 // Boot GPU-presence probe — re-exported for entry; the supervisor reads the same home (one `nvidia-smi`
 // probe in the codebase). resolveEngineDeploymentFacts is re-exported for the admin-panel wiring seam.
-export type { EngineDeploymentFacts } from "./engine";
+export type { EngineDeploymentFacts, EngineStatusRecord } from "./engine";
 export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./engine";
 export { createVllmChat } from "./surfaces/chat";
 export { createVllmEmbed } from "./surfaces/embed";

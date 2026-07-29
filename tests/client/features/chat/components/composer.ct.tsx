@@ -48,6 +48,7 @@ test("Send is disabled on an empty draft", async ({ mount }) => {
 // (aria-disabled + `title`, native `disabled` absent so the title is hoverable). The reason string is
 // asserted per cause; an available verdict leaves Send in its normal (draft-empty-disabled) state.
 const ENGINE_OFF_REASON = "Local engine is off — enable it to send.";
+const ENGINE_DOWN_REASON = "Local engine is down — start it to send.";
 const NO_CONNECTION_REASON = "This chat has no working connection — configure one to send.";
 
 test("#54: engine-off — Send is aria-disabled with the engine-off reason (native disabled absent, title hoverable)", async ({ mount, page }) => {
@@ -59,6 +60,15 @@ test("#54: engine-off — Send is aria-disabled with the engine-off reason (nati
   await expect(send).toHaveAttribute("aria-disabled", "true");
   await expect(send).not.toHaveAttribute("disabled", "");
   await expect(send).toHaveAttribute("title", ENGINE_OFF_REASON);
+});
+
+test("#54: engine-down — Send carries the engine-down reason (a DEAD registered engine under adopt-only)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.checkSendAvailability": () => ({ available: false, cause: "engine-down" }) });
+  const component = await mount(<ComposerStory />);
+  await component.getByLabel("Message", { exact: true }).fill("hello");
+  const send = component.getByRole("button", { name: "Send message" });
+  await expect(send).toHaveAttribute("aria-disabled", "true");
+  await expect(send).toHaveAttribute("title", ENGINE_DOWN_REASON);
 });
 
 test("#54: no-connection — Send carries the no-connection reason (the cause drives the copy)", async ({ mount, page }) => {

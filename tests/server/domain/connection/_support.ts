@@ -76,6 +76,10 @@ export interface ConnHarness {
   /** Toggle the boot vLLM-availability fact the resolver reads (default `true`). `false` drives the
    *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
   readonly setVllmAvailable: (available: boolean) => void;
+  /** Set the effective engine posture the #54 send-availability gate reads (default `adopt-or-start`). */
+  readonly setEnginesPosture: (posture: ConnectionContext["enginesPosture"]) => void;
+  /** Set the gen-engine live reachability the #54 gate reads (default `up`). */
+  readonly setGenReachability: (reachability: ReturnType<ConnectionContext["localGenEngineReachability"]>) => void;
   /** Set the window the faked `fetchVllmGenWindow` returns (the gen engine's self-reported max_model_len);
    *  default `null` (engine unreachable ⇒ the resolver falls back to the env-owned window). */
   readonly setVllmGenWindow: (window: number | null) => void;
@@ -96,6 +100,8 @@ export function makeConnHarness(db: Db): ConnHarness {
   let orCatalog: ModelCatalogEntry[] = [];
   let agentSdkCatalog: AgentSdkModel[] = [];
   let vllmAvailable = true;
+  let enginesPosture: ConnectionContext["enginesPosture"] = "adopt-or-start";
+  let genReachability: ReturnType<ConnectionContext["localGenEngineReachability"]> = "up";
   let vllmGenWindow: number | null = null;
   const noCredentialSources = new Set<CredentialSource>();
   const credentialCalls: CredentialSource[] = [];
@@ -138,6 +144,11 @@ export function makeConnHarness(db: Db): ConnHarness {
     get vllmAvailable(): boolean {
       return vllmAvailable;
     },
+    // #54 send-availability gate inputs — read lazily so a setter before the verb call lands.
+    get enginesPosture(): ConnectionContext["enginesPosture"] {
+      return enginesPosture;
+    },
+    localGenEngineReachability: () => genReachability,
     // Mirrors the compose `requireOwner`-over-`can` boolean; test code may spell the role (the
     // owner-role-split gate scans only packages/server/src).
     isOwner: (p) => p.role === "owner",
@@ -167,6 +178,12 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setVllmAvailable: (available: boolean): void => {
       vllmAvailable = available;
+    },
+    setEnginesPosture: (posture: ConnectionContext["enginesPosture"]): void => {
+      enginesPosture = posture;
+    },
+    setGenReachability: (reachability: ReturnType<ConnectionContext["localGenEngineReachability"]>): void => {
+      genReachability = reachability;
     },
     setVllmGenWindow: (window: number | null): void => {
       vllmGenWindow = window;

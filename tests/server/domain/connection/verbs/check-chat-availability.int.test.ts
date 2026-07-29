@@ -1,8 +1,9 @@
 // verb: checkChatAvailability — the honest-refusal pre-send gate (#54). The DETERMINISTIC serveability
-// verdict for a chat's own resolved connection, WITHOUT firing a turn or an API call. Engine-agnostic: the
-// unavailable causes are (a) a local engine that's off, (b) an unconfigured/incoherent connection. A present
-// engine (incl. ASLEEP — availability is presence, not wakefulness) and a configured hosted connection both
-// read available; a hosted api is NEVER pre-flighted here.
+// verdict for a chat's own resolved connection, WITHOUT firing a turn or an API call. Engine-agnostic. For the
+// LOCAL vllm arm the causes are posture+reachability-keyed: OFF → engine-off; adopt-only + a DOWN gen engine
+// (passive posture, never self-recovers) → engine-down; adopt-or-start + DOWN → AVAILABLE (the fleet manager
+// spawns on the turn); asleep/warming/up → available (asleep wakes on the turn). An unconfigured/incoherent
+// connection → no-connection. A configured hosted connection is available and NEVER pre-flighted.
 
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
@@ -11,10 +12,10 @@ import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, principal } from "../_support.ts";
 
 describe("checkChatAvailability — the deterministic pre-send serveability verdict (#54)", () => {
-  test("a vllm chat with the engine OFF is unavailable (engine-off)", async () => {
+  test("a vllm chat with the engine posture OFF is unavailable (engine-off)", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
-    h.setVllmAvailable(false); // ENGINES_POSTURE=off / no GPU — the vllm backend is absent from the registry
+    h.setEnginesPosture("off"); // ENGINES_POSTURE=off — the vllm backend is absent from the registry
     const svc = createConnectionService(h.ctx);
 
     const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
@@ -22,11 +23,58 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     expect(verdict).toEqual({ available: false, cause: "engine-off" });
   });
 
-  test("a vllm chat with the engine PRESENT (incl. asleep — presence, not wakefulness) is available", async () => {
+  test("no GPU (!vllmAvailable) is engine-off even when posture registers a backend", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
-    // vllmAvailable defaults to true — the backend is registered. A sleeping engine wakes on the turn; we do
-    // NOT refuse it (there is no separate "asleep" fact — availability is "the backend is present/enabled").
+    h.setVllmAvailable(false); // no GPU — the derive fallback disables the local engine
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+
+    expect(verdict).toEqual({ available: false, cause: "engine-off" });
+  });
+
+  test("adopt-only + a DOWN gen engine is unavailable (engine-down) — the passive posture never self-recovers", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
+    h.setEnginesPosture("adopt-only");
+    h.setGenReachability("down");
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+
+    expect(verdict).toEqual({ available: false, cause: "engine-down" });
+  });
+
+  test("adopt-only + an ASLEEP gen engine is available — it wakes on the turn (never refuse a sleeper)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
+    h.setEnginesPosture("adopt-only");
+    h.setGenReachability("asleep");
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+
+    expect(verdict).toEqual({ available: true });
+  });
+
+  test("adopt-only + an UP gen engine is available", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
+    h.setEnginesPosture("adopt-only");
+    h.setGenReachability("up");
+    const svc = createConnectionService(h.ctx);
+
+    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+
+    expect(verdict).toEqual({ available: true });
+  });
+
+  test("adopt-or-start + a DOWN gen engine is AVAILABLE — the fleet manager spawns it on the turn", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
+    h.setEnginesPosture("adopt-or-start");
+    h.setGenReachability("down");
     const svc = createConnectionService(h.ctx);
 
     const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });

@@ -85,6 +85,8 @@ export const STEER_CUE_IMPERSONATE = "Uses your typed text as impersonation dire
 const SEND_UNAVAILABLE_REASON: Record<ChatUnavailableCause, string> = {
   // A local inference engine is disabled/absent — enable it (or switch the chat to a hosted connection).
   "engine-off": "Local engine is off — enable it to send.",
+  // A registered local engine is DEAD and won't self-recover (down under adopt-only) — start it.
+  "engine-down": "Local engine is down — start it to send.",
   // No working connection (no credential row / no configured connection / broken routing).
   "no-connection": "This chat has no working connection — configure one to send.",
   // The generic fallback: the resolved backend isn't serveable and no specific cause fits.

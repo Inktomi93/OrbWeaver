@@ -168,5 +168,5 @@ export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
 export { createStructuredRole } from "./roles/structured";
 export { createSummarizeRole } from "./roles/summarize";
-export type { EngineDeploymentFacts, VllmEngineHandle } from "./vllm";
+export type { EngineDeploymentFacts, EngineStatusRecord, VllmEngineHandle } from "./vllm";
 export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm";

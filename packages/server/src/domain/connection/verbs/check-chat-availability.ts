@@ -9,13 +9,17 @@
 //   - `ConnectionRoutingError`/`AgentModelHealError` (incoherent (api, source)) → no-connection.
 //   - `DomainNoCredentialError` (a hosted mode with no configured credential row)  → no-connection.
 //   - `DomainForbiddenError` (an owner-only source pinned by a non-owner)          → no-connection.
-// On a CLEAN resolve the one remaining deterministic gap is a local engine that is disabled/absent: a chat
-// resolving to `vllm` while `!vllmAvailable` (ENGINES_POSTURE=off / no GPU) → engine-off. A present-but-
-// ASLEEP engine reads AVAILABLE (it wakes on the turn). A configured HOSTED connection reads AVAILABLE and
-// is NEVER pre-flighted — a bad key still fails at send with the existing provider error; we only pre-refuse
-// the deterministic "nothing to serve with" cases (latency + false negatives forbid a hosted preflight).
-// An UNEXPECTED error (not one of the deterministic classes above) is RE-THROWN, never laundered into a
-// false "unavailable" — the gate lies about nothing.
+// On a CLEAN resolve to the LOCAL vLLM engine, two more deterministic gaps (`resolveLocalVllmAvailability`):
+//   - posture `off` / no GPU (`!vllmAvailable`)                       → engine-off (disabled/absent).
+//   - posture `adopt-only` + the gen engine live-status DOWN         → engine-down. adopt-only is a PASSIVE
+//     consumer (never spawns, `postureManages` false), so a dead engine STAYS dead → refuse up front rather
+//     than fail LATE. A present-but-ASLEEP (or warming/up) engine reads AVAILABLE — it wakes on the turn.
+//   - posture `adopt-or-start` + DOWN                                → AVAILABLE: the fleet MANAGER spawns on
+//     the turn (cold-slow, not doomed) — refusing it would be a false negative on a connection that WILL come up.
+// A configured HOSTED connection reads AVAILABLE and is NEVER pre-flighted — a bad key still fails at send with
+// the existing provider error; we only pre-refuse the DETERMINISTIC cases (latency + false negatives forbid a
+// hosted preflight). `unknown` reachability (no supervisor telemetry) NEVER refuses. An UNEXPECTED error (not
+// one of the deterministic classes above) is RE-THROWN, never laundered into a false "unavailable".
 
 import type { ChatSendAvailability } from "@orb/contracts/connection";
 import { DomainForbiddenError, DomainNoCredentialError } from "@orb/kit/errors";
@@ -26,7 +30,21 @@ import type { ConnectionService } from "../contract/service";
 
 const UNAVAILABLE_NO_CONNECTION: ChatSendAvailability = { available: false, cause: "no-connection" };
 const UNAVAILABLE_ENGINE_OFF: ChatSendAvailability = { available: false, cause: "engine-off" };
+const UNAVAILABLE_ENGINE_DOWN: ChatSendAvailability = { available: false, cause: "engine-down" };
 const AVAILABLE: ChatSendAvailability = { available: true };
+
+/** The LOCAL vLLM serveability arm — off/absent → engine-off; a DOWN engine under the passive `adopt-only`
+ *  posture → engine-down (it won't self-recover); every other state (asleep/warming/up, or ANY state under the
+ *  spawn-on-demand `adopt-or-start` manager, or unknown telemetry) → available. */
+function resolveLocalVllmAvailability(ctx: ConnectionContext): ChatSendAvailability {
+  if (ctx.enginesPosture === "off" || !ctx.vllmAvailable) {
+    return UNAVAILABLE_ENGINE_OFF;
+  }
+  if (ctx.enginesPosture === "adopt-only" && ctx.localGenEngineReachability() === "down") {
+    return UNAVAILABLE_ENGINE_DOWN;
+  }
+  return AVAILABLE;
+}
 
 export function createCheckChatAvailability(ctx: ConnectionContext, resolveChat: ConnectionService["resolveChat"]): ConnectionService["checkChatAvailability"] {
   return async (params: CheckChatAvailabilityParams): Promise<ChatSendAvailability> => {
@@ -45,12 +63,8 @@ export function createCheckChatAvailability(ctx: ConnectionContext, resolveChat:
       }
       throw error;
     }
-    // Clean resolve: the only remaining deterministic gap is a local engine that isn't running at all. A chat
-    // resolving to `vllm` while the engine posture is off (or no GPU) has no registered backend — the exact
-    // `requireBackend` throw that fails LATE at send today. Every hosted/agent source is unconditionally wired.
-    if (resolvedSource === "vllm" && !ctx.vllmAvailable) {
-      return UNAVAILABLE_ENGINE_OFF;
-    }
-    return AVAILABLE;
+    // Only the local vLLM arm has deterministic reachability gaps; every hosted/agent source is unconditionally
+    // wired (and never pre-flighted).
+    return resolvedSource === "vllm" ? resolveLocalVllmAvailability(ctx) : AVAILABLE;
   };
 }
