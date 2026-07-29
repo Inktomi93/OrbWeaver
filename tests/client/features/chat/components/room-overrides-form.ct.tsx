@@ -18,14 +18,18 @@ const SAVED = '[data-testid="room-overrides-saved"]';
 test("SWITCH pin — switching chats reseeds the form on the new chat, never the previous chat's frozen overrides", async ({ mount }) => {
   const component = await mount(<RoomOverridesSwitchStory />);
 
-  // Chat A (mainPrompt="A-prompt"). Dirty it via the Scenario field so the FormApi is non-default; the
-  // debounced autosave carries A's whole overrides — including mainPrompt="A-prompt".
+  // Chat A (mainPrompt="A-prompt"). The overrides are collapse-until-needed rows, so expand Scenario first,
+  // then dirty it so the FormApi is non-default; the debounced autosave carries A's whole overrides —
+  // including mainPrompt="A-prompt".
+  await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByRole("textbox", { name: "Scenario" }).fill("A-scenario");
   await expect(component.locator(SAVED)).toContainText('"mainPrompt":"A-prompt"');
 
-  // Switch to chat B (mainPrompt empty). Edit B's Scenario; the whole saved overrides must reflect B's OWN
-  // seed — mainPrompt absent (empty fields omit on save). A leaked A instance would re-save "A-prompt".
+  // Switch to chat B (mainPrompt empty). The remount resets the collapse state, so re-expand Scenario, then
+  // edit it; the whole saved overrides must reflect B's OWN seed — mainPrompt absent (empty fields omit on
+  // save). A leaked A instance would re-save "A-prompt".
   await component.getByRole("button", { name: "switch chat" }).click();
+  await component.getByRole("button", { name: "Scenario" }).click();
   await component.getByRole("textbox", { name: "Scenario" }).fill("B-scenario");
   await expect(component.locator(SAVED)).toContainText('"scenario":"B-scenario"');
   await expect(component.locator(SAVED)).not.toContainText("A-prompt");

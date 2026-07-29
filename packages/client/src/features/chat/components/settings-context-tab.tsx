@@ -1,14 +1,15 @@
-// The consolidated "Settings" CONTEXT tab body (Context-Panel-Program §1 CP-1) — the former Overrides
-// and Group tabs, merged into ONE tab whose body is grouped sections on the settings-modal idiom
-// (`Section` primitive, real h3 headings). "Appearance overrides" is the room-overrides body; "Group
-// behavior" is the group-config body. The host-only + group-chat gate that used to gate the WHOLE Group
-// tab (chats-section.tsx's `when`) moves down one level here: the "Group behavior" section is present
-// only when the viewer is host of a group chat (committed) / the draft has ≥2 cast (draft) — the §8.1
-// permission-OMIT law, moved to section granularity so the tab strip loses a slot without losing a control.
+// The consolidated "This chat" CONTEXT tab body (panel-redesign) — everything a host bends for THIS chat,
+// in ONE tab whose body is grouped sections on the settings-modal idiom (`Section` primitive, real h3
+// headings). The former "Appearance overrides" tab and the separate "Injections" meta-tab were the same
+// family ("what I'm bending for this chat"), so they merge here: "Field overrides" (the collapse-until-
+// needed override rows), "Injections" (the manual prompt-injection list, folded in from its deleted tab),
+// and "Background" (the per-chat decorative background). The host-only Group-behavior + Tool-use sections
+// (Context-Panel-Program §1 CP-1) ride along below, each gated at SECTION granularity — the §8.1
+// permission-OMIT, moved from tab-level so the tab strip stays slim without dropping a control.
 //
-// Both arms compose the SAME leaf bodies the tabs used before (RoomOverridesTab / CommittedGroupConfigTab
-// and the draft twins DraftOverridesTabBody / DraftGroupConfigTabBody), so every moved read keeps its own
-// query + invalidation coverage unchanged and each override/group control stays reachable + editable.
+// Both arms compose the SAME leaf bodies (RoomOverridesTab / InjectionsManager / ChatBackgroundSection and
+// the draft twins DraftOverridesTabBody / DraftInjectionsTab), so every moved read keeps its own query +
+// invalidation coverage unchanged and each override/injection/background control stays reachable + editable.
 
 import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -16,9 +17,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-import { DraftGroupConfigTabBody, DraftOverridesTabBody } from "./draft-context-tabs";
+import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
-import { RoomOverridesTab } from "./room-overrides-tab";
+import { InjectionsManager } from "./injections-manager";
+import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
 import { ToolRecurseControl } from "./tool-recurse-control";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
@@ -33,14 +35,28 @@ export interface CommittedSettingsTabProps {
   readonly showGroup: boolean;
 }
 
-/** The committed-chat Settings tab: Appearance overrides always present; Group behavior only for a host
- *  of a group chat (the §8.1 permission-omit, moved from tab-level to section-level). */
+/** The committed-chat "This chat" tab: Field overrides + Injections always present; Background is host-only;
+ *  Group behavior only for a host of a group chat; Tool use only for a host (the §8.1 permission-omit,
+ *  moved from tab-level to section-level). */
 export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup }: CommittedSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section heading="Appearance overrides">
-        <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} background={background} />
+      <Section heading="Field overrides">
+        <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} />
       </Section>
+      <Section heading="Injections">
+        <QueryBoundary
+          fallback={<SkeletonRows count={1} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
+        >
+          <InjectionsManager chatId={chatId} isHost={isHost} />
+        </QueryBoundary>
+      </Section>
+      {isHost ? (
+        <Section heading="Background">
+          <ChatBackgroundSection chatId={chatId} background={background} />
+        </Section>
+      ) : null}
       {showGroup ? (
         <Section heading="Group behavior">
           <QueryBoundary
@@ -76,14 +92,18 @@ export interface DraftSettingsTabProps {
   readonly showGroup: boolean;
 }
 
-/** The draft-chat Settings tab: the draft-config-backed twins of the committed sections. A draft is
- *  always authored (and only visible) by its host, so Appearance is editable; Group behavior appears
- *  once the draft crosses the group floor. */
+/** The draft-chat "This chat" tab: the draft-config-backed twins of the committed sections. A draft is
+ *  always authored (and only visible) by its host, so overrides + injections are editable; Group behavior
+ *  appears once the draft crosses the group floor. Background has no draft store (no server row yet), so
+ *  it is committed-only. */
 export function DraftSettingsTab({ draftKey, showGroup }: DraftSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section heading="Appearance overrides">
+      <Section heading="Field overrides">
         <DraftOverridesTabBody draftKey={draftKey} />
+      </Section>
+      <Section heading="Injections">
+        <DraftInjectionsTab draftKey={draftKey} />
       </Section>
       {showGroup ? (
         <Section heading="Group behavior">

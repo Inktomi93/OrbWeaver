@@ -1209,10 +1209,10 @@ export interface CommittedSettingsTabStoryProps {
   readonly showGroup?: boolean;
 }
 
-/** The consolidated Settings CONTEXT tab (settings-context-tab.tsx, CP-1) mounted DIRECTLY as the component
- *  it is — the `.ct.tsx` pins its own section-composition contract (Appearance overrides always; Group
- *  behavior gated by `showGroup`) independent of the section-registry resolve. The `.ct.tsx` routeTrpc-stubs
- *  `chat.getGroupConfig` (the Group-behavior section's suspense read) + `chat.setRoomOverrides`. */
+/** The consolidated "This chat" CONTEXT tab (settings-context-tab.tsx, panel-redesign) mounted DIRECTLY as
+ *  the component it is — the `.ct.tsx` pins its own section-composition contract (Field overrides +
+ *  Injections always; Group behavior gated by `showGroup`) independent of the section-registry resolve. The
+ *  `.ct.tsx` routeTrpc-stubs `chat.getGroupConfig` + `chat.setRoomOverrides` + `chat.listChatInjections`. */
 export function CommittedSettingsTabStory({ isHost = true, showGroup = false }: CommittedSettingsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
@@ -1228,9 +1228,9 @@ export interface DraftSettingsTabStoryProps {
   readonly showGroup?: boolean;
 }
 
-/** The draft twin of the Settings tab (settings-context-tab.tsx, CP-1) mounted directly — store-backed, no
- *  network. Appearance overrides always renders (a draft is host-editable); Group behavior gates on
- *  `showGroup`. */
+/** The draft twin of the "This chat" tab (settings-context-tab.tsx, panel-redesign) mounted directly —
+ *  store-backed, no network. Field overrides + Injections always render (a draft is host-editable); Group
+ *  behavior gates on `showGroup`. */
 export function DraftSettingsTabStory({ showGroup = false }: DraftSettingsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>

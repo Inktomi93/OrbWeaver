@@ -1,10 +1,11 @@
-// CT: the consolidated Settings CONTEXT tab (settings-context-tab.tsx, Context-Panel-Program §1 CP-1)
-// mounted DIRECTLY as the component — its OWN section-composition contract, distinct from
-// chats-section.ct's registry-resolve matrix. Pins: both sections render for a host+group; the
-// "Group behavior" section is ABSENT for a non-host and ABSENT for a solo roster while "Appearance
-// overrides" persists; the section headings are real h3s with the right accessible names (the
-// settings-modal idiom). The committed arm routeTrpc-stubs `chat.getGroupConfig` (the Group-behavior
-// section's suspense read) + `chat.setRoomOverrides`; the draft arm is store-backed (no network).
+// CT: the consolidated "This chat" CONTEXT tab (settings-context-tab.tsx, panel-redesign) mounted DIRECTLY
+// as the component — its OWN section-composition contract, distinct from chats-section.ct's registry-resolve
+// matrix. Pins: Field overrides + Injections + (host+group) Group behavior render as real h3 sections; the
+// "Group behavior" section is ABSENT for a non-host and ABSENT for a solo roster while "Field overrides"
+// persists; the section headings are real h3s with the right accessible names (the settings-modal idiom).
+// The committed arm routeTrpc-stubs `chat.getGroupConfig` (the Group-behavior section's suspense read) +
+// `chat.setRoomOverrides` + `chat.listChatInjections` (the folded-in Injections section's read); the draft
+// arm is store-backed (no network).
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -21,12 +22,14 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
     "chat.getChat": () => CHAT_DETAIL,
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
 
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
@@ -43,7 +46,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
     }
     await route.fallback();
   });
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.getChat": () => CHAT_DETAIL });
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getChat": () => CHAT_DETAIL });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
 
@@ -58,22 +61,26 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
   await expect(component.getByText("Loading group settings…")).toHaveCount(0);
 });
 
-test("committed non-host: Group behavior is ABSENT, Appearance overrides persists (read-only)", async ({ mount, page }) => {
+test("committed non-host: Group behavior is ABSENT, Field overrides persists (read-only)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
 
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
   // The §8.1 host-only omit is at SECTION level — the overrides field is present but disabled for a member.
+  // The field is a collapse-until-needed row: expand Main prompt, then the (disabled) editor is reachable.
+  await component.getByRole("button", { name: "Main prompt" }).click();
   await expect(component.getByLabel("Main prompt", { exact: true })).toBeDisabled();
 });
 
-test("committed host + SOLO (non-group): Group behavior is ABSENT, Appearance overrides persists", async ({ mount, page }) => {
+test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrides persists", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -81,21 +88,23 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Appearance ov
   // omitted even though the viewer is host (the gate is host AND group, both required).
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
 
-  await expect(component.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
-  // Host copy — the overrides field is editable for the host.
+  // Host copy — the overrides field is editable for the host (expand the collapse row to reach the editor).
+  await component.getByRole("button", { name: "Main prompt" }).click();
   await expect(component.getByLabel("Main prompt", { exact: true })).toBeEnabled();
 });
 
-test("draft: Appearance overrides always renders; Group behavior gates on showGroup", async ({ mount }) => {
+test("draft: Field overrides always renders; Group behavior gates on showGroup", async ({ mount }) => {
   const solo = await mount(<DraftSettingsTabStory showGroup={false} />);
-  await expect(solo.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(solo.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
+  await expect(solo.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   await expect(solo.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
 });
 
 test("draft ≥2 cast: BOTH sections render as h3 headings", async ({ mount }) => {
   const group = await mount(<DraftSettingsTabStory showGroup={true} />);
-  await expect(group.getByRole("heading", { name: "Appearance overrides", level: 3 })).toBeVisible();
+  await expect(group.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(group.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
 });
 
@@ -107,6 +116,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_TOOL_LIMIT]: () => ({}),
   });
@@ -127,7 +137,7 @@ test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limi
 });
 
 test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}) });
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [] });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
   await expect(component.getByRole("spinbutton", { name: "Tool-call limit" })).toHaveCount(0);
