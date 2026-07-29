@@ -21,17 +21,29 @@ finding against that frame.
 
 ## ═══ ▶▶▶ SESSION STATE 2026-07-29 — READ THIS FIRST (supersedes every block below) ═══
 
-**DAY-2 (2026-07-29) ADDENDUM:** since `82a8a97a`, also landed unpushed: `7a5991dc` composer **send-availability
-gate** (#54 — engine-AGNOSTIC honest-refusal: `connection.checkChatAvailability` runs the turn's own resolveChat,
-no side effects; off/no-conn=unavailable, asleep/hosted-configured=available, drafts never refused) + `b29f4086`
-(pin its `useQuery` verdict type — skipToken+spread degrades data to `any`). IN FLIGHT: **#55** down-engine
-extension (executor `af8ef7f3ae4549555`) — the gate is posture-based so a DEAD engine under `adopt-only` still reads
-available; adding VllmSupervisor reachability so adopt-only+down refuses (`engine-down` cause). LIVE STACK NOW:
-engines KILLED (GPU idle), server UP on `adopt-only`, vite UP standalone — do NOT loop `stack.sh restart` from host
-([[dev-stack-fights-host-automation]] — NOT containerized; stack.sh PINS env; each start spawns a detached fleet).
-Once #55 lands the current adopt-only+dead-engine state itself trips the refusal (no posture flip needed).
+**DAY-2 (2026-07-29) — LIVE-DOGFOOD VERIFICATION PASS (native Chrome control now available):** the day-2 pile is
+COMMITTED + now **LIVE-PROVEN in the browser**. `7a5991dc` send-availability gate (#54) + `14491414` down-engine
+extension (#55) + `4020790c` HMR-login fix (#57) + `ce46540e`+`f81e56d9` `--force`/timeout (#56) all landed.
+**LIVE RECEIPTS captured this session (Niko chat `chat_01kypzrc3qe03amy8n7h5wy2v2`):**
+- **#54/#55 gate — BOTH directions.** posture=off → server verdict `{available:false,cause:"engine-off"}` → every
+  fire (Impersonate/Swipe/Continue/Send) `aria-disabled=true` + cause reason "Local engine is off — enable it to
+  send." (aria-disabled not native, base-ui rule, hoverable). engine UP → `{available:true}` → all fires enabled,
+  no reason. Engine-agnostic honest refusal, proven live.
+- **#57 HMR-login** — full server-restart reconnect + reload did NOT strand on /login. ✅
+- **Impersonate saga — end-to-end on the live 8B.** Fired 1st-person impersonate: streamed Nate-voice into the
+  composer (not plopped), non-persisting (Niko msg intact), held pure user-voice (no cat-drift). WIRE CAPTURE
+  (`/api/_debug/wire/captures`, x-debug-token dbg): nudge = full ignore-all voice-lock, `{{user}}`→"Nate"
+  (active persona), `{{char}}`→"Niko" (cast), `literalMacroLeaks: []` across all 3 msgs at prod sampling
+  (max_tokens 2048 · presence_penalty 1.5). Closes 22ec5de7/b7ad92df/caf8f7e6/23bcfe62 LIVE.
+- **`--force` timeout root-cause fixed `f81e56d9`** — the force-restart cold-spawns the fleet DURING server boot;
+  the 60s server-healthz gate false-timed-out a still-booting server (killed it, never reached vite). Bumped to
+  180s (owner: "3 minutes") + readiness 150→240s, hoisted to env-overridable consts. NOTE the incident: the
+  force-restart tore down the working idle-engine stack, boot false-timed-out at 60s, recovered by starting vite
+  standalone (`cd packages/client && exec node_modules/.bin/vite`) once server+gen were up.
+**LIVE STACK NOW: server UP `adopt-or-start` + WIRE_CAPTURE=on DEBUG_TOKEN=dbg · gen 8B :8703 loaded · vite :5173
+standalone.** Composer on the Niko chat holds an impersonate draft (harmless, non-persisting).
 
-**HEAD = `b29f4086` (main). origin/main = `adec7490` (last PUSH). Everything below adec7490 is COMMITTED-not-pushed**
+**HEAD = `f81e56d9` (main). origin/main = `adec7490` (last PUSH). Everything below adec7490 is COMMITTED-not-pushed**
 — a live-dogfood fix run + one finished feature, all on main, ready for `verify:push` on owner's word
 ([[verify-push-stricter-than-commit-gate]] — pre-push runs check+tests:node+e2e-smoke; have the stack up first).
 
@@ -54,11 +66,12 @@ Once #55 lands the current adopt-only+dead-engine state itself trips the refusal
 Wire replay: `GET /api/_debug/wire/captures?chatId=…` (x-debug-token: dbg) → replay `messages` at `POST :8703/v1/chat/completions`.
 vite refused to boot via stack.sh's orchestration — start standalone: `cd packages/client && exec node_modules/.bin/vite`.
 
-**OPEN / OWED:** (1) impersonate LIVE receipt — owner triggers one impersonate, orch reads the fresh capture to
-confirm the substituted nudge + held voice end-to-end (int-test-proven; live is belt). (2) D22 sub-`full` member
-tiers (name-avatar/sheet/+lore + HiddenTierNote) code+CT verified, NOT live (needs a multi-user non-host view — fold
-into next MU E2E). (3) the unpushed pile → `verify:push`. (4) rpg game-data macro fields (quest titles/pool hints/
-widget labels) do NOT render macros — owner scoped OUT for now. (5) dead-code purge candidates parked: `permitsHost`
+**OPEN / OWED:** (1) ✅ DONE — impersonate LIVE receipt captured this session (wire capture: substituted nudge +
+held voice, zero macro leaks). (2) D22 sub-`full` member tiers (name-avatar/sheet/+lore + HiddenTierNote) code+CT
+verified, NOT live (needs a multi-user non-host view — fold into next MU E2E; the 1:1 Niko chat can't expose it).
+(3) **the unpushed pile → `verify:push` (now 21 commits ahead of `adec7490`)** — stack is UP so e2e-smoke reuses it;
+awaiting owner's word (commit-only default). (4) rpg game-data macro fields (quest titles/pool hints/widget labels)
+do NOT render macros — owner scoped OUT for now. (5) dead-code purge candidates parked: `permitsHost`
 (auth/decide.ts, true orphan), `clampMemberCard` NO LONGER dead (D22 wired it).
 
 **PRIOR CRUNCHY-CLUSTER (pushed @ adec7490):** W-A/W-B/W-C/W-D+wand/W-F fork/W-G heal all shipped. W-H panel-beauty +
