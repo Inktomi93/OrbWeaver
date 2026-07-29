@@ -81,7 +81,9 @@ const ROSTER_STUB = {
   }),
 };
 
-// The scripted turn: start → two text deltas → complete (targetMessageId null → the ghost appends).
+// The scripted turn: start → two text deltas → complete. `targetMessageId: null` (a fresh SEND) → the
+// ghost APPENDS at the tail. Contrast `SWIPE_HEAD` below, where a non-null `targetMessageId` on a `swipe`
+// intent makes the ghost REPLACE its target message in place (one row, no appended second row).
 const TURN: ChatBusEvent[] = [
   {
     type: "turnStarted",
@@ -202,6 +204,51 @@ test("a draft handle shows the empty state and never reads the server", async ({
   await expect(component.getByText("No messages yet.")).toBeVisible();
   // skipToken: a draft never builds the key, so the server is never hit.
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(0);
+});
+
+// SWIPE reroll (append-variant), streamed head only (start + two deltas, NO completion) so the in-place
+// ghost is held live for a deterministic assertion. `turnStarted` carries intent `swipe` + a NON-NULL
+// `targetMessageId` (AI_VIEW.id) — the whole point of this regression: `useMessageItems` must place the
+// ghost INTO AI_VIEW's slot (keyed by that id) and SUPPRESS the committed AI_VIEW row while streaming, so
+// the new variant streams in place as ONE row. The bug appended the ghost at the tail instead, leaving the
+// old "Hello world" row beside the streaming variant (two visible copies until turn-complete reconciled).
+const SWIPE_HEAD: ChatBusEvent[] = [
+  {
+    type: "turnStarted",
+    chatId: CHAT_ID,
+    intent: "swipe",
+    api: "chat-completions",
+    source: "openrouter",
+    model: "test-model",
+    speakerCharacterId: null,
+    targetMessageId: AI_VIEW.id,
+  },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "Fresh " } },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "take" } },
+];
+
+test("a swipe reroll streams the new variant IN PLACE — one row, the committed variant's row suppressed (no appended second row)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    // Canon carries the existing variant ("Hello world" on AI_VIEW); the swipe rerolls it in place.
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeChatStream(page, { events: SWIPE_HEAD });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  // The reroll streams into AI_VIEW's slot — the new variant appears...
+  await expect(component.getByText("Fresh take")).toBeVisible();
+  // ...as the ONLY assistant row: exactly one ghost, and the committed AI_VIEW row is GONE (suppressed
+  // in place). The bug's signature was BOTH present — the committed "Hello world" row AND the appended
+  // ghost — so asserting the committed row's absence is the precise regression guard.
+  await expect(component.locator('[data-slot="ghost-message-row"]')).toHaveCount(1);
+  await expect(component.locator('[data-message-id="msg_ai"]')).toHaveCount(0);
+  await expect(component.getByText("Hello world")).toHaveCount(0);
+  // The user prompt row is untouched — only the swiped assistant row is replaced.
+  await expect(component.getByText("Ping?")).toBeVisible();
 });
 
 // The head of a turn (start + two deltas, NO completion) — the ghost holds its streamed text; shared by
