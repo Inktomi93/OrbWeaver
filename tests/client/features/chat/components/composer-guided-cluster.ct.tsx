@@ -3,8 +3,10 @@
 // real `useGuidedActions` / `useComposerUtilities` mutations. Proves: the four dual-mode icons ALWAYS render
 // (never hidden/swapped); Response fires generate (committed) / startChat (draft), empty AND with the
 // afterAssistant nudge flag on an assistant tail; Swipe KEEPS the steer (no composer clear — the reroll
-// ergonomic) while Response/Continue CONSUME it; Simple send fires chat.commitMessage; the phase matrix
-// disables swipe/continue/impersonate on a draft with a legible reason.
+// ergonomic) while Response/Continue CONSUME it; Simple send fires chat.commitMessage; Impersonate is
+// NON-PERSISTING — it drafts the user's next line via chat.impersonateDraft and FILLS the composer for
+// review (draft chat: commit opening:none first, then draft); the phase matrix disables swipe/continue on a
+// draft with a legible reason (Impersonate + Response stay live).
 //
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
@@ -117,10 +119,27 @@ test("a DRAFT's disabled Swipe/Continue are aria-disabled (not native) with a la
   await expect(component.getByRole("button", { name: "Continue" })).toHaveAttribute("title", CONTINUE_DISABLED_TITLE);
 });
 
-test("Impersonate on a DRAFT commits the chat (startChat opening:none) then fires chat.impersonate", async ({ mount, page }) => {
+test("Impersonate on a COMMITTED chat FILLS the composer with the drafted line and persists NOTHING", async ({ mount, page }) => {
+  // The NON-PERSISTING draft verb returns { text }; the composer fills with it for review. No persist mutation.
+  const trpc = await routeTrpc(page, { "chat.impersonateDraft": () => ({ text: "I step into the tavern, cloak dripping." }) });
+  const component = await mount(<ComposerStory />); // committed, empty composer
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+
+  await expect.poll(() => trpc.count("chat.impersonateDraft"), { intervals: [20, 50, 100] }).toBe(1);
+  // The drafted line FILLS the composer (the ST review flow) — the user edits + sends normally.
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("I step into the tavern, cloak dripping.");
+  // NO user turn was persisted — the (removed) persisting verb never fires; only the non-persisting draft did.
+  // ONESHOT-OK: the composer-fill assertion above proves the whole async flow COMPLETED; on a committed chat
+  // `fireImpersonate` never calls `commitDraft`, so `chat.startChat` is provably never invoked (stable at 0).
+  expect(trpc.count("chat.startChat")).toBe(0);
+});
+
+test("Impersonate on a DRAFT commits the chat (startChat opening:none) then DRAFTS into the composer (no user turn)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
-    "chat.impersonate": () => ({}),
+    "chat.impersonateDraft": () => ({ text: "Good evening — is there a room to spare?" }),
   });
   const component = await mount(<ComposerStory committed={false} />);
 
@@ -128,22 +147,24 @@ test("Impersonate on a DRAFT commits the chat (startChat opening:none) then fire
   await component.getByRole("button", { name: "Impersonate" }).click();
   await page.getByRole("menuitem", { name: "1st person" }).click();
 
-  // Both mutations fire: the draft commits with NO auto-opening, then impersonate runs on the new chatId.
+  // Fallback path: commit the empty chat (opening:none), then DRAFT the opening line — no user turn persisted.
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
-  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("chat.impersonateDraft"), { intervals: [20, 50, 100] }).toBe(1);
   // ONESHOT-OK: both polls above settled each recorder at exactly 1 call, so the inputs are stable at read.
   expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
-  // Impersonate fires against the freshly-committed chat id (empty composer ⇒ no steer object).
-  const imp = trpc.lastInput("chat.impersonate") as { chatId?: string; guided?: unknown };
-  // ONESHOT-OK: the impersonate poll settled its recorder at 1; the input is stable at read.
+  // The draft fires against the freshly-committed chat id (empty composer ⇒ no steer object).
+  const imp = trpc.lastInput("chat.impersonateDraft") as { chatId?: string; guided?: unknown };
+  // ONESHOT-OK: the draft poll settled its recorder at 1; the input is stable at read.
   expect(imp.chatId).toBe(COMPOSER_CHAT_ID);
   expect(imp.guided).toBeUndefined();
+  // The drafted opening line lands in the composer for review.
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("Good evening — is there a room to spare?");
 });
 
-test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + person after commit", async ({ mount, page }) => {
+test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + person, then fills the composer", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
-    "chat.impersonate": () => ({}),
+    "chat.impersonateDraft": () => ({ text: "I greet the innkeeper with a warm smile." }),
   });
   const component = await mount(<ComposerStory committed={false} />);
 
@@ -152,14 +173,16 @@ test("Impersonate on a DRAFT with a typed steer threads the impersonate steer + 
   await component.getByRole("button", { name: "Guided impersonate" }).click();
   await page.getByRole("menuitem", { name: "3rd person" }).click();
 
-  await expect.poll(() => trpc.count("chat.impersonate"), { intervals: [20, 50, 100] }).toBe(1);
-  // ONESHOT-OK: impersonate AWAITS the commit, so once its recorder settled at 1 the startChat call already fired.
+  await expect.poll(() => trpc.count("chat.impersonateDraft"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the draft AWAITS the commit, so once its recorder settled at 1 the startChat call already fired.
   expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "none" });
-  // ONESHOT-OK: the impersonate poll above settled its recorder at 1 — the input is stable at read.
-  expect(trpc.lastInput("chat.impersonate")).toMatchObject({
+  // ONESHOT-OK: the draft poll above settled its recorder at 1 — the input is stable at read.
+  expect(trpc.lastInput("chat.impersonateDraft")).toMatchObject({
     chatId: COMPOSER_CHAT_ID,
     guided: { action: "impersonate", input: "greet the innkeeper warmly", person: "third" },
   });
+  // The typed steer is CONSUMED and REPLACED by the drafted line (that IS the review).
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("I greet the innkeeper with a warm smile.");
 });
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {

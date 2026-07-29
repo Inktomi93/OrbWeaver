@@ -78,7 +78,11 @@ const notReached = (): never => {
 };
 
 function makeDeps(
-  over: { readonly engine?: TurnEngine; readonly resolveConnection?: () => Promise<ResolvedConnection>; readonly creatorGroupDefaults?: GroupConfig } = {},
+  over: {
+    readonly engine?: Pick<TurnEngine, "runTurn">;
+    readonly resolveConnection?: () => Promise<ResolvedConnection>;
+    readonly creatorGroupDefaults?: GroupConfig;
+  } = {},
 ): Parameters<typeof createStartChat>[1] {
   return {
     emit,

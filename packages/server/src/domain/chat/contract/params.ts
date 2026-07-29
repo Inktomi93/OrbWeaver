@@ -180,8 +180,10 @@ export interface SwipeParams extends MessageScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `impersonate` — generates a user-side message as the active persona. */
-export interface ImpersonateParams extends ChatScopedParams {
+/** `impersonateDraft` — generates the user's next line in the active persona's voice and RETURNS it (composer
+ *  fill), persisting NOTHING. The user reviews the drafted line in the composer and commits it with a normal
+ *  send. Same steer/perspective picker as a real turn; `personaId` selects the authoring persona's voice. */
+export interface ImpersonateDraftParams extends ChatScopedParams {
   readonly personaId?: PersonaId | null | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;

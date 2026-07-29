@@ -670,7 +670,7 @@ const PROBES: readonly Probe[] = [
     path: "chat.revertContinue",
     call: (c, i) => c.chat.revertContinue({ chatId: i.chatId, messageId: i.messageId }),
   },
-  { path: "chat.impersonate", call: (c, i) => c.chat.impersonate({ chatId: i.chatId }) },
+  { path: "chat.impersonateDraft", call: (c, i) => c.chat.impersonateDraft({ chatId: i.chatId }) },
   { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId }) },
   {
     path: "chat.generateImage",

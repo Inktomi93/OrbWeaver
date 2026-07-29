@@ -63,7 +63,7 @@ export const CHAT_VERB_AUTHORITY = {
   send: "member",
   commitMessage: "member", // D56 "Simple Send" — same membership gate as `send` (post a user row, no AI turn)
   swipe: "member",
-  impersonate: "member",
+  impersonateDraft: "member", // NON-PERSISTING guided impersonate (composer fill) — same member gate
   generate: "member",
   continueTurn: "member",
   undoContinue: "member",

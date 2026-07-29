@@ -46,7 +46,7 @@ import type {
   GetShapeTraceParams,
   GetStoredVariablesParams,
   GetVariablesParams,
-  ImpersonateParams,
+  ImpersonateDraftParams,
   KickParticipantParams,
   ListChatInjectionsParams,
   ListChatsParams,
@@ -99,6 +99,7 @@ import type {
   DrainDeferredTurnsScope,
   DrainReport,
   ForkResult,
+  ImpersonateDraftResult,
   ReapResult,
   RedeemInviteResult,
   StartChatResult,
@@ -182,8 +183,10 @@ export interface ChatService {
   readonly commitMessage: (params: CommitMessageParams) => Promise<TurnOutcome>;
   /** Append a fresh variant to an assistant slot (reroll; slot attribution unchanged). */
   readonly swipe: (params: SwipeParams) => Promise<TurnOutcome>;
-  /** Generate a USER-side message as the active persona. */
-  readonly impersonate: (params: ImpersonateParams) => Promise<TurnOutcome>;
+  /** Generate the user's next line as the active persona and RETURN it for the composer to fill — persists
+   *  NOTHING (the user reviews the drafted line and commits it with a normal send). Replaced the persisting
+   *  `impersonate` turn: a persisted user turn flashed-and-vanished on the post-commit refetch race. */
+  readonly impersonateDraft: (params: ImpersonateDraftParams) => Promise<ImpersonateDraftResult>;
   /** A lock-free auxiliary generation (runs concurrent with a locked send; active-turns Set). */
   readonly generate: (params: GenerateParams) => Promise<TurnOutcome>;
   /** Extend the tail assistant message in place (continue snapshot per-variant). */

@@ -275,7 +275,7 @@ describe("driveRound — locked yields the round (a human send interleaved — �
   test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {
     let calls = 0;
     const view = { id: castId<MessageId>("message_x") } as unknown as MessageView;
-    const fakeEngine: TurnEngine = {
+    const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => {
         calls += 1;
         if (calls === 1) {
@@ -305,7 +305,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
   const abortedView = { id: castId<MessageId>("message_ab") } as unknown as MessageView;
 
   test("single-speaker: an aborted engine outcome propagates aborted:true + reason", async () => {
-    const fakeEngine: TurnEngine = {
+    const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => Promise.resolve({ messages: [], aborted: true, abortReason: "user" }),
     };
     const outcome = await driveRound({
@@ -324,7 +324,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
   test("mid-round multi-speaker: speaker 1 commits, speaker 2 aborts → round carries BOTH the committed row AND aborted:true", async () => {
     let calls = 0;
     const committedView = { id: castId<MessageId>("message_1") } as unknown as MessageView;
-    const fakeEngine: TurnEngine = {
+    const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => {
         calls += 1;
         // Speaker 1 commits normally; speaker 2 is cancelled mid-round (a caller abort landed between speakers).
@@ -353,7 +353,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
   });
 
   test("the stale (lock-loss) reason propagates through the round just as `user` does", async () => {
-    const fakeEngine: TurnEngine = {
+    const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => Promise.resolve({ messages: [abortedView], aborted: true, abortReason: "stale" }),
     };
     const outcome = await driveRound({

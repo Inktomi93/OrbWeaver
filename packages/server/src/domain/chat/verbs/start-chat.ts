@@ -53,7 +53,9 @@ import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../subst
 interface StartChatDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
-  readonly engine: TurnEngine;
+  /** The `generate` opening runs a single persisted `kind:"opening"` turn — start-chat never DRAFTS (the
+   *  non-persisting `generateText` is a verb-level composer-fill path), so it needs the `runTurn` slice only. */
+  readonly engine: Pick<TurnEngine, "runTurn">;
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
   /** The foreign half of the assemble ctx (preset/persona/settings) for the `generate` opening only. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;

@@ -71,9 +71,13 @@ const useGuidedRewriteMutation = createEntityMutation<GuidedSlotVars, unknown>({
   errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't rewrite that reply."),
 });
 
-const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknown>({
-  options: (trpc) => trpc.chat.impersonate.mutationOptions(),
-  busDriven: true,
+// impersonateDraft is NON-PERSISTING (owner ruling): it RETURNS the drafted user line for the composer to
+// fill — it writes no canon and emits no bus event, so it's neither bus-driven NOR cache-invalidating
+// (`invalidates: []` — nothing to reconcile). The caller reads `{ text }` off `mutateAsync` and fills the
+// composer for review; the user commits it with a normal send.
+const useGuidedImpersonateDraftMutation = createEntityMutation<GuidedTurnVars, { readonly text: string }>({
+  options: (trpc) => trpc.chat.impersonateDraft.mutationOptions(),
+  invalidates: () => [],
   errorToast: (error) => (isSilencedTurnAbort(error) ? null : "Couldn't impersonate with that guidance."),
 });
 
@@ -133,7 +137,11 @@ export interface UseGuidedActionsResult {
   readonly fireContinue: (input: string) => void;
   /** F1 — rewrite the tail assistant reply out of character (lands as a variant via `chat.swipe`). */
   readonly fireRewrite: (input: string) => void;
-  readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson) => void;
+  /** Guided impersonate (NON-PERSISTING — owner ruling): drafts the user's next line and hands it back via
+   *  `onDrafted` for the composer to FILL (the ST review flow); nothing is committed. On a DRAFT chat it first
+   *  commits the room with no auto-opening (fallback: an empty chat exists even if discarded) then drafts the
+   *  opening user line. `input` is the optional steer; `person` picks the 1st/2nd/3rd-person perspective. */
+  readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson, onDrafted: (text: string) => void) => void;
   readonly fireOpening: (input: string) => void;
 }
 
@@ -146,7 +154,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const swipe = useGuidedSwipeMutation({ trpc, invalidation });
   const continueTurn = useGuidedContinueMutation({ trpc, invalidation });
   const rewrite = useGuidedRewriteMutation({ trpc, invalidation });
-  const impersonate = useGuidedImpersonateMutation({ trpc, invalidation });
+  const impersonateDraft = useGuidedImpersonateDraftMutation({ trpc, invalidation });
   const startChat = useGuidedStartChatMutation({ trpc, invalidation });
 
   // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
@@ -224,7 +232,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   };
 
   return {
-    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonate.isPending || draftCommitPending,
+    isPending: generate.isPending || swipe.isPending || continueTurn.isPending || rewrite.isPending || impersonateDraft.isPending || draftCommitPending,
     tailAssistantMessageId,
     tailHasContinuation,
     fireResponse: (input, respOpts): void => {
@@ -285,21 +293,19 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       }
       rewrite.mutate({ chatId, messageId: tailAssistantMessageId, guided }, perFire(input));
     },
-    fireImpersonate: (input, person): void => {
+    fireImpersonate: (input, person, onDrafted): void => {
       const guided = steerFor("impersonate", input, person);
-      // A DRAFT has no committed chat: impersonate writes the USER's opening line, so on a fresh chat it IS
-      // the first move (the ST "generate opening" sibling — owner: "a guided generation can BE the first
-      // message"). Commit the room with NO auto-opening (`opening:"none"` — impersonate provides the first
-      // line, we don't also want a generated greeting), then fire impersonate on the new chatId with the same
-      // steer/person. The server impersonate verb already runs on a 0-message chat (turn.int.test.ts).
-      if (chatId === null) {
-        runDraftFlow(input, async () => {
-          const committedId = await commitDraft("none");
-          await impersonate.mutateAsync(guided === undefined ? { chatId: committedId } : { chatId: committedId, guided });
-        });
-        return;
-      }
-      impersonate.mutate(guided === undefined ? { chatId } : { chatId, guided }, perFire(input));
+      // NON-PERSISTING (owner ruling): impersonate DRAFTS the user's next line and hands it back via
+      // `onDrafted` for the composer to FILL — nothing is committed, so the old persist→refetch flash-and-
+      // vanish is mooted. The typed steer is consumed and REPLACED by the drafted line (that IS the review).
+      runDraftFlow(input, async () => {
+        // A DRAFT has no committed chat to draft against. FALLBACK (server can't assemble impersonation
+        // context without a chat row): commit the room with NO auto-opening first, then draft the opening
+        // user line into the composer. Tradeoff — an empty chat exists even if the user discards the draft.
+        const targetId = chatId ?? (await commitDraft("none"));
+        const { text } = await impersonateDraft.mutateAsync(guided === undefined ? { chatId: targetId } : { chatId: targetId, guided });
+        onDrafted(text);
+      });
     },
     fireOpening,
   };

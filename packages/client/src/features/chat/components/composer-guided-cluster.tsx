@@ -83,6 +83,12 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     run(trimmed);
     onChange("");
   };
+  // Impersonate is NON-PERSISTING (owner ruling): it DRAFTS the user's next line and FILLS the composer with
+  // it for review (the ST flow) — the typed steer is consumed and REPLACED by the drafted line. Nothing is
+  // committed; the user edits then sends normally. A failed draft restores the steer via onFireError (D57).
+  const fireImpersonate = (person: GuidedImpersonatePerson): void => {
+    guided.fireImpersonate(trimmed, person, (text) => onChange(text));
+  };
   // Response: draft → Generate opening (fireOpening); committed → generate reply (empty=plain, repeatable;
   // text=guided). Passes `afterAssistant` so the server appends the responseNudge on an assistant tail.
   const fireResponse = (speakerCharacterId: CharacterId | null): void => {
@@ -109,7 +115,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         game={game}
         image={imageControls}
       />
-      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={(person): void => fireAndClear((input) => guided.fireImpersonate(input, person))} />
+      <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} />
       <GuidedIconButton
         icon={RotateCcw}
         label={hasText ? "Swipe with this steering" : "Swipe"}
