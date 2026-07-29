@@ -32,6 +32,7 @@ import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext } from "#domain/chat";
 import { createResolveViewerVisibility } from "#domain/chat";
+import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
@@ -46,6 +47,7 @@ import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
 import type { WorkloadRunnerEnv } from "#domain/workloads";
 import { createImportStandaloneLorebook } from "#domain/world-info";
+import type { EnginesPosture } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
 import { createPasswordHasher } from "#infra/auth";
@@ -54,7 +56,7 @@ import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { fetchOpenAiModels } from "#infra/network";
-import type { BackendRegistryDeps, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import type { BackendRegistryDeps, EngineStatusRecord, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
 import {
   createBackendRegistry,
   createProviderDiagnostics,
@@ -92,6 +94,41 @@ import { buildRpg } from "./rpg";
 import { buildSearchDiscovery } from "./search-discovery";
 import { buildSideGenParams } from "./side-gen-params";
 import { buildWorldInfo } from "./world-info";
+
+/** Reconstruct the effective engine POSTURE from the two boot facts compose receives (lossless: lifecycle
+ *  passes `vllmManages = postureManages(posture)`, i.e. adopt-or-start ⟺ true; `vllmDisabled` ⟺ off). Fed to
+ *  the connection send-availability gate (#54), which refuses a DOWN local engine only under `adopt-only`. */
+function derivePosture(vllmDisabled: boolean, vllmManages: boolean): EnginesPosture {
+  if (vllmDisabled) {
+    return "off";
+  }
+  return vllmManages ? "adopt-or-start" : "adopt-only";
+}
+
+/** Map the sealed infra gen-engine lifecycle status → the connection domain's reachability vocab (the raw
+ *  `EngineStatusRecord` status tuple never crosses the providers boundary). Exhaustive over the infra tuple:
+ *  a new lifecycle status is a tsc error here until it is classified. `undefined` (no tick yet) → unknown. */
+function toReachability(record: EngineStatusRecord | undefined): LocalEngineReachability {
+  if (record === undefined) {
+    return "unknown";
+  }
+  switch (record.status) {
+    case "adopted":
+    case "owned":
+      return "up";
+    case "sleeping":
+    case "sleeping-held":
+      return "asleep";
+    case "starting":
+    case "stack-pending":
+      return "warming";
+    case "down":
+    case "hung":
+    case "foreign":
+    case "failed":
+      return "down";
+  }
+}
 
 /**
  * What boot supplies to stand up the whole service graph. `vllmDisabled` is the effective fact
@@ -278,6 +315,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
     generationCost: (req): Promise<GenerationCost> => diagnostics.generationCost(req),
     vllmAvailable,
+    // The send-availability gate (#54) reads the effective posture + the gen engine's live reachability to
+    // refuse a DOWN local engine ONLY under adopt-only (passive; never self-recovers). `vllmManages` absent ⇒
+    // the manager default (adopt-or-start). The reachability is a cheap local supervisor read (no network);
+    // null handle (vLLM disabled) ⇒ unknown, and the posture-`off` arm short-circuits before it is consulted.
+    enginesPosture: derivePosture(deps.vllmDisabled, deps.vllmManages ?? true),
+    localGenEngineReachability: (): LocalEngineReachability => toReachability(registry.vllmEngine?.status()["gen"]),
     // A display fact for the Connections picker; the resolver keeps deriving via its own empty-model
     // pass-through, so this is never stamped.
     localLightDefaults: {

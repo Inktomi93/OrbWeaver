@@ -9,6 +9,7 @@ import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/cont
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import type { EnginesPosture } from "#foundation/env";
 import type {
   CheckChatAvailabilityParams,
   GetCatalogParams,
@@ -62,6 +63,18 @@ type GenerationCostOp = (req: {
   readonly signal?: AbortSignal | undefined;
 }) => Promise<GenerationCost>;
 
+/** The LOCAL vLLM gen engine's live reachability, in a DOMAIN-SAFE vocab (the infra `EngineStatusRecord`
+ *  status tuple never crosses the providers boundary). `up` = serving now; `asleep` = slept but wakes on the
+ *  turn; `warming` = spawned/starting or stack-pending (coming up, don't refuse); `down` = not running and not
+ *  coming up on its own (down/hung/foreign/failed); `unknown` = no supervisor telemetry yet / vLLM disabled
+ *  (never refuse on missing telemetry). Compose maps the sealed infra status → this. */
+const LOCAL_ENGINE_REACHABILITIES = ["up", "asleep", "warming", "down", "unknown"] as const;
+export type LocalEngineReachability = (typeof LOCAL_ENGINE_REACHABILITIES)[number];
+
+/** infra/providers vLLM supervisor → the chat GEN engine's live reachability. A pure local read (no network),
+ *  wired at the composition root; `unknown` when there is no supervisor (vLLM disabled) or no tick yet. */
+type LocalGenEngineReachabilityOp = () => LocalEngineReachability;
+
 /** The DI bundle the connection verbs close over (wired at the entry composition root). */
 export interface ConnectionContext {
   readonly db: Db;
@@ -79,6 +92,13 @@ export interface ConnectionContext {
   /** The boot GPU/vLLM-availability fact. When `false`, `resolveRole` reroutes derive roles (embed/
    *  rerank/imageEmbed) that resolved to `vllm` onto the in-process `local-light` tier. */
   readonly vllmAvailable: boolean;
+  /** The effective engine POSTURE (foundation). The send-availability gate (#54) refuses a DOWN local engine
+   *  ONLY under `adopt-only` (a passive consumer that never spawns); under `adopt-or-start` the fleet manager
+   *  spawns on the turn, so a down engine is still AVAILABLE (cold-slow, not doomed). `off` = disabled. */
+  readonly enginesPosture: EnginesPosture;
+  /** The chat GEN engine's live reachability (domain-safe vocab), read by the send-availability gate to refuse
+   *  a DOWN local engine under adopt-only. Cheap local read; `unknown` ⇒ never refuse. */
+  readonly localGenEngineReachability: LocalGenEngineReachabilityOp;
   /** Owner-ness of the acting principal. Read by `resolveRole('chat')` for the owner-conditional default. */
   readonly isOwner: (principal: Principal) => boolean;
   /** The local-light builtin model trio (embed/imageEmbed/rerank), injected at the composition root. A
