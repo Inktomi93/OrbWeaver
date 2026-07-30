@@ -69,6 +69,28 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     },
   },
   {
+    id: castId<ChatModelId>("claude-sonnet-4-6"),
+    tier: "sonnet",
+    label: "Sonnet 4.6",
+    capability: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        displayModes: [...CLAUDE_DISPLAY_MODES],
+      },
+      sampling: {},
+      input: { vision: true },
+      tools: { parallel: true },
+      // structured: true is the load-bearing flag — Sonnet 4.6 supports structured output (Anthropic
+      // native + the Claude-via-OR path), but OpenRouter's catalog doesn't advertise `structured_outputs`
+      // for it, so absent this curated entry `getChatModel` misses and the OR-synthesis leaves it unset →
+      // an rpg game on this model wrongly resolves trackers-readonly (no extraction). See getChatModel.
+      output: { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT }, structured: true },
+      context: { window: CLAUDE_CONTEXT_WINDOW, supports1M: false },
+    },
+  },
+  {
     id: castId<ChatModelId>("claude-haiku-4-5-20251001"),
     tier: "haiku",
     label: "Haiku 4.5",
