@@ -183,6 +183,12 @@ export function createLifecycle(): Lifecycle {
     // capability. A never-refreshed account reads the empty snapshot (no-op warm); harmless.
     await built.services.connection.getCatalog({});
 
+    // Same boot-seed for the SEPARATE agent-sdk daemon catalog mirror (getCatalog above is OR-only — the two
+    // caches never co-mingle). getAgentSdkCatalog's read warms agent-sdk-model-cache as a side-effect. Without
+    // this the mirror is cold until the next daily refresh, so a restart degrades max-pro-sub / OR-skin models
+    // to the conservative no-reasoning profile (resolveAgentSdkAlias returns undefined on a null cache).
+    await built.services.connection.getAgentSdkCatalog({});
+
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
