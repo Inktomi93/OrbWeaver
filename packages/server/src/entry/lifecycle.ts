@@ -176,6 +176,13 @@ export function createLifecycle(): Lifecycle {
       openrouterApiKey: env.OPENROUTER_API_KEY,
     });
 
+    // Boot-seed the in-memory OR catalog mirror from the persisted snapshot so a restart preserves catalog
+    // warmth (getCatalog's read warms or-model-cache as a side-effect). Without this the mirror is cold
+    // until the next refresh — which the daily-cadence scheduler won't run for up to a day — and every OR
+    // model resolves with EMPTY supportedParameters, silently dropping its advertised structured/tools
+    // capability. A never-refreshed account reads the empty snapshot (no-op warm); harmless.
+    await built.services.connection.getCatalog({});
+
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
