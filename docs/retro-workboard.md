@@ -24,12 +24,39 @@ via injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any wo
 
 ## ═══ ▶▶▶ CURRENT STATE — 2026-07-29 (READ FIRST) ═══
 
-**`HEAD = 02259150` · `origin/main` SYNCED (0 ahead).** The entire two-day live-dogfood run is committed
-AND pushed — no outstanding push. Tree clean. Dev stack UP: server `:8788` on `adopt-or-start` +
-`WIRE_CAPTURE=on DEBUG_TOKEN=dbg` · gen 8B `:8703` loaded · vite `:5173` standalone. (Stack is NOT
-containerized; do not loop `stack.sh restart` from the host — [[dev-stack-fights-host-automation]].
-`pnpm stack restart --force` is the sanctioned re-env/teardown; its boot timeouts were bumped to
-180s/240s so a cold fleet spawn no longer false-times-out.)
+**`HEAD = b3721735` · `origin/main = 02259150` — 12 commits AHEAD, COMMIT-ONLY (owner never gave a push word
+for the PM run).** Tree clean. Dev stack UP: server `:8788` on `adopt-or-start` + `WIRE_CAPTURE=on
+DEBUG_TOKEN=dbg` · vite `:5173`. `pnpm stack restart --force` is the sanctioned re-env; boot timeouts bumped
+to 180s/240s ([[dev-stack-fights-host-automation]]).
+
+**═══ PM SESSION 2026-07-29 (newest; supersedes the pre-push list below) — all committed-not-pushed, each whole-tree green ═══**
+- Perf: composer keystroke no longer re-renders the message thread `6ce5a4c6` (draft subscription was in the
+  shared ancestor ChatRoomSurface → moved into Composer). NOTE [[react-compiler-no-manual-memo]] — client runs
+  the React Compiler; NEVER prescribe React.memo; the scroll `region:content` commits are inherent virtualizer cost.
+- CT nested-submenu flake `d4f7e805` (reduced-motion emulation). LoAF migration `fe66520f` (longtask→
+  long-animation-frame, killed the "Deprecated API" console spam + adds script attribution).
+- **"This chat" tab** `8e7a22b6` + side-eye polish `ef1aacdd` — consolidated the mislabeled "Appearance overrides"
+  (per-chat prompt/scenario overrides) + the separate Injections tab into ONE "This chat" tab: collapse-until-needed
+  field-override rows (ember-accent when set, 3-role Select) · Injections · Background · (kept) Group behavior · Tool
+  use. Approved mock `18bbd04f` (`reports/design-refs/panel-redesign/this-chat-overrides.html`).
+- **Swipe duplicate-row** `7bddf96f` — useMessageItems appended the streaming ghost instead of occupying the swipe
+  target's slot; now streams in-place (useSwipeTargetMessageId, gated on intent==="swipe" so continue still appends).
+- **Connection model-leak** `385dba8d` — provider switch OMITTED the empty model key; deepMergePlain kept the stale
+  value → mis-route. Now emits `model: null` (explicit clear) + nullable non-chat role schemas.
+- **Model-capability / catalog-cache class** — `c656bc1b` curate claude-sonnet-4-6 (belt) · `c40dbe45` OR catalog
+  cold-cache degrade (boot-seed from persisted snapshot + TTL 1h→week) · `b3721735` agent-sdk sibling same fix.
+  See [[or-catalog-cold-cache-degrades-capability]].
+**➤ HOSTED-MODEL DOGFOOD RESOLUTION (the payoff):** owner's "hosted Sonnet won't populate panel / do cards" was ONE
+bug — `roleDefaults.chat = {source:"vllm", model:"anthropic/claude-sonnet-4.6"}` (the model-leak residue): local vLLM
+got asked for a Claude model → **404, nothing generated** → no cards, no panel. NOT capability/catalog/readonly/lenientHtml
+(all red herrings I chased before reading the console 404). Fixed the owner's config live via `settings.updateUserSettingsSection`
+(section:"routing", patch roleDefaults.chat.source→"openrouter", keep model) → hosted Sonnet 4.6 then generated, RENDERED
+the immersive HTML card, and POPULATED the panel (scene "The Gilded Ember tavern", cast Mira Solheart/Corvin Ashe, quests
+"Claim the Vault"/"Earn Mira's Trust"). **Lesson: fire a turn + read the console FIRST.** extractionMode: `reliable`=structured-
+output, `cheap`=tool-calls. **IN FLIGHT:** owner asked to swap the game to `cheap` (tool-call) mode + compare — do via
+`rpg.updateConfig`/setGameConfig `extractionMode:"cheap"` then fire a turn.
+**OPEN:** the 12-commit push (owner's word); MU picks pane #24; permitsHost purge; workboard/task drift.
+**═══════════════════════════════════════════════════════════════════════════════════════════════**
 
 **LANDED + PUSHED (recent, newest first — one line each; git log has the detail):**
 - **Live-dogfood verification pass** — #54/#55 send-availability gate proven both directions
