@@ -20,11 +20,20 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.nominateHostHandoff).toBe("host");
     expect(CHAT_VERB_AUTHORITY.forceCharacterTurn).toBe("host");
     expect(CHAT_VERB_AUTHORITY.reattributeMessages).toBe("host");
-    // The full-prompt previews are host/admin: the assembled prompt merges every member's card at FULL, so a
-    // plain member reading it bypasses the D22 memberCardVisibility clamp (the verbs gate `requireHost`).
+    // The RENDERED previews are host/admin: they resolve every member's card at FULL, so a plain member
+    // reading one bypasses the D22 memberCardVisibility clamp (the verbs gate `requireHost`). `previewSection`
+    // joined them 2026-08-01 — it was `member` while rendering an ARBITRARY section against the same ctx, and
+    // `main_prompt` resolves `character.systemPrompt` (a `full`-only field): naming a section was the cheap
+    // way around the two host-gated doors. RENDERED ⇒ host is the rule, not "whole prompt ⇒ host".
     expect(CHAT_VERB_AUTHORITY.previewAssembly).toBe("host");
     expect(CHAT_VERB_AUTHORITY.peekPrompt).toBe("host");
+    expect(CHAT_VERB_AUTHORITY.previewSection).toBe("host");
     expect(CHAT_VERB_AUTHORITY.getShapeTrace).toBe("host"); // the content-free SHAPE inspector (PD-132)
+    // The two survivors on the preview path stay `member` because neither hands back rendered ctx bytes:
+    // `previewContextFit` returns the boundary id + budget NUMBERS, `getActivePresetConfig` the bare preset
+    // config (no assemble ctx is built). Behavioral teeth: read.int.test.ts's sweep-classification pin.
+    expect(CHAT_VERB_AUTHORITY.previewContextFit).toBe("member");
+    expect(CHAT_VERB_AUTHORITY.getActivePresetConfig).toBe("member");
     // reattributePersona is author-or-host (NOT host-only like the character axis) — a member re-stamps their
     // OWN user lines; the host any (the per-row gate + role/ownership belts live in the verb). Task #60 / §5.
     expect(CHAT_VERB_AUTHORITY.reattributePersona).toBe("author-or-host");

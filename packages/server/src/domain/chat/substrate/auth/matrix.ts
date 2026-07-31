@@ -49,8 +49,15 @@ export const CHAT_VERB_AUTHORITY = {
   checkSendAvailability: "member", // #54 — any participant reads the pre-send serveability verdict for the host's resolved connection (the composer disables SEND on it); leak-free NOT_FOUND for a non-participant/hostless room. Deterministic; no turn/API call.
   getMemberCard: "member-card", // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load). // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load).
   previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface
-  getActivePresetConfig: "member",
-  previewSection: "member",
+  getActivePresetConfig: "member", // the bare `PromptConfig` — preset TEMPLATES only, no assemble ctx is built, so no card/persona bytes can ride out
+  // SECURITY (2026-08-01, was `member` — the latent hole beside the door): `previewSection` RENDERS an
+  // arbitrary preset section against the LIVE assemble ctx, and the marker sections' static sources ARE the
+  // full-fidelity card (`main_prompt` ← `character.systemPrompt` + every co-speaker's; `post_history` ←
+  // postHistoryInstructions; `char_description`/`scenario`/`dialogue_examples` ← the card text; `persona` ←
+  // another human's persona description). That is the SAME D22 `memberCardVisibility` bypass
+  // `previewAssembly`/`peekPrompt` are host-gated for — a member just had to name one section instead of
+  // asking for the whole prompt. The preview family is a host instrument: RENDERED ⇒ `host`.
+  previewSection: "host",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
   getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface (PD-132)
   previewContextFit: "member", // the transcript divider's present-tense fit budget — a member read (no merged-card leak, only the boundary id + budget numbers)
