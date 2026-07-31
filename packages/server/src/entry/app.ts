@@ -159,8 +159,16 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // the request-root span would seal as "ok" and the error would bypass pino/`/api/_debug`.
   app.onError(observabilityErrorHandler);
 
-  // Security headers first so every response — including the allowlist 403 below — carries them.
-  app.use("*", securityHeaders({ dev: env.NODE_ENV !== "production" }));
+  // Security headers first so every response — including the allowlist 403 below — carries them. The CSP's
+  // external-media allowance is read PER REQUEST off the live resolved config, so flipping the admin
+  // "Block external media" setting changes the very next response's header (see security-headers.ts).
+  app.use(
+    "*",
+    securityHeaders({
+      dev: env.NODE_ENV !== "production",
+      allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    }),
+  );
 
   const allowlist = parseAllowlist(env.IP_ALLOWLIST);
   if (allowlist.length > 0) {

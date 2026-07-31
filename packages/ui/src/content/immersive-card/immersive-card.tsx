@@ -24,6 +24,8 @@ export interface ImmersiveCardProps {
   readonly title?: string | undefined;
   /** §4.8 provenance: `lenient` cards mark their chrome so an implicit wrap is visibly explainable. */
   readonly origin?: CardSpanOrigin | undefined;
+  /** The row's resolved external-media verdict — forwarded to the sandbox CSP. Default false (fail closed). */
+  readonly allowExternalMedia?: boolean | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -38,10 +40,11 @@ interface CardBodyProps {
   readonly fontFamily: string | undefined;
   readonly label: string;
   readonly heightPx: number;
+  readonly allowExternalMedia: boolean;
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
-function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx }: CardBodyProps): ReactElement {
+function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
     return (
@@ -61,6 +64,7 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
       themeTokens={themeTokens}
       {...(fontFamily === undefined ? {} : { fontFamily })}
       title={label}
+      allowExternalMedia={allowExternalMedia}
       {...(fill ? { fill: true } : { heightPx })}
       className={fill ? "min-h-0 w-full flex-1 rounded-card border border-border bg-card" : "w-full rounded-none border-0 bg-card"}
     />
@@ -78,7 +82,15 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
  * Collapse is PER-VIEWER CLIENT state, like the raw/lightbox toggles beside it: a fresh render of the row
  * is born open, so the keep-last-X wire rules and the forming-card placeholder are untouched by it.
  */
-export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEIGHT_PX, className }: ImmersiveCardProps): ReactElement {
+export function ImmersiveCard({
+  html,
+  css,
+  title,
+  origin,
+  allowExternalMedia = false,
+  heightPx = DEFAULT_HEIGHT_PX,
+  className,
+}: ImmersiveCardProps): ReactElement {
   const [showRaw, setShowRaw] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [open, setOpen] = useState(true);
@@ -87,7 +99,7 @@ export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEI
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
   const { themeTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx };
+  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia };
 
   const rawToggle = (
     <Button

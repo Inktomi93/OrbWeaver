@@ -2,6 +2,7 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import type { Plugin } from "vite";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
 
@@ -15,6 +16,113 @@ import checker from "vite-plugin-checker";
 const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
 
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
+
+// ── The DEV app-document CSP (client-tooling-setup.md §7.5 DEV row + §9) ──────────────────────────────
+// In dev VITE is the front door — it serves `index.html`, so ITS header is the document's CSP and the
+// server's `securityHeaders()` middleware never touches the page (it governs `/api` responses + the
+// prod SPA serve). That made the app-tier "Block external media" AppSetting a PLACEBO in dev: turning it
+// OFF let MessageMedia render `<img src="https://…">`, and this static header blocked the fetch.
+//
+// So the dev header is no longer a frozen literal — it MIRRORS the live policy the backend computes
+// (`packages/server/src/entry/http/security-headers.ts`, which reads the setting per request). One
+// source of truth, no lockstep-literal drift, and flipping the setting changes the dev document's CSP
+// on the next page load. The mirror is only accepted when the probed policy is the backend's DEV arm
+// (`'unsafe-eval'` present) — a vite dev server pointed at a PROD-mode backend must not inherit a
+// prod `script-src` and kill HMR.
+//
+// The literal below is now purely the FAIL-CLOSED fallback: used before the first probe answers, when
+// the backend is down/restarting, or when the probe isn't a dev policy. It is the STRICT arm (no
+// external media) on purpose — a probe failure must never silently widen the policy.
+//   Dev-only deltas vs the prod policy (everything else is byte-identical):
+//     • script-src  + 'unsafe-inline' 'unsafe-eval' — Vite's HMR client + React Refresh inject inline
+//       bootstrap scripts and eval transformed modules. Prod stays 'self'-only (zero inline scripts).
+//     • connect-src + ws: wss: — the HMR WebSocket (a different scheme than http:, so 'self' misses it).
+//     • img-src + data: — DEV-ONLY, for the TanStack Devtools floating trigger, whose logo is an inline
+//       data: PNG the dev-only tool injects (prod strips devtools via removeDevtoolsOnBuild). App
+//       data:-images are still barred at source (markdown allowDataImages:false + assetsInlineLimit:0 +
+//       the no-external-media gate), so this relaxes no real guard.
+//   Held tight (same as prod) ON PURPOSE: object-src/frame-ancestors 'none'; base-uri/form-action
+//   'self'. style-src keeps 'unsafe-inline' (Tailwind + Base UI + the owner-theme <style> injector
+//   `custom-theme-style.tsx` all emit first-party inline styles; §7.5's reasoned choice — do NOT nonce
+//   it). No `html.cspNonce`: script-src uses no nonce (see §9 note).
+const CSP_DEV_FALLBACK = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' blob: data:",
+  "media-src 'self' blob:",
+  "connect-src 'self' ws: wss:",
+  "font-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+const CSP_HEADER = "Content-Security-Policy";
+// `/healthz` is the cheapest always-registered route, and `securityHeaders()` is `app.use("*")` — so the
+// probe response carries the exact policy the backend would put on a document.
+const CSP_PROBE_URL = `${API_PROXY_TARGET}/healthz`;
+const CSP_PROBE_TIMEOUT_MS = 750;
+// Re-probe at most this often: a setting flip needs a page RELOAD to take effect anyway (a document keeps
+// the CSP it was delivered with), so sub-second freshness buys nothing.
+const CSP_MIRROR_TTL_MS = 2000;
+
+/** Accept a probed policy only if it is the backend's DEV arm — never inherit a prod script-src into HMR. */
+function isDevPolicy(csp: string | null): csp is string {
+  return csp !== null && csp.includes("'unsafe-eval'");
+}
+
+/**
+ * Serves the dev document CSP, mirrored from the backend's live (setting-dependent) policy. Installed as
+ * the FIRST middleware and owning the header outright — `server.headers` deliberately no longer carries a
+ * CSP, because vite's own header middleware runs after this one and would overwrite the mirror.
+ */
+function devCspMirror(): Plugin {
+  let policy = CSP_DEV_FALLBACK;
+  let probedAt = 0;
+  let inFlight: Promise<void> | null = null;
+
+  const probe = async (): Promise<void> => {
+    try {
+      const res = await fetch(CSP_PROBE_URL, { signal: AbortSignal.timeout(CSP_PROBE_TIMEOUT_MS) });
+      const live = res.headers.get(CSP_HEADER);
+      policy = isDevPolicy(live) ? live : CSP_DEV_FALLBACK;
+    } catch {
+      policy = CSP_DEV_FALLBACK; // backend down/restarting → fail closed
+    }
+    probedAt = Date.now();
+    inFlight = null;
+  };
+
+  // AWAITED by the middleware (not fire-and-forget): the first reload after an admin flips the setting
+  // must already carry the new policy, or the toggle stays a placebo for one more reload. Concurrent
+  // requests inside one stale window share the single in-flight probe.
+  const currentPolicy = async (): Promise<string> => {
+    if (Date.now() - probedAt >= CSP_MIRROR_TTL_MS) {
+      if (inFlight === null) {
+        inFlight = probe();
+      }
+      await inFlight;
+    }
+    return policy;
+  };
+
+  return {
+    name: "orb:dev-csp-mirror",
+    apply: "serve",
+    configureServer(server): void {
+      server.middlewares.use((_req, res, next): void => {
+        void currentPolicy().then((csp: string): void => {
+          res.setHeader(CSP_HEADER, csp);
+          next();
+        });
+      });
+    },
+  };
+}
 
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
@@ -71,6 +179,8 @@ export default defineConfig({
       overlay: { initialIsOpen: false, position: "br" },
       enableBuild: false,
     }),
+    // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).
+    devCspMirror(),
   ],
   optimizeDeps: {
     // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
@@ -175,43 +285,9 @@ export default defineConfig({
     },
     // Forward browser console → terminal (dev half of PD-58 client observability).
     forwardConsole: true,
-    // The DEV app-document CSP (client-tooling-setup.md §7.5 DEV row + §9). It MIRRORS the PROD policy —
-    // `entry/http/security-headers.ts` `securityHeaders()` is the source of truth — loosened at EXACTLY
-    // two directives for Vite HMR (the only place ws/inline-eval belongs), so a D44 violation
-    // (sandbox-frame / MessageMedia / an inline-asset `data:` image) surfaces in dev instead of only in
-    // prod. Kept a literal string (the client cannot import the server's Hono `secureHeaders` object —
-    // one-directional package cake), so it must be edited in lockstep with security-headers.ts.
-    //   PROD → DEV deltas (everything else is byte-identical to prod):
-    //     • script-src  + 'unsafe-inline' 'unsafe-eval' — Vite's HMR client + React Refresh inject inline
-    //       bootstrap scripts and eval transformed modules. Prod stays 'self'-only (zero inline scripts).
-    //     • connect-src + ws: wss: — the HMR WebSocket (a different scheme than http:, so 'self' misses it).
-    //     • img-src + data: — DEV-ONLY, for the TanStack Devtools floating trigger, whose logo is an inline
-    //       data: PNG the dev-only tool injects (prod strips devtools via removeDevtoolsOnBuild). Prod stays
-    //       no-data: (D44). App data:-images are still barred at source (markdown allowDataImages:false +
-    //       assetsInlineLimit:0 + the no-external-media grit gate), so this relaxes no real guard — it just
-    //       stops the dev devtools icon from CSP-erroring on every page load. Matches security-headers.ts's
-    //       `opts.dev` imgSrc branch (keep the two in lockstep).
-    //   Held tight (same as prod) ON PURPOSE: object-src/frame-ancestors 'none'; base-uri/form-action
-    //   'self'. style-src keeps 'unsafe-inline' (Tailwind + Base UI + the owner-theme <style> injector
-    //   `custom-theme-style.tsx` all emit first-party inline styles; §7.5's reasoned choice — do NOT nonce
-    //   it). No `html.cspNonce`: script-src uses no nonce (see §9 note).
-    headers: {
-      "Content-Security-Policy": [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-        // blob: workers/SharedWorkers fall back to script-src without an explicit worker-src (which lacks blob:).
-        "worker-src 'self' blob:",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' blob: data:",
-        "media-src 'self' blob:",
-        "connect-src 'self' ws: wss:",
-        "font-src 'self'",
-        "base-uri 'self'",
-        "form-action 'self'",
-        "object-src 'none'",
-        "frame-ancestors 'none'",
-      ].join("; "),
-    },
+    // NO `headers: { "Content-Security-Policy": … }` here ON PURPOSE — the `orb:dev-csp-mirror` plugin
+    // owns the dev document CSP (see CSP_DEV_FALLBACK above). Vite's own header middleware runs AFTER
+    // user middlewares and would overwrite the mirrored policy with a frozen literal.
   },
   // worker: reserve-flag `format: "es"` here IF client-side inline-plugin-snippet workers ever land
   // (D46 Tier-2 workers are server-side today) — intentionally NOT set now.
