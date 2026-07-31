@@ -22,12 +22,14 @@ import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection";
-import { PresetEditorCapabilityFreshnessStory, PresetEditorSurfaceStory, PresetEditorSwitchStory } from "./_ct-stories";
+import { PresetEditorCapabilityFreshnessStory, PresetEditorSurfaceStory, PresetEditorSwitchStory, PresetForkOnceStory } from "./_ct-stories";
 
-// The two fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
+// The three fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
 // story exporting non-component consts, so the literals live in both places).
 const PRESET_A = "preset_ct_aaaaaaaaaa";
 const PRESET_B = "preset_ct_bbbbbbbbbb";
+const BUILT_IN = "preset_00000000000000000000000000";
+const FORK = "preset_ct_forkedddddd";
 
 // Quality-dial radio accessible-name matchers (hoisted — useTopLevelRegex).
 const FAST_RE = /Fast/;
@@ -75,7 +77,7 @@ const STARTER_DETAIL = presetDetail(PRESET_A, "Preset A", undefined);
 /** The value the editor sends to `preset.update` — `config.params.quality` is the dial the pins read. */
 interface UpdateCall {
   readonly id?: string;
-  readonly config?: { readonly params?: { readonly quality?: string } };
+  readonly config?: { readonly params?: { readonly quality?: string; readonly maxOutputTokens?: number } };
 }
 
 function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
@@ -205,4 +207,84 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // ONESHOT-OK: settled — the preceding 700ms real-timer wait is the negative-assertion window itself
   // (proving NO late `preset.update` fires); there is no later state to race against.
   expect(trpc.count("preset.update")).toBe(updatesBeforeReset);
+});
+
+// ── The FORK-ONCE pin (owner dogfood, live: "editing the built-in default minted a NEW 'Default (edited)' on
+// EVERY field save — I have ten — and Active-for-generation still points at the built-in, so none of my edits
+// generate anything"). The built-in is copy-on-write SERVER-side (`preset.update` against the system default
+// inserts a fork and returns ITS id); the editor is what must close that loop, and didn't.
+//
+// The race arm is the flood MECHANISM, so it is DRIVEN, not assumed: the mint response is held in flight (a
+// route handler ahead of routeTrpc delays exactly the built-in-targeted POST, then falls back) while a SECOND
+// field's debounce fires. Unserialized, that second save still carries the built-in id → mint #2.
+const MINT_DELAY_MS = 2000;
+const BUILT_IN_DETAIL = { ...presetDetail(BUILT_IN, "Default", undefined), isSystemDefault: true };
+const MAX_OUTPUT_LABEL = "Max output tokens";
+
+test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the racing save and the active pick all retarget to it", async ({ mount, page }) => {
+  // The server's fork row, accumulating every patch — the CT's stand-in for the persisted copy.
+  let forkConfig: PromptConfig = BUILT_IN_DETAIL.config;
+  let activeId: string | null = null;
+  const forkDetail = (): PresetDetailFixture => ({
+    ...presetDetail(FORK, "Default (edited)", undefined),
+    config: forkConfig,
+    schemaVersion: forkConfig.schemaVersion,
+  });
+
+  const trpc = await routeTrpc(page, {
+    "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
+    "settings.getUserSettings": () => ({
+      ...SETTINGS_VIEW,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
+    }),
+    "settings.updateUserSettingsSection": (input: unknown) => {
+      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+      return {};
+    },
+    "connection.resolveChatCapability": () => CAPABILITY,
+    // Every write lands on the fork row; targeting the built-in is what MINTS it (a NEW id in the response).
+    "preset.update": (input: unknown) => {
+      forkConfig = (input as { config: PromptConfig }).config;
+      return forkDetail();
+    },
+  });
+
+  // Hold the mint in flight. Registered AFTER routeTrpc so it runs FIRST and defers via fallback(); only the
+  // built-in-targeted MUTATION body matches (queries carry their input on the URL, so reads stay fast).
+  let mintRequests = 0;
+  await page.route("**/api/trpc/**", async (route) => {
+    if ((route.request().postData() ?? "").includes(`"${BUILT_IN}"`)) {
+      mintRequests += 1;
+      await new Promise<void>((resolve) => setTimeout(resolve, MINT_DELAY_MS));
+    }
+    await route.fallback();
+  });
+
+  const component = await mount(<PresetForkOnceStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+  await expect(component.getByRole("radio", { name: BALANCED_RE })).not.toBeChecked();
+
+  // FIELD 1 — the Quality dial. Its debounce fires the first save, which the route handler holds open.
+  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await expect.poll(() => mintRequests, { intervals: [50, 100, 200, 300] }).toBe(1);
+
+  // FIELD 2, fired INSIDE the mint's in-flight window — the race arm. Serialized, it must wait for the fork id
+  // and patch the copy; unserialized it re-targets the built-in and mints a second "(edited)" row.
+  await component.getByRole("tab", { name: "Output" }).click();
+  await component.getByLabel(MAX_OUTPUT_LABEL, { exact: true }).fill("1234");
+
+  // THE PIN: the retarget is complete — the selection, the editor's own save target, and the
+  // active-for-generation pick are all the fork (a fork nothing generates with is a no-op edit).
+  await expect.poll(() => activeId, { intervals: [100, 200, 300, 500, 500] }).toBe(FORK);
+  await expect(component.getByText(`selected=${FORK}`)).toBeVisible();
+  // Both field values landed on the ONE copy (the racing save patched it, never a second fork).
+  await expect
+    .poll(() => updatesAgainst(trpc, FORK).at(-1)?.config?.params, { intervals: [100, 200, 300, 500] })
+    .toMatchObject({ quality: "balanced", maxOutputTokens: 1234 });
+
+  // Let any late debounce / teardown flush land, then assert the mint stayed at exactly one.
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
+  // ONESHOT-OK: settled — the preceding 900ms real-timer wait is the negative-assertion window itself.
+  expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
+  expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
 });
