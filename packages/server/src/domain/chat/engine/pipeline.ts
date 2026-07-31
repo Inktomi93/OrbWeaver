@@ -12,6 +12,7 @@
 
 import type { AssembleContext, AssembledPrompt, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
+import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
@@ -499,6 +500,11 @@ async function attachTools(
  *
  *  ELIGIBILITY (the honest degrade — the contributor is told by the `null` on the way back out):
  *   • the model must declare `capability.tools` (same gate `attachTools` gives registry tools);
+ *   • the wire must CO-EMIT prose alongside those calls (`coEmitsProseWithTools`) — a wire that answers
+ *     `content: null` the moment tools ride (the local vLLM engine, measured 36/36) would trade the whole
+ *     narrative for the passenger, and the passenger may never crash the vehicle. The contributor gates its own
+ *     mount on the same capability fact; this is the WIRE's truth, so it holds even if the turn ends up routed
+ *     somewhere the contributor's resolve didn't predict;
  *   • the wire must carry `tools[]` on a chat turn — the STATEFUL agent-sdk arm does not (it mounts an
  *     in-process MCP server whose tools the SDK executes, which is precisely the loop a terminal tool must
  *     not enter).
@@ -506,7 +512,7 @@ async function attachTools(
  *  contributor runs its own fallback instead of silently losing state. */
 function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; attached: boolean } {
   const wanted = args.terminalTools ?? [];
-  const eligible = args.connection.capability.tools !== undefined && args.connection.api !== "agent-sdk";
+  const eligible = coEmitsProseWithTools(args.connection.capability) && args.connection.api !== "agent-sdk";
   if (wanted.length === 0 || !eligible) {
     return { request: baseRequest, attached: false };
   }

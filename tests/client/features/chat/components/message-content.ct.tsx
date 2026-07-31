@@ -127,6 +127,25 @@ test("an untrusted card fence renders the tierB ImmersiveCard chrome around a sa
   await expect(component.locator("div", { hasText: "secret page" })).toHaveCount(0);
 });
 
+// The card sandbox is the SAME external-media axis as MessageMedia — a srcdoc frame inherits the document
+// CSP AND carries its own, so a `<img src="https://…">` inside a card needs both to allow it. These two pin
+// that the row's resolved verdict actually reaches the frame policy (it used to be a hardcoded literal).
+test("GUARDRAIL: with allowExternal=false the card's sandbox CSP admits no https: media", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" allowExternal={false} content={TERMINAL_CARD_BODY} />);
+  const srcdoc = (await component.locator('iframe[data-slot="sandbox-frame"]').getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("img-src 'self';");
+  expect(srcdoc).not.toContain("https:");
+});
+
+test("with allowExternal=true the card's sandbox CSP gains https: on img-src + media-src only", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" allowExternal={true} content={TERMINAL_CARD_BODY} />);
+  const srcdoc = (await component.locator('iframe[data-slot="sandbox-frame"]').getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("img-src 'self' https:");
+  expect(srcdoc).toContain("media-src 'self' https:");
+  expect(srcdoc).toContain("default-src 'none'");
+  expect(srcdoc).not.toContain("connect-src");
+});
+
 test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and back)", async ({ mount }) => {
   const component = await mount(<MessageContentSpansStory trust="untrusted" content={TERMINAL_CARD_BODY} />);
   const card = component.locator('[data-slot="immersive-card"]');

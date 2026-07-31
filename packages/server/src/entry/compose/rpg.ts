@@ -33,6 +33,7 @@
 
 import { randomInt } from "node:crypto";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
+import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import {
@@ -853,7 +854,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncExtraction"] {
   return async ({ chatId, hostUserId, baseState, transcript }) => {
     const empty = { statePatch: {}, journal: [] };
-    // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveTrackersReadOnly` host-resolve
+    // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveStateDelivery` host-resolve
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
     // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend degrades the
     // resync to a no-op (never a 500); anything else rethrows (never swallow a real bug).
@@ -933,7 +934,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
     resolvePresetOwned: deps.resolvePresetOwned,
-    resolveTrackersReadOnly: buildResolveTrackersReadOnly(deps),
+    resolveStateDelivery: buildResolveStateDelivery(deps),
     runExtraction: buildRunExtraction(deps),
     runToolRound: buildRunToolRound(deps),
     // R1 (`folded` mode) — the two halves of the ONE-CALL exchange: the gather's tool mount + the flush's fold.
@@ -1007,22 +1008,27 @@ async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssign
   return meta.providerRouting !== undefined ? { providerRouting: meta.providerRouting } : {};
 }
 
-/** Build the honest-arms `resolveTrackersReadOnly` op (§4.6 — the READ-side CP pill): resolve the ROOM's chat
- *  connection capability (via `resolveChat` — the SAME per-chat-routing verb a turn resolves through, NOT the
- *  host's global `resolveRole` default, stickler F1) for THIS game's mode, and delegate to the rpg-owned
- *  `deriveTrackersReadOnly` mapping. A game with no host, or an unresolvable connection (a `resolveChat` that
- *  THROWS a connection-resolution error — incoherent (api,source) or the agent-sdk model-heal fail-loud), is
- *  readonly by construction (never assume a write path; a READ degrades to read-only trackers, never a 500).
+/** Build the honest-arms `resolveStateDelivery` op (§4.6 — the READ-side CP pill + the D112 fold guard): resolve
+ *  the ROOM's chat connection capability ONCE (via `resolveChat` — the SAME per-chat-routing verb a turn resolves
+ *  through, NOT the host's global `resolveRole` default, stickler F1) and read BOTH delivery verdicts off it:
+ *  `trackersReadOnly` (the rpg-owned `deriveTrackersReadOnly` mode→writer mapping) and `foldGuarded` (the
+ *  contracts-owned `coEmitsProseWithTools` read — a wire that goes mute under tool attachment must not be handed
+ *  the fold's terminal tools). rpg gets CAPABILITY FACTS, never the credential/source they were derived from.
+ *  A game with no host, or an unresolvable connection (a `resolveChat` that THROWS a connection-resolution
+ *  error — incoherent (api,source) or the agent-sdk model-heal fail-loud), is readonly AND fold-guarded by
+ *  construction (never assume a write path; a READ degrades to read-only trackers, never a 500).
  *  This mirrors the flush's F2 gate so the pill and the actual round-eligibility agree. */
-function buildResolveTrackersReadOnly(deps: RpgComposeDeps): RpgContext["resolveTrackersReadOnly"] {
+function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
+  // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
+  const closed = { trackersReadOnly: true, foldGuarded: true };
   return async (chatId) => {
     const game = await findGameByChat(deps.db, chatId);
     if (game === undefined) {
-      return true; // no game — the verb caller resolves game-ness itself; a defensive readonly is harmless
+      return closed; // no game — the verb caller resolves game-ness itself; a defensive readonly is harmless
     }
     const hostUserId = await deps.rpgChatOps.resolveHostUserId(chatId);
     if (hostUserId === null) {
-      return true;
+      return closed;
     }
     const host = await deps.resolveHostPrincipal(hostUserId);
     const routableChat = await readRoutableChat(deps.db, chatId);
@@ -1037,10 +1043,13 @@ function buildResolveTrackersReadOnly(deps: RpgComposeDeps): RpgContext["resolve
       conn = await deps.connection.resolveChat({ principal: host, routableChat });
     } catch (err) {
       if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
-        return true;
+        return closed;
       }
       throw err;
     }
-    return deriveTrackersReadOnly(game.config.extractionMode, conn.capability);
+    return {
+      trackersReadOnly: deriveTrackersReadOnly(game.config.extractionMode, conn.capability),
+      foldGuarded: !coEmitsProseWithTools(conn.capability),
+    };
   };
 }

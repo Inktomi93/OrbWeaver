@@ -17,6 +17,26 @@ test("the srcdoc carries the deny-by-default CSP", async ({ mount }) => {
   expect(srcdoc).not.toContain("connect-src");
 });
 
+test("FAIL-CLOSED: with no external-media verdict the frame CSP allows no https: media", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" />);
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("img-src 'self'; media-src 'self';");
+  expect(srcdoc).not.toContain("https:");
+});
+
+test("allowExternalMedia widens EXACTLY img-src + media-src to https: — nothing else moves", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" allowExternalMedia={true} />);
+  const srcdoc = (await cmp.getAttribute("srcdoc")) ?? "";
+  expect(srcdoc).toContain("img-src 'self' https:");
+  expect(srcdoc).toContain("media-src 'self' https:");
+  // The deny-by-default base + the no-exfil posture are untouched, and http: stays barred.
+  expect(srcdoc).toContain("default-src 'none'");
+  expect(srcdoc).not.toContain("connect-src");
+  expect(srcdoc).not.toContain("script-src");
+  expect(srcdoc).toContain("font-src 'self'");
+  expect(srcdoc).not.toContain("http:");
+});
+
 test("a <script> inside the untrusted html does not reach the parent (sandboxed, scripts off)", async ({ mount, page }) => {
   const payload = ["<scr", "ipt>window.parent.__pwned=1</scr", "ipt>"].join("");
   await mount(<SandboxFrame html={`<p>hi</p>${payload}`} title="c" />);

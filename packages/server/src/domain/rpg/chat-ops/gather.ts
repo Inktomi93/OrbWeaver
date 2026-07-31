@@ -10,7 +10,9 @@
 //   • folded   — R1: the SAME 7 tools ride THIS turn as TERMINAL tools (`tool_choice:"auto"`), so the model
 //                answers in prose AND records the state in ONE completion and no second call is paid. They are
 //                NOT registry tools (`tools` stays `[]` — nothing is executed or recursed on); they ride the
-//                separate `terminalTools` channel and their calls come back on `RpgTurnContext`.
+//                separate `terminalTools` channel and their calls come back on `RpgTurnContext`. NOT on a wire
+//                that silences prose under tool attachment (`foldGuarded` — the local engine): there the mount
+//                is withheld and the flush runs cheap's post-commit round, loud (D112 as amended).
 //   • readonly/manual-steering — NO state capture at all; the host hand-edits every plane, and those hand
 //                values STILL steer via THIS reminder (the honest degrade is DESIGNED, §4.6 — never a silent
 //                mode-downgrade), so a readonly game mounts no tools either.
@@ -18,8 +20,8 @@
 // every mode, folded included: the fold adds a WRITE surface, it never changes what the character READS.
 //
 // The reminder reads the SAME `buildTrackerView` projection the CP panel renders, so the injection and the
-// panel never drift. `resolveTrackersReadOnly` is the ONE per-turn capability read (already resolved for THIS
-// game's `extractionMode` by the integration op) — the gather reuses its verdict, never re-resolving.
+// panel never drift. `resolveStateDelivery` is the ONE per-turn capability read (already resolved for THIS
+// game's `extractionMode` by the integration op) — the gather reuses its verdicts, never re-resolving.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
@@ -79,7 +81,9 @@ export async function gatherTurnContext(
   // (the common case) resolves immediately. This realizes the ratified "one-beat-behind but GUARANTEED" contract.
   await ctx.flushBarrier.awaitInFlight(chatId);
 
-  const trackersReadOnly = await ctx.resolveTrackersReadOnly(chatId);
+  // ONE connection resolve, TWO verdicts (§4.6 + the D112 fold guard): can the model write this game's state at
+  // all, and — if it can — does mounting tools on THIS wire cost the narrative?
+  const { trackersReadOnly, foldGuarded } = await ctx.resolveStateDelivery(chatId);
   // THE TURN'S READ BASE (VER-1b — the READ twin of VER-1a's write base). A FRESH turn reads the resolution
   // HEAD. A REGEN (swipe/reroll) reads the state as of BEFORE its target slot, because on a regen the head IS
   // the abandoned variant's snapshot — still selected/committed while the replacement generates. Reading it
@@ -128,7 +132,16 @@ export async function gatherTurnContext(
   // it to a no-mount + a loud log: the turn then assembles byte-identically to a tool-less one, the engine hands
   // the flush a `null` channel, and the fallback post-commit round captures the state one beat later. The
   // narrative is never at risk; the degrade is visible.
-  const folded = game.config.extractionMode === "folded" && !trackersReadOnly ? await buildFoldedTurnSafely(ctx, game, curSnapshot) : null;
+  //
+  // THE FOLD GUARD (D112 as amended, owner ruling): `foldGuarded` ⇒ this wire silences the model's prose the
+  // moment tools ride it (the local vLLM engine: `content: null` on 36/36 tool-attached turns, spike §4g), so the
+  // fold's own premise — prose AND state in one completion — is false here. The mount is withheld PRE-COMMIT:
+  // no db read, no tools on the wire, a byte-identical tool-less character turn, and the flush's `null` channel
+  // runs the SAME cheap post-commit round the no-terminal-channel arm runs, LOUDLY (`local-engine-fold-guard`).
+  // The wire class arrives as a CAPABILITY fact (`coEmitsProseWithTools`, resolved at compose) — rpg never sees
+  // a credential source. An EXPLICIT `cheap`/`reliable` is untouched: the guard governs only where folded lands.
+  const foldable = game.config.extractionMode === "folded" && !trackersReadOnly && !foldGuarded;
+  const folded = foldable ? await buildFoldedTurnSafely(ctx, game, curSnapshot) : null;
 
   // The reminder injects state as FLAVOR — never tool-update guidance. That holds on the folded path too: the
   // tool DESCRIPTIONS teach the write surface (measured: a hosted strong model co-emits narrative AND 1–3

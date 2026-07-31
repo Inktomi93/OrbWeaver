@@ -92,10 +92,10 @@ function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps):
  * The file uploader — a real `<input type="file">` under the hood, rendered through Base UI
  * `Field.Control`. Keyboard/SR operation is the primary path: Tab focuses the real input,
  * Enter/Space/click opens the native OS file dialog. Drag-and-drop is progressive enhancement
- * only, layered on top of that same input (a drop on a file input sets `.files` + fires a native
- * `change` event; the drag handlers exist solely to toggle the `data-drag-over` highlight).
- * `maxSizeBytes` is an injected ceiling checked client-side; oversized files are reported via
- * `rejected`, never silently dropped.
+ * on top, but it is handled EXPLICITLY (`handleDrop` reads `dataTransfer.files`) — never delegated to
+ * the input's native file-accept, which the mandatory `preventDefault` cancels. Both feeders converge
+ * on the one `processFiles` seam. `maxSizeBytes` is an injected ceiling checked client-side;
+ * oversized files are reported via `rejected`, never silently dropped.
  */
 export function FileDropzone({
   accept,
@@ -116,13 +116,15 @@ export function FileDropzone({
   // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
   const inert = disabled || loading;
 
-  const processFiles = (list: FileList | null): void => {
-    if (list === null) {
+  // The ONE entry seam: both feeders (the native picker's `change` and an explicit drop) land here, so
+  // the two paths cannot drift in what they accept or report.
+  const processFiles = (files: readonly File[]): void => {
+    if (files.length === 0) {
       return;
     }
     const accepted: File[] = [];
     const rejectedNow: FileDropzoneRejection[] = [];
-    for (const file of Array.from(list)) {
+    for (const file of files) {
       if (maxSizeBytes !== undefined && file.size > maxSizeBytes) {
         rejectedNow.push({ file, reason: "size" });
       } else {
@@ -134,7 +136,9 @@ export function FileDropzone({
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    processFiles(event.target.files);
+    processFiles(Array.from(event.target.files ?? []));
+    // Reset so re-picking the SAME file still fires a change event (the FolderPicker call).
+    event.target.value = "";
   };
 
   const handleDragEnter = (event: DragEvent<HTMLDivElement>): void => {
@@ -148,10 +152,19 @@ export function FileDropzone({
     event.preventDefault();
     setDragOver(false);
   };
-  // The native input underneath already handled the drop; this handler only resets the highlight.
+  // A drop MUST be read out here — it can't be left to the covering input's native file-accept.
+  // `preventDefault` is mandatory (without it the browser navigates away to the dropped file), and it
+  // also cancels that native default action: measured in Chromium with a trusted CDP drag, the ancestor
+  // sees `dataTransfer.files` but the input never fires `change`. That silent swallow was the bug —
+  // dropping a character card did nothing at all, no request, no error. So take the bytes from
+  // `dataTransfer.files` and feed the same seam the picker uses.
   const handleDrop = (event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault();
     setDragOver(false);
+    const dropped = Array.from(event.dataTransfer.files);
+    // A single-file zone takes the first of a multi-file drop — the native picker can't hand back more
+    // than one either, so the consumer's contract is identical on both feeders.
+    processFiles(multiple ? dropped : dropped.slice(0, 1));
   };
 
   const resolvedHint = hint ?? (maxSizeBytes === undefined ? undefined : `Up to ${formatBytes(maxSizeBytes)} per file`);

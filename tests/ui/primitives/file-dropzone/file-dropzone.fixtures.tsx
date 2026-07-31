@@ -10,9 +10,10 @@ import { useState } from "react";
 
 export interface FileDropzoneHarnessProps {
   maxSizeBytes?: number;
+  multiple?: boolean;
 }
 
-export function FileDropzoneHarness({ maxSizeBytes }: FileDropzoneHarnessProps): ReactElement {
+export function FileDropzoneHarness({ maxSizeBytes, multiple = false }: FileDropzoneHarnessProps): ReactElement {
   const [acceptedNames, setAcceptedNames] = useState<string[]>([]);
 
   return (
@@ -24,6 +25,7 @@ export function FileDropzoneHarness({ maxSizeBytes }: FileDropzoneHarnessProps):
       </ul>
       <FileDropzone
         aria-label="Upload"
+        multiple={multiple}
         {...(maxSizeBytes === undefined ? {} : { maxSizeBytes })}
         onFilesSelected={({ accepted }): void => {
           setAcceptedNames(accepted.map((file) => file.name));

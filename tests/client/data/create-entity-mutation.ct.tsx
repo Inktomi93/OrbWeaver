@@ -18,9 +18,10 @@
 // EVERY settle (success or fail), which would make "does the row survive to the real read" racy
 // against "when did the assertion happen" instead of actually pinning reconciliation.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
+import { SectionEchoStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
 
 interface FixtureTag {
   readonly id: string;
@@ -163,4 +164,37 @@ test("variables-mode: a failed create surfaces error + retry; retry re-fires the
   // Both attempts carried the identical variables — retry() re-fires `mutation.variables` verbatim.
   await expect.poll(() => trpc.count("tag.createTag")).toBe(2);
   await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "variables-tag" } }, { input: { name: "variables-tag" } }]);
+});
+
+// `echo` (the 2026-08-02 stuck-chip incident): a busDriven write's own response IS the authoritative row
+// for the read it just made stale. Without this seam the reader keeps rendering the PRE-write value until
+// a bus tick refetches — and a surface that computes "is this my live connection?" from that read calls a
+// persisted selection unsaved for exactly as long as the tick is missing. The read is fetched ONCE here
+// (the mount); the post-save value can therefore only have come from the write's response.
+test("echo: the write's own response seeds the read — no refetch, no invalidate", async ({ mount, page }) => {
+  let stored: Record<string, unknown> = { chat: { source: "openrouter" } };
+  const view = (): unknown => ({
+    userId: "user_ct_echo",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
+    updatedAt: 0,
+  });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": () => view(),
+    "settings.updateUserSettingsSection": (input: unknown) => {
+      stored = (input as { readonly patch: { readonly roleDefaults: Record<string, unknown> } }).patch.roleDefaults;
+      return view();
+    },
+  });
+
+  await mount(<SectionEchoStory />);
+  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
+
+  await page.getByRole("button", { name: "save" }).click();
+  await expect(page.getByTestId("chat-source")).toHaveText("vllm");
+
+  await expect.poll(() => trpc.count("settings.updateUserSettingsSection")).toBe(1);
+  // ONESHOT-OK: a belt over the DOM pin above — this story wires NO refetch path at all (the mutation is
+  // busDriven, so its settle invalidates nothing, and a CT has no bus), so the read count cannot move.
+  expect(trpc.count("settings.getUserSettings")).toBe(1);
 });
