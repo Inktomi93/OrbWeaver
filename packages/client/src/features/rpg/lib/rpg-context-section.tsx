@@ -1,9 +1,12 @@
 // The rpg CONTEXT-panel SECTION contribution (panel-redesign DESIGN.md §4; client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
-// feature-owns-definition anchor). The TOP-strip game tabs (§4.2 bracket): Status · Sheet · Inventory ·
-// Scene · Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction)
-// + the PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 6 live + 1
-// locked). rpg NEVER imports chat: `main.tsx` (the door) calls `makeRpgContextTabs({ trpc, queryClient })`
+// feature-owns-definition anchor). The TOP-strip game tabs (§4.2 bracket): Status · Inventory · Scene ·
+// Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
+// PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 5 live + 1 locked).
+// **Sheet is NOT a tab** (the tracked-field unification §3): Status is the only list of people and expanding
+// a roster entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
+// migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
+// (plane-shaped, not character-card-shaped). rpg NEVER imports chat: `main.tsx` (the door) calls `makeRpgContextTabs({ trpc, queryClient })`
 // and assembles the result into `createContributorRegistry("chat-context", …)`, which flows to chat's
 // `defineContextTabs` `contributors` arm (one-directional flow; `client-features-no-cross` enforces it).
 //
@@ -16,7 +19,7 @@
 // a plain function `when` (no hooks) while still reading `#data`'s cross-domain channel — never chat's client.
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon, ScrollText } from "@orb/ui/icons";
+import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { QueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -31,9 +34,9 @@ import { RpgGameTabBody } from "../components/rpg-game-tab-body";
 import { RpgHeaderBand } from "../components/rpg-header-band";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab";
 import { RpgJournalTab } from "../components/rpg-journal-tab";
+import { RpgMapTab } from "../components/rpg-map-tab";
 import { RpgQuestsTab } from "../components/rpg-quests-tab";
 import { RpgSceneTab } from "../components/rpg-scene-tab";
-import { RpgSheetTab } from "../components/rpg-sheet-tab";
 import { RpgStatusTab } from "../components/rpg-status-tab";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 
@@ -124,14 +127,6 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
         ) : null,
     },
     {
-      id: "rpg.sheet",
-      label: "Sheet",
-      icon: ScrollText,
-      strip: "game",
-      when: isGameChat,
-      body: gameTab("Sheet", (state) => <RpgSheetTab state={state} />),
-    },
-    {
       id: "rpg.inventory",
       label: "Inventory",
       icon: Backpack,
@@ -166,14 +161,16 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     {
       // The ONE PHASE-locked tab (panel-redesign §4 "Map"): visible, aria-disabled with its reason on
       // title + a lock glyph (the strip's disabledReason mechanics) — the promise visible, the gate
-      // honest. The body is unreachable while locked; MA-3 replaces it with the region map.
+      // honest. RV-7: the tab is `aria-disabled`, NOT `disabled` (so its reason stays keyboard-reachable),
+      // which means it still opens — and an opened tab that renders NOTHING reads as a broken panel. The
+      // body is the coming-soon presentation the mock drew (`map.html`); MA-3 replaces it with the region map.
       id: "rpg.map",
       label: "Map",
       icon: MapIcon,
       strip: "game",
       when: isGameChat,
       disabledReason: (): string => "Maps unlock with the map arc (MA-3)",
-      body: (): ReactNode => null,
+      body: (s): ReactNode => (isGameChat(s) ? <RpgMapTab /> : null),
     },
     {
       // The crown Game tab (panel-redesign §4 "Game") — the host-admin home AND the #40 FRONT DOOR.

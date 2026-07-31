@@ -25,7 +25,7 @@ import type {
   RpgTrackerOrb,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
-import { actorRefKey, gameTrackers, trackerNumber, trackersForCarrier } from "@orb/contracts/rpg";
+import { actorRefKey, gameTrackers, trackerCeiling, trackerNumber, trackersForCarrier } from "@orb/contracts/rpg";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RpgContext, RpgGameRow } from "../contract/service";
 import { listSheets } from "../persistence/sheets";
@@ -117,7 +117,9 @@ function trackerOrbs(actors: readonly RpgActorView[], gameEntries: readonly RpgT
     if (value === null) {
       continue;
     }
-    orbs.push({ key: entry.def.key, label: entry.def.label, value, max: entry.def.max, color: entry.def.color });
+    // The EFFECTIVE ceiling (this carrier's override, else the def default) — the orb arc must describe the
+    // ceiling that actually applies to the actor it draws, never the party default (the ONE resolver).
+    orbs.push({ key: entry.def.key, label: entry.def.label, value, max: trackerCeiling(entry.def, entry.value ?? undefined), color: entry.def.color });
   }
   return orbs.slice(0, TRACKER_ORB_MAX);
 }

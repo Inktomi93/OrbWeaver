@@ -31,8 +31,8 @@ function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" 
 }
 
 /** ONE tracker reading, TOTAL (the stored shape). */
-function reading(value: number | string | null, items: string[] | null = null): RpgTrackerValue {
-  return { value, items };
+function reading(value: number | string | null, items: string[] | null = null, max: number | null = null): RpgTrackerValue {
+  return { value, items, max };
 }
 
 /** A present character (born with the neutral relationship default — the swipe-volatile plane shape). */

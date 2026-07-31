@@ -20,8 +20,17 @@
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
-import type { RpgDateMode, RpgRelationship, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView, RpgWeather } from "@orb/contracts/rpg";
-import { rpgWeatherText, timeOfDayAtHour, trackerGloss } from "@orb/contracts/rpg";
+import type {
+  RpgDateMode,
+  RpgRelationship,
+  RpgStatAttributeDef,
+  RpgTrackerDef,
+  RpgTrackerEntry,
+  RpgTrackerValue,
+  RpgTrackerView,
+  RpgWeather,
+} from "@orb/contracts/rpg";
+import { attributeGloss, attributeReading, rpgWeatherText, timeOfDayAtHour, trackerGloss } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -139,7 +148,7 @@ function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"
   return segs;
 }
 
-function actorLine(actor: RpgTrackerView["actors"][number]): string {
+function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly RpgStatAttributeDef[]): string {
   const segs: string[] = [actor.name];
   if (actor.sheet.className !== "") {
     segs.push(`(${actor.sheet.className})`);
@@ -149,7 +158,9 @@ function actorLine(actor: RpgTrackerView["actors"][number]): string {
   }
   const attrs = Object.entries(actor.sheet.attributes);
   if (attrs.length > 0) {
-    segs.push(attrs.map(([k, n]) => `${k} ${n}`).join(", "));
+    // By LABEL, not by key (`Strength 14`, never `str 14`) — what each attribute MEANS is taught ONCE by the
+    // vocabulary line, so this per-actor line stays compact at any party size.
+    segs.push(attrs.map(([k, n]) => attributeReading(attrDefs, k, n)).join(", "));
   }
   if (actor.volatile !== null) {
     segs.push(...volatileSegs(actor.volatile, actor.trackers));
@@ -260,8 +271,15 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     stateLines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.actors.length > 0) {
+    // The attribute VOCABULARY, taught ONCE (label + hint): the sheet's steering lever finally reaching the
+    // model. Per-actor lines below carry the numbers under the same labels — one meaning, N readings, never
+    // the profile's prose multiplied by the party size (the token budget the gloss has to respect).
+    const attrDefs = input.statProfile.attributes;
+    if (attrDefs.length > 0) {
+      stateLines.push(`Attributes: ${attrDefs.map(attributeGloss).join(" · ")}`);
+    }
     stateLines.push("Party:");
-    stateLines.push(...view.actors.map(actorLine));
+    stateLines.push(...view.actors.map((a) => actorLine(a, attrDefs)));
   }
   if (view.cast.length > 0) {
     stateLines.push("Present:");

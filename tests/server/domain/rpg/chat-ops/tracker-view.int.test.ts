@@ -147,17 +147,35 @@ function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" 
   return rpgTrackerDefSchema.parse(over);
 }
 
-test("the MAX has exactly ONE home — the def's; the value plane carries none to drift from", async () => {
+test("the def's max is the DEFAULT ceiling; a carrier with no override reads it (owner amendment)", async () => {
   const db = await freshDb();
-  // The retired shape kept a max on the sheet's pool def AND a second on the volatile pool, so a Sheet edit
-  // and a Status edit could disagree and the read had to clamp one against the other. There is now one max.
   const { game, ctx } = await seedGameWithTrackers(db, "maxhome", {
-    trackers: [def({ key: "vitality", label: "Vitality", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40 })],
-    values: { vitality: { value: 24, items: null } },
+    trackers: [def({ key: "vitality", label: "Vitality", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40, pinned: true })],
+    values: { vitality: { value: 24, items: null, max: null } },
   });
-  const actor = (await buildTrackerView(ctx, game, false)).actors[0];
+  const view = await buildTrackerView(ctx, game, false);
+  const actor = view.actors[0];
   expect(actor?.trackers.map((t) => [t.key, t.max])).toEqual([["vitality", 40]]);
-  expect(actor?.volatile?.trackerValues["vitality"]).toEqual({ value: 24, items: null });
+  expect(actor?.volatile?.trackerValues["vitality"]).toEqual({ value: 24, items: null, max: null });
+  // The BAND orb draws the effective ceiling — with no override that is the def's default.
+  expect(view.trackerOrbs.map((o) => [o.key, o.value, o.max])).toEqual([["vitality", 24, 40]]);
+});
+
+test("a PER-CARRIER max override wins over the def default — everywhere the ceiling is read (band orb included)", async () => {
+  const db = await freshDb();
+  // Two characters may legitimately differ (the d20 max-HP reality): this carrier's Vitality tops out at 34
+  // where the game default is 40. The stored override MEANS "deliberately different" (the anti-drift write
+  // rule clears it when it equals the default), so every read follows it through the ONE resolver.
+  const { game, ctx } = await seedGameWithTrackers(db, "maxoverride", {
+    trackers: [def({ key: "vitality", label: "Vitality", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40, pinned: true })],
+    values: { vitality: { value: 24, items: null, max: 34 } },
+  });
+  const view = await buildTrackerView(ctx, game, false);
+  // The DEF still carries the default (the Game tab edits that number) …
+  expect(view.actors[0]?.trackers.map((t) => t.max)).toEqual([40]);
+  // … and the carrier's own ceiling rides its value plane, which is what the orb arc describes.
+  expect(view.actors[0]?.volatile?.trackerValues["vitality"]?.max).toBe(34);
+  expect(view.trackerOrbs.map((o) => [o.key, o.value, o.max])).toEqual([["vitality", 24, 34]]);
 });
 
 test("carrier resolution decides what an actor's row SHOWS — class + grants − revokes, resolved server-side", async () => {
@@ -189,7 +207,10 @@ test("the band renders the PINNED trackers with a numeric reading — never a de
     def({ key: "focus", label: "Focus", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 20, sort: 1, pinned: true }),
     def({ key: "unset", label: "Unset", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 5, sort: 2, pinned: true }),
   ];
-  const { game, ctx } = await seedGameWithTrackers(db, "band", { trackers, values: { mana: { value: 28, items: null }, focus: { value: 12, items: null } } });
+  const { game, ctx } = await seedGameWithTrackers(db, "band", {
+    trackers,
+    values: { mana: { value: 28, items: null, max: null }, focus: { value: 12, items: null, max: null } },
+  });
   const orbs = (await buildTrackerView(ctx, game, false)).trackerOrbs;
   // Only the PINNED-and-readable one: `mana` is unpinned (the retired auto-first-3 rule would have shown it),
   // and the pinned-but-unset `unset` has nothing honest to draw.

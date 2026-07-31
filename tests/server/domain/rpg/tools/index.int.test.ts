@@ -46,7 +46,7 @@ test("update_party STAGES a pool delta into the turn's accumulator (the mutation
   expect(result.ok).toBe(true);
   // Assert the accumulator holds the staged mutation — the effective state the flush would take.
   const staged = h.ctx.staging.peek(TURN);
-  expect(staged?.actorState[0]?.trackerValues["rage"]).toEqual({ value: 5, items: null });
+  expect(staged?.actorState[0]?.trackerValues["rage"]).toEqual({ value: 5, items: null, max: null });
 });
 
 test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's write)", async ({ db }) => {

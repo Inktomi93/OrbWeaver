@@ -55,8 +55,10 @@ export type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
  *  a game, whatever its subject (the old per-actor `sheet.poolDefs` split was exactly the thing that forced
  *  the three-tab define/value/pin dance the unification kills).
  *
- *  `max` is authoritative for a meter — the value plane carries no second max (the old sheet-vs-snapshot max
- *  duplication is gone). `hint` is THE steering lever: a bare tracked number measurably does NOT move
+ *  `max` is a meter's DEFAULT ceiling (owner amendment 2026-07-31): what a carrier gets when it has no
+ *  override, what the reminder teaches, and what the Game-tab editor edits. A carrier MAY deliberately differ
+ *  (two characters with different Vitality ceilings — the d20 max-HP reality), which rides `RpgTrackerValue.max`
+ *  and resolves through the ONE {@link trackerCeiling} home. `hint` is THE steering lever: a bare tracked number measurably does NOT move
  *  narration where a one-clause gloss does (R4b, Δ −0.12 vs −1.00), so it rides every model-facing surface —
  *  the reminder gloss, the delta line, and the write-surface tool description.
  *
@@ -87,12 +89,18 @@ export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
  *    • `list`  ⇒ `items` carries the lines (`value` null)
  *  A null across the board is an EXISTING-but-unset tracker (the carrier has it, the story hasn't moved it).
  *
- *  THERE IS NO `max` HERE, deliberately (§5.2): the ceiling is the DEF's, full stop. The retired shape carried
- *  a max on the sheet def AND a second one on the volatile pool, which drifted the moment either was edited —
- *  the read had to clamp one against the other to keep two tabs agreeing. One max cannot drift from itself. */
+ *  `max` is the PER-CARRIER CEILING OVERRIDE (owner amendment 2026-07-31, restoring §5.2): `null` = this
+ *  carrier uses the def's default ceiling; a number = this carrier is DELIBERATELY different (Kael's Vitality
+ *  tops out at 34 where the party default is 30 — the d20 max-HP reality, which `hp` has always modelled this
+ *  way). The old drift class it was cut to kill is killed by an ANTI-DRIFT WRITE RULE instead of by absence:
+ *  the override is written ONLY when it differs from the def's max, and a UI/tool edit that sets it back equal
+ *  CLEARS it to null ({@link resolveTrackerMaxOverride}). So the two numbers can never quietly disagree about
+ *  the same fact — a stored override always MEANS "different on purpose". Max stays HOST-AUTHORED: the model's
+ *  write surface carries no max arm. Every read of a ceiling goes through {@link trackerCeiling}. */
 export const rpgTrackerValueSchema = z.object({
   value: z.union([z.number(), z.string()]).nullable().default(null),
   items: z.array(z.string()).nullable().default(null),
+  max: z.number().int().min(1).nullable().default(null),
 });
 export type RpgTrackerValue = z.infer<typeof rpgTrackerValueSchema>;
 
@@ -102,7 +110,24 @@ export const rpgTrackerValuesSchema = z.record(z.string(), rpgTrackerValueSchema
 export type RpgTrackerValues = z.infer<typeof rpgTrackerValuesSchema>;
 
 /** The EMPTY tracker value — a carrier that has the tracker but no reading yet. Total by construction. */
-export const RPG_TRACKER_VALUE_EMPTY: RpgTrackerValue = { value: null, items: null };
+export const RPG_TRACKER_VALUE_EMPTY: RpgTrackerValue = { value: null, items: null, max: null };
+
+/** THE ceiling resolver — `value.max ?? def.max` — and the ONLY place that fallback is spelled. Every consumer
+ *  (the panel bars + band orbs, the reminder gloss, the delta clamp, the write-surface description) reads a
+ *  meter's ceiling through here, so "which max wins" is one decision made once. `null` = an uncapped meter. */
+export function trackerCeiling(def: RpgTrackerDef, value: RpgTrackerValue | undefined): number | null {
+  return value?.max ?? def.max;
+}
+
+/** The ANTI-DRIFT write rule for a per-carrier ceiling: a requested ceiling EQUAL to the def's default stores
+ *  `null` (no override), anything else stores the number. Every max write — the panel's per-character edit, a
+ *  future import — goes through here, so a stored override always means "deliberately different". */
+export function resolveTrackerMaxOverride(def: RpgTrackerDef, requested: number | null): number | null {
+  if (requested === null || requested === def.max) {
+    return null;
+  }
+  return Math.max(1, requested);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // CARRIER RESOLUTION — the ONE pure home for "who carries this tracker".
@@ -246,7 +271,10 @@ export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | unde
   if (def.shape === "text") {
     return `${def.label}: ${raw}`;
   }
-  return def.max === null ? `${def.label} ${raw}` : `${def.label} ${raw}/${def.max}`;
+  // The EFFECTIVE ceiling (this carrier's override, else the def default) — the model is taught the number
+  // that actually applies to the actor it is narrating, never the party default a carrier deliberately left.
+  const ceiling = trackerCeiling(def, value);
+  return ceiling === null ? `${def.label} ${raw}` : `${def.label} ${raw}/${ceiling}`;
 }
 
 /** The ONE tracker gloss (`Mana 5/10 (fuels spellcasting)`). Replaces the three drifted per-concept builders
