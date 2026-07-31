@@ -21,8 +21,10 @@
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient";
 import type { RpgGameConfig } from "./config";
-import { isDeceptionActive } from "./config";
+import { isDeceptionActive, rpgGameConfigSchema } from "./config";
 import type { ExtractionRefs, RpgExtraction } from "./extraction";
+import type { RpgTrackerDef } from "./tracker";
+import { gameTrackers, sortTrackers } from "./tracker";
 
 /** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode)
  *  and the per-call refs (widget labels, cast-field keys). A fragment returns `null` when its plane is OFF
@@ -50,20 +52,49 @@ const DECEPTION_SURFACE_CLAUSE =
   "relationship, quests). The hidden layer lives in your reasoning channel and the host's reveal-eye — never " +
   "the panel.";
 
-/** The cast-field fragment (§1.6 gap — host-defined `customFields`). Enumerates the DEFINED fields with their
- *  host hints so the model writes the tracked fields (never an invented key — the enum-constraint pairs with
- *  this fallback prose). `null` when no cast-fields are configured (the feature-off arm). */
-function castFieldsFragment(ctx: ExtractionPromptContext): string | null {
-  const fields = ctx.config.features.castFields;
-  if (fields.length === 0) {
+/** ONE tracker's model-facing catalogue line — a bulleted label, its key + range, then an em-dash gloss.
+ *  THE R2/R6 interpolation unit: a host-defined tracker reaches the write surface BY NAME AND GLOSS,
+ *  which is the difference between a tracked value steering the story and decorating the panel (R4b measured
+ *  the gap: Δ −0.12 bare vs −1.00 glossed). The `key` is spelled because the wire arg is key-addressed. */
+function trackerCatalogueLine(def: RpgTrackerDef): string {
+  const range = def.shape === "meter" && def.max !== null ? `, 0-${def.max}` : "";
+  const hint = def.hint !== "" ? ` — ${def.hint}` : "";
+  return `  • ${def.label} (key: ${def.key}${range})${hint}`;
+}
+
+/** The ACTOR-subject trackers this game defines, unlocked only (the write surface — a locked tracker is
+ *  absent from the schema, so teaching it would ask for what the grammar forbids). Sorted like every other
+ *  tracker read, so the prompt prefix is stable across turns (prompt-cache hygiene). */
+function writableActorTrackers(config: RpgGameConfig): readonly RpgTrackerDef[] {
+  return sortTrackers(config.trackers.filter((def) => def.subject === "actor" && !def.locked));
+}
+
+/** The per-actor tracker teaching (`update_party` / `party[]`). Enumerates the defined trackers with their
+ *  host hints, split by the WRITE axis so the model learns the two different mental models: a `delta` tracker
+ *  is a resource the beat spends/restores, a `set` tracker is a state the beat observes. `null` when the game
+ *  defines no writable actor trackers (the feature-off arm — the schema has no arms either). */
+function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
+  const defs = writableActorTrackers(ctx.config);
+  if (defs.length === 0) {
     return null;
   }
-  const lines = fields.map((f) => {
-    const range = f.max !== undefined ? ` (0-${f.max})` : "";
-    const hint = f.hint !== undefined && f.hint.length > 0 ? ` — ${f.hint}` : "";
-    return `  • ${f.label}${range}${hint}`;
-  });
-  return `Track these host-defined fields for each present character (scene.presentUpsert[].customFields):\n${lines.join("\n")}`;
+  const blocks: string[] = [];
+  const deltas = defs.filter((d) => d.write === "delta");
+  const sets = defs.filter((d) => d.write === "set");
+  if (deltas.length > 0) {
+    blocks.push(
+      `TRACKED RESOURCES — party[].trackerDeltas: spend or restore these by a signed amount when the beat moves them (negative = spent):\n${deltas
+        .map(trackerCatalogueLine)
+        .join("\n")}`,
+    );
+  }
+  if (sets.length > 0) {
+    blocks.push(
+      `TRACKED STATES — party[].trackerSets: record the NEW reading whenever the beat changes one of these:\n${sets.map(trackerCatalogueLine).join("\n")}`,
+    );
+  }
+  blocks.push("Only write a tracker on an actor the schema offers it for — not every character carries every tracker.");
+  return blocks.join("\n");
 }
 
 /** The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key — the ratchet asserts
@@ -111,11 +142,6 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       );
       // §1.6 gap — the portrait-fallback emoji, one clause.
       lines.push("Give a NEW character a fitting single emoji (presentUpsert[].emoji) — the portrait fallback.");
-      // §1.6 gap — host-defined cast fields (customFields), enumerated with hints.
-      const castFields = castFieldsFragment(ctx);
-      if (castFields !== null) {
-        lines.push(castFields);
-      }
       // §1.6 gap — the plot act rail, gated on plotProgression.
       if (ctx.config.features.plotProgression) {
         lines.push("When the story crosses into a NEW act, set scene.plot (act number + a short act title); set the story title once it's clear.");
@@ -126,10 +152,16 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "party",
     toolName: "update_party",
-    fragment: () =>
-      "PARTY — party: ONLY mechanical changes. pool changes (poolDeltas), conditions gained/lost " +
-      '(addCondition/removeCondition, e.g. "bleeding", "on edge"), hp (hpDelta), and a short status line ' +
-      "(status). A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here.",
+    fragment: (ctx) => {
+      const base =
+        "PARTY — party: ONLY mechanical changes. Tracked-value writes (trackerDeltas/trackerSets), conditions " +
+        'gained/lost (addCondition/removeCondition, e.g. "bleeding", "on edge"), hp (hpDelta), and a short ' +
+        "status line (status). A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here.";
+      // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
+      // this game may not have and omit the one it does.
+      const trackers = actorTrackerFragment(ctx);
+      return trackers === null ? base : `${base}\n${trackers}`;
+    },
   },
   {
     plane: "inventory",
@@ -140,14 +172,21 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       "established (a key pocketed three turns ago) is NOT inventing.",
   },
   {
-    plane: "widgets",
-    toolName: "set_widget_value",
-    // §1.6 gap (reliable) — the widgets plane was NEVER mentioned on the reliable arm. Enumerate the live
-    // widget labels (the refs already exist). `null` when the game defines no custom widgets.
-    fragment: (ctx) =>
-      ctx.refs.widgetRefs.length === 0
-        ? null
-        : `CUSTOM TRACKERS — widgets: write a value for a custom tracker the beat moved (widgetRef ∈ ${ctx.refs.widgetRefs.join(", ")}). Never invent a tracker.`,
+    plane: "trackers",
+    toolName: "set_tracker",
+    // The GAME-subject trackers (the retired widget plane) — enumerated by name + host gloss, never as bare
+    // keys. `null` when the game defines none, in which case the schema drops the plane entirely.
+    fragment: (ctx) => {
+      const defs = gameTrackers(ctx.config.trackers).filter((def) => !def.locked);
+      if (defs.length === 0) {
+        return null;
+      }
+      return (
+        "GAME TRACKERS — trackers: the whole-game readings (not tied to one character). Write one when the " +
+        "beat moves it — a delta tracker takes a signed `delta`, a state tracker takes the new `value`. " +
+        `Never invent a key.\n${defs.map(trackerCatalogueLine).join("\n")}`
+      );
+    },
   },
   {
     plane: "quests",
@@ -159,7 +198,17 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "journal",
     toolName: "add_journal_entry",
-    fragment: () => "JOURNAL — journal: one short entry (type + content) for a notable beat worth logging.",
+    // R4c — teach the `custom` escape + the host's own type glosses. The seven built-ins are combat-flavoured
+    // on a plane that fires on 79% of turns; a host who defines "ritual" or "gossip" gets it taught by name.
+    fragment: (ctx) => {
+      const base = "JOURNAL — journal: one short entry (type + content) for a notable beat worth logging.";
+      const hints = Object.entries(ctx.config.features.journalTypeHints);
+      if (hints.length === 0) {
+        return `${base} When none of the built-in types fits, use type "custom" with a short \`label\` naming the kind of beat.`;
+      }
+      const lines = hints.map(([label, hint]) => (hint === "" ? `  • ${label}` : `  • ${label} — ${hint}`));
+      return `${base} When none of the built-in types fits, use type "custom" with one of this game's own labels:\n${lines.join("\n")}`;
+    },
   },
 ];
 
@@ -185,3 +234,125 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   );
   return blocks.join("\n");
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// R2 — the enriched TOOL DESCRIPTIONS, as TEMPLATES (the spike's Appendix A, un-frozen).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// The spike measured the enrichment lifting coverage 33→37/43 distinct fields (+27 field-writes, +$0.008/game),
+// and R6 then ruled the strings must be TEMPLATES: a static "poolDeltas: spend/restore named pools like
+// Mana/Stamina" teaches a vocabulary this game may not have and stays silent about the one it does. So each
+// description is BUILT per game, interpolating that game's own tracker defs BY NAME AND HOST GLOSS.
+//
+// ONE HOME, two consumers: the per-call WIRE tools (the tool round + the R1 folded turn, which build against a
+// resolved game) and the tool-use REGISTRY defs (which have no game in scope and take the empty-config
+// baseline). A drift between "what the tool says" and "what the plane teaching says" is the §1.6 class this
+// registry exists to make impossible.
+
+/** A worked EXAMPLE for `update_party`, written in THIS game's tracker vocabulary (the spike's examples were
+ *  its strongest lever — a model copies the shape it is shown). Falls back to the tracker-free shape when the
+ *  game defines no writable actor trackers. */
+function partyExample(ctx: ExtractionPromptContext): string {
+  const defs = writableActorTrackers(ctx.config);
+  const delta = defs.find((d) => d.write === "delta");
+  const set = defs.find((d) => d.write === "set");
+  const parts = ["targetRef:'player'", "hpDelta:-5"];
+  if (delta !== undefined) {
+    parts.push(`trackerDeltas:[{key:'${delta.key}',delta:-3}]`);
+  }
+  if (set !== undefined) {
+    parts.push(`trackerSets:[{key:'${set.key}',value:${set.shape === "text" ? "'guarded'" : "40"}}]`);
+  }
+  parts.push("addCondition:{name:'Bleeding',modifier:-1}", "status:'bleeding, breathing hard'");
+  return `{${parts.join(", ")}}`;
+}
+
+/** Build the per-game model-facing tool DESCRIPTIONS (R2 templates), keyed by WIRE TOOL NAME. A `Map` (not an
+ *  object) because the keys are snake_case wire VALUES, not JS property identifiers — the same reason
+ *  `TOOL_ROUND_ARRAY_ARMS` is a Map in `./extraction`. The assembly layer pairs each with that tool's
+ *  per-call constrained parameter schema. */
+export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<string, string> {
+  const actorTrackers = actorTrackerFragment(ctx);
+  const gameTrackerDefs = gameTrackers(ctx.config.trackers).filter((def) => !def.locked);
+  return new Map([
+    [
+      "update_party",
+      "Record changes to any actor's body, condition, or tracked values. hpDelta: damage (negative) or healing " +
+        "(positive). trackerDeltas: spend/restore a tracked RESOURCE (negative = spent). trackerSets: record the " +
+        "new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with " +
+        "an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line " +
+        `('bleeding, on edge').${actorTrackers === null ? "" : `\n${actorTrackers}`}\nEXAMPLE — took a cut and spent ` +
+        `themselves fighting: \`${partyExample(ctx)}\`.`,
+    ],
+    [
+      "update_inventory",
+      "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
+        "carried: 'belt pouch', 'sheathed'), plus quantity. remove: items used/lost/given away. walletDeltas: coin " +
+        "gained/spent (negative=spent). EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', " +
+        "add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, " +
+        "location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`.",
+    ],
+    // RV-9: time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a field
+    // the model never advances renders as a stopped clock (the R4b gloss lesson).
+    [
+      "update_scene",
+      "The scene + who is present. Set location/timeOfDay/weather when they change — specifically whenever " +
+        "the beat spends time (rest, travel, a cut to later), so the day actually moves, and whenever the " +
+        "weather turns; calendarDate/day as days " +
+        "pass; advance plot.act/title/actSummary as the story moves. weather.type is one of " +
+        `${[...RPG_WEATHER_TYPES].join("/")} — pick the closest; the vivid phrasing goes in weather.label ` +
+        '("torrential sleet"). presentUpsert: for EACH character on screen set mood (every demeanor shift), ' +
+        "appearance + outfit (when described), thoughts (their implied inner state), and relationship {kind,label}. " +
+        "recentEvent: a one-line beat. EXAMPLE — a priest warms to you: `{timeOfDay:'evening', " +
+        "presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired', " +
+        "outfit:'patched grey habit', thoughts:'weighing whether to trust you', " +
+        "relationship:{kind:'ally',label:''}}], recentEvent:'Vesna softened as you shared road news'}`.",
+    ],
+    [
+      "set_tracker",
+      "Write a GAME-WIDE tracked reading (not tied to one character). A resource tracker takes a signed `delta`; " +
+        `a state tracker takes the new \`value\` (or \`items\` for a list).${
+          gameTrackerDefs.length === 0 ? "" : `\n${gameTrackerDefs.map(trackerCatalogueLine).join("\n")}`
+        }\nEXAMPLE — the town's alarm rises: \`{key:'${gameTrackerDefs.at(0)?.key ?? "alarm"}', value:35}\`.`,
+    ],
+    [
+      "upsert_quest",
+      "Create/update/complete/fail a quest. Give a description and objectives[] on create; use action " +
+        "'complete'/'fail' when it resolves. EXAMPLE — a new task opens: `{name:'Reach the Vault of Ash', " +
+        "action:'create', description:'Get to the vault before the new moon', objectives:['Find the road north'," +
+        "'Enter the vault']}`.",
+    ],
+    [
+      "add_journal_entry",
+      "Log a notable beat with the right type (location/npc/combat/quest/item/event/note, or 'custom' with a " +
+        "short `label` when none of those fits) + a short title + content. EXAMPLE: `{type:'combat', title:'Ambush " +
+        "at the Chapel', content:'Corvin drew on you at the altar; you took a cut but stayed up.'}`.",
+    ],
+  ]);
+}
+
+/** The GAME-FREE baseline descriptions — the templates rendered against a default config with no trackers.
+ *  The tool-use REGISTRY defs (which are registered once at compose, with no game in scope) read these, so
+ *  the static registry and the per-call wire tools can never say two different things about the same tool.
+ *  A per-call assembly ALWAYS re-renders through {@link buildRpgToolDescriptions} with the real game. */
+export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = buildRpgToolDescriptions({
+  config: rpgGameConfigSchema.parse({}),
+  refs: {
+    actorRefs: [],
+    trackerWriteGroups: [],
+    gameTrackerKeys: { deltaKeys: [], setKeys: [] },
+    conditionNames: [],
+    establishScene: { location: false, timeOfDay: false, presentCast: false },
+  },
+});
+
+/** The state-tracking GUIDE (Appendix A's system-prompt addendum) — the "be thorough, the panel should reflect
+ *  the FULL richness of the narration" instruction that lifted per-turn field coverage. Composed onto the
+ *  write-surface prompts (the tool round + the reliable extraction), never onto the character turn's own
+ *  narration prompt (which must never be asked to carry bookkeeping it might narrate back). */
+export const RPG_STATE_TRACKING_GUIDE =
+  "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
+  "changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts " +
+  "for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene " +
+  "(location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions " +
+  "gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); " +
+  "quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.";

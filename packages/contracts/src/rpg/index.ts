@@ -7,7 +7,9 @@
 //   • sheet.ts    — the per-actor identity sheet (§4.3)
 //   • actor.ts    — the actor ref + `actorRefKey` + per-actor volatile (wallet/inventory first-class, §2.6)
 //   • ambient.ts  — clock/weather/time-of-day, engine-shaped, born nullable (§2.7)
-//   • snapshot.ts — quest/objective/present-character/widget + the swipe-volatile snapshot state (§2.4-2.5)
+//   • snapshot.ts — quest/objective/present-character + the swipe-volatile snapshot state (§2.4-2.5)
+//   • tracker.ts  — THE unified tracked-field def + value + carrier resolution + the R6 write surface
+//                   (`docs/design/tracked-field-unification.md`; replaces pools/cast-fields/orbs/widgets)
 //   • config.ts   — the `rpg_games.config` blob (statProfile + lite dials, §4.1)
 //   • pointer.ts  — the opaque `chats.metadata.rpg` sync pointer, mode-free `{gameId}` (§2.1)
 //   • views.ts    — the CP read-view projections (getGame/getTrackerView/getConfigView, §4.8)
@@ -39,4 +41,5 @@ export * from "./profile";
 export * from "./sheet";
 export * from "./snapshot";
 export * from "./tools";
+export * from "./tracker";
 export * from "./views";

@@ -5,10 +5,10 @@
 // arithmetic is unit-testable without a db + the accumulator (the `substrate/`-style pure-core discipline; but
 // these read contract shapes, so they live in the tool subsystem, not zero-domain `substrate/`).
 //
-// ALIAS RESOLUTION: `targetRef`/`widgetRef` are model-facing NAMES (projection-clean tool args — no branded
-// ids). `resolveActor` matches an existing `actorState` entry by a cast-key/actor-name projection; an unknown
-// name MINTS a new `cast` actor (the model naming a fresh NPC — the wallet/inventory-on-every-actor ruling).
-// `set_widget_value` addresses a widget by its label (the `widgetValues` map key). The extraction FOLD gates
+// ALIAS RESOLUTION: `targetRef` is a model-facing NAME (projection-clean tool args — no branded ids).
+// `resolveActor` matches an existing `actorState` entry by a cast-key/actor-name projection; an unknown name
+// MINTS a new `cast` actor (the model naming a fresh NPC — the wallet/inventory-on-every-actor ruling).
+// TRACKERS address by `key` on both subjects (never a label — a rename must not orphan a value). The FOLD gates
 // that mint behind the R5 ghost guard (`ghostTargetRefs`) — an NPC must be on stage (or put there by the same
 // extraction) to be written; the per-tool handlers keep the open mint (a live tool call is the host's own turn).
 
@@ -21,13 +21,14 @@ import type {
   RpgPresentCharacter,
   RpgQuestStatus,
   RpgSnapshotState,
-  SetWidgetValueArgs,
+  RpgTrackerValue,
+  SetTrackerArgs,
   UpdateInventoryArgs,
   UpdatePartyArgs,
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, journalTitleFor, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { actorRefKey, journalTitleFor, RPG_TRACKER_VALUE_EMPTY, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { StagedJournalEntry } from "../contract/params";
 import type { RpgStateDelta } from "../contract/service";
@@ -64,7 +65,7 @@ export function buildRosterRefIndex(roster: readonly { readonly actorRef: RpgAct
 
 /** A minimal actor identity keyed by `ref` — either a roster ref (`character`/`user`, F2) or a fresh `cast`. */
 function newActorFor(ref: RpgActorRef): RpgActorVolatile {
-  return { actorRef: ref, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" };
+  return { actorRef: ref, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
@@ -97,34 +98,64 @@ function withActor(actors: readonly RpgActorVolatile[], resolved: { actor: RpgAc
   return actors.map((a, i) => (i === resolved.index ? resolved.actor : a));
 }
 
-/** Apply named-amount deltas onto a value list (`pools` value / `wallet` amount): add the delta to a matching
- *  entry, or append it via `make(name, delta)`. An existing entry keeps its `max` (only `value`/`amount` moves).
- *  The `make` fn owns the MINT belt per plane: a fresh POOL floors `value>=0`/`max>=1` (the contract belt, F1);
- *  a fresh WALLET amount is unconstrained (the contract allows a negative/no-max amount — a debt slot). */
-function applyNamedDeltas<T extends { name: string }>(
-  list: readonly T[],
+/** Apply named-amount deltas onto the `wallet` list: add the delta to a matching entry, or append a fresh one.
+ *  A fresh WALLET amount is unconstrained (the contract allows a negative/no-max amount — a debt slot). */
+function applyWalletDeltas(
+  list: readonly RpgActorVolatile["wallet"][number][],
   deltas: readonly { name: string; delta: number }[],
-  make: (name: string, delta: number) => T,
-  add: (entry: T, delta: number) => T,
-): T[] {
+): RpgActorVolatile["wallet"][number][] {
   const out = [...list];
   for (const d of deltas) {
     const i = out.findIndex((e) => e.name === d.name);
-    if (i === -1) {
-      out.push(make(d.name, d.delta));
+    const entry = out[i];
+    if (entry === undefined) {
+      out.push({ name: d.name, amount: d.delta });
     } else {
-      const entry = out[i];
-      if (entry !== undefined) {
-        out[i] = add(entry, d.delta);
-      }
+      out[i] = { ...entry, amount: entry.amount + d.delta };
     }
   }
   return out;
 }
 
-/** `update_party` → the new `actorState` plane (per-actor pool/condition/hp/status deltas). Returns the patch,
- *  or `{ ok:false }` when `hpDelta` targets a null-hp actor (the errors-as-data legality lane, §4.5). `roster`
- *  resolves the target NAME to a roster member's ref (F2 — a party-member write lands FIRST-CLASS). */
+/** The tracked-value WRITE (the tracked-field unification): apply the two arms — `delta` (spend/restore a
+ *  resource) and `set` (record a new reading) — over a `trackerValues` record, keyed by tracker `key`.
+ *  TOTAL by construction: every write produces a whole `{value,max,items}` value, so the snapshot merge (which
+ *  recurses into objects) can never strand a previous reading's `max` on a new one. A `delta` against a
+ *  non-numeric/absent reading starts from 0 (the "spend from a resource you never had" arm — the old pool
+ *  applier floored at 0 for exactly this case; a negative reading is legal here because a tracker's floor is
+ *  the host's business, and the contract no longer forces `max >= 1`).
+ *
+ *  The def catalogue is NOT consulted: an unknown key is written as-is. The write surface already made an
+ *  unknown key unrepresentable at the schema (R6 per-actor enums), and the panel projects only DEFINED
+ *  trackers — so a stray key is inert data, never a phantom row, and dropping it here would silently discard
+ *  a legitimate write during the beat where a host adds the def. */
+function applyTrackerWrites(
+  base: Readonly<Record<string, RpgTrackerValue>>,
+  deltas: readonly { key: string; delta: number }[] | undefined,
+  sets: readonly { key: string; value?: number | string | undefined; items?: readonly string[] | undefined }[] | undefined,
+): Record<string, RpgTrackerValue> {
+  const out: Record<string, RpgTrackerValue> = { ...base };
+  for (const d of deltas ?? []) {
+    const current = out[d.key];
+    out[d.key] = { ...(current ?? RPG_TRACKER_VALUE_EMPTY), value: (trackerNumber(current) ?? 0) + d.delta };
+  }
+  for (const s of sets ?? []) {
+    if (s.value === undefined && s.items === undefined) {
+      continue; // a set arm naming neither datum is a no-op, never a blanked tracker
+    }
+    const current = out[s.key] ?? RPG_TRACKER_VALUE_EMPTY;
+    out[s.key] = {
+      ...current,
+      ...(s.value !== undefined ? { value: s.value } : {}),
+      ...(s.items !== undefined ? { items: [...s.items] } : {}),
+    };
+  }
+  return out;
+}
+
+/** `update_party` → the new `actorState` plane (per-actor tracker/condition/hp/status writes). Returns the
+ *  patch, or `{ ok:false }` when `hpDelta` targets a null-hp actor (the errors-as-data legality lane, §4.5).
+ *  `roster` resolves the target NAME to a roster member's ref (F2 — a party-member write lands FIRST-CLASS). */
 export function applyUpdateParty(
   state: RpgSnapshotState,
   args: UpdatePartyArgs,
@@ -137,21 +168,10 @@ export function applyUpdateParty(
     return { ok: false, error: `${args.targetRef} has no HP track — set a max HP by hand before applying an hpDelta.` };
   }
 
-  const nextPools =
-    args.poolDeltas === undefined
-      ? actor.pools
-      : applyNamedDeltas(
-          actor.pools,
-          args.poolDeltas,
-          // A minted pool must be CONTRACT-VALID (`pools[].max >= 1`, `contracts/rpg/actor.ts`): a negative
-          // first-seen delta (spending from a pool you never had) floors `value` at 0 and `max` at 1 — never a
-          // `max <= 0` that poisons the row at parse-on-read (stickler F1). Positive mints keep `max = value`.
-          (name, delta) => {
-            const value = Math.max(0, delta);
-            return { name, value, max: Math.max(value, 1) };
-          },
-          (p, delta) => ({ ...p, value: p.value + delta }),
-        );
+  const nextTrackers =
+    args.trackerDeltas === undefined && args.trackerSets === undefined
+      ? actor.trackerValues
+      : applyTrackerWrites(actor.trackerValues, args.trackerDeltas, args.trackerSets);
   const conditions = args.removeCondition === undefined ? actor.conditions : actor.conditions.filter((c) => c.name !== args.removeCondition);
   const nextConditions =
     args.addCondition === undefined
@@ -164,7 +184,7 @@ export function applyUpdateParty(
 
   const next: RpgActorVolatile = {
     ...actor,
-    pools: nextPools,
+    trackerValues: nextTrackers,
     conditions: nextConditions,
     hp: nextHp,
     ...(args.status !== undefined ? { status: args.status } : {}),
@@ -203,15 +223,7 @@ export function applyUpdateInventory(
       return nextQty > 0 ? [{ ...it, quantity: nextQty }] : [];
     });
   }
-  const wallet =
-    args.walletDeltas === undefined
-      ? actor.wallet
-      : applyNamedDeltas(
-          actor.wallet,
-          args.walletDeltas,
-          (name, delta) => ({ name, amount: delta }),
-          (w, delta) => ({ ...w, amount: w.amount + delta }),
-        );
+  const wallet = args.walletDeltas === undefined ? actor.wallet : applyWalletDeltas(actor.wallet, args.walletDeltas);
 
   const next: RpgActorVolatile = { ...actor, inventory, wallet };
   return { actorState: withActor(state.actorState, { actor: next, index: resolved.index }) };
@@ -259,7 +271,6 @@ function mergeRelationship(
 
 /** Merge one `presentUpsert` entry onto its existing cast row (or a fresh one) — a per-cast PATCH by `key`. */
 function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgPresentCharacter | undefined): RpgPresentCharacter {
-  const customFields = up.customFields === undefined ? (existing?.customFields ?? {}) : Object.fromEntries(up.customFields.map((f) => [f.name, f.value]));
   const appearance = carry(up.appearance, existing?.appearance);
   const outfit = carry(up.outfit, existing?.outfit);
   const thoughts = carry(up.thoughts, existing?.thoughts);
@@ -268,7 +279,6 @@ function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numbe
     name: up.name,
     emoji: pick(up.emoji, existing?.emoji, ""),
     mood: pick(up.mood, existing?.mood, ""),
-    customFields,
     relationship: mergeRelationship(up.relationship, existing?.relationship),
     ...(appearance !== undefined ? { appearance } : {}),
     ...(outfit !== undefined ? { outfit } : {}),
@@ -352,20 +362,16 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs)
   return patch;
 }
 
-/** `set_widget_value` → the `widgetValues` patch (keyed by widget label). Only the provided fields write. */
-export function applySetWidgetValue(state: RpgSnapshotState, args: SetWidgetValueArgs): { widgetValues: RpgSnapshotState["widgetValues"] } {
-  const current = state.widgetValues[args.widgetRef] ?? {};
-  return {
-    widgetValues: {
-      ...state.widgetValues,
-      [args.widgetRef]: {
-        ...current,
-        ...(args.value !== undefined ? { value: args.value } : {}),
-        ...(args.max !== undefined ? { max: args.max } : {}),
-        ...(args.items !== undefined ? { items: args.items } : {}),
-      },
-    },
-  };
+/** `set_tracker` → the GAME-subject `trackerValues` patch (keyed by tracker `key`). Runs through the SAME
+ *  {@link applyTrackerWrites} the per-actor arm uses — one write mechanic for both subjects, so a delta on a
+ *  game tracker behaves exactly like a delta on an actor's. */
+export function applySetTracker(state: RpgSnapshotState, args: SetTrackerArgs): { trackerValues: RpgSnapshotState["trackerValues"] } {
+  const deltas = args.delta === undefined ? [] : [{ key: args.key, delta: args.delta }];
+  const sets =
+    args.value === undefined && args.items === undefined
+      ? []
+      : [{ key: args.key, ...(args.value !== undefined ? { value: args.value } : {}), ...(args.items !== undefined ? { items: args.items } : {}) }];
+  return { trackerValues: applyTrackerWrites(state.trackerValues, deltas, sets) };
 }
 
 /** `upsert_quest` → the new `quests` plane (§2.5). `create` mints a quest via the injected `mintQuestId`;
@@ -417,7 +423,9 @@ export function applyUpsertQuest(
  *  `title` is DERIVED from the content head when the model omitted it (`journalTitleFor` — the small-model-robust
  *  arm, ruling #10: an 8B dropping the nested-required `title` used to fail the whole extraction `safeParse`). */
 export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEntry {
-  return { type: args.type, title: journalTitleFor(args), content: args.content };
+  // R4c — the free `label` is meaningful ONLY on a `custom` type; a non-custom type clears it (the
+  // relationship-kind precedent: the built-ins carry their own meaning, so a stray label would be noise).
+  return { type: args.type, label: args.type === "custom" ? (args.label ?? "") : "", title: journalTitleFor(args), content: args.content };
 }
 
 /** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the roster index (members + the
@@ -513,8 +521,8 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
     const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene);
     overlay({ ...scene, ...(recentEvents !== undefined ? { recentEvents: [...recentEvents] } : {}) });
   }
-  for (const args of extraction.widgets) {
-    overlay(applySetWidgetValue(state, args));
+  for (const args of extraction.trackers) {
+    overlay(applySetTracker(state, args));
   }
   for (const args of extraction.quests) {
     overlay(applyUpsertQuest(state, args, mints.quest, mints.objective));
@@ -532,7 +540,7 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
     "location",
     "calendarDate",
     "weather",
-    "widgetValues",
+    "trackerValues",
     "quests",
     "plot",
   ] as const) {
@@ -567,7 +575,7 @@ function deriveRelationshipBeats(prev: readonly RpgPresentCharacter[], cur: read
     if (kindChanged || customLabelChanged) {
       const from = was.kind === "custom" && was.label !== "" ? was.label : was.kind;
       const to = c.relationship.kind === "custom" && c.relationship.label !== "" ? c.relationship.label : c.relationship.kind;
-      beats.push({ type: "event", title: `${c.name}: ${from} → ${to}`, content: `${c.name}'s relationship shifted from ${from} to ${to}.` });
+      beats.push({ type: "event", label: "", title: `${c.name}: ${from} → ${to}`, content: `${c.name}'s relationship shifted from ${from} to ${to}.` });
     }
   }
   return beats;

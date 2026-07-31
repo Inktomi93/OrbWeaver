@@ -31,6 +31,9 @@ export { createRpgFlushBarrier } from "./flush-barrier";
 // (the connection-capability resolve keys on `extractionMode`). A thin persistence read exposed for the
 // composition root — the tracker-readonly + runExtraction ops it wires close over it.
 export { findGameByChat } from "./persistence/games";
+// R6 — the per-actor write-surface assembly (compose) resolves each roster actor's SHEET exceptions
+// (`trackerGrants`/`trackerRevokes`) to decide which trackers that actor may be offered.
+export { listSheets } from "./persistence/sheets";
 export { createRpgService } from "./service";
 export { createRpgStagingStore } from "./staging";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the

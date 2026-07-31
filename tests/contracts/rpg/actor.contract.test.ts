@@ -25,7 +25,7 @@ test("actorRefKey projects a stable distinct key per arm", () => {
 test("hp is born nullable (a null-hp actor has no health bar, §8)", () => {
   const parsed = rpgActorVolatileSchema.parse({ actorRef: { kind: "cast", castKey: "npc" }, hp: null });
   expect(parsed.hp).toBeNull();
-  expect(parsed.pools).toEqual([]);
+  expect(parsed.trackerValues).toEqual({});
   expect(parsed.inventory).toEqual([]);
   expect(parsed.wallet).toEqual([]);
 });

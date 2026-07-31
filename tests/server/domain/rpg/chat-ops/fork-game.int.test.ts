@@ -27,7 +27,6 @@ import { findGameByChat, insertGame, updateGame } from "../../../../../packages/
 import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal";
 import { listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
 import { insertSnapshot, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { insertWidget, listWidgets } from "../../../../../packages/server/src/domain/rpg/persistence/widgets";
 import { freshDb } from "../../../../support/db";
 import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support";
 
@@ -115,13 +114,7 @@ async function seedSourceGame(
     gameId,
     characterId: null,
     userId: gm,
-    sheet: { className: "Rogue", attributes: {}, poolDefs: [], maxHp: 10, flavor: "", level: 3 },
-    now: FROZEN_AT,
-  });
-  await insertWidget(db, {
-    id: castId(`rpg_widget_src_${gmHandle}`),
-    gameId,
-    def: { type: "counter", label: "Torches", icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: "torches" } },
+    sheet: { className: "Rogue", attributes: {}, maxHp: 10, flavor: "", level: 3, trackerGrants: ["bound_will"], trackerRevokes: [] },
     now: FROZEN_AT,
   });
   await insertCheckpoint(db, { id: castId(`rpg_checkpoint_src_${gmHandle}`), gameId, snapshotId, label: "start", trigger: "manual", createdAt: FROZEN_AT });
@@ -213,9 +206,10 @@ test("cross-tenant: EVERY fork row keys the new game/chat/variant — never a so
   expect(forkSnaps[0]?.messageId).toBe(forkMsg);
   expect(forkSnaps[0]?.id).not.toBe(src.snapshotId);
 
-  // Sheets/widgets/journal/checkpoints all key the fork game.
+  // Sheets/journal/checkpoints all key the fork game (the widget TABLE is gone — tracker defs ride
+  // `config.trackers`, so they clone with the game row itself).
   expect((await listSheets(db, fg)).every((r) => r.gameId === fg)).toBe(true);
-  expect((await listWidgets(db, fg)).every((r) => r.gameId === fg)).toBe(true);
+  expect((await listSheets(db, fg))[0]?.sheet.trackerGrants).toEqual(["bound_will"]);
   expect((await listAllJournal(db, fg)).every((r) => r.gameId === fg)).toBe(true);
   const forkCps = await listCheckpoints(db, fg);
   expect(forkCps).toHaveLength(1);

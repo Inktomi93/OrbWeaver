@@ -30,7 +30,7 @@ async function selectVariant(messageId: MessageId, variantId: MessageVariantId):
 }
 
 /** Resolve a variant's snapshot or throw (test-local — the ratification drive always has a snapshot). */
-async function panelForVariant(variantId: MessageVariantId): Promise<{ pool: number | undefined; gold: number | undefined; quests: number }> {
+async function panelForVariant(variantId: MessageVariantId): Promise<{ pool: number | string | undefined; gold: number | undefined; quests: number }> {
   const snap = await findSnapshotByVariant(db, variantId);
   if (!snap) {
     throw new Error(`no snapshot for ${variantId}`);
@@ -39,11 +39,11 @@ async function panelForVariant(variantId: MessageVariantId): Promise<{ pool: num
 }
 
 /** The tracker "view" reduction the CP client consumes (W1b composes the real one) — here reduced to the
- *  three planes the ratification names: the first pool value, the wallet gold, and the active quest count. */
-function panelOf(state: ReturnType<typeof snapshotRowToState>): { pool: number | undefined; gold: number | undefined; quests: number } {
+ *  three planes the ratification names: the `focus` tracker reading, the wallet gold, and the active quest count. */
+function panelOf(state: ReturnType<typeof snapshotRowToState>): { pool: number | string | undefined; gold: number | undefined; quests: number } {
   const actor = state.actorState[0];
   return {
-    pool: actor?.pools[0]?.value,
+    pool: actor?.trackerValues["focus"]?.value ?? undefined,
     gold: actor?.wallet[0]?.amount,
     quests: state.quests.filter((q) => q.status === "active").length,
   };

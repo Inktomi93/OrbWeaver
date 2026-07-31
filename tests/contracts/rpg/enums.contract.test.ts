@@ -7,15 +7,19 @@ import {
   RPG_GAME_STATUSES,
   RPG_JOURNAL_TYPES,
   RPG_QUEST_STATUSES,
-  RPG_WIDGET_POSITIONS,
-  RPG_WIDGET_TYPES,
+  RPG_TRACKER_CARRIER_CLASSES,
+  RPG_TRACKER_SHAPES,
+  RPG_TRACKER_SUBJECTS,
+  RPG_TRACKER_WRITES,
   rpgCheckpointTriggerSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
   rpgJournalTypeSchema,
   rpgQuestStatusSchema,
-  rpgWidgetPositionSchema,
-  rpgWidgetTypeSchema,
+  rpgTrackerCarrierClassSchema,
+  rpgTrackerShapeSchema,
+  rpgTrackerSubjectSchema,
+  rpgTrackerWriteSchema,
 } from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures";
 
@@ -37,9 +41,12 @@ test("RPG_QUEST_STATUSES = [active, completed, failed]", () => {
   expect(rpgQuestStatusSchema.options).toEqual(RPG_QUEST_STATUSES);
 });
 
-test("RPG_JOURNAL_TYPES is the whole label vocabulary", () => {
-  expect(RPG_JOURNAL_TYPES).toEqual(["location", "npc", "combat", "quest", "item", "event", "note"]);
+test("RPG_JOURNAL_TYPES is the whole label vocabulary + the R4c `custom` escape", () => {
+  expect(RPG_JOURNAL_TYPES).toEqual(["location", "npc", "combat", "quest", "item", "event", "note", "custom"]);
   expect(rpgJournalTypeSchema.options).toEqual(RPG_JOURNAL_TYPES);
+  // R4c — `custom` is the escape a closed enum + a DB CHECK otherwise walls off (the relationship-kind shape).
+  expect(rpgJournalTypeSchema.safeParse("custom").success).toBe(true);
+  expect(rpgJournalTypeSchema.safeParse("ritual").success).toBe(false);
 });
 
 test("RPG_CHECKPOINT_TRIGGERS is lite's [manual] only (full ADDS members)", () => {
@@ -47,7 +54,15 @@ test("RPG_CHECKPOINT_TRIGGERS is lite's [manual] only (full ADDS members)", () =
   expect(rpgCheckpointTriggerSchema.safeParse("session").success).toBe(false);
 });
 
-test("RPG_WIDGET_TYPES / RPG_WIDGET_POSITIONS derive their schemas", () => {
-  expect(rpgWidgetTypeSchema.options).toEqual(RPG_WIDGET_TYPES);
-  expect(rpgWidgetPositionSchema.options).toEqual(RPG_WIDGET_POSITIONS);
+test("the four TRACKER axes are the committed vocabularies and derive their schemas", () => {
+  // The tracked-field unification: pool/meter/cast-field/band-orb/widget were ONE def read along these axes,
+  // and the retired widget-type/position tuples are gone with the concept they described.
+  expect(RPG_TRACKER_SHAPES).toEqual(["meter", "text", "list"]);
+  expect(RPG_TRACKER_WRITES).toEqual(["delta", "set"]);
+  expect(RPG_TRACKER_SUBJECTS).toEqual(["actor", "game"]);
+  expect(RPG_TRACKER_CARRIER_CLASSES).toEqual(["party", "npcs", "everyone"]);
+  expect(rpgTrackerShapeSchema.options).toEqual(RPG_TRACKER_SHAPES);
+  expect(rpgTrackerWriteSchema.options).toEqual(RPG_TRACKER_WRITES);
+  expect(rpgTrackerSubjectSchema.options).toEqual(RPG_TRACKER_SUBJECTS);
+  expect(rpgTrackerCarrierClassSchema.options).toEqual(RPG_TRACKER_CARRIER_CLASSES);
 });
