@@ -12,6 +12,12 @@ Appendix B. Results directories are gitignored; **this document is the durable r
 > for methodology only; several of their conclusions are superseded IN PLACE, so don't quote them without
 > reading the banner above each. R1–R3, R5, R6 stand unchanged.
 >
+> **NEW 2026-07-31 — read §4f before touching the local-8B question.** The three vehicles are three different
+> ENFORCEMENT classes on our vLLM wire: `reliable` and `cheap` are grammar-bound, **`folded` is not**
+> (`tool_choice:"auto"` compiles no grammar). R3's "keep reliable for the 8B" now has a mechanism behind it,
+> and R5a/R6/establish-when-unset do NOT bind on the folded path. The live folded-vs-reliable 8B comparison
+> §4f was opened for is **still unmeasured** (engine asleep).
+>
 > **Nothing here is committed yet** — this doc and `scripts/probes/rpg-extraction/` are untracked. The
 > results dirs are gitignored, so the analysis survives only in this file.
 
@@ -553,6 +559,81 @@ closed, **with a DB CHECK** (`db/schema/rpg.ts:238,253`) and **no `custom` arm**
 
 Fix is the shape already shipped once: keep the closed enum, add a `custom` member carrying a free `label`,
 and let `config.features` hold per-game hints for host-defined types (so they gloss, per §4d).
+
+### 4f. LOCAL-8B ENFORCEMENT AUDIT — the FOLDED path's tool args are NOT grammar-bound on our vLLM wire (2026-07-31)
+
+> ⚠️ **This section is the STATIC half of an unfinished measurement.** It was opened to carry the
+> folded-vs-reliable comparison on the local 8B (3 runs per arm, §4c protocol, the CURRENT surface: R5a
+> `7d0e6f60` + R6 grouped schemas + EXT-4 salvage `9b140933`). **That live run did not happen** — the gen
+> engine (127.0.0.1:8703, `Qwen/Qwen3-VL-8B-Instruct`) answers `/is_sleeping` → `{"is_sleeping":true}`
+> (2.7 GiB/card resident, 0% util, a 90s chat request never returns), and waking it was out of scope for the
+> measurement pass. Everything below needs NO model call: it is read off the INSTALLED vLLM source
+> (0.22.1, `.cache/vllm/venv`) plus the live engine's argv and `/proc/<pid>/environ`. It stands on its own and
+> it changes the R3 question before a single token is spent. **The stale `removeCondition` 0/5 baseline
+> (§5/R3's "GROUND-TRUTH RUN vs the 8B") is still un-remeasured.**
+
+**The three delivery vehicles are THREE DIFFERENT ENFORCEMENT CLASSES on this backend — not one mechanism
+delivered three ways.** [[xgrammar-enforced-schema-is-the-populate-lever]] says the enforced schema, not the
+prompt, is what makes the 8B populate. On the folded path that lever is simply **absent**:
+
+| vehicle | what we put on the wire | vLLM 0.22.1 behaviour | args grammar-enforced? |
+|---|---|---|---|
+| `reliable` | `response_format: {type:"json_schema"}` | `chat_completion/protocol.py:585-588` → `StructuredOutputsParams(json=…)` | **YES** (xgrammar) |
+| `cheap` (dedicated round) | tools + `tool_choice:"required"` | `tool_parsers/utils.py:250-251` → `_get_json_schema_from_tools(tools)` → `structured_outputs.json` | **YES** |
+| **`folded` (R1)** | tools + `tool_choice:"auto"` | `tool_parsers/utils.py:252-253` — literally `# tool_choice: "auto"` / `return None` | **NO** |
+
+Receipts, all in the installed venv:
+
+- `tool_parsers/utils.py:220-253` — `get_json_schema_from_tools` returns a schema for a **named** choice and
+  for `"required"`, and returns `None` for `"auto"`. That is the only tool→grammar producer the generic path
+  has.
+- `tool_parsers/abstract_tool_parser.py:96-113` — the newer **structural-tag** arm DOES cover `"auto"`, but it
+  is double-gated: on `VLLM_ENFORCE_STRICT_TOOL_CALLING` (`envs.py:242`, default `0` — and **absent** from the
+  live engine's `/proc/2602322/environ`), and on the parser implementing `get_structural_tag`, whose base
+  implementation returns `None` (`:153`). Only two builders are registered at all —
+  `deepseek_v4` / `qwen_3_5` (`tool_parsers/structural_tag_registry.py:137,246`), reached by the
+  `deepseekv4` and `qwen3coder` parsers. **We run `--tool-call-parser hermes`.**
+- `chat_completion/protocol.py:578-607` — the only other producer of `structured_outputs` is `response_format`.
+  Nothing else in the package derives a grammar from `tools`.
+- Live engine argv: `--enable-auto-tool-choice --tool-call-parser hermes --enable-sleep-mode`, no strict flag.
+- Our side: the folded turn attaches `toolChoice: {mode:"auto"}` (`chat/engine/pipeline.ts:513`); the cheap
+  round sends `{mode:"required"}` (`entry/compose/rpg.ts:739`).
+
+**So on the local 8B, folded tool args are free-generated `<tool_call>{…}</tool_call>` text that the hermes
+parser reads back post-hoc.** Every structural lever the current surface added binds on `reliable`/`cheap` and
+**does not bind on `folded`**:
+
+- **R5a's `removeCondition` enum** (the fix minted specifically because the 8B comma-joined four condition
+  names into the `{type:"string"}` scalar) — advisory only on the folded path. The prompt half
+  (`refEnumerationLines`, "removeCondition must name EXACTLY one of these") is the *entire* defence there, and
+  an off-enum value survives generation and dies at `safeParse` — i.e. the write is **dropped**, not corrected.
+- **R6's per-actor tracker-key enums** and the locked-tracker pruning — advisory; a write to a tracker the
+  actor doesn't carry is representable.
+- **ESTABLISH-WHEN-UNSET** (`required` + `presentUpsert.minItems:1`) — this is the lever that was LIVE-PROVEN
+  to make the 8B fill a fresh scene at all. Under `auto` it is not enforced, so a fresh folded game on the 8B
+  has nothing forcing the scene to establish.
+
+**This reframes the owner's question.** "Can the reliable/cheap modes be deleted?" was being asked as a model-
+quality question (does the 8B track state well enough through the fold?). On this backend it is first a
+**mechanism** question: `folded` is the only one of the three that hands the weak model an unconstrained
+surface, and `cheap` — the two-call vehicle everyone assumed was the sloppy one — is grammar-enforced at the
+same token level as `reliable`, per tool, for one extra call. Any live comparison must therefore report three
+arms, not two, and must count **enum violations** (an off-enum `removeCondition`, a tracker key the target
+doesn't carry) as a first-class column: on `folded` they are expected to be non-zero, and on `reliable`/`cheap`
+a non-zero count would mean xgrammar isn't binding what we think it binds.
+
+**Still owed by the live run** (unchanged protocol — 3 runs/arm, `SPIKE_GAME=afflictions`, §4b opportunity
+denominators): `removeCondition` recall with the §4c naming-mismatch correction, `hpDelta`, fields-touched
+against the CURRENT leaf set (the /43 denominator is stale — pools/widgets/`customFields` are gone, trackers
+replaced them), the EXT-4 salvage applied-vs-dropped count per run, narrative co-emission quality, per-turn
+latency, and number-recitation into prose. Two harness facts for whoever runs it: `run-coverage.mjs` predates
+the tracked-field unification (it still speaks `poolDeltas`/`set_widget_value`/`presentUpsert.customFields`
+and carries a half-renamed `state.trackers`/`state.widgets` split), so it must be driven off the real builders
+(`constrainExtractionSchema` + `buildRpgToolDescriptions` + `buildTrackerWriteGroups`, all exported from
+`@orb/contracts/rpg`) rather than the frozen `real-cheap-toolround.json` capture; and the folded turn carries
+**no bookkeeping instruction at all** on a non-reconcile beat (the reminder is deliberately tool-guidance-free,
+`substrate/reminder.ts:13`; `FOLDED_RECONCILE_NOTE` fires only on a reconcile), which is itself a candidate
+explanation for any under-firing the run measures.
 
 ## 5. Recommendations (prioritized)
 
