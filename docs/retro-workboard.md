@@ -219,6 +219,24 @@ answer nothing that blocks tonight's builds).
 - **SERIALIZE main-tree build lanes** — 2+ concurrent lanes cause gate-thrash + index collisions
   ([[concurrent-main-lanes-gate-thrash]], [[work-directly-on-main]]); worktree-isolate genuinely
   concurrent big lanes ([[worktree-isolate-concurrent-lanes]]).
+- **Worktrees are already cheap — just `git worktree add` + `pnpm install`. MEASURED 2026-07-30:
+  2.06 s install, 48 MiB real disk.** The 1.9 G `du` is apparent size: default pnpm HARDLINKS every
+  file from the content-addressable store (`~/.local/share/pnpm/store/v11`), verified same-inode
+  across main + worktree + store. Requires only that worktrees sit on the same filesystem as the
+  store — `.claude/worktrees/` does. `CI=true` is needed for a non-interactive re-install (pnpm
+  otherwise aborts purging `node_modules` with `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`).
+- **⛔ Do NOT set `enableGlobalVirtualStore: true`.** pnpm's own multi-agent-worktree recipe
+  (https://pnpm.io/git-worktrees) recommends it; **it breaks this repo's gate deterministically** —
+  tested clean-install both arms, reproduced twice. ON: `lint:biome` (50 errors), `lint:eslint`,
+  `types:packages`, `types:graph`, `types:tests-dom` all FAIL. OFF: whole-tree green.
+  **Mechanism:** it replaces the local `node_modules/.pnpm` with symlinks into the global store, and
+  TypeScript resolves realpaths — so from `<store>/links/@/echarts-for-react/<hash>/node_modules/…`
+  the walk-up for `@types/*` exits into the STORE instead of reaching the hoisted
+  `node_modules/.pnpm/node_modules` fallback that carries `@types/react`. React types go unresolved
+  → `'ReactEChartsCore' cannot be used as a JSX component` / dnd-kit loses its `children` prop, and
+  every type-aware biome/eslint rule then sees `any`. Upstream: pnpm#9739. It buys nothing anyway —
+  48 MiB and 2 s is already the floor. Worth stealing from their recipe: symlink `.claude/` into new
+  worktrees so agents share settings/approved commands.
 - **NEVER bare `sqlite3` on the live `orbweaver.db`** (deletes WAL, stales readers) — use the app /
   `/api/_debug/*` / an immutable copy ([[sqlite3-wal-danger-on-live-db]]).
 - **Wire-capture harness** (the diagnostic lever): `WIRE_CAPTURE=on` + `DEBUG_TOKEN=<t>` →
