@@ -14,7 +14,7 @@ import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import type { MessageRenderContext } from "#lib";
-import { cn } from "#lib";
+import { cn, renderMessageForDisplay } from "#lib";
 import { setDraftGreeting } from "#state";
 import type { RowAttribution } from "../lib/attribution";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants";
@@ -28,7 +28,38 @@ import { MessageContent } from "./message-content";
 import { MessageEditTextarea } from "./message-edit-textarea";
 import { MessageTimestamp } from "./message-metadata-row";
 import { renderSingleBubble } from "./message-row-bubble";
+import { ReasoningBlock } from "./reasoning-block";
 import { SwipeStrip } from "./swipe-strip";
+
+/** The settled disclosure's label. A canon-rehydrated row carries no measured think window (`ttftMs` is
+ *  time-to-FIRST-token of any channel, `genFinishedAt − genStartedAt` is the whole generation), so naming a
+ *  duration here would be a fabricated number — the channel names itself instead. */
+const SETTLED_REASONING_LABEL = "Reasoning";
+
+/** The SETTLED reasoning disclosure for a committed row — the durable half of the live ghost's block, reading
+ *  `MessageView.reasoning` (the `message_variants.reasoning` column every backend's turn persists) so a
+ *  completed turn's trace stays readable after the ghost unmounts. Collapsed by default, click-to-expand.
+ *
+ *  IT IS NOT AN ACCESS GATE: the server already decided what this viewer may read — §3.6's reasoning strip
+ *  NULLS the field for a member of a deception-active game at every read path (listMessages, the durable
+ *  replay, the live fan-out, the turn returns, the fork copy), so a stripped row arrives with nothing to
+ *  render. Null/empty ⇒ no disclosure at all (never an empty affordance advertising a withheld channel).
+ *  Suppressed while EDITING, like the tool-call + metadata rows. */
+export function renderRowReasoning(args: {
+  readonly editing: boolean;
+  readonly message: MessageView;
+  readonly renderContext: MessageRenderContext;
+  readonly showLLMReasoningIcon: boolean;
+}): ReactNode {
+  const raw = args.message.reasoning;
+  if (args.editing || raw === null || raw.length === 0) {
+    return null;
+  }
+  // Same macro/regex display pass the ghost's live trace gets, so `{{char}}`/`{{user}}` in a thinking trace
+  // read identically before and after commit.
+  const text = renderMessageForDisplay(raw, args.renderContext, args.message.characterId, args.message.personaId);
+  return <ReasoningBlock reasoning={text} thinking={false} label={SETTLED_REASONING_LABEL} showIcon={args.showLLMReasoningIcon} />;
+}
 
 // exactOptionalPropertyTypes idiom: omit `src` rather than pass undefined.
 function avatarSrcProp(avatarHash: string | null): { src?: string } {
@@ -79,6 +110,10 @@ export function renderRowBubble(args: {
   readonly role: MessageRole;
   readonly message: MessageView;
   readonly content: ReactNode;
+  /** The settled reasoning disclosure ({@link renderRowReasoning}), or null. Rendered INSIDE the bubble above
+   *  the body — the same place the streaming ghost puts it, so commit doesn't jump the affordance out of the
+   *  bubble. Trains (Tide) have no single bubble, so it leads the paragraph stack instead. */
+  readonly reasoning: ReactNode;
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
@@ -95,13 +130,22 @@ export function renderRowBubble(args: {
     args.trainParagraphs === null ? (
       renderSingleBubble({
         role: args.role,
-        content: args.content,
+        content:
+          args.reasoning === null ? (
+            args.content
+          ) : (
+            <>
+              {args.reasoning}
+              {args.content}
+            </>
+          ),
         bubbleClassName,
         decoration: args.decoration,
         weldedAvatar: args.weldedAvatar,
       })
     ) : (
       <Stack gap="field" data-slot="message-bubble-train">
+        {args.reasoning}
         {args.trainParagraphs.map((paragraph, index) => (
           <Stack
             // biome-ignore lint/suspicious/noArrayIndexKey: paragraphs are a stable re-split of the SAME settled message.content each render — the index IS the paragraph identity.

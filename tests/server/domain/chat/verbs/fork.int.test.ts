@@ -6,7 +6,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chats, messages, messageVariants } from "@orb/db";
@@ -508,6 +508,70 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(messages.chatId, castId(chat.id)));
       expect(row?.content).toBe(body);
       expect(row?.content).toContain("traitor");
+    });
+
+    // The P3 REASONING arm of the same laundering boundary — the fork is a COPY PATH that carries the durable
+    // `message_variants.reasoning` (now rendered on every committed row), plus its continue-snapshot twins. A
+    // non-host forker of a DECEPTION-active source becomes HOST of the copy, so an uncleared reasoning column
+    // would hand them the GM-plane spill through the fork's own host read.
+    describe("the P3 reasoning arm (deception-active source)", () => {
+      const spill = "I'll say the study, but he is really in the crypt.";
+      /** Deception-active source: the injected op says the reasoning channel is host-only for this chat. */
+      function deceptionRpg(): NonNullable<ChatContext["rpg"]> {
+        // FABRICATION-OK: minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly here (forkGame is never called: the source carries no game pointer).
+        return { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
+      }
+
+      /** Seed a source room whose tail assistant variant carries the spill in `reasoning` AND in both
+       *  continue-snapshot reasoning twins (the undo/revert restore targets). */
+      async function seedSpilledRoom(key: string, human: UserId, role: ParticipantRole): Promise<string> {
+        const charA = await seedCharacter(db, human, `${key}_char`);
+        const chatId = await seedChat(db, key);
+        await seedParticipant(db, { chatId, key: "h", userId: human, role });
+        await seedParticipant(db, { chatId, key: "c", characterId: charA });
+        const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs.", reasoning: spill });
+        await db
+          .update(messageVariants)
+          .set({ preContinueReasoning: `pre ${spill}`, lastContinuationReasoning: `cont ${spill}` })
+          .where(eq(messageVariants.id, castId(m.variantId)));
+        return chatId;
+      }
+
+      async function forkedReasoning(chatId: string, forker: UserId): Promise<{ reasoning: string | null; pre: string | null; cont: string | null }> {
+        const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg: deceptionRpg() }), { emit, loadParticipantViews });
+        const { chat } = await fork.forkChat({ principal: principal(forker), chatId: castId(chatId) });
+        const [row] = await db
+          .select({
+            reasoning: messageVariants.reasoning,
+            pre: messageVariants.preContinueReasoning,
+            cont: messageVariants.lastContinuationReasoning,
+          })
+          .from(messages)
+          .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+          .where(eq(messages.chatId, castId(chat.id)));
+        return { reasoning: row?.reasoning ?? null, pre: row?.pre ?? null, cont: row?.cont ?? null };
+      }
+
+      test("a NON-HOST (solo) forker's copy carries NO reasoning — the live column AND both continue-snapshot twins are nulled", async () => {
+        const member = await seedUser(db, "rs_member");
+        const chatId = await seedSpilledRoom("rs_src", member, "member");
+
+        const copied = await forkedReasoning(chatId, member);
+
+        expect(copied).toEqual({ reasoning: null, pre: null, cont: null });
+        expect(JSON.stringify(copied)).not.toContain("crypt");
+      });
+
+      test("a HOST forker's copy keeps the reasoning verbatim (they already read the host plane)", async () => {
+        const host = await seedUser(db, "rs_host");
+        const chatId = await seedSpilledRoom("rs_src2", host, "host");
+
+        const copied = await forkedReasoning(chatId, host);
+
+        expect(copied.reasoning).toBe(spill);
+        expect(copied.pre).toBe(`pre ${spill}`);
+        expect(copied.cont).toBe(`cont ${spill}`);
+      });
     });
   });
 
