@@ -63,6 +63,17 @@ band had NO query container + unreachable thresholds; `.shell-panel` now the con
 two off-enum weather rows repaired in the dev DB while down · **FINAL LIVE MEASUREMENT: stone 120px,
 panel 480px** ✓.
 
+## ═══ ▶▶▶ 08-01 DAY WAVE — lanes firing now ═══
+
+| Lane | Where | Scope |
+|---|---|---|
+| **TRK-1 — Tracker unification stage 1 (server core)** | worktree | contracts TrackerDef + value storage (spec §5, no-legacy clean break) · db schema (drop hud_widgets, R4c journal-custom) + baseline regen in-worktree · apply path · R6 per-actor-aware tool assembly + R2 templated descriptions + R5b (conditions in refEnumerationLines, delta gloss) · reminder one-gloss-path. Client editors = stage 2 AFTER. |
+| **MP — model picker** | worktree | MP-1 provider grouping · MP-2 visible curated-fallback state |
+| **CARD — card collapse** | worktree | RV-1 collapse control in chat · RV-2 cards renderable in Scene tab |
+| **TOD — time-of-day ranges** | main (running) | band starts = period starts; label derivation consolidated to one home |
+| **SPEC×2 — SSE multiplex + SET-SEAMS** | docs-only | full design docs to docs/design/, spec-first per rulings, aware of each other |
+| Next wave (queued): Preview rebuild D-4 · EFF-3 warnings surface + effective-delivery freshness · smalls (AU-5 kill, VER-1 guards) · Tracker stage 2 (GM editor + Status absorption + Sheet dissolution) · workloads exit |
+
 **Open from the night:** UI stretch order ruled:
 Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
 surface + effective-delivery freshness) · AU-8 hunt-A backlog · **settings-registry migration DONE-as-scoped** `21abdc42` (merged): the registry pattern was
