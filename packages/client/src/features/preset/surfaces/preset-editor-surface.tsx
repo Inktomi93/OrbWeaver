@@ -128,7 +128,9 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A resolve failure
   // (no chat connection configured) leaves `capability` undefined ⇒ the panel shows its connect-a-model note.
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
-  const capability = capabilityQuery.data;
+  // The read carries the resolved `(api, source, model)` alongside the descriptor (the Connections pane names
+  // the fallback from it); this panel gates on the descriptor only.
+  const capability = capabilityQuery.data?.capability;
 
   // The save path incl. the built-in's fork-once retarget (see the hook header) — never an inline mutateAsync.
   const save = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });

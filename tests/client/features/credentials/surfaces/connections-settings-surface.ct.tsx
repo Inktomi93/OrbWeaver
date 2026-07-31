@@ -11,13 +11,17 @@
 // mutations rely on.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
+import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
 import { ConnectionsSettingsStory } from "../_ct-stories";
 
 const SYNC_CHIP = '[data-slot="role-row-sync"]';
+const APP_DEFAULT = '[data-slot="role-app-default"]';
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
 const COMMAND_ITEM = '[data-slot="command-item"]';
 /** The held write's route matcher (top-level per biome's useTopLevelRegex). */
@@ -49,7 +53,11 @@ interface SettingsStub {
 
 /** A stateful stub of the user-settings tier: the write stores the patch, the read serves it back — so the
  *  "did the pane go back to LIVE after the save landed?" arm runs against a real echo, not a scripted one. */
-async function stubSettings(page: Page, roleDefaults: Record<string, unknown>): Promise<SettingsStub> {
+/** The owner's unconfigured chat default as the SERVER resolves it (resolve-role.ts: agent-sdk × the sub) —
+ *  what the never-saved chat row names. `resolveFails` scripts the no-chat-connection rejection. */
+const RESOLVED_CHAT = makeResolvedChatCapability({ api: "agent-sdk", source: "max-pro-sub", model: castId<ModelId>("claude-opus-5") });
+
+async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, opts: { readonly resolveFails?: boolean } = {}): Promise<SettingsStub> {
   let stored = roleDefaults;
   const view = (): unknown => ({
     userId: "user_ct_connections",
@@ -62,6 +70,7 @@ async function stubSettings(page: Page, roleDefaults: Record<string, unknown>): 
     "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
     "credentials.list": () => [],
     "connection.getModelsForSource": () => OR_MODELS,
+    "connection.resolveChatCapability": () => (opts.resolveFails === true ? trpcError({ message: "no chat connection configured" }) : RESOLVED_CHAT),
     "settings.updateUserSettingsSection": (input: unknown): unknown => {
       stored = (input as { readonly patch: { readonly roleDefaults: Record<string, unknown> } }).patch.roleDefaults;
       return view();
@@ -193,6 +202,42 @@ test("a reload mid-edit shows the persisted connection again — the lost draft 
   await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
 });
 
+// THE PROTOCOL-PAIR TURN-BREAKER. `(api, source)` is ONE selection server-side: `assertCoherent`
+// (resolve-role.ts) THROWS on an incoherent pair at turn time. Switching the source used to clear only the
+// MODEL, so OpenRouter × agent-sdk → vLLM persisted `{api:"agent-sdk", source:"vllm"}` — a chat that could
+// not take a turn — while the picker healed the display to "Auto" and showed nothing wrong.
+test("switching the source re-derives the protocol in the SAME patch — no incoherent pair is ever persisted", async ({ mount, page }) => {
+  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "agent-sdk" } });
+  await mount(<ConnectionsSettingsStory />);
+  await expect(page.getByRole("combobox", { name: "Chat protocol" })).toContainText("Agent SDK");
+
+  await page.getByRole("combobox", { name: "Chat provider" }).click();
+  await page.getByRole("option", { name: "Local vLLM (GPU)" }).click();
+
+  // The display and the store agree: vLLM cannot take agent-sdk, so the protocol is genuinely cleared.
+  await expect(page.getByRole("combobox", { name: "Chat protocol" })).toContainText("Auto");
+  await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly one recorded call — this reads THAT input.
+  expect(recorder.lastInput("settings.updateUserSettingsSection")).toMatchObject({
+    section: "routing",
+    patch: { roleDefaults: { chat: { source: "vllm", model: null, api: null } } },
+  });
+});
+
+// The display half of the same pin: the picker renders the STORED protocol, never a healed stand-in. The old
+// `value={legal ? stored : ""}` fallback is exactly why the incoherent pair survived unnoticed — the pane
+// read "Auto" over a store that held agent-sdk. Data written before the fix must SHOW its illegal pair.
+test("an incoherent stored pair is displayed, not healed away — the picker never shows a value the store lacks", async ({ mount, page }) => {
+  await stubSettings(page, { chat: { source: "vllm", model: "", api: "agent-sdk" } });
+  await mount(<ConnectionsSettingsStory />);
+
+  const protocol = page.getByRole("combobox", { name: "Chat protocol" });
+  await expect(protocol).toContainText("Agent SDK");
+  await expect(protocol).toContainText("not supported by this provider");
+  // No draft chip: nothing was edited — the pane is faithfully showing what the server holds.
+  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
+});
+
 test("a NEVER-SAVED pane does not read as configured — the rows name the app default, not a selection", async ({ mount, page }) => {
   // roleDefaults NULL in the DB: exactly the owner's 08:43–10:27 state.
   await stubSettings(page, {});
@@ -202,4 +247,26 @@ test("a NEVER-SAVED pane does not read as configured — the rows name the app d
   // Nothing is drafted, so nothing is disclosed — and no row claims a provider/model it never had.
   await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Chat model" })).toHaveCount(0);
+});
+
+// "Uses the app default" named NOTHING: the pane that configures the connection could not tell the owner
+// which connection a turn would actually take. The chat row now names the RESOLVER's answer
+// (`connection.resolveChatCapability` — the caller's own resolution, identity included).
+test("the never-saved CHAT row NAMES the resolved fallback a turn would use", async ({ mount, page }) => {
+  await stubSettings(page, {});
+  await mount(<ConnectionsSettingsStory />);
+
+  // api × source × model, exactly as the server resolved it (the story's stub: the owner's sub default).
+  await expect(page.locator(APP_DEFAULT).first()).toHaveText(
+    "Uses the app default: Claude subscription (host) · claude-opus-5 · Agent SDK (Claude subscription)",
+  );
+  // The roles with no such one-hop read stay honest rather than guess — they name nothing.
+  await expect(page.locator(APP_DEFAULT).last()).toHaveText("Uses the app default");
+});
+
+test("an unresolvable chat connection degrades to the bare line — never a fabricated name", async ({ mount, page }) => {
+  await stubSettings(page, {}, { resolveFails: true });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator(APP_DEFAULT).first()).toHaveText("Uses the app default");
 });

@@ -1,4 +1,8 @@
-// The per-chat tool-call recursion cap control (Phase B ⑦) — the CLIENT half of Phase A L3's server verb
+// The per-chat tool RECURSION-DEPTH cap control (Phase B ⑦) — the CLIENT half of Phase A L3's server verb.
+// It governs how many times ONE turn may re-enter the engine on `finishReason:"tool"` (contract/params.ts
+// `SetToolRecurseLimitParams`), i.e. tool ROUNDS — NOT the number of tool calls, which is unbounded within a
+// round. It shipped labelled "Tool-call limit", which the owner read as a call cap; the label + hint now say
+// what the number actually does.
 // (`chat.setToolRecurseLimit`, host-gated). A room-settings control on the chat context panel's Settings tab
 // (NOT a settings pane): reads the current cap from `getChat` (cache-first — `ChatDetail.toolRecurseLimit`,
 // exposed for this) and writes `setToolRecurseLimit` on change. Host-only by construction — the caller
@@ -45,8 +49,8 @@ export function ToolRecurseControl({ chatId }: ToolRecurseControlProps): ReactEl
   return (
     <SettingRow
       id={id}
-      label="Tool-call limit"
-      description="The most times the assistant may chain tool calls within one turn before it must answer. Higher allows deeper multi-step tool use."
+      label="Tool rounds per turn"
+      description="How many times one reply may loop back after using tools — not a cap on tool calls. A round can carry several tool calls; higher allows deeper multi-step work before the assistant must answer."
     >
       <Input id={id} type="number" min={TOOL_RECURSE_MIN} max={TOOL_RECURSE_MAX} value={String(current)} onChange={onChange} />
     </SettingRow>

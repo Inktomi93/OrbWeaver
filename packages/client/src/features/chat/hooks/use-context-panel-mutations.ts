@@ -44,7 +44,7 @@ export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVa
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap
   // reads back via `ChatDetail.toolRecurseLimit`), delivered by the active subscription (the setRoomOverrides twin).
   busDriven: true,
-  errorToast: "Couldn't save the tool-call limit.",
+  errorToast: "Couldn't save the tool round limit.",
 });
 
 /** `chat.setChatInjection` vars — the authored injection fields (`ChatInjectionInput`: id?/position/

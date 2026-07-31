@@ -12,7 +12,7 @@
 //     keep bespoke construction — they carry secrets a blanket default shouldn't invent.
 //   • makeResolvedConnection — composes the three; `api`/`model` default to the vLLM chat routing marker.
 
-import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatApi, ModelCapability, ResolvedChatCapability, ResolvedConnection } from "@orb/contracts/connection";
 import { modelCapabilitySchema } from "@orb/contracts/connection";
 import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId, UserCredentialId } from "@orb/kit/ids";
@@ -85,6 +85,19 @@ const DEFAULT_CAPABILITY: ModelCapability = {
  *  new required schema field breaks the default literal above (the one-place error W1h buys). */
 export function makeModelCapability(overrides: Partial<ModelCapability> = {}): ModelCapability {
   return modelCapabilitySchema.parse({ ...DEFAULT_CAPABILITY, ...overrides });
+}
+
+/** The `connection.resolveChatCapability` wire shape — the descriptor PLUS the `(api, source, model)` it was
+ *  resolved for (the identity the Connections pane names on a never-saved row). Defaults to the same keyless
+ *  vLLM chat marker `makeResolvedConnection` uses. */
+export function makeResolvedChatCapability(overrides: Partial<ResolvedChatCapability> = {}): ResolvedChatCapability {
+  return {
+    api: "chat-completions" as ChatApi,
+    source: "vllm",
+    model: castId<ModelId>("test-model"),
+    capability: makeModelCapability(),
+    ...overrides,
+  };
 }
 
 /** A `ResolvedConnection` over the keyless vLLM chat marker; override any axis (a different capability, a

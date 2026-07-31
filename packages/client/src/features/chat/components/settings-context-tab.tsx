@@ -115,7 +115,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         <Section heading="Tool use">
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool-call limit" onRetry={retry} />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
           >
             <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>

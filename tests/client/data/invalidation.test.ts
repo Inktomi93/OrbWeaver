@@ -65,8 +65,10 @@ const TRACKED_KEYS = [
   "previewAssembly",
   "getShapeTrace",
   // The host's veiled cue + Veiled ledger (`rpg.revealHidden`). It is an RPG read with a CANON driver: the
-  // verb derives it from the stored assistant BODIES, so a new GM lie lands with the canon terminal, not with
-  // an rpg-bus tick. It was in zero rows (the previewAssembly class — the count froze at panel mount).
+  // verb derives it from the stored assistant BODIES, so a new GM lie lands with the BODY WRITE
+  // (`messageCommitted` + the edit/swipe/delete family), not with an rpg-bus tick and not with the
+  // `turnCompleted` that trails the same commit. It was in zero rows (the previewAssembly class — the count
+  // froze at panel mount).
   "revealHidden",
   // The injections manager's own read of `chat_injections` (`chat.listChatInjections`). Every injection write
   // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
@@ -81,18 +83,17 @@ type TrackedKey = (typeof TRACKED_KEYS)[number];
 // (chatUpdated/personaSwitched/chatOpened/historyTruncated/wi*/chatDeleted). The canon-TERMINAL events
 // (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
 // `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
-const CHAT_CANON_READS: readonly TrackedKey[] = [
-  "listMessages",
-  "listMessageVariants",
-  "previewContextFit",
-  "previewAssembly",
-  "getShapeTrace",
-  "revealHidden",
-];
+const CHAT_CANON_READS: readonly TrackedKey[] = ["listMessages", "listMessageVariants", "previewContextFit", "previewAssembly", "getShapeTrace"];
+
+// The host-reveal derivation (`rpg.revealHidden`) rides the BODY-WRITE terminals only — `messageCommitted`
+// and the non-terminal canon mutations — never `turnCompleted`. A generated turn emits `messageCommitted`
+// (the body write) and `turnCompleted` immediately after with no further body change, so carrying it on both
+// was a duplicate wire fetch on every turn (and an invalidate CANCELS an in-flight fetch and restarts it).
+const CANON_BODY_WRITE_READS: readonly TrackedKey[] = [...CHAT_CANON_READS, "revealHidden"];
 
 // The full canon+list refetch (`chatReads` = canon + `listChats`) — the NON-terminal canon events that fire no
 // server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
-const CHAT_READS: readonly TrackedKey[] = [...CHAT_CANON_READS, "listChats"];
+const CHAT_READS: readonly TrackedKey[] = [...CANON_BODY_WRITE_READS, "listChats"];
 
 // The freshness contract in ONE readable table, EXHAUSTIVE over `ChatBusEvent["type"]`: a new bus member
 // fails `tsc` HERE (the `Record<…>` is total) until it declares what it invalidates — mirroring the
@@ -109,7 +110,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // LIST (`listChats`) + character library (`characterList`) recency rides the server's `chatsChanged`
   // member-fan on the same moment (one driver per surface, no triple-invalidate). Non-terminal canon mutations
   // (edit/hide/select/delete/reorder/abort) fire no server `chatsChanged`, so they keep the full `chatReads`.
-  messageCommitted: CHAT_CANON_READS,
+  messageCommitted: CANON_BODY_WRITE_READS,
   messageEdited: CHAT_READS,
   messageHidden: CHAT_READS,
   variantSelected: CHAT_READS,
