@@ -81,6 +81,9 @@ function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string>
 
 // A minimal AssemblyPreview ({ prompt, trace }) — proves the Preview tab renders the assembled halves +
 // the trace without asserting the assembler's own logic (that is the server's read.int.test's lane).
+/** The Preview tab's System source-row drill-in trigger (regex hoisted per biome `useTopLevelRegex`). */
+const RE_SYSTEM_ROW = /System/;
+
 const PREVIEW = {
   prompt: {
     static: "SYSTEM: be a helpful guide",
@@ -90,6 +93,11 @@ const PREVIEW = {
     trace: emptyTrace(),
   },
   trace: emptyTrace(),
+  budget: {
+    ceilingTokens: 8192,
+    totalTokens: 120,
+    sources: [{ source: "system", detail: "main prompt", tokens: 120, text: "SYSTEM: be a helpful guide" }],
+  },
 };
 
 function emptyTrace(): Record<string, unknown> {
@@ -368,11 +376,12 @@ test("the Preview tab renders the assembled prompt + trace", async ({ mount, pag
   const component = await mount(<ChatContextPanelStory />);
   await component.getByRole("tab", { name: "Preview" }).click();
 
-  // The static prompt text and the trace section both render (read-only).
+  // The budget instrument renders (the D-4 rebuild): the used/ceiling line + the System source row.
+  await expect(component.getByText("120 / 8,192 tok")).toBeVisible();
+  await expect(component.getByText("System", { exact: true })).toBeVisible();
+  // …and the assembled text is reachable by drilling into the source that owns it.
+  await component.getByRole("button", { name: RE_SYSTEM_ROW }).click();
   await expect(component.getByText("SYSTEM: be a helpful guide")).toBeVisible();
-  await expect(component.getByText("Trace")).toBeVisible();
-  // The override-source attribution line (orbweaver's richer-than-neo trace).
-  await expect(component.getByText("room override")).toBeVisible();
 });
 
 test("host adds an injection (setChatInjection fires with no id ⇒ create)", async ({ mount, page }) => {

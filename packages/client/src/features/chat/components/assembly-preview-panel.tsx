@@ -1,20 +1,32 @@
-// The assembly preview (task #28 — the CONTEXT panel's Preview tab). Read-only: renders what the model
-// will see on the NEXT turn — the assembled prompt (static + dynamic halves + any in-history injections)
-// plus the `AssembleTrace` (why each overrideable field's value won, which sections fired, world-info
-// included/dropped, the flags) AND the content-free `ShapeTrace` (PD-132 — the SHAPE-phase projection: how
-// the canon shaped into wire history, the squash merges, the §8 cache-breakpoint decision). Pure leverage of
-// the `chat.previewAssembly` + `chat.getShapeTrace` verbs (no content bytes in either trace by construction).
+// The assembly preview (task #28; REBUILT to the panel-redesign mock under D-4) — the CONTEXT panel's Preview
+// tab. Read-only: what the model will see on the NEXT turn, as an INSTRUMENT rather than a text dump:
+//   1. the stacked CONTEXT-BUDGET bar (`AssemblyBudgetPreview` — server-computed, `Σ sources === total`);
+//   2. one row per SOURCE (System · Cards · World info · Steering · Game state · History), swatch-keyed to its
+//      segment, each drilling in to that source's assembled text verbatim;
+//   3. the game-state excerpt (a game chat only — the mock's mono block, the honesty instrument's core claim:
+//      what the panel shows and what the model reads are provably the same bytes);
+//   4. the deeper BUILD/SHAPE diagnostics (`AssembleTrace` + the content-free `ShapeTrace`), collapsed — the
+//      per-field provenance, WI activation, cache-breakpoint decision a host needs when a turn goes wrong.
+// Pure leverage of the `chat.previewAssembly` + `chat.getShapeTrace` verbs (no content bytes in either trace).
+//
+// The RAW static/dynamic prompt dumps the pre-D-4 tab ended in are GONE: every byte they showed is now
+// reachable through the source row that owns it (attributed, not a wall).
 //
 // HOST-ONLY: both reads are host/admin debug surfaces server-side (the full prompt reveals merged member
 // cards; the shape trace is `requireHost`-gated, matrix `getShapeTrace: "host"`). The CONTEXT panel only
 // mounts this tab for the host, so a member never reaches the queries (which would refuse). A member-scoped
 // `previewSection` affordance is deferred (task #28 flag).
 
-import type { AssembleTrace, ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
+import type { AssembleTrace, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource, ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
+import { Card } from "@orb/ui/card";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { SegmentBarSegment } from "@orb/ui/meter";
+import { SegmentBar } from "@orb/ui/meter";
+import type { SeriesColor } from "@orb/ui/series-row";
+import { SeriesRow } from "@orb/ui/series-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -44,89 +56,191 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   const [{ data }, { data: shapeTrace }] = useSuspenseQueries({
     queries: [trpc.chat.previewAssembly.queryOptions({ chatId }), trpc.chat.getShapeTrace.queryOptions({ chatId })],
   });
-  const { prompt, trace } = data;
+  const { prompt, trace, budget } = data;
+  const gameState = budget.sources.find((source) => source.source === "game-state");
 
   return (
-    <Stack gap="section">
-      <Text size="label" tone="muted">
-        What the model will see on the next turn. Read-only.
+    <Stack gap="block">
+      <ContextBudget budget={budget} />
+
+      <Stack>
+        {budget.sources.map((source, index) => (
+          <SourceRow key={source.source} slice={source} divider={index > 0} />
+        ))}
+      </Stack>
+
+      {gameState === undefined ? null : <GameStateExcerpt text={gameState.text} />}
+
+      <Text size="micro" tone="muted">
+        Counts are estimated locally (QuadChars) — the real count is the provider's post-turn usage. Host-only: what the model sees, nothing more, nothing
+        hidden from you.
       </Text>
 
-      <TokenEstimate staticText={prompt.static} dynamicText={prompt.dynamic} injections={prompt.afterHistory} />
-
-      <OverrideSources sources={trace.overrideSources} />
-
-      <PromptText heading="System prompt — static" text={prompt.static} emptyLabel="(empty)" />
-      <PromptText heading="System prompt — dynamic" text={prompt.dynamic} emptyLabel="(none)" />
-
-      {prompt.afterHistory.length > 0 ? (
-        <Section heading={`In-history injections (${prompt.afterHistory.length})`}>
-          <Stack gap="row">
-            {prompt.afterHistory.map((injection, index) => (
-              <Text
-                // The afterHistory entries are positional + contentful, with no stable id on the wire;
-                // the index is the stable key within one immutable preview render.
-                // biome-ignore lint/suspicious/noArrayIndexKey: afterHistory entries are positional + id-less; the index is stable within one immutable preview render.
-                key={index}
-                size="code"
-                className="whitespace-pre-wrap"
-              >
-                [{injection.role} @ depth {injection.depth}] {injection.content}
-              </Text>
-            ))}
-          </Stack>
-        </Section>
-      ) : null}
-
-      <TraceSummary trace={trace} />
-
-      <WorldInfoActivated activated={trace.worldInfoActivated} />
-
-      <ShapeTraceSummary trace={shapeTrace} />
+      <Diagnostics injections={prompt.afterHistory} shapeTrace={shapeTrace} trace={trace} />
     </Stack>
   );
 }
 
-/** An ADVISORY local token estimate (`@orb/kit/tokens` QuadChars — the same engine the server assembly
- *  uses) over the assembled prompt halves + in-history injections. Quiet mono stats (§4.3 rule 9). Not
- *  billing truth: the real count is the provider's post-turn `usage` (the estimator's own file header). */
-function TokenEstimate({
-  staticText,
-  dynamicText,
-  injections,
-}: {
-  readonly staticText: string;
-  readonly dynamicText: string;
-  readonly injections: readonly { readonly content: string }[];
-}): ReactElement {
-  const staticTokens = estimateTokens(staticText);
-  const dynamicTokens = estimateTokens(dynamicText);
-  const injectionTokens = injections.reduce((sum, inj) => sum + estimateTokens(inj.content), 0);
-  const total = staticTokens + dynamicTokens + injectionTokens;
+// ── The budget bar ──────────────────────────────────────────────────────────────────────────────────
+
+/** The categorical ramp step each source keeps — fixed by SOURCE (not by row position), so a source that
+ *  drops out of one chat (no game, no lore) never re-colours the others. Mirrors the panel-redesign mock's
+ *  swatch assignment exactly. */
+const SOURCE_COLOR: Record<AssemblySource, SeriesColor> = {
+  ["system"]: 6,
+  ["cards"]: 4,
+  ["world-info"]: 2,
+  ["steering"]: 3,
+  ["game-state"]: 1,
+  ["history"]: 5,
+};
+
+/** The row label per source. The server's `detail` line carries the specifics (which sections, which cast). */
+const SOURCE_LABEL: Record<AssemblySource, string> = {
+  ["system"]: "System",
+  ["cards"]: "Cards",
+  ["world-info"]: "World info",
+  ["steering"]: "Steering",
+  ["game-state"]: "Game state",
+  ["history"]: "History",
+};
+
+const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/g;
+
+/** Group a token count for display ("4300" → "4,300"). Hand-rolled: `.toLocaleString()` is banned repo-wide
+ *  (`no-raw-intl-time` — un-memoized Intl by the back door) and ui takes pre-formatted strings. */
+function formatCount(value: number): string {
+  return String(value).replace(THOUSANDS_RE, ",");
+}
+
+/** The mock's budget card: the used/ceiling line + the stacked bar whose segments ARE the rows below. The bar
+ *  is decoration (aria-hidden inside `SegmentBar`) — the text line + the rows carry the datum. */
+function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): ReactElement {
+  const segments: readonly SegmentBarSegment[] = budget.sources.map((source) => ({
+    id: source.source,
+    value: source.tokens,
+    color: SOURCE_COLOR[source.source],
+  }));
   return (
-    <Section heading="Token estimate (advisory)">
+    <Card padding="block">
       <Stack gap="field">
-        <TokenLine label="System — static" value={staticTokens} />
-        <TokenLine label="System — dynamic" value={dynamicTokens} />
-        {injectionTokens > 0 ? <TokenLine label="In-history injections" value={injectionTokens} /> : null}
-        <TokenLine label="Total" value={total} />
-        <Text size="micro" tone="muted">
-          Estimated locally (QuadChars) — the real count is the provider's post-turn usage.
-        </Text>
+        <Row align="baseline" gap="row" justify="between">
+          <Text size="micro" tone="muted">
+            context
+          </Text>
+          <Text size="code">
+            {/* `0` = no trustworthy ceiling (no model window + no soft cap) — say so, never fabricate a denominator. */}
+            {budget.ceilingTokens === 0
+              ? `${formatCount(budget.totalTokens)} tok · no window limit`
+              : `${formatCount(budget.totalTokens)} / ${formatCount(budget.ceilingTokens)} tok`}
+          </Text>
+        </Row>
+        <SegmentBar segments={segments} />
       </Stack>
-    </Section>
+    </Card>
   );
 }
 
-/** One token-estimate row — label + a right-aligned mono count (`≈` marks it advisory). */
-function TokenLine({ label, value }: { readonly label: string; readonly value: number }): ReactElement {
+// ── The per-source rows ─────────────────────────────────────────────────────────────────────────────
+
+/** One source row: the swatch-keyed `SeriesRow` as a Collapsible TRIGGER, drilling in to that source's
+ *  assembled text. EVERY row drills in (uniform rows, one affordance) — the `history` row carries no text by
+ *  construction (the wire history is the transcript itself), so its panel says exactly that instead of
+ *  serving a copy of canon. */
+function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; readonly divider: boolean }): ReactElement {
   return (
-    <Row gap="block" justify="between" align="center">
-      <Text size="label" tone="muted">
-        {label}
+    <Collapsible>
+      <CollapsibleTrigger className="w-full">
+        <SeriesRow
+          color={SOURCE_COLOR[slice.source]}
+          detail={slice.detail === "" ? undefined : slice.detail}
+          divider={divider}
+          label={SOURCE_LABEL[slice.source]}
+          value={formatCount(slice.tokens)}
+        />
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        {slice.text === "" ? (
+          <Text className="block pb-row" size="micro" tone="muted">
+            Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
+          </Text>
+        ) : (
+          <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
+            {slice.text}
+          </Text>
+        )}
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+/** The mock's game-state excerpt: the serialized state block the model reads, verbatim, in mono. Present only
+ *  when the chat is a game (the server omits the source otherwise). */
+function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
+  return (
+    <Card padding="block">
+      <Text className="block max-h-40 overflow-y-auto whitespace-pre-wrap" size="code" tone="muted">
+        {text}
       </Text>
-      <Text size="code">{`≈ ${value}`}</Text>
-    </Row>
+    </Card>
+  );
+}
+
+// ── The diagnostics drawer (the pre-D-4 trace surface, collapsed) ───────────────────────────────────
+
+/** The instrument's section voice (the mock's `.kicker`): micro-caps, muted — a panel-width heading, never the
+ *  `Section` default title size, which at the 17rem floor shouts louder than the data it labels. */
+function Kicker({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <Text size="micro" tone="muted" transform="caps" weight="semibold">
+      {children}
+    </Text>
+  );
+}
+
+function Diagnostics({
+  trace,
+  shapeTrace,
+  injections,
+}: {
+  readonly trace: AssembleTrace;
+  readonly shapeTrace: ShapeTrace;
+  readonly injections: readonly { readonly role: string; readonly depth: number; readonly content: string }[];
+}): ReactElement {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="w-full">
+        <Text size="label" tone="muted">
+          Diagnostics
+        </Text>
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <Stack gap="section">
+          <OverrideSources sources={trace.overrideSources} />
+          {injections.length > 0 ? (
+            <Section heading={<Kicker>{`In-history injections (${injections.length})`}</Kicker>}>
+              <Stack gap="row">
+                {injections.map((injection, index) => (
+                  <Text
+                    // The afterHistory entries are positional + contentful, with no stable id on the wire;
+                    // the index is the stable key within one immutable preview render.
+                    // biome-ignore lint/suspicious/noArrayIndexKey: afterHistory entries are positional + id-less; the index is stable within one immutable preview render.
+                    key={index}
+                    size="code"
+                    className="whitespace-pre-wrap"
+                  >
+                    [{injection.role} @ depth {injection.depth}] {injection.content}
+                  </Text>
+                ))}
+              </Stack>
+            </Section>
+          ) : null}
+          <TraceSummary trace={trace} />
+          <WorldInfoActivated activated={trace.worldInfoActivated} />
+          <ShapeTraceSummary trace={shapeTrace} />
+        </Stack>
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }
 
@@ -146,7 +260,7 @@ function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrid
     return null;
   }
   return (
-    <Section heading="Where each field's value came from">
+    <Section heading={<Kicker>Where each value came from</Kicker>}>
       <Stack gap="field">
         {present.map((row) => (
           <Row key={row.label} gap="block" justify="between" align="center">
@@ -161,21 +275,6 @@ function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrid
   );
 }
 
-/** One labelled raw-text block (whitespace preserved so the prompt reads as the model receives it). */
-function PromptText({ heading, text, emptyLabel }: { readonly heading: string; readonly text: string; readonly emptyLabel: string }): ReactElement {
-  return (
-    <Section heading={heading}>
-      {text.trim() === "" ? (
-        <Text tone="muted">{emptyLabel}</Text>
-      ) : (
-        <Text size="code" className="whitespace-pre-wrap">
-          {text}
-        </Text>
-      )}
-    </Section>
-  );
-}
-
 /** The content-free trace: which sections fired, world-info in/out, and the boolean flags as badges. */
 function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElement {
   const flags: readonly { readonly label: string; readonly on: boolean }[] = [
@@ -186,7 +285,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
   const activeFlags = flags.filter((flag) => flag.on);
 
   return (
-    <Section heading="Trace">
+    <Section heading={<Kicker>Trace</Kicker>}>
       <Stack gap="field">
         <TraceLine label="Static sections" value={sectionList(trace.staticSections)} />
         <TraceLine label="Dynamic sections" value={sectionList(trace.dynamicSections)} />
@@ -213,7 +312,7 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
  *  the Trace section (keyword strings, not entry identity). Empty ⇒ a one-line explanation, never a blank. */
 function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["worldInfoActivated"] }): ReactElement {
   return (
-    <Section heading={`World info — ${activated.length} activated`}>
+    <Section heading={<Kicker>{`World info — ${activated.length} activated`}</Kicker>}>
       {activated.length === 0 ? (
         <Text tone="muted">No world-info entries activated.</Text>
       ) : (
@@ -250,7 +349,7 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
       ? BREAKPOINT_LABELS[trace.breakpointDecision]
       : `${BREAKPOINT_LABELS[trace.breakpointDecision]} (offset ${trace.cacheBreakpointFromEnd} from end)`;
   return (
-    <Section heading="Shape (wire history)">
+    <Section heading={<Kicker>Shape (wire history)</Kicker>}>
       <Stack gap="field">
         <Text size="micro" tone="muted">
           How the canon shaped into the next turn's wire history — row counts only, no content.
@@ -270,11 +369,14 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
 
 function TraceLine({ label, value }: { readonly label: string; readonly value: ReactNode }): ReactElement {
   return (
-    <Row gap="block" justify="between" align="center">
-      <Text size="label" tone="muted">
+    <Row gap="block" justify="between" align="start">
+      <Text className="shrink-0" size="label" tone="muted">
         {label}
       </Text>
-      <Text size="label">{value}</Text>
+      {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
+      <Text className="min-w-0 text-end break-words" size="label">
+        {value}
+      </Text>
     </Row>
   );
 }
