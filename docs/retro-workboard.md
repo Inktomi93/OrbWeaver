@@ -296,6 +296,20 @@ hiddenContentReveal · recentBeatsKeepLast · cardKeepLastX · extraction-depth 
 Also queued: composer-guided-cluster.ct whole-file 30s timeout (own small lane) · SERIAL_INT for
 compose/rpg.int.test.ts · staging.ensure residual seam (dormant unless registry tools return).
 
+**DAY CLOSED — PUSHED `b87ec743..24989143` (verify:push 14/14, 613s) + two post-push local merges
+(check-certified, final battery GREEN incl. CT 1619/0/0):** CONNECTIONS (`6068b415`): the 27-min lost
+save = debounce timer in effect-closure killed by any mid-edit settings refetch — timers now
+session-refs, teardown flushes (D78); live-vs-draft chips; clear-never-persisted fixed (the
+deepMergePlain omitted-leaf class AGAIN — memory updated). REASONING (`d88e5d1d`+`a17576d1`): reasoning
+was ALWAYS stored (message_variants.reasoning) — the transcript just never mounted the block
+post-commit; now renders retroactively; `projectViewReturnForViewer` = the ONE viewer-strip seam
+(turn.ts + all six edit.ts returns), emit-side non-strip pinned. OPEN OWNER ITEMS: schema CHECK still
+permits authored assistant rows (belt makes it safe; tighten = owner call) · concrete-resolved-fallback
+display needs a contract widening · extraction-mode picker copy (folded default · reliable = local
+accuracy arm · cheap = decoupled round) rides the knob-editors batch — owner leaning "is folded just
+better?"; ruled KEEP all three (reliable is the 8B accuracy arm — R3 evidence; cheap's round is
+folded's own fallback machinery).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
