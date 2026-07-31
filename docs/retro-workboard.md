@@ -108,6 +108,15 @@ Preview + transcript divider say "window unknown", ratio suppressed, CT pins tha
 nowhere; a user preset maxContextTokens at/below the guess BINDS (their declared truth un-estimates
 the ceiling). Bonus harness fix: read.int.test.ts makeDeps spread order silently ate overrides.
 
+**PRESET PARAMS FIXES MERGED** (owner-found, `b71dbc60` → main): (a) capability staleness — Connections
+persists roleDefaults via settingsChanged, but USER_BUS_FILTERS.settingsChanged never invalidated
+`connection.resolveChatCapability` (staleTime Infinity ⇒ page-refresh-only); narrow pathFilter added +
+CT reproduces the bug with the row removed. (b) blank Output fields now show effective-default
+placeholders — max output = `DEFAULT_MAX_OUTPUT_TOKENS` 2048 (the pipeline's real materialization, NOT
+the model cap), max context = window "(full window)"; NumberField gained a placeholder prop (Base UI
+Root swallows input-part props — routed to the Input slot explicitly). (c) CapabilityGate empty state
+names the hidden knobs per axis. Side-eye look at the new copy/placeholders rides the W-H pass.
+
 **IN-FLIGHT AGENTS (SendMessage ids):** smalls DONE (`edb78a26` AU-5 kill incl. re-homed cold-cache regression tests + `d9563dd1` VER-1d quality guard; NEW ITEM: `resolveAgentSdkAlias` branch now product-unreachable — separate look). Was: smalls ON MAIN — AU-5 `edb78a26`
 (NOTE: my staged density spec got index-swept into that commit — content fine, cosmetic), VER-1d guard
 IN PROGRESS (`resolve-chat.ts` uncommitted in main's tree — **NO git ops on main until it lands**) ·
@@ -225,6 +234,16 @@ system+admin merge · status UX · sub-deep-links · UNCLAIMED keys registry · 
 ④ **DENSITY PASS** — spec at `docs/design/density-pass-spec.md`; OWNER DECISIONS §7 D1–D10 (rounded-card
 demotion · Card.padding retirement · paddings/ratios) ⑤ **WORKLOADS JUNK-DRAWER EXIT** — headline lane,
 investigation ready at `docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md` (seam/skim).
+
+**EXT-4 (from the 08-01 tool-coverage audit — queued AFTER TRK stage 2 merges; touches tools.ts/apply.ts
+which stage 2's max amendment also edits):** (a) reliable-mode whole-object `safeParse`
+(`compose/rpg.ts:517`) drops ALL SIX planes on one bad nested field — make it salvage per-plane (or
+per-entry) like the per-call validation cheap/folded already do; the three delivery paths should carry
+EQUAL drop semantics. (b) journal `[].type`/`content` sit in the same xgrammar nested-required blind spot
+that bit `title` (title was fixed; these weren't) — same treatment. (c) quest objective completion:
+`upsert_quest.update` carrying `objectives` remints all flags `completed:false`; give the model a way to
+mark an objective done without wiping the rest (merge-by-match preserving completed, or a completed field
+on the objectives arg) — small design decision at build. Full matrix + receipts in the audit report.
 
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
