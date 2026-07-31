@@ -53,5 +53,19 @@ answer §2 questions the OpenAI-compat wire can't express. They print and write 
 |---|---|---|
 | `native-wire-probe.mjs` | tools × `output_config.format` × `thinking:{adaptive}` on the native wire | $0.03 |
 | `native-format-roundtrip.mjs` | does the schema land on the final text turn after a `tool_result`? (**yes**) | $0.01 |
+`card-teach-probe.ts` is the **F2** harness (§4h) — a 10-turn scene of pure card OPPORTUNITIES, the real
+`buildLiteReminder` with only the card-teach block swapped per arm (A–H), scored twice: `emitted` (a `:::card`
+line in the text) vs **`rendered`** (a `card` span out of the production tokenizer). That split is the whole
+finding — Sonnet emits 95%, we render 73%, the gap is a malformed open fence we silently drop.
+
+| var | effect |
+|---|---|
+| `CARD_ARMS` | subset, default `A,B,C,D,E` (`F`/`G`/`H` are opt-in) — one arm ≈ $0.18 |
+| `CARD_OUT` | transcript path (default `card-teach-out.json`, gitignored) |
+| `CARD_DRY=1` | print each arm's assembled injection and exit — **no spend** |
+| `CARD_SCORE=<file>` | re-score a saved transcript with the current scorer — **no spend** |
+
+Sampled outputs: `CARD-TEACH-SAMPLES.md`.
+
 `out/`, `out2/`, `out2-medium/` hold the results — gitignored, so they live on disk only. Everything here
 was recovered from a session scratchpad on 2026-07-30; don't let it drift back to `/tmp`.
