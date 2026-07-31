@@ -21,7 +21,7 @@ import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider } from "#data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { accountModal } from "#features/auth";
-import { characterSlashCommands, makeCharactersSection } from "#features/character";
+import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
   chatOptionsChrome,
   chatSlashCommands,
@@ -39,7 +39,7 @@ import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { makeRpgContextTabs } from "#features/rpg";
-import { appearancePane, automationPane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
+import { automationPane, makeAppearancePane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
 import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "#features/workloads";
@@ -205,11 +205,16 @@ const adminSettingsSections = createContributorRegistry<SettingsSectionContribut
 // maxPairs/hubFraction) — owned by features/workloads (its own pane), grafted via the same seam.
 const workloadsSettingsSections = createContributorRegistry<SettingsSectionContribution>("workloads-settings-sections", [workloadsTuningSection]);
 
+// The appearance-anchored sections (⑪): the library-list page size — a display pref whose knob is READ by
+// the character library surface, so the character feature owns it and grafts it in via the same seam
+// instead of it living hardcoded inside features/settings.
+const appearanceSettingsSections = createContributorRegistry<SettingsSectionContribution>("appearance-settings-sections", [librarySettingsSection]);
+
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   personas: personasPane,
-  appearance: appearancePane,
+  appearance: makeAppearancePane(appearanceSettingsSections),
   tags: tagsPane,
   workloads: makeWorkloadsPane(workloadsSettingsSections),
   backup: backupPane,

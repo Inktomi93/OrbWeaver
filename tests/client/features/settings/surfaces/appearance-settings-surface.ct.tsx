@@ -19,7 +19,7 @@ import {
 } from "../../../../../packages/client/src/features/settings/lib/appearance-bounds";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { AppearanceSettingsNarrowStory, AppearanceSettingsStory } from "../_ct-stories";
+import { AppearanceSettingsNarrowStory, AppearanceSettingsNoContributionsStory, AppearanceSettingsStory } from "../_ct-stories";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_appearance",
@@ -241,6 +241,34 @@ test("an upload appends a library entry with its mime and selects it live", asyn
       backgroundAssetHash: "uploadedhash",
       backgroundAssetMime: "image/png",
     });
+});
+
+// The settings-SECTION seam (client-architecture-lockdown.md §6c): the `library` page-size section is a
+// CONTRIBUTION owned by features/character (it reads the knob), not pane content — the pane renders it at
+// its own registry-derived anchor, LAST (after every own section), and its write is the distinct `library`
+// section-patch.
+test("the contributed Library section renders at the appearance anchor, last, and patches library.pageSize", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<AppearanceSettingsStory />);
+
+  const library = page.locator("#settings-anchor-appearance-library");
+  await expect(library).toBeVisible();
+  await expect(library.getByRole("heading", { name: "Library" })).toBeVisible();
+
+  // Declared order: own sections first, contributions after — the contributed section is the LAST anchor.
+  const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-appearance-"]')].map((el) => el.id));
+  expect(anchorIds.at(-1)).toBe("settings-anchor-appearance-library");
+
+  // The section owns its own mutation: a valid page size writes the `library` section, never `appearance`.
+  await page.getByRole("spinbutton", { name: "Rows per page" }).fill("50");
+  await expect.poll(() => trpc.lastInput(UPDATE_PROC), { intervals: [20, 50, 100] }).toStrictEqual({ section: "library", patch: { pageSize: 50 } });
+});
+
+test("with ZERO contributions the pane renders no contributed section (the empty-door case)", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceSettingsNoContributionsStory />);
+  await page.getByRole("heading", { name: "Message style" }).waitFor();
+  await expect(page.locator("#settings-anchor-appearance-library")).toHaveCount(0);
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same
