@@ -408,6 +408,16 @@ proven total) · F2a/F2b lane DISPATCHED (fence leniency + example) · EMBEDDED-
 STREAM-JANK (message box resizes during streaming, settles at end — side-eye/W-H list) · Protocol-picker
 incoherent pair (turn-breaker) · tool-limit label copy · fallback-name widening.
 
+**ZTXT-1 QUEUED (owner: "should we, to remain isomorphic?"):** kit's png-card-chunk reads tEXt only —
+add zTXt (zlib-deflate text chunks; some wild tools write them) DEPENDENCY-FREE via
+`DecompressionStream("deflate")` — present in modern browsers AND Node ≥18, so kit stays isomorphic
+with zero deps; refusal stays loud when decompress fails. · **CSP MERGED `c8675ee1`** (3 policies now
+setting-dependent; audit: no other placebo directives; residual: rpg-scene-cards renders ImmersiveCard
+with NO render policy in scope → external images paint in transcript but not the Scene archive —
+thread the roster render policy, W-H/side-eye adjacent). CSP flags accepted as shipped: https:
+wildcard (per-load click-to-load remains the consent layer) · per-character opt-in above a blocking
+deployment stays (labeled in UI; owner may later rule tighten-only).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
