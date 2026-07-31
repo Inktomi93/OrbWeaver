@@ -89,11 +89,17 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
  *    • `folded` (DEFAULT, owner ruling 2026-08-01) = the SAME 7 tools mounted on the CHARACTER turn itself with
  *      `tool_choice:"auto"`, whose co-emitted `tool_calls` ARE the state round — ONE model call per exchange
  *      (measured ~43% cheaper / ~34% faster on a hosted strong model, 6/6 co-emission — D112) and the ONLY mode
- *      whose state lands WITH the turn. The narrative is never at risk: the fold reads a channel the prose does
- *      not ride, and a connection that cannot carry wire `tools[]` on a chat turn (the stateful agent-sdk wire)
- *      falls back to `cheap`'s post-commit round — the SAME delta, one extra call, LOGGED (`rpg.extraction.path`
- *      WARN + `fallbackReason`). New games are BORN folded; a host who wants the structured arm (a weak local
- *      model) flips the knob — recommend, never force.
+ *      whose state lands WITH the turn. The narrative is never at risk — and that guarantee, not the mode, is
+ *      what decides where folded actually lands. TWO wires fall back to `cheap`'s post-commit round (the SAME
+ *      delta, one extra call, LOGGED — `rpg.extraction.path` WARN + `fallbackReason`, never silent):
+ *        · one that cannot carry wire `tools[]` on a chat turn at all — the stateful agent-sdk wire
+ *          (`no-terminal-channel`);
+ *        · one that CAN, but answers `content: null` the moment tools ride — the local vLLM engine, measured
+ *          0 chars of narrative on 36/36 tool-attached turns (`local-engine-fold-guard`, D112 as amended by the
+ *          owner ruling; the mount is withheld PRE-commit so the character turn is byte-identically tool-less).
+ *      So `folded` is NOT universal: it is the hosted-strong shape, with an honest, loud degrade everywhere
+ *      else. New games are BORN folded; a host who wants a two-call arm on purpose (the local floor) flips the
+ *      knob — recommend, never force, and the guard never touches an EXPLICIT `cheap`/`reliable`.
  *  An ADDITIVE config field — a pre-amendment blob self-heals to the default at the parse seam (the schema
  *  `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
 export const RPG_EXTRACTION_MODES = ["reliable", "cheap", "folded"] as const;

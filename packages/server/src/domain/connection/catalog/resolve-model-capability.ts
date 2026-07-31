@@ -247,9 +247,9 @@ function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntr
 }
 
 /** `sampling` is the full OpenAI-compatible knob set when `fullSampling`, else `{}`. `structuredOutput`
- *  marks native constrained output (vLLM guided decoding); `tools` stays ABSENT here — the vLLM arm folds
- *  `tools: { parallel: true }` on AFTER this static resolve (its engine launches with hermes tool parsing,
- *  U0), and only that arm does; every other static arm has no tool support to claim. `windowEstimated` marks
+ *  marks native constrained output (vLLM guided decoding); `tools` stays ABSENT here — the vLLM arm folds its
+ *  own `tools` cell on AFTER this static resolve (its engine launches with hermes tool parsing, U0, and
+ *  declares `silencesProse`), and only that arm does; every other static arm has no tool support to claim. `windowEstimated` marks
  *  a window that is a FALLBACK GUESS (no advertised/declared/engine truth was available) — see the contract. */
 function staticProfile(window: number, fullSampling: boolean, structuredOutput = false, windowEstimated = false): ModelCapability {
   const sampling: ModelCapability["sampling"] = fullSampling
@@ -334,7 +334,16 @@ export function resolveModelCapability(
       // TRUTH ORDER (D68 absence-degrades): the engine's self-reported window (cached `/v1/models`
       // max_model_len) WINS; else the env-owned window (which also drives the launch flag); the env schema
       // default is the last resort. No hand-copied literal here — the engine or its env launch flag owns it.
-      return { ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true), tools: { parallel: true } };
+      //
+      // `silencesProse` — the co-emission truth for this wire (D112 as amended; spike §4g). Attaching `tools[]`
+      // to a chat turn on the local engine costs the ENTIRE narrative: the measured run returned `content: null`
+      // + `finish_reason: tool_calls` on 36/36 turns, while the identical model with no tools attached wrote
+      // prose on every one. Declared HERE (the ONE capability factory) rather than sniffed downstream, so the
+      // consumers that must not co-emit on this wire read a capability fact instead of branching on the source.
+      return {
+        ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true),
+        tools: { parallel: true, silencesProse: true },
+      };
     case "local-light":
       return staticProfile(LOCAL_LIGHT_WINDOW, false);
     case "custom_openai": {
