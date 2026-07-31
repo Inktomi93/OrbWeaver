@@ -25,12 +25,33 @@ const CUSTOM_WINDOW = 32_768;
 const CUSTOM_MAX_OUTPUT = 2048;
 
 // A user-declared model profile: a 32k window + 2k output that is NOT neo's baked 128k/4096 — the assertion
-// that the result reflects THIS, not a constant, is the §1a "nothing baked" proof.
+// that the result reflects THIS, not a constant, is the §1a "nothing baked" proof. The sampling ranges mirror
+// what `domain/connection` actually synthesizes for a `custom_openai` connection (`staticProfile(window,
+// fullSampling:true)`) — the runner now funnels every knob through `resolveChat`, so a fixture with an EMPTY
+// sampling cell would test a capability no BYO connection ever receives.
 const CAPABILITY: ModelCapability = {
   reasoning: { mode: "none", enabled: false },
-  sampling: {},
+  sampling: {
+    temperature: { min: 0, max: 2 },
+    topP: { min: 0, max: 1 },
+    topK: { min: 0, max: 200 },
+    frequencyPenalty: { min: -2, max: 2 },
+    presencePenalty: { min: -2, max: 2 },
+    repetitionPenalty: { min: 0, max: 2 },
+    minP: { min: 0, max: 1 },
+    topA: { min: 0, max: 1 },
+    seed: true,
+    stop: true,
+  },
   output: { maxTokens: { min: 1, max: CUSTOM_MAX_OUTPUT } },
   context: { window: CUSTOM_WINDOW },
+};
+
+// The same profile with reasoning ON, effort-mode, allowlisted to low/medium — a BYO endpoint whose model id
+// hits the curated catalog (e.g. a LiteLLM proxy fronting a reasoning model) resolves a capability like this.
+const REASONING_CAPABILITY: ModelCapability = {
+  ...CAPABILITY,
+  reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium"] },
 };
 
 const CRED_BASE = { baseUrl: BASE_URL, apiKey: SECRET_KEY, headers: { "x-team": "alpha" } };
@@ -158,6 +179,142 @@ describe("createCustomByoBackend — request mapping", () => {
     const keyless = makeCustomOpenAiCredential({ ...CRED_BASE, apiKey: null, headers: null });
     await runTurn(makeRequest({ credential: keyless }));
     expect(capturedHeaders.has("authorization")).toBe(false);
+  });
+});
+
+// EFF-2: the BYO wire is built from `resolveChat(params, capability)` — the same funnel every hosted runner
+// uses. What these pin: the plain-path body did NOT move (self-hosted chat is the live dogfood path), the
+// resolved effort reaches THIS wire's `reasoning_effort`, an unsupported knob is dropped LOUDLY (never
+// silently), and the `customParameters` escape hatch still wins over anything the funnel resolved.
+describe("createCustomByoBackend — resolveChat unification (EFF-2)", () => {
+  // Captures the literal body the runner POSTs.
+  function captureBody(): { readonly read: () => Record<string, unknown> } {
+    let body: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      body = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', 'data: {"choices":[{"finish_reason":"stop"}]}', "data: [DONE]"]);
+    });
+    return { read: (): Record<string, unknown> => body };
+  }
+
+  test("a plain request's wire body is UNCHANGED by the funnel (no reasoning field; max_tokens, not max_completion_tokens)", async () => {
+    const wire = captureBody();
+    await runTurn(makeRequest({ params: { temperature: 0.7, topP: 0.9, maxOutputTokens: 512 } }));
+    // The exact pre-unification shape, key for key: the funnel is a pass-through when every knob is in range
+    // and the capability declares no reasoning.
+    expect(wire.read()).toEqual({
+      model: "local-model",
+      messages: [
+        { role: "system", content: "You are a bot." },
+        { role: "user", content: "Hi" },
+      ],
+      stream: true,
+      temperature: 0.7,
+      top_p: 0.9,
+      max_tokens: 512,
+    });
+  });
+
+  test("a plain request emits NO warning events (a clean turn stays quiet)", async () => {
+    captureBody();
+    const events: string[] = [];
+    const result = await runTurn(makeRequest({ onEvent: (e): void => void events.push(e.kind) }));
+    expect(events).toEqual([]);
+    expect(result.events).toEqual([]);
+  });
+
+  test("the resolved effort reaches the wire as reasoning_effort when the capability supports it", async () => {
+    const wire = captureBody();
+    await runTurn(makeRequest({ capability: REASONING_CAPABILITY, params: { effort: "medium" } }));
+    expect(wire.read()["reasoning_effort"]).toBe("medium");
+  });
+
+  test("the quality dial's effort + sampling fallback reaches the wire (the funnel resolution custom-byo previously skipped)", async () => {
+    const wire = captureBody();
+    await runTurn(makeRequest({ capability: { ...CAPABILITY, reasoning: { mode: "effort", enabled: true } }, params: { quality: "deep" } }));
+    expect(wire.read()["reasoning_effort"]).toBe("high"); // QUALITY_EFFORT.deep
+    expect(wire.read()["temperature"]).toBe(1); // QUALITY_SAMPLING.deep
+  });
+
+  test("our `max` effort level maps to the wire's `xhigh` (the kit's vocab, never re-spelled here)", async () => {
+    const wire = captureBody();
+    await runTurn(makeRequest({ capability: { ...CAPABILITY, reasoning: { mode: "effort", enabled: true } }, params: { effort: "max" } }));
+    expect(wire.read()["reasoning_effort"]).toBe("xhigh");
+  });
+
+  test("an effort outside the capability's allowlist is CLAMPED OUT: no wire field + a loud effort_dropped warning", async () => {
+    const wire = captureBody();
+    const events: Array<{ kind: string; code?: string }> = [];
+    const result = await runTurn(
+      makeRequest({
+        capability: REASONING_CAPABILITY,
+        params: { effort: "high" },
+        onEvent: (e): void => void events.push({ kind: e.kind, ...("code" in e ? { code: e.code } : {}) }),
+      }),
+    );
+    expect(wire.read()).not.toHaveProperty("reasoning_effort");
+    expect(events).toEqual([{ kind: "warning", code: "effort_dropped" }]);
+    expect(result.events).toContainEqual(expect.objectContaining({ kind: "warning", code: "effort_dropped" }));
+  });
+
+  test("mandatory reasoning clamps an absent effort UP to the lowest supported level (never a silent 400)", async () => {
+    const wire = captureBody();
+    const events: Array<{ code?: string }> = [];
+    await runTurn(
+      makeRequest({
+        capability: { ...CAPABILITY, reasoning: { mode: "effort", enabled: true, mandatory: true, effortLevels: ["medium", "high"] } },
+        onEvent: (e): void => void events.push({ ...("code" in e ? { code: e.code } : {}) }),
+      }),
+    );
+    expect(wire.read()["reasoning_effort"]).toBe("medium");
+    expect(events).toEqual([{ code: "reasoning_mandatory_clamp" }]);
+  });
+
+  test("a budget-mode reasoning budget has no slot on this wire — dropped LOUDLY, not silently", async () => {
+    const wire = captureBody();
+    const events: Array<{ code?: string; message?: string }> = [];
+    await runTurn(
+      makeRequest({
+        capability: { ...CAPABILITY, reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 8192 } } },
+        params: { effort: "high", thinkingBudgetTokens: 4096 },
+        onEvent: (e): void => void events.push("code" in e ? { code: e.code, message: e.message } : {}),
+      }),
+    );
+    expect(wire.read()).not.toHaveProperty("reasoning_effort");
+    expect(events).toContainEqual(expect.objectContaining({ code: "sampling_knob_dropped", message: expect.stringContaining("thinkingBudgetTokens") }));
+  });
+
+  test("a sampling knob the capability omits is dropped with a loud sampling_knob_dropped (logit_bias never reaches the wire)", async () => {
+    const wire = captureBody();
+    const events: Array<{ code?: string }> = [];
+    await runTurn(
+      makeRequest({
+        params: { logitBias: { "1": 2 } },
+        onEvent: (e): void => void events.push({ ...("code" in e ? { code: e.code } : {}) }),
+      }),
+    );
+    expect(wire.read()).not.toHaveProperty("logit_bias");
+    expect(events).toEqual([{ code: "sampling_knob_dropped" }]);
+  });
+
+  test("out-of-range knobs are CLAMPED into the capability's ranges (temperature + the output cap)", async () => {
+    const wire = captureBody();
+    await runTurn(makeRequest({ params: { temperature: 5, maxOutputTokens: 999_999 } }));
+    expect(wire.read()["temperature"]).toBe(2);
+    expect(wire.read()["max_tokens"]).toBe(CUSTOM_MAX_OUTPUT);
+  });
+
+  test("customParameters still win over a RESOLVED field, and can re-add one the funnel dropped (BYOK escape hatch)", async () => {
+    const wire = captureBody();
+    await runTurn(
+      makeRequest({
+        // temperature 5 resolves (clamps) to 2; logitBias is dropped by the capability gate.
+        params: { temperature: 5, logitBias: { "1": 2 } },
+        customParameters: { temperature: 0.15, logit_bias: { "7": -1 } },
+      }),
+    );
+    expect(wire.read()["temperature"]).toBe(0.15);
+    expect(wire.read()["logit_bias"]).toEqual({ "7": -1 });
   });
 });
 
