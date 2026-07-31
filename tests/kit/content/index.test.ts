@@ -214,6 +214,87 @@ describe("directive fences (§3.2b — registry-driven)", () => {
     });
   });
 
+  // The §4h OPEN-LINE reflex arm: hosted Sonnet closes the opener like an HTML tag (`:::card title="…">`),
+  // which used to reject the line and HIDE the card as an `unknown-directive` span (114/120 emitted, 87/120
+  // rendered). The specimens below are the literal strings mined from the card-teach probe transcripts.
+  describe("§4h: the trailing HTML-tag-close reflex on a REGISTERED open line is tolerated", () => {
+    test('the §4h specimen `:::card title="The Bench">` renders a card with the EXACT title', () => {
+      const raw = ':::card title="The Bench">\n<div>a bench</div>\n:::';
+      expect(tokenizeContent(raw)).toEqual<ContentSpan[]>([{ kind: "card", title: "The Bench", body: "<div>a bench</div>", origin: "fence", raw }]);
+    });
+
+    test("the tolerated shapes: `>`, a space before it, trailing space after it, and a title-less open", () => {
+      for (const openLine of [':::card title="Sign">', ':::card title="Sign" >', ':::card title="Sign">  ', ":::card>"]) {
+        const spans = tokenizeContent(`${openLine}\n<p>x</p>\n:::`);
+        expect(spans).toHaveLength(1);
+        expect(spans[0]?.kind).toBe("card");
+      }
+    });
+
+    test("the IMITATION CASCADE: a history carrying malformed openers renders EVERY subsequent card (the 8-turn loss)", () => {
+      // One slip lands in the assistant history and the model imitates itself for the rest of the session;
+      // pre-fix this body rendered ONE card (the well-formed turn) and hid the other three.
+      const body = [
+        'The sign is bolted to the rail.\n:::card title="Ward 7 District Sign">\n<div>WARD 7</div>\n:::',
+        'A receipt, water-stained.\n:::card title="Crumpled Receipt">\n<div>4.20 CR</div>\n:::',
+        'The badge is still warm.\n:::card title="Arcology Resident ID">\n<div>ID 0447-C</div>\n:::',
+        'The terminal wakes.\n:::card title="Maintenance Terminal — Login"\n<div>LOGIN</div>\n:::',
+      ].join("\n\n");
+      const cards = tokenizeContent(body).filter((s) => s.kind === "card");
+      expect(cards.map((c) => (c.kind === "card" ? c.title : null))).toEqual([
+        "Ward 7 District Sign",
+        "Crumpled Receipt",
+        "Arcology Resident ID",
+        "Maintenance Terminal — Login",
+      ]);
+      expect(tokenizeContent(body).some((s) => s.kind === "unknown-directive")).toBe(false);
+    });
+
+    test("`:::choices` shares the ONE recognizer, so the same reflex is tolerated there (registry-driven, not a second arm)", () => {
+      const raw = ":::choices>\n1. Draw your blade.\n2. Walk away.\n:::";
+      expect(tokenizeContent(raw)).toEqual<ContentSpan[]>([{ kind: "choices", options: ["Draw your blade.", "Walk away."], raw }]);
+    });
+
+    test("ATTR PARSING NEVER LOOSENS: a `>` INSIDE the quoted title stays exact bytes, with or without the reflex", () => {
+      const inQuotes = tokenizeContent(':::card title="A > B"\n<p>x</p>\n:::');
+      expect(inQuotes[0]).toMatchObject({ kind: "card", title: "A > B" });
+      const both = tokenizeContent(':::card title="A > B">\n<p>x</p>\n:::');
+      expect(both[0]).toMatchObject({ kind: "card", title: "A > B" });
+    });
+
+    test("the REJECTING arm survives: genuinely unparseable opens still degrade loudly (literal text)", () => {
+      for (const openLine of [
+        ":::card title='Sign'", // single quotes — UNMEASURED (0/203), never tolerated
+        ' :::card title="Sign"', // a leading-space open — UNMEASURED (0/203); the line anchor stays strict
+        ":::card title=broken", // an unquoted value
+        ':::card title="Sign"> extra="attr"', // junk that is not ONLY the reflex
+        ':::card title="Sign"/>', // the `/>` sibling reflex — UNMEASURED (0/203), deliberately excluded
+      ]) {
+        const body = `${openLine}\n<p>x</p>\n:::`;
+        expect(tokenizeContent(body).every((s) => s.kind === "text")).toBe(true);
+      }
+    });
+
+    test("the leniency is ALLOWLISTED: an UNREGISTERED `:::teleport …>` stays literal (never a hidden span)", () => {
+      const body = ':::teleport to="the crypt">\nthe tail the reader must still see\n:::';
+      expect(tokenizeContent(body).every((s) => s.kind === "text")).toBe(true);
+    });
+
+    test("the re-emit + wire invariants hold on a tolerated open (raw byte-identical; the card still STUBS)", () => {
+      const body = 'before\n:::card title="Terminal">\n<div>blob</div>\n:::\nafter';
+      expect(tokenizeContent(body).map(contentSpanRaw).join("")).toBe(body);
+      expect(projectBodyForSummary(body)).toBe(`before\n${cardWireStub("Terminal")}\nafter`);
+    });
+
+    test("`committed` still closes a tolerated-open fence at EOF (the two leniency arms compose)", () => {
+      const truncated = ':::card title="Terminal">\n<div>half';
+      expect(tokenizeContent(truncated, { committed: true })).toEqual<ContentSpan[]>([
+        { kind: "card", title: "Terminal", body: "<div>half", origin: "fence", raw: truncated },
+      ]);
+      expect(tokenizeContent(truncated)).toEqual<ContentSpan[]>([{ kind: "text", text: truncated }]);
+    });
+  });
+
   test("§3.2.1 #3: a fence inside a markdown code fence stays literal", () => {
     const body = "```\n:::card\n<div>x</div>\n:::\n```";
     expect(tokenizeContent(body)).toEqual<ContentSpan[]>([{ kind: "text", text: body }]);
@@ -290,6 +371,24 @@ describe("strip / re-emit primitives", () => {
   test("a malformed (degraded-to-text) hidden tag is NOT stripped — visible model bug, never a silent leak", () => {
     const truncated = '<lie truth="half';
     expect(stripHiddenSpans(truncated)).toEqual({ content: truncated, hadHidden: false });
+  });
+
+  test("§4h did NOT move the §3.6 trust boundary: stripHiddenSpans is byte-identical around a tolerated open", () => {
+    // The member strip runs STRICT (never `committed`) and touches only `hidden` spans. A card whose opener
+    // carries the reflex is now a card span instead of literal text — its bytes must still re-emit verbatim,
+    // and a lie beside it must still vanish. Fail-closed posture unchanged.
+    const cardBlock = ':::card title="Terminal">\n<p>x</p>\n:::';
+    const body = `open ${LIE} mid ${cardBlock} end`;
+    expect(stripHiddenSpans(body)).toEqual({ content: `open  mid ${cardBlock} end`, hadHidden: true });
+    // Identity when nothing is hidden — the tolerated open never rewrites a byte of the body.
+    expect(stripHiddenSpans(cardBlock)).toEqual({ content: cardBlock, hadHidden: false });
+    // NAMED CONSEQUENCE (not a new class): a hidden tag inside a card BODY has always ridden the card's raw
+    // through the strip — a card body is HTML, and the teach never puts a `<lie …/>` there. The tolerated
+    // open now behaves IDENTICALLY to the well-formed one, which is the entire point of the arm; the fix
+    // must not create a THIRD behaviour.
+    const inner = (open: string): string => `${open}\n${LIE}\n:::`;
+    expect(stripHiddenSpans(inner(':::card title="T">'))).toEqual({ content: inner(':::card title="T">'), hadHidden: false });
+    expect(stripHiddenSpans(inner(':::card title="T"'))).toEqual({ content: inner(':::card title="T"'), hadHidden: false });
   });
 
   test("cardWireStub is deterministic + honest: `[card: title]` / `[card]`", () => {
@@ -467,6 +566,16 @@ describe("scanGhostContent — the §4.5 forming-card ghost scan (P4)", () => {
   test("a markdown code-fence region never forms a card (the author is SHOWING the syntax)", () => {
     const text = '```\n:::card title="shown"\n```\nprose';
     expect(scanGhostContent(text)).toEqual([{ kind: "text", text }]);
+  });
+
+  test("§4h: a tolerated open forms the chip too — the ghost never disagrees with the committed parse", () => {
+    // Otherwise a malformed opener would stream as raw HTML and then SNAP into a card at commit.
+    expect(scanGhostContent(':::card title="Maintenance Terminal — Login">\n<div>LOG')).toEqual([
+      { kind: "forming-card", title: "Maintenance Terminal — Login", closed: false },
+    ]);
+    // …and a genuinely unparseable open still streams as text in both planes.
+    const broken = ":::card title='Login'\n<div>LOG";
+    expect(scanGhostContent(broken)).toEqual([{ kind: "text", text: broken }]);
   });
 
   test("a non-card directive open (:::choices) stays text in the ghost", () => {

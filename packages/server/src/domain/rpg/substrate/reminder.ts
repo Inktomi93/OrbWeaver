@@ -68,13 +68,30 @@ export const RPG_DECEPTION_TEACH =
 export const RPG_OFILTER_TEACH =
   'PERCEPTION: the player perceives only what their character can. When something happens beyond their perception (offscreen, hidden, a secret another character keeps), emit a self-closing tag recording it: <ofilter event="what happened out of their perception" reason="why they cannot perceive it" />. This tag is INVISIBLE to the player but you REMEMBER it — narrate only what the player CAN perceive, and let the unperceived event shape the world consistently.';
 
+// The WORKED EXAMPLE appended to both card-teach variants (spike §4h, F2b — the copy layer of the tokenizer
+// fix). Its measured job is GRAMMAR, not enthusiasm: it pins the opener line's exact bytes, and the opener is
+// where hosted Sonnet drifts (`:::card title="…">`, the stray `>` §4h measured on 27 of 203 open lines). Arm
+// G (= this teach + this example) led the set at 10/10 rendered. The example is a STILL three-line sign — no
+// scripts, no animation — so it mirrors into the static variant verbatim (§4h: "minus the JS/animation
+// clause" — there is none). It is never echoed as a card (0 "EAST CROSSING" cards in 40 example-arm turns).
+// Copy alone is NOT the fix (10/10 → 5/10 in one of two runs); it rides ON TOP of the tokenizer leniency.
+const RPG_CARD_TEACH_EXAMPLE = `
+
+For example, a three-line sign is enough:
+:::card title="Crossing sign"
+<div style="font-family:monospace;text-align:center;padding:14px;border:2px solid #6b5c3e;background:#e9e1cb;color:#3a2f1c;letter-spacing:2px">
+  <div>EAST CROSSING</div><div>CLINIC — 2 KM</div><div>NO ENTRY AFTER DARK</div>
+</div>
+:::`;
+
 // The card TEACHING injection (parity-plus §7.5 — owner-authored copy, deliberately SHORT + permissive:
 // no schema, no component vocabulary, no allowlist; the sandbox is the wall, §4.2). A versioned constant
 // (the RPG_STEERING_LICENSE pattern). Emitted only when `features.immersiveHtml` is on; the M3
 // `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
 // the model emits renders in the same sandbox either way).
-export const RPG_CARD_TEACH =
+const RPG_CARD_TEACH_ASK =
   'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Embed everything inline (no external scripts/fonts/images). Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.';
+export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 // The CYOA teaching block (P5 §5.4 feature 5) — a versioned constant (the RPG_STEERING_LICENSE pattern).
 // Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
@@ -85,8 +102,9 @@ export const RPG_CYOA_TEACH =
 
 // The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
 // for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
-export const RPG_CARD_TEACH_STATIC =
+const RPG_CARD_TEACH_STATIC_ASK =
   'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Embed everything inline (no external fonts/images). Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.';
+export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
