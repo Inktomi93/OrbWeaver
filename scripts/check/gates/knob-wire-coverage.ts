@@ -9,7 +9,7 @@
 // member that no longer exists is ORPHAN-RED. Every member source is found BY SYMBOL NAME project-wide
 // (never a file path — path-keyed-gates-die-on-rename), each with a paired-anchor rename tripwire that REDs
 // loudly instead of going vacuous-green. Whole-project ts-morph run; the founding registry + full spec:
-// reports/stickler/2026-07-25-knob-drift-gates.md; ruling: Core-Path-Registry.md D107;
+// docs/reviews/stickler/2026-07-25-knob-drift-gates.md; ruling: Core-Path-Registry.md D107;
 // Spine-Config-and-Serialization.md §"Settings / config".
 import type { ObjectLiteralExpression, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -20,7 +20,7 @@ import type { Violation } from "../harness.ts";
 // DOORWAY = a SANCTIONED, indefinitely-dormant rebuild seam a purged/future domain will graft onto (never
 // re-litigated, only stale-checked). DEFERRED = TRACKED DEBT with a remediation cite. Delete an entry the
 // moment its wire lands (the gate REDs the stale entry). Founding set verified against the live tree
-// 2026-07-25 (reports/stickler/2026-07-25-knob-drift-gates.md §7 "Founding entries").
+// 2026-07-25 (docs/reviews/stickler/2026-07-25-knob-drift-gates.md §7 "Founding entries").
 const DOORWAY: Record<string, string> = {
   // F: read-live at entry/compose/chat.ts (meta.providerRouting → RouteChatAssignment) but NO verb/router
   // writes it — domain/connection/verbs/resolve-chat.ts's header says the middle hop is "intentionally NOT
@@ -271,7 +271,7 @@ function anyNameOccurrences(project: Project, inScope: (fp: string) => boolean):
 
 // ── the per-arm reconcile ───────────────────────────────────────────────────────────────────────────────
 const MISSING = (armMember: string, detail: string): string =>
-  `knob-wire-coverage[${armMember}]: ${detail} — a declared knob wired to nothing is a dead switch (an edit silently governs nothing). Wire the missing half, or add a cited DEFERRED (tracked debt) / DOORWAY (sanctioned rebuild seam) entry in scripts/check/gates/knob-wire-coverage.ts. Spine-Config-and-Serialization.md §7.2; Core-Path-Registry.md D107; reports/stickler/2026-07-25-knob-drift-gates.md.`;
+  `knob-wire-coverage[${armMember}]: ${detail} — a declared knob wired to nothing is a dead switch (an edit silently governs nothing). Wire the missing half, or add a cited DEFERRED (tracked debt) / DOORWAY (sanctioned rebuild seam) entry in scripts/check/gates/knob-wire-coverage.ts. Spine-Config-and-Serialization.md §7.2; Core-Path-Registry.md D107; docs/reviews/stickler/2026-07-25-knob-drift-gates.md.`;
 const STALE = (armMember: string): string =>
   `knob-wire-coverage[${armMember}]: this member GAINED its wire but still carries a DOORWAY/DEFERRED entry — delete the stale entry in scripts/check/gates/knob-wire-coverage.ts (a self-cleaning ratchet, both directions; Core-Path-Registry.md D107).`;
 const ORPHAN = (armMember: string): string =>
@@ -531,7 +531,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a declared knob is wired to nothing — a settings field/section/leaf, an AppSettings admin-editor key, a format string, or a chat-metadata field that validates and stores but is never written or never read is a dead switch: edits silently change nothing (the rateLimits/memory.enabled/dupThreshold classes). Wire the missing half, or add a cited DEFERRED (tracked debt) / DOORWAY (sanctioned rebuild seam) entry. Spine-Config-and-Serialization.md §7.2; Core-Path-Registry.md D107; reports/stickler/2026-07-25-knob-drift-gates.md.",
+    "a declared knob is wired to nothing — a settings field/section/leaf, an AppSettings admin-editor key, a format string, or a chat-metadata field that validates and stores but is never written or never read is a dead switch: edits silently change nothing (the rateLimits/memory.enabled/dupThreshold classes). Wire the missing half, or add a cited DEFERRED (tracked debt) / DOORWAY (sanctioned rebuild seam) entry. Spine-Config-and-Serialization.md §7.2; Core-Path-Registry.md D107; docs/reviews/stickler/2026-07-25-knob-drift-gates.md.",
   fix: "wire the consumer/writer the arm names, or add the cited registry entry; a stale entry (member gained its wire) must be deleted in the same change.",
   run: (ctx) => {
     for (const v of reconcile(ctx)) {

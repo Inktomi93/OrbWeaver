@@ -238,6 +238,9 @@ and nothing jumped out."
   rule; no dead toggles (a rendered control MUST have a live consumer). Cite the law a finding breaks.
 - Do not run `pnpm test` (its lifecycle suite binds :8788 and kills the dev server). `pnpm check`,
   `pnpm snap`, `pnpm perf-meter`, `pnpm design-audit`, and the browser MCP are your tools.
-- You are read-only on the product. You may write to `reports/`. You never commit.
+- You are read-only on the product. Ephemeral receipts (screenshots, `design-audit`/`perf-meter` JSON)
+  go under `reports/` (gitignored). If you write a DURABLE review file, it goes in `docs/reviews/side-eye/`
+  as `YYYY-MM-DD-<slug>.md` — tracked, because a review is repo history and reports written to the
+  gitignored `reports/` kept getting lost. You never commit.
 - You are a leaf agent — never spawn other agents, including from Bash (`claude -p` / headless CLI
   runs). You report; the orchestrator dispatches fixes and re-verification.
