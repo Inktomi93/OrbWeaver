@@ -23,9 +23,10 @@ import type { ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
+import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
@@ -122,6 +123,32 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
         <CtFakeModalRegistry body={(): ReactElement => <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />}>
           <AppShell />
         </CtFakeModalRegistry>
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** A real `FileDropzone` inside the shell's chats CONTENT slot + a marker for what it imported — the
+ *  stray-drop guard's counter-arm: the guard must swallow a drop that misses this zone while a drop ON it
+ *  still imports. The zone is the production primitive, so the guard is tested against the real
+ *  preventDefault behaviour it has to stay out of the way of. */
+function DropZonePane(): ReactElement {
+  const [imported, setImported] = useState<readonly string[]>([]);
+  return (
+    <div>
+      <p>chats content pane</p>
+      <FileDropzone multiple={true} instructions="Drop cards here" onFilesSelected={(result): void => setImported(result.accepted.map((file) => file.name))} />
+      <p data-testid="imported">{imported.join(",")}</p>
+    </div>
+  );
+}
+
+/** The shell with a real import zone in CONTENT — for the stray-file-drop guard CT (both arms). */
+export function AppShellDropGuardStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry sections={{ chats: { content: <DropZonePane /> } }}>
+        <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );

@@ -15,7 +15,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterSummary } from "../../character/fixtures";
 import { makeChatSummary } from "../../chat/fixtures";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
-import { AppShellRealChatsStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
+import { AppShellDropGuardStory, AppShellRealChatsStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
@@ -866,4 +866,78 @@ test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)",
   await expect
     .poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)), { intervals: [20, 50, 100] })
     .toBeCloseTo(UA_ROOT_PX * fontScale, 0);
+});
+
+// STRAY-FILE-DROP GUARD. A file dropped outside any dropzone navigates the tab to that file — the app is
+// replaced by a PNG and the session (open chat, in-flight turn, unsaved drafts) goes with it. The shell
+// cancels the browser default for FILE drags nothing else handled, and says where files DO go; a real
+// dropzone still imports, because its own preventDefault runs first and the guard skips a handled event.
+
+/** Where the probe parks its verdict — a body attribute rather than a window property, so the reader needs
+ *  no cast (a `globalThis as unknown as {...}` is the fabrication the no-test-fabrication gate forbids). */
+const DROP_PROBE_ATTR = "data-drop-prevented";
+
+/** Records whether the drop's DEFAULT was cancelled — i.e. whether the browser would have navigated.
+ *  Registered per drop and AFTER mount, so it runs after the shell's own window listener. */
+async function watchDropDefault(page: Page): Promise<void> {
+  await page.evaluate((attr) => {
+    document.body.removeAttribute(attr);
+    globalThis.addEventListener(
+      "drop",
+      (event) => {
+        document.body.setAttribute(attr, String(event.defaultPrevented));
+      },
+      { once: true },
+    );
+  }, DROP_PROBE_ATTR);
+}
+
+function readDropDefault(page: Page): Promise<boolean> {
+  return page.evaluate((attr) => document.body.getAttribute(attr) === "true", DROP_PROBE_ATTR);
+}
+
+/** Dispatch a real file drag+drop at a locator and report whether the default was cancelled. */
+async function dropFileOn(page: Page, target: Locator, fileName: string): Promise<boolean> {
+  await watchDropDefault(page);
+  const dataTransfer = await page.evaluateHandle((name) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File(["card-bytes"], name, { type: "image/png" }));
+    return dt;
+  }, fileName);
+  await target.dispatchEvent("dragover", { dataTransfer });
+  await target.dispatchEvent("drop", { dataTransfer });
+  return readDropDefault(page);
+}
+
+test("a file dropped OUTSIDE any dropzone is swallowed (no navigation) and says where files go", async ({ mount, page }) => {
+  await mount(<AppShellDropGuardStory />);
+  const prevented = await dropFileOn(page, page.locator("main.shell-content"), "card.png");
+  expect(prevented).toBe(true);
+  await expect(page.getByText("Nothing imports from here")).toBeVisible();
+  // Swallowed, not smuggled: the guard never feeds a stray file to some zone the user didn't aim at.
+  await expect(page.getByTestId("imported")).toHaveText("");
+});
+
+test("the guard stays out of a REAL dropzone's way — a drop on the zone still imports, with no hint", async ({ mount, page }) => {
+  await mount(<AppShellDropGuardStory />);
+  const prevented = await dropFileOn(page, page.locator('[data-slot="file-dropzone"]'), "hero.png");
+  expect(prevented).toBe(true); // the ZONE cancelled it — that is what stops the navigation there
+  await expect(page.getByTestId("imported")).toHaveText("hero.png");
+  await expect(page.getByText("Nothing imports from here")).toHaveCount(0);
+});
+
+test("a non-file drag is left entirely alone — the guard is files-only", async ({ mount, page }) => {
+  await mount(<AppShellDropGuardStory />);
+  await watchDropDefault(page);
+  const dataTransfer = await page.evaluateHandle(() => {
+    const dt = new DataTransfer();
+    dt.setData("text/plain", "some dragged prose");
+    return dt;
+  });
+  const main = page.locator("main.shell-content");
+  await main.dispatchEvent("dragover", { dataTransfer });
+  await main.dispatchEvent("drop", { dataTransfer });
+  // Cancelling a text drop would break dropping selected text into the composer — its insertion IS the default.
+  expect(await readDropDefault(page)).toBe(false);
+  await expect(page.getByText("Nothing imports from here")).toHaveCount(0);
 });
