@@ -13,6 +13,9 @@ export interface BoundNumberFieldProps {
   /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
    *  stay always-visible. */
   readonly hint?: ReactNode;
+  /** Empty-state text — for a blank-means-the-default field, the EFFECTIVE default (e.g. `"2048 (default)"`)
+   *  so an unset knob reads as configured-by-default instead of broken. Never writes the value. */
+  readonly placeholder?: string;
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
@@ -30,6 +33,7 @@ export function BoundNumberField(props: BoundNumberFieldProps): ReactElement {
         onValueChange={(value): void => {
           field.handleChange(value);
         }}
+        placeholder={props.placeholder}
         step={props.step}
         value={field.state.value}
       />
