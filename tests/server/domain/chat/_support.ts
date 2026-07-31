@@ -192,6 +192,9 @@ export async function seedMessage(
     /** Stamp the selected variant's fit-boundary provenance (the earliest-KEPT message id the turn that
      *  produced this row committed) — the recall live-window cutoff reads the newest assistant row's stamp. */
     readonly contextBoundaryMessageId?: MessageId | null;
+    /** Override the frozen commit time — the per-chat `lastMessageAt` aggregate is a MAX over this, so a
+     *  test that asserts which row set "last activity" needs distinguishable stamps. */
+    readonly createdAt?: number;
   } = {},
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const messageId = castId<MessageId>(`message_${chatId}_${seq}`);
@@ -205,7 +208,7 @@ export async function seedMessage(
     authorUserId: overrides.authorUserId ?? null,
     personaId: overrides.personaId ?? null,
     excludedFromPrompt: overrides.excludedFromPrompt ?? false,
-    createdAt: FROZEN_AT,
+    createdAt: overrides.createdAt ?? FROZEN_AT,
   });
   await db.insert(messageVariants).values({
     id: variantId,

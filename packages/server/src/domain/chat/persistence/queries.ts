@@ -17,7 +17,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants, notStateAnchor } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -208,7 +208,13 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
 }
 
 /** Per-chat canon aggregates for the `ChatSummary` list chrome: message count + newest timestamp. Batched
- *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map. */
+ *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map.
+ *
+ *  VISIBLE rows only. The join to the selected variant + `notStateAnchor` excludes rpg state-anchor slots —
+ *  the empty-body snapshot keys `resyncFromStory`/`editSnapshot` post. They are not messages, so they must
+ *  neither be counted (the owner's dogfood chat read "7 messages" over 3 real ones, 2026-07-31) nor bump
+ *  `lastMessageAt` (a silent state write is not a beat, and this field is the library's recency sort). The
+ *  join is the SAME `innerJoin` every canon read does, so it drops nothing a reader could see. */
 export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat message stats
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
@@ -222,7 +228,8 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
       lastMessageAt: max(messages.createdAt),
     })
     .from(messages)
-    .where(inArray(messages.chatId, [...chatIds]))
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(inArray(messages.chatId, [...chatIds]), notStateAnchor()))
     .groupBy(messages.chatId);
   for (const r of rows) {
     out.set(r.chatId, { messageCount: r.messageCount, lastMessageAt: r.lastMessageAt ?? null });
