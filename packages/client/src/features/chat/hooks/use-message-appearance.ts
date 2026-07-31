@@ -24,6 +24,9 @@ export interface MessageAppearance {
   /** ST `auto_fix_generated_markdown` parity — apply the incomplete-markdown repair to SETTLED bodies
    *  too (default OFF; streaming always repairs regardless). Threaded to `MessageContent`'s markdown seal. */
   readonly autoFixMarkdown: AppearanceSettings["autoFixMarkdown"];
+  /** ST quote-color parity — tint `"…"` runs with the scope's `--color-dialogue` (default ON). Threaded to
+   *  BOTH body arms: the settled row's `MessageContent` seal and the live ghost's. */
+  readonly colorQuotedSpeech: AppearanceSettings["colorQuotedSpeech"];
   /** WS3 metadata-chip visibility — `MessageMetadataRow`'s per-toggle gate (incl. PD-130's
    *  `showGenerationTimer`, now wired to the `MessageView` gen-window bounds). */
   readonly metadataVisibility: MessageMetadataVisibility;
@@ -45,6 +48,7 @@ export function useMessageAppearance(): MessageAppearance {
     avatarRing: appearance.avatarRing,
     showInChatAvatars: appearance.showInChatAvatars,
     autoFixMarkdown: appearance.autoFixMarkdown,
+    colorQuotedSpeech: appearance.colorQuotedSpeech,
     metadataVisibility: {
       showTimestamps: appearance.showTimestamps,
       showMessageId: appearance.showMessageId,

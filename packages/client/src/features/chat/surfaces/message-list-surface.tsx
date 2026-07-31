@@ -223,6 +223,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
+        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         enterMotion={newArrivalKeys.has(item.id)}
@@ -237,6 +238,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
+        colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
         messageActions={messageAppearance.messageActions}
@@ -359,6 +361,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPers
           avatarRing={messageAppearance.avatarRing}
           showInChatAvatars={messageAppearance.showInChatAvatars}
           autoFixMarkdown={messageAppearance.autoFixMarkdown}
+          colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
           messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}

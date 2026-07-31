@@ -817,3 +817,42 @@ test("the settled disclosure names the CHANNEL, never a fabricated duration (a c
   await expect(component.getByRole("button", { name: THOUGHT_FOR_RE })).toHaveCount(0);
   await expect(component.getByRole("button", { name: THINKING_RE })).toHaveCount(0);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// QUOTED-SPEECH TINTING × the per-character theme. The tint span consumes `--color-dialogue`, which the
+// row's own `<ThemeScope>` re-binds from the speaker's authored `themeOverride` — so an authored
+// dialogueColor wins over the palette default WITHOUT the tinting code knowing anything about
+// attribution. That is the whole per-character claim; a hardcoded color (or a tint mounted OUTSIDE the
+// scope) fails it. Asserted on the COMPUTED color, never the class string (the Waystone lesson).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const AUTHORED_DIALOGUE_COLOR = "oklch(0.72 0.19 25)";
+const DIALOGUE_SPAN = '[data-slot="dialogue"]';
+const QUOTED_BODY = 'She sets down the cup. "You came back," she says.';
+
+function aliceWithDialogueTheme(): ParticipantView {
+  return { ...alice(), themeOverride: { dialogueColor: AUTHORED_DIALOGUE_COLOR } };
+}
+
+test("the speaker's AUTHORED dialogueColor paints the quoted run (the theme scope wins, not the palette default)", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory chatStyle="bubble" messageRole="assistant" content={QUOTED_BODY} characterId={ALICE_ID} participants={[aliceWithDialogueTheme()]} />,
+  );
+  const tinted = component.locator(DIALOGUE_SPAN);
+  await expect(tinted).toHaveText('"You came back,"');
+  // The authored token, resolved by the SAME engine the class uses (paint a probe, read it back), must
+  // equal the span's computed color — and must differ from the untinted narration around it.
+  const { tint, authored, narration } = await tinted.evaluate((el, color) => {
+    const probe = document.createElement("span");
+    probe.style.color = color;
+    el.append(probe);
+    const authoredColor = getComputedStyle(probe).color;
+    probe.remove();
+    return {
+      tint: getComputedStyle(el).color,
+      authored: authoredColor,
+      narration: getComputedStyle(el.parentElement ?? el).color,
+    };
+  }, AUTHORED_DIALOGUE_COLOR);
+  expect(tint).toBe(authored);
+  expect(tint).not.toBe(narration);
+});

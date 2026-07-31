@@ -114,3 +114,23 @@ test("FAIL-CLOSED: a null viewer can never match own-input (unauthenticated ⇒ 
   });
   expect(r.trust).toBe("untrusted");
 });
+
+// The quoted-speech tint pref rides this same policy object (the `lenientCards` precedent). Its default
+// is the ONLY inversion here: absent means ON (matching the contract default), not fail-closed — it is a
+// display preference, not a trust decision, and a mount that threads no pref must render what the user's
+// settings say rather than silently drop the tint.
+test("colorQuotes defaults ON when no pref is threaded (the contract default, not fail-closed)", () => {
+  const r = resolveRowRenderPolicy({ role: "assistant", authorUserId: null, characterId: CHAR, viewerUserId: VIEWER });
+  expect(r.colorQuotes).toBe(true);
+});
+
+test("colorQuotes OFF is carried through verbatim (the knob really reaches the row policy)", () => {
+  const r = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: CHAR,
+    viewerUserId: VIEWER,
+    colorQuotedSpeech: false,
+  });
+  expect(r.colorQuotes).toBe(false);
+});

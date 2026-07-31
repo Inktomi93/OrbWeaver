@@ -60,7 +60,15 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
 // Streamdown's own `caret: "block"` (`mode="streaming"`) `::after` at the true text insertion point;
 // `styles/globals.css` retints it to a 2px `--color-primary` blinking bar within the `ghost-stream-body`
 // scope (see the header). The wrapper is a data-slot marker only (no className — feature paint law).
-function GhostBubbleBody({ held, streaming }: { readonly held: string; readonly streaming: boolean }): ReactElement {
+function GhostBubbleBody({
+  held,
+  streaming,
+  colorQuotes,
+}: {
+  readonly held: string;
+  readonly streaming: boolean;
+  readonly colorQuotes: boolean;
+}): ReactElement {
   if (held.length === 0) {
     return <TypingDots label="Generating a reply…" />;
   }
@@ -78,7 +86,7 @@ function GhostBubbleBody({ held, streaming }: { readonly held: string; readonly 
           ) : (
             // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
             // biome-ignore lint/suspicious/noArrayIndexKey: see above — positional, append-only mid-stream.
-            <Markdown key={index} trust="untrusted" mode={streaming && index === segments.length - 1 ? "streaming" : "static"}>
+            <Markdown key={index} trust="untrusted" mode={streaming && index === segments.length - 1 ? "streaming" : "static"} colorQuotes={colorQuotes}>
               {segment.text}
             </Markdown>
           ),
@@ -104,6 +112,8 @@ export interface GhostMessageRowProps {
   readonly avatarRing?: "none" | "accent" | undefined;
   readonly showInChatAvatars?: boolean | undefined;
   readonly showLLMReasoningIcon?: boolean | undefined;
+  /** The `appearance.colorQuotedSpeech` pref — the live half of the settled row's identical tint. Absent ⇒ ON. */
+  readonly colorQuotedSpeech?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal (default off ⇒ raw chunks). */
   readonly smoothStream?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
@@ -125,6 +135,7 @@ export function GhostMessageRow({
   avatarRing = "none",
   showInChatAvatars = true,
   showLLMReasoningIcon = false,
+  colorQuotedSpeech = true,
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   enterMotion = false,
@@ -185,7 +196,7 @@ export function GhostMessageRow({
           smoothStreamCps={smoothStreamCps}
         />
       ) : null}
-      <GhostBubbleBody held={held} streaming={streaming} />
+      <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} />
     </Stack>
   );
   const decoratedBubble =

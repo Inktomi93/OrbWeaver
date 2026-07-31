@@ -153,6 +153,14 @@ function AppearanceFormBody({ session }: { readonly session: AutosaveSession<App
               />
             )}
           </form.AppField>
+          <form.AppField name="colorQuotedSpeech">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Color quoted speech"
+                description="Tint “quoted speech” with the theme’s dialogue color (SillyTavern-style) — a character’s own theme wins. Off renders quotes in the body color."
+              />
+            )}
+          </form.AppField>
           <form.AppField name="autoFixMarkdown">
             {(field): ReactElement => (
               <field.SwitchField

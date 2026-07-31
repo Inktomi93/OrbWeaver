@@ -8,6 +8,7 @@
 // in tests/client/features/chat/components/ghost-message-row.ct.tsx.
 import { Markdown } from "@orb/ui/markdown";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 
 const ERROR_FALLBACK = "Content failed to render.";
 // Hoisted (useTopLevelRegex): the code-block control button accessible names.
@@ -321,6 +322,74 @@ test("streaming: a complete message still renders its markdown (bold + list)", a
   await expect(cmp.getByText("Ready.")).toBeVisible();
   await expect(cmp.locator("li")).toHaveCount(2);
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+// ── quoted-speech tinting (`colorQuotes`) ──────────────────────────────────────────────────────────
+// The grammar itself is pinned deterministically in dialogue.test.ts; these prove the SEAL wiring —
+// that the opt-in prop mounts the components override, that the span really resolves the scope's
+// `--color-dialogue` (computed value, never the class string), and that OFF is the untouched render.
+const DIALOGUE_SPAN = '[data-slot="dialogue"]';
+const AZARAEL_LINE = "He doesn't look up from the ledger. “You're late,” he says, turning a page.";
+
+/** The COMPUTED color of the first tinted span vs the scope's resolved `--color-dialogue`. */
+function tintVsToken(span: Locator): Promise<{ readonly tint: string; readonly token: string }> {
+  return span.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const raw = style.getPropertyValue("--color-dialogue").trim();
+    // Resolve the token through the same engine the class does: paint it on a probe and read it back.
+    const probe = document.createElement("span");
+    probe.style.color = raw;
+    el.append(probe);
+    const token = getComputedStyle(probe).color;
+    probe.remove();
+    return { tint: style.color, token };
+  });
+}
+
+test("colorQuotes ON: a quoted run renders a span painted with the resolved --color-dialogue", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+      {AZARAEL_LINE}
+    </Markdown>,
+  );
+  const span = cmp.locator(DIALOGUE_SPAN);
+  await expect(span).toHaveCount(1);
+  await expect(span).toHaveText("“You're late,”");
+  const { tint, token } = await tintVsToken(span);
+  expect(tint).toBe(token);
+  // The narration around it is NOT tinted — the whole point is the contrast between the two voices.
+  await expect(cmp).toContainText("turning a page.");
+});
+
+test("colorQuotes OFF (the default): the same line renders plain — no tint span at all", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {AZARAEL_LINE}
+    </Markdown>,
+  );
+  await expect(cmp.locator(DIALOGUE_SPAN)).toHaveCount(0);
+  await expect(cmp).toContainText("You're late,");
+});
+
+test("colorQuotes ON: quotes inside an inline code span never tint (code is opaque to the grammar)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+      {'Type `say "hi"` and then `echo "bye"` to finish.'}
+    </Markdown>,
+  );
+  await expect(cmp.locator("code").first()).toBeVisible();
+  await expect(cmp.locator(DIALOGUE_SPAN)).toHaveCount(0);
+});
+
+test("colorQuotes ON: an emphasis run INSIDE the quotes keeps its narration tint (both voices survive)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static" colorQuotes={true}>
+      {'She says "get *out* of here" and turns away.'}
+    </Markdown>,
+  );
+  // Three tinted pieces: the text before the em, the wrapped em itself, and the text after.
+  await expect(cmp.locator(DIALOGUE_SPAN)).toHaveCount(3);
+  await expect(cmp.locator("em")).toHaveCount(1);
 });
 
 test("reduced motion: streaming content still renders fully (fade/caret suppressed, no lost text)", async ({ mount, page }) => {

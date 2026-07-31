@@ -36,7 +36,8 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "markdown":
       return (
-        <Markdown key={key} trust={trust} mode="static">
+        // Quote tinting rides the PROSE arm only — a card block owns its own styles.
+        <Markdown key={key} trust={trust} mode="static" colorQuotes={render.colorQuotes}>
           {block.md}
         </Markdown>
       );
