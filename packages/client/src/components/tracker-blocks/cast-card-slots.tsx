@@ -18,8 +18,9 @@ export interface CastRelationshipProps {
   readonly name: string;
   readonly relationship?: RpgRelationship;
   readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
-  /** An optional leading relationship glyph (aria-hidden) beside the trigger in EDIT mode — the feature
-   *  supplies it (the tier-2 kit can't reach a feature glyph lib). In read mode the badge carries its own. */
+  /** An optional relationship glyph (aria-hidden) for the SEED state only ("+ relationship") — the feature
+   *  supplies it (the tier-2 kit can't reach a feature glyph lib). Once a badge renders it carries its OWN
+   *  glyph, so the seed glyph must not double up beside it (owner double-star report, 08-01). */
   readonly relationshipGlyph?: ReactNode;
 }
 
@@ -42,13 +43,17 @@ export function CastRelationship({ name, relationship, onEditRelationshipKind, r
               size="sm"
               aria-label={`${name} relationship`}
               title="Click to edit"
-              className="!h-auto min-h-0 gap-field !px-field !py-0 font-normal"
+              // rounded-full: the trigger's hover highlight hugs the pill badge it wraps — a control-radius
+              // rect around a full-radius pill reads as a mismatched halo (owner report, 08-01).
+              className="!h-auto min-h-0 gap-field rounded-full !px-field !py-0 font-normal"
             >
-              {relationshipGlyph}
               {badge ?? (
-                <Text as="span" size="micro" tone="muted">
-                  + relationship
-                </Text>
+                <>
+                  {relationshipGlyph}
+                  <Text as="span" size="micro" tone="muted">
+                    + relationship
+                  </Text>
+                </>
               )}
             </Button>
           }
