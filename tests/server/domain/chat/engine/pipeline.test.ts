@@ -1466,6 +1466,23 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.terminalToolCalls?.[0]?.arguments).toBe('{"weather":"rain"}');
   });
 
+  test("NO terminal economics (a stream with no final chunk) reports a NULL channel, never a false quiet beat", async () => {
+    // The dangerous collapse: `economics === null` means the wire never delivered a completion, so we know
+    // NOTHING about what the model called. Reporting `[]` there would tell the consumer "it chose to record
+    // nothing", suppress its fallback, and drop the turn's state behind a cheerful log.
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      terminalTools: RPG_TERMINAL_TOOLS,
+      // Text deltas only — no `final` chunk, so `reduceStream` returns economics: null.
+      runChatTurn: scriptedTurn([{ kind: "text", text: "She fords the river." }]),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.economics).toBeNull();
+    expect(result.terminalToolCalls).toBeNull();
+    // The prose still reduced off the deltas — the narrative is unaffected by the missing state channel.
+    expect(result.content).toBe("She fords the river.");
+  });
+
   test("a turn that calls no terminal tool yields an EMPTY array (a quiet beat), never null", async () => {
     const { args } = baseArgs({
       connection: TOOL_CONNECTION,

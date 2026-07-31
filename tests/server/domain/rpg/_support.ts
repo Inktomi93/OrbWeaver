@@ -181,6 +181,9 @@ export interface RpgFakes {
   foldedDelta: RpgStateDelta;
   /** R1 — the wire tools the `buildFoldedTurn` fake mounts + its reconcile note. Default: one tool, no note. */
   foldedTools: WireTool[];
+  /** R1 — make the `buildFoldedTurn` fake THROW (the pre-commit mount-failure arm: the character turn must
+   *  still assemble + commit, tool-less, and the failure must be surfaced). Default off. */
+  foldedToolsThrow?: boolean;
   /** The `resyncFromStory` host model-call fake return (§1.3 — W-C). Default: empty delta = no-op resync. */
   resyncDelta: RpgStateDelta;
   /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
@@ -206,6 +209,9 @@ export interface RpgFakes {
   /** R1 — the resolved state-round PATH per flush (`onStateRoundPath`): the fork's observability, so a test
    *  asserts a folded game folded (and that a fallback was NAMED, never silent). */
   readonly stateRoundPaths: { chatId: string; mode: string; path: string; fallbackReason: string | null }[];
+  /** R1 — the swallowed PRE-commit tool-mount failures (`onFoldBuildFailed`). The mount is caught to protect
+   *  the character turn, so this recorder is the ONLY evidence it happened. */
+  readonly foldBuildFailures: { chatId: string; gameId: string }[];
   /** The `resyncFromStory` host model-call fires (§1.3) — records the host userId the call resolved UNDER + the
    *  window budget it read, so a test asserts the host-principal seam (never a caller-injected foreign id). */
   readonly resyncCalls: { chatId: string; hostUserId: string; windowTokens: number }[];
@@ -238,7 +244,16 @@ export function makeRpgService(
   over: Partial<
     Pick<
       RpgFakes,
-      "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "foldedDelta" | "foldedTools" | "resyncDelta" | "canonWindow"
+      | "roster"
+      | "trackersReadOnly"
+      | "dice"
+      | "extractionDelta"
+      | "toolRoundDelta"
+      | "foldedDelta"
+      | "foldedTools"
+      | "foldedToolsThrow"
+      | "resyncDelta"
+      | "canonWindow"
     >
   > = {},
 ): RpgHarness {
@@ -251,6 +266,7 @@ export function makeRpgService(
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
     foldedDelta: over.foldedDelta ?? { statePatch: {}, journal: [] },
     foldedTools: over.foldedTools ?? [{ name: "update_scene", description: "the scene", parameters: { type: "object" } }],
+    ...(over.foldedToolsThrow !== undefined ? { foldedToolsThrow: over.foldedToolsThrow } : {}),
     resyncDelta: over.resyncDelta ?? { statePatch: {}, journal: [] },
     canonWindow: over.canonWindow ?? [],
     ownedPresets: new Set(),
@@ -262,6 +278,7 @@ export function makeRpgService(
     foldCalls: [],
     foldedToolBuilds: [],
     stateRoundPaths: [],
+    foldBuildFailures: [],
     resyncCalls: [],
     canonWindowReads: [],
     busEvents: [],
@@ -297,6 +314,9 @@ export function makeRpgService(
   // sees a `foldCall` and NO extraction/toolRound call has proven the second call is gone.
   const buildFoldedTurn: RpgContext["buildFoldedTurn"] = ({ chatId, reconcile }) => {
     fakes.foldedToolBuilds.push({ chatId, reconcile });
+    if (fakes.foldedToolsThrow === true) {
+      return Promise.reject(new Error("refs resolve boom"));
+    }
     return Promise.resolve({ tools: fakes.foldedTools, reconcileNote: reconcile ? "RECONCILE" : null });
   };
   const foldTurnToolCalls: RpgContext["foldTurnToolCalls"] = (input) => {
@@ -358,6 +378,9 @@ export function makeRpgService(
     onStateRoundPath: (info) => {
       fakes.stateRoundPaths.push({ chatId: info.chatId, mode: info.mode, path: info.path, fallbackReason: info.fallbackReason });
     },
+    onFoldBuildFailed: (info) => {
+      fakes.foldBuildFailures.push({ chatId: info.chatId, gameId: info.gameId });
+    },
     flushBarrier: createRpgFlushBarrier((info) => {
       fakes.barrierTimeouts.push({ chatId: info.chatId });
     }),
@@ -381,7 +404,16 @@ export async function seedLiteGame(
   over: Partial<
     Pick<
       RpgFakes,
-      "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "foldedDelta" | "foldedTools" | "resyncDelta" | "canonWindow"
+      | "roster"
+      | "trackersReadOnly"
+      | "dice"
+      | "extractionDelta"
+      | "toolRoundDelta"
+      | "foldedDelta"
+      | "foldedTools"
+      | "foldedToolsThrow"
+      | "resyncDelta"
+      | "canonWindow"
     >
   > = {},
   key = "a",

@@ -523,3 +523,20 @@ test("R1 folded: the reconcile cadence still fires on the Nth beat (the fold car
 
   expect(h.fakes.foldCalls.map((c) => c.reconcile)).toEqual([false, true]);
 });
+
+test("R1: a turn whose fold-mount failed lands its state via the fallback round (the degrade is end-to-end)", async () => {
+  const db = await freshDb();
+  // The gather's mount threw ⇒ no terminal tools rode ⇒ the engine hands the flush a `null` channel. The state
+  // must still be captured — a failed MOUNT costs a call, never a beat.
+  const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldedToolsThrow: true });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.chatOps.gatherTurnContext(chatId, undefined, false); // the mount throws + is swallowed here
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: null }));
+
+  expect(h.fakes.foldBuildFailures).toHaveLength(1);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
+});

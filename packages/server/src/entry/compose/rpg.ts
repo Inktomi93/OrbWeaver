@@ -66,6 +66,7 @@ import {
   findGameByChat,
   ghostTargetRefs,
   publishRpgEvent,
+  reachableActorRefs,
   rpgToolDefinitions,
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
@@ -488,7 +489,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: parsed.data, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: parsed.data, delta });
     return delta;
   };
 }
@@ -503,7 +504,11 @@ function logExtractionOutcome(args: {
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: string;
-  readonly refs: ExtractionRefs;
+  /** How many actors the model could legally have targeted — the denominator that makes a write-nothing line
+   *  actionable ("nobody to write about" vs "targets existed and it wrote none"). The round arms pass their
+   *  per-call `refs.actorRefs.length`; the FOLD passes `reachableActorRefs(base, roster).size`, the same menu
+   *  derived from state it already holds — so it never re-resolves the ref bundle just to log. */
+  readonly actorRefs: number;
   readonly base: RpgSnapshotState;
   readonly roster: RosterRefIndex;
   readonly parsed: RpgExtraction;
@@ -521,8 +526,8 @@ function logExtractionOutcome(args: {
   const wroteNothing = Object.keys(args.delta.statePatch).length === 0 && args.delta.journal.length === 0;
   if (wroteNothing) {
     logger.warn(
-      { event: "rpg.extraction.empty", chatId: args.chatId, model: args.model, api: args.api, actorRefs: args.refs.actorRefs.length, phantomTargets },
-      "rpg reliable extraction wrote NOTHING renderable (mis-target or empty beat)",
+      { event: "rpg.extraction.empty", chatId: args.chatId, model: args.model, api: args.api, actorRefs: args.actorRefs, phantomTargets },
+      "rpg extraction wrote NOTHING renderable (mis-target or empty beat)",
     );
   }
 }
@@ -646,7 +651,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const extraction = toolCallsToExtraction(calls);
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: extraction, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     return delta;
   };
 }
@@ -692,7 +697,7 @@ function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTu
  *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
  *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
 function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolCalls"] {
-  return async ({ chatId, baseState, turnConnection, reconcile, toolCalls }) => {
+  return async ({ chatId, baseState, turnConnection, toolCalls }) => {
     const conn = turnConnection.connection;
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
@@ -711,12 +716,23 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
       return { statePatch: {}, journal: [] };
     }
     const extraction = toolCallsToExtraction(toolCalls);
-    const [{ refs }, roster] = await Promise.all([
-      resolveExtractionRefs(deps, chatId, baseState, reconcile),
-      deps.rpgChatOps.resolveRpgRoster(chatId).then(buildRosterRefIndex),
-    ]);
+    // ONE db read. The ref bundle (`resolveExtractionRefs`) is the MOUNT's job — it constrains what the model
+    // may write, and the model has already written by the time we get here; re-resolving it at flush would be
+    // two more reads (the game row + a SECOND roster) whose only consumer is a log field. The roster index is
+    // genuinely needed (it resolves target names to roster refs and backs the ghost guard), and the log's
+    // target-menu denominator derives from state we already hold.
+    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: extraction, delta });
+    logExtractionOutcome({
+      chatId,
+      model: conn.model,
+      api: conn.api,
+      actorRefs: reachableActorRefs(baseState, roster).size,
+      base: baseState,
+      roster,
+      parsed: extraction,
+      delta,
+    });
     return delta;
   };
 }
@@ -799,7 +815,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     }
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, parsed.data, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: parsed.data, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: parsed.data, delta });
     return delta;
   };
 }
@@ -854,6 +870,16 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
         return;
       }
       logger.debug(line, "rpg state round resolved");
+    },
+    // OBSERVABILITY (R1): the folded turn's PRE-commit tool mount threw and was swallowed to protect the
+    // character turn. The turn shipped tool-less and its state falls to the post-commit round — correct, but a
+    // game that silently stops folding is a game that silently starts paying twice again. This is the only
+    // trace, so it is a WARN with the cause attached.
+    onFoldBuildFailed: (info) => {
+      logger.warn(
+        { event: "rpg.extraction.fold_build_failed", chatId: info.chatId, gameId: info.gameId, err: info.err },
+        "rpg folded turn could not BUILD its tools — the turn ran tool-less; state falls to the post-commit round",
+      );
     },
     onFlushDropped: (info) => {
       logger.warn(

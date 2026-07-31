@@ -44,5 +44,7 @@ export type { ExtractionMints, RosterRefIndex } from "./tools/apply";
 // into the `RpgStateDelta` the accumulator flushes. W1c-b's `runExtraction` impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.
 // `ghostTargetRefs` is the R5 guard's ONE predicate: the fold drops on it, and the compose observability logs
-// the same list (so a "dropped" warning can never disagree with what actually applied).
-export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs } from "./tools/apply";
+// the same list (so a "dropped" warning can never disagree with what actually applied); `reachableActorRefs` is
+// the state-derived half of it — the target MENU, which the R1 fold logs as its write-nothing denominator
+// without re-resolving the whole per-call ref bundle at flush time.
+export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs, reachableActorRefs } from "./tools/apply";

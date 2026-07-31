@@ -417,6 +417,24 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
   return { type: args.type, title: journalTitleFor(args), content: args.content };
 }
 
+/** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the roster index (members + the
+ *  player self-aliases) ∪ the tracked cast actors ∪ the scene cast. The ONE home for "who exists right now" —
+ *  {@link ghostTargetRefs} adds the in-flight `presentUpsert` arm on top, and the R1 fold reports this SIZE as
+ *  the diagnostic denominator on a write-nothing extraction (it is exactly the target menu the model had),
+ *  which is what lets the fold log that fact without re-resolving the whole per-call ref bundle. */
+export function reachableActorRefs(base: RpgSnapshotState, roster: RosterRefIndex): Set<string> {
+  const known = new Set<string>(roster.keys()); // already lowercased by `buildRosterRefIndex`
+  for (const actor of base.actorState) {
+    if (actor.actorRef.kind === "cast") {
+      known.add(actor.actorRef.castKey.toLowerCase());
+    }
+  }
+  for (const c of base.presentCharacters) {
+    known.add(c.key.toLowerCase());
+  }
+  return known;
+}
+
 /** The GHOST-ACTOR guard (R5). The per-call `targetRef` enum is a MENU the model can misread: a measured spike
  *  saw a hosted model target "Aldric Vane" — an actor from a STALE enum who was in no live cast — and the
  *  mint arm of {@link resolveActor} happily made him real, so a hallucinated name became a tracked actor the
@@ -429,15 +447,7 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
  *  legitimate introduce-and-wound beat working (the model presents a new NPC and damages her in one round),
  *  so the guard only kills names with no referent anywhere. */
 export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, roster: RosterRefIndex): string[] {
-  const known = new Set<string>(roster.keys()); // already lowercased by `buildRosterRefIndex`
-  for (const actor of base.actorState) {
-    if (actor.actorRef.kind === "cast") {
-      known.add(actor.actorRef.castKey.toLowerCase());
-    }
-  }
-  for (const c of base.presentCharacters) {
-    known.add(c.key.toLowerCase());
-  }
+  const known = reachableActorRefs(base, roster);
   for (const up of extraction.scene?.presentUpsert ?? []) {
     known.add(up.name.toLowerCase());
   }
