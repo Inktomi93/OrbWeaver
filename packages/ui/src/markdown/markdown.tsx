@@ -2,6 +2,7 @@ import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component } from "react";
 import { Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
+import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph";
 import { MARKDOWN_MATH_PLUGIN } from "./math";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid";
 import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy";
@@ -38,6 +39,13 @@ export interface MarkdownProps {
   readonly mode: (typeof MODES)[number];
   readonly children: string;
   readonly className?: string;
+  /**
+   * Opt-in quoted-speech tinting (`dialogue.ts` + `dialogue-paragraph.tsx`): wrap each closed `"…"` / `“…”` run in a
+   * `--color-dialogue` span. OFF by default — this is CHAT prose grammar, not a property of markdown,
+   * so a docs/panel surface never gets it; the chat message + ghost seals pass the user's
+   * `appearance.colorQuotedSpeech` pref through.
+   */
+  readonly colorQuotes?: boolean;
 }
 
 interface BoundaryProps {
@@ -77,7 +85,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
  * large input falls back to a plain `<pre>`.
  */
-export function Markdown({ trust, mode, children, className }: MarkdownProps): ReactElement {
+export function Markdown({ trust, mode, children, className, colorQuotes = false }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
   // Withhold Mermaid under untrusted: a ```mermaid fence renders arbitrary diagram DSL through a
@@ -121,6 +129,9 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
+        // Omitted (not passed as undefined) when off: Streamdown's Block memo compares `components` key
+        // by key, so a stable absent value keeps the settled render byte-identical to the pre-knob one.
+        {...(colorQuotes ? { components: DIALOGUE_COMPONENTS } : {})}
         className={cn("space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
         {...(mode === "streaming" ? { caret: "block" as const } : {})}

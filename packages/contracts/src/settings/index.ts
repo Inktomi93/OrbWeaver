@@ -732,6 +732,9 @@ const appearanceSchema = z
     showInChatAvatars: z.boolean().catch(true).default(true),
     messageActions: z.enum(["expanded", "hover"]).catch("hover").default("hover"),
     autoFixMarkdown: z.boolean().catch(false).default(false),
+    // ST parity: imported cards carry their structure in quoted speech, which ST colors — default ON is
+    // the ST-expat expectation. Paints the theme's `dialogueColor` (per-character themeOverride wins).
+    colorQuotedSpeech: z.boolean().catch(true).default(true),
     blurSurfaces: z.array(z.enum(BLUR_SURFACES)).catch([]).default([]),
     shadowEffects: z.boolean().catch(false).default(false),
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),

@@ -387,7 +387,7 @@ export function MessageContentSpansStory({
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
-  return <MessageContent content={content} render={{ trust, allowExternal, lenientCards: false }} renderContext={renderContext} />;
+  return <MessageContent content={content} render={{ trust, allowExternal, lenientCards: false, colorQuotes: true }} renderContext={renderContext} />;
 }
 
 export interface MessageContentChoicesStoryProps {
@@ -408,7 +408,7 @@ function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "bu
   return (
     <>
       <ChoiceSendContext value={value}>
-        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false }} />
+        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false, colorQuotes: true }} />
       </ChoiceSendContext>
       <p data-testid="sent-choices">{sent.join("|")}</p>
     </>
@@ -432,7 +432,7 @@ function ChoiceProviderStoryInner(): ReactElement {
   return (
     <div>
       <ChoiceSendProvider handle={handle}>
-        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false }} />
+        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false, colorQuotes: true }} />
       </ChoiceSendProvider>
       <Composer handle={handle} scopeKey={COMPOSER_CHAT_ID} />
     </div>

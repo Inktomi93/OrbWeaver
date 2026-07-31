@@ -71,6 +71,8 @@ export interface MessageRowProps {
    *  Fork/Delete/Hide are suppressed (no server row). Body/attribution render identically to committed. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
+  /** The `appearance.colorQuotedSpeech` pref, folded into this row's render policy. Absent ⇒ ON. */
+  readonly colorQuotedSpeech?: boolean | undefined;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
    *  as the surface threads it to the live ghost row. */
   readonly showLLMReasoningIcon?: boolean | undefined;
@@ -139,6 +141,7 @@ export function MessageRow({
   onChatForked,
   greeting,
   autoFixMarkdown,
+  colorQuotedSpeech,
   showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
   messageActions,
@@ -170,6 +173,7 @@ export function MessageRow({
     viewerUserId: viewerUserId ?? null,
     participants,
     lenientHtmlCards,
+    colorQuotedSpeech,
   });
   // Edit mode lives in the external draft store, not local useState — a windowed row unmounts on
   // scroll and would silently drop mid-edit state.
