@@ -12,7 +12,7 @@ import { resolveMember } from "../../guard";
 export function createGetTrackerView(ctx: RpgContext): Pick<RpgService, "getTrackerView"> {
   async function getTrackerView(params: ReadGameParams): Promise<RpgTrackerView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const trackersReadOnly = await ctx.resolveTrackersReadOnly(params.chatId);
+    const { trackersReadOnly } = await ctx.resolveStateDelivery(params.chatId);
     return buildTrackerView(ctx, game, trackersReadOnly);
   }
   return { getTrackerView };

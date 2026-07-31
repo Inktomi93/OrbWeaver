@@ -9,7 +9,7 @@
 // THE INJECTED-OP SEAM (the cross-feature pattern, §0/§3): rpg's verbs need chat/connection ops they do NOT
 // own — authority (`getMembership`), the opaque pointer write (`setRpgPointer`), the roster projection
 // (`resolveRoster`), the narrator-slot mint for restore (`postNarratorMessage`), and the honest-arms
-// capability verdict (`resolveTrackersReadOnly`). These are declared HERE as typed members of `RpgContext`
+// capability verdict (`resolveStateDelivery`). These are declared HERE as typed members of `RpgContext`
 // and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
 
@@ -203,11 +203,27 @@ export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promis
  *  presets — the impl is wired at compose off the preset front door (the `resolveHostPrincipal` precedent). */
 export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Promise<boolean>;
 
-/** The honest-arms capability verdict (§4.6 — the delivery-model amendment). Resolves the host connection's
- *  writer capability for THIS game's `extractionMode` and returns `trackersReadOnly` (= manual-steering:
- *  the model has no write path). Its VALUE is INTEGRATION-supplied (W1b-integration wires the real connection
- *  resolve); the view TYPE carries the field. A fake returns a fixed boolean in tests. */
-export type RpgResolveTrackersReadOnly = (chatId: ChatId) => Promise<boolean>;
+/** The honest-arms capability verdict (§4.6 — the delivery-model amendment; extended by the D112 fold guard).
+ *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
+ *  routing + catalog), so a per-turn caller that needs both must never pay for it twice. Its VALUE is
+ *  INTEGRATION-supplied (W1c wires the real connection resolve); a fake returns fixed booleans in tests. */
+export type RpgResolveStateDelivery = (chatId: ChatId) => Promise<RpgStateDeliveryVerdict>;
+
+/** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
+ *  composition root reads the descriptor; rpg never sees a credential/source — D112's ban on a `credential.source`
+ *  branch in `domain/**`).
+ *  Non-exported: reachable only through `RpgResolveStateDelivery`'s signature — no consumer names it (knip). */
+interface RpgStateDeliveryVerdict {
+  /** Manual-steering: the connection has NO model write path for this game's mode (`cheap`/`folded` need
+   *  `capability.tools`, `reliable` needs `capability.output.structured`). The host hand-edits every plane. */
+  readonly trackersReadOnly: boolean;
+  /** The FOLD GUARD (D112 as amended, owner ruling): this wire SILENCES the model's prose when tools ride it
+   *  (`coEmitsProseWithTools` is false — the local vLLM engine), so a `folded` game must NOT mount its terminal
+   *  tools on the character turn. The state still lands: the flush runs `cheap`'s post-commit round instead and
+   *  says so (`fallbackReason: "local-engine-fold-guard"`). The host's EXPLICIT `cheap`/`reliable` choice is
+   *  untouched by this — the guard only governs where `folded` lands. */
+  readonly foldGuarded: boolean;
+}
 
 /** The DEEP canon-window read (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed). An
  *  INJECTED CHAT OP (chat owns canon reads; rpg reads no chat table, §2 one-directional flow): resolve the
@@ -356,7 +372,7 @@ export interface RpgContext {
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
-  readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
+  readonly resolveStateDelivery: RpgResolveStateDelivery;
   readonly runExtraction: RpgRunExtraction;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
@@ -373,7 +389,7 @@ export interface RpgContext {
    *  inherited consent), this resolves the ROOM connection AS THE HOST at the verb (a host-INITIATED
    *  interactive action, not an out-of-turn background call): the consenting human is at the keyboard, so
    *  consent is the host's OWN and the principal is the host — never a caller-injected foreign principal. Wired
-   *  at compose (the `resolveTrackersReadOnly` host-resolve precedent). A fake returns a fixed delta in tests. */
+   *  at compose (the `resolveStateDelivery` host-resolve precedent). A fake returns a fixed delta in tests. */
   readonly runResyncExtraction: RpgRunResyncExtraction;
   /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
    *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
@@ -417,9 +433,17 @@ interface FoldBuildFailedInfo {
 }
 
 /** The resolved state-round PATH for one flush (R1 observability). `path` is what actually ran; `mode` is what
- *  the host's knob asked for. They differ exactly when a `folded` game could not fold — `fallbackReason` names
- *  why (the turn's connection could not carry wire tools, so the engine handed back no terminal channel).
+ *  the host's knob asked for. They differ exactly when a `folded` game could not fold, and `fallbackReason` names
+ *  WHICH of the two causes it was: `no-terminal-channel` (the wire carries no terminal tools at all — the
+ *  stateful agent-sdk arm, a tools-incapable model) or `local-engine-fold-guard` (the wire CAN carry them but
+ *  silences the prose when they ride, so the mount was deliberately withheld — D112 as amended).
  *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
+/** WHY a `folded` game did not fold. `no-terminal-channel` = the wire cannot carry terminal tools at all;
+ *  `local-engine-fold-guard` = it can, but attaching them silences the prose (`coEmitsProseWithTools` false), so
+ *  the mount was withheld on purpose. Exported: the flush's reason-derivation names it (one home for the
+ *  vocabulary — the log's cause words are not re-spelled per call site). */
+export type RpgFoldFallbackReason = "no-terminal-channel" | "local-engine-fold-guard";
+
 interface StateRoundPathInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
@@ -427,7 +451,7 @@ interface StateRoundPathInfo {
   /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round`/`structured` = a
    *  dedicated post-commit model call. */
   readonly path: "folded" | "tool-round" | "structured";
-  readonly fallbackReason: "no-terminal-channel" | null;
+  readonly fallbackReason: RpgFoldFallbackReason | null;
 }
 
 /** The write-boundary drop signal (the F1 backstop refused a contract-invalid state at flush). Carries the id

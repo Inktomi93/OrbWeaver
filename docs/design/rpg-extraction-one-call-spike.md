@@ -737,6 +737,15 @@ roughly **+90ms over no schema at all**. No action; do not carry this forward as
 
 #### Recommendation — `reliable` does NOT earn its keep for local, and `folded` must never reach the 8B
 
+> **✅ The "`folded` must never reach the 8B" half SHIPPED (2026-08-01, owner-ruled — D112 amendment).** A
+> `folded` game on a LOCAL vLLM chat wire withholds the terminal-tool mount PRE-commit and runs the cheap
+> post-commit round instead, loud (`rpg.extraction.path` WARN, `fallbackReason: "local-engine-fold-guard"`).
+> The wire class arrives as a CAPABILITY fact — `ModelCapability.tools.silencesProse`, set by the `vllm` arm of
+> `catalog/resolve-model-capability.ts` and read through `coEmitsProseWithTools` — so `domain/rpg` still never
+> branches on `credential.source`. An EXPLICIT host `cheap`/`reliable` is untouched; hosted wires unchanged.
+> Not shipped from this section: the routing OPINION (local → `cheap` over `reliable`) and the
+> `immersiveHtml`/number-recitation defect (#5) remain open.
+
 On this evidence the routing should be: **local 8B → `cheap`.** It is the only arm that keeps the narrative
 AND is grammar-bound (§4f), it wins `removeCondition` (4/15 vs 2 and 0), it is near-perfect on `hpDelta` (9/12
 vs reliable's 0), and it costs 10.3s/turn against reliable's 18.8s. `reliable` — the mode R3 kept specifically

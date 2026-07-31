@@ -4,6 +4,7 @@
 // The four gapped axes (§U0 + IC-A) — `tools` / `output.structured` / `input.vision` / `input.imageEdit` —
 // are pinned per arm, present AND absent.
 
+import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -213,14 +214,31 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
   test("vLLM: structured output is native (guided decoding); tools advertise parallel calls (U0, hermes parser)", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "chat-completions");
     expect(cap.output.structured).toBe(true);
-    expect(cap.tools).toEqual({ parallel: true });
+    // …AND the co-emission truth for this wire (D112 as amended, spike §4g): attaching tools costs the prose.
+    expect(cap.tools).toEqual({ parallel: true, silencesProse: true });
+    expect(coEmitsProseWithTools(cap)).toBe(false);
     expect(cap.input).toBeUndefined();
   });
 
   test("vLLM: tools axis holds on the agent-sdk protocol too (local loopback agent path, U0)", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "agent-sdk");
-    expect(cap.tools).toEqual({ parallel: true });
+    expect(cap.tools).toEqual({ parallel: true, silencesProse: true });
     expect(cap.output.structured).toBe(true);
+  });
+
+  test("silencesProse is the LOCAL engine's fact ONLY — every hosted tool-capable arm co-emits (D112)", () => {
+    // The guard must not creep onto the wires the fold was measured GOOD on (6/6 co-emission): an OR catalog
+    // model, and the curated Claude shortlist that the sub + the OR skin both resolve through.
+    const or = resolveModelCapability("openai/gpt-5", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 200_000, supportedParameters: ["tools"] },
+    });
+    expect(or.tools).toEqual({ parallel: true });
+    expect(coEmitsProseWithTools(or)).toBe(true);
+    for (const id of ["claude-opus-4-8", "claude-sonnet-5"]) {
+      expect(coEmitsProseWithTools(resolveModelCapability(id, "openrouter", "chat-completions"))).toBe(true);
+    }
+    // A model with NO tools axis at all cannot co-emit either — the predicate is total, never a crash.
+    expect(coEmitsProseWithTools(resolveModelCapability("my-model", "custom_openai", "chat-completions"))).toBe(false);
   });
 
   test("custom_openai + local-light: all four axes absent (undeclared / chat-less)", () => {
