@@ -55,7 +55,7 @@ const CONFIG: RpgGameConfig = {
   dateMode: "narrated",
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },
-  extractionMode: "reliable",
+  extractionMode: "folded",
   extractionContext: "window",
   extractionWindowTokens: 4096,
   reconcileEveryBeats: 10,

@@ -18,7 +18,9 @@ import { insertGame } from "./persistence/games";
  *  default). Validates/normalizes the born config through the contract schema (defaults fill). */
 export async function mintLiteGame(ctx: RpgContext, args: { readonly chatId: ChatId; readonly profile?: RpgStatProfile | undefined }): Promise<RpgGameId> {
   const now = ctx.now();
-  const config = rpgGameConfigSchema.parse({ statProfile: args.profile ?? RPG_PROFILE_FREEFORM, lite: { steeringNote: "" }, extractionMode: "reliable" });
+  // `extractionMode` is deliberately NOT stamped here — the CONTRACT owns the born default (`folded`, owner
+  // ruling 2026-08-01). Re-spelling it at birth is how a flipped default silently fails to reach new games.
+  const config = rpgGameConfigSchema.parse({ statProfile: args.profile ?? RPG_PROFILE_FREEFORM, lite: { steeringNote: "" } });
   const game = await insertGame(ctx.db, {
     id: ctx.ids.game(),
     chatId: args.chatId,

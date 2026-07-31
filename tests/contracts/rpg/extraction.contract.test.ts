@@ -11,6 +11,7 @@ import {
   constrainExtractionSchema,
   EXTRACTION_PLANE_PROMPTS,
   gameTrackerWriteKeys,
+  healedJournalTypes,
   malformedToolCalls,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
   RPG_NO_CHANGES_TOOL,
@@ -18,6 +19,7 @@ import {
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgTrackerDefSchema,
+  salvageExtraction,
   toolCallsToExtraction,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
@@ -348,6 +350,98 @@ test("a schema-INVALID call is dropped (a tool call missing its required arg nev
   expect(ex.scene?.location).toBe("valid");
 });
 
+// ── salvageExtraction (EXT-4a — the RELIABLE arm's per-plane / per-entry parse) ───────────────────────────
+// The defect: one whole-object `safeParse` meant ONE malformed nested field discarded all six planes, while the
+// tool vehicles (validating per call) lost only the bad call. These pin the drop GRANULARITY; the three-path
+// equality itself is pinned composed-real in `tests/server/entry/compose/rpg.int.test.ts`.
+
+test("EXT-4a: a malformed journal ENTRY drops that entry ALONE — every other plane still applies", () => {
+  const { extraction, dropped } = salvageExtraction({
+    party: [{ targetRef: "player", status: "wounded" }],
+    scene: { location: "the ford" },
+    quests: [{ name: "Cross the river", action: "create" }],
+    // Entry 0 is content-less (malformed — nothing to log); entry 1 is a perfectly good beat.
+    journal: [
+      { type: "note", title: "no body" },
+      { type: "event", content: "They forded the river." },
+    ],
+  });
+  expect(extraction.party).toHaveLength(1);
+  expect(extraction.scene?.location).toBe("the ford");
+  expect(extraction.quests).toHaveLength(1);
+  expect(extraction.journal.map((j) => j.content)).toEqual(["They forded the river."]);
+  // The loss is ITEMIZED by the same function that built the extraction — the log can't disagree with what applied.
+  expect(dropped).toHaveLength(1);
+  expect(dropped[0]?.plane).toBe("journal");
+  expect(dropped[0]?.index).toBe(0);
+  expect(dropped[0]?.issues.join(" ")).toContain("content");
+});
+
+test("EXT-4a: a non-array plane drops WHOLE (index null); a malformed scene drops alone", () => {
+  const { extraction, dropped } = salvageExtraction({
+    party: "not an array",
+    scene: { presentUpsert: "should be an array" },
+    inventory: [{ targetRef: "player", walletDeltas: [{ name: "gold", delta: 25 }] }],
+  });
+  expect(extraction.party).toEqual([]);
+  expect(extraction.scene).toBeUndefined();
+  expect(extraction.inventory).toHaveLength(1); // the good plane beside them is untouched
+  expect(dropped.map((d) => [d.plane, d.index])).toEqual([
+    ["party", null],
+    ["scene", null],
+  ]);
+});
+
+test("EXT-4a: a payload that is not an object at all yields the empty extraction + ONE root drop", () => {
+  for (const bad of [null, "a string", 42, ["an", "array"]]) {
+    const { extraction, dropped } = salvageExtraction(bad);
+    expect(extraction).toEqual({ party: [], inventory: [], trackers: [], quests: [], journal: [] });
+    expect(dropped.map((d) => d.plane)).toEqual(["root"]);
+  }
+});
+
+test("EXT-4a: a clean payload reports NOTHING dropped, and an omitted plane is not a drop", () => {
+  const { extraction, dropped } = salvageExtraction({ scene: { location: "the tower" } });
+  expect(dropped).toEqual([]);
+  expect(extraction.party).toEqual([]); // omitted ⇒ empty, exactly like the schema default
+  expect(extraction.scene?.location).toBe("the tower");
+  expect(salvageExtraction({}).dropped).toEqual([]);
+});
+
+test("EXT-4a: salvage and the tool-call fold agree on the SAME payload (the shared-plane proof, drop-side)", () => {
+  // The identical planes delivered the two ways: what survives must be identical, entry for entry.
+  const journal = [
+    { type: "note", title: "no body" },
+    { type: "event", content: "They forded the river." },
+  ];
+  const scene = { location: "the ford" };
+  const viaSchema = salvageExtraction({ scene, journal }).extraction;
+  const viaCalls = toolCallsToExtraction([
+    { name: "update_scene", arguments: JSON.stringify(scene) },
+    ...journal.map((entry) => ({ name: "add_journal_entry", arguments: JSON.stringify(entry) })),
+  ]);
+  expect(viaSchema).toEqual(viaCalls);
+});
+
+// ── EXT-4b: the journal `type` heal — optional at parse, REQUIRED in the enforced grammar ────────────────
+test("EXT-4b: healedJournalTypes names exactly the entries whose `type` the model omitted", () => {
+  const { extraction } = salvageExtraction({
+    journal: [{ content: "a kindless beat" }, { type: "combat", content: "The troll fell." }, { content: "another" }],
+  });
+  expect(extraction.journal).toHaveLength(3); // all three PARSED — the heal is not a drop
+  expect([...healedJournalTypes(extraction)]).toEqual([0, 2]);
+  expect(healedJournalTypes(toolCallsToExtraction([]))).toEqual([]);
+});
+
+test("EXT-4b: the PROJECTION re-requires journal[].type (prevention where the backend enforces it)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), BARE_REFS);
+  expect(refEnum(constrained, ["properties", "journal", "items", "required"])).toEqual(expect.arrayContaining(["type", "content"]));
+  // `title` stays OPTIONAL — it derives from the content head for free, so forcing it would spend tokens.
+  expect(refEnum(constrained, ["properties", "journal", "items", "required"])).not.toContain("title");
+  // The zod stays the loose superset (the heal arm for the wires that ignore nested `required`).
+  expect(rpgExtractionSchema.safeParse({ journal: [{ content: "kindless" }] }).success).toBe(true);
+});
+
 // ── EXTRACTION_PLANE_PROMPTS — the §1.6 per-plane prompt-fragment registry + its RATCHET ─────────────────
 const NO_REFS: ExtractionRefs = BARE_REFS;
 const baseConfig = (): RpgGameConfig => rpgGameConfigSchema.parse({});
@@ -461,6 +555,33 @@ test("R2: the per-game tool DESCRIPTIONS interpolate the game's own trackers (te
   // SAME template: one home, so registry and wire can never say different things about the same tool.
   expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "").toContain("trackerDeltas");
   expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "").not.toContain("Grit");
+});
+
+test("EXT-4c: BOTH objective gestures are TAUGHT — the teaching and the tool description agree", () => {
+  // A schema arm the model is never told about is a dead arm (the §1.6 plane-under-service class). The steer is
+  // PROSE in both the plane teaching and the tool description — the model must learn that ticking one objective
+  // off is `completeObjectives`, not a re-listing (which is what wiped the other flags before EXT-4c).
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  expect(teaching).toContain("completeObjectives");
+  expect(teaching).toContain("do NOT restate the objective list");
+  const quest = buildRpgToolDescriptions({ config: baseConfig(), refs: NO_REFS }).get("upsert_quest") ?? "";
+  expect(quest).toContain("completeObjectives");
+  expect(quest).toContain("never re-send objectives[] to report progress");
+  // The registry baseline is the same render — registry and wire can never say different things.
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("upsert_quest") ?? "").toContain("completeObjectives");
+});
+
+test("MOOD IS A SHORT READ: the cast-mood steer rides both the teaching and update_scene's description", () => {
+  // Owner report: models write whole sentences into `mood`, which janks the cast row. Taught in PROSE ONLY —
+  // a schema maxLength would make the whole call unemittable on a non-enforcing wire and cost the beat.
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  expect(teaching).toContain("MOOD IS A SHORT READ");
+  expect(teaching).toContain("1-3 words");
+  expect(teaching).toContain("never a sentence");
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_scene") ?? "").toContain("NEVER a sentence");
+  // …and the mood field itself stays UNCONSTRAINED in the projected schema (no maxLength/pattern belt).
+  const moodNode = refEnum(projectJsonSchema(rpgExtractionSchema), ["properties", "scene", "properties", "presentUpsert", "items", "properties", "mood"]);
+  expect(moodNode).toEqual({ type: "string" });
 });
 
 test("§1.6: the structured dateMode prompts the day counter; narrated does NOT (mode-aware fragment)", () => {

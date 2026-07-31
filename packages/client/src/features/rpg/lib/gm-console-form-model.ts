@@ -37,7 +37,7 @@ export interface GmConsoleFormValues {
 
 export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
   steeringNote: "",
-  extractionMode: "reliable",
+  extractionMode: "folded",
   deception: false,
   omniscience: false,
   cyoa: false,

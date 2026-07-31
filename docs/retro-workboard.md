@@ -260,6 +260,12 @@ that bit `title` (title was fixed; these weren't) — same treatment. (c) quest 
 mark an objective done without wiping the rest (merge-by-match preserving completed, or a completed field
 on the objectives arg) — small design decision at build. Full matrix + receipts in the audit report.
 
+**EXT-4 MERGED** (`9b140933`+`45ac0eba`): per-entry salvage on ALL vehicles (equal-drop invariant pinned 3-ways) ·
+journal type healed-to-note + strict-projection re-require · quest objectives merge-by-text + completeObjectives ·
+**folded = BORN DEFAULT** (D112/D108/D109 amended; gm-console client seed fixed post-merge) · mood steer prose ·
+NEW QUEUED ITEM: **agent-sdk terminal tools** (the fold is unreachable on OR×auto×Claude — the everyday wire;
+until built, those rooms run the loud fallback every turn; raises EFF-3 urgency).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
