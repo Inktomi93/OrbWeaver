@@ -119,7 +119,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
   // pin roleDefaults.chat = { agent-sdk, vllm } — RETIRED 2026-07-27 — so a fresh install's default chat route
   // THREW at resolveChat, `deriveTrackersReadOnly` returned readonly-by-construction, and every rpg-lite game
   // was born read-only OOTB (the state round never fired). The seed is now the LIVE local wire
-  // chat-completions × vllm: it must resolve WITHOUT throwing to a real capability that carries a MODEL WRITE
+  // chat-completions × vllm: it must resolve WITHOUT throwing to a real capability that carries a model WRITE
   // PATH — `output.structured` (reliable-mode extraction) AND `tools` (cheap-mode round) — so lite is writable.
   test("the fresh-DB local default (chat-completions × vllm) resolves live + carries the rpg-lite write path (structured + tools)", async () => {
     const h = makeConnHarness(await freshDb());
@@ -240,6 +240,108 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     // The RPG reliable-mode extraction gate: a structured-capable host is NOT trackers-readonly (extraction
     // runs). Cold cache used to yield structured:undefined ⇒ readonly true ⇒ the empty-rpg-panel bug.
     expect(deriveTrackersReadOnly("reliable", cap)).toBe(false);
+  });
+});
+
+// ── The COLD-CATALOG WARM (owner bug: "the preview just assumes 200k and isn't reading the connected model")
+// A cold mirror made EVERY OpenRouter model resolve the blanket 200k fallback, so the prompt-budget math and
+// the preview's "used / window" ratio described a model nobody was talking to. The resolve seam now learns the
+// real window first (persisted snapshot → live fetch), per source, best-effort.
+describe("resolveRole — cold-catalog warm (every source reads its own window truth)", () => {
+  const model = "meta-llama/llama-4-maverick";
+
+  test("a COLD mirror is warmed from the LIVE catalog — the real window, not the 200k fallback", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, name: "Llama 4 Maverick", contextLength: 1_048_576 })]);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.capability.context.window).toBe(1_048_576);
+    expect(conn.capability.context.windowEstimated).toBeUndefined();
+    expect(h.orCatalogFetches()).toBe(1);
+  });
+
+  test("the PERSISTED snapshot is preferred over a re-fetch (cheapest rung of the ladder)", async () => {
+    const db = await freshDb();
+    const h = makeConnHarness(db);
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    await writeCatalogSnapshot(db, {
+      fetchedAt: h.clock.now() - 2 * MS_PER_HOUR,
+      models: [makeOrEntry({ id: model, name: "Llama 4 Maverick", contextLength: 131_072 })],
+    });
+    __resetOrModelCache(); // a restart: the mirror is cold, the DB still holds yesterday's snapshot
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.capability.context.window).toBe(131_072);
+    expect(h.orCatalogFetches()).toBe(0); // the DB answered — no gateway call
+  });
+
+  test("a warm mirror costs nothing — the second resolve does NOT re-fetch", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 })]);
+    const svc = createConnectionService(h.ctx);
+
+    await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(h.orCatalogFetches()).toBe(1);
+  });
+
+  test("concurrent cold resolves share ONE fetch (the single-flight — no stampede)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 })]);
+    const svc = createConnectionService(h.ctx);
+
+    const conns = await Promise.all([
+      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+    ]);
+
+    expect(h.orCatalogFetches()).toBe(1);
+    expect(conns.every((c) => c.capability.context.window === 131_072)).toBe(true);
+  });
+
+  test("an UNREACHABLE gateway never fails the resolve — it degrades to a window MARKED estimated", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setCatalogFetchFails(true);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.model).toBe(model); // the turn still resolves — a catalog outage is not a broken chat
+    expect(conn.capability.context.windowEstimated).toBe(true);
+  });
+
+  test("vllm reads the LIVE engine window, and never pays for a catalog fetch", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm", model: "qwen-local" } });
+    h.setVllmGenWindow(40_960);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.capability.context.window).toBe(40_960);
+    expect(conn.capability.context.windowEstimated).toBeUndefined();
+    expect(h.orCatalogFetches()).toBe(0);
+    expect(h.agentSdkFetches()).toBe(0);
+  });
+
+  test("max-pro-sub warms the DAEMON catalog (its own truth source), not the OR one", async () => {
+    const h = makeConnHarness(await freshDb());
+    const svc = createConnectionService(h.ctx);
+
+    await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
+
+    expect(h.agentSdkFetches()).toBe(1);
+    expect(h.orCatalogFetches()).toBe(0);
   });
 });
 

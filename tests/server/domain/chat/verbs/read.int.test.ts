@@ -61,7 +61,6 @@ function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parame
     loadParticipantViews,
     resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     checkSendAvailability: () => Promise.resolve({ available: true }),
-    ...overrides,
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -70,6 +69,9 @@ function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parame
         scanDepth: 6,
         injectionTokenBudget: 0,
       }),
+    // LAST so a caller can actually override any dep — the spread used to sit ABOVE `resolveForeignInputs`,
+    // which silently ignored a foreign-inputs override (a test could not vary the preset).
+    ...overrides,
   };
 }
 
@@ -744,6 +746,63 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(niko?.text).toContain("wary scout");
     // …and each member's bytes are bytes the model actually receives.
     expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
+  });
+
+  test("the budget ceiling is the CONNECTED model's window; an unknown window says so (owner bug, D41)", async () => {
+    // "The preview just assumes 200k and isn't properly reading from the currently connected model." The
+    // ceiling must be whatever THIS chat's resolved connection reports — and when that window is itself a
+    // fallback guess (a catalog that couldn't be read), the wire must say `ceilingEstimated` so the panel
+    // refuses to draw a ratio against it instead of showing a fabricated denominator.
+    const me = await seedUser(db, "ceiling_host");
+    const chatId = await seedRoom("ceiling", me);
+
+    // A small-context local model: the ceiling tracks IT, not any blanket default.
+    const small = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 40_960 } });
+    const { previewAssembly } = createRead(
+      makeChatContext(db),
+      makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: small })) }),
+    );
+    const known = await previewAssembly({ principal: principal(me), chatId });
+    expect(known.budget.ceilingTokens).toBe(40_960);
+    expect(known.budget.ceilingEstimated).toBe(false);
+
+    // The SAME window, but the capability marks it a guess (cold catalog): the number still drives the fit,
+    // and the wire flags it so the surface says "unknown".
+    const guessed = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
+    const { previewAssembly: previewGuessed } = createRead(
+      makeChatContext(db),
+      makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: guessed })) }),
+    );
+    const unknown = await previewGuessed({ principal: principal(me), chatId });
+    expect(unknown.budget.ceilingTokens).toBe(200_000);
+    expect(unknown.budget.ceilingEstimated).toBe(true);
+  });
+
+  test("a user's own maxContextTokens cap is TRUTH — it binds, so the ceiling stops being a guess", async () => {
+    // The nuance the flag must respect: when the preset's soft cap is below the guessed model window, the cap
+    // is what actually bounds the context and the user declared it — the ratio is honest again.
+    const me = await seedUser(db, "cap_host");
+    const chatId = await seedRoom("cap", me);
+    const guessed = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
+    const { previewAssembly } = createRead(
+      makeChatContext(db),
+      makeDeps({
+        resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability: guessed })),
+        resolveForeignInputs: () =>
+          Promise.resolve({
+            promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, maxContextTokens: 16_000 } },
+            personas: { anchor: null, active: null },
+            globalRegexScripts: [],
+            scanDepth: 6,
+            injectionTokenBudget: 0,
+          }),
+      }),
+    );
+
+    const preview = await previewAssembly({ principal: principal(me), chatId });
+
+    expect(preview.budget.ceilingTokens).toBe(16_000);
+    expect(preview.budget.ceilingEstimated).toBe(false);
   });
 
   test("a GAME chat previews its state block: the rpg gather rides the preview + gets its own budget row", async () => {

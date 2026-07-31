@@ -35,4 +35,23 @@ export function getCachedAgentSdkModels(now: number): readonly AgentSdkModel[] |
 /** @internal test seam — drop the cache for within-file cold/warm transitions. */
 export function __resetAgentSdkModelCache(): void {
   cache = null;
+  inFlightWarm = null;
+}
+
+/** The cold-cache WARM single-flight — the twin of `or-model-cache`'s (see its header): a cold mirror makes
+ *  max-pro-sub resolve the blanket fallback window instead of the daemon's reported one, and N concurrent
+ *  turns must share ONE discovery call rather than stampede the daemon. Cleared on settle so a failed warm
+ *  never poisons the next attempt. */
+let inFlightWarm: Promise<void> | null = null;
+
+export async function warmAgentSdkModelCacheOnce(warm: () => Promise<void>): Promise<void> {
+  if (inFlightWarm !== null) {
+    await inFlightWarm;
+    return;
+  }
+  const run = warm().finally(() => {
+    inFlightWarm = null;
+  });
+  inFlightWarm = run;
+  await run;
 }

@@ -142,7 +142,15 @@ export const modelCapabilitySchema = z.object({
   tools: z.object({ parallel: z.boolean() }).optional(),
   /** `structured` = accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
   output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
-  context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
+  /** `window` = the model's usable context, in tokens. `windowEstimated` marks it a FALLBACK GUESS rather
+   *  than truth — the catalog entry omitted `contextLength` (or the whole OR catalog snapshot is cold, the
+   *  common case on a fresh install/DB), the agent-sdk daemon reported no row, or a custom-BYO endpoint
+   *  declared no window. A guess is still the number the history FIT must run against (we never trim blind),
+   *  but a surface that shows a "used / window" ratio MUST say it is unknown rather than present the
+   *  fallback as a real denominator (D41 no-silent-degrade). Absent ⇒ the window is real (a curated entry,
+   *  the OR catalog's advertised `contextLength`, the vLLM engine's own `max_model_len`, or a BYO-declared
+   *  window). */
+  context: z.object({ window: z.number(), supports1M: z.boolean().optional(), windowEstimated: z.boolean().optional() }),
   /** The model's top provider applies content moderation (OpenRouter `top_provider.is_moderated`) — a
    *  prompt may be blocked (surfaces as the `moderation` provider error). Truth only; absent ⇒ not
    *  moderated / unknown (R2). */

@@ -10,8 +10,7 @@ import { CatalogUnavailableError } from "../contract/errors";
 import type { RefreshCatalogParams } from "../contract/params";
 import type { CatalogSnapshot } from "../contract/results";
 import type { ConnectionService } from "../contract/service";
-import { readCatalogSnapshot, writeCatalogSnapshot } from "../persistence/catalog-snapshot";
-import { seedOrModelCache } from "../substrate/or-model-cache";
+import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot";
 
 export function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refreshCatalog"] {
   return async (params: RefreshCatalogParams): Promise<CatalogSnapshot> => {
@@ -28,9 +27,9 @@ export function createRefreshCatalog(ctx: ConnectionContext): ConnectionService[
       });
     }
     const snapshot: CatalogSnapshot = { fetchedAt: ctx.now(), models };
-    await writeCatalogSnapshot(ctx.db, snapshot);
-    // Warm the sync TTL cache immediately so the next routing turn's OR guard reads fresh without a re-read.
-    seedOrModelCache(snapshot.models, snapshot.fetchedAt);
+    // Persist + warm the sync TTL mirror in one call, so the next routing turn's OR guard + capability
+    // synthesis read fresh truth without a re-read (`persistCatalogSnapshot` is the one home for the pair).
+    await persistCatalogSnapshot(ctx.db, snapshot);
     return snapshot;
   };
 }

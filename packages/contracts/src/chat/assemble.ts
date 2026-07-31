@@ -196,6 +196,11 @@ export interface AssemblyBudgetSlice {
  *  `totalTokens` = Σ `sources[].tokens`, so the segments always partition the bar exactly. */
 export interface AssemblyBudgetPreview {
   ceilingTokens: number;
+  /** The ceiling is a FALLBACK GUESS, not the connected model's published window (see
+   *  `ModelCapability.context.windowEstimated` — an OR catalog that could not be fetched, a BYO endpoint that
+   *  declared no window). The FIT still runs against it (we never trim blind), but a surface MUST NOT present
+   *  it as a real denominator: show the used total and say the window is unknown (D41 no-silent-degrade). */
+  ceilingEstimated: boolean;
   totalTokens: number;
   /** Prompt-ordered, EMPTY sources omitted — a plain (non-game) chat carries no `game-state` row. */
   sources: readonly AssemblyBudgetSlice[];
@@ -240,6 +245,9 @@ export interface ContextFitPreview {
   boundaryMessageId: MessageId | null;
   usedTokens: number;
   ceilingTokens: number;
+  /** The ceiling is a fallback GUESS rather than the connected model's published window — see
+   *  {@link AssemblyBudgetPreview.ceilingEstimated}. Any "N of M used" line must say so. */
+  ceilingEstimated: boolean;
   reserveOutputTokens: number;
   droppedCount: number;
   /** The chat's LINEAR-tier compaction summary (`chats.compactSummary`) when it covers the span ABOVE the fit

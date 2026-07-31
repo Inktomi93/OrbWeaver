@@ -32,6 +32,14 @@ export async function readCatalogSnapshot(db: Db): Promise<CatalogSnapshot | nul
   return snapshot;
 }
 
+/** PERSIST + WARM in one call — the pair every fetch path owes (the daily refresh workload AND the
+ *  cold-cache on-demand warm at the resolve seam). One home so a new fetch caller can't persist without
+ *  seeding the mirror and leave the next routing turn reading the fallback window. */
+export async function persistCatalogSnapshot(db: Db, snapshot: CatalogSnapshot): Promise<void> {
+  await writeCatalogSnapshot(db, snapshot);
+  seedOrModelCache(snapshot.models, snapshot.fetchedAt);
+}
+
 export async function writeCatalogSnapshot(db: Db, snapshot: CatalogSnapshot): Promise<void> {
   // CatalogSnapshot is JSON-shaped at runtime; cast bridges interface → index-signature only.
   const value = snapshot as JsonValue;

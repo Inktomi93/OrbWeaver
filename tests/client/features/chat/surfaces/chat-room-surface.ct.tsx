@@ -28,6 +28,7 @@ const PREVIEW_FIT_STUB = {
     boundaryMessageId: null;
     usedTokens: number;
     ceilingTokens: number;
+    ceilingEstimated: boolean;
     reserveOutputTokens: number;
     droppedCount: number;
     compactSummary: null;
@@ -35,6 +36,7 @@ const PREVIEW_FIT_STUB = {
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
+    ceilingEstimated: false,
     reserveOutputTokens: 2048,
     droppedCount: 0,
     compactSummary: null,

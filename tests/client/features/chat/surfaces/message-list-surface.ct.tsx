@@ -35,6 +35,7 @@ const PREVIEW_FIT_STUB = {
     boundaryMessageId: null;
     usedTokens: number;
     ceilingTokens: number;
+    ceilingEstimated: boolean;
     reserveOutputTokens: number;
     droppedCount: number;
     compactSummary: null;
@@ -42,6 +43,7 @@ const PREVIEW_FIT_STUB = {
     boundaryMessageId: null,
     usedTokens: 120,
     ceilingTokens: 32_768,
+    ceilingEstimated: false,
     reserveOutputTokens: 2048,
     droppedCount: 0,
     compactSummary: null,
@@ -413,6 +415,7 @@ const COMPACTED_PREVIEW_FIT = {
     boundaryMessageId: MessageId;
     usedTokens: number;
     ceilingTokens: number;
+    ceilingEstimated: boolean;
     reserveOutputTokens: number;
     droppedCount: number;
     compactSummary: string;
@@ -420,6 +423,7 @@ const COMPACTED_PREVIEW_FIT = {
     boundaryMessageId: AI_VIEW.id,
     usedTokens: 900,
     ceilingTokens: 1000,
+    ceilingEstimated: false,
     reserveOutputTokens: 128,
     droppedCount: 3,
     compactSummary: "Long ago the heroes met and swore an oath by the river.",
@@ -458,10 +462,19 @@ test("no memory fact when previewContextFit reports no covering summary (plain c
       boundaryMessageId: MessageId;
       usedTokens: number;
       ceilingTokens: number;
+      ceilingEstimated: boolean;
       reserveOutputTokens: number;
       droppedCount: number;
       compactSummary: null;
-    } => ({ boundaryMessageId: AI_VIEW.id, usedTokens: 900, ceilingTokens: 1000, reserveOutputTokens: 128, droppedCount: 3, compactSummary: null }),
+    } => ({
+      boundaryMessageId: AI_VIEW.id,
+      usedTokens: 900,
+      ceilingTokens: 1000,
+      ceilingEstimated: false,
+      reserveOutputTokens: 128,
+      droppedCount: 3,
+      compactSummary: null,
+    }),
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
   });
   await routeChatStream(page, { events: [] });

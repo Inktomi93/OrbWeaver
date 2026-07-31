@@ -56,6 +56,9 @@ describe("resolveModelCapability — openrouter synthesis arm", () => {
     expect(cap.sampling.topP).toEqual({ min: 0, max: 1 });
     expect(cap.reasoning.mode).toBe("none"); // meta is a no-reasoning family
     expect(cap.context.window).toBe(200_000); // OR default window
+    // …and it says it is a GUESS, so no surface draws a "used / 200,000" ratio against a window nobody
+    // published (D41 no-silent-degrade — the owner-reported "preview just assumes 200k" defect).
+    expect(cap.context.windowEstimated).toBe(true);
   });
 
   test("R0: OR's advertised reasoning object OVERRIDES the family none + captures ALL five fields", () => {
@@ -246,16 +249,47 @@ describe("resolveModelCapability — static arms", () => {
     expect(cap.context.window).toBe(8192);
   });
 
-  test("custom_openai: conservative default window when none declared", () => {
+  test("custom_openai: conservative default window when none declared — MARKED a guess", () => {
     const cap = resolveModelCapability("my-model", "custom_openai", "chat-completions");
     expect(cap.reasoning.mode).toBe("none");
     expect(cap.context.window).toBe(128_000);
+    // A BYO endpoint has no catalog we may call, so the number is unknowable here — say so rather than let a
+    // surface present 128k as this endpoint's window.
+    expect(cap.context.windowEstimated).toBe(true);
   });
 
-  test("custom_openai: honors the user-declared contextWindow (PD-12)", () => {
+  test("custom_openai: honors the user-declared contextWindow (PD-12) — declared is TRUTH, not a guess", () => {
     const cap = resolveModelCapability("my-model", "custom_openai", "chat-completions", {
       customContextWindow: 8192,
     });
     expect(cap.context.window).toBe(8192);
+    expect(cap.context.windowEstimated).toBeUndefined();
+  });
+
+  // ── Every source reads ITS OWN truth (the owner ruling: this is not a vLLM-only fix) ──────────────────
+  test("an ADVERTISED OR window is truth, never marked a guess", () => {
+    const cap = resolveModelCapability("meta-llama/llama-4", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 131_072, supportedParameters: ["temperature"] },
+    });
+    expect(cap.context.window).toBe(131_072);
+    expect(cap.context.windowEstimated).toBeUndefined();
+  });
+
+  test("vllm reads the LIVE engine's self-report over the launch-flag env floor — both are truth", () => {
+    const engine = resolveModelCapability("qwen", "vllm", "chat-completions", { vllmGenWindow: 40_960 });
+    expect(engine.context.window).toBe(40_960);
+    expect(engine.context.windowEstimated).toBeUndefined();
+    // Engine unprobed ⇒ the app's own launch parameter (what the engine was started with) — still truth.
+    const launched = resolveModelCapability("qwen", "vllm", "chat-completions");
+    expect(launched.context.window).toBeGreaterThan(0);
+    expect(launched.context.windowEstimated).toBeUndefined();
+  });
+
+  test("max-pro-sub: a curated Claude window is truth; an unknown id with no daemon row is a marked guess", () => {
+    const curated = resolveModelCapability("claude-sonnet-5", "max-pro-sub", "agent-sdk");
+    expect(curated.context.window).toBe(200_000);
+    expect(curated.context.windowEstimated).toBeUndefined(); // Claude's published window — a REAL 200k
+    const unknown = resolveModelCapability("some-unlisted-model", "max-pro-sub", "agent-sdk", { agentSdkModels: [] });
+    expect(unknown.context.windowEstimated).toBe(true);
   });
 });

@@ -31,6 +31,14 @@ export async function readAgentSdkCatalogSnapshot(db: Db): Promise<AgentSdkCatal
   return snapshot;
 }
 
+/** PERSIST + WARM in one call — the pair every discovery path owes (the daily refresh workload AND the
+ *  cold-cache on-demand warm at the resolve seam). The OR twin's `persistCatalogSnapshot` rationale applies:
+ *  one home so a new caller can't persist without seeding the mirror the capability synthesis reads. */
+export async function persistAgentSdkCatalogSnapshot(db: Db, snapshot: AgentSdkCatalogSnapshot): Promise<void> {
+  await writeAgentSdkCatalogSnapshot(db, snapshot);
+  seedAgentSdkModelCache(snapshot.models, snapshot.fetchedAt);
+}
+
 export async function writeAgentSdkCatalogSnapshot(db: Db, snapshot: AgentSdkCatalogSnapshot): Promise<void> {
   // Snapshot is JSON-shaped at runtime; cast bridges interface → index-signature only.
   const value = snapshot as JsonValue;

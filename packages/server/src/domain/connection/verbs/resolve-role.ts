@@ -7,14 +7,17 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
+import { getLog } from "#foundation/observability";
 import type { ConnectionContext } from "../context";
 import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
 import type { ResolveChatCapabilityParams, ResolveRoleParams, RouteOverride } from "../contract/params";
 import type { ConnectionService, VllmWindowEngine } from "../contract/service";
-import { getCachedAgentSdkModels } from "../substrate/agent-sdk-model-cache";
+import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
+import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot";
+import { getCachedAgentSdkModels, warmAgentSdkModelCacheOnce } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { healToChatDefault } from "../substrate/heal-model";
-import { getCachedOrModels } from "../substrate/or-model-cache";
+import { getCachedOrModels, warmOrModelCacheOnce } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
 import { getCachedVllmGenWindow, getCachedVllmWindow, seedVllmWindow } from "../substrate/vllm-gen-window-cache";
 
@@ -166,9 +169,9 @@ const ROLE_ENGINE: Record<ResolveRoleParams["role"], VllmWindowEngine> = {
  *  on vllm and the cache is cold/stale. Best-effort: a null (engine warming/disabled) leaves the cache empty
  *  and consumers fall back to the env window. Only fires for the vllm source so a non-vllm turn pays nothing.
  *  The self-report WINS over env for capability truth — a misconfigured setting can never lie to the math. */
-async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams["role"], source: CredentialSource): Promise<void> {
+async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams["role"]): Promise<void> {
   const engine = ROLE_ENGINE[role];
-  if (source !== "vllm" || getCachedVllmWindow(engine, ctx.now()) !== null) {
+  if (getCachedVllmWindow(engine, ctx.now()) !== null) {
     return;
   }
   const window = await ctx.fetchVllmGenWindow({ engine });
@@ -176,6 +179,76 @@ async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams
     seedVllmWindow(engine, window, ctx.now());
   }
 }
+
+/** Warm the OR catalog mirror when the selection lands on OpenRouter and the mirror is cold — the twin of
+ *  {@link warmVllmGenWindow}, and for the same reason: a cold mirror makes the capability synthesis fall back
+ *  to a BLANKET window (`OR_DEFAULT_WINDOW`) for every model, so the prompt-budget math and the preview's
+ *  "used / window" ratio silently describe a model nobody is talking to. Cold happens routinely: a fresh
+ *  install, a wiped DB, or a restart before the daily refresh workload runs.
+ *
+ *  The ladder is cheapest-first — the persisted snapshot (a DB read that seeds the mirror as a side effect;
+ *  covers a restart with a warm DB), then the LIVE keyless `/models` fetch (covers a catalog that has never
+ *  been fetched). Single-flighted so a burst of turns/previews shares ONE fetch.
+ *
+ *  BEST-EFFORT by construction: OpenRouter being unreachable must never fail a turn or a preview — the warm
+ *  swallows to a loud log and the resolve continues on the fallback window, which now MARKS ITSELF estimated
+ *  (`context.windowEstimated`) so the surfaces say "unknown" instead of showing a fabricated denominator. */
+async function warmOrCatalog(ctx: ConnectionContext): Promise<void> {
+  if (getCachedOrModels(ctx.now()) !== null) {
+    return;
+  }
+  await warmOrModelCacheOnce(async () => {
+    try {
+      if ((await readCatalogSnapshot(ctx.db)) !== null) {
+        return; // the persisted snapshot seeded the mirror — no fetch needed.
+      }
+      const models = await ctx.fetchOrCatalog({});
+      await persistCatalogSnapshot(ctx.db, { fetchedAt: ctx.now(), models });
+    } catch (err) {
+      getLog().warn({ err }, "connection: OR catalog cold-warm failed — capability windows degrade to the marked-estimated fallback");
+    }
+  });
+}
+
+/** Warm the agent-sdk daemon catalog when the selection lands on the sub and the mirror is cold — the
+ *  max-pro-sub twin of {@link warmOrCatalog}. Without it an uncurated/aliased Claude id resolves the blanket
+ *  fallback window instead of the daemon's reported one. Same ladder (persisted snapshot → live discovery),
+ *  same single-flight, same best-effort posture. */
+async function warmAgentSdkCatalog(ctx: ConnectionContext): Promise<void> {
+  if (getCachedAgentSdkModels(ctx.now()) !== null) {
+    return;
+  }
+  await warmAgentSdkModelCacheOnce(async () => {
+    try {
+      if ((await readAgentSdkCatalogSnapshot(ctx.db)) !== null) {
+        return; // the persisted snapshot seeded the mirror — no discovery call needed.
+      }
+      const models = await ctx.fetchAgentSdkModels({});
+      await persistAgentSdkCatalogSnapshot(ctx.db, { fetchedAt: ctx.now(), models });
+    } catch (err) {
+      getLog().warn({ err }, "connection: agent-sdk catalog cold-warm failed — capability windows degrade to the marked-estimated fallback");
+    }
+  });
+}
+
+/** WHERE EACH SOURCE'S CONTEXT WINDOW COMES FROM, and what to warm to learn it — keyed by `CredentialSource`
+ *  so a new source cannot be added without deciding (a missing arm is a `tsc` error). This is the fix's
+ *  spine: EVERY source resolves its window from its own truth, never from a blanket constant.
+ *   • `vllm`         — the live engine's `/v1/models` `max_model_len`; the app's own launch flag
+ *                      (`VLLM_GEN_MAX_MODEL_LEN`, which is what the engine was started with) is the floor.
+ *   • `openrouter`   — the catalog's advertised `contextLength`; warm the mirror (persisted → live fetch).
+ *   • `max-pro-sub`  — the curated Claude entry, else the daemon's reported row; warm that mirror.
+ *   • `local-light`  — the in-process embed tier: the window IS the env pooling floor. Nothing to fetch.
+ *   • `custom_openai`— a BYO endpoint: the window is whatever the USER declared on the credential. Nothing to
+ *                      fetch (an arbitrary endpoint has no catalog we may call); undeclared stays marked
+ *                      estimated so the surfaces say unknown. */
+const WARM_WINDOW_TRUTH: Record<CredentialSource, (ctx: ConnectionContext, role: ResolveRoleParams["role"]) => Promise<void>> = {
+  ["vllm"]: warmVllmGenWindow,
+  ["openrouter"]: (ctx) => warmOrCatalog(ctx),
+  ["max-pro-sub"]: (ctx) => warmAgentSdkCatalog(ctx),
+  ["local-light"]: () => Promise.resolve(),
+  ["custom_openai"]: () => Promise.resolve(),
+};
 
 /** The cache snapshots the capability synthesis reads — the OR catalog, the agent-sdk daemon rows, and the
  *  gen engine's self-reported window (all read with `ctx.now()`). */
@@ -202,7 +275,10 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
     ctx.vllmAvailable,
   );
   assertCoherent(selection.api, selection.source);
-  await warmVllmGenWindow(ctx, params.role, selection.source);
+  // Learn THIS selection's real context window before the capability is synthesized (WARM_WINDOW_TRUTH):
+  // cold-gated + best-effort per source, so a warm cache pays nothing and an unreachable engine/gateway/daemon
+  // never fails the resolve — it degrades to a window that MARKS ITSELF estimated.
+  await WARM_WINDOW_TRUTH[selection.source](ctx, params.role);
   return { selection, model: healModel(selection, ctx.now()) };
 }
 
