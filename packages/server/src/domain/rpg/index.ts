@@ -2,7 +2,7 @@
 // surface); the composition root (W1c) builds the `RpgContext` bundle (db + injected clock + id mints + the
 // staging singleton + the five injected cross-feature ops + the dice CSPRNG) and calls `createRpgService`.
 // The injected-op SHAPES (`RpgGetMembership`/`RpgSetPointer`/`RpgResolveRoster`/`RpgPostNarratorMessage`/
-// `RpgResolveTrackersReadOnly` + `RpgRosterActor`/`RpgIdMints`) are re-exported type-only so compose wires
+// `RpgResolveStateDelivery` + `RpgRosterActor`/`RpgIdMints`) are re-exported type-only so compose wires
 // them to chat/connection's runtime impls. Cross-boundary WIRE shapes (the views, actor/snapshot schemas) are
 // NOT re-declared here — their home is `@orb/contracts/rpg` (§7.4). The staging store + its factory come from
 // the feature-root `staging.ts` (W1a); this door re-exports the store for compose to mint the singleton.
@@ -16,7 +16,7 @@ export type {
   RpgPostNarratorMessage,
   RpgResolvePresetOwned,
   RpgResolveRoster,
-  RpgResolveTrackersReadOnly,
+  RpgResolveStateDelivery,
   RpgRosterActor,
   RpgRunExtraction,
   RpgRunToolRound,
@@ -37,7 +37,7 @@ export { listSheets } from "./persistence/sheets";
 export { createRpgService } from "./service";
 export { createRpgStagingStore } from "./staging";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
-// `RpgResolveTrackersReadOnly` injected op (the mode→axis mapping stays rpg's law).
+// `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
 export { deriveTrackersReadOnly } from "./substrate/readonly-axis";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).

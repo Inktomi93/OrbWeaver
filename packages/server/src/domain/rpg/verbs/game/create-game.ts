@@ -44,7 +44,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     // mint (`game-mint.ts`) — the chat-ops draft-time `startGame` door births through the same code.
     const gameId = await mintLiteGame(ctx, { chatId: params.chatId, profile: params.profile });
 
-    const trackersReadOnly = await ctx.resolveTrackersReadOnly(params.chatId);
+    const { trackersReadOnly } = await ctx.resolveStateDelivery(params.chatId);
     return { gameId, trackersReadOnly };
   }
   return { createGame };

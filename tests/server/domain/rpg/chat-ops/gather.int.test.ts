@@ -332,6 +332,36 @@ test("R1 folded + readonly: NO terminal tools — a manual-steering game never m
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });
 
+// ── D112 as amended: the FOLD GUARD on a prose-silencing wire (the local vLLM engine) ─────────────
+
+test("R1 folded + foldGuarded: the mount is WITHHELD — the local engine's turn stays tool-less", async () => {
+  const db = await freshDb();
+  // The wire CAN carry tools (so this is not the readonly arm) but goes mute when they ride — measured
+  // `content:null` on 36/36 turns. The fold's premise is false here, so the character turn must not mount.
+  const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+
+  expect(out?.terminalTools).toBeUndefined();
+  // Withheld PRE-COMMIT: the mount's db reads never even ran (the guard is a decision, not a discarded build).
+  expect(h.fakes.foldedToolBuilds).toHaveLength(0);
+  // Everything else about the turn is unchanged — the game still steers off its one state reminder.
+  expect(out?.tools).toEqual([]);
+  expect(out?.injections).toHaveLength(1);
+});
+
+test("the fold guard governs ONLY folded — an explicit cheap/reliable game on the same wire is untouched", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
+  // Neither opt-out mounted terminal tools before the guard existed and neither does now; their post-commit
+  // rounds are the host's deliberate lever and the guard never re-routes them.
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable" });
+  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  expect(h.fakes.foldedToolBuilds).toHaveLength(0);
+});
+
 test("R1 folded: a RECONCILE beat appends the write-surface note to the reminder", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);

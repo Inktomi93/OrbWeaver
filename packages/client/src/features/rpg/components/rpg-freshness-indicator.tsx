@@ -17,6 +17,12 @@
 //     the owner ruling's explicit floor).
 // `pending` is the post-commit-round transient (the caller derives it from the chat turn phase); it is ignored
 // on the folded path, where there is no extraction window to wait on.
+//
+// KNOWN GAP (D112 (4), unchanged by the fold guard): a `folded` game that could not fold — the agent-sdk wire's
+// missing terminal channel, or the D112-amended fold guard on a prose-silencing local engine — still reads
+// "Live" here while it is actually running the post-commit round one beat behind. This surface knows only the
+// MODE; the EFFECTIVE delivery is a per-turn server verdict. The honest fix is EFF-3 (effective-delivery on
+// `RpgGameView`); the guard adds no NEW lie, it routes more rooms onto the same one.
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";

@@ -9,7 +9,7 @@ import { resolveMember } from "../../guard";
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const trackersReadOnly = await ctx.resolveTrackersReadOnly(params.chatId);
+    const { trackersReadOnly } = await ctx.resolveStateDelivery(params.chatId);
     return {
       id: game.id,
       chatId: game.chatId,

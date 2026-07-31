@@ -1538,6 +1538,27 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.terminalToolCalls).toBeNull();
   });
 
+  test("a wire that SILENCES prose under tool attachment gets none — the narrative call is tool-less (D112 fold guard)", async () => {
+    const requests: TurnRequest[] = [];
+    // The REAL local-engine descriptor, not a synthetic literal: the vLLM arm declares `tools.silencesProse`
+    // (measured — `content:null` on 36/36 tool-attached turns), so terminal tools must never reach this wire.
+    // It IS tools-capable, which is exactly why the `capability.tools !== undefined` gate alone is not enough.
+    const local = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
+    expect(local.tools).toBeDefined();
+    const { args } = baseArgs({
+      connection: { ...CONNECTION, capability: local },
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[doneFinal("She fords the river, and the water takes her boots.")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    // The silencing cause is ABSENT from the request — the prose is never traded for the passenger.
+    expect(requests[0]?.tools).toBeUndefined();
+    expect(requests[0]?.toolChoice).toBeUndefined();
+    expect(result.content).toBe("She fords the river, and the water takes her boots.");
+    // …and the contributor is TOLD (null channel ⇒ it runs its own post-commit round), never silently dropped.
+    expect(result.terminalToolCalls).toBeNull();
+  });
+
   test("terminal tools ride ALONGSIDE registry tools without stealing their loop", async () => {
     const requests: TurnRequest[] = [];
     const executed: string[][] = [];
