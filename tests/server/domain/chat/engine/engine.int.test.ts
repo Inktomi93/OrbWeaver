@@ -10,7 +10,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
@@ -1168,5 +1168,136 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
     } finally {
       clearSpy.mockRestore();
     }
+  });
+});
+
+// VER-1b — the EMPTY-CONTENT guard class. FIELD EVIDENCE (chat_01kywqtrrdfqasspzxn0b3n3na seq 5): a swipe on a
+// wire that silences prose when `tools[]` ride came back `content:""` / `finish_reason:"tool_calls"`, the engine
+// committed it as variant idx 2 and FLIPPED the slot's `selectedVariantId` to it — an invisible row selected
+// while two real-prose siblings sat behind it. The guard refuses the commit instead, so the pointer never moves.
+// The three arms that must stay apart: ZERO content = refuse · PARTIAL content = commit · ABORT = commit nothing
+// (already the grammar — pinned here so a future "persist what streamed" change is a deliberate one).
+describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, never a committed variant", () => {
+  /** The field shape: a completion that answered with tool calls and zero prose. */
+  const proseLessTurn = scripted([
+    {
+      kind: "final",
+      economics: { content: "", tokensIn: 3713, tokensOut: 157, model: "test-model", finishReason: "tool", stopReason: "tool_calls" },
+    },
+  ]);
+
+  /** Seeds `hi` → `first take` (one variant, selected) and returns the assistant slot + its variant id. */
+  async function seedSwipeTarget(name: string): Promise<{ chatId: ChatId; messageId: MessageId; variantId: MessageVariantId; characterId: CharacterId }> {
+    const chatId = await seedChat(db, name);
+    await seedUser(db, "host");
+    const characterId = await seedCharacter(db, HOST, "aria");
+    await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
+    const seeded = await seedMessage(db, chatId, 2, { role: "assistant", characterId, content: "first take" });
+    return { chatId, characterId, ...seeded };
+  }
+
+  const selectedVariantOf = async (messageId: MessageId): Promise<string | null> => {
+    const rows = await db.select({ selected: messages.selectedVariantId }).from(messages).where(eq(messages.id, messageId));
+    return rows[0]?.selected ?? null;
+  };
+
+  test("THE REPRO: a swipe whose generation returns ZERO content appends NO variant and leaves the PRIOR one selected", async () => {
+    const { chatId, messageId, variantId, characterId } = await seedSwipeTarget("empty-swipe");
+    const h = harness(db, { runChatTurn: proseLessTurn });
+
+    await expect(
+      h.engine.runTurn(prepOf(chatId, { kind: "swipe", speakerCharacterId: characterId, persist: { mode: "append-variant", targetMessageId: messageId } })),
+    ).rejects.toMatchObject({ code: "empty_generation" });
+
+    // Nothing was written: no second variant, and the pointer still names the prose variant.
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants).toHaveLength(1);
+    expect(await selectedVariantOf(messageId)).toBe(variantId);
+    // What the transcript renders is unchanged — no blank bubble, no phantom swipe counter.
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon[1]?.content).toBe("first take");
+    expect(canon[1]?.variantCount).toBe(1);
+    expect(canon[1]?.selectedVariantIdx).toBe(0);
+    // Loud, not silent: turnAborted(error) fired, the turn never claimed completion, and no stats were folded.
+    const aborted = h.events.find((e) => e.type === "turnAborted");
+    expect(aborted?.type === "turnAborted" && aborted.reason).toBe("error");
+    expect(types(h.events)).not.toContain("turnCompleted");
+    expect(types(h.events)).not.toContain("messageCommitted");
+    expect(h.deltas).toHaveLength(0);
+  });
+
+  test("a NEW-SLOT turn returning ZERO content commits no blank slot", async () => {
+    const chatId = await seedChat(db, "empty-new-slot");
+    const h = harness(db, { runChatTurn: proseLessTurn });
+
+    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({ code: "empty_generation" });
+
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+    expect(await lockExpiry(db, chatId)).toBeNull(); // the lock still released on the refusal path
+  });
+
+  test("WHITESPACE-only content is the same defect (an invisible row either way)", async () => {
+    const { chatId, messageId, variantId, characterId } = await seedSwipeTarget("empty-swipe-ws");
+    const h = harness(db, {
+      runChatTurn: scripted([{ kind: "final", economics: { content: "\n\n  \n", model: "test-model" } }]),
+    });
+
+    await expect(
+      h.engine.runTurn(prepOf(chatId, { kind: "swipe", speakerCharacterId: characterId, persist: { mode: "append-variant", targetMessageId: messageId } })),
+    ).rejects.toMatchObject({ code: "empty_generation" });
+    expect(await selectedVariantOf(messageId)).toBe(variantId);
+  });
+
+  test("THE OTHER ARM: a PARTIAL (truncated) generation is real content — it commits and is selected", async () => {
+    const { chatId, messageId, characterId } = await seedSwipeTarget("partial-swipe");
+    const h = harness(db, {
+      // Cut off at the output cap: short, unfinished — but the user may well want it.
+      runChatTurn: scripted([
+        { kind: "text", text: "The door creaks" },
+        { kind: "final", economics: { content: "The door creaks", tokensOut: 3, model: "test-model", finishReason: "length" } },
+      ]),
+    });
+
+    const outcome = await h.engine.runTurn(
+      prepOf(chatId, { kind: "swipe", speakerCharacterId: characterId, persist: { mode: "append-variant", targetMessageId: messageId } }),
+    );
+
+    expect(outcome.messages[0]?.content).toBe("The door creaks");
+    expect(outcome.messages[0]?.selectedVariantIdx).toBe(1);
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants).toHaveLength(2);
+  });
+
+  test("a swipe ABORTED after partial tokens persists NOTHING and leaves the prior variant selected", async () => {
+    const { chatId, messageId, variantId, characterId } = await seedSwipeTarget("aborted-swipe");
+    const controller = new AbortController();
+    // Streams a real chunk, THEN the caller stops the turn — the swipe-and-stop the owner was doing.
+    const stopMidStream: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        yield { kind: "text", text: "The door cre" };
+        controller.abort();
+        const err = new Error("request aborted");
+        err.name = "AbortError";
+        throw err;
+      })();
+    const h = harness(db, { runChatTurn: stopMidStream });
+
+    const outcome = await h.engine.runTurn(
+      prepOf(chatId, {
+        kind: "swipe",
+        speakerCharacterId: characterId,
+        signal: controller.signal,
+        persist: { mode: "append-variant", targetMessageId: messageId },
+      }),
+    );
+
+    // An abort is an OUTCOME, and it commits nothing — partial or not (the pipeline throws before any write).
+    expect(outcome.aborted).toBe(true);
+    expect(outcome.abortReason).toBe("user");
+    const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
+    expect(variants).toHaveLength(1);
+    expect(await selectedVariantOf(messageId)).toBe(variantId);
+    expect(types(h.events)).not.toContain("messageCommitted");
   });
 });

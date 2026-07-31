@@ -123,6 +123,9 @@ describe("postNarratorMessage", () => {
     // `excludedFromPrompt` flag — the empty content is dropped from the wire prompt by the shape-stage empty-row
     // filter, and the client list hides it by content — while the slot stays visibility-normal so the rpg
     // snapshot-resolution ladder (which keys on `excludedFromPrompt=false`) still resolves its snapshot as head.
+    // THE VER-1b EXEMPTION, pinned: the engine's empty-generation guard (`assertGeneratedContent`) refuses a
+    // prose-less GENERATION, and this path has none — an anchor is a deliberate, snapshot-keyed slot minted by
+    // this verb. The guard must never be lifted into the canon writer, or every anchor mint dies with it.
     const { messageId } = await postNarratorMessage(chatId, "");
     const rows = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(rows[0]?.excludedFromPrompt).toBe(false);

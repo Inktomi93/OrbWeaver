@@ -941,6 +941,28 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
   return err instanceof Error && err.name === "AbortError" ? "user" : "error";
 }
 
+/**
+ * The EMPTY-GENERATION guard (VER-1b). A completion that produced no prose is NOT a reply, and committing one
+ * is the observed defect: the variant lands invisible AND — on a swipe — the slot's `selectedVariantId` flips
+ * to it, hiding the real prose siblings behind a blank bubble (evidence: a tool-only completion on a wire that
+ * silences prose when `tools[]` ride). So the turn FAILS loudly and writes NOTHING: no variant, no stats delta,
+ * no pointer flip. The pointer is only ever moved by the commit batch (`appendVariantStatements` inserts the
+ * variant and flips in ONE `db.batch`), so refusing before the commit is what leaves the PRIOR variant selected
+ * — there is no optimistic flip to undo.
+ *
+ * ZERO-content ONLY. A PARTIAL generation is real content the user may want and commits normally; an ABORT
+ * (caller cancel / stale lock) never reaches here at all — the pipeline throws and `executeTurn`'s catch
+ * commits nothing, whether or not tokens streamed.
+ *
+ * NOT the rpg state-anchor path: the deliberate empty slots (`RESYNC_ANCHOR_CONTENT`) are minted by the
+ * `postNarratorMessage` VERB — no generation, never through this engine — so they are exempt by construction.
+ */
+function assertGeneratedContent(content: string): void {
+  if (content.trim().length === 0) {
+    throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, "the model returned no text — nothing was written (the previous reply is unchanged)");
+  }
+}
+
 /** This turn's cascade depth (automation-design/03 §4): a human turn is 0; an automation/plugin-initiated turn
  *  carries `parent + 1` on `prep`. Extracted so the nullish default stays OUT of `executeTurn`'s cognitive
  *  budget — the value rides the `turnAborted` event (the abort commits no reply slot to read depth back from). */
@@ -1108,6 +1130,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     });
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
+    // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
+    // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),
+    // and everything below this line is about a reply that does not exist.
+    assertGeneratedContent(result.content);
     // A display affordance only, distinct from turnCompleted (fires after persist below).
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
