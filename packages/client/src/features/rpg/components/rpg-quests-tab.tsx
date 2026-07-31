@@ -9,7 +9,9 @@
 //
 // EDIT-in-place (host, `canEditShared`): quest name inline (upsertQuest), objective completion via a
 // checkbox (whole-objectives-array replace — the authoring wire shape). Text is the datum everywhere;
-// the ring is aria-hidden geometry (role="meter" is SegmentedClock's own contract).
+// the ring is aria-hidden geometry (role="meter" is SegmentedClock's own contract). DELETE (`deleteQuest`)
+// is a per-card host action behind a ConfirmDialog — offered on SETTLED cards too (clearing the archive is
+// exactly when a host wants it), which is why it sits outside the `dim` read-only gate.
 //
 // P5 — the ACT RAIL (the plot spine, DESIGN §4 "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III"): renders the
 // snapshot-resident `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act
@@ -20,17 +22,17 @@
 import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Icon, Plus, X } from "@orb/ui/icons";
+import { Icon, Plus, Trash2, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { TrackerValue } from "#components";
+import { ConfirmDialog, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
+import { useDeleteQuest, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
 import { buildPlotEdit } from "../lib/plot-edit";
 import { RpgActRail } from "./rpg-act-rail";
 import { Kicker } from "./rpg-kicker";
@@ -45,6 +47,8 @@ interface QuestEdit {
   readonly onAddObjective: (quest: RpgQuestView, text: string) => void;
   /** REMOVE an objective line (#2 — whole-objectives-array replace, the authoring wire shape). */
   readonly onRemoveObjective: (quest: RpgQuestView, objectiveId: string) => void;
+  /** DELETE the whole quest (`deleteQuest` — the snapshot row AND its `quests.<id>` lock). */
+  readonly onDeleteQuest: (quest: RpgQuestView) => void;
 }
 
 interface QuestCardProps {
@@ -130,6 +134,51 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
   );
 }
 
+/** The host DELETE affordance for one quest — a confirm naming the consequence (the `restoreCheckpoint`
+ *  Marks precedent), never a bare destructive click. Offered on settled cards too (archive clearing). */
+function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; readonly onDelete: (quest: RpgQuestView) => void }): ReactElement {
+  return (
+    <ConfirmDialog
+      title={`Delete "${quest.name}"?`}
+      description="The quest and its objectives leave the game state for good. The chronicle keeps whatever already happened in the story."
+      confirmLabel="Delete"
+      onConfirm={(): void => onDelete(quest)}
+      trigger={
+        <Button intent="ghost" size="sm" className="!size-5 !p-0 shrink-0" title={`Delete quest: ${quest.name}`}>
+          <Icon icon={Trash2} size="xs" />
+        </Button>
+      }
+    />
+  );
+}
+
+/** The card header's trailing cluster: the `n/m` objective count (when there are any) + the host's delete. */
+function QuestCardMeta({
+  quest,
+  filled,
+  total,
+  edit,
+}: {
+  readonly quest: RpgQuestView;
+  readonly filled: number;
+  readonly total: number;
+  readonly edit?: QuestEdit;
+}): ReactElement | null {
+  if (total === 0 && edit === undefined) {
+    return null;
+  }
+  return (
+    <Row gap="field" align="center" className="shrink-0">
+      {total > 0 ? (
+        <Text as="span" size="micro" tone="muted" className="tabular-nums">
+          {filled}/{total}
+        </Text>
+      ) : null}
+      {edit === undefined ? null : <DeleteQuestAction quest={quest} onDelete={edit.onDeleteQuest} />}
+    </Row>
+  );
+}
+
 /** One quest card: clock ring (segments = objectives) · name · description · objective checklist. */
 function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
   const total = quest.objectives.length;
@@ -160,11 +209,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
             ) : (
               <TrackerValue ariaLabel="Quest name" display={quest.name} onEdit={(next): void => edit.onEditName(quest, next)} className="w-full" />
             )}
-            {total > 0 ? (
-              <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">
-                {filled}/{total}
-              </Text>
-            ) : null}
+            <QuestCardMeta quest={quest} filled={filled} total={total} {...(edit === undefined ? {} : { edit })} />
           </Row>
           <QuestDescription quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
         </Stack>
@@ -218,7 +263,11 @@ function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): 
 
 /** Build the quest hand-edit callbacks (host) — name/description via a keep-on-omit upsert; objectives as
  *  the whole-array authoring replace (a fresh line rides id-less, the verb mints). */
-function buildQuestEdit(chatId: RpgPanelState["chatId"], upsertQuest: ReturnType<typeof useUpsertQuest>): QuestEdit {
+function buildQuestEdit(
+  chatId: RpgPanelState["chatId"],
+  upsertQuest: ReturnType<typeof useUpsertQuest>,
+  deleteQuest: ReturnType<typeof useDeleteQuest>,
+): QuestEdit {
   return {
     onEditName: (quest, next): void => {
       const trimmed = next.trim();
@@ -254,6 +303,9 @@ function buildQuestEdit(chatId: RpgPanelState["chatId"], upsertQuest: ReturnType
         objectives: quest.objectives.filter((o) => o.id !== objectiveId).map((o) => ({ id: o.id, text: o.text, completed: o.completed })),
       });
     },
+    onDeleteQuest: (quest): void => {
+      deleteQuest.mutate({ chatId, questId: quest.id });
+    },
   };
 }
 
@@ -263,6 +315,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const upsertQuest = useUpsertQuest({ trpc, invalidation });
+  const deleteQuest = useDeleteQuest({ trpc, invalidation });
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
 
   const active = tracker.quests.filter((q) => q.status === "active");
@@ -271,7 +324,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   const onCreate = (name: string): void => upsertQuest.mutate({ chatId, name });
 
   const plotEdit = canEditShared && tracker.plot !== null ? buildPlotEdit(state, editSnapshot) : undefined;
-  const edit = canEditShared ? buildQuestEdit(chatId, upsertQuest) : undefined;
+  const edit = canEditShared ? buildQuestEdit(chatId, upsertQuest, deleteQuest) : undefined;
   // P5 — the plot spine (campaign scale) leads the tab; absent until the story authors a plot.
   const rail = tracker.plot === null ? null : <RpgActRail plot={tracker.plot} {...(plotEdit === undefined ? {} : { edit: plotEdit })} />;
 
