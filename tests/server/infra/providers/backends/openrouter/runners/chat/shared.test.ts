@@ -27,7 +27,7 @@ describe("buildSystemMessage", () => {
   test("Anthropic + static → per-block cache on the static block, plain dynamic block", () => {
     const msg = buildSystemMessage({ static: "S", dynamic: "D" }, true);
     expect(msg?.content).toEqual([
-      { type: "text", text: "S", cacheControl: { type: "ephemeral" } },
+      { type: "text", text: "S", cacheControl: { type: "ephemeral", ttl: "1h" } },
       { type: "text", text: "D" },
     ]);
   });
@@ -167,9 +167,11 @@ describe("buildReasoningRequest — thin map from the resolved decision to the k
 });
 
 describe("resolveProviderPreferences", () => {
-  test("an Anthropic model gets the order:[Anthropic] cache pin by default", () => {
+  // The pin is order + allowFallbacks:false — `order` alone leaks to Bedrock/Azure/Google (findings §2).
+  test("an Anthropic model gets the order:[Anthropic] cache pin with fallbacks OFF by default", () => {
     expect(resolveProviderPreferences(ANTHROPIC_MODEL, undefined)).toEqual({
       order: ["Anthropic"],
+      allowFallbacks: false,
     });
   });
 
@@ -206,6 +208,15 @@ describe("resolveProviderPreferences", () => {
 describe("resolveFallbackModels", () => {
   test("maps the model-level fallback chain to the wire array", () => {
     expect(resolveFallbackModels({ models: ["openai/gpt-5", "anthropic/claude-opus-4-5"] })).toEqual(["openai/gpt-5", "anthropic/claude-opus-4-5"]);
+  });
+
+  // The two axes are orthogonal on the OR API: `provider.allow_fallbacks` is same-model provider routing,
+  // `models[]` is the model-level chain. The default Anthropic pin only fires when the user supplied NO
+  // routing at all — and `models` lives ON that routing, so a caller's chain can never collide with it.
+  test("a user routing carrying models[] keeps its chain AND is never force-pinned by the Anthropic default", () => {
+    const userRouting = { models: ["anthropic/claude-opus-4-5", "openai/gpt-5"] };
+    expect(resolveFallbackModels(userRouting)).toEqual(["anthropic/claude-opus-4-5", "openai/gpt-5"]);
+    expect(resolveProviderPreferences(ANTHROPIC_MODEL, userRouting)).not.toHaveProperty("allowFallbacks");
   });
 
   test("undefined (never an empty array) when unset — the body stays byte-identical", () => {

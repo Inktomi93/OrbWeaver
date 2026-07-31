@@ -41,6 +41,7 @@ import {
   resolveProviderPreferences,
   warningEvents,
   withCustomParametersDrop,
+  withToolResultErrorDrop,
   withVerbosityDrop,
 } from "./shared";
 
@@ -282,8 +283,9 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
   emitCapabilityReceipt(req, resolved);
   emitSamplingReceipt(req.params, resolved);
   // chat-completions has NO verbosity field, so a resolved verbosity is dropped loudly here; a customParameters
-  // blob is likewise BYOK-only and dropped loudly on the OpenRouter wire (D41 no-silent-degrade).
-  const warnings = warningEvents(withCustomParametersDrop(withVerbosityDrop(resolved), req.customParameters), deps.now());
+  // blob is likewise BYOK-only and dropped loudly on the OpenRouter wire; a tool-result `isError` flag has no
+  // wire slot at all and is dropped loudly too (D41 no-silent-degrade).
+  const warnings = warningEvents(withToolResultErrorDrop(withCustomParametersDrop(withVerbosityDrop(resolved), req.customParameters), req.history), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }

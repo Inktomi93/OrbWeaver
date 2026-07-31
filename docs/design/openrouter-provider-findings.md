@@ -1,6 +1,6 @@
 # OpenRouter chat-completions backend — measured findings & fixes
 
-**Status:** findings, none applied · **Date:** 2026-07-30 · **Scope:**
+**Status:** findings 1–4 APPLIED (2026-07-31); 5–7 open · **Date:** 2026-07-30 · **Scope:**
 `packages/server/src/infra/providers/backends/openrouter/` (the sealed `chat-completions` runner + `kit`).
 **Evidence:** live probes against `anthropic/claude-sonnet-5` via OpenRouter (~$0.24) + the Anthropic native
 Messages API. Sibling doc: `rpg-extraction-one-call-spike.md` (different subject; §4a there shares finding 6).

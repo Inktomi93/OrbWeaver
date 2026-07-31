@@ -10,9 +10,11 @@
 // ── Outbound image → Anthropic Messages content block (MA-10; agent-sdk summarize) ────────
 export { toAnthImageBlock } from "./anth-image-block";
 // ── Anthropic cache_control: constants, the model anchor, the routing pin, the placement primitive ──
-export type { CacheControlTextBlock } from "./cache-control";
+export type { AnthropicCacheDirective, CacheControlTextBlock } from "./cache-control";
 export {
-  ANTHROPIC_CACHE_5M,
+  ANTHROPIC_CACHE_1H,
+  anthropicCacheDirective,
+  CACHE_TTLS,
   cacheControlBlock,
   computeCacheBreakpointOffsets,
   effectiveProviderRouting,

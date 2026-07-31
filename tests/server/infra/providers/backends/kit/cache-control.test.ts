@@ -2,14 +2,17 @@
 // placement primitive. The anchor is load-bearing: an alien backend whose name contains "claude" must NOT
 // receive Anthropic-only cache_control.
 
+import { logger } from "@orb/server/foundation/observability";
 import {
-  ANTHROPIC_CACHE_5M,
+  ANTHROPIC_CACHE_1H,
+  anthropicCacheDirective,
+  CACHE_TTLS,
   cacheControlBlock,
   computeCacheBreakpointOffsets,
   effectiveProviderRouting,
   isAnthropicModel,
 } from "@orb/server/infra/providers/backends/kit";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures";
 
 describe("isAnthropicModel — the load-bearing anchor", () => {
@@ -38,9 +41,13 @@ describe("effectiveProviderRouting — Anthropic provider pin", () => {
     expect(effectiveProviderRouting("claude-opus-4-8", userRouting)).toBe(userRouting);
   });
 
-  test("an Anthropic model with no user routing pins the Anthropic provider (order-only)", () => {
+  // Findings §2: `order` alone does NOT pin — allow_fallbacks defaults TRUE and a probe caught the chain
+  // walking Anthropic → Bedrock → Azure → Google, every hop ignoring cache_control and re-billing the prefix.
+  test("an Anthropic model with no user routing pins Anthropic AND forbids provider fallbacks", () => {
     expect(effectiveProviderRouting("anthropic/claude-haiku-4-5", undefined)).toEqual({
       order: ["Anthropic"],
+      // biome-ignore lint/style/useNamingConvention: `allow_fallbacks` is OpenRouter's own wire field name.
+      allow_fallbacks: false,
     });
   });
 
@@ -57,16 +64,56 @@ describe("effectiveProviderRouting — Anthropic provider pin", () => {
 });
 
 describe("cache_control constants + placement primitive", () => {
-  test("ANTHROPIC_CACHE_5M is the bare ephemeral directive (no explicit ttl)", () => {
-    expect(ANTHROPIC_CACHE_5M).toEqual({ type: "ephemeral" });
+  // Findings §1: the 1h TTL is honored on the OR wire with NO anthropic-beta header (proved by the 2.0x
+  // cache-write price multiplier vs 1.25x for 5m). Shipping the bare directive silently bought 5m.
+  test("ANTHROPIC_CACHE_1H carries the explicit 1h ttl", () => {
+    expect(ANTHROPIC_CACHE_1H).toEqual({ type: "ephemeral", ttl: "1h" });
   });
 
-  test("cacheControlBlock wraps content into the cache_control-bearing text block", () => {
+  test("cacheControlBlock wraps content into the cache_control-bearing text block (ttl included)", () => {
     expect(cacheControlBlock("the stable system prefix")).toEqual({
       type: "text",
       text: "the stable system prefix",
-      cacheControl: { type: "ephemeral" },
+      cacheControl: { type: "ephemeral", ttl: "1h" },
     });
+  });
+});
+
+// Findings §3: an invalid ttl is NOT an upstream error — OpenRouter answers 200 and drops the whole
+// cache_control block (cacheWrite 0, ~10x cost, no signal). The seam is the only guard that exists.
+describe("anthropicCacheDirective — the ttl allowlist guard", () => {
+  test("the allowlist is exactly the two TTLs Anthropic accepts", () => {
+    expect(CACHE_TTLS).toEqual(["5m", "1h"]);
+  });
+
+  test("an allowlisted ttl rides the directive verbatim", () => {
+    expect(anthropicCacheDirective("5m")).toEqual({ type: "ephemeral", ttl: "5m" });
+    expect(anthropicCacheDirective("1h")).toEqual({ type: "ephemeral", ttl: "1h" });
+  });
+
+  test("an off-allowlist ttl is STRIPPED to the bare (always-accepted) directive — never sent as garbage", () => {
+    // Sending "9z" is what measured 200 OK + zero caching; stripping keeps the block alive at the 5m default.
+    expect(anthropicCacheDirective("9z")).toEqual({ type: "ephemeral" });
+    expect(anthropicCacheDirective("")).toEqual({ type: "ephemeral" });
+    expect(anthropicCacheDirective("1H")).toEqual({ type: "ephemeral" });
+  });
+
+  test("the reject is LOUD — a provider.cache_ttl_rejected warn line carries the offending value (D41)", () => {
+    const spy = vi.spyOn(logger, "warn");
+    anthropicCacheDirective("9z");
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache_ttl_rejected");
+    expect(line).toBeDefined();
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["ttl"]).toBe("9z");
+    expect(fields["accepted"]).toEqual(["5m", "1h"]);
+    expect(fields["applied"]).toBeNull();
+    expect(fields["provider"]).toBe(true);
+  });
+
+  test("a valid ttl emits NO warning (the guard is silent on the happy path)", () => {
+    const spy = vi.spyOn(logger, "warn");
+    anthropicCacheDirective("1h");
+    expect(spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache_ttl_rejected")).toBeUndefined();
   });
 });
 

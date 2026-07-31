@@ -260,7 +260,7 @@ describe("runResponsesTurn — wire shaping", () => {
   test("Anthropic model → top-level cacheControl; non-Anthropic → a promptCacheKey instead", async () => {
     const anthropic = streamingClient(OK_EVENTS);
     await runResponsesTurn(anthropic.client, makeRequest({ model: castId<ModelId>(ANTHROPIC_MODEL) }), DEPS);
-    expect(anthropic.captured.body?.["cacheControl"]).toEqual({ type: "ephemeral" });
+    expect(anthropic.captured.body?.["cacheControl"]).toEqual({ type: "ephemeral", ttl: "1h" });
     expect(anthropic.captured.body?.["promptCacheKey"]).toBeUndefined();
 
     const openai = streamingClient(OK_EVENTS);
@@ -285,6 +285,34 @@ describe("runResponsesTurn — wire shaping", () => {
     expect(Array.isArray(input)).toBe(true);
     const first = Array.isArray(input) ? input[0] : undefined;
     expect(first).toEqual({ role: "user", content: "" });
+  });
+
+  // D41 (findings §4): `function_call_output` has no error slot either, so an isError tool result loses the
+  // flag on this dialect too — dropped LOUDLY, never encoded onto a wire with nowhere to put it.
+  test("a tool-result isError:true drops loudly as `tool_result_error_dropped` (D41)", async () => {
+    const onEvent = vi.fn();
+    const { client, captured } = streamingClient(OK_EVENTS);
+    const result = await runResponsesTurn(
+      client,
+      makeRequest({
+        history: [
+          { role: "user", content: [{ type: "text", text: "go" }] },
+          { role: "tool", content: [{ type: "tool-result", toolCallId: "call_1", content: '{"err":"boom"}', isError: true }] },
+        ],
+        onEvent,
+      }),
+      DEPS,
+    );
+    const input = captured.body?.["input"];
+    const last = Array.isArray(input) ? input.at(-1) : undefined;
+    expect(last).toEqual({ type: "function_call_output", callId: "call_1", output: '{"err":"boom"}' });
+    expect(result.events.filter((e) => e.kind === "warning")).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "tool_result_error_dropped",
+      message: "tool-result isError ignored: the OpenRouter chat wire has no tool-result error field",
+    });
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ code: "tool_result_error_dropped" }));
   });
 
   test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {

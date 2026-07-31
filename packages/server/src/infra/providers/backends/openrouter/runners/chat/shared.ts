@@ -84,6 +84,9 @@ function historyToolCalls(content: readonly ChatContentPart[]): ChatToolCall[] |
   return calls.length > 0 ? calls : undefined;
 }
 
+// `isError` has NO slot on either OpenRouter chat dialect (chat-completions' `tool` message carries
+// content only; the responses dialect's `function_call_output` has no error field either), so the flag is
+// dropped here — `withToolResultErrorDrop` makes that drop loud (D41).
 function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[] {
   const out: ChatMessages[] = [];
   for (const part of content) {
@@ -329,6 +332,21 @@ export function withCustomParametersDrop(
     return warnings;
   }
   return [...warnings, { code: "custom_parameters_ignored", message: CUSTOM_PARAMETERS_IGNORED }];
+}
+
+const TOOL_RESULT_ERROR_DROPPED = "tool-result isError ignored: the OpenRouter chat wire has no tool-result error field";
+
+// D41 no-silent-degrade: a `tool-result` part's `isError:true` (the executor's failure flag,
+// `ChatContentPart`) has nowhere to go on either OR chat dialect — the model sees the error payload as an
+// ordinary result. When a turn's history carries at least one failed tool result, append a loud
+// `tool_result_error_dropped` warning so the lost signal is observable. NOT encoded onto the wire: OR's
+// chat surfaces have no field for it, and inventing one would change what the model reads.
+export function withToolResultErrorDrop(warnings: readonly ResolvedWarning[], history: readonly ChatHistoryMessage[]): readonly ResolvedWarning[] {
+  const dropped = history.some((turn) => turn.content.some((part) => part.type === "tool-result" && part.isError === true));
+  if (!dropped) {
+    return warnings;
+  }
+  return [...warnings, { code: "tool_result_error_dropped", message: TOOL_RESULT_ERROR_DROPPED }];
 }
 
 // True when the upstream 400 is a mandatory-reasoning endpoint rejecting reasoning.effort:"none" — drives the strip-and-replay-once recovery.

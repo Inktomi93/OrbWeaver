@@ -17,6 +17,12 @@ test("WARNING_CODES carries the dynamic_context_demoted member (D66, W4)", () =>
   expect(WARNING_CODES).toContain("dynamic_context_demoted");
 });
 
+// The isError flag on a tool result has no slot on either OR chat dialect — the drop needs a code so it can
+// be reported (D41 no-silent-degrade; docs/design/openrouter-provider-findings.md §4).
+test("WARNING_CODES carries the tool_result_error_dropped member", () => {
+  expect(WARNING_CODES).toContain("tool_result_error_dropped");
+});
+
 test("DYNAMIC_CONTEXT_CHANNELS is the two-member channel union (D66, W4)", () => {
   expect(DYNAMIC_CONTEXT_CHANNELS).toStrictEqual(["system-block", "message-tail"]);
 });
