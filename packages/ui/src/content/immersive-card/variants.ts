@@ -2,7 +2,8 @@ import { tv } from "#lib";
 
 /**
  * The immersive-card chrome skin (parity-plus §4.7) — a card-surface frame around the sandboxed render:
- * a header band (title + view-raw + expand) over the SandboxFrame / raw-source `pre`. The `pre` is the
+ * a header band (title + view-raw + expand + collapse) over the SandboxFrame / raw-source `pre`, the body
+ * riding the Collapsible panel so the collapsed state is the bare title bar. The `pre` is the
  * plain monospace read-only echo (the tool-call-block precedent — no CodeMirror for a non-editable view).
  */
 export const immersiveCardVariants = tv({

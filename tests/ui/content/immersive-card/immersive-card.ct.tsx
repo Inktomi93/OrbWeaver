@@ -31,6 +31,46 @@ test("view-raw shows the EXACT stored source and toggles back to the sandbox", a
   await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
 });
 
+// RV-1 — the §4.7 formed-COLLAPSED state: the card comes down to its bare title bar and back.
+test("collapse takes the card down to the title bar (body unmounted) and re-showing restores the sandbox", async ({ mount }) => {
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Zandik's letter" origin="fence" />);
+  await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+
+  const collapse = cmp.getByRole("button", { name: "Collapse card" });
+  await expect(collapse).toHaveAttribute("aria-expanded", "true");
+  await collapse.click();
+
+  // The title bar survives; the body (and with it the sandboxed frame) is gone — not merely hidden.
+  await expect(cmp.locator('[data-slot="immersive-card-title"]')).toContainText("Zandik's letter");
+  await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(0);
+  // View-raw acts on the body, so it is applicability-omitted while collapsed (never a disabled twin).
+  await expect(cmp.getByRole("button", { name: "View raw source" })).toHaveCount(0);
+
+  const show = cmp.getByRole("button", { name: "Show card" });
+  await expect(show).toHaveAttribute("aria-expanded", "false");
+  await show.click();
+  await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+  await expect(cmp.getByRole("button", { name: "View raw source" })).toHaveCount(1);
+});
+
+test("the collapse control is keyboard-operable and wears the same chrome box as the expand control", async ({ mount }) => {
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Zandik's letter" origin="fence" />);
+  const collapse = cmp.getByRole("button", { name: "Collapse card" });
+  const expand = cmp.getByRole("button", { name: "Expand card" });
+
+  // Uniform header band: the disclosure is the same ghost icon button as the lightbox control beside it
+  // (the Collapsible trigger renders THROUGH Button, so its box is the button box, not a text trigger's).
+  const [collapseBox, expandBox] = await Promise.all([collapse.boundingBox(), expand.boundingBox()]);
+  expect(collapseBox?.width).toBe(expandBox?.width);
+  expect(collapseBox?.height).toBe(expandBox?.height);
+
+  await collapse.focus();
+  await collapse.press("Enter");
+  await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(0);
+  await cmp.getByRole("button", { name: "Show card" }).press(" ");
+  await expect(cmp.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
+});
+
 test("expand opens the lightbox dialog labelled by the title, with its own sandboxed frame", async ({ mount, page }) => {
   const cmp = await mount(<ImmersiveCard html={HTML} title="Poster" origin="fence" />);
   await cmp.getByRole("button", { name: "Expand card" }).click();
