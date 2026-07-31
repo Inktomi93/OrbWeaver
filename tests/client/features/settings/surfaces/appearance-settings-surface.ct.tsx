@@ -32,6 +32,8 @@ const UPDATE_PROC = "settings.updateUserSettingsSection";
 // F-P0-2 — the URL arm of the `asset` background kind. The verb MATERIALIZES the pasted address server-side
 // and hands back a ready library entry; nothing external is ever persisted (BG-C).
 const EXTERNAL_PROC = "settings.addExternalBackground";
+// A 1×1 PNG for the own-upload arm (the composer.ct fixture) — real bytes so the picker/FormData path is real.
+const PNG_1PX = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const MATERIALIZED_ENTRY = {
   entryId: "bg_ct_wallpaper",
   assetId: "asset_01h455vb4pex5vsknk084sn02q",
@@ -212,6 +214,33 @@ test("a refused URL surfaces the verb's own leak-free reason inline and writes n
   // The refusal never reaches the persisted blob — no library row, no selected asset.
   await expect.poll(() => lastPatch(trpc)?.["backgroundLibrary"], { intervals: [20, 50, 100] }).toStrictEqual([]);
   expect(lastPatch(trpc)?.["backgroundAssetId"]).toBe("");
+});
+
+// AU-9 (owner ruling 2026-07-31) — an own UPLOAD saves to the library exactly like the URL twin, so both
+// ways in feed the one list `/setbackground <name>` and the carried-background picker read. It also carries
+// the file's MIME (BG-V: a video entry selects the `<video>` background layer over the image one).
+test("an upload appends a library entry with its mime and selects it live", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  // The multipart upload route is raw fetch, not tRPC.
+  await page.route("**/api/assets/upload", async (route) => {
+    await route.fulfill({ json: { assetId: MATERIALIZED_ENTRY.assetId, hash: "uploadedhash", size: PNG_1PX.length, created: true } });
+  });
+  await mount(<AppearanceSettingsStory />);
+
+  await page.getByRole("combobox", { name: "Image" }).click();
+  await page.getByRole("option", { name: "Upload" }).click();
+  await page.locator('[data-slot="file-dropzone-input"]').setInputFiles({ name: "dusk-harbour.png", mimeType: "image/png", buffer: PNG_1PX });
+
+  // The library row carries the mime + the file-derived name (extension stripped — the URL arm's twin), and
+  // the same add ALSO selects it (id + hash + mime), so the upload paints immediately.
+  await expect
+    .poll(() => lastPatch(trpc), { intervals: [20, 50, 100] })
+    .toMatchObject({
+      backgroundLibrary: [{ assetId: MATERIALIZED_ENTRY.assetId, assetHash: "uploadedhash", mime: "image/png", name: "dusk-harbour" }],
+      backgroundAssetId: MATERIALIZED_ENTRY.assetId,
+      backgroundAssetHash: "uploadedhash",
+      backgroundAssetMime: "image/png",
+    });
 });
 
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same

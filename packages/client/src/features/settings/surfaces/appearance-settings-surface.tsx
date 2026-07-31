@@ -5,7 +5,7 @@ import { useRef } from "react";
 // consumer — including PD-130's showGenerationTimer, now that the turn engine writes the gen-window
 // bounds and the read seam surfaces them on MessageView.
 
-import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { AppearanceSettings, BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
@@ -145,6 +145,15 @@ function LibraryPageSizeRow({ pageSize }: { readonly pageSize: number }): ReactE
 /** The form-bearing appearance body — remounted per epoch by the boundary's keyed Session. */
 function AppearanceFormBody({ session }: { readonly session: AutosaveSession<AppearanceSettings> }): ReactElement {
   const { form, saveState, retrySave } = session;
+  // A newly-added background — uploaded or materialized from a URL — SAVES to the library (BG-D) and becomes
+  // the live one in the same autosave patch. Byte-identical adds legitimately produce two rows: `assetId` is
+  // content-addressed and shared, `entryId` is the per-row identity (F-P2), so no de-duplication here.
+  const addBackground = (entry: BackgroundLibraryEntry): void => {
+    form.setFieldValue("backgroundLibrary", [...form.state.values.backgroundLibrary, entry]);
+    form.setFieldValue("backgroundAssetId", entry.assetId);
+    form.setFieldValue("backgroundAssetHash", entry.assetHash);
+    form.setFieldValue("backgroundAssetMime", entry.mime);
+  };
   return (
     <Stack gap="section">
       <Stack gap="section">
@@ -297,29 +306,15 @@ function AppearanceFormBody({ session }: { readonly session: AutosaveSession<App
 
                   {kind === "asset" && (
                     <>
+                      {/* Two ways INTO the one library (BG-D), one landing: an own upload and a pasted URL
+                          (which the server materializes into an owned CAS asset — never an external URL is
+                          persisted, BG-C). Both hand up a ready entry and take the SAME append + select
+                          path, so `/setbackground <name>` and the carried-background picker (which points
+                          users here to add one) see every background either way. */}
                       <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
-                        {(hash): ReactElement => (
-                          <BackgroundUploadField
-                            currentHash={hash}
-                            onUploaded={(stored): void => {
-                              form.setFieldValue("backgroundAssetId", stored.assetId);
-                              form.setFieldValue("backgroundAssetHash", stored.hash);
-                            }}
-                          />
-                        )}
+                        {(hash): ReactElement => <BackgroundUploadField currentHash={hash} onUploaded={addBackground} />}
                       </form.Subscribe>
-                      {/* The URL arm of the SAME `asset` kind (BG-C): the server materializes the pasted
-                          address into an owned CAS asset, so what persists here is an asset — never an
-                          external URL. Appending to `backgroundLibrary` (BG-D) is what makes the entry
-                          reusable from the carried-background picker, which points here to add one. */}
-                      <ExternalBackgroundField
-                        onAdded={(entry): void => {
-                          form.setFieldValue("backgroundLibrary", [...form.state.values.backgroundLibrary, entry]);
-                          form.setFieldValue("backgroundAssetId", entry.assetId);
-                          form.setFieldValue("backgroundAssetHash", entry.assetHash);
-                          form.setFieldValue("backgroundAssetMime", entry.mime);
-                        }}
-                      />
+                      <ExternalBackgroundField onAdded={addBackground} />
                     </>
                   )}
                   <form.AppField name="backgroundFit">{(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}</form.AppField>
