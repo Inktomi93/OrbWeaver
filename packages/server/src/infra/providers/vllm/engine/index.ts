@@ -62,4 +62,4 @@ export {
 export type { EngineUtilFractions, EngineVramNeed, GpuShortfall, GpuTenant, GpuVram, WakeBudgetVerdict } from "./wake-budget";
 export { decideWakeBudget, engineVramNeed, parseComputeAppsCsv, parseGpuVramCsv, queryGpuVram } from "./wake-budget";
 export type { WakeGateDeps } from "./wake-gate";
-export { ensureAwake } from "./wake-gate";
+export { __resetWakeGateCache, ensureAwake } from "./wake-gate";
