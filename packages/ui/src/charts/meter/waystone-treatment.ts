@@ -149,90 +149,45 @@ function bracket<T>(stops: readonly { readonly hour: number; readonly value: T }
 // Deliberate GOLDEN windows at ~5-7h and ~17-19h: those stops reach for `--color-primary` (the ember), which
 // nothing between 8h and 16h does — that contrast IS the dawn/dusk differentiation, and the test asserts it.
 const SKY_STOPS: readonly { readonly hour: number; readonly value: WaystoneSky }[] = [
-  {
-    hour: 0,
-    value: { from: "color-mix(in oklab, var(--color-track-2) 16%, var(--color-background))", to: "var(--color-background)", cy: "22%" },
-  },
-  {
-    hour: 4,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-2) 24%, var(--color-background))",
-      to: "color-mix(in oklab, var(--color-track-2) 6%, var(--color-background))",
-      cy: "28%",
-    },
-  },
+  { hour: 0, value: { from: "var(--color-sky-night)", to: "color-mix(in oklab, var(--color-sky-night) 82%, black)", cy: "24%" } },
+  { hour: 4, value: { from: "color-mix(in oklab, var(--color-sky-night) 88%, var(--color-sky-night-horizon))", to: "var(--color-sky-night)", cy: "30%" } },
   {
     hour: 5.5,
     value: {
-      from: "color-mix(in oklab, var(--color-primary) 45%, var(--color-track-4))",
-      to: "color-mix(in oklab, var(--color-track-2) 18%, var(--color-background))",
-      cy: "80%",
+      from: "color-mix(in oklab, var(--color-sky-ember) 55%, var(--color-sky-ember-deep))",
+      to: "color-mix(in oklab, var(--color-sky-night-horizon) 70%, var(--color-sky-twilight))",
+      cy: "82%",
     },
   },
   {
     hour: 7,
     value: {
-      from: "color-mix(in oklab, var(--color-primary) 40%, var(--color-track-3))",
-      to: "color-mix(in oklab, var(--color-track-2) 14%, var(--color-background))",
-      cy: "68%",
+      from: "color-mix(in oklab, var(--color-sky-ember) 70%, var(--color-sky-day-horizon))",
+      to: "color-mix(in oklab, var(--color-sky-day) 60%, var(--color-sky-twilight))",
+      cy: "70%",
     },
   },
-  {
-    hour: 9,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-3) 52%, var(--color-background))",
-      to: "color-mix(in oklab, var(--color-track-2) 26%, var(--color-background))",
-      cy: "52%",
-    },
-  },
-  {
-    hour: 12,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-3) 72%, var(--color-background))",
-      to: "color-mix(in oklab, var(--color-track-3) 34%, var(--color-background))",
-      cy: "26%",
-    },
-  },
-  {
-    hour: 15,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-3) 60%, var(--color-background))",
-      to: "color-mix(in oklab, var(--color-track-3) 28%, var(--color-background))",
-      cy: "36%",
-    },
-  },
+  { hour: 9, value: { from: "color-mix(in oklab, var(--color-sky-day-horizon) 60%, var(--color-sky-day))", to: "var(--color-sky-day)", cy: "56%" } },
+  { hour: 12, value: { from: "var(--color-sky-day-horizon)", to: "var(--color-sky-day)", cy: "28%" } },
+  { hour: 15, value: { from: "color-mix(in oklab, var(--color-sky-day-horizon) 80%, var(--color-sky-ember))", to: "var(--color-sky-day)", cy: "40%" } },
   {
     hour: 17,
     value: {
-      from: "color-mix(in oklab, var(--color-primary) 55%, var(--color-track-3))",
-      to: "color-mix(in oklab, var(--color-track-4) 20%, var(--color-background))",
-      cy: "74%",
+      from: "color-mix(in oklab, var(--color-sky-ember) 80%, var(--color-sky-day-horizon))",
+      to: "color-mix(in oklab, var(--color-sky-day) 55%, var(--color-sky-twilight))",
+      cy: "76%",
     },
   },
   {
     hour: 18.5,
     value: {
-      from: "color-mix(in oklab, var(--color-primary) 62%, var(--color-track-4))",
-      to: "color-mix(in oklab, var(--color-track-4) 22%, var(--color-background))",
-      cy: "84%",
+      from: "color-mix(in oklab, var(--color-sky-ember) 62%, var(--color-sky-ember-deep))",
+      to: "color-mix(in oklab, var(--color-sky-twilight) 78%, var(--color-sky-night))",
+      cy: "86%",
     },
   },
-  {
-    hour: 20,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-4) 40%, var(--color-track-2))",
-      to: "color-mix(in oklab, var(--color-track-4) 14%, var(--color-background))",
-      cy: "58%",
-    },
-  },
-  {
-    hour: 22,
-    value: {
-      from: "color-mix(in oklab, var(--color-track-2) 30%, var(--color-background))",
-      to: "color-mix(in oklab, var(--color-track-2) 10%, var(--color-background))",
-      cy: "32%",
-    },
-  },
+  { hour: 20, value: { from: "color-mix(in oklab, var(--color-sky-twilight) 62%, var(--color-sky-night))", to: "var(--color-sky-night)", cy: "60%" } },
+  { hour: 22, value: { from: "var(--color-sky-night-horizon)", to: "var(--color-sky-night)", cy: "34%" } },
 ];
 
 /** The sky at an exact hour — the two bracketing stops, blended. Exactly ON a stop returns that stop's recipe
@@ -267,13 +222,12 @@ const ARC_RISE = 28;
 const BODY_R_LOW = 6.4;
 const BODY_R_SHRINK = 0.9;
 
-const SUN_LOW = "color-mix(in oklab, var(--color-primary) 82%, var(--color-track-3))";
-// The bright-noon disc. The lift is toward `--color-foreground` — the contrast pole in BOTH polarities, so
-// the sun reads as a lifted disc on a dark theme and as a deeper, more saturated one on a light theme (there
-// is deliberately no polarity-constant "white" token; mixing toward `background` would sink it into the sky).
-const SUN_HIGH = "color-mix(in oklab, var(--color-track-3) 75%, var(--color-foreground))";
-const MOON_LOW = "color-mix(in oklab, var(--color-foreground) 60%, var(--color-track-4))";
-const MOON_HIGH = "color-mix(in oklab, var(--color-foreground) 88%, var(--color-track-2))";
+// The sun/moon ride the ATMOSPHERIC set too — a low sun is ember, a high one is near-white starlight, and the
+// moon is starlight cooled toward the night anchor. Polarity-fixed like the sky they hang in.
+const SUN_LOW = "var(--color-sky-ember)";
+const SUN_HIGH = "color-mix(in oklab, var(--color-sky-star) 78%, var(--color-sky-ember))";
+const MOON_LOW = "color-mix(in oklab, var(--color-sky-star) 62%, var(--color-sky-twilight))";
+const MOON_HIGH = "color-mix(in oklab, var(--color-sky-star) 88%, var(--color-sky-night-horizon))";
 
 /** The sun (05:00-19:00) or the moon (19:00-05:00) at its exact point on the arc: rises left, peaks overhead
  *  at the middle of its watch, sets right. Continuous in the hour, so ANY advance slides it visibly. */
@@ -314,9 +268,10 @@ export function waystoneStarOpacityAt(hour: number): number {
 
 // ─── The eight weathers (the DISCRETE axis) ───────────────────────────────────────────────────────
 const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> = {
+  // `clear` means CLEAR: zero cloud slots (a lone 22%-opacity puff read as a smudge, not weather).
   clear: {
     overlay: "none",
-    clouds: { count: 1, opacity: 0.22, drift: "slow", tone: "light" },
+    clouds: { count: 0, opacity: 0, drift: "slow", tone: "light" },
     particles: null,
     bands: null,
     lightning: false,
@@ -325,66 +280,69 @@ const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> 
   },
   cloudy: {
     overlay: "clouds",
-    clouds: { count: 4, opacity: 0.62, drift: "mid", tone: "light" },
+    clouds: { count: 4, opacity: 0.7, drift: "mid", tone: "light" },
     particles: null,
     bands: null,
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-muted) 70%, var(--color-track-2))", opacity: 0.22 },
-    celestialOpacity: 0.55,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud) 70%, var(--color-sky-cloud-dark))", opacity: 0.24 },
+    celestialOpacity: 0.5,
   },
   rain: {
     overlay: "rain",
-    clouds: { count: 3, opacity: 0.5, drift: "mid", tone: "dark" },
-    particles: { kind: "rain", columns: 4, pitch: 12, speed: "fast", slant: 2.5, length: 6, sway: false },
+    clouds: { count: 3, opacity: 0.62, drift: "mid", tone: "dark" },
+    particles: { kind: "rain", columns: 5, pitch: 12, speed: "fast", slant: 2.6, length: 6, sway: false },
     bands: null,
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-track-6) 55%, var(--color-track-2))", opacity: 0.3 },
-    celestialOpacity: 0.3,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-rain) 55%, var(--color-sky-cloud-dark))", opacity: 0.34 },
+    celestialOpacity: 0.28,
   },
   storm: {
     overlay: "storm",
-    clouds: { count: 4, opacity: 0.72, drift: "fast", tone: "dark" },
-    particles: { kind: "rain", columns: 6, pitch: 10, speed: "fast", slant: 4.5, length: 7, sway: false },
+    clouds: { count: 4, opacity: 0.82, drift: "fast", tone: "dark" },
+    particles: { kind: "rain", columns: 7, pitch: 10, speed: "fast", slant: 4.6, length: 7, sway: false },
     bands: null,
     lightning: true,
-    wash: { fill: "color-mix(in oklab, var(--color-track-2) 60%, var(--color-background))", opacity: 0.48 },
-    celestialOpacity: 0.15,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud-dark) 82%, var(--color-sky-night))", opacity: 0.5 },
+    celestialOpacity: 0.12,
   },
   snow: {
     overlay: "snow",
-    clouds: { count: 3, opacity: 0.45, drift: "slow", tone: "light" },
+    clouds: { count: 3, opacity: 0.5, drift: "slow", tone: "light" },
     particles: { kind: "snow", columns: 5, pitch: 16, speed: "slow", slant: 0, length: 0, sway: true },
     bands: null,
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-foreground) 60%, var(--color-track-2))", opacity: 0.2 },
-    celestialOpacity: 0.5,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud) 80%, var(--color-sky-rain))", opacity: 0.22 },
+    celestialOpacity: 0.45,
   },
+  // Fog is a VEIL, not four bars: a heavy wash plus two wide, slow, low-opacity banks (the bars read as a
+  // skeleton loader). `breathe` pulses the banks' opacity so the murk moves.
   fog: {
     overlay: "fog",
-    clouds: { count: 2, opacity: 0.3, drift: "slow", tone: "light" },
+    clouds: { count: 2, opacity: 0.34, drift: "slow", tone: "light" },
     particles: null,
     bands: { kind: "fog", breathe: true },
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-foreground) 45%, var(--color-muted))", opacity: 0.34 },
-    celestialOpacity: 0.25,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud) 62%, var(--color-sky-rain))", opacity: 0.46 },
+    celestialOpacity: 0.2,
   },
+  // Wind is MOTION, not glyphs: a fast-drifting deck, leaned streaks, and two stretched low-opacity banks.
   wind: {
     overlay: "wind",
-    clouds: { count: 3, opacity: 0.4, drift: "fast", tone: "light" },
+    clouds: { count: 3, opacity: 0.45, drift: "fast", tone: "light" },
     particles: null,
     bands: { kind: "wind", breathe: false },
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-track-6) 40%, var(--color-muted))", opacity: 0.14 },
-    celestialOpacity: 0.85,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud) 55%, var(--color-sky-day-horizon))", opacity: 0.12 },
+    celestialOpacity: 0.8,
   },
   ash: {
     overlay: "ash",
-    clouds: { count: 3, opacity: 0.45, drift: "mid", tone: "dark" },
+    clouds: { count: 3, opacity: 0.55, drift: "mid", tone: "dark" },
     particles: { kind: "ash", columns: 6, pitch: 10, speed: "mid", slant: 1, length: 0, sway: true },
     bands: null,
     lightning: false,
-    wash: { fill: "color-mix(in oklab, var(--color-primary) 35%, var(--color-track-4))", opacity: 0.26 },
-    celestialOpacity: 0.35,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-ash) 70%, var(--color-sky-ember-deep))", opacity: 0.3 },
+    celestialOpacity: 0.3,
   },
 };
 
@@ -396,13 +354,25 @@ export function waystoneWeatherRecipe(weather: WaystoneWeather | null): Waystone
 
 /** Resolve the full stack for an exact hour and a weather: the continuous backdrop + the discrete air layers. */
 export function resolveWaystoneTreatment(hour: number, weather: WaystoneWeather | null): WaystoneTreatment {
+  const recipe = waystoneWeatherRecipe(weather);
   return {
-    ...waystoneWeatherRecipe(weather),
+    ...recipe,
     sky: waystoneSkyAt(hour),
     celestial: waystoneCelestialAt(hour),
-    starOpacity: waystoneStarOpacityAt(hour),
+    // Stars are ATTENUATED by the deck above them — a clear night is full of stars, a storm has none. (They
+    // used to shine at full strength straight through a rainstorm, which is the tell of two layers that were
+    // never introduced to each other.)
+    starOpacity: Number.parseFloat((waystoneStarOpacityAt(hour) * cloudBreak(recipe.clouds)).toFixed(2)),
   };
 }
+
+/** How much sky the cloud deck LEAVES OPEN — 1 under a clear sky, ~0 under a storm. */
+function cloudBreak(clouds: WaystoneCloudLayer): number {
+  const cover = Math.min(1, (clouds.count / CLOUD_SLOT_COUNT) * clouds.opacity * CLOUD_COVER_GAIN);
+  return Math.max(0, 1 - cover);
+}
+const CLOUD_SLOT_COUNT = 4;
+const CLOUD_COVER_GAIN = 1.2;
 
 // ─── The dial ring's label arcs (the DISCRETE time layer) ─────────────────────────────────────────
 // These mirror the contract's nearest-representative-hour inversion of TIME_OF_DAY_HOURS (dawn 6 · morning 9 ·

@@ -145,17 +145,15 @@ export const waystoneVariants = tv({
   slots: {
     // The stone block; the dial track circle strokes `currentColor` off the muted tone (the empty-ring
     // idiom RingGauge's track shares).
-    root: "block",
+    //
+    // ONE SIZING HOME (side-eye F16 + the owner's grow ruling): the stone was authored at 320px and shipped
+    // at 76px — stars at 1.4px, a 4.75px gable, sub-pixel mush, and "the dimmest orb in a row of orbs".
+    // It now ships at 120px (`size-30`) as the panel's focal element, stepping down at the container
+    // thresholds — the mobile sheet keeps the old 76px stone. A dead `size` PROP plus a caller-supplied
+    // responsive className was two homes that never agreed; this is the only one.
+    root: "block size-30 @max-lg:size-24 @max-md:size-19",
     track: "text-muted",
   },
-  variants: {
-    // 64px floor stone vs the 76px band stone (the container-driven mobile delta, DESIGN §5).
-    size: {
-      sm: { root: "size-16" },
-      md: { root: "size-19" },
-    },
-  },
-  defaultVariants: { size: "md" },
 });
 
 export const ringGaugeVariants = tv({

@@ -47,6 +47,18 @@
   --color-track-4: oklch(0.68 0.12 310);
   --color-track-5: oklch(0.70 0.12 20);
   --color-track-6: oklch(0.72 0.10 200);
+  --color-sky-day: oklch(0.63 0.075 236);
+  --color-sky-day-horizon: oklch(0.77 0.05 222);
+  --color-sky-night: oklch(0.19 0.045 268);
+  --color-sky-night-horizon: oklch(0.3 0.055 265);
+  --color-sky-ember: oklch(0.68 0.155 48);
+  --color-sky-ember-deep: oklch(0.46 0.13 30);
+  --color-sky-twilight: oklch(0.4 0.095 300);
+  --color-sky-star: oklch(0.97 0.015 250);
+  --color-sky-cloud: oklch(0.82 0.02 250);
+  --color-sky-cloud-dark: oklch(0.4 0.03 258);
+  --color-sky-rain: oklch(0.66 0.045 243);
+  --color-sky-ash: oklch(0.4 0.02 60);
   --color-user-bubble: oklch(0.255 0.007 60);
   --color-user-bubble-foreground: oklch(0.955 0.004 75);
   --color-ai-bubble: oklch(0.205 0.006 60);
@@ -83,6 +95,7 @@
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel: clamp(17rem, 24vw, 26rem);
+  --dimension-panel-context: clamp(17rem, 26vw, 30rem);
   --dimension-shell-breakpoint: 48rem;
   --shadow-glow: 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
   --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.06), inset 0 1px 0 0 oklch(1 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.4), 0 12px 32px oklch(0 0 0 / 0.5);

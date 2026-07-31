@@ -5,6 +5,9 @@
   /* rail (fixed) | list track | content (fluid) | context track; a collapsed/overlay track is 0. */
   --rail-w: var(--dimension-rail);
   --panel-w: var(--dimension-panel);
+  /* The CONTEXT panel is wider than the list panel on desktop (its own token; same floor) — the rpg takeover
+   * runs a 120px Waystone plus the orb row, and at the list panel's clamp that band is cramped. */
+  --panel-context-w: var(--dimension-panel-context);
   --list-track: 0px;
   --context-track: 0px;
 
@@ -108,7 +111,7 @@
   --list-track: var(--panel-w);
 }
 .shell-grid[data-context-mode="docked"] {
-  --context-track: var(--panel-w);
+  --context-track: var(--panel-context-w);
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -251,6 +254,12 @@
   width: var(--panel-w);
   z-index: var(--z-overlay);
   transition: transform var(--shell-motion) var(--shell-ease);
+}
+/* …the CONTEXT panel is the wider one (see --panel-context-w); ONLY its width differs — the co-motion
+ * duration/easing stay in the shared rule above, where both panels inherit one event. */
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  width: var(--panel-context-w);
 }
 /* A CLOSED (collapsed) panel is off-screen regardless of block inset, so it only needs the full-height
  * box; an OPEN overlay must clear the topbar row (mirrors the mobile overlay rule below) so it never

@@ -18,6 +18,7 @@ export type { TrackBarProps, TrackColor } from "./track-bar";
 export { TrackBar } from "./track-bar";
 export type { WaystoneClock, WaystoneProps } from "./waystone";
 export { Waystone } from "./waystone";
+export { handAngle, hourAngle } from "./waystone-geometry";
 export type {
   WaystoneCelestial,
   WaystoneOverlayKind,

@@ -287,6 +287,19 @@
  * its natural frame (drops at their lattice positions, stars lit, bolt drawn, hand at the hour) — the
  * matrix still reads in full, nothing moves. The lightning FLASH rests at opacity 0, so a reduced-motion
  * viewer never gets a frozen strobe. The transitions collapse via the floors at the top of this file. */
+/* The dial band ramp's POLARITY knobs. The band HUE is derived per-band in TS (`arcStroke` — relative color
+ * syntax over the sky tint); these two scalars retune the whole ramp for the surface it sits on: a light seed
+ * theme needs DARKER, slightly richer bands to read against a light bezel, where a dark theme wants them lit.
+ * One place, six bands — never a per-band light-mode override. */
+[data-slot="waystone"] {
+  --orb-ws-band-l: 0;
+  --orb-ws-band-c: 1;
+}
+[data-theme="light"] [data-slot="waystone"] {
+  --orb-ws-band-l: -0.13;
+  --orb-ws-band-c: 1;
+}
+
 @keyframes orb-ws-fall {
   to {
     translate: 0 var(--orb-ws-pitch);
@@ -429,26 +442,34 @@
   animation-delay: calc(var(--motion-precip) * -1.5);
 }
 
-/* Layer 3 — the stars twinkle INDEPENDENTLY: five delay buckets off the one breathe period, so the field
- * never pulses in unison (the tell that would read as one animation rather than a sky). */
+/* Layer 3 — the stars twinkle INDEPENDENTLY. The bucket count must be COPRIME with the star count (10), or
+ * the field pulses in synchronized pairs — 7 buckets over 10 stars gives every star its own phase. */
 .orb-ws-star {
   animation: orb-ws-twinkle var(--motion-breathe) ease-in-out infinite;
 }
-.orb-ws-star:nth-child(5n + 2) {
-  animation-delay: calc(var(--motion-breathe) / 5);
-  animation-duration: calc(var(--motion-breathe) * 1.3);
+.orb-ws-star:nth-child(7n + 2) {
+  animation-delay: calc(var(--motion-breathe) / 7);
+  animation-duration: calc(var(--motion-breathe) * 1.31);
 }
-.orb-ws-star:nth-child(5n + 3) {
-  animation-delay: calc(var(--motion-breathe) * 2 / 5);
-  animation-duration: calc(var(--motion-breathe) * 0.8);
+.orb-ws-star:nth-child(7n + 3) {
+  animation-delay: calc(var(--motion-breathe) * 2 / 7);
+  animation-duration: calc(var(--motion-breathe) * 0.79);
 }
-.orb-ws-star:nth-child(5n + 4) {
-  animation-delay: calc(var(--motion-breathe) * 3 / 5);
-  animation-duration: calc(var(--motion-breathe) * 1.6);
+.orb-ws-star:nth-child(7n + 4) {
+  animation-delay: calc(var(--motion-breathe) * 3 / 7);
+  animation-duration: calc(var(--motion-breathe) * 1.63);
 }
-.orb-ws-star:nth-child(5n + 5) {
-  animation-delay: calc(var(--motion-breathe) * 4 / 5);
-  animation-duration: calc(var(--motion-breathe) * 1.1);
+.orb-ws-star:nth-child(7n + 5) {
+  animation-delay: calc(var(--motion-breathe) * 4 / 7);
+  animation-duration: calc(var(--motion-breathe) * 1.11);
+}
+.orb-ws-star:nth-child(7n + 6) {
+  animation-delay: calc(var(--motion-breathe) * 5 / 7);
+  animation-duration: calc(var(--motion-breathe) * 0.93);
+}
+.orb-ws-star:nth-child(7n + 7) {
+  animation-delay: calc(var(--motion-breathe) * 6 / 7);
+  animation-duration: calc(var(--motion-breathe) * 1.47);
 }
 
 /* Layer 2 / 6b / 8 — the sun's glow breath, the storm's strike, the hour marker's halo pulse. */
@@ -489,6 +510,20 @@
   animation: orb-ws-enter var(--motion-transit) ease-out both;
 }
 
+/* SIZE-GATING (side-eye F7). The stone ships at 120px, but the mobile sheet and any narrow container step it
+ * down — and below ~90px the finest layers stop being detail and start being noise (1px stars, a 3-unit sun
+ * ray, a 2-unit window). Drop them there and thicken what remains, rather than shipping mush. SVG geometry
+ * properties (`r`) are real CSS properties, so this is a paint change with no second render path. */
+@container (max-width: 22rem) {
+  [data-slot="waystone-cardinal-noon"] line,
+  [data-slot="waystone-gable-window"] {
+    display: none;
+  }
+  [data-slot="waystone-stars"] circle {
+    r: 1.05px;
+  }
+}
+
 /* Hidden tab ⇒ nothing composites (the layers are decorative; nobody is looking). */
 [data-slot="waystone"][data-paused="true"] * {
   animation-play-state: paused;
@@ -498,7 +533,16 @@
   [data-slot="waystone"] * {
     animation: none;
   }
+  /* The bolt rides the strike cycle, so its resting frame is INVISIBLE — correct while it animates (lightning
+   * is not continuous), wrong once the animation is removed, which would silently delete the storm's
+   * signature. Under reduced motion it is simply drawn. */
+  [data-slot="waystone"] [data-slot="waystone-bolt"] {
+    opacity: 0.9;
+  }
 }
 [data-reduced-motion="true"] [data-slot="waystone"] * {
   animation: none;
+}
+[data-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
+  opacity: 0.9;
 }
