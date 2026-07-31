@@ -329,6 +329,10 @@ export interface LiteReminderInput {
   readonly steerMacros?: { readonly user: string; readonly char: string } | undefined;
   readonly curSnapshot: RpgSnapshotState;
   readonly prevSnapshot: RpgSnapshotState | null;
+  /** The game's `statProfile` — the ATTRIBUTE VOCABULARY (label + hint per key). The reminder teaches it once
+   *  and renders each actor's values under those labels; without it the state block printed raw `str 14` key
+   *  pairs and the label-as-mini-prompt (the profile's own steering prose) reached the model nowhere. */
+  readonly statProfile: RpgStatProfile;
   /** The game's WHOLE feature-knob slice (`config.features`) — ONE home for every knob the reminder reads:
    *  `relationshipHints` (M1 — a custom relationship renders `label (gloss)`), `immersiveHtml` +
    *  `immersiveHtmlInteractive` (the §3.3/§7.5 card teaching + its M3 ask variant), and the future P3/P5

@@ -125,6 +125,9 @@ function applyWalletDeltas(
  *  applier floored at 0 for exactly this case; a negative reading is legal here because a tracker's floor is
  *  the host's business, and the contract no longer forces `max >= 1`).
  *
+ *  `max` (the per-carrier ceiling OVERRIDE, owner amendment 2026-07-31) is HOST-AUTHORED: neither arm carries
+ *  a max, and the spread PRESERVES an existing override — the model moves the reading, never the ceiling.
+ *
  *  The def catalogue is NOT consulted: an unknown key is written as-is. The write surface already made an
  *  unknown key unrepresentable at the schema (R6 per-actor enums), and the panel projects only DEFINED
  *  trackers — so a stray key is inert data, never a phantom row, and dropping it here would silently discard

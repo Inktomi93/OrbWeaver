@@ -36,6 +36,11 @@ export interface TrackerValueProps {
   /** Rest-button override — when the input needs a fixed width (`!w-avatar-lg` numerics) the rest state
    *  should still hug its text like the read-only arm; pass the rest-specific classes here. */
   readonly restClassName?: string;
+  /** The rest button's `title` — what this edit actually WRITES, when "Click to edit" understates it. The
+   *  founding consumer is a meter's MAX on a roster card: the max lives on the tracker DEF, so editing it
+   *  from one actor's row changes the ceiling for everyone who carries that tracker (the unification's one
+   *  max home). An edit with game-wide reach says so before it's made. @defaultValue "Click to edit" */
+  readonly editTitle?: string;
 }
 
 /** The value cell: static display at rest; click reveals the inline editor (when `onEdit` is set). */
@@ -50,6 +55,7 @@ export function TrackerValue({
   placeholder,
   className,
   restClassName,
+  editTitle = "Click to edit",
 }: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   const [editing, setEditing] = useState(false);
@@ -75,7 +81,7 @@ export function TrackerValue({
         size="sm"
         data-slot="tracker-value-rest"
         aria-label={ariaLabel}
-        title="Click to edit"
+        title={editTitle}
         onClick={(): void => {
           setDraft(source);
           setEditing(true);

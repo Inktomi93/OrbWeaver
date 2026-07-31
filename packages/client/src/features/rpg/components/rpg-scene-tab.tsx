@@ -10,7 +10,15 @@
 // goals ride `upsertQuest`. Beats are a log (read-only by nature).
 
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
-import { RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, timeOfDayAtHour, trackerNumber, trackerReading } from "@orb/contracts/rpg";
+import {
+  RPG_TRACKER_VALUE_EMPTY,
+  RPG_WEATHER_TYPES,
+  TIME_OF_DAY_HOURS,
+  timeOfDayAtHour,
+  trackerCeiling,
+  trackerNumber,
+  trackerReading,
+} from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -305,7 +313,8 @@ function SceneCast({
                       key={m.def.key}
                       label={m.def.label}
                       value={trackerNumber(m.value ?? undefined) ?? 0}
-                      max={m.def.max ?? 0}
+                      // The EFFECTIVE ceiling (this carrier's override, else the def default) — one resolver.
+                      max={trackerCeiling(m.def, m.value ?? undefined) ?? 0}
                       // The def's own color, else the ordinal ramp — the SAME derivation the GM-console
                       // definition row and the band orb use (definition and display one system, §3).
                       {...trackColorProps(resolveTrackerColor(m.def.color, i))}
@@ -376,7 +385,7 @@ function SceneGameTrackers({
           key={entry.def.key}
           label={entry.def.label}
           value={trackerNumber(entry.value ?? undefined) ?? 0}
-          max={entry.def.max ?? 0}
+          max={trackerCeiling(entry.def, entry.value ?? undefined) ?? 0}
           // The tracker SHAPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
           leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}

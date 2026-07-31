@@ -14,27 +14,34 @@
 // #37c — the ICON PICKER (host): clicking a cell's glyph opens a popover of `ITEM_ICON_CHOICES`; the pick
 // writes `item.icon` through `editSnapshot` (a hand-cosmetic write — the model can't touch `icon`, so no
 // lock is stamped). The "last change" provenance line stays the client-side ephemeral diff (§12.2.8).
+//
+// RV-5 — HAND AUTHORING (host, `canEditShared`): the pack had no add/edit at all, and `location` (which the
+// schema stores and the extraction guidance asks the model for) was display-only. The shared `AddRow` mints an
+// item (a name is required — no "Item 3" orphans), and the LIST view is the EDIT view: name · quantity ·
+// location · description are click-to-edit in place, with a confirmed delete. The GRID stays the glanceable
+// lens (the OSRS pack), so one plane keeps one authoring home. Every hand write stamps the actor's
+// `…inventory` lock path (#10 — the same grammar the conditions plane uses: the model writes this plane, so a
+// hand edit pins it, visibly, with a Release on the section).
 
 import type { RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
-import { Coins, Icon, LayoutGrid, List } from "@orb/ui/icons";
-import { Grid, Row, Stack } from "@orb/ui/layout";
-import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
+import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { AddRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot } from "../hooks/use-rpg-mutations";
 import { actorKey } from "../lib/actor-key";
-import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs";
-import { actorStatePatch } from "../lib/volatile-patch";
+import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
+import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
+import type { PackEdit } from "./rpg-pack-rows";
+import { PackBody } from "./rpg-pack-rows";
 import { RpgSubjectSelect } from "./rpg-subject-select";
-
-/** The quest-bound tell — the model-written item `type` naming the quest taxonomy (§12.2). */
-const QUEST_TYPE_RE = /quest/i;
 
 /** The viewer's own `user` actor, or the first roster actor as a fallback. */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {
@@ -50,112 +57,6 @@ function partyTotals(actors: RpgTrackerView["actors"]): ReadonlyMap<string, numb
     }
   }
   return totals;
-}
-
-/** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name. */
-function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
-  return (
-    <Row gap="field" className="max-w-control-col flex-wrap">
-      {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
-        <Button key={name} intent="ghost" size="sm" className="!size-8 !p-0" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
-          <Icon icon={glyph} size="sm" />
-        </Button>
-      ))}
-    </Row>
-  );
-}
-
-/** The item GLYPH — a plain decoration for a viewer; for the HOST a popover trigger opening the #37c
- *  icon picker (the NAME text stays the datum either way). */
-function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; readonly onPickIcon?: (icon: string) => void }): ReactElement {
-  const glyph = <Icon icon={resolveItemIcon(item.icon, item.name, item.type)} size="md" className="text-muted-foreground" />;
-  if (onPickIcon === undefined) {
-    return glyph;
-  }
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button intent="ghost" size="sm" className="!h-auto !p-0" aria-label={`${item.name} icon`} title="Pick an icon">
-            {glyph}
-          </Button>
-        }
-      />
-      <PopoverPopup>
-        <ItemIconPicker itemName={item.name} onPick={onPickIcon} />
-      </PopoverPopup>
-    </Popover>
-  );
-}
-
-/** One GRID pack cell — glyph · corner qty · quest ember · the #37a location micro line. */
-function PackCell({ item, onPickIcon }: { readonly item: RpgInventoryItem; readonly onPickIcon?: (icon: string) => void }): ReactElement {
-  const questBound = QUEST_TYPE_RE.test(item.type);
-  return (
-    <Stack
-      gap="field"
-      align="center"
-      className="relative aspect-square justify-center rounded-card border border-border bg-card px-field py-field text-center"
-      data-slot="rpg-pack-cell"
-      title={item.description === "" ? item.name : `${item.name} — ${item.description}`}
-    >
-      {item.quantity > 1 ? (
-        <Text as="span" size="micro" tone="muted" className="absolute right-field top-field tabular-nums">
-          {item.quantity}
-        </Text>
-      ) : null}
-      {questBound ? (
-        // The ember quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on
-        // title carries the datum (never color-alone).
-        <Text as="span" aria-hidden={true} className="absolute left-field top-field text-primary" size="micro" title="quest item">
-          ●
-        </Text>
-      ) : null}
-      <ItemGlyph item={item} {...(onPickIcon === undefined ? {} : { onPickIcon })} />
-      {/* #37a — the item LOCATION (where it's kept/stashed), display-only; empty = nothing. */}
-      {item.location === "" ? null : (
-        <Text as="span" size="micro" tone="muted" className="max-w-full truncate">
-          {item.location}
-        </Text>
-      )}
-      {/* The mock's 5/6-up density carries the NAME on title/hover; the visually-hidden text
-          keeps it the accessible datum (the tracker-kit a11y model — glyphs stay decoration). */}
-      <Text as="span" size="micro" className="sr-only">
-        {item.name}
-      </Text>
-    </Stack>
-  );
-}
-
-/** One LIST row (#37b) — glyph · name · ×qty · location · description, the read-it-all posture. */
-function PackListRow({ item, onPickIcon }: { readonly item: RpgInventoryItem; readonly onPickIcon?: (icon: string) => void }): ReactElement {
-  return (
-    <Row gap="field" align="center" className="rounded-card border border-border bg-card px-block py-row" data-slot="rpg-pack-row">
-      <ItemGlyph item={item} {...(onPickIcon === undefined ? {} : { onPickIcon })} />
-      <Stack gap="field" className="min-w-0 flex-1">
-        <Row gap="field" align="baseline" className="min-w-0">
-          <Text as="span" size="label" weight="semibold" className="truncate">
-            {item.name}
-          </Text>
-          {item.quantity > 1 ? (
-            <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">
-              ×{item.quantity}
-            </Text>
-          ) : null}
-          {item.location === "" ? null : (
-            <Text as="span" size="micro" tone="muted" className="shrink-0 truncate">
-              · {item.location}
-            </Text>
-          )}
-        </Row>
-        {item.description === "" ? null : (
-          <Text size="micro" tone="muted" className="truncate">
-            {item.description}
-          </Text>
-        )}
-      </Stack>
-    </Row>
-  );
 }
 
 export interface RpgInventoryTabProps {
@@ -179,8 +80,14 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   // The ephemeral "last change" line (§12.2.8) — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
-  const pickIconFor = state.canEditShared && actor !== undefined ? buildPickIconFor(state, actor, editSnapshot) : undefined;
-  const toggleLabel = view === "grid" ? "Show as a list" : "Show as a grid";
+  const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, editSnapshot) : undefined;
+  // The #10 hand-lock pin for the pack plane: present only when the host pinned it by editing (the same
+  // grammar the conditions plane uses — a hand edit stops the story writing here until it is released).
+  const lockPath = actor === undefined ? null : `${actorLockBase(actor.actorRef)}.inventory`;
+  const release =
+    edit === undefined || lockPath === null || !state.tracker.lockedPaths.includes(lockPath)
+      ? undefined
+      : (): void => editSnapshot.mutate({ chatId: state.chatId, patch: {}, releaseLocks: [lockPath] });
 
   return (
     <Stack gap="section" data-slot="rpg-inventory-tab">
@@ -193,27 +100,61 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
       ) : null}
       <PurseLine totals={totals} carried={carried} actorName={actor?.name} />
 
+      <PackSection
+        items={items}
+        view={view}
+        onToggleView={(): void => setView(view === "grid" ? "list" : "grid")}
+        lastChange={lastChange}
+        {...(edit === undefined ? {} : { edit })}
+        {...(release === undefined ? {} : { onRelease: release })}
+      />
+    </Stack>
+  );
+}
+
+/** The PACK section — kicker (+ the hand-lock pin when the plane is pinned) · the view knob · the grid/list
+ *  body · the ephemeral last-change line · the host's add row. Split out of the tab so each piece stays under
+ *  the complexity ceiling and the tab function reads as its own composition. */
+function PackSection({
+  items,
+  view,
+  onToggleView,
+  lastChange,
+  edit,
+  onRelease,
+}: {
+  readonly items: readonly RpgInventoryItem[];
+  readonly view: "grid" | "list";
+  readonly onToggleView: () => void;
+  readonly lastChange: string | null;
+  readonly edit?: PackEdit;
+  readonly onRelease?: () => void;
+}): ReactElement {
+  const toggleLabel = view === "grid" ? "Show as a list" : "Show as a grid";
+  return (
+    <Stack gap="field">
+      <Row gap="field" align="center" justify="between">
+        <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock onRelease={onRelease} />}>Pack — {items.length}</Kicker>
+        {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
+        {items.length === 0 ? null : (
+          <Button intent="ghost" size="sm" className="!size-6 !p-0" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
+            <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
+          </Button>
+        )}
+      </Row>
       {items.length === 0 ? (
-        <Text tone="muted">Empty pack — the story fills it.</Text>
+        // No dead end (§4.3 rule 1): an empty pack still offers the host the first item.
+        <Text tone="muted">Empty pack — {edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}</Text>
       ) : (
-        <Stack gap="field">
-          <Row gap="field" align="center" justify="between">
-            <Kicker>Pack — {items.length}</Kicker>
-            {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
-            <Button
-              intent="ghost"
-              size="sm"
-              className="!size-6 !p-0"
-              aria-label={toggleLabel}
-              title={toggleLabel}
-              onClick={(): void => setView(view === "grid" ? "list" : "grid")}
-            >
-              <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
-            </Button>
-          </Row>
-          <PackBody view={view} items={items} {...(pickIconFor === undefined ? {} : { pickIconFor })} />
-          <LastChangeLine lastChange={lastChange} />
-        </Stack>
+        <PackBody view={view} items={items} {...(edit === undefined ? {} : { edit })} />
+      )}
+      <LastChangeLine lastChange={lastChange} />
+      {edit === undefined ? null : (
+        <AddRow
+          ariaLabel="New item name"
+          placeholder="name it first (e.g. Bone key)"
+          actions={[{ key: "item", label: "Add item", icon: Plus, onAdd: edit.onAddItem }]}
+        />
       )}
     </Stack>
   );
@@ -231,16 +172,20 @@ function LastChangeLine({ lastChange }: { readonly lastChange: string | null }):
   );
 }
 
-/** Build the #37c icon-pick writer — the host's pick writes `item.icon` via the whole-actorState
- *  overlay. No lock stamped (the model can't write `icon`, so there is nothing to pin — `lockPaths: []`
- *  skips the coarse default). */
-function buildPickIconFor(
-  state: RpgPanelState,
-  actor: RpgActorView,
-  editSnapshot: ReturnType<typeof useEditSnapshot>,
-): (itemId: string) => (icon: string) => void {
-  return (itemId) =>
-    (icon): void =>
+/** Build the host's pack writers (RV-5 + #37c) — every one is the whole-`actorState` overlay the rest of the
+ *  panel uses. The ICON pick stamps NO lock (the model can't write `icon`, so there is nothing to pin —
+ *  `lockPaths: []` skips the coarse default); the DATA writes (add/patch/remove) stamp the actor's
+ *  `…inventory` path, so the pin + Release on the Pack section says the story stopped owning this plane. */
+function buildPackEdit(state: RpgPanelState, actor: RpgActorView, editSnapshot: ReturnType<typeof useEditSnapshot>): PackEdit {
+  const lockPath = `${actorLockBase(actor.actorRef)}.inventory`;
+  const write = (mutate: (items: readonly RpgInventoryItem[]) => readonly RpgInventoryItem[]): void =>
+    editSnapshot.mutate({
+      chatId: state.chatId,
+      patch: actorStatePatch(state.tracker.actors, actor.actorRef, (v) => ({ ...v, inventory: [...mutate(v.inventory)] })),
+      lockPaths: [lockPath],
+    });
+  return {
+    onPickIcon: (itemId, icon): void =>
       editSnapshot.mutate({
         chatId: state.chatId,
         patch: actorStatePatch(state.tracker.actors, actor.actorRef, (v) => ({
@@ -248,7 +193,13 @@ function buildPickIconFor(
           inventory: v.inventory.map((it) => (it.id === itemId ? { ...it, icon } : it)),
         })),
         lockPaths: [],
-      });
+      }),
+    onPatchItem: (itemId, patch): void => write((items) => items.map((it) => (it.id === itemId ? { ...it, ...patch } : it))),
+    onRemoveItem: (itemId): void => write((items) => items.filter((it) => it.id !== itemId)),
+    // The item id is a blob-internal string (never a db row id) — minted client-side like every other
+    // hand-authored blob row (the `regex.scripts[].id` precedent).
+    onAddItem: (name): void => write((items) => [...items, { id: globalThis.crypto.randomUUID(), name, description: "", quantity: 1, location: "", type: "" }]),
+  };
 }
 
 /** The pinned party-purse line — totals per currency + the "N on <actor>" carried note. */
@@ -282,41 +233,5 @@ function PurseLine({
         );
       })}
     </Row>
-  );
-}
-
-/** The pack body — the OSRS grid (+ the one ghost socket) or the #37b list view. */
-function PackBody({
-  view,
-  items,
-  pickIconFor,
-}: {
-  readonly view: "grid" | "list";
-  readonly items: readonly RpgInventoryItem[];
-  readonly pickIconFor?: (itemId: string) => (icon: string) => void;
-}): ReactElement {
-  if (view === "grid") {
-    return (
-      <Grid cols="cell" gap="field">
-        {items.map((item) => (
-          <PackCell key={item.id} item={item} {...(pickIconFor === undefined ? {} : { onPickIcon: pickIconFor(item.id) })} />
-        ))}
-        {/* ONE dashed ghost socket — the pack's growth affordance (never a fake capacity grid). */}
-        <Stack
-          aria-hidden={true}
-          gap="field"
-          align="center"
-          className="aspect-square justify-center rounded-card border border-dashed border-border px-field py-field"
-          data-slot="rpg-pack-ghost"
-        />
-      </Grid>
-    );
-  }
-  return (
-    <Stack gap="field">
-      {items.map((item) => (
-        <PackListRow key={item.id} item={item} {...(pickIconFor === undefined ? {} : { onPickIcon: pickIconFor(item.id) })} />
-      ))}
-    </Stack>
   );
 }

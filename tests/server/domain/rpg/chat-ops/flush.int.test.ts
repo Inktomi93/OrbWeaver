@@ -131,7 +131,7 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   // write can never strand a sibling on it, and the ceiling lives on the def where nothing can drift from it.
   const snap = await findSnapshotByVariant(db, variantId);
   const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Wizard");
-  expect(wizard?.trackerValues["mana"]).toEqual({ value: -3, items: null });
+  expect(wizard?.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
   await expect(h.service.getTrackerView({ principal: principal("host"), chatId })).resolves.toBeDefined();
 });
@@ -318,7 +318,7 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
   // The write SURFACES under the roster character's key — not an orphan cast:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
-  expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null });
+  expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null, max: null });
   // And there is NO orphan cast:Kael entry.
   expect(view.actors.some((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Kael")).toBe(false);
 });

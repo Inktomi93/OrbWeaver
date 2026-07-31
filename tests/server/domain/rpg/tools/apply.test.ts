@@ -54,9 +54,10 @@ test("update_party mints a fresh cast actor + applies a tracker DELTA", () => {
   }
   const actor = result.patch.actorState[0];
   expect(actor?.actorRef).toEqual({ kind: "cast", castKey: "Goblin" });
-  // TOTAL by construction: the whole `{value,max,items}` is written, so the plane merge (which recurses into
-  // this object) can never strand a previous reading's siblings on the new one.
-  expect(actor?.trackerValues["rage"]).toEqual({ value: 5, items: null });
+  // TOTAL by construction: the whole `{value,items,max}` is written, so the plane merge (which recurses into
+  // this object) can never strand a previous reading's siblings on the new one. `max` (the per-carrier ceiling
+  // OVERRIDE) is born null and stays HOST-authored — no tool arm writes it.
+  expect(actor?.trackerValues["rage"]).toEqual({ value: 5, items: null, max: null });
 });
 
 test("update_party writes a tracker SET arm — a text reading and a list, keyed by tracker key", () => {
@@ -76,8 +77,8 @@ test("update_party writes a tracker SET arm — a text reading and a list, keyed
     return;
   }
   const values = result.patch.actorState[0]?.trackerValues;
-  expect(values?.["role"]).toEqual({ value: "sellsword", items: null });
-  expect(values?.["pack"]).toEqual({ value: null, items: ["rope", "torch"] });
+  expect(values?.["role"]).toEqual({ value: "sellsword", items: null, max: null });
+  expect(values?.["pack"]).toEqual({ value: null, items: ["rope", "torch"], max: null });
 });
 
 test("update_party: a SET arm naming neither a value nor items is a no-op, never a blanked tracker", () => {
@@ -86,7 +87,7 @@ test("update_party: a SET arm naming neither a value nor items is a no-op, never
       {
         actorRef: { kind: "cast", castKey: "Mira" },
         hp: null,
-        trackerValues: { trust: { value: 62, items: null } },
+        trackerValues: { trust: { value: 62, items: null, max: null } },
         conditions: [],
         inventory: [],
         wallet: [],
@@ -99,7 +100,7 @@ test("update_party: a SET arm naming neither a value nor items is a no-op, never
   if (!result.ok) {
     return;
   }
-  expect(result.patch.actorState[0]?.trackerValues["trust"]).toEqual({ value: 62, items: null });
+  expect(result.patch.actorState[0]?.trackerValues["trust"]).toEqual({ value: 62, items: null, max: null });
 });
 
 test("update_party on a ROSTER-member name mints under the roster ref, not a cast key (F2)", () => {
@@ -122,16 +123,17 @@ test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what
   }
   // A negative reading is legal: a tracker's floor is the host's business (the def owns the ceiling), and the
   // old `max >= 1` mint belt existed only because the retired pool shape carried its own max.
-  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: -3, items: null });
+  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
 });
 
-test("a DELTA accumulates over an existing reading and KEEPS its max (the ceiling is the def's)", () => {
+test("a DELTA accumulates over an existing reading and PRESERVES the carrier's ceiling override (host-authored)", () => {
   const base = emptyState({
     actorState: [
       {
         actorRef: { kind: "cast", castKey: "Wizard" },
         hp: null,
-        trackerValues: { mana: { value: 28, items: null } },
+        // This carrier deliberately tops out at 34 (the host set it) — the model moves the READING only.
+        trackerValues: { mana: { value: 28, items: null, max: 34 } },
         conditions: [],
         inventory: [],
         wallet: [],
@@ -144,7 +146,8 @@ test("a DELTA accumulates over an existing reading and KEEPS its max (the ceilin
   if (!result.ok) {
     return;
   }
-  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: 25, items: null });
+  // No tool arm carries a max, and the write is a spread — a model turn can never wipe the host's ceiling.
+  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: 25, items: null, max: 34 });
 });
 
 test("update_party hpDelta on an existing hp actor applies the delta", () => {
@@ -400,10 +403,10 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
 });
 
 test("set_tracker writes the GAME-subject plane by KEY, keeping the untouched fields", () => {
-  const state = emptyState({ trackerValues: { corruption: { value: 10, items: null } } });
-  expect(applySetTracker(state, { key: "corruption", value: 70 }).trackerValues["corruption"]).toEqual({ value: 70, items: null });
+  const state = emptyState({ trackerValues: { corruption: { value: 10, items: null, max: null } } });
+  expect(applySetTracker(state, { key: "corruption", value: 70 }).trackerValues["corruption"]).toEqual({ value: 70, items: null, max: null });
   // Both write arms run through the SAME mechanic the per-actor arm uses — one write behaviour, two subjects.
-  expect(applySetTracker(state, { key: "corruption", delta: -4 }).trackerValues["corruption"]).toEqual({ value: 6, items: null });
+  expect(applySetTracker(state, { key: "corruption", delta: -4 }).trackerValues["corruption"]).toEqual({ value: 6, items: null, max: null });
 });
 
 test("upsert_quest create mints a quest; a later flip addresses it by name", () => {

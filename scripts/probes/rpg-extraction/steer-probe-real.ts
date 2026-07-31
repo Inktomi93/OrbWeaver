@@ -12,7 +12,7 @@
 
 import fs from "node:fs";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
-import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params";
 import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder";
 
@@ -95,7 +95,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
         volatile: {
           actorRef: { kind: "cast", castKey: "kestrel" },
           hp: { value: 22, max: 30 },
-          trackerValues: { Stamina: { value: 9, items: null } },
+          trackerValues: { Stamina: { value: 9, items: null, max: null } },
           conditions: [],
           inventory: [
             { id: "i1", name: "lockbox", description: "", quantity: 1, location: "", type: "" },
@@ -111,9 +111,9 @@ function realReminder(wits: number, beats: readonly string[]): string {
     trackerDefs: [...WREN_TRACKERS],
     castTrackers: {
       Wren: [
-        { def: WREN_TRACKERS[0] as RpgTrackerDef, value: { value: 70, items: null } },
-        { def: WREN_TRACKERS[1] as RpgTrackerDef, value: { value: wits, items: null } },
-        { def: WREN_TRACKERS[2] as RpgTrackerDef, value: { value: "fixer", items: null } },
+        { def: WREN_TRACKERS[0] as RpgTrackerDef, value: { value: 70, items: null, max: null } },
+        { def: WREN_TRACKERS[1] as RpgTrackerDef, value: { value: wits, items: null, max: null } },
+        { def: WREN_TRACKERS[2] as RpgTrackerDef, value: { value: "fixer", items: null, max: null } },
       ],
     },
     gameTrackers: [],
@@ -128,6 +128,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
     steeringNote: "",
     curSnapshot: emptyState(),
     prevSnapshot: emptyState(),
+    statProfile: RPG_PROFILE_FREEFORM,
     features: {
       relationshipHints: {},
       journalTypeHints: {},
