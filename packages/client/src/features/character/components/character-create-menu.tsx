@@ -16,12 +16,42 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
+import type { CardImportResult } from "#data";
 import { importCharacters, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
+
+/** The toast line for one rejected card: the server's own reason, prefixed with the file it came from
+ *  (the reason is already written for the owner — see the `card_unreadable` throw in domain/import). */
+function cardFailureMessage(failure: CardImportResult["failed"][number]): string {
+  return failure.filename === null ? failure.error : `${failure.filename}: ${failure.error}`;
+}
+
+/** The toast to fire for one import batch — `kind` indexes `notify`. */
+interface ImportNotice {
+  readonly kind: "success" | "info" | "error";
+  readonly message: string;
+}
+
+/** Derive the toast from the REAL per-file outcome. The route answers 200 for an accepted batch even when
+ *  every card inside it failed (per-card isolation), so "it didn't throw" is never a success signal — an
+ *  all-failed batch says WHY (the server's own reason), and a partial says how many of how many. */
+function importNotice({ imported, failed }: CardImportResult): ImportNotice {
+  const [firstFailure] = failed;
+  if (imported.length === 0) {
+    return { kind: "error", message: firstFailure === undefined ? "Couldn't import the card." : cardFailureMessage(firstFailure) };
+  }
+  if (firstFailure === undefined) {
+    return { kind: "success", message: imported.length === 1 ? "Card imported." : `${imported.length} cards imported.` };
+  }
+  return {
+    kind: "info",
+    message: `${imported.length} of ${imported.length + failed.length} imported — ${cardFailureMessage(firstFailure)}`,
+  };
+}
 
 /** The `+` split entry (New / Import card) with its two picker dialogs. */
 export function CharacterCreateMenu(): ReactElement {
@@ -63,10 +93,15 @@ export function CharacterCreateMenu(): ReactElement {
     }
     void (async (): Promise<void> => {
       try {
-        await importCharacters(accepted);
+        const result = await importCharacters(accepted);
+        const notice = importNotice(result);
+        notify[notice.kind](notice.message);
+        if (result.imported.length === 0) {
+          // Nothing landed — the toast named why; keep the dialog open so the owner can try another file.
+          return;
+        }
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "charactersChanged" });
-        notify.success("Card imported.");
         setImportOpen(false);
       } catch {
         notify.error("Couldn't import the card.");

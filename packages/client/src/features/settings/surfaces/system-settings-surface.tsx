@@ -115,7 +115,7 @@ function SystemFormBody({ session, ownerOnly }: SystemFormBodyProps): ReactEleme
             {(field): ReactElement => (
               <field.SwitchField
                 label="Block external media"
-                description="Stop rendered chat content from loading http/https media URLs — a privacy/SSRF guard (the load itself is the tracking-pixel). A per-character override still layers on top."
+                description="Stop rendered chat content from loading http/https media URLs — a privacy/SSRF guard (the load itself is the tracking-pixel). Enforced by the page's Content-Security-Policy as well as the renderer, so it is a deployment CEILING (a per-character override tightens below it, never above) and a change only reaches an open tab on RELOAD."
               />
             )}
           </form.AppField>

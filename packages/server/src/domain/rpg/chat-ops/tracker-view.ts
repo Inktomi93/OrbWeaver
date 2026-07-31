@@ -134,7 +134,7 @@ function ambientView(state: RpgSnapshotState): RpgTrackerView["ambient"] {
 }
 
 /** Build the tracker view for a resolved game. `trackersReadOnly` is passed in (the verb resolves it via
- *  `ctx.resolveTrackersReadOnly` for the CP pill; the gather passes its own already-resolved capability so it
+ *  `ctx.resolveStateDelivery` for the CP pill; the gather passes its own already-resolved capability so it
  *  doesn't re-resolve — one connection read per turn).
  *
  *  `regenSlotMessageId` (VER-1b) — the assistant slot a REGEN (swipe/reroll) is about to write a NEW variant

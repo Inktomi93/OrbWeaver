@@ -138,8 +138,15 @@ export const modelCapabilitySchema = z.object({
     })
     .optional(),
   /** Present ⇒ accepts a `tools[]` request; `parallel` = may request several tool calls in one turn.
-   *  Absent ⇒ no tool-calling (tool-call parts drop with a `tools_unsupported` warning). */
-  tools: z.object({ parallel: z.boolean() }).optional(),
+   *  Absent ⇒ no tool-calling (tool-call parts drop with a `tools_unsupported` warning).
+   *  `silencesProse` = MEASURED truth about this (model × backend): attaching `tools[]` to a CHAT turn
+   *  suppresses the assistant's prose — the wire answers with tool calls and `content: null`, so a turn that
+   *  wants BOTH cannot have both here. Local vLLM is the known case (`Qwen3-VL-8B`: 0 chars of narrative on
+   *  36/36 tool-attached turns, `finish_reason: tool_calls`, while the same model with NO tools attached wrote
+   *  1497–2959 chars every turn — `rpg-extraction-one-call-spike.md` §4g). Truth-only: ABSENT ⇒ the wire
+   *  CO-EMITS prose alongside tool calls (the hosted measurement: 6/6). Read through
+   *  {@link coEmitsProseWithTools} — never re-spelled per consumer. */
+  tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional() }).optional(),
   /** `structured` = accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
   output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
   /** `window` = the model's usable context, in tokens. `windowEstimated` marks it a FALLBACK GUESS rather
@@ -175,6 +182,16 @@ export const modelCapabilitySchema = z.object({
     .optional(),
 });
 export type ModelCapability = z.infer<typeof modelCapabilitySchema>;
+
+/** CAN this wire answer with prose AND tool calls in ONE completion? The ONE home of the co-emission read
+ *  (`capability.tools.silencesProse`, inverted): a turn that attaches tools purely to harvest their arguments —
+ *  rpg's folded state extraction (D112), the terminal-tools chat primitive — is only viable where the narrative
+ *  survives the attachment. `false` also when the model carries no `tools` axis at all (nothing to co-emit).
+ *  Homed in `contracts` because BOTH the chat engine (the wire eligibility) and `domain/rpg` (the fold-mount
+ *  gate) must read the identical fact — a per-domain re-spelling is exactly how the two would drift. */
+export function coEmitsProseWithTools(capability: ModelCapability): boolean {
+  return capability.tools !== undefined && capability.tools.silencesProse !== true;
+}
 
 /** The conservative today-behavior `turns` cell every model defaults to when the resolver can't refine
  *  a per-shape cell. */

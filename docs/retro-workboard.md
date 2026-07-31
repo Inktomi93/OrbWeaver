@@ -381,6 +381,33 @@ weak-model misread is fixed with one copy line in BOTH teach variants ("cards ar
 see — never a status readout/stat block; tracked values stay woven in prose"). Versioned-constant copy bump;
 55 reminder/gather tests green.
 
+**PROSE-1 QUEUED (owner direction, 08-01: "prose shouldn't live in the code")** — model-facing prose
+becomes HOST-EDITABLE DATA with shipped defaults (the RPG-Companion `customHtmlPrompt` precedent + the
+gen-settings-are-preset-owned philosophy). Inventory to classify at spec time: RPG_CARD_TEACH(+STATIC) ·
+RPG_CYOA_TEACH · RPG_STEERING_LICENSE · the delta/scene-opens headings · the impersonate/continue/response
+NUDGES · the R2 tool-description TEMPLATES (per-game hints already exist — the template shells themselves) ·
+FOLDED_RECONCILE_NOTE. Design constraints: shipped defaults stay VERSIONED constants (copy-revision
+legibility — an edit is a fork from the versioned default, like the preset copy-on-edit model); homes split
+per scope (card/cyoa teach = per-game features; nudges = preset-owned per the ST impersonation-prompt
+precedent); macro substitution + freeze-at-commit apply; the F2 probe's winning copy lands as the card
+teach's DEFAULT. Spec-first; natural sequencing = after the preset fork-flood fix (it IS the copy-on-edit
+model this reuses) and alongside/after SET-SEAMS (same contribution grammar).
+
+**QUOTE-1 QUEUED (owner expectation, 08-01):** dialogue speech-tint does NOT exist (markdown policy's
+only quote = blockquote) — build as a chatStyle knob (ST parity: quoted speech colored; tint token in
+appearance, PROSE-1-adjacent). Same session: the "greeting renders unformatted" report likely =
+`autoFixMarkdown` OFF (wiped default) × ST-card unbalanced asterisks — lane verifying the draft arm +
+whether the auto-fix pass covers greeting rows.
+
+**LATE-DAY WAVE 2 (owner rapid-fire):** swipe empty-variant guard MERGED `e5a900b1` (abort hypothesis
+WRONG — the empty row was a TOOL-ONLY completion on the prose-silencing local wire pre-fold-guard;
+upstream fixed at `efc9dde5`, the VER-1b class guard now refuses empty generations pre-commit; aborts
+proven total) · F2a/F2b lane DISPATCHED (fence leniency + example) · EMBEDDED-IMAGE lane DISPATCHED
+(character inline images = display-only, ST parity) · QUEUED SMALLS: rpg.revealHidden fetch cadence
+(2×/turn commit+complete + fired per swipe even unused — ride ONE terminal + check enabled-gating) ·
+STREAM-JANK (message box resizes during streaming, settles at end — side-eye/W-H list) · Protocol-picker
+incoherent pair (turn-breaker) · tool-limit label copy · fallback-name widening.
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
@@ -430,7 +457,9 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **EFF-2** | ~~custom-byo resolveChat unify~~ **BUILT + MERGED** `f7113ae0`: plain-path byte-compat pinned whole-body; `reasoning_effort` scalar (not OR's nested object) emitted only when capability-enabled; budget/off-allowlist drops LOUD; customParameters still win (BYOK). Companion domain fix `28e0892a` (logitBias joins staticProfile's full-sampling claim). | done | — |
 | VER-1 | Verifier-routed (R1 CONFIRMED; not R1 defects): (a) **swipe-lineage duplicate fold-base** — `extractionBase` resolves without `regenMessageId`/exclude, so a re-fold on a new variant duplicates beats; PRE-EXISTING across all three vehicles — own ticket; (b) **tool-only completions** — `auto` permits prose-less completions and the engine has no empty-content guard (design item, spike-accepted risk); (c) custom-byo `role:"tool"` wire drops `isError` SILENTLY (OR-4's unbuilt sibling); (d) latent `QUALITY_SAMPLING[quality]` TypeError if an untyped quality ever reaches resolve-chat.ts:84 (unreachable typed; cheap guard). | open | S–M |
 | **EFF-3** | **`ResolvedWarning` is a dead-ended pair (D107 class):** produced server-side on every degrade (mandatory clamp, allowlist clamp, adaptive-budget-ignored) and consumed by ZERO client code — degrades are invisible. The owner's "recommend, don't force" flag = build the client surface for these warnings (+ GM-tab note when the game connection resolves thinking-off). | open — tonight if runway | M |
-| **F2** | Immersive `:::card` was rare across ALL spike methods (0/6 for the winner, and also 0/6 for the pure narrative call) → points at prompt/seed, not tools. Own investigation. | open | ? |
+| **F2** | ~~Immersive `:::card` was rare across ALL spike methods~~ **ANSWERED — and it is a PRODUCT DEFECT, not a prompt question (§4h, 12 arm-runs / 120 opportunities, $2.16).** Sonnet EMITS a card on 95% of opportunities; our tokenizer renders 73%. It writes `:::card title="…">` (an HTML-tag reflex), `parseFenceAttrs` rejects any unparseable rest, and the whole card becomes a hidden `unknown-directive` span — the reader sees prose with a hole. Once the malformed line is in history the model imitates it for the rest of the session (a turn-3 slip cost 8 consecutive cards). **No teach copy fixes it** — 8 arms tested incl. the anti-recite tail on/off, an expectation reframe, a capability-reassurance line, and the RPG-Companion ST prompt. Also settled: the tail does NOT suppress emission (keep it), and hosted recitation is **0/120** — stat-block cards are a local-8B behaviour (§4g#5). | **→ F2a** (tokenizer fix) + **F2b** (teach copy) | — |
+| **F2a** | **Fence-open leniency in `packages/kit/src/content/index.ts`.** For a REGISTERED fence name, an unparseable rest must fall back to best-effort attrs instead of rejecting the line — the file header already promises "unknown attrs are IGNORED, never fatal (graft #V4)"; a malformed *rest* is fatal today. Recovers three measured shapes: trailing `>`, single-quoted title, leading space. Lifts card render 73% → ~95%. Needs tokenizer tests for all three. | open — **the actual F2 fix** | S |
+| **F2b** | Append the §4h worked example (a 3-line sign) to `RPG_CARD_TEACH` + `RPG_CARD_TEACH_STATIC`. Best-measured copy, smallest delta; keeps permission framing + the anti-recite tail (the expectation reframe costs the mid-prose card position for no emission gain). **Second layer only — it moved 10/10 → 5/10 in one of two runs on its own.** | open, after F2a | XS |
 | **F4** | Do the enriched descriptions still hit the prompt-cache prefix? (+$0.008/game is trivial; the per-turn input growth is the question.) | open | S |
 | **F4a** | Does an `effort` change bust the cache **on the OR wire**? Anthropic documents effort as rendered into the prompt; our path goes through the OpenAI-compat shim. Decides whether per-turn effort variation is merely inadvisable or ruinous. Cheap: two requests, identical cached prefix, differ only in effort, read `cache_read_input_tokens`. | open | S |
 | **F5** | How does OR translate `reasoning:{effort}`, and is native depth reachable at all? Try raising `max_tokens` and OR's `reasoning:{max_tokens:N}` form. **If neither reaches native depth, any recommendation depending on deliberation is capped by the wire** — which re-opens the "migrate to the Anthropic skin" branch §7a currently dismisses. | open | M |

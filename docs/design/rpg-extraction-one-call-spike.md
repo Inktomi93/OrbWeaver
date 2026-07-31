@@ -19,8 +19,14 @@ Appendix B. Results directories are gitignored; **this document is the durable r
 > it is disqualified on this backend; and **`reliable` — the mode R3 kept for the 8B — measured WORST**
 > (`hpDelta` 0/12, `removeCondition` 2/15) while `cheap` leads. R3's premise is contradicted by measurement.
 >
-> **Nothing here is committed yet** — this doc and `scripts/probes/rpg-extraction/` are untracked. The
-> results dirs are gitignored, so the analysis survives only in this file.
+> **NEW 2026-07-31 — §4h answers F2 and it is a PRODUCT DEFECT, not a prompt question.** Sonnet emits a card
+> on 95% of opportunities; our tokenizer renders 73%. The gap is a stray `>` on the open fence
+> (`:::card title="…">`) that `parseFenceAttrs` rejects outright, dropping the whole card — and once the
+> malformed line is in history the model imitates it for the rest of the session. No teach copy fixes it;
+> the fix is fence-open leniency in `packages/kit/src/content/index.ts`.
+>
+> This doc + the harnesses under `scripts/probes/rpg-extraction/` ARE committed; the result dirs and flat
+> transcript JSONs are gitignored, so the analysis survives only in this file.
 
 ---
 
@@ -737,6 +743,15 @@ roughly **+90ms over no schema at all**. No action; do not carry this forward as
 
 #### Recommendation — `reliable` does NOT earn its keep for local, and `folded` must never reach the 8B
 
+> **✅ The "`folded` must never reach the 8B" half SHIPPED (2026-08-01, owner-ruled — D112 amendment).** A
+> `folded` game on a LOCAL vLLM chat wire withholds the terminal-tool mount PRE-commit and runs the cheap
+> post-commit round instead, loud (`rpg.extraction.path` WARN, `fallbackReason: "local-engine-fold-guard"`).
+> The wire class arrives as a CAPABILITY fact — `ModelCapability.tools.silencesProse`, set by the `vllm` arm of
+> `catalog/resolve-model-capability.ts` and read through `coEmitsProseWithTools` — so `domain/rpg` still never
+> branches on `credential.source`. An EXPLICIT host `cheap`/`reliable` is untouched; hosted wires unchanged.
+> Not shipped from this section: the routing OPINION (local → `cheap` over `reliable`) and the
+> `immersiveHtml`/number-recitation defect (#5) remain open.
+
 On this evidence the routing should be: **local 8B → `cheap`.** It is the only arm that keeps the narrative
 AND is grammar-bound (§4f), it wins `removeCondition` (4/15 vs 2 and 0), it is near-perfect on `hpDelta` (9/12
 vs reliable's 0), and it costs 10.3s/turn against reliable's 18.8s. `reliable` — the mode R3 kept specifically
@@ -748,6 +763,121 @@ every turn. **`folded` is disqualified on this backend outright** — not on sta
 failure, not a tuning gap, and it is the strongest argument in this document for keeping mode routing
 backend-aware rather than collapsing to one vehicle. Before any deletion decision: none of this touches hosted
 strong models, where §3/§4c's 6/6 co-emission and 5/5 recall still stand.
+
+### 4h. F2 RESOLVED — Sonnet is NOT reluctant to emit cards; it malforms the OPEN FENCE and we eat them (2026-07-31)
+
+F2 asked why `:::card` was rare across every spike method (0/6 for the winner AND 0/6 for the pure narrative
+call), on the assumption the model was withholding. **The assumption is wrong. Sonnet emits a card on 95% of
+opportunities (114/120). We render 73% (87/120). The other 27 are emitted, eaten by our own tokenizer, and
+never reach the reader.**
+
+Harness: `card-teach-probe.ts` — a scripted 10-turn scene in which every player action puts ONE visual
+artifact in focus (district sign · taped note · vending screen · receipt · hand-drawn map · terminal login ·
+health poster · ID badge · directory plate · ledger page), so the denominator is OPPORTUNITIES (§4b), not
+turns. The injection is built by the REAL `buildLiteReminder` (the §4d-bis `steer-probe-real` pattern) with
+`features.immersiveHtml: true`, and ONLY the card-teach block is swapped per arm — every other byte is
+production. The state deliberately carries recitable numbers (HP 22/30, Stamina 9/14, Corruption 31/100,
+Trust 55/100, 48 credits) as §4g#5 bait. Scored twice: `emitted` = a `:::card` line in the raw text;
+**`rendered` = a `card` span out of the production tokenizer** (`@orb/kit/content`, `committed: true`).
+
+**The mechanism — one stray character.** The model writes `:::card title="Maintenance Terminal — LOGIN">` —
+an HTML-tag reflex closing the opener with `>`. `parseFenceAttrs` returns `null` on any unparseable rest, so
+`tryDirectiveFence` rejects the line; the block degrades to an `unknown-directive` span, which the reading
+surface **hides**. The player gets the prose and a hole where the card was. Verified against the tokenizer
+directly:
+
+| open line | tokenizes as |
+| - | - |
+| `:::card title="Sign"` | **card** |
+| `:::card title="Sign" foo="bar"` (unknown attr) | **card** (version-tolerant, as the header claims) |
+| `:::card title="Sign" ` (trailing space) | **card** |
+| `:::card` (no title) | **card** |
+| `:::card title="Sign">` | text / `unknown-directive` — **DROPPED** |
+| `:::card title='Sign'` (single quotes) | text — **DROPPED** |
+| ` :::card title="Sign"` (leading space) | text — **DROPPED** |
+
+**It is a cascade, not a coin flip.** The malformed opener lands in the assistant history and the model
+imitates itself for the rest of the session. A slip at turn 3 cost eight consecutive cards (A run 1, E run 2);
+a slip at turn 6 cost five (G run 2). Recovery happens but is not reliable (A run 2, C, F each slipped and
+partly recovered).
+
+**Arms** — one 10-turn run each unless noted; `eaten` = emitted − rendered.
+
+| arm | teach | emitted/opp | RENDERED/opp | eaten | recite | pos | refusal-talk |
+| - | - | - | - | - | - | - | - |
+| **A** | CURRENT `RPG_CARD_TEACH` (with the anti-recitation tail) | 10/10 · 8/10 | **2/10 · 6/10** | 8 · 2 | 0 | mid | 0 |
+| **B** | A minus the anti-recitation tail | 8/10 | 8/10 | 0 | 0 | mid | 0 |
+| **C** | stronger invitation ("aim for a card whenever a visual object takes focus") + tail | 10/10 | 8/10 | 2 | 0 | mid | 0 |
+| **D** | C + a worked example (a 3-line sign) inline | 10/10 · 10/10 | **10/10 · 10/10** | 0 | 0 | **lead** | 0 |
+| **E** | A + a capability-reassurance line ("this client renders your cards natively…") | 9/10 · 10/10 | 9/10 · **2/10** | 0 · 8 | 0 | mid | 0 |
+| **F** | the RPG-Companion (ST extension) HTML prompt, minimally adapted to our fence | 9/10 | 7/10 | 2 | 0 | mid | 0 |
+| **G** | A + the worked example (permission framing + tail unchanged) | 10/10 · 10/10 | **10/10 · 5/10** | 0 · 5 | 0 | mid | 0 |
+| **H** | G + a prose-order clue | 10/10 | 10/10 | 0 | 0 | mid | 0 |
+
+**Findings:**
+
+1. **Reluctance is not the problem.** Every arm emits at 8–10/10, including the shipped copy. The 0/6 that
+   opened F2 was almost certainly this same silent drop, not a model that declined.
+2. **The anti-recitation tail does NOT suppress emission** (B 8/10 without it vs A 10/10 with it, and B is the
+   arm that lost turn 1 and turn 5) — **keep it.**
+3. **Recitation is a LOCAL-8B failure, not a hosted one. Zero violations in 120 hosted turns across every arm,
+   including the tail-less arm B**, with the bait state visible on every turn. §4g#5's stat-block cards are a
+   weak-model behaviour; the tail is cheap insurance for that path, not load-bearing on Sonnet.
+4. **The capability-reassurance hypothesis is dead (E).** 9/10 then 10/10 emitted — indistinguishable from
+   baseline emission, and its run 2 suffered the worst cascade in the set. Sonnet is not doubting the surface.
+5. **The wild-tested RPG-Companion phrasing does not fix it either (F)** — 9/10 emitted, 7/10 rendered, same
+   `>` slips at turns 6 and 8. Its near-zero protocol overhead (shortest teach, shortest replies at 1816 avg
+   chars) is not the lever; protocol verbosity was never the drag.
+6. **The worked example is the best copy available and still not sufficient.** The example arms are the only
+   ones with a mechanistic reason to be clean (they pin the exact opener bytes) and they lead the set — but
+   G run 2 cascaded from turn 6 anyway. **No copy tested prevents the drift.**
+7. **C's expectation framing has a side effect: card-FIRST responses.** D (= C + example) put the card before
+   any prose on 10/10 turns; every permission-framed arm kept it mid-prose. The framing, not the example,
+   causes it — G (= A + example) is 0/10 lead. H's explicit prose-order clue was therefore unnecessary.
+8. Cards never landed at the END of a response in any arm (0/87). Nobody ever explained a refusal — the
+   card-less turns simply narrate the artifact in prose (see B t1/t5, E t1; all turn-1 misses, a warm-up
+   effect that vanishes once one card is in history).
+
+**Recommendation — the fix is the TOKENIZER, and the copy change is a cheap second layer.**
+
+`packages/kit/src/content/index.ts` already states the posture this violates: *"Unknown attrs on a fence are
+IGNORED, never fatal (version-tolerant, graft #V4)."* A malformed *rest* is fatal today. For a REGISTERED
+fence name (`card`/`choices`), an unparseable rest should fall back to best-effort attrs rather than rejecting
+the line — recovering the trailing `>`, the single-quoted title, and the leading-space open in one change.
+That converts every arm in the table to its `emitted` column: **~95% of opportunities, up from 73%.** (Not
+built here — this probe is read-only; it needs its own ticket + tokenizer tests for the three shapes above.)
+
+Copy, second: **keep the current permission framing and the anti-recitation tail, and append the worked
+example** (arm G — the smallest delta that measured best). Do NOT take C/D's expectation reframe: it buys no
+emission at this ceiling and costs the mid-prose card position. Proposed `RPG_CARD_TEACH` = today's constant
+plus, appended verbatim:
+
+```text
+(blank line)
+For example, a three-line sign is enough:
+:::card title="Crossing sign"
+<div style="font-family:monospace;text-align:center;padding:14px;border:2px solid #6b5c3e;background:#e9e1cb;color:#3a2f1c;letter-spacing:2px">
+  <div>EAST CROSSING</div><div>CLINIC — 2 KM</div><div>NO ENTRY AFTER DARK</div>
+</div>
+:::
+```
+
+i.e. `RPG_CARD_TEACH + "\n\nFor example…"`, the exact string the probe's `EXAMPLE` constant holds. Mirror it
+into `RPG_CARD_TEACH_STATIC` minus the JS/animation clause. The example is never echoed as a card — zero
+"EAST CROSSING" cards in 40 example-arm turns. **Do not ship the copy change alone** — on its own it moved
+10/10 → 5/10 in one of two runs.
+
+**Caveats:** n=1–2 per arm, one model, one scene, one genre; the scene is deliberately card-saturated (10/10
+opportunities is not a normal session), so treat the emission rates as a ceiling and the malformation rate
+(6 of 12 runs carried ≥1 eaten card) as the durable number. Narrative quality was judged by reading, not by a
+judge pass: **no arm degraded it** — the cards are genuinely good (period-correct directory plates, water-
+stained receipts, a login screen with a stale session banner) and the prose reacts to them; the example arms
+read tightest, C/D the most florid (2565 avg chars vs D/G's ~2000).
+
+Artifacts: `scripts/probes/rpg-extraction/card-teach-probe.ts` (12 arm-runs, $2.16 total). `CARD_DRY=1` prints
+each arm's assembled injection without spending; `CARD_SCORE=<transcript.json>` re-scores a saved run for free.
+Raw transcripts `card-teach-out{,-run2,-run3,-run4}.json` are on disk and gitignored, like the other spike
+outputs; the sampled cards are in `CARD-TEACH-SAMPLES.md`.
 
 ## 5. Recommendations (prioritized)
 
@@ -1078,6 +1208,12 @@ All under **`scripts/probes/rpg-extraction/`** (moved off the session scratchpad
 - **`steer-probe.mjs` (§4d)** — the READ half of the loop: silently decays a tracked NPC meter across 8
   turns in three arms (pinned / bare number / glossed) and scores each turn with a blind judge. Writes
   `steer-out.json` (full transcripts). ~$0.23/run, OpenRouter key.
+- **`card-teach-probe.ts` (§4h)** — the F2 card-teach matrix: 10 scripted card OPPORTUNITIES, the real
+  `buildLiteReminder` with only the teach block swapped per arm (A–H), scored `emitted` vs **`rendered`** (a
+  `card` span out of the production tokenizer — the split that found the defect). `CARD_ARMS` picks arms,
+  `CARD_DRY=1` prints the injections free, `CARD_SCORE=<file>` re-scores a saved run free. ~$0.18/arm,
+  OpenRouter key. Transcripts `card-teach-out{,-run2,-run3,-run4}.json` (gitignored); samples in
+  `CARD-TEACH-SAMPLES.md`.
 - `effort-ladder-native-vs-or.mjs` (§4a) — native `output_config.effort` vs OR `reasoning:{effort}` on
   identical input, thinking tokens as the signal. ~$0.39/run, needs BOTH keys.
 - `effort-reasoning-probe.mjs` (§4a) — does `reasoning:{effort}` emit reasoning on our workload shape.

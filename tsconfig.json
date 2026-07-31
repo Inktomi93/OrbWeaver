@@ -65,6 +65,10 @@
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.
     "tests/client/features/chat/hooks/use-message-items.test.ts",
+    // CT plumbing that is itself DOM-COUPLED: `dropFiles` builds a `DataTransfer` + `File` INSIDE the page
+    // (an `evaluateHandle` callback), so its body needs lib.dom even though it is `.ts` node-side glue —
+    // the one exception to the "tests/support/ct/*.ts stays here" note above. Home: tsconfig.tests-dom.json.
+    "tests/support/ct/drop-files.ts",
     // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
     // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
     // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That

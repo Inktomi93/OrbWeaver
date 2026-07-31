@@ -18,12 +18,13 @@
 // is `undefined` and the flush is a no-op (a byte-identical non-writing turn). Journal entries stamp the
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
 
+import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat";
 import type { StagedTurnFlush } from "../contract/params";
-import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
+import type { RpgContext, RpgFoldFallbackReason, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
 import { writeStagedSnapshot } from "../persistence/snapshots";
 import { snapshotStateBeforeSlot } from "../snapshot-edit";
@@ -96,12 +97,25 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round" | "struc
 
 /** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
- *  terminal tools at all (`terminalToolCalls === null`: the stateful agent-sdk wire, a tools-incapable model)
- *  — runs its dedicated post-commit round exactly as before. An EMPTY call array is NOT a fallback: the fold
- *  ran and the model recorded nothing, which is a legitimate quiet beat the fold op logs as such.
+ *  terminal tools at all, or whose wire would go MUTE if they rode (`terminalToolCalls === null`: the stateful
+ *  agent-sdk wire, a tools-incapable model, or the fold-guarded local engine) — runs its dedicated post-commit
+ *  round exactly as before. An EMPTY call array is NOT a fallback: the fold ran and the model recorded nothing,
+ *  which is a legitimate quiet beat the fold op logs as such.
  *
  *  The resolution is ANNOUNCED on every flush (`onStateRoundPath`) — a fork that resolves silently would let a
  *  folded game quietly pay the second call forever with nothing in the trail to say so. */
+/** WHY this flush is not folding, read off the TURN's own connection (the wire that actually ran — never a
+ *  re-resolve). `null` = nothing was downgraded (the knob got what it asked for). The two causes are distinct and
+ *  both are the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
+ *  all; a wire that SILENCES prose under tool attachment was deliberately never mounted (D112's fold guard, gated
+ *  PRE-commit at the gather off the same capability fact). Same round, same delta — different diagnosis. */
+function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls: readonly unknown[] | null): RpgFoldFallbackReason | null {
+  if (mode !== "folded" || calls !== null) {
+    return null;
+  }
+  return coEmitsProseWithTools(turn.turnConnection.connection.capability) ? "no-terminal-channel" : "local-engine-fold-guard";
+}
+
 function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, mode: RpgExtractionMode): RpgRunExtraction {
   const calls = mode === "folded" ? turn.turnConnection.terminalToolCalls : null;
   ctx.onStateRoundPath({
@@ -109,7 +123,7 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
     gameId: game.id,
     mode,
     path: calls === null ? POST_COMMIT_PATH[mode] : "folded",
-    fallbackReason: mode === "folded" && calls === null ? "no-terminal-channel" : null,
+    fallbackReason: foldFallbackReason(turn, mode, calls),
   });
   if (calls === null) {
     return POST_COMMIT_ROUND[mode](ctx);

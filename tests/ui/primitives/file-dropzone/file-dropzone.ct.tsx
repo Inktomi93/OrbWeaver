@@ -4,10 +4,14 @@
 import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { dropFiles } from "../../../support/ct/drop-files";
 import { FileDropzoneHarness } from "./file-dropzone.fixtures";
 
 const NON_EMPTY = /.+/u;
 const TWENTY_MEBIBYTES = 20 * 1024 * 1024;
+const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
+const A_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
+const A_SECOND_CARD = { name: "hero.png", mimeType: "image/png", content: "PNG2" };
 
 test("inside a <Field>, the label associates with the real file input (Field.Control registration)", async ({ mount, page }) => {
   await mount(
@@ -75,6 +79,45 @@ test("dragging over the dropzone flips the drag-over highlight and leaving clear
   await expect(root).toHaveAttribute("data-drag-over", "");
   await root.dispatchEvent("dragleave");
   await expect(root).not.toHaveAttribute("data-drag-over", "");
+});
+
+// ── The DROP feeder (the P1: a dropped card used to vanish) ────────────────────────────────────────
+// `preventDefault` on the drop is mandatory (else the browser navigates away to the file) and it also
+// cancels the covering input's native file-accept — so the handler must read `dataTransfer.files`
+// itself. Measured in Chromium with a trusted CDP drag: with the old code the ancestor saw the file and
+// the input never fired `change`, i.e. the drop was silently swallowed. These drive the real drop path.
+
+test("dropping a file delivers it to onFilesSelected (the drop is handled, not left to the input)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD]);
+  await expect(page.getByTestId("accepted-names")).toContainText("villain.png");
+  // …and the drop clears the drag-over highlight the dragenter set.
+  await expect(page.locator(DROPZONE_ROOT)).not.toHaveAttribute("data-drag-over", "");
+});
+
+test("a multi-file drop on a multiple zone delivers every file", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness multiple={true} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD, A_SECOND_CARD]);
+  const names = page.getByTestId("accepted-names");
+  await expect(names).toContainText("villain.png");
+  await expect(names).toContainText("hero.png");
+});
+
+test("a multi-file drop on a single-file zone takes only the first (its picker can't hand back more)", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD, A_SECOND_CARD]);
+  const names = page.getByTestId("accepted-names");
+  await expect(names).toContainText("villain.png");
+  await expect(names).not.toContainText("hero.png");
+});
+
+test("a DROPPED file over maxSizeBytes hits the same size pre-check as a picked one", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness maxSizeBytes={2} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_CARD]);
+  const error = page.getByRole("alert");
+  await expect(error).toBeVisible();
+  await expect(error).toContainText("villain.png");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("villain.png");
 });
 
 test("disabled: the native input is disabled and the root carries data-disabled", async ({ mount, page }) => {

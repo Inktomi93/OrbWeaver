@@ -15,6 +15,9 @@ export interface SandboxFrameProps {
   readonly themeTokens?: Readonly<Record<string, string>>;
   /** Pre-validated font-family list for the base body rule (see `use-sandbox-theme.ts`); dropped when unsafe. */
   readonly fontFamily?: string;
+  /** The row's resolved external-media verdict — widens the frame CSP to `https:` images/media. Default false
+   *  (fail closed). The EMBEDDING document's CSP must allow it too: a srcdoc frame inherits the parent policy. */
+  readonly allowExternalMedia?: boolean;
   readonly title: string;
   /** While false, a skeleton renders instead of the frame — a half-rendered flash is worse than a code fence. */
   readonly complete?: boolean;
@@ -35,6 +38,7 @@ export function SandboxFrame({
   css,
   themeTokens,
   fontFamily,
+  allowExternalMedia = false,
   title,
   complete = true,
   heightPx = DEFAULT_HEIGHT_PX,
@@ -49,7 +53,13 @@ export function SandboxFrame({
     );
   }
 
-  const srcDoc = buildSrcDoc({ html, css, themeTokens: clampSandboxThemeTokens(themeTokens), fontFamily: clampSandboxFontFamily(fontFamily) });
+  const srcDoc = buildSrcDoc({
+    html,
+    css,
+    themeTokens: clampSandboxThemeTokens(themeTokens),
+    fontFamily: clampSandboxFontFamily(fontFamily),
+    allowExternalMedia,
+  });
   return (
     <iframe
       sandbox={SANDBOX_ATTR}
