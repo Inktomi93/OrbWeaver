@@ -15,7 +15,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
@@ -676,6 +676,65 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const plain = await previewAssembly({ principal: principal(me), chatId });
     expect(plain.trace.guidedInstructionIncluded).toBe(false);
     expect(plain.prompt.dynamic).not.toContain("be dramatic");
+  });
+
+  test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {
+    // The host preview's honesty contract: `Σ sources[].tokens === totalTokens`, every source's `text` is
+    // text the model actually receives, the ceiling is the SAME `min(window, maxContextTokens)` the fit uses,
+    // and a PLAIN chat carries no `game-state` row.
+    const me = await seedUser(db, "budget_host");
+    const chatId = await seedRoom("budget", me);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
+
+    const capability = makeModelCapability({ output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 8192 } });
+    const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolvedConnection({ capability })) }));
+    const { budget, prompt } = await previewAssembly({ principal: principal(me), chatId });
+
+    expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
+    expect(budget.totalTokens).toBeGreaterThan(0);
+    expect(budget.ceilingTokens).toBe(8192);
+    // The preset sections land in `system`, and the drill-in body is the assembled text VERBATIM (the panel
+    // shows what the wire carries, never a re-derivation).
+    const system = budget.sources.find((s) => s.source === "system");
+    expect(system?.tokens).toBeGreaterThan(0);
+    expect(prompt.static).toContain(system?.text ?? "<no system slice>");
+    // History is accounted by COST, never re-served as content.
+    const history = budget.sources.find((s) => s.source === "history");
+    expect(history?.text).toBe("");
+    expect(history?.tokens).toBeGreaterThan(0);
+    expect(history?.detail).toBe("2 turns");
+    // A plain chat has no game row (the row is game-conditional, not a zero-width segment).
+    expect(budget.sources.some((s) => s.source === "game-state")).toBe(false);
+  });
+
+  test("a GAME chat previews its state block: the rpg gather rides the preview + gets its own budget row", async () => {
+    // Before D-4 the preview omitted the rpg reminder entirely — the host's honesty instrument showed a prompt
+    // the model never receives. The gather now runs on the preview path (read-only, turnless) and its depth-0
+    // reminder is accounted as `game-state`, disjoint from `steering`.
+    const me = await seedUser(db, "game_host");
+    const chatId = await seedRoom("game", me);
+    const gatherTurnContext = vi.fn(() =>
+      Promise.resolve({
+        macros: {},
+        injections: [{ position: "in_chat" as const, depth: 0, role: "system" as const, content: "## Game state\nroster: Mara (VIT 24/30)" }],
+        tools: [],
+      }),
+    );
+    // The same minimal-stub precedent as the deception-replay test below (which fabricates only
+    // `resolveReasoningHostOnly`).
+    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path calls ONLY `gatherTurnContext`.
+    const rpg = { gatherTurnContext } as unknown as NonNullable<ChatContext["rpg"]>;
+    const ctx = makeChatContext(db, { rpg });
+
+    const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+
+    const gameState = budget.sources.find((s) => s.source === "game-state");
+    expect(gameState?.text).toBe("## Game state\nroster: Mara (VIT 24/30)");
+    expect(gameState?.detail).toBe("state block");
+    expect(gameState?.tokens).toBeGreaterThan(0);
+    // Turnless + dice-ineligible: the preview never marks a turn or feeds a queued roll.
+    expect(gatherTurnContext).toHaveBeenCalledWith(chatId, undefined, false, expect.objectContaining({ char: expect.any(String) }));
   });
 
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {

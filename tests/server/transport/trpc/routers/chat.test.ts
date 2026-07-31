@@ -1068,6 +1068,11 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
       afterHistorySections: [],
       overrideSources: { mainPrompt: "room override" },
     },
+    budget: {
+      ceilingTokens: 8192,
+      totalTokens: 5,
+      sources: [{ source: "system", detail: "main prompt", tokens: 5, text: "SYSTEM: be helpful" }],
+    },
   };
 
   test("a thin pass-through: chatId reaches the verb with the resolved Principal; the preview+trace return verbatim", async () => {
