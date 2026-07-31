@@ -33,7 +33,7 @@ import type {
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
   cancelEditingMessage,
@@ -717,6 +717,14 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
   // observable: after commit, `fireImpersonate` writes the drafted text to the NEW chatId's scope directly
   // (the promoted composer no longer reads the stale draftKey scope), and the story reads that same store.
   const scopeKey = startedChatId ?? "draft_ct_composer";
+  // `notify` no-ops into the console in the CT harness (bindNotify is main.tsx-only), so bind it to a DOM sink
+  // — the guided-impersonate failure toasts (a SUBSCRIPTION has no `meta.errorToast` seam) are observed via
+  // this marker. Same shape as PersonaThisChatStory.
+  const [notified, setNotified] = useState<string>("");
+  useState(() => {
+    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    return null;
+  });
 
   return (
     <div>
@@ -779,6 +787,8 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
       >
         commit
       </button>
+      {/* The notify sink (see bindNotify above) — rendered LAST so it never shifts the composer's own layout. */}
+      <p data-testid="composer-notified">{notified}</p>
     </div>
   );
 }

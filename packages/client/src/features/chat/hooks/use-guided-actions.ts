@@ -10,6 +10,7 @@ import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { GENERATION_FAILED_DETAIL, IMPERSONATE_AFTER_COMMIT_FAILED_LEAD, IMPERSONATE_FAILED_LEAD, notify } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
@@ -86,6 +87,22 @@ function steerFor(action: GuidedActionKind, input: string, person?: GuidedImpers
   return person === undefined ? { action, input } : { action, input, person };
 }
 
+/** The guided-IMPERSONATE failure toast. Impersonate is the one fire action that rides a SUBSCRIPTION, so it
+ *  has no `meta.errorToast` seam — without this a failed draft was completely silent (the D57 input-restore
+ *  only re-types the steer, and does nothing at all when the composer was empty). Stays silent for the ONE
+ *  case another surface already owns: a DRAFT whose `startChat` commit failed — that is the mutation's own
+ *  rejection and its `errorToast` has already fired. */
+function notifyImpersonateFailure(error: unknown, at: { readonly committedHere: boolean; readonly draft: boolean }): void {
+  if (at.draft && !at.committedHere) {
+    return;
+  }
+  const lead = at.committedHere ? IMPERSONATE_AFTER_COMMIT_FAILED_LEAD : IMPERSONATE_FAILED_LEAD;
+  // `streamImpersonation` only ever rejects with USER copy: the typed terminal frame's curated domain message,
+  // or GENERATION_FAILED_DETAIL for a link fault (whose own message is framework text).
+  const detail = error instanceof Error && error.message !== "" ? error.message : GENERATION_FAILED_DETAIL;
+  notify.error(`${lead} ${detail}`);
+}
+
 interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
@@ -159,8 +176,10 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
 
   // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
   // the session recovery ring, and on a NON-ABORT failure hand the text back so the wand can restore the
-  // draft (a silenced turn-abort is a user stop, not a lost steer). The error toast rides the mutation's
-  // own `errorToast` meta; this only handles the input-restore + ring the source treats as sacred.
+  // draft (a silenced turn-abort is a user stop, not a lost steer). This is ONLY the input-restore + ring the
+  // source treats as sacred — NOT an error surface (it is a no-op on an empty composer, and shows nothing when
+  // it does run). The user-visible toast rides the mutation's own `errorToast` meta, or — for the
+  // subscription-driven impersonate, which has no meta seam — `notifyImpersonateFailure`.
   const onFireError = opts.onFireError;
   const perFire = (firedText: string): { onError: (error: unknown) => void } | undefined => {
     if (firedText.trim().length === 0) {
@@ -239,27 +258,67 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
 
   /** Drive the `chat.impersonateStream` SUBSCRIPTION imperatively: accumulate each text delta and hand the
    *  GROWING text to `fill` as it arrives (progressive composer fill). Resolves when the stream completes; on a
-   *  domain-error terminal frame OR a transport error it rejects (the flow's restore-on-failure surfaces it).
-   *  A partial fill already applied stays in the composer (the nicer review-flow UX on cancel). */
+   *  domain-error terminal frame, a transport error, OR a server-reported fault the link would silently retry,
+   *  it rejects with a USER-FACING message (the caller toasts it). A partial fill already applied stays in the
+   *  composer UNLESS a typed steer is restored over it (the D57 restore wins — the steer is the recoverable
+   *  thing, a truncated half-line is not).
+   *
+   *  ONE-SHOT, NOT A LIVE FEED — every settle path unsubscribes. This is the zombie-subscription seam: the
+   *  handle was previously discarded, and the link tears itself down only on complete/error. A server fault
+   *  with a RETRYABLE tRPC code (INTERNAL_SERVER_ERROR — what a raw `ProviderError` becomes, since it is not a
+   *  DomainError and so never becomes a typed terminal frame) is NOT an error to `httpSubscriptionLink`: it
+   *  reports "connecting" with the error and lets EventSource reconnect every ~3s FOREVER, re-running the
+   *  server generator (a full silent re-generation per reconnect) while NO client callback ever fires — the
+   *  owner's dead-engine incident, one gesture and minutes of `impersonateStream` GETs. For a one-shot,
+   *  non-resumable drive that is terminal: reject + unsubscribe on the first server-reported connection error. */
   const streamImpersonation = (targetChatId: ChatId, guided: GuidedSteerInput | undefined, fill: (accumulated: string) => void): Promise<void> =>
     new Promise<void>((resolve, reject) => {
       let accumulated = "";
-      trpcClient.chat.impersonateStream.subscribe(guided === undefined ? { chatId: targetChatId } : { chatId: targetChatId, guided }, {
+      let settled = false;
+      // Assigned right after `subscribe` returns — the observer fires SYNCHRONOUSLY during the call (the link's
+      // behavior-subject replays its initial `connecting` state), so a `const handle` referenced from a callback
+      // would be a TDZ crash. `settle` closes over the box instead. That one synchronous emission carries
+      // `error: null`, so it never settles: every settle path below runs with `close` assigned.
+      let close: (() => void) | undefined;
+      const settle = (finish: () => void): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        close?.();
+        finish();
+      };
+      const handle = trpcClient.chat.impersonateStream.subscribe(guided === undefined ? { chatId: targetChatId } : { chatId: targetChatId, guided }, {
         // The yields are `tracked()` envelopes: the payload rides `envelope.data` — a `{ delta }` chunk OR the
         // typed `__subscriptionError` terminal frame `withSubscriptionErrors` emits for a domain error (the
-        // participant gate / a provider fault), which we surface as a rejection rather than a silent stall.
+        // participant gate / a provider fault), which we surface as a rejection rather than a silent stall. Its
+        // `message` is the CURATED domain message, so it rides through as the toast detail (the same treatment
+        // `use-chat-bus` gives its own terminal frame).
         onData: (envelope) => {
           const payload = envelope.data;
           if ("__subscriptionError" in payload) {
-            reject(new Error(payload.message));
+            settle(() => reject(new Error(payload.message)));
             return;
           }
           accumulated += payload.delta;
           fill(accumulated);
         },
-        onComplete: () => resolve(),
-        onError: (error) => reject(error),
+        onComplete: () => settle(resolve),
+        // A link-level throw (a non-retryable code / a dead EventSource) carries framework text, never user
+        // copy — the caller's toast uses the generic detail and the raw error rides `cause` for the console.
+        onError: (error) => settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: error }))),
+        // The retry-instead-of-fail arm (see the doc comment): `connecting` WITH an error means the link is
+        // about to silently re-open the stream. Terminal ONLY when the error carries a tRPC error SHAPE
+        // (`.data`) — i.e. the SERVER reported the failure and the link chose to retry it. A shapeless error
+        // is the socket dropping (`TRPCClientError.from(<DOM Event>)`, message "Unknown error"), which stays
+        // on tRPC's own reconnect path.
+        onConnectionStateChange: (state) => {
+          if (state.error !== null && state.error.data !== undefined) {
+            settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: state.error })));
+          }
+        },
       });
+      close = (): void => handle.unsubscribe();
     });
 
   return {
@@ -332,6 +391,10 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       // line (that IS the review). Idles the cluster while streaming; restores the steer on a non-abort error.
       setImpersonatePending(true);
       const restore = perFire(input);
+      // Which lead the failure toast gets — flipped once the draft commit is BEHIND us, so a post-commit
+      // failure says the room survived (see IMPERSONATE_AFTER_COMMIT_FAILED_LEAD). A commit failure itself is
+      // NOT toasted here: `startChat`'s own `meta.errorToast` already owns that surface (double-toast).
+      let committedHere = false;
       const flow = async (): Promise<void> => {
         if (chatId !== null) {
           // Committed chat — no navigation, the composer stays mounted; fill via the caller's own onChange,
@@ -345,10 +408,17 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         // commit flips the room draft→committed, so stream into the NEW chatId's composer-draft store directly
         // (the promoted composer reads that scope; the old draft-scope `onChange` is stale post-promotion).
         const targetId = await commitDraft();
+        committedHere = true;
         await streamImpersonation(targetId, guided, (accumulated) => setComposerDraft(targetId, accumulated));
       };
       flow()
-        .catch((error: unknown) => restore?.onError(error))
+        .catch((error: unknown) => {
+          // The D57 input-restore is NOT an error surface (it silently re-types the steer, and does nothing at
+          // all when the composer was empty) — impersonate rides a subscription, so it has no `meta.errorToast`
+          // and every failure here used to die silent. Toast first, then restore.
+          notifyImpersonateFailure(error, { committedHere, draft: chatId === null });
+          restore?.onError(error);
+        })
         .finally(() => setImpersonatePending(false));
     },
     fireOpening,

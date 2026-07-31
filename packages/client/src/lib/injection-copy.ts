@@ -72,6 +72,24 @@ export const CONTINUE_NEEDS_REPLY = "needs a reply to continue (try Generate ope
 
 /** The hover cue shown on a guided icon while the composer HAS text — teaches the typed-text-becomes-steer
  *  contract at the point of action (defuses the invisible mode-switch). Per-icon variants read naturally. */
+// The guided-IMPERSONATE failure surface. Impersonate rides a SUBSCRIPTION, not a mutation, so it has no
+// `meta.errorToast` seam — the hook toasts these itself, and without them a failed draft was completely
+// silent (the owner's dead-engine incident: every impersonate died in ~2ms with nothing on screen). Composed
+// `"<lead> <detail>"`: the lead names WHAT failed (and, on the draft path, what SURVIVED), the detail is the
+// server's own terminal-frame message when the stream carried one, else GENERATION_FAILED_DETAIL.
+
+/** Impersonate failed on a committed chat. It persists nothing, so there is no half-written turn to explain. */
+export const IMPERSONATE_FAILED_LEAD = "Couldn't draft your line.";
+
+/** The draft composite: `startChat` already COMMITTED (the room exists and is open) and only the drafting
+ *  generation failed — the lead must say so, or the user reads the toast as "nothing happened" and re-fires,
+ *  minting a second room. */
+export const IMPERSONATE_AFTER_COMMIT_FAILED_LEAD = "Your chat was created, but drafting your line failed.";
+
+/** The detail for a failure that carries no server message (a transport/link fault — its message is framework
+ *  text like "Unknown error", never user copy). */
+export const GENERATION_FAILED_DETAIL = "The generation didn't complete — check the connection and try again.";
+
 export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
 export const STEER_CUE_SWIPE = "Uses your typed text to steer the reroll";
 export const STEER_CUE_CONTINUE = "Uses your typed text to steer the continuation";
