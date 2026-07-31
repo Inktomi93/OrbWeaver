@@ -6,6 +6,7 @@
 // Every color here is a theme token or a `color-mix()` over tokens — zero raw literals, so any seed theme
 // restyles the stone for free (D71).
 import type { WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase } from "./waystone-treatment";
+import { waystoneBandTint } from "./waystone-treatment";
 
 // ─── Geometry (viewBox units) ────────────────────────────────────────────────────────────────────
 export const VIEW = 96;
@@ -51,22 +52,27 @@ export const GLOW_R = 2.1;
 export const GLOW_FLOOR = 0.1;
 export const GLOW_ALTITUDE_GAIN = 0.14;
 export const SKY_UNSET_OPACITY = 0.5;
-export const ARC_DIM_OPACITY = 0.55;
+/** The rest-state opacity of a band that is NOT the current one: quieter, but still unmistakably ITS color. */
+export const ARC_REST_OPACITY = 0.72;
+/** The current band's halo: how far it spreads past the ring, and how strongly (a hue-agnostic "we are here"
+ *  — a pure brightness step reads on the gold bands and disappears on the indigo ones). */
+export const ARC_GLOW_SPREAD = 4;
+export const ARC_GLOW_OPACITY = 0.42;
 export const TICK_W_MINOR = 1;
 export const TICK_W_MAJOR = 1.5;
 
 // ─── Tints (tokens + color-mix ONLY — the §12.1.9 one-home rule for the stone) ───────────────────
-export const ARC_DIM = "color-mix(in oklab, var(--color-muted) 55%, var(--color-foreground))";
-/** The lit arc = the phase we are IN. One ember family for the warm half of the day, track blue for the dark
- *  half — the ring's own coarse day/night read, before the marker is even found. */
-export const ARC_LIT: Readonly<Record<WaystonePhase, string>> = {
-  dawn: "color-mix(in oklab, var(--color-primary) 65%, var(--color-track-3))",
-  morning: "color-mix(in oklab, var(--color-track-3) 70%, var(--color-primary))",
-  afternoon: "color-mix(in oklab, var(--color-track-3) 80%, var(--color-background))",
-  evening: "color-mix(in oklab, var(--color-primary) 75%, var(--color-track-4))",
-  night: "color-mix(in oklab, var(--color-track-2) 55%, var(--color-background))",
-  midnight: "color-mix(in oklab, var(--color-track-2) 38%, var(--color-background))",
-};
+/** The dial band strokes. Each of the six segments wears its OWN band identity (`waystoneBandTint` — the sky
+ *  that part of the day actually paints), lifted toward the foreground so a dark band still reads against the
+ *  bezel; the CURRENT band is lifted further and runs at full opacity, so "we are here" is a brightness step
+ *  within one hue family rather than the only color on an otherwise grey ring (owner, 2026-07-31). */
+export function arcStroke(phase: WaystonePhase, lit: boolean): string {
+  return `color-mix(in oklab, ${waystoneBandTint(phase)} ${lit ? ARC_LIT_MIX : ARC_REST_MIX}%, var(--color-foreground))`;
+}
+/** How much of the band's own hue survives the legibility lift — the LIT band keeps more of itself (it is
+ *  already the brightest thing on the ring), a resting band trades a little hue for luminance. */
+const ARC_LIT_MIX = 74;
+const ARC_REST_MIX = 52;
 export const TICK_STROKE = "color-mix(in oklab, var(--color-foreground) 30%, transparent)";
 export const TICK_MAJOR_STROKE = "color-mix(in oklab, var(--color-foreground) 55%, transparent)";
 /** The horizon silhouette — a foreground-shifted sidebar tone (polarity-safe contrast, no raw black). */

@@ -9,12 +9,13 @@
 import type { CSSProperties, ReactElement } from "react";
 import { cn } from "#lib";
 import {
-  ARC_DIM,
-  ARC_DIM_OPACITY,
-  ARC_LIT,
+  ARC_GLOW_OPACITY,
+  ARC_GLOW_SPREAD,
+  ARC_REST_OPACITY,
   ASH_DOT_R,
   ASH_FILL,
   arcPath,
+  arcStroke,
   BOLT_STROKE,
   CLOUD_DARK,
   CLOUD_DRIFT_CLASS,
@@ -138,20 +139,38 @@ export function BandLayer({ layer }: { readonly layer: WaystoneBandLayer }): Rea
   );
 }
 
-/** LAYER 0 — the 24h dial: the six label arcs (the one we are IN lit) over the neutral track. */
+/** LAYER 0 — the 24h dial: SIX label arcs, each in its OWN band identity (a real dial where every segment is
+ *  its own section, never a grey ring with one lit piece), the current one lifted to full opacity. */
 export function DialArcs({ litPhase }: { readonly litPhase: WaystonePhase }): ReactElement {
+  const litSpan = WAYSTONE_PHASE_SPANS.find((s) => s.phase === litPhase) ?? WAYSTONE_PHASE_SPANS[0];
+  if (litSpan === undefined) {
+    throw new Error("waystone: the dial has no bands");
+  }
   return (
     <>
+      {/* The current band's GLOW: a wider, softer arc UNDER the ring in the band's own hue. Emphasis has to
+          be hue-agnostic — a brightness step alone reads on the gold bands and vanishes on the indigo ones,
+          so "we are here" is a halo, not a shade. */}
+      <path
+        d={arcPath(litSpan.from, litSpan.to)}
+        className="orb-ws-transit"
+        stroke={arcStroke(litPhase, true)}
+        strokeWidth={RING_W + ARC_GLOW_SPREAD}
+        fill="none"
+        strokeLinecap="butt"
+        opacity={ARC_GLOW_OPACITY}
+        data-slot="waystone-arc-glow"
+      />
       {WAYSTONE_PHASE_SPANS.map((span) => (
         <path
           key={`${span.phase}-${span.from}`}
           d={arcPath(span.from, span.to)}
           className="orb-ws-transit"
-          stroke={span.phase === litPhase ? ARC_LIT[span.phase] : ARC_DIM}
+          stroke={arcStroke(span.phase, span.phase === litPhase)}
           strokeWidth={RING_W}
           fill="none"
           strokeLinecap="butt"
-          opacity={span.phase === litPhase ? 1 : ARC_DIM_OPACITY}
+          opacity={span.phase === litPhase ? 1 : ARC_REST_OPACITY}
           data-slot="waystone-arc"
           data-arc-phase={span.phase}
           data-lit={span.phase === litPhase}
