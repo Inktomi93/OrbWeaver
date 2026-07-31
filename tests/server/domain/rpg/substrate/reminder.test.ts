@@ -6,6 +6,8 @@
 import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
 import {
   buildLiteReminder,
@@ -157,15 +159,18 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
   expect(out).not.toContain("MUST record");
 });
 
+const FOCUS = def({ key: "focus", label: "focus", shape: "meter", write: "delta", subject: "actor", max: 5, hint: "spent to steady the hand" });
+
 test("the state block reports each plane, label-as-mini-prompt", () => {
   const view = emptyView({
     ambient: { location: "The Rusty Anchor", calendarDate: null, clock: { day: 2, hour: 21, minute: 0 }, weather: { type: "rain", label: "" } },
+    trackerDefs: [FOCUS],
     actors: [
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
         sheet: { className: "Rogue", attributes: { dex: 16 }, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
-        trackers: [def({ key: "focus", label: "focus", shape: "meter", write: "delta", subject: "actor", max: 5, hint: "spent to steady the hand" })],
+        trackers: [FOCUS],
         volatile: {
           actorRef: { kind: "cast", castKey: "kael" },
           hp: { value: 8, max: 12 },
@@ -186,7 +191,11 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("night");
   expect(out).toContain("Kael");
   expect(out).toContain("HP 8/12");
-  expect(out).toContain("focus 3/5 (spent to steady the hand)"); // #36 — the host pool hint glosses the meaning
+  // #36 — the host tracker hint reaches the model, taught ONCE on the vocabulary line; the carrier line
+  // carries the bare reading under the same label (the `attributeGloss`/`attributeReading` split).
+  expect(out).toContain("Trackers: focus (spent to steady the hand)");
+  expect(out).toContain("focus 3/5");
+  expect(out).not.toContain("focus 3/5 (");
   expect(out).toContain("40 gold");
   expect(out).toContain("dagger ×2");
   expect(out).toContain("poisoned");
@@ -194,6 +203,37 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("search the office");
   expect(out).toContain("The door slammed shut.");
   expect(out).toContain("Lv 3"); // §2.6 — the actor's hand-only level rides the party line
+});
+
+// The party line's trackers come off the CARRIER set, not off the volatile row's keys: an actor a snapshot
+// has never written (a party member whose beats only ever touched someone else) still carries its trackers,
+// and losing them there is how the live game's user actor lost Corruption entirely.
+test("an actor with NO volatile row still lists the trackers it carries", () => {
+  const bond = def({ key: "bond", label: "Bond", shape: "text", write: "set", subject: "actor", hint: "where you two stand" });
+  const view = emptyView({
+    trackerDefs: [bond],
+    actors: [
+      {
+        actorRef: { kind: "user", userId: castId<UserId>("user_host") },
+        name: "You",
+        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        volatile: null,
+        trackers: [bond],
+      },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("Trackers: Bond (where you two stand)");
+  expect(out).toContain("- You — Bond");
+});
+
+// A quest `description` is an editable panel field (the host writes the goal's prose there). It reached the
+// model nowhere — the same filled-but-unread class as the tracker hint.
+test("an active quest's host-written DESCRIPTION rides its line", () => {
+  const view = emptyView({
+    quests: [{ id: "q1", name: "Find the ledger", status: "active", description: "the harbourmaster's second book", objectives: [] }],
+  });
+  expect(buildLiteReminder(input({ view }))).toContain("- Find the ledger [active] — the harbourmaster's second book");
 });
 
 test("the cast line renders relationship + the member's TRACKERS shape-aware", () => {
@@ -212,31 +252,34 @@ test("the cast line renders relationship + the member's TRACKERS shape-aware", (
   expect(out).toContain("trust: guarded"); // text kind
 });
 
-// R4b (§4d-bis) — the host-authored cast-field `hint` must reach the MODEL, not just the panel tooltip. A bare
-// tracked number moves narration by −0.12 (noise); the same number glossed moves it by −1.00. The gloss rides
-// BOTH kinds, mirroring the pool (`focus 3/5 (…)`) and relationship (`vassal (…)`) grammar.
-test("a hinted tracker glosses inline for EVERY shape; an unhinted one is unchanged", () => {
+// R4b (§4d-bis) — the host-authored tracker `hint` must reach the MODEL, not just the panel tooltip. A bare
+// tracked number moves narration by −0.12 (noise); the same number glossed moves it by −1.00. The hint now
+// rides the VOCABULARY line once (the attribute-gloss pattern) and every carrier reading stays bare, so the
+// meaning ships whatever the shape — and, unlike the old inline gloss, whether or not the value is set.
+test("every tracker's hint is taught ONCE on the vocabulary line; readings stay bare for EVERY shape", () => {
+  const wits = def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", hint: "how sharp and quick-thinking she is right now" });
+  const nerve = def({ key: "capped", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10, hint: "what she has left to spend on bravery" });
+  const bond = def({ key: "bond", label: "Bond", shape: "text", write: "set", subject: "actor", hint: "where the two of them stand" });
+  const debts = def({ key: "plain", label: "Debts", shape: "meter", write: "set", subject: "actor", max: 5 });
   const view = emptyView({
     cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    trackerDefs: [wits, nerve, bond, debts],
     castTrackers: castTrackersFor("Wren", [
-      {
-        def: def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", hint: "how sharp and quick-thinking she is right now" }),
-        value: value(10),
-      },
-      {
-        def: def({ key: "capped", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10, hint: "what she has left to spend on bravery" }),
-        value: value(4),
-      },
-      { def: def({ key: "bond", label: "Bond", shape: "text", write: "set", subject: "actor", hint: "where the two of them stand" }), value: value("frayed") },
-      { def: def({ key: "plain", label: "Debts", shape: "meter", write: "set", subject: "actor", max: 5 }), value: value(3) },
+      { def: wits, value: value(10) },
+      { def: nerve, value: value(4) },
+      { def: bond, value: value("frayed") },
+      { def: debts, value: value(3) },
     ]),
   });
   const out = buildLiteReminder(input({ view }));
-  expect(out).toContain("Wits 10 (how sharp and quick-thinking she is right now)"); // meter, no max
-  expect(out).toContain("Nerve 4/10 (what she has left to spend on bravery)"); // meter with max
-  expect(out).toContain("Bond: frayed (where the two of them stand)"); // text kind
-  expect(out).toContain("Debts 3/5"); // hint absent ⇒ today's exact format, no empty parens
-  expect(out).not.toContain("Debts 3/5 (");
+  // The vocabulary line: every def, glossed, exactly once — an unhinted def contributes its bare label.
+  expect(out).toContain("Wits (how sharp and quick-thinking she is right now)");
+  expect(out).toContain("Nerve (what she has left to spend on bravery)");
+  expect(out).toContain("Bond (where the two of them stand)");
+  expect(out).not.toContain("Debts ("); // hint absent ⇒ no empty parens, on either surface
+  // The cast line: bare readings, shape-aware, ONE gloss-free grammar.
+  expect(out).toContain("Wren — Wits 10 — Nerve 4/10 — Bond: frayed — Debts 3/5");
+  expect(out.match(/how sharp and quick-thinking/g)).toHaveLength(1);
 });
 
 // RV-4's READ half. The write half (the Game-tab hint editor) is worth nothing if the gloss never ships: the

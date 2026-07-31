@@ -279,13 +279,30 @@ export function trackerReading(def: RpgTrackerDef, value: RpgTrackerValue | unde
 
 /** The ONE tracker gloss (`Mana 5/10 (fuels spellcasting)`). Replaces the three drifted per-concept builders
  *  the reminder used to carry (pool segs · cast-field segs · widget lines) — that drift is exactly how the
- *  R4b class was born (cast fields shipped a hint the model never saw). `null` when there is no reading. */
+ *  R4b class was born (cast fields shipped a hint the model never saw). `null` when there is no reading.
+ *
+ *  READING-BOUND BY CONSTRUCTION, which is why it is NOT the reminder's per-carrier builder any more: an
+ *  UNSET tracker glosses to `null`, so a carrier that has the tracker and no reading yet taught the model
+ *  nothing — not the tracker's existence, not its meaning. The reminder now teaches the vocabulary once
+ *  ({@link trackerVocabulary}) and prints bare {@link trackerReading}s per carrier (the `attributeGloss` /
+ *  `attributeReading` split). This stays for the surfaces that carry ONE reading with no vocabulary line
+ *  above it (the delta's standalone `{{rpgDelta}}` consumer). */
 export function trackerGloss(def: RpgTrackerDef, value: RpgTrackerValue | undefined): string | null {
   const reading = trackerReading(def, value);
   if (reading === null) {
     return null;
   }
   return def.hint !== "" ? `${reading} (${def.hint})` : reading;
+}
+
+/** ONE tracker's VOCABULARY gloss — `Corruption (how corrupted someone is.)`, the hint omitted when empty.
+ *  The `attributeGloss` twin (same `label (hint)` grammar, same reason): the MEANING is taught ONCE per turn,
+ *  and each carrier's line then carries only the `label value/max` {@link trackerReading}. Teaching the hint
+ *  per carrier multiplied the host's prose by the party size, and — worse — a carrier with no reading yet
+ *  glossed to nothing at all, so a freshly-defined tracker reached the model NOWHERE (the live-turn bug: a
+ *  pinned `Corruption 0/100` visible on every Status card, absent from the whole reminder). */
+export function trackerVocabulary(def: RpgTrackerDef): string {
+  return def.hint === "" ? def.label : `${def.label} (${def.hint})`;
 }
 
 /** A meter tracker's numeric reading, or `null` when it has none (a text/list tracker, or an unset/non-numeric
