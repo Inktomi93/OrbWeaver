@@ -21,6 +21,7 @@ export { Waystone } from "./waystone";
 export type {
   WaystoneCelestial,
   WaystoneOverlayKind,
+  WaystoneParticleLayer,
   WaystonePhase,
   WaystonePhaseSpan,
   WaystoneSky,

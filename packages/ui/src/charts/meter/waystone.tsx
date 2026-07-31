@@ -74,16 +74,6 @@ import { BandLayer, DialArcs, SkyLayers } from "./waystone-layers";
 import type { WaystoneWeather } from "./waystone-treatment";
 import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment";
 
-export type {
-  WaystoneBandLayer,
-  WaystoneCloudLayer,
-  WaystoneOverlayKind,
-  WaystoneParticleLayer,
-  WaystonePhase,
-  WaystoneTreatment,
-  WaystoneWeather,
-} from "./waystone-treatment";
-
 /** The ambient clock as the stone reads it. The HOUR is the whole time axis: it drives the dial angle, the
  *  interpolated sky, the sun/moon's point on its arc, and the star ramp — the six `TIME_OF_DAY` labels stay a
  *  TEXT concern (the band prints them; the ring bands them). One nullable object, so "the story hasn't set the

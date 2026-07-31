@@ -49,7 +49,7 @@ import { WAYSTONE_PHASE_SPANS } from "./waystone-treatment";
 
 /** Layer 5 — the falling particles. Rain draws slanted streaks, snow/ash draw motes (snow adds the lateral
  *  sway on an inner group, so the two axes compose without a bespoke keyframe per weather). */
-export function ParticleLayer({ layer }: { readonly layer: WaystoneParticleLayer }): ReactElement {
+function ParticleLayer({ layer }: { readonly layer: WaystoneParticleLayer }): ReactElement {
   const cells = latticeCells(layer);
   // The keyframe translates by `--orb-ws-pitch`, so one class serves every lattice spacing (the pitch is DATA).
   const style = { "--orb-ws-pitch": `${layer.pitch}px` } as CSSProperties;
@@ -80,7 +80,7 @@ export function ParticleLayer({ layer }: { readonly layer: WaystoneParticleLayer
 
 /** Layer 4 — the cloud deck. Every slot is always mounted; `count` lights the first N by OPACITY so a weather
  *  change fades the deck rather than popping puffs in and out. */
-export function CloudLayer({ layer }: { readonly layer: WaystoneCloudLayer }): ReactElement {
+function CloudLayer({ layer }: { readonly layer: WaystoneCloudLayer }): ReactElement {
   return (
     <g className={cn("orb-ws-transit", CLOUD_DRIFT_CLASS[layer.drift])} data-slot="waystone-clouds" data-cloud-count={layer.count} data-cloud-tone={layer.tone}>
       {CLOUD_SLOT_PATHS.slice(0, CLOUD_SLOTS).map((d, index) => (
@@ -164,7 +164,7 @@ export function DialArcs({ litPhase }: { readonly litPhase: WaystonePhase }): Re
 /** LAYER 2 — the sun or moon, drawn at the origin and TRANSLATED to its computed point on the arc, so ANY
  *  hour change slides it along the sky over the transit duration. Low = bigger, warmer, dimmer-glowing; high =
  *  small, pale and bright (the altitude is continuous in the hour). */
-export function CelestialBody({ body, veil, maskId }: { readonly body: WaystoneCelestial; readonly veil: number; readonly maskId: string }): ReactElement {
+function CelestialBody({ body, veil, maskId }: { readonly body: WaystoneCelestial; readonly veil: number; readonly maskId: string }): ReactElement {
   const glow = GLOW_FLOOR + body.altitude * GLOW_ALTITUDE_GAIN;
   return (
     <g
