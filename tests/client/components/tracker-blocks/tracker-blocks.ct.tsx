@@ -160,6 +160,65 @@ test("CastCard: name + mood line + customFields as chip rows", async ({ mount })
   await expect(component).toContainText("3 favors");
 });
 
+test("BeatLine: long model-authored content WRAPS — no horizontal overflow (owner scrollbar report 08-01)", async ({ mount, page }) => {
+  const longBeat =
+    "Kestrel pressed Wren on the missing wagon while the storm rolled over the ford road and the lantern guttered down to its last measure of oil, forcing a choice";
+  await mount(
+    <div style={{ width: 280 }}>
+      <BeatLine>{longBeat}</BeatLine>
+    </div>,
+  );
+  const line = page.locator("[data-slot=beat-line]");
+  await expect(line).toBeVisible();
+  const overflow = await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth);
+  expect(overflow).toBe(0);
+  const box = await line.boundingBox();
+  if (box === null) {
+    throw new Error("beat line has no box");
+  }
+  expect(box.height).toBeGreaterThan(30);
+});
+
+test("CastCard: a long model-authored mood WRAPS instead of overflowing the card (owner jank report 08-01)", async ({ mount, page }) => {
+  // Model-authored free text has no length contract — the mood slot must wrap inside a narrow card, never
+  // widen it. Geometry assertion (a string assertion stays green through the overflow this pins against).
+  const longMood = "quietly furious but hiding it behind a practiced diplomatic smile while counting exits";
+  const edits: string[] = [];
+  await mount(
+    <div style={{ width: 280 }}>
+      <CastCard
+        name="Sera"
+        mood={longMood}
+        fields={[]}
+        relationship={{ kind: "friend", label: "" }}
+        onEditMood={(next): void => {
+          edits.push(next);
+        }}
+      />
+    </div>,
+  );
+  const rest = page.getByRole("button", { name: "Sera mood" });
+  await expect(rest).toBeVisible();
+  const overflow = await page.evaluate(() => {
+    const host = document.body;
+    return host.scrollWidth - host.clientWidth;
+  });
+  expect(overflow).toBe(0);
+  const box = await rest.boundingBox();
+  if (box === null) {
+    throw new Error("mood rest button has no box");
+  }
+  // Wrapped = taller than a single text line (the label line-height is ~20px; two lines clear 30).
+  expect(box.height).toBeGreaterThan(30);
+  // And the mood slot never invades the identity half: the badge's box and the mood button's box are
+  // horizontally disjoint (the owner screenshot showed the pill painted over by the mood label).
+  const badge = await page.getByText("friend").boundingBox();
+  if (badge === null) {
+    throw new Error("relationship badge has no box");
+  }
+  expect(box.x).toBeGreaterThanOrEqual(badge.x + badge.width);
+});
+
 test("CastCard editable: clicking a field's rest value reveals the editor; onEditField fires with (name, value)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(

@@ -39,6 +39,10 @@ type Waiver =
 // that mounts the real parent and drives this sub-part through it; that CT must exist (verified below).
 const WAIVERS: Readonly<Record<string, Waiver>> = {
   // Sub-parts driven through a parent's real CT.
+  "assembly-preview-diagnostics": {
+    coveredBy: "assembly-preview-panel",
+    why: "the Diagnostics drawer is the panel's split-out half (component-size cap); assembly-preview-panel.ct drives the drawer's BUILD + SHAPE traces and collapsed-by-default arm.",
+  },
   "message-choices-block": {
     coveredBy: "message-content",
     why: "MessageContent renders the choices block; the message-content choices CTs drive render + click-send + the disabled arms.",

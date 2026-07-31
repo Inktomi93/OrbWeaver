@@ -117,6 +117,14 @@ the model cap), max context = window "(full window)"; NumberField gained a place
 Root swallows input-part props — routed to the Input slot explicitly). (c) CapabilityGate empty state
 names the hidden knobs per axis. Side-eye look at the new copy/placeholders rides the W-H pass.
 
+**TRK STAGE 2 MERGED** (`98ee6da2`, check 12/12 ×2, worktree battery 8372/0 + CT 1596/0; post-merge
+battery running): Sheet-tab DELETED, roster-expand = full-panel takeover (breadcrumb, 390px-verified),
+RV-8 primitives (add-row/hint-editor/editTitle) swept across trackers/attributes/relationships/quests/
+journal/pack; RV-4/5/6/7/12 closed; per-carrier ceilings live (`trackerCeiling` one home, D113 ¶1
+AMENDED); journal `label` renders; attribute hints gloss ONCE at vocabulary level. FLAGGED for the W-H
+side-eye: CT-harness band/kicker overlap at 640px (pre-existing, check against the real shell). NEXT:
+W-H full side-eye (needs a model-populated game — RV-15), then EXT-4, then SSE multiplex S0.
+
 **IN-FLIGHT AGENTS (SendMessage ids):** smalls DONE (`edb78a26` AU-5 kill incl. re-homed cold-cache regression tests + `d9563dd1` VER-1d quality guard; NEW ITEM: `resolveAgentSdkAlias` branch now product-unreachable — separate look). Was: smalls ON MAIN — AU-5 `edb78a26`
 (NOTE: my staged density spec got index-swept into that commit — content fine, cosmetic), VER-1d guard
 IN PROGRESS (`resolve-chat.ts` uncommitted in main's tree — **NO git ops on main until it lands**) ·

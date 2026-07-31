@@ -93,15 +93,17 @@ function ActorTrackerMeter({
   // (`?? null` because a wire row may simply omit the key; absent and null both mean "follow the default".)
   const override = value.max ?? null;
   const overrideNote = override === null || def.max === null ? null : `${def.label} ceiling ${override} — default: ${def.max}`;
-  // The transient drag-tell wins; then the override tell; otherwise the standing HINT — the host-authored
-  // meaning that is also what the model reads (one gloss, two audiences). Empty hint = no microline.
-  const effectiveNote = note ?? overrideNote ?? (def.hint === "" ? null : def.hint);
+  // The transient drag-tell wins; then the override tell. The standing HINT moved to the label's hover
+  // title (owner ruling 08-01) — echoed inline under every carrier's row it was a repeated line of noise;
+  // the model still reads it in the reminder gloss (one hint, two audiences, different delivery).
+  const effectiveNote = note ?? overrideNote;
   return (
     <MeterRow
       label={def.label}
       value={reading}
       max={max}
       valueWarning={reading > max}
+      {...(def.hint === "" ? {} : { labelTitle: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
       {...(release === undefined ? {} : { leading: <RpgFieldLock onRelease={release} /> })}
       {...(edit === undefined

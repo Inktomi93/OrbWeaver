@@ -93,9 +93,13 @@ export interface CastMoodProps {
  *  read-only shows the plain line (omitted when absent). */
 export function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElement | null {
   if (onEditMood !== undefined) {
+    // flex-1 (basis-0) + min-w-0: the mood is model-authored free text with no length contract — it takes
+    // only the LEFTOVER header width and wraps inside it. A shrinkable auto-basis box instead put the
+    // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
+    // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="shrink-0">
-        <Text as="span" size="micro" tone="muted">
+      <Row gap="field" align="baseline" className="min-w-0 flex-1 justify-end">
+        <Text as="span" size="micro" tone="muted" className="shrink-0">
           mood
         </Text>
         <TrackerValue
@@ -103,6 +107,7 @@ export function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElemen
           display={mood ?? ""}
           placeholder="—"
           onEdit={onEditMood}
+          wrap={true}
           className="!w-auto min-w-0 max-w-full field-sizing-content"
         />
       </Row>
@@ -112,7 +117,7 @@ export function CastMood({ name, mood, onEditMood }: CastMoodProps): ReactElemen
     return null;
   }
   return (
-    <Text as="span" size="label" tone="muted">
+    <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
       mood — {mood}
     </Text>
   );
