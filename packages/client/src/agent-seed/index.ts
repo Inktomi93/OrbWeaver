@@ -6,16 +6,16 @@
 // schemas `use-rpg-mutations` rides) — never a parallel mutation path or a raw insert.
 //
 // TWO profiles, both seedable (owner-requested — both panel states must be testable):
-//   • d20      — the full sheet: the six-attribute grid (str/dex/con/int/wis/cha) + level + pools + the rest.
+//   • d20      — the full sheet: the six-attribute grid (str/dex/con/int/wis/cha) + level + trackers + the rest.
 //   • freeform — everything EXCEPT the attribute grid (freeform has no attribute vocabulary — the sparser
 //                Sheet look). Pools/inventory/cast/quests/journal/plot/scene all seed identically.
 //
 // PLANE MAP (which verb owns which datum):
-//   • sheet identity (className/attributes/poolDefs/maxHp/level) → `patchSheet` (the player `character` ref)
-//   • swipe-volatile plane (hp values, pool values, inventory, wallet, presentCharacters+relationships+
-//     customFields, plot, scene ambient, recentEvents) → `editSnapshot` (the [merge-clear] overlay)
+//   • sheet identity (className/attributes/maxHp/level/tracker grants) → `patchSheet` (the `character` ref)
+//   • swipe-volatile plane (hp, tracker readings, inventory, wallet, presentCharacters+relationships,
+//     plot, scene ambient, recentEvents) → `editSnapshot` (the [merge-clear] overlay)
 //   • the quest plane (with objectives) → `upsertQuest` (the dedicated hand arm — mints stable objective ids)
-//   • the config plane (cast-field schemas, relationship hints, pinned orbs) → `updateConfig`
+//   • the config plane (the TRACKER defs + relationship hints) → `updateConfig`
 //   • the journal archive → `addJournalEntry`
 //
 // DEV-ONLY: the builder is instantiated at the composition root ONLY under `IS_DEV` (agent-bridge's gate) —
@@ -35,21 +35,81 @@ import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge";
 const PLAYER_HANDLE = "orb-seed-hero";
 const PLAYER_NAME = "Aldric Vane";
 
-/** The band-orb pool names pinned beyond the auto-first-3 (config.features.pinnedOrbs). */
-const PINNED_ORBS = ["Mana", "Focus"] as const;
-
-/** The player's pool DEFINITIONS (the mechanical dials the volatile pool VALUES track against). Colors ride
- *  the strict pool-color hex grammar (decorative bar geometry; the value text rides theme tokens). */
-const PLAYER_POOL_DEFS = [
-  { name: "Mana", max: 40, color: "#5b8cff" },
-  { name: "Focus", max: 20, color: "#3fb98a" },
-  { name: "Grit", max: 10, color: "#d98a3f" },
-];
-
-/** The host-defined tracked cast-field schemas (config.features.castFields) — one meter, one text chip. */
-const CAST_FIELDS = [
-  { key: "trust", label: "Trust", kind: "meter" as const, max: 100, hint: "how much this NPC trusts the player" },
-  { key: "role", label: "Role", kind: "text" as const, hint: "the NPC's function in the scene" },
+/** The game's TRACKERS (`config.trackers` — the ONE def home since the tracked-field unification). The seed
+ *  exercises every axis on purpose: party-carried spend/restore meters (the old "pools", two of them PINNED
+ *  to the band), an NPC-carried meter + text pair (the old "cast fields"), and a game-wide meter (the old
+ *  custom widget). Colors ride the strict tracker-color hex grammar (decorative bar geometry; the value text
+ *  rides theme tokens); every one carries the steering HINT the model reads. */
+const TRACKERS = [
+  {
+    key: "mana",
+    label: "Mana",
+    shape: "meter" as const,
+    write: "delta" as const,
+    subject: "actor" as const,
+    appliesTo: "party" as const,
+    max: 40,
+    color: "#5b8cff",
+    pinned: true,
+    sort: 0,
+    hint: "arcane fuel; empty means no spellcasting",
+  },
+  {
+    key: "focus",
+    label: "Focus",
+    shape: "meter" as const,
+    write: "delta" as const,
+    subject: "actor" as const,
+    appliesTo: "party" as const,
+    max: 20,
+    color: "#3fb98a",
+    pinned: true,
+    sort: 1,
+    hint: "composure under pressure; spent by strain",
+  },
+  {
+    key: "grit",
+    label: "Grit",
+    shape: "meter" as const,
+    write: "delta" as const,
+    subject: "actor" as const,
+    appliesTo: "party" as const,
+    max: 10,
+    color: "#d98a3f",
+    sort: 2,
+    hint: "resolve you spend to push through danger",
+  },
+  {
+    key: "trust",
+    label: "Trust",
+    shape: "meter" as const,
+    write: "set" as const,
+    subject: "actor" as const,
+    appliesTo: "npcs" as const,
+    max: 100,
+    sort: 3,
+    hint: "how much this NPC trusts the player",
+  },
+  {
+    key: "role",
+    label: "Role",
+    shape: "text" as const,
+    write: "set" as const,
+    subject: "actor" as const,
+    appliesTo: "npcs" as const,
+    sort: 4,
+    hint: "the NPC's function in the scene",
+  },
+  {
+    key: "alarm",
+    label: "Town alarm",
+    shape: "meter" as const,
+    write: "set" as const,
+    subject: "game" as const,
+    max: 100,
+    sort: 5,
+    hint: "how hard the watch is looking for you",
+  },
 ];
 
 /** The custom-relationship gloss (config.features.relationshipHints — steers a `{kind:"custom",label}`). */
@@ -66,7 +126,6 @@ const PRESENT_CHARACTERS = [
     appearance: "a lean duelist in travel-worn leathers, one hand always near her hilt",
     outfit: "oiled leather cuirass, a faded green cloak",
     thoughts: "he talks a good game — but can he hold a line when it breaks?",
-    customFields: { trust: "62", role: "sellsword escort" },
     relationship: { kind: "ally" as const, label: "" },
   },
   {
@@ -77,7 +136,6 @@ const PRESENT_CHARACTERS = [
     appearance: "a silver-tongued mage with soot under his nails and a collector's grin",
     outfit: "a burnt-hem coat stitched with cooling runes",
     thoughts: "the relic is mine by right — Aldric merely doesn't know it yet",
-    customFields: { trust: "18", role: "rival arcanist" },
     relationship: { kind: "custom" as const, label: "sworn rival" },
   },
 ];
@@ -173,11 +231,35 @@ const D20_ATTRIBUTES: Readonly<Record<string, number>> = { str: 15, dex: 13, con
 const PLAYER_LEVEL = 4;
 const PLAYER_MAX_HP = 38;
 
-/** The pool VALUES (volatile) — current/max mirror the defs (partially spent, for a lived-in look). */
-const PLAYER_POOLS = [
-  { name: "Mana", value: 28, max: 40 },
-  { name: "Focus", value: 20, max: 20 },
-  { name: "Grit", value: 6, max: 10 },
+/** The player's TRACKER readings (volatile) — keyed by tracker `key`, TOTAL values (`{value,max,items}`
+ *  whole, because the snapshot merge recurses into them). Partially spent, for a lived-in look. */
+const PLAYER_TRACKER_VALUES = {
+  mana: { value: 28, items: null },
+  focus: { value: 20, items: null },
+  grit: { value: 6, items: null },
+};
+
+/** The scene cast's own volatile rows — a `cast:<key>` actor per present NPC, carrying THEIR tracker
+ *  readings. Cast members read from the SAME per-actor plane roster members do (one value home, D108 #2). */
+const CAST_ACTOR_STATE = [
+  {
+    actorRef: { kind: "cast" as const, castKey: "mira" },
+    hp: null,
+    trackerValues: { trust: { value: 62, items: null }, role: { value: "sellsword escort", max: null, items: null } },
+    conditions: [],
+    inventory: [],
+    wallet: [],
+    status: "",
+  },
+  {
+    actorRef: { kind: "cast" as const, castKey: "corvin" },
+    hp: null,
+    trackerValues: { trust: { value: 18, items: null }, role: { value: "rival arcanist", max: null, items: null } },
+    conditions: [],
+    inventory: [],
+    wallet: [],
+    status: "",
+  },
 ];
 
 function statProfileFor(profile: SeedProfile): RpgStatProfile {
@@ -222,11 +304,8 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
     // 2) The game (lite mode; the picked stat profile). Writes the chats.metadata.rpg pointer.
     await client.rpg.createGame.mutate({ chatId, mode: "lite", profile: statProfileFor(profile) });
 
-    // 3) Config: cast-field schemas + relationship hints + the pinned band orbs.
-    await client.rpg.updateConfig.mutate({
-      chatId,
-      patch: { castFields: CAST_FIELDS, relationshipHints: RELATIONSHIP_HINTS, pinnedOrbs: [...PINNED_ORBS] },
-    });
+    // 3) Config: the tracker defs (one home for every tracked field) + relationship hints.
+    await client.rpg.updateConfig.mutate({ chatId, patch: { trackers: TRACKERS, relationshipHints: RELATIONSHIP_HINTS } });
 
     // 4) The player sheet (identity plane). d20 carries the attribute grid; freeform omits it (no vocabulary).
     await client.rpg.patchSheet.mutate({
@@ -235,7 +314,6 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
       patch: {
         className: "Warden of House Vane",
         flavor: "grim, dutiful, quicker with a blade than with words",
-        poolDefs: PLAYER_POOL_DEFS,
         maxHp: PLAYER_MAX_HP,
         level: PLAYER_LEVEL,
         ...(profile === "d20" ? { attributes: D20_ATTRIBUTES } : {}),
@@ -254,11 +332,13 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
         recentEvents: SCENE.recentEvents,
         presentCharacters: PRESENT_CHARACTERS,
         plot: PLOT,
+        trackerValues: { alarm: { value: 15, items: null } },
         actorState: [
+          ...CAST_ACTOR_STATE,
           {
             actorRef: playerRef,
             hp: { value: 31, max: PLAYER_MAX_HP },
-            pools: PLAYER_POOLS,
+            trackerValues: PLAYER_TRACKER_VALUES,
             conditions: [],
             inventory: PLAYER_INVENTORY,
             wallet: PLAYER_WALLET,

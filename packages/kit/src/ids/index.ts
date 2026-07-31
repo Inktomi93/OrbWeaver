@@ -79,7 +79,6 @@ export const ID_PREFIX = {
   rpgGame: "rpg_game",
   rpgSnapshot: "rpg_snapshot",
   rpgSheet: "rpg_sheet",
-  rpgWidget: "rpg_widget",
   rpgJournal: "rpg_journal",
   rpgCheckpoint: "rpg_checkpoint",
 } as const;
@@ -162,11 +161,10 @@ export type DocumentChunkId = TypeIdOf<"document_chunk">;
 // --- Plugins (D46 code sandbox) ----------------------------------------------
 export type PluginId = TypeIdOf<"plugin">;
 
-// --- RPG (lite substrate — the 6-table floor, rpg-design/05 §4.1) ------------
+// --- RPG (lite substrate — the 5-table floor, rpg-design/05 §4.1) ------------
 export type RpgGameId = TypeIdOf<"rpg_game">;
 export type RpgSnapshotId = TypeIdOf<"rpg_snapshot">;
 export type RpgSheetId = TypeIdOf<"rpg_sheet">;
-export type RpgWidgetId = TypeIdOf<"rpg_widget">;
 export type RpgJournalId = TypeIdOf<"rpg_journal">;
 export type RpgCheckpointId = TypeIdOf<"rpg_checkpoint">;
 /** A quest's stable id — a PLAIN (prefix-less) branded nanoid, minted IN the snapshot blob (no table, no

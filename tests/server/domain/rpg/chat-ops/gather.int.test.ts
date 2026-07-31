@@ -16,7 +16,7 @@ import { addVariant, emptyState, expect, principal, questId, seedChat, seedLiteG
 
 /** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
 function kael(hp: number): RpgActorVolatile {
-  return { actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, pools: [], conditions: [], inventory: [], wallet: [], status: "" };
+  return { actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
 }
 
 /** Seed a COMMITTED snapshot on a fresh assistant slot — the delta block's lineage input. Returns the slot's
@@ -234,7 +234,7 @@ async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq:
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `scene${opts.seq}` }),
     ...emptyState(),
     location: "Village of Dunmoor",
-    presentCharacters: [{ key: "mari", name: "Mari", emoji: "", mood: "wary", customFields: {}, relationship: { kind: "enemy", label: "" } }],
+    presentCharacters: [{ key: "mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "enemy", label: "" } }],
     quests: [
       {
         id: questId("key"),

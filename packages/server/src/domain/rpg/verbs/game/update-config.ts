@@ -42,14 +42,13 @@ async function assertProfileMutable(ctx: RpgContext, gameId: RpgGameId, next: Rp
  *  added here too, or it silently resets on the next unrelated write ([versioned-config-lift-drops-overrides]). */
 function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatures): RpgGameFeatures {
   return {
-    castFields: [...(patch?.castFields ?? current.castFields)],
     relationshipHints: patch?.relationshipHints ?? current.relationshipHints,
+    // R4c — the custom-journal-type gloss map (the relationshipHints sibling): keep-on-omit.
+    journalTypeHints: patch?.journalTypeHints ?? current.journalTypeHints,
     deception: patch?.deception ?? current.deception,
     omniscience: patch?.omniscience ?? current.omniscience,
     hiddenContentReveal: patch?.hiddenContentReveal ?? current.hiddenContentReveal,
     recentBeatsKeepLast: patch?.recentBeatsKeepLast ?? current.recentBeatsKeepLast,
-    // ORB-PINNING (§4.8): whole-list replace on a passed array; keep on omit.
-    pinnedOrbs: patch?.pinnedOrbs !== undefined ? [...patch.pinnedOrbs] : current.pinnedOrbs,
     // P4 card knobs (§9 #7 + M2/M3): the teaching gate, the interactivity ASK, the keep-last-X wire knob.
     immersiveHtml: patch?.immersiveHtml ?? current.immersiveHtml,
     immersiveHtmlInteractive: patch?.immersiveHtmlInteractive ?? current.immersiveHtmlInteractive,
@@ -75,6 +74,35 @@ function mergeExtractionKnobs(
   };
 }
 
+/** The whole keep-on-omit merge the config `parse` consumes ([versioned-config-lift-drops-overrides]: EVERY
+ *  field must be threaded, or an unrelated write silently resets it to the schema default). Hoisted out of the
+ *  verb so `updateConfig` stays under the cognitive-complexity ceiling. */
+function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextProfile: RpgStatProfile | undefined): Record<string, unknown> {
+  const patch = params.patch;
+  return {
+    // The FRONT-DOOR toggle (#40) — keep-on-omit like every sibling (an unrelated config write must
+    // never silently re-engage/disengage the game).
+    engaged: patch?.engaged ?? current.engaged,
+    statProfile: nextProfile ?? current.statProfile,
+    // THE TRACKERS (the tracked-field unification) — whole-list replace on a passed array, keep on omit.
+    // The same silent-reset trap `mergeFeatures` guards: this write door is the ONLY tracker def door, so
+    // an omitted `trackers` on an unrelated config edit MUST carry the current set through the parse.
+    trackers: patch?.trackers !== undefined ? [...patch.trackers] : current.trackers,
+    lite: { steeringNote: patch?.steeringNote ?? current.lite.steeringNote },
+    extractionMode: params.extractionMode ?? current.extractionMode,
+    // The §1.3 extraction-depth knobs — keep-on-omit.
+    ...mergeExtractionKnobs(patch, current),
+    // #9 — keep-on-omit like every sibling.
+    dateMode: patch?.dateMode ?? current.dateMode,
+    // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
+    features: mergeFeatures(patch, current.features),
+    // Not a write-door field, but carried through verbatim so a config write never resets game macros to
+    // the schema default `[]` (the same silent-reset trap the features merge guards — MU landed userMacros
+    // but no write door names them, so `parse` would drop them without this).
+    userMacros: current.userMacros,
+  };
+}
+
 export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateConfig"> {
   async function updateConfig(params: UpdateConfigParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
@@ -87,24 +115,7 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
     if (nextProfile !== undefined) {
       await assertProfileMutable(ctx, game.id, nextProfile);
     }
-    const nextConfig = rpgGameConfigSchema.parse({
-      // The FRONT-DOOR toggle (#40) — keep-on-omit like every sibling (an unrelated config write must
-      // never silently re-engage/disengage the game; [versioned-config-lift-drops-overrides]).
-      engaged: params.patch?.engaged ?? game.config.engaged,
-      statProfile: nextProfile ?? game.config.statProfile,
-      lite: { steeringNote: params.patch?.steeringNote ?? game.config.lite.steeringNote },
-      extractionMode: params.extractionMode ?? game.config.extractionMode,
-      // The §1.3 extraction-depth knobs — keep-on-omit (extracted helper for the complexity ceiling).
-      ...mergeExtractionKnobs(params.patch, game.config),
-      // #9 — keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]).
-      dateMode: params.patch?.dateMode ?? game.config.dateMode,
-      // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
-      features: mergeFeatures(params.patch, game.config.features),
-      // Not a write-door field, but carried through verbatim so a config write never resets game macros to
-      // the schema default `[]` (the same silent-reset trap the features merge guards — MU landed userMacros
-      // but no write door names them, so `parse` would drop them without this).
-      userMacros: game.config.userMacros,
-    });
+    const nextConfig = rpgGameConfigSchema.parse(mergeConfig(params, game.config, nextProfile));
 
     await updateGame(ctx.db, game.id, {
       config: nextConfig,

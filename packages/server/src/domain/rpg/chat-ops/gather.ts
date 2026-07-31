@@ -149,7 +149,7 @@ export async function gatherTurnContext(
     view,
     prevSnapshot,
     curSnapshot,
-    deltaContext: { rosterNames, castFields: game.config.features.castFields, relationshipHints: game.config.features.relationshipHints },
+    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints },
   });
   // `cardKeepLastX` (M2, parity-plus §3.5) rides the structural gather contract to the engine's wire seam.
   // `tools: []` in EVERY mode — the fold does not use the tool-use registry (a registry tool would be executed

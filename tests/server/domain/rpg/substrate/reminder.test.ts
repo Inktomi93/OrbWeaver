@@ -3,7 +3,8 @@
 // license, and `steeringNote` LAST. The char turn is tool-less (owner ruling 2026-07-27) — the reminder carries
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
-import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
 import {
@@ -17,17 +18,32 @@ import {
 } from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
 import { expect, test } from "../../../../support/fixtures";
 
+/** A tracker def with the axes a case cares about; everything else takes its schema default. */
+function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {
+  return rpgTrackerDefSchema.parse(over);
+}
+
+/** The per-cast tracker map, built with a COMPUTED key: the map is keyed by a cast KEY (display data), not
+ *  by a JS identifier, so it is spelled through a variable rather than a literal property name. */
+function castTrackersFor(castKey: string, entries: readonly RpgTrackerEntry[]): RpgTrackerView["castTrackers"] {
+  return { [castKey]: entries };
+}
+
+/** ONE tracker reading, TOTAL (the stored shape). */
+function value(v: number | string | null, items: string[] | null = null): RpgTrackerValue {
+  return { value: v, items };
+}
+
 /** The feature-knob slice, defaulted ALL-TEACH-OFF so the pre-feature byte-exact assertions stay stable; the
  *  teach-composition tests below flip the relevant knobs explicitly. */
 function features(over: Partial<RpgGameFeatures> = {}): RpgGameFeatures {
   return {
-    castFields: [],
     relationshipHints: {},
+    journalTypeHints: {},
     deception: false,
     omniscience: false,
     hiddenContentReveal: true,
     recentBeatsKeepLast: 8,
-    pinnedOrbs: [],
     immersiveHtml: false,
     immersiveHtmlInteractive: true,
     cardKeepLastX: 0,
@@ -45,13 +61,14 @@ function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
     lockedPaths: [],
     actors: [],
     cast: [],
-    castFields: [],
-    widgets: [],
+    trackerDefs: [],
+    castTrackers: {},
+    gameTrackers: [],
     quests: [],
     plot: null,
     recentBeats: [],
     trackersReadOnly: false,
-    poolOrbs: [],
+    trackerOrbs: [],
     ...over,
   };
 }
@@ -67,7 +84,7 @@ function emptyState(): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
@@ -126,8 +143,9 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
       {
         actorRef: { kind: "cast", castKey: "k" },
         name: "K",
-        sheet: { className: "", attributes: {}, poolDefs: [], maxHp: null, level: null },
+        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
+        trackers: [],
       },
     ],
   });
@@ -143,17 +161,12 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
-        sheet: {
-          className: "Rogue",
-          attributes: { dex: 16 },
-          poolDefs: [{ name: "focus", max: 5, color: null, hint: "spent to steady the hand" }],
-          maxHp: null,
-          level: 3,
-        },
+        sheet: { className: "Rogue", attributes: { dex: 16 }, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        trackers: [def({ key: "focus", label: "focus", shape: "meter", write: "delta", subject: "actor", max: 5, hint: "spent to steady the hand" })],
         volatile: {
           actorRef: { kind: "cast", castKey: "kael" },
           hp: { value: 8, max: 12 },
-          pools: [{ name: "focus", value: 3, max: 5 }],
+          trackerValues: { focus: { value: 3, items: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "i1", name: "dagger", description: "", quantity: 2, location: "", type: "" }],
           wallet: [{ name: "gold", amount: 40 }],
@@ -180,22 +193,13 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("Lv 3"); // §2.6 — the actor's hand-only level rides the party line
 });
 
-test("the cast line renders relationship + cast-fields kind-aware (features 1 + C)", () => {
+test("the cast line renders relationship + the member's TRACKERS shape-aware", () => {
   const view = emptyView({
-    cast: [
-      {
-        key: "Mari",
-        name: "Mari",
-        emoji: "",
-        mood: "wary",
-        customFields: { suspicion: "7", trust: "guarded" },
-        relationship: { kind: "custom", label: "vassal" },
-      },
-    ],
-    castFields: [
-      { key: "suspicion", label: "suspicion", kind: "meter", max: 10 },
-      { key: "trust", label: "trust", kind: "text" },
-    ],
+    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "custom", label: "vassal" } }],
+    castTrackers: castTrackersFor("Mari", [
+      { def: def({ key: "suspicion", label: "suspicion", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
+      { def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") },
+    ]),
   });
   const out = buildLiteReminder(input({ view, features: features({ relationshipHints: { vassal: "sworn to serve but resentful" } }) }));
   expect(out).toContain("Mari");
@@ -208,24 +212,21 @@ test("the cast line renders relationship + cast-fields kind-aware (features 1 + 
 // R4b (§4d-bis) — the host-authored cast-field `hint` must reach the MODEL, not just the panel tooltip. A bare
 // tracked number moves narration by −0.12 (noise); the same number glossed moves it by −1.00. The gloss rides
 // BOTH kinds, mirroring the pool (`focus 3/5 (…)`) and relationship (`vassal (…)`) grammar.
-test("a hinted cast field glosses inline for BOTH kinds (meter + text); an unhinted one is unchanged", () => {
+test("a hinted tracker glosses inline for EVERY shape; an unhinted one is unchanged", () => {
   const view = emptyView({
-    cast: [
+    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    castTrackers: castTrackersFor("Wren", [
       {
-        key: "Wren",
-        name: "Wren",
-        emoji: "",
-        mood: "",
-        customFields: { wits: "10", capped: "4", bond: "frayed", plain: "3" },
-        relationship: { kind: "neutral", label: "" },
+        def: def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", hint: "how sharp and quick-thinking she is right now" }),
+        value: value(10),
       },
-    ],
-    castFields: [
-      { key: "wits", label: "Wits", kind: "meter", hint: "how sharp and quick-thinking she is right now" },
-      { key: "capped", label: "Nerve", kind: "meter", max: 10, hint: "what she has left to spend on bravery" },
-      { key: "bond", label: "Bond", kind: "text", hint: "where the two of them stand" },
-      { key: "plain", label: "Debts", kind: "meter", max: 5 },
-    ],
+      {
+        def: def({ key: "capped", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10, hint: "what she has left to spend on bravery" }),
+        value: value(4),
+      },
+      { def: def({ key: "bond", label: "Bond", shape: "text", write: "set", subject: "actor", hint: "where the two of them stand" }), value: value("frayed") },
+      { def: def({ key: "plain", label: "Debts", shape: "meter", write: "set", subject: "actor", max: 5 }), value: value(3) },
+    ]),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("Wits 10 (how sharp and quick-thinking she is right now)"); // meter, no max
@@ -235,10 +236,12 @@ test("a hinted cast field glosses inline for BOTH kinds (meter + text); an unhin
   expect(out).not.toContain("Debts 3/5 (");
 });
 
-test("an EMPTY cast-field hint glosses nothing (no empty parens — the pool-hint idiom)", () => {
+test("an EMPTY tracker hint glosses nothing (no empty parens)", () => {
   const view = emptyView({
-    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", customFields: { wits: "7" }, relationship: { kind: "neutral", label: "" } }],
-    castFields: [{ key: "wits", label: "Wits", kind: "meter", max: 10, hint: "" }],
+    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    castTrackers: castTrackersFor("Wren", [
+      { def: def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
+    ]),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("- Wren — Wits 7/10");
@@ -247,7 +250,7 @@ test("an EMPTY cast-field hint glosses nothing (no empty parens — the pool-hin
 
 test("a neutral relationship is silent in the cast line (no steering signal)", () => {
   const view = emptyView({
-    cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+    cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("Bob");
@@ -315,7 +318,9 @@ test("the DELTA block renders BETWEEN the state block and the license (§2.7 pla
   const actor = (hp: number): RpgSnapshotState => ({
     ...emptyState(),
     location: "The Docks",
-    actorState: [{ actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
+    actorState: [
+      { actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+    ],
   });
   const view = emptyView({ ambient: { location: "The Docks", calendarDate: null, clock: null, weather: null } });
   const out = buildLiteReminder(input({ view, curSnapshot: actor(16), prevSnapshot: actor(12) }));

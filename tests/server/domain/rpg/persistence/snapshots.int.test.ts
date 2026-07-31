@@ -203,15 +203,15 @@ describe("write-boundary structural backstop (stickler F1)", () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
-    // A `pools[].max = 0` state violates the contract belt (`pools[].max >= 1`) — parse-on-read would throw
-    // AFTER the insert commits. The backstop must refuse it at the write boundary, BEFORE the durable insert.
+    // An `hp.max = 0` state violates the contract belt (`hp.max >= 1`) — parse-on-read would throw AFTER the
+    // insert commits. The backstop must refuse it at the write boundary, BEFORE the durable insert.
     const invalid = {
       ...emptyState(),
       actorState: [
         {
           actorRef: { kind: "cast" as const, castKey: "Broken" },
-          hp: null,
-          pools: [{ name: "x", value: 0, max: 0 }],
+          hp: { value: 1, max: 0 },
+          trackerValues: {},
           conditions: [],
           inventory: [],
           wallet: [],
@@ -239,7 +239,7 @@ describe("write-boundary structural backstop (stickler F1)", () => {
         {
           actorRef: { kind: "cast" as const, castKey: "Ok" },
           hp: null,
-          pools: [{ name: "mana", value: 0, max: 1 }],
+          trackerValues: { mana: { value: 0, items: null } },
           conditions: [],
           inventory: [],
           wallet: [],
@@ -249,6 +249,6 @@ describe("write-boundary structural backstop (stickler F1)", () => {
     };
 
     const written = await writeStagedSnapshot(db, valid, target({ gameId, chatId, seq: 1, variantId, key: "ok" }));
-    expect(written.ok ? written.row.actorState?.[0]?.pools : undefined).toEqual([{ name: "mana", value: 0, max: 1 }]);
+    expect(written.ok ? written.row.actorState?.[0]?.trackerValues : undefined).toEqual({ mana: { value: 0, items: null } });
   });
 });

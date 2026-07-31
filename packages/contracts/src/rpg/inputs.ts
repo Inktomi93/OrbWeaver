@@ -6,13 +6,13 @@
 // carries `Principal` and is server-only) — the `chatInjectionInputSchema` precedent `chat.ts` extends.
 //
 // DERIVE, NEVER RE-SPELL (§5.5): every union/owned shape a sibling module already owns is REUSED —
-// `rpgActorRefSchema` (the discriminated actor union), `rpgWidgetDefSchema` (+ `.partial()` for the patch),
+// `rpgActorRefSchema` (the discriminated actor union), `rpgTrackerDefSchema` (the whole tracker set write),
 // `rpgStatProfileSchema`, and the enum schemas. Only the plain payload envelopes (chatId + scalar fields the
 // contract has no schema for, e.g. a checkpoint `label`, a dice `notation`) are spelled here. `chatId` +
 // the branded ids ride `brandedId<T>()` (the `no-raw-id` seam; the OWNER/MEMBER gate inside each verb is the
 // authority — a wire-valid-but-foreign id collapses to a leak-free NOT_FOUND, never a router-tier gate).
 
-import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId, RpgWidgetId } from "@orb/kit/ids";
+import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorRefSchema } from "./actor";
@@ -22,15 +22,12 @@ import {
   RPG_EXTRACTION_MODES,
   RPG_EXTRACTION_WINDOW_TOKENS_MAX,
   RPG_EXTRACTION_WINDOW_TOKENS_MIN,
-  RPG_HINT_MAX,
   RPG_RECONCILE_EVERY_BEATS_MAX,
   RPG_STEERING_NOTE_MAX,
-  rpgCastFieldSchema,
 } from "./config";
 import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
 import { rpgStatProfileSchema } from "./profile";
-import { rpgPoolDefSchema } from "./sheet";
-import { rpgWidgetDefSchema } from "./snapshot";
+import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker";
 
 /** The shared chatId trust-boundary field — game-ness + authority BOTH resolve through it (no `ownerId`, D23). */
 const chatIdField = brandedId<ChatId>();
@@ -52,11 +49,15 @@ export const rpgUpdateConfigInputSchema = z.object({
     .object({
       statProfile: rpgStatProfileSchema.optional(),
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).optional(),
-      // The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the
-      // per-custom-kind relationship hints. Omit keeps the current features; a passed array/record REPLACES it
-      // (whole-list edit, the host owns the schema authoritatively).
-      castFields: z.array(rpgCastFieldSchema).optional(),
+      // THE TRACKERS (the tracked-field unification) — the host's whole tracker set for this game, in ONE
+      // write. Omit keeps the current list; a passed array REPLACES it (whole-list edit — the unified editor
+      // owns the set authoritatively, exactly as the retired `castFields`/`pinnedOrbs` writes did). Every axis
+      // (subject/shape/write/appliesTo/max/hint/color/icon/sort/pinned/locked) rides the DERIVED def schema.
+      trackers: z.array(rpgTrackerDefSchema).optional(),
+      // The per-custom-kind relationship hints (M1) + the R4c custom-journal-type hints. Omit keeps; a passed
+      // record REPLACES it.
       relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
+      journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
       // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value; a
       // passed scalar REPLACES it. `deception`/`omniscience` gate the teaching block + the member reasoning-strip;
       // `hiddenContentReveal` (M4) governs the host's reveal eye; `recentBeatsKeepLast` bounds the reminder slice.
@@ -64,9 +65,6 @@ export const rpgUpdateConfigInputSchema = z.object({
       omniscience: z.boolean().optional(),
       hiddenContentReveal: z.boolean().optional(),
       recentBeatsKeepLast: z.number().int().min(0).optional(),
-      // ORB-PINNING (§4.8): the pool NAMES pinned as band orbs beyond the auto-first-3. Omit keeps the
-      // current list; a passed array REPLACES it (whole-list edit — the pin toggle sends the full set).
-      pinnedOrbs: z.array(z.string().min(1)).optional(),
       // The P4 card knobs (parity-plus §9 #7 + M2/M3) — omit keeps; a passed value replaces.
       immersiveHtml: z.boolean().optional(),
       immersiveHtmlInteractive: z.boolean().optional(),
@@ -101,9 +99,11 @@ export const rpgPatchSheetInputSchema = z.object({
   patch: z.object({
     className: z.string().optional(),
     attributes: z.record(z.string(), z.number().int()).optional(),
-    // DERIVED from the one pool-def home (`rpgPoolDefSchema`) — carries the host-pickable `color` (strict
-    // hex/OKLCH grammar at the wire; the parse fills `color: null` for an untouched def).
-    poolDefs: z.array(rpgPoolDefSchema).optional(),
+    // The per-actor TRACKER EXCEPTIONS (the unification's applicability model): tracker KEYS this actor is
+    // granted beyond its carrier class, and keys revoked from it. Omit keeps; a passed array REPLACES it.
+    // Tracker DEFS are not here — they home once in `config.trackers` (`updateConfig` is their door).
+    trackerGrants: z.array(z.string().min(1)).optional(),
+    trackerRevokes: z.array(z.string().min(1)).optional(),
     maxHp: z.number().int().nullable().optional(),
     flavor: z.string().optional(),
     // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). It is NOT a
@@ -126,26 +126,6 @@ export const rpgEditSnapshotInputSchema = z.object({
   patch: z.record(z.string(), z.unknown()),
   releaseLocks: z.array(z.string().min(1)).optional(),
   lockPaths: z.array(z.string().min(1)).optional(),
-});
-
-/** `createWidget` — add a HUD widget definition (host). `def` is the DERIVED `rpgWidgetDefSchema`. */
-export const rpgCreateWidgetInputSchema = z.object({
-  chatId: chatIdField,
-  def: rpgWidgetDefSchema,
-});
-
-/** `updateWidget` — patch a HUD widget definition's mutable columns (host). `patch` DERIVES from the widget
- *  def (`.partial()` — every field optional), never a re-spell. */
-export const rpgUpdateWidgetInputSchema = z.object({
-  chatId: chatIdField,
-  widgetId: brandedId<RpgWidgetId>(),
-  patch: rpgWidgetDefSchema.partial(),
-});
-
-/** `deleteWidget` — remove a HUD widget definition (host). */
-export const rpgDeleteWidgetInputSchema = z.object({
-  chatId: chatIdField,
-  widgetId: brandedId<RpgWidgetId>(),
 });
 
 /** `upsertQuest` — the hand arm of the quest plane (host). `questId` present ⇒ update, absent ⇒ create.
@@ -171,6 +151,8 @@ export const rpgDeleteQuestInputSchema = z.object({
 export const rpgAddJournalEntryInputSchema = z.object({
   chatId: chatIdField,
   type: rpgJournalTypeSchema,
+  // R4c — the free gloss carried when `type === "custom"` (the relationship-kind shape). Omit ⇒ "".
+  label: z.string().optional(),
   title: z.string().min(1),
   content: z.string(),
 });
@@ -181,6 +163,7 @@ export const rpgEditJournalEntryInputSchema = z.object({
   entryId: brandedId<RpgJournalId>(),
   patch: z.object({
     type: rpgJournalTypeSchema.optional(),
+    label: z.string().optional(),
     title: z.string().min(1).optional(),
     content: z.string().optional(),
   }),

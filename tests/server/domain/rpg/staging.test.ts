@@ -53,14 +53,14 @@ describe("take / flush at turn-completed", () => {
     const store = createRpgStagingStore();
     store.ensure(TURN_A, baseAt("s"));
     store.stage(TURN_A, { location: "final" });
-    store.stageJournal(TURN_A, { type: "event", title: "a beat", content: "it happened" });
+    store.stageJournal(TURN_A, { type: "event", label: "", title: "a beat", content: "it happened" });
 
     const flush = store.take(TURN_A);
     if (!flush) {
       throw new Error("expected a flush");
     }
     expect(flush.state.location).toBe("final");
-    expect(flush.journal).toEqual([{ type: "event", title: "a beat", content: "it happened" }]);
+    expect(flush.journal).toEqual([{ type: "event", label: "", title: "a beat", content: "it happened" }]);
     // The bucket is gone — a second take is a no-op (undefined).
     expect(store.take(TURN_A)).toBeUndefined();
   });
@@ -76,7 +76,7 @@ describe("abort clears EVERYTHING (the dead-turn-never-flushes pin)", () => {
     const store = createRpgStagingStore();
     store.ensure(TURN_A, baseAt("s"));
     store.stage(TURN_A, { location: "dead-write" });
-    store.stageJournal(TURN_A, { type: "note", title: "dead", content: "aborted" });
+    store.stageJournal(TURN_A, { type: "note", label: "", title: "dead", content: "aborted" });
 
     store.clear(TURN_A);
     expect(store.peek(TURN_A)).toBeUndefined();

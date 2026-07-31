@@ -6,7 +6,8 @@
 // monolith edit — the P1 seam). The swipe-consistency + hand-edit-source classes ride the gather int test (a
 // flush→read ROUND-TRIP, not a pure peek) — they live in chat-ops/gather.int.test.ts.
 
-import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { DeltaContext } from "../../../../../packages/server/src/domain/rpg/contract/delta";
 import {
   buildDeltaBlock,
@@ -17,16 +18,26 @@ import {
 } from "../../../../../packages/server/src/domain/rpg/substrate/delta";
 import { expect, test } from "../../../../support/fixtures";
 
-/** The pure diff's data context (roster names + cast-field schemas + relationship hints). The default is empty
- *  (the pre-P1 behavior — short id tails, no cast-field lines); a case that needs a roster name / cast field /
- *  hint passes its own. */
+/** The pure diff's data context (roster names + the game's tracker DEFS + relationship hints). The default is
+ *  empty (no tracker lines, generic actor labels); a case that needs a roster name / tracker / hint passes
+ *  its own. */
 function ctx(over: Partial<DeltaContext> = {}): DeltaContext {
-  return { rosterNames: {}, castFields: [], relationshipHints: {}, ...over };
+  return { rosterNames: {}, trackerDefs: [], relationshipHints: {}, ...over };
+}
+
+/** A tracker def with the axes a case cares about; everything else takes its schema default. */
+function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {
+  return rpgTrackerDefSchema.parse(over);
+}
+
+/** ONE tracker reading, TOTAL (the stored shape). */
+function reading(value: number | string | null, items: string[] | null = null): RpgTrackerValue {
+  return { value, items };
 }
 
 /** A present character (born with the neutral relationship default — the swipe-volatile plane shape). */
 function member(key: string, name: string, over: Partial<RpgSnapshotState["presentCharacters"][number]> = {}): RpgSnapshotState["presentCharacters"][number] {
-  return { key, name, emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" }, ...over };
+  return { key, name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...over };
 }
 
 /** An empty-born snapshot state (the createGame seed shape). */
@@ -39,7 +50,7 @@ function state(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
@@ -52,7 +63,7 @@ function castVolatile(castKey: string, over: Partial<RpgSnapshotState["actorStat
   return {
     actorRef: { kind: "cast", castKey },
     hp: null,
-    pools: [],
+    trackerValues: {},
     conditions: [],
     inventory: [],
     wallet: [],
@@ -69,10 +80,27 @@ test("HP — a signed numeric delta with the actor name", () => {
   expect(out).toContain("kael HP 12→16 (+4)");
 });
 
-test("pools — a negative delta keeps its sign", () => {
-  const prev = state({ actorState: [castVolatile("kael", { pools: [{ name: "mana", value: 5, max: 10 }] })] });
-  const cur = state({ actorState: [castVolatile("kael", { pools: [{ name: "mana", value: 2, max: 10 }] })] });
-  expect(buildDeltaBlock(prev, cur, ctx())).toContain("kael mana 5→2 (-3)");
+const MANA = def({ key: "mana", label: "mana", shape: "meter", write: "delta", subject: "actor", max: 10 });
+
+test("trackers — a meter's negative delta keeps its sign", () => {
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { mana: reading(5) } })] });
+  const cur = state({ actorState: [castVolatile("kael", { trackerValues: { mana: reading(2) } })] });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [MANA] }))).toContain("kael mana 5→2 (-3)");
+});
+
+test("R5b — a tracker delta line carries the def's HINT (the delta block is the license's referent)", () => {
+  // The R4b argument applied to the CHANGES block: a line that says WHAT moved without saying what it MEANS
+  // is a bare number, and a bare number measurably does not steer narration.
+  const glossed = def({ key: "grit", label: "Grit", shape: "meter", write: "delta", subject: "actor", max: 10, hint: "resolve you spend" });
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { grit: reading(6) } })] });
+  const cur = state({ actorState: [castVolatile("kael", { trackerValues: { grit: reading(3) } })] });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [glossed] }))).toContain("kael Grit 6→3 (-3) — resolve you spend");
+});
+
+test("trackers — a tracker with NO def never diffs (the read projects only DEFINED trackers)", () => {
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { junk: reading(1) } })] });
+  const cur = state({ actorState: [castVolatile("kael", { trackerValues: { junk: reading(2) } })] });
+  expect(buildDeltaBlock(prev, cur, ctx())).toBeNull();
 });
 
 test("conditions — added and removed per actor", () => {
@@ -158,10 +186,11 @@ test("quests — status flip and objective progress, matched by id", () => {
   expect(out).toContain("The Missing Key: 1/3 → 2/3");
 });
 
-test("widgets — a numeric delta keyed by label", () => {
-  const prev = state({ widgetValues: { tension: { value: 3 } } });
-  const cur = state({ widgetValues: { tension: { value: 7 } } });
-  expect(buildDeltaBlock(prev, cur, ctx())).toContain("tension 3→7 (+4)");
+test("game trackers — a numeric delta on the game-subject plane, keyed by tracker key", () => {
+  const tension = def({ key: "tension", label: "tension", shape: "meter", write: "set", subject: "game" });
+  const prev = state({ trackerValues: { tension: reading(3) } });
+  const cur = state({ trackerValues: { tension: reading(7) } });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [tension] }))).toContain("tension 3→7 (+4)");
 });
 
 test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", () => {
@@ -190,11 +219,12 @@ test("no change → OMIT the block entirely (null, byte-stable quiet-turn signal
 });
 
 test("HEAL (§2.7.4) — a malformed plane degrades its line, the block still renders the good planes", () => {
-  // A hand-edit / future-applier bug slips a malformed actorState shape past the write backstop: `pools` is not
-  // an array (a `.map` inside the pool renderer throws). The pool line degrades to nothing; HP still renders.
+  // A hand-edit / future-applier bug slips a malformed actorState shape past the write backstop:
+  // `trackerValues` is not an object (the tracker renderer's index throws). That plane's line degrades to
+  // nothing; HP still renders.
   const prev = state({ actorState: [castVolatile("kael", { hp: { value: 12, max: 20 } })] });
   const cur = state({
-    actorState: [{ ...castVolatile("kael", { hp: { value: 16, max: 20 } }), pools: null as never }],
+    actorState: [{ ...castVolatile("kael", { hp: { value: 16, max: 20 } }), trackerValues: null as never }],
   });
   const out = buildDeltaBlock(prev, cur, ctx());
   // The block SURVIVED (didn't throw) and the well-formed HP plane still rendered.
@@ -230,37 +260,30 @@ test("relationship — a custom kind glosses with the M1 hint", () => {
   expect(out).toContain("Mari: neutral → vassal (sworn to serve but resentful)");
 });
 
-test("cast-fields — a meter diffs numerically, a text field as a transition (feature C, §2.8)", () => {
-  const prev = state({ presentCharacters: [member("mari", "Mari", { customFields: { suspicion: "3", trust: "guarded" } })] });
-  const cur = state({ presentCharacters: [member("mari", "Mari", { customFields: { suspicion: "7", trust: "open" } })] });
-  const castFields = [
-    { key: "suspicion", label: "suspicion", kind: "meter", max: 10 },
-    { key: "trust", label: "trust", kind: "text" },
-  ] as const;
-  const out = buildDeltaBlock(prev, cur, ctx({ castFields }));
+test("trackers — an NPC's trackers diff on the SAME per-actor plane a party member's do (one value home)", () => {
+  // The unification: a cast member's tracked values live on `actorState` under `cast:<key>` — the retired
+  // `presentCharacters[].customFields` string record is gone, and with it the second diff grammar.
+  const suspicion = def({ key: "suspicion", label: "suspicion", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 });
+  const trust = def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" });
+  const prev = state({ actorState: [castVolatile("Mari", { trackerValues: { suspicion: reading(3), trust: reading("guarded") } })] });
+  const cur = state({ actorState: [castVolatile("Mari", { trackerValues: { suspicion: reading(7), trust: reading("open") } })] });
+  const out = buildDeltaBlock(prev, cur, ctx({ trackerDefs: [suspicion, trust] }));
   expect(out).toContain("Mari suspicion 3→7 (+4)");
   expect(out).toContain("Mari trust: guarded → open");
 });
 
-test("cast-fields — an UNDEFINED field key never diffs (no opaque-record fallback)", () => {
-  const prev = state({ presentCharacters: [member("mari", "Mari", { customFields: { junk: "a" } })] });
-  const cur = state({ presentCharacters: [member("mari", "Mari", { customFields: { junk: "b" } })] });
-  // No cast-field schema defines "junk" → the feature is off for it → the block omits (nothing else changed).
-  expect(buildDeltaBlock(prev, cur, ctx())).toBeNull();
+test("trackers — a LIST tracker diffs as one membership transition", () => {
+  const loadout = def({ key: "loadout", label: "loadout", shape: "list", write: "set", subject: "game" });
+  const prev = state({ trackerValues: { loadout: reading(null, ["Sword", "Shield"]) } });
+  const cur = state({ trackerValues: { loadout: reading(null, ["Sword", "Bow"]) } });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [loadout] }))).toContain("loadout: Sword, Shield → Sword, Bow");
 });
 
-test("widgets — the items SET-delta: added/removed produce lines (fold-in #4)", () => {
-  const prev = state({ widgetValues: { loadout: { items: ["Sword", "Shield"] } } });
-  const cur = state({ widgetValues: { loadout: { items: ["Sword", "Bow"] } } });
-  const out = buildDeltaBlock(prev, cur, ctx());
-  expect(out).toContain("loadout +Bow");
-  expect(out).toContain("loadout -Shield");
-});
-
-test("widgets — a REORDER-ONLY items change produces NO line (set membership unchanged)", () => {
-  const prev = state({ widgetValues: { loadout: { items: ["Sword", "Shield"] } } });
-  const cur = state({ widgetValues: { loadout: { items: ["Shield", "Sword"] } } });
-  expect(buildDeltaBlock(prev, cur, ctx())).toBeNull();
+test("trackers — an unchanged list produces NO line", () => {
+  const loadout = def({ key: "loadout", label: "loadout", shape: "list", write: "set", subject: "game" });
+  const prev = state({ trackerValues: { loadout: reading(null, ["Sword", "Shield"]) } });
+  const cur = state({ trackerValues: { loadout: reading(null, ["Sword", "Shield"]) } });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [loadout] }))).toBeNull();
 });
 
 test("ambient — the game calendar is OPAQUE: a free-text date string diffs as a raw label (fold-in #6)", () => {
@@ -284,7 +307,7 @@ test("roster names — a character-kind actor names via the roster map, not the 
   const kael = (over: Partial<RpgSnapshotState["actorState"][number]>): RpgSnapshotState["actorState"][number] => ({
     actorRef: { kind: "character", characterId: "char_kael" as never },
     hp: null,
-    pools: [],
+    trackerValues: {},
     conditions: [],
     inventory: [],
     wallet: [],

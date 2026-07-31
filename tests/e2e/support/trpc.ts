@@ -567,13 +567,6 @@ export async function createLiteGame(chatId: string): Promise<string> {
   return created.gameId;
 }
 
-/** One actor's volatile pool (the Status-tab meter datum). */
-interface TrackerPool {
-  readonly name: string;
-  readonly value: number;
-  readonly max: number;
-}
-
 /** One wallet slot (named-amount array — the STORED wallet, §2.6). */
 interface TrackerWallet {
   readonly name: string;
@@ -589,7 +582,7 @@ interface TrackerItem {
 /** One actor row in the tracker view — the roster ∪ sheets projection (subset of `RpgActorView`). `volatile`
  *  is null until a snapshot carries this actor's state. `sheet` carries the HAND-plane identity fields
  *  (className/attributes/maxHp/`level` — level is the hand-only plane, §2.6). The volatile plane carries every
- *  MODEL/HAND-writable state plane (hp/pools/conditions/wallet/inventory/status) — the exhaustive spec asserts
+ *  MODEL/HAND-writable state plane (hp/trackers/conditions/wallet/inventory/status) — the exhaustive spec asserts
  *  each one against the DOM + the DB read. The `actorRef` is the write key `patchSheet`/`editSnapshot` target. */
 export interface TrackerActor {
   readonly actorRef: { readonly kind: string; readonly characterId?: string; readonly userId?: string; readonly castKey?: string };
@@ -603,7 +596,7 @@ export interface TrackerActor {
   };
   readonly volatile: {
     readonly hp: { readonly value: number; readonly max: number } | null;
-    readonly pools: readonly TrackerPool[];
+    readonly trackerValues: Readonly<Record<string, TrackerValue>>;
     readonly conditions: readonly { readonly name: string }[];
     readonly wallet: readonly TrackerWallet[];
     readonly inventory: readonly TrackerItem[];
@@ -612,28 +605,38 @@ export interface TrackerActor {
 }
 
 /** A present-cast NPC row (the Scene tab's `Present:` band — §2.1). `relationship` is the enum/custom badge,
- *  `customFields` the host-defined cast-field values joined against `castFields`. */
+ *  its tracked values ride the per-actor plane (keyed `cast:<key>`), surfaced as `castTrackers`. */
 interface TrackerCast {
   readonly name: string;
   readonly emoji: string;
   readonly mood: string;
   readonly relationship: { readonly kind: string; readonly label: string };
-  readonly customFields: Readonly<Record<string, string>>;
 }
 
-/** A host-defined cast-field SCHEMA (§2.8) — the meter/text axis the Scene tab renders each cast row against. */
-export interface TrackerCastField {
+/** THE unified tracked-field DEF (the tracked-field unification) — one shape for what used to be pool defs,
+ *  cast-field schemas, band-orb pins and HUD widgets. */
+interface TrackerDef {
   readonly key: string;
   readonly label: string;
-  readonly kind: string;
-  readonly max?: number;
-  readonly hint?: string;
+  readonly shape: string;
+  readonly write: string;
+  readonly subject: string;
+  readonly max: number | null;
+  readonly hint: string;
+  readonly pinned: boolean;
+  readonly locked: boolean;
 }
 
-/** A widget view — the def + its swipe-volatile value (§4.8). */
-interface TrackerWidget {
-  readonly def: { readonly type: string; readonly label: string };
-  readonly value: { readonly value?: number; readonly max?: number; readonly items?: readonly string[] } | null;
+/** ONE tracker's stored reading (no `max` — the ceiling is the def's, the one home). */
+interface TrackerValue {
+  readonly value: number | string | null;
+  readonly items: readonly string[] | null;
+}
+
+/** A tracker paired with its reading — the shape every tracker surface renders (actor row, cast row, band). */
+interface TrackerEntry {
+  readonly def: TrackerDef;
+  readonly value: TrackerValue | null;
 }
 
 /** A quest view — the goal line + its `n/m` objective completion (§2.5, swipe-consistent). */
@@ -673,14 +676,15 @@ export interface TrackerView {
   } | null;
   readonly actors: readonly TrackerActor[];
   readonly cast: readonly TrackerCast[];
-  readonly castFields: readonly TrackerCastField[];
-  readonly widgets: readonly TrackerWidget[];
+  readonly trackerDefs: readonly TrackerDef[];
+  readonly castTrackers: Readonly<Record<string, readonly TrackerEntry[]>>;
+  readonly gameTrackers: readonly TrackerEntry[];
   readonly quests: readonly TrackerQuest[];
   /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one. */
   readonly plot: TrackerPlot | null;
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
-  readonly poolOrbs: readonly { readonly label: string; readonly value: number; readonly max: number }[];
+  readonly trackerOrbs: readonly { readonly key: string; readonly label: string; readonly value: number; readonly max: number | null }[];
   readonly lockedPaths: readonly string[];
 }
 
@@ -713,11 +717,11 @@ export function setExtractionMode(chatId: string, mode: string): Promise<unknown
   return trpcMutation("rpg.updateConfig", { chatId, extractionMode: mode });
 }
 
-/** Define the host-owned cast-field schemas + custom-relationship hints (`rpg.updateConfig` — host). A passed
- *  array REPLACES the current list (whole-list edit). The §2.8/§2.1-M1 feature door. */
+/** Define the host-owned TRACKERS + custom-relationship hints (`rpg.updateConfig` — host). A passed array
+ *  REPLACES the current list (whole-list edit). */
 export function setGameFeatures(
   chatId: string,
-  features: { readonly castFields?: readonly TrackerCastField[]; readonly relationshipHints?: Readonly<Record<string, string>> },
+  features: { readonly trackers?: readonly Record<string, unknown>[]; readonly relationshipHints?: Readonly<Record<string, string>> },
 ): Promise<unknown> {
   return trpcMutation("rpg.updateConfig", { chatId, patch: features });
 }
@@ -727,7 +731,7 @@ export function setGameFeatures(
 export interface ConfigView {
   readonly steeringNote: string;
   readonly extractionMode: string;
-  readonly castFields: readonly TrackerCastField[];
+  readonly trackers: readonly TrackerDef[];
   readonly relationshipHints: Readonly<Record<string, string>>;
   readonly deception: boolean;
   readonly omniscience: boolean;
@@ -792,8 +796,8 @@ export function patchSheet(
 /** The hand-edit VOLATILE door (`rpg.editSnapshot` — HOST-only for shared planes). `patch` is a partial
  *  snapshot-state overlay the domain validates + auto-LOCKS (`fieldLocks`), so a hand edit becomes canon and
  *  the delta shows the GM tweak next turn (§2.7). The spec drives every plane through here: ambient
- *  (location/date/clock/weather), presentCharacters (cast + mood + relationship + customFields), actorState
- *  (hp/pools/wallet/inventory/conditions/status), recentEvents, widgetValues, plot. */
+ *  (location/date/clock/weather), presentCharacters (cast + mood + relationship), actorState
+ *  (hp/trackerValues/wallet/inventory/conditions/status), recentEvents, trackerValues, plot. */
 export function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
   return trpcMutation("rpg.editSnapshot", { chatId, patch });
 }
@@ -812,13 +816,17 @@ export function upsertQuest(
   return trpcMutation("rpg.upsertQuest", { chatId, ...quest });
 }
 
-/** Create a HUD widget def (`rpg.createWidget` — host). Returns the created def (with its minted id). */
-export function createWidget(chatId: string, def: Record<string, unknown>): Promise<unknown> {
-  return trpcMutation("rpg.createWidget", { chatId, def });
+/** Define the game's TRACKERS (`rpg.updateConfig.patch.trackers` — host). ONE def home since the tracked-field
+ *  unification, so this one call replaces the retired createWidget + cast-field + orb-pin surfaces. */
+export function setTrackers(chatId: string, trackers: readonly Record<string, unknown>[]): Promise<unknown> {
+  return trpcMutation("rpg.updateConfig", { chatId, patch: { trackers } });
 }
 
 /** Add a hand journal entry (`rpg.addJournalEntry` — host). */
-export function addJournalEntry(chatId: string, entry: { readonly type: string; readonly title: string; readonly content: string }): Promise<unknown> {
+export function addJournalEntry(
+  chatId: string,
+  entry: { readonly type: string; readonly label?: string; readonly title: string; readonly content: string },
+): Promise<unknown> {
   return trpcMutation("rpg.addJournalEntry", { chatId, ...entry });
 }
 

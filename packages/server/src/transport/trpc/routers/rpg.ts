@@ -11,7 +11,7 @@
 // PROBED (a stranger passing a foreign chatId must see NOT_FOUND), never EXEMPT. `createGame` gates on the
 // caller's OWN membership directly (the game row doesn't exist yet) with the SAME leak-free collapse.
 //
-// Wire input schemas are DERIVED from `@orb/contracts/rpg` (`inputs.ts` — the actor/widget unions + enums are
+// Wire input schemas are DERIVED from `@orb/contracts/rpg` (`inputs.ts` — the actor/tracker shapes + enums are
 // reused, never re-spelled at the transport edge, §5.5); the router only wires them to the verbs.
 //
 // `stream` — the per-game LIVE event subscription the client's tracker/journal invalidation tails. LIVE-ONLY:
@@ -33,10 +33,8 @@ import {
   rpgAddJournalEntryInputSchema,
   rpgCreateCheckpointInputSchema,
   rpgCreateGameInputSchema,
-  rpgCreateWidgetInputSchema,
   rpgDeleteJournalEntryInputSchema,
   rpgDeleteQuestInputSchema,
-  rpgDeleteWidgetInputSchema,
   rpgEditJournalEntryInputSchema,
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
@@ -45,7 +43,6 @@ import {
   rpgRestoreCheckpointInputSchema,
   rpgRollDiceInputSchema,
   rpgUpdateConfigInputSchema,
-  rpgUpdateWidgetInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -68,15 +65,6 @@ export const rpgRouter = t.router({
   editSnapshot: authedProcedure
     .input(rpgEditSnapshotInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editSnapshot({ principal: ctx.auth, ...input })),
-  createWidget: authedProcedure
-    .input(rpgCreateWidgetInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.rpg.createWidget({ principal: ctx.auth, ...input })),
-  updateWidget: authedProcedure
-    .input(rpgUpdateWidgetInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.rpg.updateWidget({ principal: ctx.auth, ...input })),
-  deleteWidget: authedProcedure
-    .input(rpgDeleteWidgetInputSchema)
-    .mutation(({ ctx, input }) => ctx.services.rpg.deleteWidget({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
   deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure

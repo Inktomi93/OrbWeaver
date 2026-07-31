@@ -23,7 +23,7 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed on a 
   // rebuild corrects it. (A hand-edited lock is a separate case — the next test proves the lock wins.)
   const resyncDelta = {
     statePatch: { location: "the corrected throne room" },
-    journal: [{ type: "location", title: "Resync", content: "Re-derived from the story." }],
+    journal: [{ type: "location", label: "", title: "Resync", content: "Re-derived from the story." }],
   };
   const { chatId, gameId, h } = await seedLiteGame(db, {
     resyncDelta,

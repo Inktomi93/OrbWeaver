@@ -1,4 +1,4 @@
-// The shared whole-`actorState` overlay builder for the volatile hand edits (Status pools/conditions/status,
+// The shared whole-`actorState` overlay builder for the volatile hand edits (Status trackers/conditions/status,
 // Sheet wallet — every `editSnapshot` write on the per-actor volatile plane). The wire shape is a FULL
 // `actorState` array replace ([merge-clear]); the server's keyed-array grammar (substrate/merge.ts)
 // correlates elements by `actorRefKey`, so the FINE lock paths this module also derives
@@ -11,7 +11,7 @@ import { actorRefKey } from "@orb/contracts/rpg";
 
 /** The empty volatile plane a first hand edit seeds for an actor with no state row yet. */
 function emptyVolatile(actorRef: RpgActorRef): RpgActorVolatile {
-  return { actorRef, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" };
+  return { actorRef, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
 }
 
 /** Build the whole-`actorState` overlay with ONE actor's volatile mutated (matched by `actorRefKey`).
@@ -31,7 +31,7 @@ export function actorStatePatch(
   return { actorState };
 }
 
-/** The per-actor lock-path base (#10) — `actorState.<refKey>`; append `.status` / `.pools.<name>` /
+/** The per-actor lock-path base (#10) — `actorState.<refKey>`; append `.status` / `.trackerValues.<key>` /
  *  `.wallet.<name>` / `.conditions` for the fine pin the edit stamps. */
 export function actorLockBase(ref: RpgActorRef): string {
   return `actorState.${actorRefKey(ref)}`;

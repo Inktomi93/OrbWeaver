@@ -7,7 +7,7 @@ import {
   journalTitleFor,
   RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
-  setWidgetValueArgsSchema,
+  setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
@@ -17,15 +17,7 @@ import { z } from "zod";
 import { expect, test } from "../../support/fixtures";
 
 test("RPG_LITE_TOOL_NAMES is the committed 7-tuple full will keep", () => {
-  expect(RPG_LITE_TOOL_NAMES).toEqual([
-    "update_party",
-    "update_inventory",
-    "update_scene",
-    "set_widget_value",
-    "upsert_quest",
-    "add_journal_entry",
-    "roll_dice",
-  ]);
+  expect(RPG_LITE_TOOL_NAMES).toEqual(["update_party", "update_inventory", "update_scene", "set_tracker", "upsert_quest", "add_journal_entry", "roll_dice"]);
 });
 
 test("every arg schema projects to JSON Schema without throwing (the z.toJSONSchema class)", () => {
@@ -33,7 +25,7 @@ test("every arg schema projects to JSON Schema without throwing (the z.toJSONSch
     updatePartyArgsSchema,
     updateInventoryArgsSchema,
     updateSceneArgsSchema,
-    setWidgetValueArgsSchema,
+    setTrackerArgsSchema,
     upsertQuestArgsSchema,
     addJournalEntryArgsSchema,
     rollDiceArgsSchema,
@@ -43,10 +35,28 @@ test("every arg schema projects to JSON Schema without throwing (the z.toJSONSch
   }
 });
 
-test("update_party carries the targetRef + delta/condition/hp/status shape", () => {
-  const parsed = updatePartyArgsSchema.parse({ targetRef: "Hero", hpDelta: -3, poolDeltas: [{ name: "mana", delta: -1 }] });
+test("update_party carries the targetRef + the two TRACKER write arms + condition/hp/status", () => {
+  // The write axis is LOUD in the wire (the tracked-field unification): `delta` = a resource the beat spends
+  // or restores; `set` = a state the beat observes. One key-addressed arm each, replacing `poolDeltas`
+  // (name-addressed, meters only) and the cast row's opaque `customFields` string record.
+  const parsed = updatePartyArgsSchema.parse({
+    targetRef: "Hero",
+    hpDelta: -3,
+    trackerDeltas: [{ key: "mana", delta: -1 }],
+    trackerSets: [{ key: "trust", value: "guarded" }],
+  });
   expect(parsed.targetRef).toBe("Hero");
   expect(parsed.hpDelta).toBe(-3);
+  expect(parsed.trackerDeltas).toEqual([{ key: "mana", delta: -1 }]);
+  expect(parsed.trackerSets).toEqual([{ key: "trust", value: "guarded" }]);
+});
+
+test("set_tracker writes a GAME-subject tracker by KEY, on either write arm", () => {
+  expect(setTrackerArgsSchema.parse({ key: "alarm", value: 35 }).value).toBe(35);
+  expect(setTrackerArgsSchema.parse({ key: "alarm", delta: -5 }).delta).toBe(-5);
+  expect(setTrackerArgsSchema.parse({ key: "pack", items: ["rope"] }).items).toEqual(["rope"]);
+  // Never a LABEL: the retired `set_widget_value` addressed by label, so a rename orphaned the value.
+  expect(setTrackerArgsSchema.safeParse({ key: "", value: 1 }).success).toBe(false);
 });
 
 test("update_inventory carries walletDeltas (the stored wallet writer)", () => {
@@ -54,12 +64,15 @@ test("update_inventory carries walletDeltas (the stored wallet writer)", () => {
   expect(parsed.walletDeltas).toEqual([{ name: "gold", delta: 25 }]);
 });
 
-test("update_scene customFields ride an array-of-pairs (the D79 additionalProperties:false regime)", () => {
+test("update_scene's presentUpsert carries display fields only — tracked values are update_party's arm", () => {
   const parsed = updateSceneArgsSchema.parse({
     timeOfDay: "evening",
-    presentUpsert: [{ name: "Elder", customFields: [{ name: "title", value: "Sage" }] }],
+    presentUpsert: [{ name: "Elder", mood: "wary", thoughts: "he is hiding something" }],
   });
-  expect(parsed.presentUpsert?.[0]?.customFields).toEqual([{ name: "title", value: "Sage" }]);
+  expect(parsed.presentUpsert?.[0]?.mood).toBe("wary");
+  // The unification killed the second tracked-value wire vocabulary: a cast member's tracked values are
+  // written through `update_party` (targeting them by name), exactly like a party member's.
+  expect(Object.keys(parsed.presentUpsert?.[0] ?? {})).not.toContain("customFields");
 });
 
 test("upsert_quest bounds action to create/update/complete/fail", () => {

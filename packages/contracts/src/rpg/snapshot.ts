@@ -13,7 +13,8 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { rpgActorVolatileSchema } from "./actor";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient";
-import { RPG_QUEST_STATUSES, RPG_RELATIONSHIP_KINDS, RPG_WIDGET_POSITIONS, RPG_WIDGET_TYPES } from "./enums";
+import { RPG_QUEST_STATUSES, RPG_RELATIONSHIP_KINDS } from "./enums";
+import { rpgTrackerValuesSchema } from "./tracker";
 
 /** A present character's RELATIONSHIP (parity-plus §2.1) — a first-class field, NOT a `customFields` entry.
  *  `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token level); `label` is the free
@@ -83,39 +84,9 @@ export const rpgPresentCharacterSchema = z.object({
   appearance: z.string().optional(),
   outfit: z.string().optional(),
   thoughts: z.string().optional(),
-  customFields: z.record(z.string(), z.string()).default({}),
   relationship: rpgRelationshipSchema.default({ kind: "neutral", label: "" }),
 });
 export type RpgPresentCharacter = z.infer<typeof rpgPresentCharacterSchema>;
-
-/** A widget binding — what a HUD widget's value plane reads from. `custom` binds to a free meter/value
- *  (`subjectName` nullable — §8 #6); `pool`/`hp` bind to lite-live actor planes. Full ADDS arms if any. */
-export const rpgWidgetBindingSchema = z.discriminatedUnion("source", [
-  z.object({ source: z.literal("custom"), subjectName: z.string().nullable() }),
-  z.object({ source: z.literal("pool"), actorKey: z.string().min(1), poolName: z.string().min(1) }),
-  z.object({ source: z.literal("hp"), actorKey: z.string().min(1) }),
-]);
-export type RpgWidgetBinding = z.infer<typeof rpgWidgetBindingSchema>;
-
-/** A HUD widget DEFINITION (identity plane — the `rpg_hud_widgets` row shape without the id/gameId FK). */
-export const rpgWidgetDefSchema = z.object({
-  type: z.enum(RPG_WIDGET_TYPES),
-  label: z.string().min(1),
-  icon: z.string().nullable(),
-  position: z.enum(RPG_WIDGET_POSITIONS),
-  accent: z.string().nullable(),
-  sort: z.number().int().default(0),
-  binding: rpgWidgetBindingSchema,
-});
-export type RpgWidgetDef = z.infer<typeof rpgWidgetDefSchema>;
-
-/** A widget's swipe-volatile VALUE (the value plane, keyed by widget label in `widgetValues`). */
-export const rpgWidgetValueSchema = z.object({
-  value: z.number().optional(),
-  max: z.number().optional(),
-  items: z.array(z.string()).optional(),
-});
-export type RpgWidgetValue = z.infer<typeof rpgWidgetValueSchema>;
 
 /** The manual-edit-wins lock record — a presence-key set (`Record<path, true>`). Only `editSnapshot`
  *  writes it (auto-locking touched fields); tools HONOR it (the merge drops locked paths); it carries
@@ -135,7 +106,11 @@ export const rpgSnapshotStateSchema = z.object({
   presentCharacters: z.array(rpgPresentCharacterSchema).default([]),
   recentEvents: z.array(z.string()).default([]),
   actorState: z.array(rpgActorVolatileSchema).default([]),
-  widgetValues: z.record(z.string(), rpgWidgetValueSchema).default({}),
+  // The GAME-SUBJECT tracker values (the tracked-field unification §5.2) — one value per `subject:"game"`
+  // tracker, keyed by tracker `key`. Replaces `widgetValues`, which keyed by widget LABEL (so a rename
+  // orphaned the value) and whose defs lived in a whole separate TABLE. Actor-subject values live on
+  // `actorState[].trackerValues` — one shape, two homes by subject, no third.
+  trackerValues: rpgTrackerValuesSchema.default({}),
   quests: z.array(rpgQuestSchema).default([]),
   // The P5 plot plane — nullable like clock/weather (null = no plot authored; the rail renders nothing).
   // Defaulted null so a pre-P5 state blob self-heals at the parse seam (the quests `.default` posture).

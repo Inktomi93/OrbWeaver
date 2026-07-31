@@ -6,7 +6,7 @@
 //
 // THE INSTRUMENTS (each hop cross-checked against all that apply):
 //   • FE  = the CP-4 takeover panel DOM (the 4 lite tabs: Status/Sheet/Inventory/Scene — the Scene tab is the
-//           richest witness: ambient + cast + relationship + cast-fields + quests + widgets + beats).
+//           richest witness: ambient + cast + relationship + trackers + quests + beats).
 //   • BE/DB = `rpg.getTrackerView` — the persisted-snapshot projection. There is NO separate rpg-table debug
 //           dump (the rpg flight recorder is an unbuilt seam, RPG_TRACE off), so this projection READS the
 //           `rpg_snapshots` rows live — it is the rpg-plane DB witness AND the flush/snapshot RESULT at once.
@@ -17,7 +17,7 @@
 //
 // TWO CLASSES OF PROOF:
 //   1. THE HAND-PLANE BACKBONE (deterministic, NO inference). Every rpg plane has a HAND door (editSnapshot /
-//      patchSheet / upsertQuest / createWidget / addJournalEntry). Driving each over the API and cross-checking
+//      patchSheet / upsertQuest / updateConfig / addJournalEntry). Driving each over the API and cross-checking
 //      FE=BE=DB proves the write→read→render seam for EVERY plane WITHOUT depending on the small 8B decomposing
 //      that plane (the honest-arms ceiling, plan-for-small-hardware). This is the bulk of the coverage.
 //   2. THE LIVE LOOP (real inference). The character turn (tool-less prose) + the dedicated post-commit STATE
@@ -42,7 +42,6 @@ import {
   addJournalEntry,
   createCheckpoint,
   createLiteGame,
-  createWidget,
   deleteMessages,
   editSnapshot,
   fetchDebugErrors,
@@ -62,6 +61,7 @@ import {
   setChatRoute,
   setExtractionMode,
   setGameFeatures,
+  setTrackers,
   startChat,
   upsertQuest,
 } from "./support/trpc";
@@ -164,11 +164,13 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
 
     // ── HAND-WRITE every plane over the API (each door is deterministic — no model). ──
     const ref = characterRef(before, characterId);
-    // Host-defined cast-field SCHEMAS + a custom-relationship hint (the §2.8/§2.1-M1 feature door).
+    // The host's TRACKER defs (the ONE def home) + a custom-relationship hint. `trust`/`secret` carry the
+    // `npcs` class so the scene cast picks them up; `Mana` is the party-side meter, PINNED to the band.
     await setGameFeatures(chatId, {
-      castFields: [
-        { key: "trust", label: "Trust", kind: "meter", max: 10 },
-        { key: "secret", label: "Secret", kind: "text" },
+      trackers: [
+        { key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 10, pinned: true },
+        { key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 },
+        { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" },
       ],
       relationshipHints: { vassal: "sworn to serve but resentful" },
     });
@@ -180,13 +182,13 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
       weather: { type: "snow", label: "bitter cold" },
       recentEvents: ["Stepped into the freezing night market"],
     });
-    // Actor volatile plane: HP / pools / wallet / inventory / conditions / status — all first-class in lite.
+    // Actor volatile plane: HP / trackers / wallet / inventory / conditions / status — all first-class in lite.
     await editSnapshot(chatId, {
       actorState: [
         {
           actorRef: ref,
           hp: { value: 12, max: 20 },
-          pools: [{ name: "Mana", value: 3, max: 10 }],
+          trackerValues: { mana: { value: 3, items: null } },
           wallet: [{ name: "gold", amount: 45 }],
           inventory: [{ id: "i1", name: "Iron Dagger", quantity: 2 }],
           conditions: [{ name: "Chilled", stat: null, modifier: 0, turnsLeft: null }],
@@ -194,16 +196,21 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
         },
       ],
     });
-    // Present cast + mood + RELATIONSHIP (custom + hint) + CAST-FIELDS (meter + text, enum-exact keys).
+    // Present cast + mood + RELATIONSHIP (custom + hint). Her TRACKED values ride the per-actor plane under
+    // her `cast:` ref — the same one home a party member's use (there is no second cast-value store).
     await editSnapshot(chatId, {
-      presentCharacters: [
+      presentCharacters: [{ key: "mira", name: "Mira", emoji: "🗡️", mood: "wary", relationship: { kind: "custom", label: "vassal" } }],
+    });
+    await editSnapshot(chatId, {
+      actorState: [
         {
-          key: "mira",
-          name: "Mira",
-          emoji: "🗡️",
-          mood: "wary",
-          relationship: { kind: "custom", label: "vassal" },
-          customFields: { trust: "4", secret: "knows the password" },
+          actorRef: { kind: "cast", castKey: "mira" },
+          hp: null,
+          trackerValues: { trust: { value: 4, items: null }, secret: { value: "knows the password", items: null } },
+          conditions: [],
+          inventory: [],
+          wallet: [],
+          status: "",
         },
       ],
     });
@@ -219,20 +226,11 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
         { text: "Ask the smith", completed: true },
       ],
     });
-    // Widget plane (def + value, joined by label).
-    await createWidget(chatId, {
-      type: "meter",
-      label: "Reputation",
-      icon: "star",
-      position: "banner",
-      accent: "gold",
-      sort: 0,
-      binding: { source: "custom", subjectName: null },
-    });
-    // biome-ignore lint/style/useNamingConvention: `widgetValues` is a DATA record keyed by the widget's LABEL (join key, tracker-view.ts) — "Reputation" is user-facing display data, not a JS identifier.
-    await editSnapshot(chatId, { widgetValues: { Reputation: { value: 7, max: 10 } } });
+    // The GAME-SUBJECT tracker plane (def in config, value on the snapshot, joined by KEY).
+    await setTrackers(chatId, [{ key: "reputation", label: "Reputation", shape: "meter", write: "set", subject: "game", max: 10, icon: "star" }]);
+    await editSnapshot(chatId, { trackerValues: { reputation: { value: 7, items: null } } });
     // Journal plane (variant-aware table — its own read).
-    await addJournalEntry(chatId, { type: "note", title: "Session 1", content: "Arrived at Ashfell" });
+    await addJournalEntry(chatId, { type: "note", label: "", title: "Session 1", content: "Arrived at Ashfell" });
 
     // ── BE/DB CROSS-CHECK (getTrackerView reads the persisted snapshot rows): every plane landed EXACT. ──
     const after = await getTrackerView(chatId);
@@ -247,34 +245,37 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(hero?.sheet.level).toBe(5);
     expect(hero?.sheet.className).toBe("Ranger");
     expect(hero?.volatile?.hp).toEqual({ value: 12, max: 20 });
-    expect(hero?.volatile?.pools).toEqual([{ name: "Mana", value: 3, max: 10 }]);
+    expect(hero?.volatile?.trackerValues["mana"]).toEqual({ value: 3, items: null });
     expect(hero?.volatile?.wallet).toEqual([{ name: "gold", amount: 45 }]);
     expect(hero?.volatile?.inventory.map((i) => [i.name, i.quantity])).toEqual([["Iron Dagger", 2]]);
     expect(hero?.volatile?.conditions.map((c) => c.name)).toEqual(["Chilled"]);
     expect(hero?.volatile?.status).toBe("shivering");
-    // The first-3-pools banner orb derivation reflects the write.
-    expect(after.poolOrbs).toEqual([{ label: "Mana", value: 3, max: 10 }]);
+    // The band renders exactly what the host PINNED (never a def-order coincidence).
+    expect(after.trackerOrbs).toEqual([{ key: "mana", label: "Mana", value: 3, max: 10, color: null }]);
 
     expect(after.cast).toHaveLength(1);
     const mira = after.cast[0];
     expect(mira?.name).toBe("Mira");
     expect(mira?.mood).toBe("wary");
     expect(mira?.relationship).toEqual({ kind: "custom", label: "vassal" });
-    expect(mira?.customFields).toEqual({ trust: "4", secret: "knows the password" });
-    expect(after.castFields.map((f) => f.key)).toEqual(["trust", "secret"]);
+    // Her carried trackers resolve SERVER-side (the `npcs` class) and pair with the readings on her row.
+    expect(after.castTrackers["mira"]?.map((t) => [t.def.key, t.value?.value])).toEqual([
+      ["secret", "knows the password"],
+      ["trust", 4],
+    ]);
 
     expect(after.quests).toHaveLength(1);
     expect(after.quests[0]?.name).toBe("Find the Rusted Key");
     expect(after.quests[0]?.objectives.filter((o) => o.completed)).toHaveLength(1);
 
-    expect(after.widgets.map((w) => [w.def.label, w.value?.value, w.value?.max])).toEqual([["Reputation", 7, 10]]);
+    expect(after.gameTrackers.map((t) => [t.def.label, t.value?.value, t.def.max])).toEqual([["Reputation", 7, 10]]);
 
     const journal = await listJournal(chatId);
     expect(journal.some((e) => e.title === "Session 1")).toBe(true);
 
     // The host config-editor read (HOST-gated): the feature schemas + hints are real, not a client illusion.
     const config = await getConfigView(chatId);
-    expect(config.castFields.map((f) => f.key)).toEqual(["trust", "secret"]);
+    expect(config.trackers.map((t) => t.key)).toEqual(["mana", "trust", "secret"]);
     expect(config.relationshipHints["vassal"]).toBe("sworn to serve but resentful");
 
     // ── FE CROSS-CHECK: the CP-4 panel re-renders the SAME server-truth (invalidation → re-render). The
@@ -299,7 +300,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     await expect(scene.getByRole("button", { name: "Mira relationship" })).toContainText("vassal");
     await expect(scene).toContainText("Trust"); // the meter cast-field label
     await expect(scene).toContainText("Secret"); // the text cast-field label
-    await expect(scene).toContainText("Reputation"); // the widget label
+    await expect(scene).toContainText("Reputation"); // the game-tracker label
     // The quest GOAL name renders at rest as static text on its edit button (host); the objective count
     // (1 of 2 complete) renders as "1/2" plain text.
     await expect(scene.getByRole("button", { name: "Goal" })).toContainText("Find the Rusted Key");
@@ -346,7 +347,7 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
     // blocks a later TOOL write, never the human). This proves the lock exists without a model in the loop:
     // we assert the value the human last wrote is canon.
     await editSnapshot(chatId, {
-      actorState: [{ actorRef: ref, hp: { value: 8, max: 20 }, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
+      actorState: [{ actorRef: ref, hp: { value: 8, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" }],
     });
     const pinned = await characterActor(chatId, characterId);
     expect(pinned.volatile?.hp).toEqual({ value: 8, max: 20 });
@@ -515,7 +516,15 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
     await editSnapshot(chatId, {
       location: "The Glass Bridge",
       actorState: [
-        { actorRef: ref, hp: { value: 15, max: 15 }, pools: [{ name: "Focus", value: 2, max: 5 }], conditions: [], inventory: [], wallet: [], status: "" },
+        {
+          actorRef: ref,
+          hp: { value: 15, max: 15 },
+          trackerValues: { focus: { value: 2, items: null } },
+          conditions: [],
+          inventory: [],
+          wallet: [],
+          status: "",
+        },
       ],
     });
     // Every plane reads the SAME resolved-current snapshot, so two back-to-back reads are byte-identical (no
@@ -525,7 +534,7 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(a.ambient?.location).toBe("The Glass Bridge");
     const hero = a.actors.find((x) => x.actorRef.characterId === characterId);
-    expect(hero?.volatile?.pools).toEqual([{ name: "Focus", value: 2, max: 5 }]);
+    expect(hero?.volatile?.trackerValues["focus"]).toEqual({ value: 2, items: null });
   } finally {
     await cleanup();
   }

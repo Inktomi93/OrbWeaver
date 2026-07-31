@@ -1,15 +1,8 @@
 // @orb/contracts/rpg/snapshot — the swipe-volatile plane shapes (§2.4-2.5). Pins the quests-in-snapshot
 // shape (ratification #1: quests fold INTO the snapshot state), the objective `n/m` shape, present-cast,
-// widget binding arms, and the full snapshot state's collection defaults + nullable ambient.
+// and the full snapshot state's collection defaults + nullable ambient.
 
-import {
-  rpgFieldLocksSchema,
-  rpgPlotSchema,
-  rpgPresentCharacterSchema,
-  rpgQuestSchema,
-  rpgSnapshotStateSchema,
-  rpgWidgetBindingSchema,
-} from "@orb/contracts/rpg";
+import { rpgFieldLocksSchema, rpgPlotSchema, rpgPresentCharacterSchema, rpgQuestSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures";
 
 test("a quest is a stable-id object with status + n/m objectives (the snapshot-resident shape)", () => {
@@ -37,21 +30,30 @@ test("the snapshot state folds quests INSIDE it and defaults every collection (r
   expect(state.presentCharacters).toEqual([]);
   expect(state.actorState).toEqual([]);
   expect(state.recentEvents).toEqual([]);
-  expect(state.widgetValues).toEqual({});
+  expect(state.trackerValues).toEqual({});
   expect(state.location).toBe("");
   expect(state.clock).toBeNull();
 });
 
-test("widget binding parses the custom + lite-live pool/hp arms", () => {
-  expect(rpgWidgetBindingSchema.safeParse({ source: "custom", subjectName: null }).success).toBe(true);
-  expect(rpgWidgetBindingSchema.safeParse({ source: "pool", actorKey: "hero", poolName: "mana" }).success).toBe(true);
-  expect(rpgWidgetBindingSchema.safeParse({ source: "hp", actorKey: "hero" }).success).toBe(true);
+test("the GAME-subject tracker values live on the snapshot, keyed by tracker key", () => {
+  // The tracked-field unification: `widgetValues` (keyed by widget LABEL, defs in their own table) is gone.
+  const state = rpgSnapshotStateSchema.parse({
+    clock: null,
+    calendarDate: null,
+    weather: null,
+    fieldLocks: null,
+    trackerValues: { alarm: { value: 35, max: 100 } },
+  });
+  expect(state.trackerValues["alarm"]).toEqual({ value: 35, items: null });
 });
 
-test("present character defaults its display fields and keeps customFields as a record", () => {
-  const cast = rpgPresentCharacterSchema.parse({ key: "elder", name: "The Elder", customFields: { title: "Sage" } });
+test("present character defaults its display fields and carries NO tracked-value store", () => {
+  const cast = rpgPresentCharacterSchema.parse({ key: "elder", name: "The Elder" });
   expect(cast.emoji).toBe("");
-  expect(cast.customFields).toEqual({ title: "Sage" });
+  expect(cast.mood).toBe("");
+  // A cast member's tracked values ride the per-actor `actorState` plane under `cast:<key>` — ONE value
+  // home for every actor, so the opaque `customFields` string record on the cast row is gone.
+  expect("customFields" in cast).toBe(false);
 });
 
 test("fieldLocks is a presence-key record of true", () => {

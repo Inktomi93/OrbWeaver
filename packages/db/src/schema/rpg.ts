@@ -1,4 +1,4 @@
-// schema/rpg — the RPG lite substrate's 6-table floor (producer: domain/rpg; rpg-design/05 §4.2). Born
+// schema/rpg — the RPG lite substrate's 5-table floor (producer: domain/rpg; rpg-design/05 §4.2). Born
 // WHOLE: the full-mode shape ships as data/nullable columns from day one so full-mode arrival ADDS
 // siblings (7 tables, nullable columns, tool defs) and renames/re-types/migrates NOTHING lite shipped
 // (the graft-map invariant, §C). This is the W0 schema floor; the domain/rpg producer lands in W1 (until
@@ -25,11 +25,10 @@ import type {
   RpgPresentCharacter,
   RpgQuest,
   RpgSheet,
+  RpgTrackerValues,
   RpgWeather,
-  RpgWidgetBinding,
-  RpgWidgetValue,
 } from "@orb/contracts/rpg";
-import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES, RPG_WIDGET_POSITIONS, RPG_WIDGET_TYPES } from "@orb/contracts/rpg";
+import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type {
   CharacterId,
   ChatId,
@@ -41,7 +40,6 @@ import type {
   RpgJournalId,
   RpgSheetId,
   RpgSnapshotId,
-  RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -138,8 +136,9 @@ export const rpgSnapshots = sqliteTable(
     recentEvents: text("recent_events", { mode: "json" }).$type<readonly string[]>(),
     // Per-actor volatile state (hp/pools/conditions/inventory/wallet/status) — the wallet/inventory-first-class plane.
     actorState: text("actor_state", { mode: "json" }).$type<readonly RpgActorVolatile[]>(),
-    // Custom widget VALUES (keyed by widget label).
-    widgetValues: text("widget_values", { mode: "json" }).$type<Record<string, RpgWidgetValue>>(),
+    // GAME-SUBJECT tracker VALUES, keyed by tracker `key` (the tracked-field unification). Replaces
+    // `widget_values`, which keyed by widget LABEL against defs in a whole separate table — both gone.
+    trackerValues: text("tracker_values", { mode: "json" }).$type<RpgTrackerValues>(),
     // The swipe-consistent quest plane (§2.5) — folded into the snapshot, clone-forward like inventory/cast.
     quests: text("quests", { mode: "json" }).$type<readonly RpgQuest[]>().default(sql`'[]'`),
     // The P5 plot plane (parity-plus — snapshot-resident `{act,title,acts}`, clone-forward like quests;
@@ -189,34 +188,10 @@ export const rpgSheets = sqliteTable(
   ],
 );
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// rpg_hud_widgets — custom widget DEFINITIONS (identity plane; legacy shape adopted whole). Values live on
-// the snapshot (widgetValues). CHECK-derived type/position.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const rpgHudWidgets = sqliteTable(
-  "rpg_hud_widgets",
-  {
-    id: text("id").$type<RpgWidgetId>().primaryKey(),
-    gameId: text("game_id")
-      .$type<RpgGameId>()
-      .notNull()
-      .references(() => rpgGames.id, { onDelete: "cascade" }),
-    type: text("type", { enum: RPG_WIDGET_TYPES }).notNull(),
-    label: text("label").notNull(),
-    icon: text("icon"),
-    position: text("position", { enum: RPG_WIDGET_POSITIONS }).notNull(),
-    accent: text("accent"),
-    sort: integer("sort").notNull().default(0),
-    binding: text("binding", { mode: "json" }).$type<RpgWidgetBinding>().notNull(),
-    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-  },
-  (t) => [
-    index("rpg_hud_widgets_game_idx").on(t.gameId),
-    check("rpg_hud_widgets_type_check", sql.raw(`type in (${checkList(RPG_WIDGET_TYPES)})`)),
-    check("rpg_hud_widgets_position_check", sql.raw(`position in (${checkList(RPG_WIDGET_POSITIONS)})`)),
-  ],
-);
+// The `rpg_hud_widgets` table is GONE (the tracked-field unification, owner-approved 2026-07-31). Custom
+// widgets were the game-subject arm of ONE concept whose other three arms lived in JSON blobs; they now ride
+// `config.trackers[]` with `subject:"game"`, and their values ride `rpg_snapshots.tracker_values`. Dropped at
+// the baseline regen (pre-launch squash) — no incremental migration, no compat read.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // rpg_journal — the VARIANT-AWARE ARCHIVE (§2.5, ratification #1). Model entries stamp their producing
@@ -236,6 +211,9 @@ export const rpgJournal = sqliteTable(
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
     type: text("type", { enum: RPG_JOURNAL_TYPES }).notNull(),
+    // R4c — the free gloss carried by a `custom`-typed entry (the `relationship.label` shape). Born "" on the
+    // seven built-in types; the CHECK above keeps `type` closed, and this is the escape the closed enum needs.
+    label: text("label").notNull().default(""),
     title: text("title").notNull(),
     content: text("content").notNull(),
     // NULL = hand/room entry (every lineage); non-null = model entry, rendered only while its variant is

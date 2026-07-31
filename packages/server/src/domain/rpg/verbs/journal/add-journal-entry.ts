@@ -16,6 +16,8 @@ export function createAddJournalEntry(ctx: RpgContext): Pick<RpgService, "addJou
       id,
       gameId: game.id,
       type: params.type,
+      // R4c — the free gloss is meaningful ONLY on a `custom` type (the relationship-kind precedent).
+      label: params.type === "custom" ? (params.label ?? "") : "",
       title: params.title,
       content: params.content,
       variantId: null, // hand entry — every lineage

@@ -13,7 +13,7 @@ export function createListJournal(ctx: RpgContext): Pick<RpgService, "listJourna
   async function listJournal(params: ListJournalParams): Promise<readonly RpgJournalEntryView[]> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
     const rows = await listActiveJournal(ctx.db, game.id, { limit: params.limit ?? DEFAULT_JOURNAL_LIMIT, offset: params.offset ?? 0 });
-    return rows.map((r) => ({ id: r.id, type: r.type, title: r.title, content: r.content, createdAt: r.createdAt }));
+    return rows.map((r) => ({ id: r.id, type: r.type, label: r.label, title: r.title, content: r.content, createdAt: r.createdAt }));
   }
   return { listJournal };
 }
