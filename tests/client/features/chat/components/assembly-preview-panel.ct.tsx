@@ -30,16 +30,48 @@ const PREVIEW_TRACE = {
   overrideSources: { mainPrompt: "room override", scenario: "from Aria" },
 };
 
-/** A PLAIN chat's budget: no `game-state` row (the server omits an empty source). */
+/** A PLAIN chat's budget: no `game-state` row (the server omits an empty source). The `cards` row carries the
+ *  ROOM's members as parts — the owner's question ("what is each character in the room costing me") is the
+ *  per-contributor breakdown, not the bucket total. */
+const MARA_CARD = "Mara — a bold knight of the Lantern Road.";
+const NIKO_CARD = "Niko — a wary scout.";
+
 const PLAIN_BUDGET = {
   ceilingTokens: 8192,
   totalTokens: 4300,
   sources: [
-    { source: "system" as const, detail: "main prompt", tokens: 412, text: "You are Aria, a helpful assistant." },
-    { source: "cards" as const, detail: "character description · personality", tokens: 1208, text: "Aria — a bold knight." },
-    { source: "world-info" as const, detail: "world info (before)", tokens: 356, text: "LORE: The Lantern Road" },
-    { source: "steering" as const, detail: "author's note", tokens: 700, text: "Stay concise." },
-    { source: "history" as const, detail: "41 turns · 3 dropped", tokens: 1624, text: "" },
+    {
+      source: "system" as const,
+      detail: "main prompt",
+      tokens: 412,
+      parts: [{ label: "main prompt", tokens: 412, text: "You are Aria, a helpful assistant." }],
+      text: "You are Aria, a helpful assistant.",
+    },
+    {
+      source: "cards" as const,
+      detail: "Mara · Niko",
+      tokens: 1208,
+      parts: [
+        { label: "Mara", tokens: 812, text: MARA_CARD },
+        { label: "Niko", tokens: 396, text: NIKO_CARD },
+      ],
+      text: `${MARA_CARD}\n\n${NIKO_CARD}`,
+    },
+    {
+      source: "world-info" as const,
+      detail: "world info (before)",
+      tokens: 356,
+      parts: [{ label: "world info (before)", tokens: 356, text: "LORE: The Lantern Road" }],
+      text: "LORE: The Lantern Road",
+    },
+    {
+      source: "steering" as const,
+      detail: "author's note",
+      tokens: 700,
+      parts: [{ label: "author's note", tokens: 700, text: "Stay concise." }],
+      text: "Stay concise.",
+    },
+    { source: "history" as const, detail: "41 turns · 3 dropped", tokens: 1624, parts: [], text: "" },
   ],
 };
 
@@ -71,6 +103,7 @@ const RE_WORLD_INFO = /World info/;
 const RE_HISTORY = /History/;
 const RE_TRANSCRIPT = /the wire history IS the transcript/i;
 const RE_CARDS = /Cards/;
+const RE_SYSTEM = /System/;
 const RE_CARDS_COUNT = /1,208/;
 const RE_DIAGNOSTICS = /Diagnostics/;
 
@@ -113,6 +146,48 @@ test("the budget bar's segments partition the total, keyed to the per-source row
   await expect(component.getByText("41 turns · 3 dropped")).toBeVisible();
 });
 
+test("the Cards row breaks down PER ROSTER MEMBER — each character's own token size + their card text", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  // The room's members are named on the closed row…
+  await expect(component.getByText("Mara · Niko")).toBeVisible();
+
+  // …and drilling in lists them one per line with THEIR token count, not one opaque bucket total.
+  await component.getByRole("button", { name: RE_CARDS }).click();
+  await expect(component.getByText("Mara", { exact: true })).toBeVisible();
+  await expect(component.getByText("812", { exact: true })).toBeVisible();
+  await expect(component.getByText("Niko", { exact: true })).toBeVisible();
+  await expect(component.getByText("396", { exact: true })).toBeVisible();
+
+  // Each member drills one level further into the exact bytes their card contributes. (The member trigger is
+  // named by its OWN row — "Mara 812" — distinct from the source row, whose name carries the detail line.)
+  await expect(component.getByText(MARA_CARD)).toHaveCount(0);
+  await component.getByRole("button", { name: "Mara 812", exact: true }).click();
+  await expect(component.getByText(MARA_CARD)).toBeVisible();
+  await expect(component.getByText(NIKO_CARD)).toHaveCount(0);
+});
+
+test("a single-contributor source drills straight to its text (no redundant one-line breakdown)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  // The five sources are five rows; expanding a SINGLE-contributor one adds no sixth (a sub-row repeating
+  // the source's own count would be pure chrome).
+  await expect(component.locator("[data-slot=series-row]")).toHaveCount(PLAIN_BUDGET.sources.length);
+  await component.getByRole("button", { name: RE_SYSTEM }).click();
+  await expect(component.getByText("You are Aria, a helpful assistant.")).toBeVisible();
+  await expect(component.locator("[data-slot=series-row]")).toHaveCount(PLAIN_BUDGET.sources.length);
+});
+
 test("drilling into a source row reveals THAT source's assembled text", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
@@ -153,7 +228,16 @@ test("a GAME chat adds the game-state row + the mono state excerpt; a plain chat
       budget: {
         ...PLAIN_BUDGET,
         totalTokens: 4702,
-        sources: [...PLAIN_BUDGET.sources, { source: "game-state" as const, detail: "state block", tokens: 402, text: GAME_STATE_TEXT }],
+        sources: [
+          ...PLAIN_BUDGET.sources,
+          {
+            source: "game-state" as const,
+            detail: "state block",
+            tokens: 402,
+            parts: [{ label: "state block", tokens: 402, text: GAME_STATE_TEXT }],
+            text: GAME_STATE_TEXT,
+          },
+        ],
       },
     }),
     "chat.getShapeTrace": () => SHAPE_TRACE_DATA,

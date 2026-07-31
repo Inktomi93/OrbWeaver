@@ -533,7 +533,7 @@ function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePerso
   }
   const { depth, role } = active.placement;
   return {
-    injection: { position: "in_chat", depth, role, content, origin: "persona" },
+    injection: { position: "in_chat", depth, role, content, origin: "persona", originLabel: active.name },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -556,7 +556,7 @@ function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePerson
   }
   const content = `[${ANCHOR_IDENTITY_PREFIX} ${anchor.name}: ${resolved}]`;
   return {
-    injection: { position: "in_static", depth: 0, role: "system", content, origin: "persona" },
+    injection: { position: "in_static", depth: 0, role: "system", content, origin: "persona", originLabel: anchor.name },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -619,7 +619,7 @@ function characterDepthNoteCandidates(
     }
     contributorNames.push(member.name);
     candidates.push({
-      injection: { position: "in_chat", depth: note.depth, role: note.role ?? "system", content, origin: "authors-note" },
+      injection: { position: "in_chat", depth: note.depth, role: note.role ?? "system", content, origin: "authors-note", originLabel: member.name },
       tokens: estimateTokens(content),
       ignoreBudget: true,
       priority: OPERATOR_PRIORITY,

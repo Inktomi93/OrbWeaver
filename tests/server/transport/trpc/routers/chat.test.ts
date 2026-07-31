@@ -1071,7 +1071,15 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
     budget: {
       ceilingTokens: 8192,
       totalTokens: 5,
-      sources: [{ source: "system", detail: "main prompt", tokens: 5, text: "SYSTEM: be helpful" }],
+      sources: [
+        {
+          source: "system",
+          detail: "main prompt",
+          tokens: 5,
+          parts: [{ label: "main prompt", tokens: 5, text: "SYSTEM: be helpful" }],
+          text: "SYSTEM: be helpful",
+        },
+      ],
     },
   };
 

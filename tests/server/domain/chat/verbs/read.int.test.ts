@@ -708,6 +708,44 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(budget.sources.some((s) => s.source === "game-state")).toBe(false);
   });
 
+  test("a two-character room reports what EACH member costs, by their card name (owner ruling)", async () => {
+    // "The context panel definitely has the current characters' total token size that are in the room."
+    // The BUDGET's `cards` row must therefore break down per ROSTER MEMBER — real names, real token counts,
+    // resolved through the same `getCard` op the turn assembles from (no client-side guessing, no shim).
+    const me = await seedUser(db, "cast_host");
+    const chatId = await seedChat(db, "cast");
+    const maraId = await seedCharacter(db, me, "mara");
+    const nikoId = await seedCharacter(db, me, "niko");
+    await seedParticipant(db, { chatId, key: "cast_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId, key: "cast_mara", characterId: maraId });
+    await seedParticipant(db, { chatId, key: "cast_niko", characterId: nikoId });
+
+    const cards: Record<string, { name: string; description: string; regexScripts: [] }> = {
+      [maraId]: { name: "Mara", description: "A bold knight of the Lantern Road who never yields her post.", regexScripts: [] },
+      [nikoId]: { name: "Niko", description: "A wary scout.", regexScripts: [] },
+    };
+    const ctx = makeChatContext(db, {
+      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
+    });
+
+    const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+
+    const cardsRow = budget.sources.find((s) => s.source === "cards");
+    // Both present members are named — the detail line AND a part apiece with its own real token count.
+    expect(cardsRow?.detail).toBe("Mara · Niko");
+    expect(cardsRow?.parts.map((p) => p.label)).toEqual(["Mara", "Niko"]);
+    expect(cardsRow?.parts.every((p) => p.tokens > 0)).toBe(true);
+    // Mara's card is the longer one, so she costs more — the numbers track the actual bytes, not a stub.
+    const mara = cardsRow?.parts.find((p) => p.label === "Mara");
+    const niko = cardsRow?.parts.find((p) => p.label === "Niko");
+    expect(mara?.tokens ?? 0).toBeGreaterThan(niko?.tokens ?? 0);
+    expect(mara?.text).toContain("Lantern Road");
+    expect(niko?.text).toContain("wary scout");
+    // …and each member's bytes are bytes the model actually receives.
+    expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
+  });
+
   test("a GAME chat previews its state block: the rpg gather rides the preview + gets its own budget row", async () => {
     // Before D-4 the preview omitted the rpg reminder entirely — the host's honesty instrument showed a prompt
     // the model never receives. The gather now runs on the preview path (read-only, turnless) and its depth-0

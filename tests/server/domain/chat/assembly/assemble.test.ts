@@ -458,6 +458,33 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "chat injections", text: "hand-built" }]);
   });
 
+  test("the MERGED card section splits per ROSTER MEMBER — each member's bytes carry their own name", () => {
+    // The owner's question: what is each character in the room costing me? The merged card block is one
+    // string on the wire, so the split has to happen where the bytes are rendered — here.
+    const config = configOf([marker({ marker: "char_description", name: "character description" }), marker({ marker: "chat_history" })]);
+    const niko: AssembleCharacter = { name: "Niko", description: "a wary scout", personality: "cautious" };
+    const ctx = ctxOf({ coSpeakers: [niko] });
+
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    // One slice per PRESENT member, named by their card name (never a collective bucket).
+    expect(slices.map((s) => s.label)).toEqual(["Aria", "Niko"]);
+    expect(slices.every((s) => s.source === "cards")).toBe(true);
+    expect(slices[1]?.text).toContain("Niko");
+    // …and the delivered prompt is byte-identical to the pre-split merge (the split is accounting only).
+    expect(prompt.static).toBe(assemblePrompt(config, ctx).static);
+    expect(prompt.static).toBe(slices.map((s) => s.text).join("\n\n"));
+  });
+
+  test("a member's at-depth note lands under THAT member, not an anonymous channel", () => {
+    const config = configOf([marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({
+      chatInjections: [{ position: "in_chat", depth: 2, role: "system", content: "Aria is limping.", origin: "authors-note", originLabel: "Aria" }],
+    });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "Aria", text: "Aria is limping." }]);
+  });
+
   test("the prompt half is byte-identical to plain assemblePrompt (slices are an extra product, not a fork)", () => {
     const config = configOf([literal("hello"), marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
     const ctx = ctxOf({ chatInjections: [{ position: "in_static", depth: 0, role: "system", content: "note", origin: "user" }] });

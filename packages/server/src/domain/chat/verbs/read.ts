@@ -106,6 +106,7 @@ import {
   loadCharacterCardLore,
   previewSection,
   renderMacros,
+  shapeContextForSpeaker,
   shapeTurn,
   toShapeCanon,
 } from "../substrate/assembly-access";
@@ -307,7 +308,13 @@ async function previewRpgFields(
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
  *  optional `guided` steer mirrors a real turn's steered assembly. Threads the preview user-macro registry
  *  (WAVE MU) so a previewed prompt resolves user macros exactly as a real turn would (stable-prng posture) AND
- *  the game turn's rpg gather (see {@link previewRpgFields}) so a game chat previews its real state block. */
+ *  the game turn's rpg gather (see {@link previewRpgFields}) so a game chat previews its real state block.
+ *
+ *  The gathered ctx is then SHAPED for the primary speaker exactly as a turn's round is
+ *  (`shapeContextForSpeaker`, `cardScope: "merged"` — the same assumption `shapeNextTurn` already makes for
+ *  the wire history): without it the preview rendered ONLY the primary character's card, while the real turn
+ *  merges every present roster member's — so a multi-character room's preview under-reported both its prompt
+ *  and its context cost. Solo / hand-built ctxs return unchanged (the shape is a no-op there). */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
@@ -324,7 +331,7 @@ async function buildPreviewContext(
       .map((p) => p.displayName)
       .join(", "),
   });
-  return await gatherAssembleContext(
+  const gathered = await gatherAssembleContext(
     ctx,
     {
       chatId,
@@ -339,6 +346,8 @@ async function buildPreviewContext(
     },
     inputs.foreign,
   );
+  const primary = gathered.castMembers?.[0];
+  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, cardScope: "merged" });
 }
 
 /** `listChats` — the caller's chats (pure membership, host or member), newest-updated first. */
