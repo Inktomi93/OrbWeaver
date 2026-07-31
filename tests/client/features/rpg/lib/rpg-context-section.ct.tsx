@@ -614,6 +614,38 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
 });
 
+// The three bodies that were LIVE-EMPTY on the dogfood DB (chat_01kym4aq7…, chat_01kym4w52…,
+// chat_01kym4b1y…), verbatim in shape: a nested-closer card and two generations truncated mid-attribute.
+// Each showed the reader a raw `:::card title="…"` line in the transcript and NOTHING in the archive.
+// With the committed EOF-close they are cards again — in the archive AND in the transcript.
+const BROKEN_CARD_MESSAGES = {
+  messages: [
+    {
+      id: "message_ct_nest1",
+      role: "assistant",
+      content: ':::card title="The Blade’s Whisper"\n\nA flicker of steel.\n\n:::choices\n1. Demand answers\n2. Walk away\n:::',
+      createdAt: 1000,
+    },
+    { id: "message_ct_trunc2", role: "assistant", content: ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New', createdAt: 2000 },
+    { id: "message_ct_trunc3", role: "assistant", content: ':::card title="The Watcher’s Shadow"\n<div style="background: #1a', createdAt: 3000 },
+  ],
+};
+
+test("RV-2 root cause: unterminated cards (truncated + nested-closer) reach the archive once committed", async ({ mount, page }) => {
+  await stubTakeover(page, { game: cardsGame(), messages: BROKEN_CARD_MESSAGES });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const archive = component.locator('[data-slot="rpg-card-archive"]');
+  await expect(archive).toContainText("Cards — 3");
+  await expect(archive.getByRole("button", { name: "Open card: The Watcher’s Shadow" })).toBeVisible();
+  await expect(archive.getByRole("button", { name: "Open card: Ashfell Night Market" })).toBeVisible();
+  // The nested-closer body: ONE card (the swallowed choices are card content, not a second block).
+  await expect(archive.getByRole("button", { name: "Open card: The Blade’s Whisper" })).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-card-row"]')).toHaveCount(3);
+});
+
 test("RV-2: cards ON with none written renders the honest empty archive; cards OFF omits the section entirely", async ({ mount, page }) => {
   await stubTakeover(page, { game: cardsGame() });
   const withCardsOn = await mount(<RpgTakeoverStory />);

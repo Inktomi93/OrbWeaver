@@ -1344,6 +1344,16 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(second.request.history).toEqual(first.request.history);
   });
 
+  test("an UNTERMINATED card in committed canon stubs like any other — a truncated blob never rides the wire raw", async () => {
+    // The wire build tokenizes with `committed: true` (the fitted history is stored canon, not the live
+    // stream), so the RV-2 truncated-generation class — a card the model never closed — collapses to the
+    // same deterministic stub instead of shipping its half-written markup on every subsequent turn.
+    const truncated = ':::card title="Ashfell Night Market"\n<div style="font-family: multi-KB html blob';
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(`Look:\n${truncated}`)] }).args);
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "Look:\n[card: Ashfell Night Market]" }]);
+    expect(JSON.stringify(result.request.history)).not.toContain("multi-KB");
+  });
+
   test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 the newest two (counted from the tail)", async () => {
     const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
     // Alternating roles so SHAPE keeps three separate rows (same-role runs squash into one body).

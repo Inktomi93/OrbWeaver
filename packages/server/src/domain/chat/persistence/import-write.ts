@@ -23,7 +23,7 @@ function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): A
   // @orb-gate-ignore persistence-no-in-memory-state: query-local dedup Set for asset refs in a message
   const ids = new Set<string>();
   for (const v of message.variants) {
-    for (const span of tokenizeContent(v.content)) {
+    for (const span of tokenizeContent(v.content, { committed: true })) {
       if (span.kind === "image" && span.ref.kind === "asset") {
         ids.add(span.ref.assetId);
       }
