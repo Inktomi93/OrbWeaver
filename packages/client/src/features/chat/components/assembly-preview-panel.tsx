@@ -17,7 +17,15 @@
 // mounts this tab for the host, so a member never reaches the queries (which would refuse). A member-scoped
 // `previewSection` affordance is deferred (task #28 flag).
 
-import type { AssembleTrace, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource, ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
+import type {
+  AssembleTrace,
+  AssemblyBudgetPart,
+  AssemblyBudgetPreview,
+  AssemblyBudgetSlice,
+  AssemblySource,
+  ShapeBreakpointDecision,
+  ShapeTrace,
+} from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
@@ -143,10 +151,12 @@ function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): 
 
 // ── The per-source rows ─────────────────────────────────────────────────────────────────────────────
 
-/** One source row: the swatch-keyed `SeriesRow` as a Collapsible TRIGGER, drilling in to that source's
- *  assembled text. EVERY row drills in (uniform rows, one affordance) — the `history` row carries no text by
- *  construction (the wire history is the transcript itself), so its panel says exactly that instead of
- *  serving a copy of canon. */
+/** One source row: the swatch-keyed `SeriesRow` as a Collapsible TRIGGER, drilling in to WHO makes up that
+ *  source. EVERY row drills in (uniform rows, one affordance):
+ *   • several contributors (the room's roster members under Cards) ⇒ a line per contributor with its OWN token
+ *     count, each drilling one level further into that contributor's assembled text;
+ *   • one contributor ⇒ straight to the text (a second identical row would be pure chrome);
+ *   • `history` ⇒ no contributor split and no text by construction, so the panel says exactly that. */
 function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; readonly divider: boolean }): ReactElement {
   return (
     <Collapsible>
@@ -160,15 +170,49 @@ function SourceRow({ slice, divider }: { readonly slice: AssemblyBudgetSlice; re
         />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        {slice.text === "" ? (
-          <Text className="block pb-row" size="micro" tone="muted">
-            Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
-          </Text>
-        ) : (
-          <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
-            {slice.text}
-          </Text>
-        )}
+        <SourceBody slice={slice} />
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactElement {
+  if (slice.parts.length > 1) {
+    return (
+      <Stack>
+        {slice.parts.map((part) => (
+          <ContributorRow key={part.label} part={part} />
+        ))}
+      </Stack>
+    );
+  }
+  if (slice.text === "") {
+    return (
+      <Text className="block pb-row" size="micro" tone="muted">
+        Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
+      </Text>
+    );
+  }
+  return (
+    <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
+      {slice.text}
+    </Text>
+  );
+}
+
+/** One CONTRIBUTOR line inside a source's drill-in — a roster member by their card name, a persona, a preset
+ *  section — with the tokens THEY cost this turn, drilling into their own assembled text. This is the answer
+ *  to "what is each character in the room costing me": a name, a number, and the exact bytes behind it. */
+function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactElement {
+  return (
+    <Collapsible className="ps-row">
+      <CollapsibleTrigger className="w-full">
+        <SeriesRow label={part.label} value={formatCount(part.tokens)} />
+      </CollapsibleTrigger>
+      <CollapsiblePanel>
+        <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
+          {part.text}
+        </Text>
       </CollapsiblePanel>
     </Collapsible>
   );

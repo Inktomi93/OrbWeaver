@@ -96,7 +96,15 @@ const PREVIEW = {
   budget: {
     ceilingTokens: 8192,
     totalTokens: 120,
-    sources: [{ source: "system", detail: "main prompt", tokens: 120, text: "SYSTEM: be a helpful guide" }],
+    sources: [
+      {
+        source: "system",
+        detail: "main prompt",
+        tokens: 120,
+        parts: [{ label: "main prompt", tokens: 120, text: "SYSTEM: be a helpful guide" }],
+        text: "SYSTEM: be a helpful guide",
+      },
+    ],
   },
 };
 

@@ -11,7 +11,7 @@
 // runs — the real count is the provider's post-turn `usage`. Estimating the JOINED text per source (not the
 // sum of per-slice estimates) keeps `Σ sources[].tokens === totalTokens` exact by construction.
 
-import type { AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource, ChatInjection, ChatInjectionOrigin } from "@orb/contracts/chat";
+import type { AssemblyBudgetPart, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource, ChatInjection, ChatInjectionOrigin } from "@orb/contracts/chat";
 import { ASSEMBLY_SOURCES } from "@orb/contracts/chat";
 import type { PromptSection } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -59,9 +59,23 @@ export function sectionSource(section: PromptSection): AssemblySource {
   return section.type === "literal" ? "system" : MARKER_SOURCE[section.marker];
 }
 
-/** The budget bucket + `detail` label a delivered injection lands in (by its stamped {@link ChatInjection.origin}). */
+/** The budget bucket + contributor label a delivered injection lands in (by its stamped
+ *  {@link ChatInjection.origin}). A person-backed injection (a roster member's at-depth note, a persona's
+ *  description) is labelled by that NAME — `originLabel` — so it lands under the same contributor as the rest
+ *  of their context, not under an anonymous channel name. */
 export function injectionSource(injection: ChatInjection): { readonly source: AssemblySource; readonly label: string } {
-  return injection.origin === undefined ? UNSTAMPED_INJECTION : ORIGIN_SOURCE[injection.origin];
+  const bucket = injection.origin === undefined ? UNSTAMPED_INJECTION : ORIGIN_SOURCE[injection.origin];
+  const named = injection.originLabel;
+  if (named === undefined || named.trim().length === 0) {
+    return bucket;
+  }
+  return { source: bucket.source, label: injection.origin === "persona" ? personaContributorLabel(named) : named };
+}
+
+/** The persona's contributor label — mirrors the marker-side label in `assembly/assemble` so ONE persona
+ *  never splits into two rows (a marker-delivered description and an at-depth one merge by name). */
+export function personaContributorLabel(name: string): string {
+  return `${name} (persona)`;
 }
 
 /** How many contributor labels a source's `detail` line spells out before collapsing the rest to "+N more". */
@@ -85,24 +99,38 @@ function historySlice(history: HistoryBudgetInput): AssemblyBudgetSlice | null {
     source: "history",
     detail: history.droppedCount === 0 ? turns : `${turns} · ${history.droppedCount} dropped`,
     tokens: history.usedTokens,
+    // No contributor split exists for canon (it is everyone's, turn by turn) — and no text (see the field doc).
+    parts: [],
     text: "",
   };
 }
 
-/** Append to a per-source accumulator, minting the bucket on first sight. */
-function push(map: Map<AssemblySource, string[]>, source: AssemblySource, value: string): void {
-  const existing = map.get(source);
-  if (existing === undefined) {
-    map.set(source, [value]);
-    return;
+/** Fold a source's slices into its per-CONTRIBUTOR parts: same label ⇒ one part (a member whose card lands in
+ *  two sections is ONE line in the room's cost, not two), first-seen order preserved. */
+function foldParts(slices: readonly AssemblySlice[]): AssemblyBudgetPart[] {
+  const textsByLabel = new Map<string, string[]>();
+  for (const slice of slices) {
+    const existing = textsByLabel.get(slice.label);
+    if (existing === undefined) {
+      textsByLabel.set(slice.label, [slice.text]);
+      continue;
+    }
+    existing.push(slice.text);
   }
-  existing.push(value);
+  return [...textsByLabel].map(([label, texts]) => {
+    const text = texts.join("\n\n");
+    return { label, tokens: estimateTokens(text), text };
+  });
 }
 
 /**
- * Group the BUILD walk's per-section slices + the shaped history into the host preview's budget breakdown.
+ * Group the BUILD walk's per-contributor slices + the shaped history into the host preview's budget breakdown.
  * Sources with nothing in them are OMITTED (a plain chat has no `game-state` row); the surviving rows keep
  * `ASSEMBLY_SOURCES` (prompt) order regardless of the order the walk emitted them in.
+ *
+ * A source's `tokens` is estimated over its JOINED text (not the sum of its parts' estimates) so
+ * `Σ sources === totalTokens` stays exact; the parts' own estimates can differ from that total by a token or
+ * two of rounding — they answer "who costs what", the source row answers "what does this bucket cost".
  */
 export function buildAssemblyBudget(args: {
   readonly slices: readonly AssemblySlice[];
@@ -110,14 +138,17 @@ export function buildAssemblyBudget(args: {
   /** `min(capability window, preset maxContextTokens)`; 0 when neither bounds the context. */
   readonly ceilingTokens: number;
 }): AssemblyBudgetPreview {
-  const byLabel = new Map<AssemblySource, string[]>();
-  const byText = new Map<AssemblySource, string[]>();
+  const bySource = new Map<AssemblySource, AssemblySlice[]>();
   for (const slice of args.slices) {
     if (slice.text.trim().length === 0) {
       continue;
     }
-    push(byLabel, slice.source, slice.label);
-    push(byText, slice.source, slice.text);
+    const existing = bySource.get(slice.source);
+    if (existing === undefined) {
+      bySource.set(slice.source, [slice]);
+      continue;
+    }
+    existing.push(slice);
   }
   const history = historySlice(args.history);
   const sources: AssemblyBudgetSlice[] = [];
@@ -128,12 +159,13 @@ export function buildAssemblyBudget(args: {
       }
       continue;
     }
-    const texts = byText.get(source);
-    if (texts === undefined || texts.length === 0) {
+    const sliced = bySource.get(source);
+    if (sliced === undefined || sliced.length === 0) {
       continue;
     }
-    const text = texts.join("\n\n");
-    sources.push({ source, detail: detailLine(byLabel.get(source) ?? []), tokens: estimateTokens(text), text });
+    const parts = foldParts(sliced);
+    const text = sliced.map((s) => s.text).join("\n\n");
+    sources.push({ source, detail: detailLine(parts.map((p) => p.label)), tokens: estimateTokens(text), parts, text });
   }
   return {
     ceilingTokens: args.ceilingTokens,

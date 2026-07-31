@@ -94,6 +94,11 @@ export interface ChatInjection {
    *  (context.ts's candidate builders + the gather's rpg/foreign merge), read by the BUILD walk's per-source
    *  accounting ({@link AssemblyBudgetSlice}). Absent ⇒ a hand-built/legacy injection, accounted `steering`. */
   origin?: ChatInjectionOrigin;
+  /** WHO this injection's bytes belong to, when a person is behind them — a roster member's card name (their
+   *  at-depth note), a persona's name. Absent ⇒ the origin alone names the contributor (a host chat injection,
+   *  the room author's note, the game state block). Display-only provenance for the host budget breakdown:
+   *  never rendered into the prompt, never a wire input. */
+  originLabel?: string;
 }
 
 /** The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
@@ -156,14 +161,29 @@ export interface AssembleTrace {
 export const ASSEMBLY_SOURCES = ["system", "cards", "world-info", "steering", "game-state", "history"] as const;
 export type AssemblySource = (typeof ASSEMBLY_SOURCES)[number];
 
+/** ONE CONTRIBUTOR's share of a source (`AssemblyBudgetSlice.parts`) — a roster member by their card name, a
+ *  persona, or a preset section by its own name. This is what answers "what is EACH character in the room
+ *  costing me", so `label` is a person's name wherever a person is behind the bytes. */
+export interface AssemblyBudgetPart {
+  label: string;
+  tokens: number;
+  /** This contributor's assembled text, verbatim. Empty only where the source itself carries none (history). */
+  text: string;
+}
+
 /** ONE source's slice of the next turn's estimated context (`AssemblyBudgetPreview.sources`). `tokens` is the
  *  LOCAL estimate (`@orb/kit/tokens` QuadChars — the same estimator the history fit runs), never billing truth. */
 export interface AssemblyBudgetSlice {
   source: AssemblySource;
-  /** The contributors that make up this slice, deduped in prompt order ("character description · personality"),
-   *  or the history row's "N turns · M dropped". Empty string ⇒ nothing to add beyond the source name. */
+  /** The contributors that make up this slice, deduped in prompt order ("Mara · Niko · Sera"), or the history
+   *  row's "N turns · M dropped". Empty string ⇒ nothing to add beyond the source name. Derived from
+   *  {@link AssemblyBudgetSlice.parts} — the same names, as one line. */
   detail: string;
   tokens: number;
+  /** The per-contributor breakdown, in prompt order and summing to `tokens`. One entry ⇒ the source has a
+   *  single contributor (the row's own drill-in is enough); several ⇒ the panel lists them (the room's
+   *  characters and what each costs). Empty ONLY for `history` (no contributor split exists — see `text`). */
+  parts: readonly AssemblyBudgetPart[];
   /** The assembled text attributed to this source — the drill-in body, verbatim as the model receives it.
    *  EMPTY for `history` BY CONSTRUCTION: the wire history is canon the transcript already renders, so the
    *  preview accounts for its COST without re-serving it (the same content-free posture as {@link ShapeTrace}). */
