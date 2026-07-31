@@ -259,6 +259,9 @@ function staticProfile(window: number, fullSampling: boolean, structuredOutput =
         topA: TOP_A_RANGE,
         seed: true,
         stop: true,
+        // logitBias is part of the "full OpenAI-compatible knob set" this branch claims — its absence
+        // made the EFF-2 resolveChat funnel DROP a BYO user's logit_bias that previously passed raw.
+        logitBias: true,
       }
     : {};
   return {
