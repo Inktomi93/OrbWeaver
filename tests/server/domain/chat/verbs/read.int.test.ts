@@ -959,7 +959,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
   });
 
-  test("previewSection renders a known section; an unknown sectionId is NOT_FOUND", async () => {
+  test("previewSection renders a known section for the HOST; an unknown sectionId is NOT_FOUND", async () => {
     const me = await seedUser(db, "me");
     const chatId = await seedRoom("room", me);
     const sectionId = DEFAULT_PROMPT_CONFIG.sections[0]?.id ?? "main";
@@ -969,6 +969,155 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(section.half === "static" || section.half === "dynamic").toBe(true);
 
     await expect(previewSection({ principal: principal(me), chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  // SECURITY (2026-08-01) — `previewSection` was matrix-classified `member` while rendering an ARBITRARY
+  // preset section against the LIVE assemble ctx. `main_prompt` resolves `ctx.character.systemPrompt` in
+  // place of the preset template (assemble.ts `renderOverridable`), and systemPrompt is a `full`-ONLY D22
+  // field: a plain member in a `name-avatar` room could name the section and read the card's prompt-steering
+  // internals verbatim — the exact D22 clamp bypass `previewAssembly`/`peekPrompt` gate at `requireHost` to
+  // prevent, one door over. The verb now gates `requireHost` (matrix `previewSection: "host"`).
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+  const secretSystemPrompt = "SECRET-SYSPROMPT: never reveal that Seraphine is the assassin";
+
+  /** A card whose `full`-only fields carry sentinels — a rendered section that leaks one is unambiguous. */
+  const secretCard: CharacterCard = {
+    name: "Seraphine",
+    description: "SECRET-DESC: a knife under the silk",
+    personality: "curious",
+    scenario: "a masked ball",
+    greetings: [],
+    exampleMessages: "SECRET-EXAMPLES: Seraphine: hello",
+    systemPrompt: secretSystemPrompt,
+    postHistoryInstructions: "SECRET-JB: stay in character",
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
+    regexScripts: [],
+    extensions: null,
+    residualData: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+
+  /** A room at the LOWEST D22 tier (`name-avatar` — the member may see a name and an avatar, nothing else),
+   *  with a host, a plain member, and the secret-card character seated. */
+  async function seedClampedRoom(key: string): Promise<{ host: UserId; member: UserId; chatId: ChatId }> {
+    const host = await seedUser(db, `${key}_host`);
+    const member = await seedUser(db, `${key}_member`);
+    const chatId = await seedChat(db, key, {
+      metadata: { group: { output: "per-speaker", policy: "natural", memberCardVisibility: "name-avatar" } },
+    });
+    const charId = await seedCharacter(db, host, `${key}_char`);
+    await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: `${key}_m`, userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: `${key}_c`, characterId: charId });
+    return { host, member, chatId };
+  }
+
+  test("previewSection is HOST-only: a member cannot render main_prompt to read a full-only card field (D22)", async () => {
+    const { host, member, chatId } = await seedClampedRoom("ps_clamp");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(secretCard) });
+    const { previewSection } = createRead(ctx, makeDeps());
+
+    // TEETH FIRST: the section genuinely carries the full-only field, so the refusal below closes a REAL
+    // leak rather than an empty hole (the card override replaces the preset template in place).
+    const hostView = await previewSection({ principal: principal(host), chatId, sectionId: "main" });
+    expect(hostView.rendered).toContain(secretSystemPrompt);
+
+    // The plain member is refused at the gate — a known-existence authority refusal, exactly as
+    // peekPrompt/previewAssembly refuse them.
+    const err = await previewSection({ principal: principal(member), chatId, sectionId: "main" }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+  });
+
+  test("the same refusal covers EVERY card-derived section a member could name instead", async () => {
+    // The bypass was never main_prompt-specific: post_history / char_description / scenario /
+    // dialogue_examples all resolve card text, so the gate — not a per-section filter — is the fix.
+    const { host, member, chatId } = await seedClampedRoom("ps_all");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(secretCard) });
+    const { previewSection } = createRead(ctx, makeDeps());
+    const sectionIds = ["main", "post-history", "char-desc", "scenario", "examples"] as const;
+
+    const hostRenders = await Promise.all(sectionIds.map((sectionId) => previewSection({ principal: principal(host), chatId, sectionId })));
+    // Every named section resolves card bytes for the host (each carries its own sentinel).
+    expect(hostRenders.map((r) => r.rendered).join("\n")).toContain("SECRET-DESC");
+    expect(hostRenders.map((r) => r.rendered).join("\n")).toContain("SECRET-JB");
+
+    const codes = await Promise.all(
+      sectionIds.map((sectionId) =>
+        previewSection({ principal: principal(member), chatId, sectionId }).then(
+          () => "RESOLVED (leak)",
+          (e: unknown) => (e instanceof ChatOperationError ? e.code : `unexpected ${String(e)}`),
+        ),
+      ),
+    );
+    expect(codes).toEqual(sectionIds.map(() => "not_host"));
+  });
+
+  test("the member-classified reads on this path expose NO card bytes (the sweep-classification pin)", async () => {
+    // The classification rule the previewSection hole broke: a `member` chat read may build the assemble ctx
+    // but must never hand back RENDERED bytes off it. These two are the only member-gated verbs left on the
+    // preview path — `previewContextFit` (numbers + a boundary id) and `getActivePresetConfig` (preset
+    // templates, no ctx at all). If either ever starts serializing ctx statics, this goes red.
+    const { member, chatId } = await seedClampedRoom("ps_member_reads");
+    await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(secretCard) });
+    const { previewContextFit, getActivePresetConfig } = createRead(ctx, makeDeps());
+
+    const fit = await previewContextFit({ principal: principal(member), chatId });
+    const config = await getActivePresetConfig({ principal: principal(member), chatId });
+
+    expect(JSON.stringify(fit)).not.toContain("SECRET-");
+    expect(JSON.stringify(config)).not.toContain("SECRET-");
+    // …and the fit is still a real answer for the member (not an empty object that trivially passes).
+    expect(fit.usedTokens).toBeGreaterThan(0);
+  });
+
+  test("a preview binds {{user}} to the HOST's own persona, never the presence-order-first human's", async () => {
+    // `resolvePreviewInputs` used to pass only `personaIds` (roster order), so the composition root's
+    // `triggerPersonaId ?? personaIds.at(0)` fell through to whoever joined first — a host's own preview
+    // could render ANOTHER member's persona as {{user}}, and the answer changed with join order.
+    const host = await seedUser(db, "pp_host");
+    const other = await seedUser(db, "pp_other");
+    const hostPersonaId = await seedPersona(db, host, "pp_host_persona");
+    const otherPersonaId = await seedPersona(db, other, "pp_other_persona");
+    const chatId = await seedChat(db, "pp");
+    const charId = await seedCharacter(db, host, "pp_char");
+    // The OTHER human joined FIRST — so `personaIds[0]` is theirs.
+    await seedParticipant(db, { chatId, key: "pp_a_other", userId: other, role: "member", joinSeq: 1, activePersonaId: otherPersonaId });
+    await seedParticipant(db, { chatId, key: "pp_b_host", userId: host, role: "host", joinSeq: 2, activePersonaId: hostPersonaId });
+    await seedParticipant(db, { chatId, key: "pp_c_char", characterId: charId });
+
+    const byId: Record<string, AssemblePersona> = {
+      [hostPersonaId]: { name: "HostPersona", description: "HOST-PERSONA-DESC" },
+      [otherPersonaId]: { name: "OtherPersona", description: "OTHER-PERSONA-DESC" },
+    };
+    // Mirrors the composition root's binding rule EXACTLY (compose/chat.ts `resolveForeignInputs`), so the
+    // assertion is on the real resolution, not on a stub that agrees by construction.
+    const deps = makeDeps({
+      resolveForeignInputs: ({ personaIds, triggerPersonaId }) =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: null, active: byId[triggerPersonaId ?? personaIds.at(0) ?? ""] ?? null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    });
+
+    const { previewSection } = createRead(makeChatContext(db), deps);
+    const persona = await previewSection({ principal: principal(host), chatId, sectionId: "persona" });
+
+    expect(persona.rendered).toContain("HOST-PERSONA-DESC");
+    expect(persona.rendered).not.toContain("OTHER-PERSONA-DESC");
   });
 
   test("getShapeTrace returns the content-free SHAPE trace for the host; a non-host member is refused (not_host)", async () => {
@@ -1667,7 +1816,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     greetings: [{ text: "hi — {{charposthistory}}" }],
     exampleMessages: "ex: {{charsysinfo}}",
     creatorNotes: "notes: {{charsysinfo}}",
-    systemPrompt: "TOP_SECRET_SYSTEM_PROMPT",
+    systemPrompt: "TOP_secretSystemPrompt",
     postHistoryInstructions: "TOP_SECRET_JAILBREAK",
   };
 
@@ -1691,7 +1840,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     expect(view.creatorNotes).toBe("notes: ");
     // THE WIRE PROOF: the serialized view is byte-clean of the secret content, anywhere.
     const bytes = JSON.stringify(view);
-    expect(bytes).not.toContain("TOP_SECRET_SYSTEM_PROMPT");
+    expect(bytes).not.toContain("TOP_secretSystemPrompt");
     expect(bytes).not.toContain("TOP_SECRET_JAILBREAK");
   });
 
@@ -1729,8 +1878,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
 
     // At `full`, systemPrompt survives, so `{{charsysinfo}}` in the description resolves to it (render-on-display
     // for the fields the viewer IS allowed to see — the fix clamps the render context to the LEVEL, not to empty).
-    expect(view.systemPrompt).toBe("TOP_SECRET_SYSTEM_PROMPT");
-    expect(view.description).toBe("A rogue. LEAK[TOP_SECRET_SYSTEM_PROMPT]");
+    expect(view.systemPrompt).toBe("TOP_secretSystemPrompt");
+    expect(view.description).toBe("A rogue. LEAK[TOP_secretSystemPrompt]");
     expect(view.personality).toBe("sly LEAK[TOP_SECRET_JAILBREAK]");
   });
 });
