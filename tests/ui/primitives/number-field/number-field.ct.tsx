@@ -98,6 +98,26 @@ test("read-only: blocks steppers but keeps the token skin + shows the lock glyph
   await expect(page.getByRole("textbox")).toHaveValue("5");
 });
 
+// The blank-means-default affordance: `placeholder` must reach the INPUT part. `NumberFieldRootProps`
+// inherits `placeholder` from React's HTMLAttributes, so an un-destructured passthrough would land it on the
+// wrapper <div> — invisible, and the field would still read as broken/unconfigured when empty.
+test("placeholder renders on the input while the value is empty (not on the root)", async ({ mount, page }) => {
+  // Uncontrolled + no default: the empty state the bound field lands in when a preset knob is unset.
+  await mount(<NumberField placeholder="2048 (default)" />);
+  const input = page.getByRole("textbox");
+  await expect(input).toHaveValue("");
+  await expect(input).toHaveAttribute("placeholder", "2048 (default)");
+  await expect(page.locator('[data-slot="number-field-root"]')).not.toHaveAttribute("placeholder");
+  // RENDERED, not just present: the empty-state text reads muted (the input/textarea placeholder skin), so
+  // it can't be mistaken for a real value.
+  const placeholderColor = await input.evaluate((el) => getComputedStyle(el, "::placeholder").color);
+  expect(placeholderColor).toBe(resolvedTokenColor("color.muted-foreground"));
+  // Typing a value hides it — the placeholder never becomes the field's value.
+  await input.fill("64");
+  await input.blur();
+  await expect(input).toHaveValue("64");
+});
+
 test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({ mount, page }) => {
   await mount(
     <Field error="Out of range" label="Weight">

@@ -18,6 +18,11 @@ export interface NumberFieldProps extends NumberFieldRootProps {
   scrubLabel?: ReactNode;
   /** @defaultValue "horizontal" */
   scrubDirection?: "horizontal" | "vertical";
+  /** Empty-state text for the native input — the "blank means the default applies" affordance (show the
+   *  effective default here, never a value the field silently writes). Routed to `NumberField.Input`, NOT
+   *  the Root: `NumberFieldRootProps` inherits `placeholder` from React's `HTMLAttributes` and would land
+   *  it on the wrapper `<div>`, where it renders nothing. */
+  placeholder?: string | undefined;
 }
 
 /**
@@ -25,7 +30,7 @@ export interface NumberFieldProps extends NumberFieldRootProps {
  * normal token colors and the +/− glyphs swap to a Lock glyph as a non-color "you can't touch this" signal.
  */
 export function NumberField(props: NumberFieldProps): ReactElement {
-  const { className, scrubLabel, scrubDirection = "horizontal", ...rest } = props;
+  const { className, scrubLabel, scrubDirection = "horizontal", placeholder, ...rest } = props;
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   return (
     <BaseNumberField.Root className={cn(slots.root(), className)} data-slot="number-field-root" {...rest}>
@@ -42,7 +47,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
           <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
         </BaseNumberField.Decrement>
-        <BaseNumberField.Input className={slots.input()} data-slot="number-field-input" />
+        <BaseNumberField.Input className={slots.input()} data-slot="number-field-input" placeholder={placeholder} />
         <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()} data-slot="number-field-increment">
           <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
           <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
