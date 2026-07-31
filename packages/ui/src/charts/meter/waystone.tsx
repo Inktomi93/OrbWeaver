@@ -3,7 +3,9 @@
 //
 // THE LAYER STACK (each an independently animated, composited layer; recipe per cell in `waystone-treatment`):
 //   0. DIAL RING — six label arcs tiling 24h (the `TIME_OF_DAY` bands the panel's TEXT names), the current one
-//      LIT, + a bezel hour scale (00/06/12/18 major).
+//      LIT, + the two CARDINAL glyphs that teach the convention: a sun at the top (noon) and a crescent at
+//      the bottom (midnight). This is a 24-HOUR dial, which reads as wrong against the 12h clock everyone
+//      carries — so the ring says so itself, in two marks, instead of a tick scale nobody can decode.
 //   1. SKY — ONE gradient whose stops are the HOUR's interpolated recipe (continuous, not six presets: every
 //      hour looks subtly different, and the deliberate golden windows ~5-7h / ~17-19h make dawn and dusk glow
 //      without needing a `dusk` write-vocabulary member). The stop colors TRANSITION, so time melts. Tokens
@@ -40,7 +42,7 @@
 //
 // Homed in charts/meter (the magnitude-display family; inline data-viz svg is legal only in charts/**, §13.7).
 import type { ReactElement } from "react";
-import { useCallback, useId, useSyncExternalStore } from "react";
+import { useCallback, useId, useState, useSyncExternalStore } from "react";
 import { cn } from "#lib";
 import { waystoneVariants } from "./variants";
 import {
@@ -48,29 +50,29 @@ import {
   CLIP_R,
   DISC_R,
   GABLE_FILL,
+  GABLE_PATH,
+  GABLE_WINDOW,
+  GABLE_WINDOW_FILL,
+  GABLE_WINDOW_FLOOR,
+  GABLE_WINDOW_GAIN,
   HORIZON_FILL,
-  HOUR_TICKS,
   handAngle,
   MARKER_HALO_R,
-  MARKER_R,
+  MARKER_HALO_R_POS,
   MARKER_STROKE,
   MINUTES_IN_HOUR,
   MOON_MASK_R,
   MOON_MASK_SHIFT_X,
   MOON_MASK_SHIFT_Y,
+  POINTER_PATH,
   RING_R,
   RING_W,
   SKY_UNSET_OPACITY,
   SKY_WH,
   SKY_XY,
-  TICK_MAJOR_INNER,
-  TICK_MAJOR_STROKE,
-  TICK_STROKE,
-  TICK_W_MAJOR,
-  TICK_W_MINOR,
   VIEW,
 } from "./waystone-geometry";
-import { BandLayer, DialArcs, SkyLayers } from "./waystone-layers";
+import { BandLayer, DialArcs, DialCardinals, SkyLayers } from "./waystone-layers";
 import type { WaystoneWeather } from "./waystone-treatment";
 import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment";
 
@@ -88,9 +90,30 @@ export interface WaystoneProps {
   clock: WaystoneClock | null;
   /** The resolved weather; `null` = unresolvable/unset ⇒ the clear recipe. @defaultValue null */
   weather?: WaystoneWeather | null;
-  /** sm = the mobile/floor 64px stone; md = the 76px band stone. @defaultValue "md" */
-  size?: "sm" | "md";
   className?: string;
+}
+
+const DEG_FULL = 360;
+const DEG_HALF = 180;
+
+/** The signed shortest way round from one angle to another (-180, 180]. */
+function shortestDelta(from: number, to: number): number {
+  return ((((to - from + DEG_HALF) % DEG_FULL) + DEG_FULL) % DEG_FULL) - DEG_HALF;
+}
+
+/** The hand's rendered angle, ACCUMULATED rather than wrapped. `handAngle` is modulo 360, so 23:00 → 01:00
+ *  (345° → 15°) told CSS to interpolate 345 → 15 — the hand sweeping almost the whole dial BACKWARDS over the
+ *  transit. Keeping a running total and adding only the shortest delta makes every advance take the short way
+ *  round, and a forward hour always moves forward. (Derived during render via the prev-state pattern — a ref
+ *  read in render is banned here.) */
+function useSweptAngle(target: number): number {
+  const [swept, setSwept] = useState(target);
+  const [seen, setSeen] = useState(target);
+  if (seen !== target) {
+    setSeen(target);
+    setSwept((current) => current + shortestDelta(((current % DEG_FULL) + DEG_FULL) % DEG_FULL, target));
+  }
+  return swept;
 }
 
 /** Subscribe to document visibility — the stone PAUSES every layer while the tab is hidden (no compositing
@@ -109,13 +132,15 @@ function useDocumentVisible(): boolean {
 }
 
 /** The waystone — a pure-SVG decorative composite; pair it with the band's text lines (the datum). */
-export function Waystone({ clock, weather = null, size = "md", className }: WaystoneProps): ReactElement {
+export function Waystone({ clock, weather = null, className }: WaystoneProps): ReactElement {
   const uid = useId();
-  const slots = waystoneVariants({ size });
+  const slots = waystoneVariants();
   const visible = useDocumentVisible();
   const treatment = clock === null ? null : resolveWaystoneTreatment(clock.hour + clock.minute / MINUTES_IN_HOUR, weather);
   const litPhase = clock === null ? null : waystonePhaseAtHour(clock.hour);
   const moonMaskId = `${uid}-moon`;
+  const sweptAngle = useSweptAngle(clock === null ? 0 : handAngle(clock.hour, clock.minute));
+  const cardinalMaskId = `${uid}-cardinal-moon`;
 
   return (
     <svg
@@ -157,21 +182,7 @@ export function Waystone({ clock, weather = null, size = "md", className }: Ways
       {/* LAYER 0 — the 24h dial: the neutral track, the six label arcs (the one we're IN lit), the bezel scale. */}
       <circle cx={C} cy={C} r={RING_R} className={slots.track()} stroke="currentColor" strokeWidth={RING_W} fill="none" />
       {litPhase === null ? null : <DialArcs litPhase={litPhase} />}
-      <g data-slot="waystone-ticks">
-        {HOUR_TICKS.map((tick) => (
-          <line
-            key={tick.key}
-            x1={tick.x1}
-            y1={tick.y1}
-            x2={tick.x2}
-            y2={tick.y2}
-            stroke={tick.major ? TICK_MAJOR_STROKE : TICK_STROKE}
-            strokeWidth={tick.major ? TICK_W_MAJOR : TICK_W_MINOR}
-            strokeLinecap="round"
-          />
-        ))}
-      </g>
-
+      <DialCardinals maskId={cardinalMaskId} />
       <circle cx={C} cy={C} r={DISC_R} fill="var(--color-sidebar)" />
       <g clipPath={`url(#${uid}-clip)`}>
         {/* LAYER 1 — the hour's interpolated sky (the unset stone shows a plain dim wash instead). */}
@@ -185,8 +196,22 @@ export function Waystone({ clock, weather = null, size = "md", className }: Ways
         )}
 
         {/* LAYER 7 — the horizon depth anchor: the silhouette + its one ember-lit gable. */}
-        <path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z" fill={HORIZON_FILL} opacity="0.85" data-slot="waystone-horizon" />
-        <path d="M 44 56 l 3 -6 3 6 Z" fill={GABLE_FILL} opacity="0.9" />
+        <path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z" fill={HORIZON_FILL} data-slot="waystone-horizon" />
+        {/* The homestead, SEATED in the ridge (its base runs below the silhouette's crest at this x) with a
+            lit window — the one ember in the landscape. The window brightens as the sky darkens, so the place
+            reads as inhabited at night and merely standing by day. */}
+        <path d={GABLE_PATH} fill={GABLE_FILL} data-slot="waystone-gable" />
+        <rect
+          x={GABLE_WINDOW.x}
+          y={GABLE_WINDOW.y}
+          width={GABLE_WINDOW.w}
+          height={GABLE_WINDOW.h}
+          rx="0.4"
+          fill={GABLE_WINDOW_FILL}
+          className="orb-ws-transit"
+          opacity={treatment === null ? 0 : (GABLE_WINDOW_FLOOR + treatment.starOpacity * GABLE_WINDOW_GAIN).toFixed(2)}
+          data-slot="waystone-gable-window"
+        />
 
         {/* LAYER 7b — the enveloping bands, in FRONT of the silhouette. */}
         {treatment === null || treatment.bands === null ? null : <BandLayer key={treatment.bands.kind} layer={treatment.bands} />}
@@ -195,17 +220,19 @@ export function Waystone({ clock, weather = null, size = "md", className }: Ways
 
       {/* LAYER 8 — the ember hour hand: drawn at noon, ROTATED to the hour, so time swings it around the ring. */}
       {clock === null ? null : (
-        <g className="orb-ws-hand" style={{ rotate: `${handAngle(clock.hour, clock.minute)}deg` }} data-slot="waystone-marker">
-          <circle cx={C} cy={C - RING_R} r={MARKER_HALO_R} fill="var(--color-primary)" opacity="0.35" className="orb-ws-marker" />
-          <line x1={C} y1={C - TICK_MAJOR_INNER} x2={C} y2={C - RING_R} stroke="var(--color-primary)" strokeWidth="1.6" strokeLinecap="round" />
-          <circle
-            cx={C}
-            cy={C - RING_R}
-            r={MARKER_R}
+        <g className="orb-ws-hand" style={{ rotate: `${sweptAngle}deg` }} data-slot="waystone-marker">
+          <circle cx={C} cy={C - MARKER_HALO_R_POS} r={MARKER_HALO_R} fill="var(--color-primary)" opacity="0.32" className="orb-ws-marker" />
+          {/* The POINTER — a tapered ember needle that spans the bezel and CROSSES the band it marks, tip
+              aimed inward at the sky (the watch-bezel pip idiom). A detached dot near the rim read as "a
+              weird dot" (owner) — a hand has to look like it belongs to the dial and to point. The sidebar
+              outline keeps it legible where it crosses a band whose hue is close to the ember (dawn/evening). */}
+          <path
+            d={POINTER_PATH}
             fill="var(--color-primary)"
             stroke="var(--color-sidebar)"
             strokeWidth={MARKER_STROKE}
-            data-slot="waystone-marker-dot"
+            strokeLinejoin="round"
+            data-slot="waystone-marker-pointer"
           />
         </g>
       )}
