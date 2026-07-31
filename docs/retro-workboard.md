@@ -348,6 +348,26 @@ stream traffic — selector miss or a dead menu item; owner glance or CT-verify 
 zombie-lane toasts — verify, don't assume) · WAKE-STATUS (deferred by spec's own out): no "waking engine…"
 turn-status surface — the 3s wait is silent; revisit if it ever feels laggy.
 
+**RULINGS BATCH (owner, 08-01 afternoon):** members MAY read host preset prose/room config (no new
+visibility class) · `messages_attribution_shape` stays PERMISSIVE (belt + named-invariant test are the
+guarantee) · resync SKIPS journal — ratified (host repairs via per-entry delete) · **NEXT BIG LANE = SSE
+MULTIPLEX** (S0→S1; kills the invisible-retry + connection-cap classes; SSE-1b folds into its room
+sources; W-H side-eye + knob editors run as smalls alongside) · minors accepted: fallback-name contract
+widening queued small · delta double-hint stays · Diagnostics drawer stays.
+
+**SECURITY MERGED `20a0353f`:** previewSection host-gated (LATENT hole — never router-exposed; the
+classification was the landmine, a router comment queued it as "the member preview affordance") + persona
+determinism + all four assemble-derived types host-classified. No D-entry (policy unchanged).
+
+**CLASS SWEEP RESULTS (scout, HEAD bfb97411):** CLASS 2 registry-as-truth = CLOSED (all remaining readers
+display-only) · CLASS 3 = START-1 CONFIRMED HIGH (generic "Couldn't start the chat" toast lies, draft
+uncleaned → duplicate-chat risk; fork's degraded-not-broken catch is the model pattern; all other composites
+clean) · CLASS 1 = the SSE-1b WORK ORDER: notifications consumer DROPS even typed error frames (worst);
+rpg.stream UNWRAPPED + stale "nothing throws" comment; streamMessages/workloads silent-retry on raw DB
+faults; sessions genuinely clean. All folds into the multiplex room sources EXCEPT the two consumer-side
+holes (notifications typed-frame handling, rpg wrapper) which are small enough to fix pre-multiplex.
+Sweep gaps recorded in the report (automation/workloads composite pass; per-helper exception audit).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·

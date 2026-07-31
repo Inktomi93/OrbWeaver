@@ -12,11 +12,12 @@ Appendix B. Results directories are gitignored; **this document is the durable r
 > for methodology only; several of their conclusions are superseded IN PLACE, so don't quote them without
 > reading the banner above each. R1–R3, R5, R6 stand unchanged.
 >
-> **NEW 2026-07-31 — read §4f before touching the local-8B question.** The three vehicles are three different
-> ENFORCEMENT classes on our vLLM wire: `reliable` and `cheap` are grammar-bound, **`folded` is not**
-> (`tool_choice:"auto"` compiles no grammar). R3's "keep reliable for the 8B" now has a mechanism behind it,
-> and R5a/R6/establish-when-unset do NOT bind on the folded path. The live folded-vs-reliable 8B comparison
-> §4f was opened for is **still unmeasured** (engine asleep).
+> **NEW 2026-07-31 — read §4f + §4g before touching the local-8B question.** §4f: the three vehicles are three
+> different ENFORCEMENT classes on our vLLM wire — `reliable` and `cheap` are grammar-bound, **`folded` is not**
+> (`tool_choice:"auto"` compiles no grammar), so R5a/R6/establish-when-unset do NOT bind on the folded path.
+> §4g (LIVE, 3 runs × 3 arms): **`folded` emits ZERO narrative on the 8B — 36/36 turns** (tool calls only), so
+> it is disqualified on this backend; and **`reliable` — the mode R3 kept for the 8B — measured WORST**
+> (`hpDelta` 0/12, `removeCondition` 2/15) while `cheap` leads. R3's premise is contradicted by measurement.
 >
 > **Nothing here is committed yet** — this doc and `scripts/probes/rpg-extraction/` are untracked. The
 > results dirs are gitignored, so the analysis survives only in this file.
@@ -634,6 +635,119 @@ and carries a half-renamed `state.trackers`/`state.widgets` split), so it must b
 **no bookkeeping instruction at all** on a non-reconcile beat (the reminder is deliberately tool-guidance-free,
 `substrate/reminder.ts:13`; `FOLDED_RECONCILE_NOTE` fires only on a reconcile), which is itself a candidate
 explanation for any under-firing the run measures.
+
+### 4g. THE LIVE THREE-ARM RUN — folded is UNUSABLE on the local 8B (2026-07-31)
+
+The measurement §4f was opened for, now run: `Qwen3-VL-8B-Instruct` on the gen engine, the CURRENT surface
+(R5a `7d0e6f60` + R6 grouped per-actor schemas + EXT-4 per-entry salvage `9b140933`), the §4c "Ford Road"
+ground-truth game (12 turns, 5 scripted retirements, 4 explicit damage beats), **3 runs per arm, 9 games,
+~200 completions, $0**. Harness: `local-8b-vehicles.ts` — it drives the REAL exported builders
+(`constrainExtractionSchema` · `buildRpgToolDescriptions` · `composePlaneTeaching` · `buildTrackerWriteGroups`
+· the production `buildLiteReminder` · `extractionToStateDelta` · `salvageExtraction`), not the frozen
+pre-unification capture `run-coverage.mjs` still speaks. Raw: `scripts/probes/rpg-extraction/v2/`
+(`wire-surface.json` is the receipt of exactly what the builders hand the model).
+
+| | **folded** | **cheap** | **reliable** | Sonnet §4c | stale 8B baseline |
+|---|---|---|---|---|---|
+| calls/turn | 1 | 2 | 2 | 1 | 2 |
+| grammar on the args (§4f) | **none** | tool union | full schema | — | — |
+| `removeCondition` (opportunity-scored) | **0/15** (0,0,0) | **4/15** (2,2,0) | 2/15 (0,0,2) | **5/5 in 6/6** | 0/5 |
+| — spurious retirements | 0 | 5 | 0 | 1–6 | — |
+| `hpDelta` on a damage beat | **12/12** (4,4,4) | 9/12 (4,1,4) | **0/12** (0,0,0) | **4/4 in 6/6** | 4/4 |
+| distinct fields touched /48 | 32.3 (31,30,36) | 25.3 (29,22,25) | 33.7 (36,32,33) | — | 33/43 (old set) |
+| **narrative** | **0 chars — 36/36 turns** | 1658 chars | 2820 chars | 6/6 turns | 589 chars (n=1) |
+| enum violations | 0 | 0 | 0 | — | — |
+| EXT-4 salvage: dropped / saved turns | 0 / 0 | 0 / 0 | 0 / 0 | — | — |
+| number recitation into prose | n/a (no prose) | **32/36 turns** | **36/36 turns** | — | observed |
+| latency / turn | **4.8s** | 10.3s | 18.8s | — | — |
+
+**Note the denominator changed.** The old `/43` leaf set died with the tracked-field unification (`poolDeltas`,
+`set_widget_value`, `presentUpsert.customFields` are gone; `trackerDeltas`/`trackerSets`/`set_tracker` replaced
+them). The current surface is **48 leaves**; `/43` numbers above are not comparable row-for-row.
+
+#### 1. 🔴 The fold's PREMISE fails on this model: it emits NO prose at all
+
+`folded` returned **zero characters of narrative on 36 of 36 turns** — `finish_reason: tool_calls`,
+`content: null`, tool calls only. R1's entire value ("keep BOTH the message `content` and the `tool_calls`")
+does not exist here. Verified three ways: through the harness on both delivery shapes; and on the **bare raw
+wire** with no harness, no reminder and a 1-line system prompt — still `content: None`. In isolation the model
+*sometimes* co-emits (2 of 4 single-turn retries produced 419–487 chars), so it is not incapable — but with the
+production reminder attached it was **0 for 36**. §5/R3's "the 8B co-emitted a 589-char narrative AND a valid
+tool call" was n=1 and does not survive repetition.
+
+The control is inside the same battery: `cheap`/`reliable` run their narrative call with **no tools attached**
+and produce 1497–2959 chars every turn. So it is tool-attachment that silences the prose, not the model, the
+prompt, or the reminder.
+
+#### 2. `removeCondition` is still broken on the local 8B — and R5a did not fix recall
+
+Best local arm is `cheap` at **4/15**; `reliable` 2/15; `folded` **0/15**. Sonnet gets 5/5 in six of six runs
+on this identical game. R5a's enum did exactly what it was minted for — the comma-joined-list-into-a-scalar
+failure never recurred, and **enum violations were 0 across all 108 turns** — but *preventing a malformed
+retirement is not the same as causing a retirement*. The 8B mostly just doesn't emit one. (`folded`'s 0
+violations is NOT evidence of enforcement: there is no grammar on that path (§4f), so it only shows the prompt
+half — `refEnumerationLines` — held on these beats.)
+
+#### 3. 🔴 `reliable` never records damage — 0/12, and the receipt says why
+
+The mode kept "for ACCURACY, not capability" (R3) is the ONLY arm that missed **every** damage beat. The raw
+args (diagnostic run, `diag/reliable-1.json`) show it is not neglect but **field routing** — the §4a diagnosis,
+reappearing on the 8B:
+
+```
+t1  (blade opens a gash)  {"targetRef":"player","trackerDeltas":[{"key":"stamina","delta":-2}],"trackerSets":[{"key":"resolve","value":7}]}
+t8  (cudgel, shoulder)    {"targetRef":"Rook","trackerDeltas":[{"key":"stamina","delta":-2}],"trackerSets":[{"key":"resolve","value":6}],"addCondition":{"name":"Wounded","modifier":0}}
+t11 (ankle, down on rocks){"targetRef":"player","trackerDeltas":[{"key":"stamina","delta":-3}],"trackerSets":[{"key":"resolve","value":3}]}
+```
+
+It spends `stamina` and re-reads `resolve` on **every single turn** and omits `hpDelta` — the enforced whole-
+object schema makes it fill the tracker arms habitually and skip the optional scalar. (Once, on a NON-damage
+beat, it emitted the filler `hpDelta: 0`.) `folded`, with no grammar at all, got **12/12**. That is the
+opposite of the R3 premise: on this game the enforcement *hurt* the field it was supposed to protect.
+
+#### 4. EXT-4's salvage never fired — nothing to salvage
+
+Across all 9 runs: **0 dropped tool calls, 0 dropped entries, 0 turns where per-entry salvage saved a turn the
+old whole-object parse would have lost.** Every payload the 8B produced conformed. EXT-4a is still correct
+insurance (it costs nothing and the failure it fixes was real and measured), but on this model/game it is
+currently unexercised — do not cite it as a live benefit.
+
+#### 5. 🐞 Both prose arms recite the panel back at the player, as an HTML stat block
+
+`reliable` recited numbers on **36/36** turns and `cheap` on **32/36**, in flagrant violation of
+`RPG_STEERING_LICENSE` ("Never recite the raw numbers back at the player; weave them into the prose"):
+
+> `<p><strong>Player Status:</strong> HP 26/26 — Stamina 14/14 — Resolve 10/10 — Gold 40</p>`
+
+Caveat before this is read as a pure license failure: the run used the **config defaults**, and
+`features.immersiveHtml` defaults to `true`, so the reminder carried the card/HTML teaching block. The weak
+model read "you may emit HTML" as "render the panel." Two candidate fixes (untested): default
+`immersiveHtml` off for weak backends, or harden the license clause. Either way this is a **dogfood-visible
+defect on the local path today**, not a spike artifact — and it is invisible on `folded` only because `folded`
+writes no prose at all.
+
+#### 6. ✅ RETRACTED — the per-call xgrammar recompile is NOT a measurable cost
+
+An earlier report of mine flagged R5a's per-turn enum (a fresh grammar every call ⇒ a compile cache miss) as a
+production perf item. **Measured, and it does not hold at our schema size.** Same request, cold vs warm, on the
+live engine: no-schema baseline 748–812ms · schema A cold 866ms / warm 843ms · a novel enum cold 3128ms / warm
+3405ms (n=1), 3940/3917 (n=8), 3951/3050 (n=40). The cold-warm delta is inside generation noise (±300ms, and
+the owner's dogfood turns were interleaving), nowhere near the ~0.7s §2 cited. The schema constraint costs
+roughly **+90ms over no schema at all**. No action; do not carry this forward as a concern.
+
+#### Recommendation — `reliable` does NOT earn its keep for local, and `folded` must never reach the 8B
+
+On this evidence the routing should be: **local 8B → `cheap`.** It is the only arm that keeps the narrative
+AND is grammar-bound (§4f), it wins `removeCondition` (4/15 vs 2 and 0), it is near-perfect on `hpDelta` (9/12
+vs reliable's 0), and it costs 10.3s/turn against reliable's 18.8s. `reliable` — the mode R3 kept specifically
+because "the weak model needs the guardrail" — measured WORST on the one field its guardrail was supposed to
+secure, spends the most tokens (2820-char narratives, 208 applied writes), and is the slowest by 80%; its only
+win is a marginal fields-touched edge (33.7 vs 25.3) that mostly reflects it writing the same two tracker arms
+every turn. **`folded` is disqualified on this backend outright** — not on state quality (it actually leads on
+`hpDelta` and is the fastest by 2×) but because it costs the player the entire story. That is a mechanism
+failure, not a tuning gap, and it is the strongest argument in this document for keeping mode routing
+backend-aware rather than collapsing to one vehicle. Before any deletion decision: none of this touches hosted
+strong models, where §3/§4c's 6/6 co-emission and 5/5 recall still stand.
 
 ## 5. Recommendations (prioritized)
 
