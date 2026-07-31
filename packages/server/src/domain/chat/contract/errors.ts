@@ -94,6 +94,12 @@ export const CHAT_OP_CODES = {
    *  blank marker). The engine hook maps this to a `compaction_failed` warning; the manual `compact` verb
    *  propagates it. Host/internal surface only (no membership leak — a chat the caller can compact). */
   compactionEmpty: "compaction_empty",
+  /** A turn's generation completed but produced NO prose (zero non-whitespace content) — a tool-only completion
+   *  on a prose-silencing wire, a filtered/empty provider answer. A reply nobody can read is a FAILURE, not a
+   *  reply: the engine writes nothing (no variant, no stats delta, no selection flip), so a swipe leaves the
+   *  slot's PREVIOUS variant selected instead of hiding real prose behind an invisible one. Not a membership
+   *  leak — the caller already ran the turn. Distinct from `compaction_empty` (the marker generation's twin). */
+  emptyGeneration: "empty_generation",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */
