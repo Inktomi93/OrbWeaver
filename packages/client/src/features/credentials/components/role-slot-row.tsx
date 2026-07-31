@@ -4,7 +4,8 @@
 //
 // The model cell is dispatched by the live source: openrouter/max-pro-sub/custom_openai get the
 // searchable ModelPicker; vllm/local-light get a static read-only display; unset gets a resolver-default
-// ghost. Flipping the source clears the model so no stale id rides a flip. `max-pro-sub` is owner-only,
+// ghost. Flipping the source clears the model — and, on the chat row, re-derives the protocol `api` in the
+// SAME patch — so no stale id and no incoherent (api, source) pair rides a flip. `max-pro-sub` is owner-only,
 // so a non-owner sees it disabled with an "(owner only)" suffix. The `agent` row is a read-only live mirror of Chat.
 
 import type { ChatApi } from "@orb/contracts/connection";
@@ -17,6 +18,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
@@ -24,7 +26,15 @@ import type { AppFormInstance, AutosaveSaveState } from "#forms";
 import { useFetchModels } from "../hooks/use-connections-mutations";
 import { useRoleSourceModels } from "../hooks/use-role-source-models";
 import type { RoleSlot, RoutingForm } from "../lib/connections-model";
-import { CHAT_API_LABELS, chatApisForSource, persistedRoleLabel, ROLE_ROW_SYNC_LABELS, roleRowDrifted, SOURCE_LABELS } from "../lib/connections-model";
+import {
+  CHAT_API_LABELS,
+  chatApiForSourceChange,
+  chatApisForSource,
+  persistedRoleLabel,
+  ROLE_ROW_SYNC_LABELS,
+  roleRowDrifted,
+  SOURCE_LABELS,
+} from "../lib/connections-model";
 import { ModelPicker } from "./model-picker";
 import { RoleStatusDot } from "./role-status-dot";
 import { StaticModelDisplay } from "./static-model-display";
@@ -154,8 +164,15 @@ export function RoleSlotRow({ slot, form, persisted, saveState, isOwner, customC
               items={sourceItems}
               value={field.state.value}
               onValueChange={(value): void => {
-                field.handleChange(value as string);
+                const next = value as string;
+                field.handleChange(next);
                 form.setFieldValue(`${role}.model`, NO_PREFERENCE);
+                if (role === "chat") {
+                  // The protocol rides the SAME patch as the source: (api, source) is one selection that the
+                  // server's `assertCoherent` rejects when mismatched, so a source flip that left `api`
+                  // behind persisted an untakeable turn (`{api:"agent-sdk", source:"vllm"}`).
+                  form.setFieldValue("chat.api", chatApiForSourceChange(form.state.values.chat.api, next));
+                }
               }}
             />
           )}
@@ -186,6 +203,11 @@ export function RoleSlotRow({ slot, form, persisted, saveState, isOwner, customC
                   onClick={(): void => {
                     form.setFieldValue(`${role}.source`, NO_PREFERENCE);
                     form.setFieldValue(`${role}.model`, NO_PREFERENCE);
+                    if (role === "chat") {
+                      // Clearing back to the app default clears the protocol with it — a pinned `api` over an
+                      // unpinned source is paired server-side with whatever default the resolver picks.
+                      form.setFieldValue("chat.api", NO_PREFERENCE);
+                    }
                   }}
                 >
                   Clear
@@ -200,6 +222,32 @@ export function RoleSlotRow({ slot, form, persisted, saveState, isOwner, customC
 
       <RowSyncDisclosure form={form} persisted={persisted} role={role} saveState={saveState} />
     </Stack>
+  );
+}
+
+/** The unset row's cell. "Uses the app default" alone names NOTHING — the owner could not tell which
+ *  connection a turn would actually take from the pane that configures it. The CHAT row therefore names the
+ *  real resolution: `connection.resolveChatCapability` returns the `(api, source, model)` a turn would run as
+ *  (the caller's OWN resolution — the verb takes no user id), so this is the resolver's answer, not a
+ *  client-side re-derivation of the fallback ladder. The other roles have no such one-hop read, so they keep
+ *  the bare line rather than guess; a pending/failed resolve degrades to it too (never a fabricated name). */
+function AppDefaultDisplay({ isChat }: { readonly isChat: boolean }): ReactElement {
+  const trpc = useTRPC();
+  // `enabled` only stops the FETCH — a disabled query still hands back a cache entry another row filled, so
+  // the CHAT gate has to hold on the render too, or every role would claim the chat resolution as its own.
+  const resolved = useQuery({ ...trpc.connection.resolveChatCapability.queryOptions(), enabled: isChat }).data;
+  const named = !isChat || resolved === undefined ? null : `${SOURCE_LABELS[resolved.source]} · ${resolved.model} · ${CHAT_API_LABELS[resolved.api]}`;
+  return (
+    <Text
+      as="span"
+      size="body"
+      tone="muted"
+      className="min-w-0 flex-1 truncate italic"
+      data-slot="role-app-default"
+      {...(named === null ? {} : { title: named })}
+    >
+      {named === null ? "Uses the app default" : `Uses the app default: ${named}`}
+    </Text>
   );
 }
 
@@ -229,11 +277,7 @@ function ModelCell({
   const [customModels, setCustomModels] = useState<readonly string[]>([]);
 
   if (source === NO_PREFERENCE) {
-    return (
-      <Text as="span" size="body" tone="muted" className="min-w-0 flex-1 truncate italic">
-        Uses the app default
-      </Text>
-    );
+    return <AppDefaultDisplay isChat={role === "chat"} />;
   }
 
   const defaultModelId = result?.defaultModelId ?? null;
@@ -346,7 +390,13 @@ function staleIdWarning(
   return present ? null : `“${value}” isn't in the catalog — it falls back to the default at run time.`;
 }
 
-/** The chat slot's extra inline knob: the protocol `api` picker, filtered by the live chat source. */
+/** The chat slot's extra inline knob: the protocol `api` picker, filtered by the live chat source.
+ *
+ *  The picker renders the STORED value, never a healed stand-in. It used to fall back to "Auto" whenever the
+ *  value was illegal for the live source, which read as a cleared protocol while the store still held e.g.
+ *  `agent-sdk` — the pane looked coherent and the turn threw `assertCoherent`. A value the source can't take
+ *  (only reachable from data written before the source switch healed `api`) is offered as a MARKED option, so
+ *  what the store holds is on screen and one click fixes it. */
 function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactElement {
   return (
     <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center @2xl:ps-(--width-sidebar-sm)">
@@ -355,23 +405,26 @@ function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactEleme
       </Text>
       <form.Subscribe selector={(state): string => state.values.chat.source}>
         {(source): ReactElement => {
-          const apiItems: SelectItems<string> = [
-            { label: "Auto", value: NO_PREFERENCE },
-            ...chatApisForSource(source).map((api: ChatApi) => ({
-              label: CHAT_API_LABELS[api],
-              value: api,
-            })),
-          ];
+          const legalApis = chatApisForSource(source);
           return (
             <form.AppField name="chat.api">
               {(field): ReactElement => {
-                const legal = apiItems.some((item) => item.value === field.state.value);
+                const stored = field.state.value;
+                const items: SelectItems<string> = [
+                  { label: "Auto", value: NO_PREFERENCE },
+                  ...legalApis.map((api: ChatApi) => ({ label: CHAT_API_LABELS[api], value: api })),
+                  ...(stored !== NO_PREFERENCE && !legalApis.includes(stored as ChatApi)
+                    ? // The cast is sound: a non-empty `api` reached the form through the settings schema's
+                      // `chatApiSchema` parse, so it is a known protocol — just not one THIS source can take.
+                      [{ label: `${CHAT_API_LABELS[stored as ChatApi]} — not supported by this provider`, value: stored }]
+                    : []),
+                ];
                 return (
                   <Select
                     aria-label="Chat protocol"
                     className="w-auto min-w-32"
-                    items={apiItems}
-                    value={legal ? field.state.value : NO_PREFERENCE}
+                    items={items}
+                    value={stored}
                     onValueChange={(value): void => field.handleChange(value as string)}
                   />
                 );

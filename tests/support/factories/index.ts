@@ -18,6 +18,7 @@ export { principal } from "./principal.ts";
 export {
   makeModelCapability,
   makeOpenRouterCredential,
+  makeResolvedChatCapability,
   makeResolvedConnection,
   makeResolvedCredential,
 } from "./resolved-connection.ts";

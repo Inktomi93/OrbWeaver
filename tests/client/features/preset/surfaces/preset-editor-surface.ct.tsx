@@ -21,7 +21,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { makeModelCapability } from "../../../../support/factories/resolved-connection";
+import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
 import { PresetEditorCapabilityFreshnessStory, PresetEditorSurfaceStory, PresetEditorSwitchStory, PresetForkOnceStory } from "./_ct-stories";
 
 // The three fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
@@ -91,10 +91,14 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
 // The FIRST resolve fails (no chat connection configured) → the axis shows its connect-a-model note naming
 // the hidden knobs; after the event the second resolve succeeds and the Output knobs render with the model's
 // real caps as their blank-means-default PLACEHOLDERS.
-const CAPABILITY = makeModelCapability({
-  sampling: { temperature: { min: 0, max: 2 } },
-  output: { maxTokens: { min: 1, max: 8192 } },
-  context: { window: 32_768 },
+// The read returns the descriptor PLUS the identity it resolved for (`ResolvedChatCapability`); this panel
+// reads the descriptor half only.
+const CAPABILITY = makeResolvedChatCapability({
+  capability: makeModelCapability({
+    sampling: { temperature: { min: 0, max: 2 } },
+    output: { maxTokens: { min: 1, max: 8192 } },
+    context: { window: 32_768 },
+  }),
 });
 const OUTPUT_GATE_RE = /Max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
 

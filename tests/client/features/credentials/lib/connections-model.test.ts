@@ -13,6 +13,7 @@ import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig
 import type { RoutingForm } from "../../../../../packages/client/src/features/credentials/lib/connections-model";
 import {
   CHAT_API_LABELS,
+  chatApiForSourceChange,
   chatApisForSource,
   embedDimensionWarning,
   groupCredentialsByProvider,
@@ -298,6 +299,48 @@ test("chatApisForSource: vllm / local-light / custom → chat-completions + resp
   for (const source of ["vllm", "local-light", "custom_openai"]) {
     expect(chatApisForSource(source)).toEqual(["chat-completions", "responses"]);
   }
+});
+
+test("chatApisForSource: an UNSET source offers NO pinned protocol (api + source fall back independently)", () => {
+  // resolve-role.ts ROLE_SELECTORS.chat resolves `api` and `source` from separate fallbacks, so a pinned
+  // protocol over an unpinned source meets whatever default the server picks — for the owner `max-pro-sub`,
+  // which assertCoherent rejects for everything but agent-sdk. Auto is the only coherent option.
+  expect(chatApisForSource("")).toEqual([]);
+});
+
+// --- chatApiForSourceChange — the pair stays coherent across a source switch ---
+
+test("a source switch KEEPS a protocol the new source can take", () => {
+  expect(chatApiForSourceChange("agent-sdk", "max-pro-sub")).toBe("agent-sdk");
+  expect(chatApiForSourceChange("chat-completions", "vllm")).toBe("chat-completions");
+  expect(chatApiForSourceChange("responses", "custom_openai")).toBe("responses");
+});
+
+test("a source switch CLEARS a protocol the new source cannot take (the turn-breaking pair)", () => {
+  // The exact incident: OpenRouter × agent-sdk, then the source flips to vLLM. Leaving `api` behind
+  // persisted {api:"agent-sdk", source:"vllm"} — rejected by assertCoherent at turn time.
+  expect(chatApiForSourceChange("agent-sdk", "vllm")).toBe("");
+  expect(chatApiForSourceChange("agent-sdk", "local-light")).toBe("");
+  expect(chatApiForSourceChange("chat-completions", "max-pro-sub")).toBe("");
+  // Back to the app default: nothing pinned survives, since the server picks the source.
+  expect(chatApiForSourceChange("responses", "")).toBe("");
+});
+
+test("every (offered protocol → every source) switch lands on a pair the resolver accepts", () => {
+  const sources = ["", "max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"];
+  const incoherent: string[] = [];
+  for (const from of sources) {
+    for (const api of [...chatApisForSource(from), ""]) {
+      for (const to of sources) {
+        const next = chatApiForSourceChange(api, to);
+        const legal = next === "" || (chatApisForSource(to) as readonly string[]).includes(next);
+        if (!legal) {
+          incoherent.push(`${api}@${from} → ${next}@${to}`);
+        }
+      }
+    }
+  }
+  expect(incoherent).toEqual([]);
 });
 
 test("chatApisForSource: every offered pair is legal under the resolver matrix", () => {
