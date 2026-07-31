@@ -375,9 +375,11 @@ its own field); **cheap = the local champion** (prose + grammar-bound §4f + bes
 than reliable). xgrammar-recompile perf flag RETRACTED (measured: ~90ms, noise). EXT-4 salvage never fired
 across 9 runs (correct insurance, not a live benefit on this model). OWNER RULED: **local-wire fold guard**
 — folded on local vLLM runs the cheap round via the LOUD fallback arm (lane dispatched; D112 amendment at
-merge). NEW TICKET **REC-1**: both prose arms recite the stat panel back as an HTML block (32-36/36 turns,
-steering-license violation — the immersiveHtml teaching reads as "render the panel" to a weak model; needs
-its own investigation: teaching gate vs license strengthening vs weak-model arm).
+merge). **REC-1 CLOSED same hour (owner-simplified):** the toggle ALREADY gates the teaching (reminder.ts:266 —
+off = the model can never learn the format, and the toggle is GM-tab-reachable since today); the residual
+weak-model misread is fixed with one copy line in BOTH teach variants ("cards are for things the CHARACTERS
+see — never a status readout/stat block; tracked values stay woven in prose"). Versioned-constant copy bump;
+55 reminder/gather tests green.
 
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
