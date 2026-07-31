@@ -2,13 +2,19 @@
 // component, not an @orb/ui primitive: <Popover><Command shouldFilter={false}> with manual filtering via
 // @orb/ui/fuzzy-search (never minisearch/cmdk directly — dep-cruiser ui-satellite-seals). The surface owns
 // the tRPC getModelsForSource query and passes the result down, so this stays a controlled component.
+//
+// The list is sectioned by PROVIDER (`groupModelEntries` — the vendor prefix of an OR id; slash-less ids
+// get the source's own heading) under the device-local Recent MRU; search still runs across the whole pool
+// before grouping, and the render cap is a budget spent across sections. When the server serves its curated
+// cold-cache shortlist instead of a real catalog (`origin: "curated"`), the popover says so — a silently
+// different menu run-to-run is the exact no-silent-degrade smell we don't ship.
 
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandLoading } from "@orb/ui/command";
 import { useFuzzySearch } from "@orb/ui/fuzzy-search";
-import { ChevronDown, Icon } from "@orb/ui/icons";
+import { AlertTriangle, ChevronDown, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -19,15 +25,19 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useMemo, useState } from "react";
 import type { Trpc } from "#data";
+import { testId } from "#lib";
 import { pushRecentModel, useRecentModels } from "#state";
+import type { ModelGroup } from "../lib/model-picker-model";
 import {
+  CURATED_FALLBACK_NOTICE,
   filterByChips,
   footerSyncedLabel,
   formatContextLength,
   formatPromptPrice,
+  groupModelEntries,
   hasTools,
   hasVision,
-  MODEL_PICKER_RENDER_CAP,
+  isCuratedFallback,
   resolveRecentEntries,
 } from "../lib/model-picker-model";
 
@@ -117,6 +127,15 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
             </Row>
           ) : null}
 
+          {view.curatedFallback ? (
+            <Row gap="field" align="center" className="border-b border-border px-block py-field" data-testid={testId("modelPickerCuratedNotice")}>
+              <Icon icon={AlertTriangle} size="xs" className="shrink-0 text-muted-foreground" />
+              <Text size="micro" tone="muted">
+                {CURATED_FALLBACK_NOTICE}
+              </Text>
+            </Row>
+          ) : null}
+
           <CommandList className="max-h-64">
             {view.loadingCustom ? (
               <CommandLoading label="Fetching models…">
@@ -137,11 +156,13 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
               </CommandGroup>
             ) : null}
 
-            <CommandGroup heading="All models">
-              {view.capped.map((entry) => (
-                <ModelItem key={entry.id} entry={entry} active={entry.id === value} onSelect={commit} />
-              ))}
-            </CommandGroup>
+            {view.groups.map((group) => (
+              <CommandGroup key={group.key} heading={group.heading}>
+                {group.entries.map((entry) => (
+                  <ModelItem key={entry.id} entry={entry} active={entry.id === value} onSelect={commit} />
+                ))}
+              </CommandGroup>
+            ))}
 
             {view.overflow > 0 ? (
               <Row align="center" className="px-block py-field">
@@ -172,7 +193,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
   );
 }
 
-/** The picker's derived render view — pool → chip-filter → fuzzy-search → cap, plus the Recent group. */
+/** The picker's derived render view — pool → chip-filter → fuzzy-search → provider groups + cap, plus the Recent group. */
 function usePickerView(
   props: ModelPickerProps,
   query: string,
@@ -181,12 +202,13 @@ function usePickerView(
 ): {
   readonly pool: readonly SourceModelEntry[];
   readonly poolById: ReadonlyMap<string, SourceModelEntry>;
-  readonly capped: readonly SourceModelEntry[];
+  readonly groups: readonly ModelGroup<SourceModelEntry>[];
   readonly overflow: number;
   readonly recentEntries: readonly SourceModelEntry[];
   readonly showChips: boolean;
   readonly allowsFreeText: boolean;
   readonly loadingCustom: boolean;
+  readonly curatedFallback: boolean;
 } {
   const { source, result, customModels, customModelsPending } = props;
   const showChips = source === "openrouter";
@@ -205,16 +227,17 @@ function usePickerView(
   const matched = useFuzzySearch(chipFiltered, deferredQuery, { fields: ["label", "id"] });
   const searched = deferredQuery.trim() === "" ? chipFiltered : matched;
 
-  const capped = searched.slice(0, MODEL_PICKER_RENDER_CAP);
+  const grouped = groupModelEntries(searched, { source, query: deferredQuery, selectedId: props.value });
   return {
     pool,
     poolById,
-    capped,
-    overflow: searched.length - capped.length,
+    groups: grouped.groups,
+    overflow: grouped.overflow,
     recentEntries: resolveRecentEntries(recentIds, poolById, query.trim() === ""),
     showChips,
     allowsFreeText,
     loadingCustom: customModelsPending === true,
+    curatedFallback: isCuratedFallback(pool),
   };
 }
 

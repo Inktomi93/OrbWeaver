@@ -5,8 +5,10 @@
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ReactElement } from "react";
+import type { ComponentProps, ReactElement } from "react";
+import { useState } from "react";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row";
+import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
@@ -106,5 +108,32 @@ export function RevokedCredentialKeyRowStory(): ReactElement {
         <RevokedCredentialKeyRowInner />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** `<ModelPicker>` standalone — the row's controlled contract, driven by a caller-supplied facade result.
+ *  No data providers: the picker takes `result` as a prop (the surface owns the query). The committed id is
+ *  mirrored into `model-picker-value` so a CT can assert the selection actually fired. */
+export function ModelPickerStory({
+  source,
+  result,
+}: {
+  readonly source: ComponentProps<typeof ModelPicker>["source"];
+  readonly result: ComponentProps<typeof ModelPicker>["result"];
+}): ReactElement {
+  const [value, setValue] = useState("");
+  return (
+    <div style={{ width: 560 }}>
+      <ModelPicker
+        source={source}
+        ariaLabel="Chat model"
+        value={value}
+        onValueChange={setValue}
+        result={result}
+        isLoading={false}
+        ghostLabel="Choose a model"
+      />
+      <div data-testid="model-picker-value">{value}</div>
+    </div>
   );
 }
