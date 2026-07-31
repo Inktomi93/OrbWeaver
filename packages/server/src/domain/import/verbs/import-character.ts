@@ -84,7 +84,9 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     if (parsed === null) {
       throw new ImportCardError(
         "card_unreadable",
-        png ? "PNG carries no readable ccv3/chara character-card chunk" : "bytes are not a readable V2/V3 character-card JSON",
+        // User-facing: this message rides `failed[].error` all the way to the import toast/report, so it
+        // names the problem in the owner's terms (the spec keyword stays as the parenthetical evidence).
+        png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
     const { card: characterCard, tags, book, attachedBooks } = parsed;
