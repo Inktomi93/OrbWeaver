@@ -65,7 +65,7 @@
   --color-ai-bubble-foreground: oklch(0.955 0.004 75);
   --color-system-bubble: oklch(0.255 0.006 60);
   --color-system-bubble-foreground: oklch(0.74 0.008 65);
-  --color-dialogue: oklch(0.955 0.004 75);
+  --color-dialogue: oklch(0.86 0.1 85);
   --color-narration: oklch(0.78 0.02 70);
   --color-prose-body: oklch(0.9 0.008 72);
   --color-speaker: oklch(0.72 0.175 52);
@@ -201,7 +201,7 @@
   --color-ai-bubble-foreground: oklch(0.22 0.02 60);
   --color-system-bubble: oklch(0.93 0.015 60);
   --color-system-bubble-foreground: oklch(0.45 0.02 60);
-  --color-dialogue: oklch(0.2 0.02 60);
+  --color-dialogue: oklch(0.4 0.1 240);
   --color-narration: oklch(0.42 0.03 60);
   --color-prose-body: oklch(0.28 0.015 60);
   --color-speaker: oklch(0.5 0.17 50);
@@ -238,7 +238,7 @@
   --color-ai-bubble-foreground: oklch(0.95 0.01 250);
   --color-system-bubble: oklch(0.26 0.015 250);
   --color-system-bubble-foreground: oklch(0.7 0.01 250);
-  --color-dialogue: oklch(0.95 0.01 250);
+  --color-dialogue: oklch(0.85 0.09 55);
   --color-narration: oklch(0.76 0.03 230);
   --color-prose-body: oklch(0.88 0.015 240);
   --color-speaker: oklch(0.7 0.14 250);
