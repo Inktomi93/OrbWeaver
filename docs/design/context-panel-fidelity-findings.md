@@ -117,3 +117,57 @@ data via `connection.getModelsForSource`, 5-arm switch in `get-models-for-source
 3. D-1…D-4 go to the owner before the corresponding fixes; everything else proceeds.
 4. Preview rebuild (D-4) is plausibly its own sized item (new primitives + maybe server trace work) —
    don't let it hide inside "polish."
+
+---
+
+## 6. Owner dogfood review 2026-07-30 — game strip, cards, systems (verbatim-faithful)
+
+The owner's comprehensive pass on the current state, itemized. IDs `RV-*`. These extend the lane's
+scope beyond §2/§3: several are BUILD items (CRUD, primitives, a mode direction), not polish.
+
+### Chat surface
+- **RV-1** — Immersive HTML cards have **no collapse option in chat**. Feature gap, chat surface.
+- **RV-2** — Scene tab should be able to host cards ("so cards can show up here if they want") +
+  general refinement pass.
+
+### Game strip tabs — fidelity + missing CRUD
+- **RV-3 Sheet** — ugly vs mock: missing the pill treatment etc. (W-H polish + primitives).
+- **RV-4 Attributes** — need **add / rename / edit UI and hints** for narrative steering. NOTE:
+  schema already carries `label+hint` (≤12, spike doc §4e) — the gap is the EDIT UI, plus verifying
+  attribute hints actually reach the reminder (same glossing class as R4b; if they're dropped like
+  cast-field hints were, same one-line fix).
+- **RV-5 Inventory** — **no edit or add interface**, and `location` (where an item is carried/stored)
+  is in the schema + extraction guidance but **not surfaced in the UI**.
+- **RV-6 Journal & Quests** — missing manual **add/edit** affordances.
+- **RV-7 Map** — locked tab has no "coming soon" presentation (just a lock).
+- **RV-8 CRUD posture (program-level)** — "missing a lot of the crud options everywhere"; panels were
+  assembled from whatever ui primitives existed → "sized weird and kinda gross." Wants a deliberate
+  primitive set for panel CRUD (add-row / inline-edit / hint-editor), then a sweep per plane.
+
+### Waystone header
+- **RV-9 steering** — the Waystone needs **steering text** so the model actually updates
+  time-of-day/weather (read-half work, same class as R4b glossing: if the reminder doesn't teach it,
+  it decorates).
+- **RV-10 visual** — needs juicing: **actual animation, the full time-of-day × weather combo matrix,
+  visual indicators — "right now it does not read as a clock."** Extends W-H §4.2 ("tiny Waystone").
+
+### Systems / vocabulary / modes
+- **RV-11 Guides not surfaced** — schemas exist for guides (clothes/outfit, thoughts, etc.) but
+  **no UI surfaces them anywhere**. Find every schema-carried guide field with no read surface and
+  give it a home (reuse-seam rule: check both ends).
+- **RV-12 Stat profile (Game tab)** — supposed to be editable; **no add or change options** exist.
+- **RV-13 RULING — freeform is dead as the flagship; d20-in-lite is the direction.** Owner: freeform
+  "is a fucking joke" and ugly; preferred model = **get d20 mode working properly in lite (edit/add
+  etc.), and let people branch off + save their own game mode derived from the prebuilt d20** rather
+  than authoring from freeform nothingness. (Consistent with the lite ruling: steering device, no
+  dice-ROLLING requirement — d20 here is the stat/sheet STRUCTURE, not an engine roller.)
+- **RV-14 RULING — vocabulary consistency: "cast fields" is a misleading name.** It means a custom
+  per-character stat/resource field, and reads instead like it means the cast (the people). We have
+  pools, casts, cast fields, widgets — inconsistent language. Owner will give the final word for the
+  rename ("custom stat or resource field" is the meaning); the sweep is a writable-field-class change
+  (~7 coupled sites) + UI copy.
+- **RV-15 POSTURE — the `__orb.seed` creator is a liar.** Seeded games made panels look rich and
+  healthy, which **hid rot** (missing CRUD, dead surfaces) and **hid dual-homed data** that should
+  have been single-homed (the pool-max drift bug was exactly this class). Verification posture:
+  dogfood and side-eye against MODEL-POPULATED games, not seeds; the seeder is a dev convenience,
+  never verification evidence.

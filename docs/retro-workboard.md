@@ -57,7 +57,8 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 
 Every open item lives here. Design lives in the cited doc; this table is the index + status, not a
 re-statement. **ID conventions:** `R*`/`F*` = rpg-extraction spike · `OR-*` = OpenRouter findings ·
-`W-*` = crunchy-cluster waves · `#n` = the original numbered punch list.
+`W-*` = crunchy-cluster waves · `#n` = the original numbered punch list · `RV-*`/`D-*`/`MP-*` =
+context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity-findings.md`).
 
 ### A. RPG extraction — the fold (doc: `docs/design/rpg-extraction-one-call-spike.md`)
 
@@ -117,6 +118,21 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
 - **W-I / D111** — mint the D-ledger entry for the crunchy-cluster redesign (deception→tracker ruling A,
   extraction-transcript, wand map, fork-clone). **D111 is the next free number.** Cheap, closes debt.
 
+### C2. Owner dogfood review 2026-07-30 (doc: `context-panel-fidelity-findings.md` §6 — RV-1…RV-15)
+
+The owner's comprehensive current-state pass. Extends W-H/#1 well beyond polish — grouped by lane:
+
+| Group | Items | Nature |
+|---|---|---|
+| Chat surface | RV-1 card collapse · RV-2 cards-in-Scene + refine | build, chat/client |
+| Panel CRUD program | RV-4 attributes add/rename/edit+hints · RV-5 inventory add/edit + surface `location` · RV-6 journal/quests manual add/edit · RV-12 stat-profile editing · **RV-8 the primitive set first** (add-row / inline-edit / hint-editor) — everything above consumes it | build, client+server verbs where missing |
+| Fidelity/polish | RV-3 Sheet pills · RV-7 Map "coming soon" · RV-10 Waystone animation + full time×weather matrix ("does not read as a clock") | W-H side-eye lane |
+| Read-half steering | RV-9 Waystone steering text (R4b class) · RV-4's hint-to-reminder verify · RV-11 surface the guide schemas (clothes/thoughts — schema exists, zero UI; check both ends) | server/rpg |
+| **RULINGS (settled)** | **RV-13** freeform demoted — d20-in-lite properly editable is the direction, + branch-and-save custom modes derived from prebuilt d20 · **RV-14** "cast fields" is a misnomer (= custom stat/resource field) — consistent-vocabulary sweep once owner gives the final name · **RV-15** `__orb.seed` output is NEVER verification evidence (hid rot + dual-homing) — verify against model-populated games | posture/direction |
+
+RV-13 and the CRUD program change R6's shape too: per-game tool assembly must cover host-EDITED
+d20-derived profiles, not just seeded freeform — build them aware of each other.
+
 ### D. Rest of the punch list
 
 - **#24 MU picks pane** — VERIFIED NOT BUILT (no in-chat user-macro picks UI). Typed macro inputs
@@ -145,6 +161,8 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
   injection-row shape (built full-form vs mock switch+kebab — "off=delete" loses disable-without-delete) ·
   beat-notifications residual (dice-cues already ruled dead: lite ≠ dice roller) · Preview rebuild
   greenlight (new ui primitives + possible server trace split).
+- **RV-14 the final vocabulary** for the cast-fields rename (meaning = custom stat/resource field) —
+  the sweep waits on the owner's word for the actual name.
 
 **SCOPED OUT (owner):** rpg game-data macro fields (quest titles / pool hints / widget labels) do NOT
 render macros — deliberate, not a bug.
