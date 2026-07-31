@@ -92,8 +92,7 @@ retro-burn-down` failed on verify:push — tests:node red: TWO D71 token-pipelin
 hand-edited by the Waystone lane [12 --color-sky-* + 3 motion tokens] and my 30vw panel edit instead
 of the tokens.json pipeline; sky tokens unclassified in the three-class partition). check-is-static
 gap: no commit gate runs tests. FIX LANDED `30cc434d` (sole real drift was the 30vw clamp — sky/motion tokens were already pipeline-sourced, only theme.css was stale; sky family classified STATIC_RATIONALE; panel measured 384px→120px stone at 1280 ✓). Was: fix lane `a3b2e764fdb990032` (main) — move values into the
-pipeline source + regenerate + classify, owner-approved semantics preserved. After green: re-run the
-detached deletion (authorized, contained-in-main verified).
+pipeline source + regenerate + classify, owner-approved semantics preserved. DELETION DONE (2nd detached run): origin/retro-burn-down removed; verify:push GREEN in 665s — a full push-grade certification of current HEAD as a side effect. Origin = main + legacy-main only. Branch-hygiene thread CLOSED.
 
 **OLD MERGE QUEUE (done):** 1) `wt/agent-aa010e6ca404b138a`
 (MP done `90409adb` — grouped picker + curated-fallback notice; lesson: new data-testid must register in
