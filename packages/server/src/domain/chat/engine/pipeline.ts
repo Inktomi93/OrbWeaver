@@ -121,11 +121,12 @@ interface TurnPipelineResult {
   readonly imageDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
-  /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when terminal tools did not ride
-   *  (none requested, or the connection can't carry wire `tools[]`). An EMPTY array is the honest "they rode
-   *  and the model called nothing" — a quiet beat, distinct from `null`'s "the fold never happened". These
-   *  are deliberately NOT folded into `toolRecords`: they were never executed, so a record would be a lie,
-   *  and they must never reach a member-visible payload. */
+  /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when there is NO usable channel —
+   *  the tools didn't ride (none requested / the connection can't carry wire `tools[]`), or the turn produced
+   *  no terminal economics at all. An EMPTY array is the honest "they rode, the wire answered, and the model
+   *  called nothing" — a quiet beat, distinct from `null`'s "run your own fallback". These are deliberately NOT
+   *  folded into `toolRecords`: they were never executed, so a record would be a lie, and they must never reach
+   *  a member-visible payload. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
@@ -512,11 +513,21 @@ function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest
   return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true };
 }
 
-/** The terminal channel's total read: `null` = the fold never rode this turn; `[]` = it rode and the model
- *  called nothing (a quiet beat); otherwise the completion's calls. Extracted so the pipeline body stays under
- *  the cognitive-complexity cap. */
+/** The terminal channel's total read. The two arms carry DIFFERENT instructions to the consumer and the
+ *  distinction has to survive every failure mode:
+ *    • `null` — no usable channel. Either the tools never rode, OR the turn produced NO terminal economics
+ *      chunk at all (an aborted/short-circuited stream, a runner that never reached its final chunk). The
+ *      consumer must run its own fallback.
+ *    • `[]`   — the wire DID deliver a completion and it carried zero tool calls: a genuine quiet beat.
+ *  Collapsing the first case into `[]` is the dangerous read: it would report "the model chose to record
+ *  nothing", suppress the fallback, and drop the turn's state with a cheerful log. So a null economics is
+ *  reported as a missing channel, never as a quiet one. Extracted so the pipeline body stays under the
+ *  cognitive-complexity cap. */
 function terminalCallsOf(attached: boolean, economics: TurnEconomics | null): readonly ToolCallInput[] | null {
-  return attached ? (economics?.toolCalls ?? []) : null;
+  if (!attached || economics === null) {
+    return null;
+  }
+  return economics.toolCalls ?? [];
 }
 
 // The structured-output request-builder gate (D79, mirror of attachTools): a requested responseFormat rides

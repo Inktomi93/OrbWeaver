@@ -327,3 +327,23 @@ test("R1 folded: a RECONCILE beat appends the write-surface note to the reminder
   expect(out?.injections).toHaveLength(1);
   expect(out?.injections[0]?.content).toContain("RECONCILE");
 });
+
+test("R1 folded: a mount that THROWS never fails the turn — the gather degrades to tool-less + surfaces it", async () => {
+  const db = await freshDb();
+  // The mount is the fold's only PRE-commit step and it reads the db. A throw here used to propagate out of
+  // `buildTurnContext` and kill the character turn BEFORE any narrative existed — a state-tracking convenience
+  // taking down the reply, the exact inversion the delivery model forbids.
+  const { chatId, h } = await seedLiteGame(db, { foldedToolsThrow: true });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+
+  // The gather still produced a complete, byte-identically tool-less contribution — the turn assembles + commits.
+  expect(out).not.toBeNull();
+  expect(out?.terminalTools).toBeUndefined();
+  expect(out?.tools).toEqual([]);
+  expect(out?.injections).toHaveLength(1);
+  // …and the swallow is NOT silent: this recorder is the only evidence the fold stopped folding (and that the
+  // game quietly started paying the second call again).
+  expect(h.fakes.foldBuildFailures).toEqual([{ chatId, gameId: expect.any(String) }]);
+});

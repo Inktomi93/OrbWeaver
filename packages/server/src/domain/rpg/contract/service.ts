@@ -405,6 +405,21 @@ export interface RpgContext {
    *  remove. So the resolution is named on every flush, with the reason when it is not what the knob asked for.
    *  Wired at compose to a log line; a fake recorder asserts it in tests. Fire-and-forget (`void`). */
   readonly onStateRoundPath: (info: StateRoundPathInfo) => void;
+  /** OBSERVABILITY: the folded turn's TOOL-MOUNT failed (R1). The mount is the fold's only PRE-commit step and
+   *  it reads the db, so it is caught and swallowed to protect the character turn — which means the ONLY trace
+   *  a broken mount leaves is this line. Without it a game would quietly stop folding (and quietly start paying
+   *  the second call again) with nothing to explain why. Wired at compose to a `rpg.extraction.fold_build_failed`
+   *  warn; a fake recorder asserts it in tests. Fire-and-forget (`void`). */
+  readonly onFoldBuildFailed: (info: FoldBuildFailedInfo) => void;
+}
+
+/** A folded turn's tool-mount failure (R1). Carries the id context + the thrown cause; the turn proceeded
+ *  tool-less and its state will be captured by the fallback post-commit round.
+ *  Non-exported: reachable only through `RpgContext.onFoldBuildFailed`'s signature — no consumer names it (knip). */
+interface FoldBuildFailedInfo {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly err: unknown;
 }
 
 /** The resolved state-round PATH for one flush (R1 observability). `path` is what actually ran; `mode` is what

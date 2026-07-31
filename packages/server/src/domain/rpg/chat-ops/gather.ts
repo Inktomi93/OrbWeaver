@@ -36,6 +36,26 @@ import { buildRpgMacroFeed } from "./macro-view";
 import { isReconcileBeat } from "./reconcile-cadence";
 import { buildTrackerView } from "./tracker-view";
 
+/** Build the folded turn's TERMINAL tools, or `null` on ANY failure (R1 — narrative inviolability on the BUILD
+ *  half). The mount is the one piece of the fold that runs PRE-commit: it reads the db (the roster + the game
+ *  row `resolveExtractionRefs` needs), so a transient fault here would otherwise take down the character turn
+ *  itself — a state-tracking convenience killing the reply is exactly the inversion the delivery model forbids.
+ *  On a throw the turn assembles byte-identically to a tool-less one and the flush sees the `null` terminal
+ *  channel, so its fallback post-commit round still captures the beat. Loud, never silent (`onFoldBuildFailed`). */
+async function buildFoldedTurnSafely(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  baseState: RpgSnapshotState,
+): Promise<Awaited<ReturnType<RpgContext["buildFoldedTurn"]>> | null> {
+  try {
+    const reconcile = await isReconcileBeat(ctx.db, game);
+    return await ctx.buildFoldedTurn({ chatId: game.chatId, baseState, reconcile });
+  } catch (err) {
+    ctx.onFoldBuildFailed({ chatId: game.chatId, gameId: game.id, err });
+    return null;
+  }
+}
+
 export async function gatherTurnContext(
   ctx: RpgContext,
   chatId: ChatId,
@@ -86,10 +106,14 @@ export async function gatherTurnContext(
   // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — the SAME
   // resolution-ladder head `stageStateRound` will resolve as its base, so what the model is constrained to
   // write is exactly what the apply path can resolve.
-  const folded =
-    game.config.extractionMode === "folded" && !trackersReadOnly
-      ? await ctx.buildFoldedTurn({ chatId, baseState: curSnapshot, reconcile: await isReconcileBeat(ctx.db, game) })
-      : null;
+  //
+  // ERRORS-AS-DATA, AND THIS HALF IS THE DANGEROUS ONE: unlike the flush (which runs post-commit, where the
+  // worst case is a lost state write), the mount runs PRE-commit inside turn assembly — a throw here kills the
+  // character turn before any narrative exists. It reads the db (roster + game row), so it CAN throw. Swallow
+  // it to a no-mount + a loud log: the turn then assembles byte-identically to a tool-less one, the engine hands
+  // the flush a `null` channel, and the fallback post-commit round captures the state one beat later. The
+  // narrative is never at risk; the degrade is visible.
+  const folded = game.config.extractionMode === "folded" && !trackersReadOnly ? await buildFoldedTurnSafely(ctx, game, curSnapshot) : null;
 
   // The reminder injects state as FLAVOR — never tool-update guidance. That holds on the folded path too: the
   // tool DESCRIPTIONS teach the write surface (measured: a hosted strong model co-emits narrative AND 1–3
