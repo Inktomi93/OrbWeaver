@@ -9,6 +9,22 @@
 // reattributeMessages/reattributePersona deliberately emit one messageEdited per slot (an attribution
 // re-stamp is a slot edit). duplicateMessage copies the selected variant's content + economics; params/
 // promptSnapshot are not carried onto the copy (a duplicate is a fresh slot).
+//
+// THE §3.6 RETURN BELT (D110 §3.6 / D106 one-verdict). Every verb here that hands a `MessageView` back to its
+// CALLER routes the return through {@link projectEditReturn} — the same seam `turn.ts` and (via
+// `projectViewForMember`) `listMessages` use. It is a FAIL-CLOSED belt, not a live hole being patched: the
+// author-or-host gate already means only a HOST reaches a reasoning-carrying row, because every producer writes
+// assistant slots with `authorUserId: null` (turn commit + postNarratorMessage) and a human's own user row
+// carries no model reasoning. But that is a WRITE-SIDE convention, not a schema guarantee — the
+// `messages_attribution_shape` CHECK permits `role='assistant'` + a non-null `author_user_id` — so a future
+// producer stamping an author onto a generated row would silently turn these returns into a member-reachable
+// reasoning/hidden-span leak. The belt makes the boundary hold on the CALLER's role instead of on that
+// convention. The invariant itself is separately named by a test (engine.int: a reasoning-carrying assistant
+// slot is authorUserId-null), so a violating write is caught by a red test, not by a leak.
+//
+// The EMITTED bus event deliberately carries the UNSTRIPPED view: the bus fan-out strips per-SUBSCRIBER
+// (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
+// the host's own payload. Strip the return; emit the truth.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
@@ -62,6 +78,7 @@ import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildTurnMacroContext } from "../substrate/assembly-access";
 import { assertAuthorOrHost } from "../substrate/auth";
+import { projectViewReturnForViewer } from "../substrate/member-visibility";
 import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
@@ -90,6 +107,14 @@ type EditVerbs = Pick<
   | "reattributeMessages"
   | "reattributePersona"
 >;
+
+/** The §3.6 RETURN belt (see the file header): the ONE projection every edit-verb `MessageView` return routes
+ *  through. Binds this domain's rpg deception verdict onto the shared `projectViewReturnForViewer` seam. A HOST
+ *  caller is IDENTITY — the same object, no rpg read — so the host return stays byte-identical; a non-host
+ *  caller gets the hidden-span body strip plus, on a deception-active game, the reasoning channel withheld. */
+async function projectEditReturn(ctx: ChatContext, view: MessageView, viewer: { readonly role: string }): Promise<MessageView> {
+  return await projectViewReturnForViewer(view, viewer, async (chatId) => (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false);
+}
 
 /** Loads a slot joined to its selected variant and verifies it belongs to `chatId` — a missing or
  *  foreign-chat slot collapses to one leak-free NOT_FOUND. */
@@ -254,7 +279,7 @@ function swipeRowOf(slot: MessageView, variant: VariantRow): Parameters<typeof s
 function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService["selectVariant"] {
   return async ({ principal, chatId, messageId, variantId }: SelectVariantParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const owner = await loadVariantMessageId(ctx.db, variantId);
     if (owner !== messageId) {
       throw new ChatNotFoundError(chatId);
@@ -296,7 +321,7 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
-    return view;
+    return await projectEditReturn(ctx, view, membership);
   };
 }
 
@@ -343,7 +368,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
     await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
-    return view;
+    return await projectEditReturn(ctx, view, membership);
   };
 }
 
@@ -352,11 +377,11 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
 function createSetMessageHidden(ctx: ChatContext, emit: EmitChatEvent): ChatService["setMessageHidden"] {
   return async ({ principal, chatId, messageId, hidden }: SetMessageHiddenParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     await ctx.db.batch(batchMany([setMessageHiddenStatement(ctx.db, messageId, hidden)]));
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageHidden", chatId, messageId, view });
-    return view;
+    return await projectEditReturn(ctx, view, membership);
   };
 }
 
@@ -370,6 +395,8 @@ async function writeReasoning(
     readonly variantId: MessageView["selectedVariantId"];
     readonly reasoning: string | null;
     readonly event: "reasoningEdited" | "reasoningCleared";
+    /** The gated caller's role — the §3.6 return belt's verdict axis (see the file header). */
+    readonly viewer: { readonly role: string };
   },
 ): Promise<MessageView> {
   await ctx.db.batch(
@@ -384,20 +411,21 @@ async function writeReasoning(
   );
   const view = await reloadSlot(ctx, args.chatId, args.messageId);
   await emit({ type: args.event, chatId: args.chatId, messageId: args.messageId, view });
-  return view;
+  return await projectEditReturn(ctx, view, args.viewer);
 }
 
 /** `editReasoning` — author-or-host. Overwrites the selected variant's reasoning text. Emits reasoningEdited. */
 function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["editReasoning"] {
   return async ({ principal, chatId, messageId, reasoning }: EditReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     return await writeReasoning(ctx, emit, {
       chatId,
       messageId,
       variantId: slot.selectedVariantId,
       reasoning,
       event: "reasoningEdited",
+      viewer: membership,
     });
   };
 }
@@ -406,13 +434,14 @@ function createEditReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService
 function createClearReasoning(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearReasoning"] {
   return async ({ principal, chatId, messageId }: ClearReasoningParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     return await writeReasoning(ctx, emit, {
       chatId,
       messageId,
       variantId: slot.selectedVariantId,
       reasoning: null,
       event: "reasoningCleared",
+      viewer: membership,
     });
   };
 }
@@ -551,7 +580,7 @@ function createMoveMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
 function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["duplicateMessage"] {
   return async ({ principal, chatId, messageId }: DuplicateMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const seq = (await loadMaxMessageSeq(ctx.db, chatId)) + 1;
     const params = {
       messageId: ctx.newMessageId(),
@@ -618,7 +647,7 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     void ctx.emitChatChanged(chatId);
-    return view;
+    return await projectEditReturn(ctx, view, membership);
   };
 }
 

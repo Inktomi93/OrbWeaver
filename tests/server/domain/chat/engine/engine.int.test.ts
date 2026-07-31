@@ -8,7 +8,7 @@ import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
-import { characterStats, chatLocks, chats, dailyStats, messageVariants, ownerStats } from "@orb/db";
+import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -233,6 +233,79 @@ describe("createTurnEngine — happy path", () => {
     expect(t).toContain("reasoningStreamDone");
     expect(t.indexOf("reasoningStreamDone")).toBeLessThan(t.indexOf("turnCompleted"));
   });
+
+  // THE DURABLE HALF of the reasoning channel. `reasoningStreamDone` (above) only proves the LIVE signal
+  // fired; the committed transcript re-reads `message_variants.reasoning`, so a turn whose trace was never
+  // written to canon shows reasoning while it streams and loses it forever at commit. Pinned at the ROW, not
+  // the event: the engine's `variantPayloadOf` must land the reduced trace on the persisted variant — for the
+  // deltas-only shape too (the OpenRouter chat-completions path accumulates its trace from `reasoning`-kind
+  // deltas; the terminal `final` chunk carries no `reasoning` field there).
+  test("a turn's reasoning trace is PERSISTED on the committed variant — both from the final chunk and from deltas alone", async () => {
+    const fromFinal = await seedChat(db, "reason_final");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "ignored — the terminal chunk is authoritative" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", reasoning: "the settled trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(fromFinal));
+
+    // The deltas-only shape: no `reasoning` on the terminal economics ⇒ the accumulated deltas ARE the trace.
+    const fromDeltas = await seedChat(db, "reason_deltas");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "weighing " },
+        { kind: "reasoning", text: "two openings" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(fromDeltas));
+
+    expect(await selectedReasoning(fromFinal)).toBe("the settled trace");
+    expect(await selectedReasoning(fromDeltas)).toBe("weighing two openings");
+  });
+
+  // THE ATTRIBUTION INVARIANT, NAMED. Every reasoning-carrying row is a GENERATED assistant slot, and every
+  // producer writes those with `authorUserId: null` (this turn commit; `postNarratorMessage`). A large amount of
+  // authority rests on that: `assertAuthorOrHost` degrades to HOST-ONLY exactly when `authorUserId` is null, so
+  // "a member can never reach an assistant row" is a consequence of this write-side convention — NOT of the
+  // schema. The `messages_attribution_shape` CHECK permits `role='assistant'` + a non-null `author_user_id`
+  // (it only forbids character_id AND author_user_id together), so nothing but this test stands between a
+  // future producer stamping an author onto a generated row and a silent widening of who may edit/read it.
+  // The §3.6 return belt (`edit.ts::projectEditReturn`) now holds on the CALLER's role regardless — this test
+  // exists so a violating write is caught by a RED TEST that names the invariant, not by a leak finding it.
+  test("the ATTRIBUTION INVARIANT: a reasoning-carrying assistant slot is written authorUserId-NULL (host-only by construction)", async () => {
+    const chatId = await seedChat(db, "attrib_invariant");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "the model's private trace" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", reasoning: "the model's private trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(chatId));
+
+    const [slot] = await db
+      .select({ role: messages.role, authorUserId: messages.authorUserId, reasoning: messageVariants.reasoning })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, chatId));
+
+    // The row genuinely carries the model's trace (else the assertion below would be vacuous)…
+    expect(slot?.role).toBe("assistant");
+    expect(slot?.reasoning).toBe("the model's private trace");
+    // …and it is UNAUTHORED, which is what makes every author-or-host verb host-only for it.
+    expect(slot?.authorUserId).toBeNull();
+  });
+
+  /** The DB truth for a chat's tail assistant row: the reasoning column of its SELECTED variant. */
+  async function selectedReasoning(chatId: ChatId): Promise<string | null | undefined> {
+    const history = await loadCanonHistory(db, chatId);
+    const [row] = await db
+      .select({ reasoning: messageVariants.reasoning })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, castId(history.at(-1)?.selectedVariantId ?? "")));
+    return row?.reasoning;
+  }
 
   test("D50 pt-2 (PD-117): a turn whose assembled WI pool fired entries emits worldInfoActivated with them", async () => {
     const chatId = await seedChat(db, "wi");

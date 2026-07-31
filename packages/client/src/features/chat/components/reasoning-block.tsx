@@ -4,6 +4,14 @@
 // never fights again. The elapsed count is a plain tick counter (render scope bans Date.now/wall-clock
 // reads), and the trace renders untrusted for the same live-model-output reason the ghost answer body
 // does.
+//
+// TWO MOUNTS, one component. The LIVE mount is the streaming ghost (`ghost-message-row.tsx`) — it owns the
+// ticking label. The SETTLED mount is the committed transcript row (`message-row.tsx`), reading the durable
+// `MessageView.reasoning` a completed turn persisted: it mounts with `thinking={false}` (collapsed by default,
+// host-expandable) and passes an explicit `label`, because a row rehydrated from canon never measured the
+// think window — the ticker would render a fabricated "Thought for 0s" (D41 no-silent-degrade). The trace it
+// shows is whatever the SERVER handed this viewer: the §3.6 reasoning strip nulls the field for a member of a
+// deception-active game, so a stripped row simply has nothing to mount (this component never gates access).
 
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
@@ -26,6 +34,9 @@ export interface ReasoningBlockProps {
   readonly reasoning: string;
   /** True while the turn has reasoning but no answer token yet; flips false on the auto-collapse trigger. */
   readonly thinking: boolean;
+  /** Overrides the ticking "Thinking…/Thought for Ns" label — the SETTLED (committed-row) mount passes it,
+   *  because a canon-rehydrated row never measured the think window and must not invent one. */
+  readonly label?: string | undefined;
   readonly showIcon?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reasoning reveal (default off ⇒ raw). */
   readonly smoothStream?: boolean | undefined;
@@ -36,6 +47,7 @@ export interface ReasoningBlockProps {
 export function ReasoningBlock({
   reasoning,
   thinking,
+  label: labelOverride,
   showIcon = false,
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
@@ -53,7 +65,7 @@ export function ReasoningBlock({
   }, [thinking]);
 
   const expanded = override ?? thinking;
-  const label = thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`;
+  const label = labelOverride ?? (thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`);
   const paced = useSmoothText(reasoning, { enabled: thinking && smoothStream, cps: smoothStreamCps });
   const held = speakerTagsToPlain(thinking ? holdTornSpeaker(paced) : paced);
 
