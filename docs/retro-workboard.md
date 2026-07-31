@@ -399,6 +399,15 @@ appearance, PROSE-1-adjacent). Same session: the "greeting renders unformatted" 
 `autoFixMarkdown` OFF (wiped default) × ST-card unbalanced asterisks — lane verifying the draft arm +
 whether the auto-fix pass covers greeting rows.
 
+**LATE-DAY WAVE 2 (owner rapid-fire):** swipe empty-variant guard MERGED `e5a900b1` (abort hypothesis
+WRONG — the empty row was a TOOL-ONLY completion on the prose-silencing local wire pre-fold-guard;
+upstream fixed at `efc9dde5`, the VER-1b class guard now refuses empty generations pre-commit; aborts
+proven total) · F2a/F2b lane DISPATCHED (fence leniency + example) · EMBEDDED-IMAGE lane DISPATCHED
+(character inline images = display-only, ST parity) · QUEUED SMALLS: rpg.revealHidden fetch cadence
+(2×/turn commit+complete + fired per swipe even unused — ride ONE terminal + check enabled-gating) ·
+STREAM-JANK (message box resizes during streaming, settles at end — side-eye/W-H list) · Protocol-picker
+incoherent pair (turn-breaker) · tool-limit label copy · fallback-name widening.
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
