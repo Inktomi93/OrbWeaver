@@ -1,9 +1,12 @@
 // The one mutation factory — every create/update/delete goes through it, never an inline
-// useMutation + loose cache surgery. Bakes the 4-phase cache-flavor optimistic recipe (cancelQueries
-// → snapshot → setQueryData → return-rollback; onError restores from the returned context so
-// concurrent mutations each roll back their own snapshot), a lightweight variables-render ghost-row
-// mode free on every mutation, and one sticky error slot per mutation with explicit clearError().
-// Callback property order is onMutate → onError → onSettled (type-inference-sensitive).
+// useMutation + loose cache surgery (the `client-cache-surgery-only-in-data` gate makes that
+// physics: an imperative QueryClient call outside data/ is RED, so a cache need lands HERE). Bakes
+// the 4-phase cache-flavor optimistic recipe (cancelQueries → snapshot → setQueryData →
+// return-rollback; onError restores from the returned context so concurrent mutations each roll back
+// their own snapshot), the `echo` post-write read seed (a verb whose RESPONSE is the authoritative row
+// for a read), a lightweight variables-render ghost-row mode free on every mutation, and one sticky
+// error slot per mutation with explicit clearError(). Callback property order is
+// onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
 
 import type { DefaultError, MutateOptions, QueryKey, UseMutationOptions } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
@@ -24,6 +27,16 @@ interface EntityMutationBase<TVars, TData, TRead> {
     readonly readKey: (trpc: Trpc, vars: TVars) => QueryKey;
     readonly update: (old: TRead | undefined, vars: TVars) => TRead | undefined;
   };
+  /**
+   * The read key this write's OWN RESPONSE is authoritative for — seeded with the response on success
+   * (never on error). For a verb that returns exactly the row a read serves (`updateUserSettingsSection`
+   * → `getUserSettings`): a confirmed write is strictly newer knowledge than the snapshot it was computed
+   * from, so the surface that renders that read must not wait on a refetch to stop showing the pre-write
+   * value. Complements `busDriven` rather than competing with it (this is a cache SEED, not an
+   * invalidate — the covering bus tick still arrives and confirms the same row, a structural no-op).
+   * Distinct from `optimistic`, which writes the UNCONFIRMED intent before the server has agreed.
+   */
+  readonly echo?: (trpc: Trpc, vars: TVars) => QueryKey;
   /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). A function
    *  form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort the bus
    *  surfaces its own notice for — see `isSilencedTurnAbort`). */
@@ -104,6 +117,14 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         } else {
           context.client.setQueryData<TRead>(onMutateResult.readKey, onMutateResult.snapshot);
         }
+      },
+      onSuccess: (data, vars, _onMutateResult, context) => {
+        if (config.echo === undefined) {
+          return;
+        }
+        // Runs BEFORE the mutateAsync promise resolves (v5 awaits the callbacks in the execution chain), so
+        // a caller awaiting the save sees the seeded read, not the pre-write one.
+        context.client.setQueryData<TData>(config.echo(trpc, vars), data);
       },
       onSettled: (_data, _error, vars) => {
         // Always reconcile — the optimistic value is never trusted as final.
