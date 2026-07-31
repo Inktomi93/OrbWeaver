@@ -15,6 +15,7 @@ import {
   buildRosterRefIndex,
   extractionToStateDelta,
   ghostTargetRefs,
+  toStagedJournalEntry,
 } from "../../../../../packages/server/src/domain/rpg/tools/apply";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -427,6 +428,123 @@ test("upsert_quest create mints a quest; a later flip addresses it by name", () 
   );
   expect(flipped.quests[0]?.id).toBe("q_1"); // same quest, addressed by name
   expect(flipped.quests[0]?.status).toBe("completed");
+});
+
+// ── EXT-4c: objective completion is MODEL-EXPRESSIBLE (merge-by-match + the completeObjectives arm) ───────
+// The defect: `update` carrying `objectives` re-minted every line `completed:false`, so the model could not
+// mark one objective done without wiping the others (and the host's hand-ticked flags died with them). The
+// authoring arm now MERGES by text; the completion arm names lines by text without restating the list.
+
+/** A quest with two objectives, the first already done — the state every merge test starts from. */
+function questWithProgress(): RpgSnapshotState {
+  return emptyState({
+    quests: [
+      {
+        id: castId<RpgQuestId>("q_vault"),
+        name: "Reach the Vault of Ash",
+        status: "active",
+        description: "Get there before the new moon",
+        objectives: [
+          { id: "obj_a", text: "Find the road north", completed: true },
+          { id: "obj_b", text: "Enter the vault", completed: false },
+        ],
+      },
+    ],
+  });
+}
+
+test("EXT-4c: an update RESTATING the objective list preserves each line's id AND completion (no re-mint)", () => {
+  const updated = applyUpsertQuest(
+    questWithProgress(),
+    { name: "Reach the Vault of Ash", action: "update", objectives: ["Find the road north", "Enter the vault"] },
+    () => castId<RpgQuestId>("q_new"),
+    idSeq("obj"),
+  );
+  // The exact pre-fix regression: both flags used to come back false and both ids used to be fresh.
+  expect(updated.quests[0]?.objectives).toEqual([
+    { id: "obj_a", text: "Find the road north", completed: true },
+    { id: "obj_b", text: "Enter the vault", completed: false },
+  ]);
+});
+
+test("EXT-4c: the merge is trim/case-insensitive (a model retyping its own line is the SAME objective)", () => {
+  const updated = applyUpsertQuest(
+    questWithProgress(),
+    { name: "Reach the Vault of Ash", action: "update", objectives: ["  find the road NORTH ", "Enter the vault"] },
+    () => castId<RpgQuestId>("q_new"),
+    idSeq("obj"),
+  );
+  // Same id + completion, and the incoming wording wins (the list IS the authoring arm).
+  expect(updated.quests[0]?.objectives[0]).toEqual({ id: "obj_a", text: "  find the road NORTH ", completed: true });
+});
+
+test("EXT-4c: a NEW line in the list mints fresh; an omitted line is dropped (the list is absolute)", () => {
+  const updated = applyUpsertQuest(
+    questWithProgress(),
+    { name: "Reach the Vault of Ash", action: "update", objectives: ["Find the road north", "Bribe the gatekeeper"] },
+    () => castId<RpgQuestId>("q_new"),
+    idSeq("obj"),
+  );
+  expect(updated.quests[0]?.objectives).toEqual([
+    { id: "obj_a", text: "Find the road north", completed: true },
+    { id: "obj_1", text: "Bribe the gatekeeper", completed: false },
+  ]);
+});
+
+test("EXT-4c: completeObjectives ticks a line DONE without restating the list; an unknown name is dropped", () => {
+  const updated = applyUpsertQuest(
+    questWithProgress(),
+    { name: "Reach the Vault of Ash", action: "update", completeObjectives: ["enter the vault", "Slay the dragon"] },
+    () => castId<RpgQuestId>("q_new"),
+    idSeq("obj"),
+  );
+  // The named line flipped; the already-done line is untouched; the GHOST completion minted nothing.
+  expect(updated.quests[0]?.objectives).toEqual([
+    { id: "obj_a", text: "Find the road north", completed: true },
+    { id: "obj_b", text: "Enter the vault", completed: true },
+  ]);
+});
+
+test("EXT-4c: an update touching NEITHER objective arm leaves the plane byte-identical (omit = keep)", () => {
+  const before = questWithProgress();
+  const updated = applyUpsertQuest(
+    before,
+    { name: "Reach the Vault of Ash", action: "update", description: "reworded" },
+    () => castId<RpgQuestId>("q_new"),
+    idSeq("obj"),
+  );
+  expect(updated.quests[0]?.objectives).toBe(before.quests[0]?.objectives);
+  expect(updated.quests[0]?.description).toBe("reworded");
+});
+
+test("EXT-4c: a CREATE can mint objectives and mark one done in the same call", () => {
+  const created = applyUpsertQuest(
+    emptyState(),
+    { name: "Find the key", action: "create", objectives: ["Search the crypt", "Open the door"], completeObjectives: ["Search the crypt"] },
+    () => castId<RpgQuestId>("q_1"),
+    idSeq("obj"),
+  );
+  expect(created.quests[0]?.objectives).toEqual([
+    { id: "obj_1", text: "Search the crypt", completed: true },
+    { id: "obj_2", text: "Open the door", completed: false },
+  ]);
+});
+
+// ── EXT-4b: the journal type HEAL (the nested-required blind spot, the `title` precedent) ─────────────────
+test("EXT-4b: a journal entry with NO type heals to `note` and still lands (never a dropped beat)", () => {
+  expect(toStagedJournalEntry({ content: "The gate groaned open." })).toEqual({
+    type: "note",
+    label: "",
+    title: "The gate groaned open.",
+    content: "The gate groaned open.",
+  });
+});
+
+test("EXT-4b: the heal does NOT resurrect the custom label — a healed entry is a built-in kind", () => {
+  // R4c: `label` is meaningful only on `custom`. A model that emitted a label but dropped the type heals to
+  // `note`, so the label is cleared exactly as it would be on any other built-in.
+  expect(toStagedJournalEntry({ label: "ritual", content: "They lit the candles." }).label).toBe("");
+  expect(toStagedJournalEntry({ type: "custom", label: "ritual", content: "They lit the candles." }).label).toBe("ritual");
 });
 
 // ── buildRosterRefIndex — the player self-alias (R2, belt-and-suspenders with the schema enum constraint) ──

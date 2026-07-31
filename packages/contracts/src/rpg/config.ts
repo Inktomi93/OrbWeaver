@@ -82,17 +82,20 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
 
 /** The delivery-model knob (the 2026-07-26 amendment / D108, as amended by D109 + the R1 fold). It picks the
  *  state round's VEHICLE, never its existence:
- *    • `reliable` (default) = a DEDICATED post-commit structured-output extraction turn (`responseFormat` =
- *      the projected extraction schema). Two model calls per exchange; the accuracy arm (the local 8B floor).
+ *    • `reliable` = a DEDICATED post-commit structured-output extraction turn (`responseFormat` = the projected
+ *      extraction schema). Two model calls per exchange; the accuracy arm (the local 8B floor).
  *    • `cheap` = a DEDICATED post-commit TOOL round (the 7 state tools, `tool_choice:"required"`). Two model
  *      calls per exchange, cheaper than reliable's schema.
- *    • `folded` = the SAME 7 tools mounted on the CHARACTER turn itself with `tool_choice:"auto"`, whose
- *      co-emitted `tool_calls` ARE the state round — ONE model call per exchange (measured ~43% cheaper /
- *      ~34% faster on a hosted strong model). The narrative is never at risk: the fold reads a channel the
- *      prose does not ride, and a connection that cannot carry wire `tools[]` on a chat turn (the stateful
- *      agent-sdk wire) falls back to `cheap`'s post-commit round — the SAME delta, one extra call, LOGGED.
- *  An ADDITIVE config field, default `"reliable"` — a pre-amendment blob self-heals to the default at the parse
- *  seam (the schema `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
+ *    • `folded` (DEFAULT, owner ruling 2026-08-01) = the SAME 7 tools mounted on the CHARACTER turn itself with
+ *      `tool_choice:"auto"`, whose co-emitted `tool_calls` ARE the state round — ONE model call per exchange
+ *      (measured ~43% cheaper / ~34% faster on a hosted strong model, 6/6 co-emission — D112) and the ONLY mode
+ *      whose state lands WITH the turn. The narrative is never at risk: the fold reads a channel the prose does
+ *      not ride, and a connection that cannot carry wire `tools[]` on a chat turn (the stateful agent-sdk wire)
+ *      falls back to `cheap`'s post-commit round — the SAME delta, one extra call, LOGGED (`rpg.extraction.path`
+ *      WARN + `fallbackReason`). New games are BORN folded; a host who wants the structured arm (a weak local
+ *      model) flips the knob — recommend, never force.
+ *  An ADDITIVE config field — a pre-amendment blob self-heals to the default at the parse seam (the schema
+ *  `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
 export const RPG_EXTRACTION_MODES = ["reliable", "cheap", "folded"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
 
@@ -132,7 +135,8 @@ export type RpgDateMode = (typeof RPG_DATE_MODES)[number];
 
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
- *  delivery-model knob (the amendment), default `"reliable"`. `dateMode` (#9) defaults `"narrated"` —
+ *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling 2026-08-01, on
+ *  D112's measured evidence; the two-call arms are the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
  *  additive, self-heals at the parse seam. */
 export const rpgGameConfigSchema = z.object({
   // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
@@ -155,7 +159,7 @@ export const rpgGameConfigSchema = z.object({
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).default(""),
     })
     .default({ steeringNote: "" }),
-  extractionMode: z.enum(RPG_EXTRACTION_MODES).default("reliable"),
+  extractionMode: z.enum(RPG_EXTRACTION_MODES).default("folded"),
   // The extraction-DEPTH knobs (the crunchy-cluster redesign §1.3) — how much of the turn's own story the
   // state round reads, and its token budget. Additive defaulted, self-healing at the parse seam (the
   // `extractionMode` precedent — D107 knob-wire discipline, no version stamp). `extractionContext` defaults

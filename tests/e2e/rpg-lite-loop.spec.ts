@@ -149,11 +149,12 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(before.quests).toEqual([]);
     expect(before.cast).toEqual([]);
     expect(before.actors.every((a) => a.volatile === null)).toBe(true);
-    // getGame BE truth: a fresh lite game is active, reliable-by-default, not read-only.
+    // getGame BE truth: a fresh lite game is active, FOLDED-by-default (the one-call fold — owner ruling
+    // 2026-08-01), not read-only.
     const game = await getGame(chatId);
     expect(game.mode).toBe("lite");
     expect(game.status).toBe("active");
-    expect(game.extractionMode).toBe("reliable");
+    expect(game.extractionMode).toBe("folded");
     expect(game.trackersReadOnly).toBe(false);
 
     // FE (born-default): open the takeover; the Scene tab shows its honest empty affordances, no fabricated state.
