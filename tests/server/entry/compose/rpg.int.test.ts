@@ -23,8 +23,8 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { messageVariants } from "@orb/db";
-import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
+import { messages, messageVariants } from "@orb/db";
+import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -39,7 +39,7 @@ import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg
 import { buildRpg } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { makeModelCapability, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
 
@@ -102,8 +102,9 @@ function collectBus(chatId: ChatId, signal: AbortSignal): RpgBusEvent[] {
   return seen;
 }
 
-// 20s: the composed-real graph (full createServices) + a real tool turn is heavy under parallel load.
-test("CHEAP turn — createGame + a real tool turn flush lands state + the pointer + bus emits (composed-real)", { timeout: 20_000 }, async ({
+// 30s: the composed-real graph (full createServices) + a real tool turn is heavy under parallel load — this
+// FIRST test pays the whole fixture warm-up for the file, and it was landing within a hair of the old 20s cap.
+test("CHEAP turn — createGame + a real tool turn flush lands state + the pointer + bus emits (composed-real)", { timeout: 30_000 }, async ({
   app,
   services,
   db,
@@ -1156,4 +1157,193 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   expect(partyTool?.description).toContain("resolve you spend to push through danger");
   const partyArms = partyTool?.parameters as { properties?: { trackerDeltas?: { items?: { properties?: { key?: { enum?: string[] } } } } } };
   expect(partyArms.properties?.trackerDeltas?.items?.properties?.key?.enum).toEqual(["grit"]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// VER-1a — A REROLL SUPERSEDES, IT DOES NOT ACCUMULATE (+ the resync reconciler's idempotence).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The live-confirmed defect: the state round resolved its base as the resolution HEAD, so a NEW variant on an
+// already-flushed slot took its own REJECTED sibling's applied extraction as base and re-applied on top —
+// every reroll paraphrased the same story beat into `recentEvents` again (the owner's dogfood chat carried
+// three near-identical "Niko was touched you remembered her name" beats off ONE story moment). PRE-EXISTING on
+// all three vehicles, so the pin drives all three: reroll ⇒ ONE beat set, never N.
+
+/** The turn's writes as TOOL CALLS (the cheap/folded vehicles' shape) — a scene beat + a journal entry, i.e.
+ *  exactly the two APPEND-shaped planes a duplicated base re-applies. */
+const REROLL_CALLS = [
+  { name: "update_scene", args: { location: "the obsidian tower", recentEvent: "arrived at the tower" } },
+  { name: "add_journal_entry", args: { type: "location", title: "Arrival", content: "They reached the tower." } },
+];
+
+/** The SAME writes as a reliable structured payload (derived from the calls, so the two can never drift). */
+function rerollExtractionText(): string {
+  const argsFor = (name: string): unknown[] => REROLL_CALLS.filter((c) => c.name === name).map((c) => c.args);
+  return JSON.stringify({ party: [], inventory: [], scene: argsFor("update_scene")[0], trackers: [], quests: [], journal: argsFor("add_journal_entry") });
+}
+
+/** Flip a slot's selected variant — the D26 pointer move (zero content copy) a swipe/reroll performs. */
+async function selectVariant(db: Db, messageId: MessageId, variantId: MessageVariantId): Promise<void> {
+  await db.update(messages).set({ selectedVariantId: variantId }).where(eq(messages.id, messageId));
+}
+
+/** The panel state a game currently projects — the two planes the accumulation bug grew. */
+async function panelState(
+  compose: ReturnType<typeof buildRpg>,
+  hostId: UserId,
+  chatId: ChatId,
+): Promise<{ location: string | undefined; beats: readonly string[]; journal: readonly string[] }> {
+  const principal = hostPrincipal(hostId);
+  const view = await compose.service.getTrackerView({ principal, chatId });
+  const journal = await compose.service.listJournal({ principal, chatId, limit: 50 });
+  return { location: view.ambient?.location, beats: view.recentBeats, journal: journal.map((j) => j.title) };
+}
+
+/** Generate a turn onto a fresh slot, then REROLL it: a second variant on the SAME slot, selected, flushed
+ *  again with the same writes. Returns the panel state the two flushes left. */
+async function driveReroll(args: {
+  readonly compose: ReturnType<typeof buildRpg>;
+  readonly db: Db;
+  readonly hostId: UserId;
+  readonly chatId: ChatId;
+  readonly turn: (calls: readonly { name: string; args: unknown }[]) => RpgTurnContext;
+}): Promise<{ location: string | undefined; beats: readonly string[]; journal: readonly string[] }> {
+  const { compose, db, hostId, chatId, turn } = args;
+  const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await compose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, turn(REROLL_CALLS));
+  // THE REROLL: a new variant on the same slot, selected (the rejected one stays as a dead sibling).
+  const rerolled = await addVariant(db, slot.messageId, 1, "They arrive at the tower, rain-soaked.");
+  await selectVariant(db, slot.messageId, rerolled);
+  await compose.chatOps.onTurnCompleted(chatId, slot.messageId, rerolled, TURN, turn(REROLL_CALLS));
+  return panelState(compose, hostId, chatId);
+}
+
+test("VER-1a: a REROLL supersedes the rejected variant's extraction — ONE beat set, on all three vehicles", async ({ app, db }) => {
+  // (1) RELIABLE — the structured round.
+  const rel = await seedHostGameChat(db, "ver1a-reliable");
+  const relCompose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: rerollExtractionText() });
+  await relCompose.service.createGame({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, mode: "lite" });
+  await relCompose.service.updateConfig({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, extractionMode: "reliable" });
+  const relState = await driveReroll({ compose: relCompose, db, hostId: rel.hostId, chatId: rel.chatId, turn: () => tc("chat-completions") });
+
+  // (2) CHEAP — the dedicated tool round, answered with the same writes as parallel calls.
+  const cheap = await seedHostGameChat(db, "ver1a-cheap");
+  const cheapCompose = buildReliableRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    cannedToolCalls: REROLL_CALLS.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
+  });
+  await cheapCompose.service.createGame({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, mode: "lite" });
+  await cheapCompose.service.updateConfig({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
+  const cheapState = await driveReroll({ compose: cheapCompose, db, hostId: cheap.hostId, chatId: cheap.chatId, turn: () => tc("chat-completions") });
+
+  // (3) FOLDED — the character turn's own co-emitted calls, on the first pass AND the reroll.
+  const fold = await seedHostGameChat(db, "ver1a-folded");
+  const foldCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await foldCompose.service.createGame({ principal: hostPrincipal(fold.hostId), chatId: fold.chatId, mode: "lite" }); // born folded
+  const foldState = await driveReroll({ compose: foldCompose, db, hostId: fold.hostId, chatId: fold.chatId, turn: (calls) => foldedTurn(calls) });
+
+  // THE REGRESSION: the rerolled variant REPLACED the rejected one's contribution. Pre-fix the beat window read
+  // ["arrived at the tower", "arrived at the tower"] on every vehicle (the base carried the dead sibling's write).
+  for (const state of [relState, cheapState, foldState]) {
+    expect(state.beats).toEqual(["arrived at the tower"]);
+    expect(state.location).toBe("the obsidian tower");
+    // The journal plane was ALREADY supersede-correct (its read projects the selected variant, so the dead
+    // sibling's entry stops rendering the moment the pointer moves) — pinned here so both planes are proven to
+    // agree on the same semantics, and so a future "just write journal rows unstamped" regresses loudly.
+    expect(state.journal).toEqual(["Arrival"]);
+  }
+});
+
+test("VER-1a: SWIPING between variants surfaces the SELECTED variant's own consequences (no double-apply)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1a-swipe");
+  // Two DIFFERENT extractions on ONE slot — a compose per canned reply, both over the SAME db/game.
+  const towerCompose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: rerollExtractionText() });
+  const fordCompose = buildReliableRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: JSON.stringify({
+      party: [],
+      inventory: [],
+      scene: { location: "the ford", recentEvent: "waded the ford" },
+      trackers: [],
+      quests: [],
+      journal: [{ type: "location", label: "", title: "The crossing", content: "They waded the ford." }],
+    }),
+  });
+  await towerCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await towerCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" });
+
+  const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await towerCompose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, tc("chat-completions"));
+  const rerolled = await addVariant(db, slot.messageId, 1, "They wade the ford instead.");
+  await selectVariant(db, slot.messageId, rerolled);
+  await fordCompose.chatOps.onTurnCompleted(chatId, slot.messageId, rerolled, TURN, tc("chat-completions"));
+
+  // The REROLLED variant is selected: its own consequences, and ONLY its own (pre-fix the ford's snapshot was
+  // built on the tower's, so the panel read "the ford" with BOTH beats).
+  expect(await panelState(fordCompose, hostId, chatId)).toEqual({ location: "the ford", beats: ["waded the ford"], journal: ["The crossing"] });
+
+  // Swipe BACK — a pure pointer move, zero writes: the first variant's state + beat + journal entry return
+  // whole, and nothing was re-applied (each variant's snapshot is absolute over the same pre-slot base).
+  await selectVariant(db, slot.messageId, slot.variantId);
+  expect(await panelState(towerCompose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
+});
+
+// ── resyncFromStory: the RECONCILER lands the re-derived truth, it never appends onto it ──────────────
+// The owner clicked "Resync from story" four times on an unchanged story and the panel GREW: four paraphrases
+// of one beat in `recentEvents` + three near-identical journal rows (each resync minted its own anchor slot,
+// so the lineage projection could not hide any of them). The reconciler now REBUILDS the beat window and
+// writes NO journal, so N clicks == 1 click.
+
+test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave byte-identical state", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1a-resync");
+  const principal = hostPrincipal(hostId);
+  const compose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: rerollExtractionText() });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await compose.service.updateConfig({ principal, chatId, extractionMode: "reliable" });
+  // A real story beat first, so the resync reconciles against a populated panel (not a born-empty game).
+  const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await compose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, tc("chat-completions"));
+
+  await compose.service.resyncFromStory({ principal, chatId });
+  const first = await panelState(compose, hostId, chatId);
+  await compose.service.resyncFromStory({ principal, chatId });
+  const second = await panelState(compose, hostId, chatId);
+
+  // IDEMPOTENT: the second pass landed the same truth, it did not append onto the first's.
+  expect(second).toEqual(first);
+  // …and the truth is the REBUILT window (one beat, not the turn's beat plus a paraphrase of it), with the
+  // archive untouched by the rebuild (the turn's own entry, exactly once).
+  expect(first).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
+});
+
+test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the owner's one-click cleanup)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1a-resync-cleanup");
+  const principal = hostPrincipal(hostId);
+  const compose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: rerollExtractionText() });
+  const { gameId } = await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await compose.service.updateConfig({ principal, chatId, extractionMode: "reliable" });
+
+  // The dev-db shape the bug left behind: ONE story moment, paraphrased into the window once per reroll/resync.
+  const dup = "Niko was touched you remembered her name";
+  const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "Niko blinks at you." });
+  const written = await writeStagedSnapshot(
+    db,
+    { ...defaultSnapshotState(), location: "the konbini", recentEvents: [`${dup}, then asked about drinks.`, `${dup} and dropped the cat-bit.`, `${dup}.`] },
+    { id: castId("rpg_snapshot_ver1a_dup"), gameId, messageId: slot.messageId, variantId: slot.variantId, now: FROZEN_AT },
+  );
+  expect(written.ok).toBe(true);
+  await commitSnapshotForVariant(db, slot.variantId);
+
+  await compose.service.resyncFromStory({ principal, chatId });
+
+  // ONE click re-derives the window from the story — the three duplicates are gone (no migration code needed;
+  // the reconciler IS the cleanup). The journal rows the same bug left are NOT the resync's to remove: they are
+  // durable archive rows on live anchor slots, and the host clears those with `deleteJournalEntry`.
+  expect(await panelState(compose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: [] });
 });

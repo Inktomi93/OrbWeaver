@@ -3,7 +3,7 @@
 // the COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). THE
 // DELIVERY FORK picks the VEHICLE that produces this turn's delta; all three funnel through ONE flush tail:
 //   • reliable — the flush runs `runExtraction` (a dedicated post-commit structured-output turn over the
-//     resolution-ladder base), stages its delta into the accumulator, THEN takes + writes.
+//     pre-slot base), stages its delta into the accumulator, THEN takes + writes.
 //   • cheap    — the flush runs `runToolRound` (a dedicated post-commit tool round: parallel tool calls,
 //     `tool_choice:"required"` + a no_changes escape), whose parsed calls fold to the SAME delta shape.
 //   • folded   — NO post-commit model call at all (R1): the CHARACTER turn already carried the same 7 tools
@@ -26,7 +26,7 @@ import type { StagedTurnFlush } from "../contract/params";
 import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
-import { resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
+import { resolveSnapshotBeforeSlot, writeStagedSnapshot } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
 import { isReconcileBeat } from "./reconcile-cadence";
@@ -40,15 +40,23 @@ interface CompletedTurn {
   readonly turnConnection: RpgTurnContext;
 }
 
-/** Resolve the reliable-mode extraction BASE — the resolution-ladder head for this turn (or the synthesized
- *  default for a turnless game). The extraction reasons against this; it is never re-resolved by the op. */
-async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSnapshotState> {
-  const row = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
+/** Resolve the state round's BASE — the state as of the slot BEFORE this turn (or the synthesized default for
+ *  a turnless game). Every vehicle reasons against this; it is never re-resolved by the op.
+ *
+ *  VER-1a — THE BASE EXCLUDES THIS TURN'S OWN SLOT. A reroll mints a NEW variant on an EXISTING assistant
+ *  slot, and the rejected variant's snapshot is `base + that variant's delta`; taking the resolution HEAD
+ *  would feed the new variant its own sibling's applied extraction, so the fresh delta would stack on top
+ *  (live-confirmed: rerolling one turn produced three near-identical journal beats + a recentEvents window
+ *  that grew a paraphrase per reroll). Basing before the slot makes every variant's snapshot ABSOLUTE — the
+ *  new variant SUPERSEDES the rejected one instead of accumulating, and a swipe surfaces exactly the selected
+ *  variant's consequences (both ends of the journal + snapshot planes already project by selected variant). */
+async function extractionBase(ctx: RpgContext, game: RpgGameRow, messageId: MessageId): Promise<RpgSnapshotState> {
+  const row = await resolveSnapshotBeforeSlot(ctx.db, { id: game.id, chatId: game.chatId }, messageId);
   return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
 }
 
 /** Stage a state DELTA (from either dedicated state round — reliable's extraction OR cheap's tool round) into
- *  the turn's accumulator: ensure the bucket from the resolution-ladder base, overlay the state patch, append
+ *  the turn's accumulator: ensure the bucket from the pre-slot base, overlay the state patch, append
  *  the journal entries. An EMPTY delta (no state keys, no journal) stages NOTHING — a "nothing changed this
  *  turn" round must not write a redundant clone-forward snapshot (the take then stays `undefined`,
  *  byte-identical to a non-writing turn). The delta is resolved by the mode's injected op below. */
@@ -56,7 +64,7 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
 // share this exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
-  const baseState = await extractionBase(ctx, game);
+  const baseState = await extractionBase(ctx, game, turn.messageId);
   const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
     chatId: game.chatId,

@@ -103,9 +103,9 @@ export async function gatherTurnContext(
   // R1 — the FOLD: on a `folded` game with a live write path, THIS turn carries the 7 state tools as TERMINAL
   // tools, so the model co-emits prose + state in one completion. Resolved BEFORE the reminder because a
   // reconcile beat contributes a note the reminder carries (the post-commit rounds put that line in their own
-  // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — the SAME
-  // resolution-ladder head `stageStateRound` will resolve as its base, so what the model is constrained to
-  // write is exactly what the apply path can resolve.
+  // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — the head the
+  // player is looking at. The flush's apply base excludes the turn's own slot (VER-1a), so on a REROLL the two
+  // differ by the rejected variant's delta; a ref only the head carries is dropped by the R5 ghost guard.
   //
   // ERRORS-AS-DATA, AND THIS HALF IS THE DANGEROUS ONE: unlike the flush (which runs post-commit, where the
   // worst case is a lost state write), the mount runs PRE-commit inside turn assembly — a throw here kills the
