@@ -5,7 +5,7 @@
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
-import { QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
+import { QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "./contract";
 
 const EFFORT_OFF = "none";
@@ -204,11 +204,28 @@ function resolveReasoning(
   };
 }
 
+// `quality` is TYPED at every call site today, but the value itself originates in a persisted preset / the
+// wire — an unrecognized string can only arrive that way, and `QUALITY_SAMPLING[quality][knob]` would then
+// index `undefined` and throw a TypeError, taking the whole turn down over one bad data value. Total instead:
+// an unknown quality resolves as NO quality dial (the user's explicit knobs and the model's own defaults still
+// apply — exactly what an absent quality does) and says so in the existing drop vocabulary. Never throws.
+function knownQuality(quality: UserIntent["quality"], warnings: ResolvedWarning[]): UserIntent["quality"] {
+  if (quality !== undefined && !QUALITY_LEVELS.includes(quality)) {
+    warnings.push({
+      code: "sampling_knob_dropped",
+      message: `quality "${quality}" ignored: not a known quality level (${QUALITY_LEVELS.join(", ")})`,
+    });
+    return;
+  }
+  return quality;
+}
+
 function resolveSampling(params: UserIntent, capability: ModelCapability, warnings: ResolvedWarning[]): ResolvedSampling {
   // The quality dial fills sampling gaps (QUALITY_SAMPLING); an explicit user knob still wins, and every
   // value is capability-gated + clamped below — a model whose descriptor omits the knob never receives it.
   const s = capability.sampling;
-  const temperature = resolveNumeric("temperature", effectiveSampling(params.temperature, params.quality, "temperature"), s.temperature, warnings);
+  const quality = knownQuality(params.quality, warnings);
+  const temperature = resolveNumeric("temperature", effectiveSampling(params.temperature, quality, "temperature"), s.temperature, warnings);
   const topP = resolveNumeric("topP", params.topP, s.topP, warnings);
   const topK = resolveNumeric("topK", params.topK, s.topK, warnings);
   const freq = resolveNumeric("frequencyPenalty", params.frequencyPenalty, s.frequencyPenalty, warnings);
