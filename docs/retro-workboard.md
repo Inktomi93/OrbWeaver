@@ -53,6 +53,16 @@ unification · **D111-GAP resolved as PARKED (owner 08-01):** the ☰ relocation
 to get it right — a DISCUSSION item, not a build item; D111's clause amended to "OPEN, neither
 location is law" · useRpgBus has no CT (e2e-consequence coverage only).
 
+**DAWN ADDENDUM (the last stretch):** weather = closed 8-state enum + flavor label end-to-end
+(`745ed3dc`+`f96e24d7` — axis homed in kit by reachability, 65-row binning table deleted, host picker,
+one display rule; TOTAL-storage lesson banked) · Waystone size-steps fixed (`611dee66` — the header
+band had NO query container + unreachable thresholds; `.shell-panel` now the container) · panel
+26vw→30vw (`660b2dd4`, owner's cramped ruling — a 1280 desktop now reaches the 120px stone) · the
+:5173 vite was a DEAD-WATCHER ZOMBIE serving 2-day-old modules (killed by PID; stack restarted fresh;
+[[live-client-port-5173]] extended: curl /@fs/<file> vs disk before trusting any live measurement) ·
+two off-enum weather rows repaired in the dev DB while down · **FINAL LIVE MEASUREMENT: stone 120px,
+panel 480px** ✓.
+
 **Open from the night:** UI stretch order ruled:
 Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
 surface + effective-delivery freshness) · AU-8 hunt-A backlog · **settings-registry migration DONE-as-scoped** `21abdc42` (merged): the registry pattern was
