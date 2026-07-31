@@ -316,6 +316,26 @@ sink); ours is prompt-side voice-lock only. Measure the nudge's hold on hosted+l
 second layer only if it drifts. Confirmed-equivalent by construction: tool suppression (D112 (5)), event
 separation. Deliberate divergence kept: partial fill preserved on cancel (vs ST clear+overwrite).
 
+**13:2x MERGE TRAIN (all check-certified; battery next):** WAKE-ON-DEMAND `74e358b5` (is_sleeping truth —
+the supervisor registry was a 21s-stale posture-conditional cache; hold=refuse-with-named-state; single-flight;
+fail-loud; found the REAL 12:41 killer = stack.sh engines-off default → posture flipped to adopt-only default,
+owner-ruled) · INVALIDATION `9b0406ac` (startChat burst was WORSE than reported — listChats ×3/getChat ×4 real
+round-trips → 2/2; chatCreated row emptied; getChat out of canon-reads; PREVIEW FRESHNESS landed —
+promptPreviewReads on canon/persona/preset/settings/wi rows; invalidateQueries does NOT dedupe in-flight) ·
+ZOMBIE-SUB `84158139` (real mechanism: non-DomainError → retryable tRPC 500 → SSE retries forever with ZERO
+client callbacks; consumer fixed + toasts for every impersonate failure arm incl. the draft-commit composite) ·
+persona-swap server regressions `9b42de5d` (server clean; Preview staleness was the ghost).
+
+**NEW QUEUE (from the zombie lane's flags):** SSE-1b — ProviderError→typed-terminal mapping at the chat domain
+boundary (subscription faults become DomainUnavailable frames everywhere; recommendation over widening
+withSubscriptionErrors; folds naturally into the SSE-multiplex lane's room-source work) · START-1 —
+startChat({opening:"generate"}) is non-atomic: dead-engine opening orphans a real chat behind the draft
+(server: return chat id + opening-failure outcome) · IMP-2 — Stop/cancel during impersonate (the unsubscribe
+handle IS the lever, nothing renders it; guided icons show a misleading wait reason meanwhile) · IMP-1 grows:
+per-tick hygiene is a REAL gap (impersonate yields RAW deltas — AI_OUTPUT regex/self-label strip run on
+content only; a leaked "Name:" prefix lands in the composer verbatim; cheapest fix = final replacement delta
+carrying the reduced text).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
