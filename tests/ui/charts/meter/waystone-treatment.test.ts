@@ -17,6 +17,7 @@ import {
   WAYSTONE_PHASES,
   WAYSTONE_SKY_STOPS,
   WAYSTONE_WEATHERS,
+  waystoneBandTint,
   waystoneCelestialAt,
   waystonePhaseAtHour,
   waystoneSkyAt,
@@ -255,6 +256,33 @@ test("the dial's hour buckets match the contract's nearest-TIME_OF_DAY_HOURS lab
     "night",
   ];
   expect(HOURS.map((hour) => waystonePhaseAtHour(hour))).toEqual([...expected]);
+});
+
+test("every dial band carries its OWN identity hue, derived from the sky it paints (never a grey ring)", () => {
+  // The owner's read of the first build: the ring showed "two colors — grey + dark blue", because only the
+  // current band was tinted. A dial has SECTIONS: all six bands are their own color, and the derivation is the
+  // sky stop table sampled at the band's midpoint, so the ring and the disc can never disagree.
+  const tints = WAYSTONE_PHASES.map((phase) => waystoneBandTint(phase));
+  expect(new Set(tints).size).toBe(WAYSTONE_PHASES.length);
+  for (const tint of tints) {
+    expect(tint).toMatch(TOKEN_COLOR_RE);
+    // No band falls back to a neutral: a grey would be a `--color-muted`/`--color-border` recipe.
+    expect(tint).not.toContain("var(--color-muted)");
+    expect(tint).not.toContain("var(--color-border)");
+  }
+  // DERIVED, not re-authored: each band's tint IS the sky's `from` at that band's midpoint hour.
+  for (const span of WAYSTONE_PHASE_SPANS) {
+    expect(waystoneBandTint(span.phase), `${span.phase} tint must come from the stop table`).toBe(waystoneSkyAt((span.from + span.to) / 2).from);
+  }
+  // …and the identities are the ones the day actually has: the golden bands reach for the ember token, the
+  // dark bands for the night track. (dawn/evening being neighbours in hue is honest — their dial POSITIONS,
+  // opposite sides of the ring, are what separate them.)
+  expect(waystoneBandTint("dawn")).toContain("var(--color-primary)");
+  expect(waystoneBandTint("evening")).toContain("var(--color-primary)");
+  expect(waystoneBandTint("afternoon")).toContain("var(--color-track-3)");
+  expect(waystoneBandTint("afternoon")).not.toContain("var(--color-primary)");
+  expect(waystoneBandTint("night")).toContain("var(--color-track-2)");
+  expect(waystoneBandTint("midnight")).toContain("var(--color-track-2)");
 });
 
 test("the dial's phase spans tile the whole 24h ring exactly once (no gap, no overlap, one arc per label)", () => {

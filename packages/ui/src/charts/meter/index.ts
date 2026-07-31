@@ -35,6 +35,7 @@ export {
   WAYSTONE_PHASES,
   WAYSTONE_SKY_STOPS,
   WAYSTONE_WEATHERS,
+  waystoneBandTint,
   waystoneCelestialAt,
   waystonePhaseAtHour,
   waystoneSkyAt,

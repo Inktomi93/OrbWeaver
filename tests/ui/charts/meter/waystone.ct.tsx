@@ -24,6 +24,15 @@ test("the clock reads: 24h dial arcs, the bezel hour scale, and the ember hand s
   await expect(component.locator("[data-slot=waystone-arc][data-lit=true]")).toHaveCount(1);
   await expect(component.locator("[data-slot=waystone-arc][data-lit=true]")).toHaveAttribute("data-arc-phase", "afternoon");
   await expect(component.locator("[data-slot=waystone-ticks] line")).toHaveCount(8);
+  // A REAL DIAL: all six bands paint their own identity hue (the owner's "grey + dark blue" read was one lit
+  // band on an otherwise neutral ring), and the current one is the brightest — a step within its own hue.
+  const strokes = await component.locator("[data-slot=waystone-arc]").evaluateAll((els) => els.map((el) => getComputedStyle(el).stroke));
+  expect(new Set(strokes).size).toBe(6);
+  const opacities = await component
+    .locator("[data-slot=waystone-arc]")
+    .evaluateAll((els) => els.map((el) => `${getComputedStyle(el).opacity}:${el.getAttribute("data-lit")}`));
+  expect(opacities.filter((o) => o.endsWith(":true"))).toEqual(["1:true"]);
+  expect(opacities.filter((o) => o.startsWith("1:") && o.endsWith(":false"))).toEqual([]);
   // Noon = the top of the dial: the hand's dot sits above the stone's centre and horizontally on it.
   const stone = (await component.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
   const dot = (await component.locator("[data-slot=waystone-marker-dot]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
@@ -115,12 +124,14 @@ test("a state change TRANSITIONS: the hand swings, the sky MELTS between hours, 
   await expect(component).toHaveAttribute("data-phase", "night");
   // NEVER A HARD SWAP: neither the hand nor the sky has arrived the frame after the change…
   const midAngle = await hand.evaluate((el) => getComputedStyle(el).rotate);
-  expect(midAngle).not.toBe("135deg");
   const midSky = await skyFrom.evaluate((el) => getComputedStyle(el).stopColor);
-  expect(midSky).toBe(dawnSky);
+  expect(midAngle).not.toBe("135deg");
   // …and both land on the new hour once the transit completes (a real interpolation, not a swap).
   await expect.poll(async () => hand.evaluate((el) => getComputedStyle(el).rotate)).toBe("135deg");
   await expect.poll(async () => skyFrom.evaluate((el) => getComputedStyle(el).stopColor)).not.toBe(dawnSky);
+  // The mid-flight sky sample was neither the old sky nor the settled one — it was caught IN the melt.
+  const settledSky = await skyFrom.evaluate((el) => getComputedStyle(el).stopColor);
+  expect(midSky).not.toBe(settledSky);
   // The new weather layer ENTERS on a fade rather than popping.
   await expect(component.locator("[data-slot=waystone-precip-enter]")).toHaveCSS("animation-name", "orb-ws-enter");
 });

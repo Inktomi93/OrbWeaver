@@ -268,7 +268,10 @@ const BODY_R_LOW = 6.4;
 const BODY_R_SHRINK = 0.9;
 
 const SUN_LOW = "color-mix(in oklab, var(--color-primary) 82%, var(--color-track-3))";
-const SUN_HIGH = "color-mix(in oklab, var(--color-track-3) 45%, var(--color-foreground))";
+// The bright-noon disc. The lift is toward `--color-foreground` — the contrast pole in BOTH polarities, so
+// the sun reads as a lifted disc on a dark theme and as a deeper, more saturated one on a light theme (there
+// is deliberately no polarity-constant "white" token; mixing toward `background` would sink it into the sky).
+const SUN_HIGH = "color-mix(in oklab, var(--color-track-3) 75%, var(--color-foreground))";
 const MOON_LOW = "color-mix(in oklab, var(--color-foreground) 60%, var(--color-track-4))";
 const MOON_HIGH = "color-mix(in oklab, var(--color-foreground) 88%, var(--color-track-2))";
 
@@ -428,4 +431,15 @@ export const WAYSTONE_PHASE_SPANS: readonly WaystonePhaseSpan[] = [
 export function waystonePhaseAtHour(hour: number): WaystonePhase {
   const span = WAYSTONE_PHASE_SPANS.find((s) => hour >= s.from && hour < s.to);
   return span?.phase ?? "midnight";
+}
+
+/** A band's IDENTITY hue: the sky this part of the day actually paints, sampled at the band's MIDPOINT hour.
+ *  The dial is a real dial — every segment carries its own section color (dawn's golden window · morning's
+ *  light air · the full-bright afternoon · evening's amber · night's deep blue · midnight's darkest indigo),
+ *  never a neutral grey. DERIVED from the one sky stop table, so a palette edit moves the ring and the disc
+ *  together and they can never disagree (the §12.1.9 one-home rule for the stone). */
+export function waystoneBandTint(phase: WaystonePhase): string {
+  const span = WAYSTONE_PHASE_SPANS.find((s) => s.phase === phase);
+  const midpoint = span === undefined ? 0 : (span.from + span.to) / 2;
+  return waystoneSkyAt(midpoint).from;
 }
