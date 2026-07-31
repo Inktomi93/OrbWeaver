@@ -17,8 +17,8 @@
 //    (§12.2.1 nullable-honesty). No binning lives here anymore — there is nothing left to bin.
 //
 // `@orb/ui` may not import `@orb/contracts` (the sealed-ui cake, D54), so the ONE thing this module mirrors
-// from the contract is the label→hour BANDING used to light the dial's arcs (`WAYSTONE_PHASE_SPANS`), pinned
-// by a unit test against the contract's own inversion rule. The weather axis needs no mirror: it is homed in
+// from the contract is the PHASE BOUNDARY table used to light the dial's arcs (`WAYSTONE_PHASE_SPANS` ↔
+// `TIME_OF_DAY_RANGES`), pinned edge-for-edge by a unit test that imports both. The weather axis needs no mirror: it is homed in
 // `@orb/kit/weather` — reachable by ui AND contracts — and derived by identity below.
 //
 // Every color is a theme token or a `color-mix()` over tokens — INCLUDING the interpolation, which nests a
@@ -381,12 +381,16 @@ const CLOUD_SLOT_COUNT = 4;
 const CLOUD_COVER_GAIN = 1.2;
 
 // ─── The dial ring's label arcs (the DISCRETE time layer) ─────────────────────────────────────────
-// These mirror the contract's nearest-representative-hour inversion of TIME_OF_DAY_HOURS (dawn 6 · morning 9 ·
-// afternoon 14 · evening 18 · night 21 · midnight 0, ties to the earlier label), so the arc the marker sits in
-// is the phase the band's TEXT names. `night` runs to the end of the dial — the non-wrapping nearest rule keeps
-// hour 23 in `night`, and midnight owns only 0-2.
+// These mirror the contract's TIME_OF_DAY_RANGES — the EXPLICIT phase boundaries (dawn 5 · morning 8 ·
+// afternoon 12 · evening 17 · night 20 · midnight 23), so a band arc STARTS exactly where its time period
+// starts and the arc the marker sits in is the phase the band's TEXT names. `midnight` is the WRAPPING band:
+// it runs 23h → 5h across the day line, expressed as one span with `to` past 24 (every angle goes through
+// `hourAngle`, which is modulo — so the arc draws correctly straight through the bottom of the dial).
+// The boundaries and the sky palette are ONE design: the golden windows (~5-7h / ~17-19h) fall inside `dawn`
+// and `evening`. A unit test imports the contract and pins both relationships.
 
-/** One dial segment: the label band it belongs to and the hour span it covers (24h dial, noon at the top). */
+/** One dial segment: the label band it belongs to and the hour span it covers (24h dial, noon at the top).
+ *  `to` may exceed 24 for the band that crosses the day line — the span is always `to - from` hours long. */
 export interface WaystonePhaseSpan {
   readonly phase: WaystonePhase;
   readonly from: number;
@@ -394,18 +398,20 @@ export interface WaystonePhaseSpan {
 }
 
 export const WAYSTONE_PHASE_SPANS: readonly WaystonePhaseSpan[] = [
-  { phase: "midnight", from: 0, to: 3 },
-  { phase: "dawn", from: 3, to: 7.5 },
-  { phase: "morning", from: 7.5, to: 11.5 },
-  { phase: "afternoon", from: 11.5, to: 16.5 },
-  { phase: "evening", from: 16.5, to: 19.5 },
-  { phase: "night", from: 19.5, to: 24 },
+  { phase: "dawn", from: 5, to: 8 },
+  { phase: "morning", from: 8, to: 12 },
+  { phase: "afternoon", from: 12, to: 17 },
+  { phase: "evening", from: 17, to: 20 },
+  { phase: "night", from: 20, to: 23 },
+  { phase: "midnight", from: 23, to: 29 },
 ];
 
 /** The label band whose dial segment contains this hour — drives which arc is LIT (the marker always sits on
- *  the lit arc, so the ring reads "we are here, in this named part of the day"). */
+ *  the lit arc, so the ring reads "we are here, in this named part of the day"). Wrap-aware: an hour before
+ *  the day's first band start belongs to the band still running from yesterday (`h + 24` finds it). */
 export function waystonePhaseAtHour(hour: number): WaystonePhase {
-  const span = WAYSTONE_PHASE_SPANS.find((s) => hour >= s.from && hour < s.to);
+  const h = ((hour % HOURS_IN_DAY) + HOURS_IN_DAY) % HOURS_IN_DAY;
+  const span = WAYSTONE_PHASE_SPANS.find((s) => (h >= s.from && h < s.to) || (h + HOURS_IN_DAY >= s.from && h + HOURS_IN_DAY < s.to));
   return span?.phase ?? "midnight";
 }
 

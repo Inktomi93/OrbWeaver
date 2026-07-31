@@ -20,8 +20,8 @@
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
-import type { RpgCastField, RpgClockTime, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
-import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgCastField, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather } from "@orb/contracts/rpg";
+import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -70,21 +70,6 @@ export const RPG_CYOA_TEACH =
 export const RPG_CARD_TEACH_STATIC =
   'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Embed everything inline (no external fonts/images). Do not wrap it in a code fence.';
 
-/** Derive the nearest time-of-day label from a stored clock hour (the ONE inverse of `TIME_OF_DAY_HOURS`,
- *  §2.7 — the banner + the reminder both read the label back through this one home). */
-function timeOfDayLabel(clock: RpgClockTime): string {
-  let best: TimeOfDay = TIME_OF_DAY[0];
-  let bestDist = Number.POSITIVE_INFINITY;
-  for (const label of TIME_OF_DAY) {
-    const dist = Math.abs(TIME_OF_DAY_HOURS[label] - clock.hour);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = label;
-    }
-  }
-  return best;
-}
-
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
  *  it. Time-of-day stays in BOTH modes (structured + functional — it drives the Waystone). */
@@ -97,7 +82,8 @@ function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: 
     parts.push(ambient.calendarDate);
   }
   if (ambient.clock !== null) {
-    parts.push(dateMode === "structured" ? `day ${ambient.clock.day} · ${timeOfDayLabel(ambient.clock)}` : timeOfDayLabel(ambient.clock));
+    const label = timeOfDayAtHour(ambient.clock.hour);
+    parts.push(dateMode === "structured" ? `day ${ambient.clock.day} · ${label}` : label);
   }
   if (ambient.weather !== null) {
     parts.push(weatherLine(ambient.weather));

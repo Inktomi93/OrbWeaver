@@ -23,8 +23,8 @@
 // a per-plane guard: a throwing renderer DEGRADES that plane's lines to nothing and the OTHER planes still
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
-import type { RpgCastField, RpgClockTime, RpgSnapshotState, TimeOfDay } from "@orb/contracts/rpg";
-import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgCastField, RpgSnapshotState } from "@orb/contracts/rpg";
+import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
@@ -195,22 +195,6 @@ const walletRenderer: PlaneDiffRenderer<ActorState> = {
     }),
 };
 
-/** The nearest time-of-day LABEL for a clock hour (the ONE inverse of `TIME_OF_DAY_HOURS`, mirrored from the
- *  reminder's `timeOfDayLabel` — the delta reports a `time → night` transition by the same label vocabulary the
- *  absolute state line uses, so prev/cur read consistently). */
-function timeOfDayLabel(clock: RpgClockTime): TimeOfDay {
-  let best: TimeOfDay = TIME_OF_DAY[0];
-  let bestDist = Number.POSITIVE_INFINITY;
-  for (const label of TIME_OF_DAY) {
-    const dist = Math.abs(TIME_OF_DAY_HOURS[label] - clock.hour);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = label;
-    }
-  }
-  return best;
-}
-
 /** Ambient — scene transitions + the GAME-CALENDAR-AGNOSTIC date/time-of-last-turn diff (owner ruling
  *  2026-07-27, fold-in #6). The diff reports the NEW value on any change (a transition — the prose reacts to the
  *  destination). Three orthogonal time arms, each firing only when changed, ALL able to fire together (a long
@@ -233,10 +217,11 @@ function timeLines(prev: AmbientSlice, cur: AmbientSlice): readonly string[] {
   if (cur.clock !== null && cur.clock.day !== (prev.clock?.day ?? null)) {
     out.push(`day ${prev.clock?.day ?? "?"} → day ${cur.clock.day}`);
   }
-  // The time-of-day label — the intra-day arm (derived from the hour, not the raw hour).
+  // The time-of-day label — the intra-day arm (the hour's RANGE, not the raw hour: a within-band tick is
+  // not a beat, and the boundaries are the contract's one home so prev/cur can never be named by two rules).
   if (cur.clock !== null) {
-    const nextLabel = timeOfDayLabel(cur.clock);
-    if (prev.clock === null || timeOfDayLabel(prev.clock) !== nextLabel) {
+    const nextLabel = timeOfDayAtHour(cur.clock.hour);
+    if (prev.clock === null || timeOfDayAtHour(prev.clock.hour) !== nextLabel) {
       out.push(`time → ${nextLabel}`);
     }
   }
