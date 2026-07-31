@@ -10,6 +10,9 @@
 //     BORN COMMITTED onto a fresh silent state-anchor slot).
 //   • THE DEEP READ — the injected `resolveCanonWindow` fired with the deep budget (the story feed).
 //   • A no-op rebuild (empty delta / readonly connection) writes nothing.
+//   • THE RECONCILER SHAPE (VER-1a) — the rebuild lands state ONLY: the journal archive is never appended to,
+//     so repeated clicks cannot grow the panel. (The end-to-end idempotence proof, over the REAL fold + the
+//     real append semantics `resyncStatePatch` un-appends, lives in `tests/server/entry/compose/rpg.int`.)
 
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatTurnId } from "@orb/kit/ids";
@@ -49,8 +52,11 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed on a 
   // The panel reads back the CORRECTED state (the drift is healed).
   const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
   expect(view.ambient?.location).toBe("the corrected throne room");
-  // §4.9: the resync emitted snapshotPatched (+ journalChanged for the rebuilt entry).
-  expect(h.fakes.busEvents.map((e) => e.type)).toEqual(["snapshotPatched", "journalChanged"]);
+  // §4.9: the resync emitted snapshotPatched — and ONLY that. The rebuild does not write the journal (VER-1a:
+  // the archive is the live turns' append-only record; a reconciler that appended to it could never be
+  // idempotent, and the host clicks resync repeatedly), so there is no `journalChanged` and no entry.
+  expect(h.fakes.busEvents.map((e) => e.type)).toEqual(["snapshotPatched"]);
+  expect(await h.service.listJournal({ principal: principal("host"), chatId, limit: 50 })).toEqual([]);
   expect(gameId).toBeDefined();
 });
 
