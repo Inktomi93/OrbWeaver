@@ -5,7 +5,7 @@
 
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RpgActorVolatile, RpgBusEvent, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
+import type { RpgActorVolatile, RpgBusEvent, RpgExtractionMode, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
@@ -53,7 +53,8 @@ export function liteConfig(): RpgGameConfig {
     engaged: true,
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
-    extractionMode: "reliable",
+    extractionMode: "folded", // the BORN default (owner ruling 2026-08-01) — the fixture mirrors a real game
+
     extractionContext: "window",
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,
@@ -422,6 +423,13 @@ export async function seedLiteGame(
   h.fakes.membership.set("user_host", "host");
   const { gameId } = await h.service.createGame({ principal: principal("host"), chatId, mode: "lite" });
   return { chatId, gameId, h };
+}
+
+/** Pin a seeded game to a delivery MODE. Games are BORN `folded` (owner ruling 2026-08-01 — the one-call fold
+ *  is the default experience, D112), so any test that drives a DEDICATED post-commit round (reliable's
+ *  structured extraction / cheap's tool round) must ask for that vehicle explicitly rather than inherit it. */
+export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractionMode: RpgExtractionMode): Promise<void> {
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode });
 }
 
 /** A `character` roster actor entry for the tracker projection. */

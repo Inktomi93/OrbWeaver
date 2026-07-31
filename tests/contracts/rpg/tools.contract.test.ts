@@ -5,6 +5,7 @@
 import {
   addJournalEntryArgsSchema,
   journalTitleFor,
+  journalTypeFor,
   RPG_LITE_TOOL_NAMES,
   rollDiceArgsSchema,
   setTrackerArgsSchema,
@@ -80,6 +81,23 @@ test("upsert_quest bounds action to create/update/complete/fail", () => {
   expect(upsertQuestArgsSchema.safeParse({ name: "Q", action: "delete" }).success).toBe(false);
 });
 
+test("EXT-4c: upsert_quest carries BOTH objective gestures — the authoring list and completeObjectives", () => {
+  // The completion arm is a flat string array (matched by TEXT at apply): the xgrammar-cheapest shape that
+  // says "these are done" without a nested `{text,completed}` object in the required-field blind spot.
+  const parsed = upsertQuestArgsSchema.safeParse({
+    name: "Reach the Vault of Ash",
+    action: "update",
+    objectives: ["Find the road north", "Enter the vault"],
+    completeObjectives: ["Find the road north"],
+  });
+  expect(parsed.success).toBe(true);
+  expect(parsed.success && parsed.data.completeObjectives).toEqual(["Find the road north"]);
+  // Progress can be reported with NO objectives list at all — that's the whole point of the arm.
+  expect(upsertQuestArgsSchema.safeParse({ name: "Q", action: "update", completeObjectives: ["step one"] }).success).toBe(true);
+  // Still projection-clean (the wire tools + the extraction plane both project this schema).
+  expect(() => z.toJSONSchema(upsertQuestArgsSchema)).not.toThrow();
+});
+
 // THE RELIABLE BLOCKER FIX (ruling #10, LIVE-MEASURED 2026-07-27): an 8B dropped the nested-required
 // `journal[].title` in 5/8 reliable extractions (xgrammar does not enforce `required` on nested array items),
 // failing the WHOLE `safeParse` and silently dropping the turn's state. `title` is now OPTIONAL + derived.
@@ -87,6 +105,20 @@ test("add_journal_entry: a title-LESS entry now PARSES (the blocker fix — titl
   const parsed = addJournalEntryArgsSchema.safeParse({ type: "combat", content: "The troll fell." });
   expect(parsed.success).toBe(true);
   expect(parsed.success && parsed.data.title).toBeUndefined();
+});
+
+// EXT-4b — `type` sits in the IDENTICAL nested-array blind spot `title` did, so it gets the identical
+// treatment: optional at parse + healed at apply, with the projection re-requiring it for the backends that
+// DO enforce nested `required` (pinned in extraction.contract). `content` deliberately stays required.
+test("add_journal_entry: a type-LESS entry PARSES and heals to `note`; a content-LESS entry is refused", () => {
+  const typeless = addJournalEntryArgsSchema.safeParse({ content: "The gate groaned open." });
+  expect(typeless.success).toBe(true);
+  expect(typeless.success && typeless.data.type).toBeUndefined();
+  expect(journalTypeFor(typeless.success ? typeless.data : { content: "" })).toBe("note");
+  expect(journalTypeFor({ type: "combat" })).toBe("combat"); // a stated kind is never overridden
+  // A content-less entry has nothing to log (the title derives FROM the content) — it is malformed, and every
+  // delivery path drops exactly that ENTRY (never the turn's other planes — EXT-4a).
+  expect(addJournalEntryArgsSchema.safeParse({ type: "note", title: "a title, no body" }).success).toBe(false);
 });
 
 test("journalTitleFor: model title wins; absent → derived from the content head, capped", () => {

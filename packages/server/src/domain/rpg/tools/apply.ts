@@ -19,6 +19,7 @@ import type {
   RpgExtraction,
   RpgInventoryItem,
   RpgPresentCharacter,
+  RpgQuestObjective,
   RpgQuestStatus,
   RpgSnapshotState,
   RpgTrackerValue,
@@ -28,7 +29,7 @@ import type {
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, journalTitleFor, RPG_TRACKER_VALUE_EMPTY, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
+import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { StagedJournalEntry } from "../contract/params";
 import type { RpgStateDelta } from "../contract/service";
@@ -377,9 +378,39 @@ export function applySetTracker(state: RpgSnapshotState, args: SetTrackerArgs): 
   return { trackerValues: applyTrackerWrites(state.trackerValues, deltas, sets) };
 }
 
+/** The MATCH key for an objective line (EXT-4c): trimmed + case-folded. A model restating its own objective
+ *  list re-types it, and "Find the road north" vs "find the road north " is the same objective — matching on
+ *  the raw string would re-mint it (losing its completion) for a difference no reader can see. */
+function objectiveMatchKey(text: string): string {
+  return text.trim().toLowerCase();
+}
+
+/** MERGE the authored objective list onto the quest's existing lines (EXT-4c — the defect: an `update` carrying
+ *  `objectives` used to re-mint every line `completed:false`, so a model could not mark ONE objective done
+ *  without wiping the others, and the host's hand-edits died with them). A line whose text matches an existing
+ *  one KEEPS its id and its `completed` flag (taking the incoming wording — the list is the authoring arm); an
+ *  unmatched line is a genuinely new objective and mints fresh. A line the list omits is dropped: the authored
+ *  list IS the quest's objectives. */
+function mergeObjectives(existing: readonly RpgQuestObjective[], texts: readonly string[], mintObjectiveId: () => string): RpgQuestObjective[] {
+  const byText = new Map(existing.map((o) => [objectiveMatchKey(o.text), o]));
+  return texts.map((text) => {
+    const prior = byText.get(objectiveMatchKey(text));
+    return prior === undefined ? { id: mintObjectiveId(), text, completed: false } : { ...prior, text };
+  });
+}
+
+/** Mark objectives done BY TEXT (EXT-4c `completeObjectives`) — the gesture that lets a model report progress
+ *  without restating the list at all. A name matching no live objective is DROPPED (errors-as-data: completing
+ *  an objective that doesn't exist is a ghost, never a mint — the `ghostTargetRefs` posture). */
+function withCompletedObjectives(list: readonly RpgQuestObjective[], names: readonly string[]): RpgQuestObjective[] {
+  const wanted = new Set(names.map(objectiveMatchKey));
+  return list.map((o) => (wanted.has(objectiveMatchKey(o.text)) ? { ...o, completed: true } : { ...o }));
+}
+
 /** `upsert_quest` → the new `quests` plane (§2.5). `create` mints a quest via the injected `mintQuestId`;
- *  `update`/`complete`/`fail` address the quest by NAME (the model never sees ids). Objectives on a create/
- *  update become fresh objective lines (mint ids via `mintObjectiveId`). */
+ *  `update`/`complete`/`fail` address the quest by NAME (the model never sees ids). `objectives` MERGES by text
+ *  (ids + completion preserved, {@link mergeObjectives}) and `completeObjectives` marks lines done by text —
+ *  the two gestures the model needs to advance a quest without destroying its own progress. */
 export function applyUpsertQuest(
   state: RpgSnapshotState,
   args: UpsertQuestArgs,
@@ -387,7 +418,8 @@ export function applyUpsertQuest(
   mintObjectiveId: () => string,
 ): { quests: RpgSnapshotState["quests"] } {
   const i = state.quests.findIndex((q) => q.name === args.name);
-  const objectives = args.objectives?.map((text) => ({ id: mintObjectiveId(), text, completed: false }));
+  const existing = i === -1 ? [] : (state.quests[i]?.objectives ?? []);
+  const merged = args.objectives === undefined ? undefined : mergeObjectives(existing, args.objectives, mintObjectiveId);
   const statusFor = (): RpgQuestStatus => {
     if (args.action === "complete") {
       return "completed";
@@ -397,6 +429,11 @@ export function applyUpsertQuest(
     }
     return "active";
   };
+  /** The objective list after BOTH arms: the merge (or the untouched current list), then the completions. */
+  const resolveObjectives = (current: readonly RpgQuestObjective[]): RpgQuestObjective[] => {
+    const base = merged ?? current;
+    return args.completeObjectives === undefined ? [...base] : withCompletedObjectives(base, args.completeObjectives);
+  };
 
   if (i === -1) {
     const created = {
@@ -404,7 +441,7 @@ export function applyUpsertQuest(
       name: args.name,
       status: statusFor(),
       description: args.description ?? "",
-      objectives: objectives ?? [],
+      objectives: resolveObjectives([]),
     };
     return { quests: [...state.quests, created] };
   }
@@ -412,11 +449,12 @@ export function applyUpsertQuest(
     if (idx !== i) {
       return q;
     }
+    const touchesObjectives = merged !== undefined || args.completeObjectives !== undefined;
     return {
       ...q,
       status: args.action === "update" ? q.status : statusFor(),
       ...(args.description !== undefined ? { description: args.description } : {}),
-      ...(objectives !== undefined ? { objectives } : {}),
+      ...(touchesObjectives ? { objectives: resolveObjectives(q.objectives) } : {}),
     };
   });
   return { quests };
@@ -424,11 +462,14 @@ export function applyUpsertQuest(
 
 /** `add_journal_entry` → a staged journal entry (flushed at commit stamped with the committed variant, §2.5).
  *  `title` is DERIVED from the content head when the model omitted it (`journalTitleFor` — the small-model-robust
- *  arm, ruling #10: an 8B dropping the nested-required `title` used to fail the whole extraction `safeParse`). */
+ *  arm, ruling #10: an 8B dropping the nested-required `title` used to fail the whole extraction `safeParse`);
+ *  `type` is HEALED to `note` the same way (EXT-4b — the identical nested-array blind spot, `journalTypeFor`).
+ *  The heal is VISIBLE: `healedJournalTypes` names the entries this healed and the caller logs them. */
 export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEntry {
+  const type = journalTypeFor(args);
   // R4c — the free `label` is meaningful ONLY on a `custom` type; a non-custom type clears it (the
   // relationship-kind precedent: the built-ins carry their own meaning, so a stray label would be noise).
-  return { type: args.type, label: args.type === "custom" ? (args.label ?? "") : "", title: journalTitleFor(args), content: args.content };
+  return { type, label: type === "custom" ? (args.label ?? "") : "", title: journalTitleFor(args), content: args.content };
 }
 
 /** The actors a write can legally land on GIVEN THE STATE ALONE (lowercased): the roster index (members + the
