@@ -449,6 +449,17 @@ seed.characterIds only while commit unions addedCharacterIds (panel-added charac
 row pre-commit; cheap) · confirmed again: quote-tint = nonexistent (--color-dialogue's only consumers
 are two preview swatches — QUOTE-1 stands); autoFixMarkdown honored on greetings both arms (pinned).
 
+**QUOTE-1 MERGED `aa96ec0b` (the day's true closer — the Azarael flat-card fix):** strictly-paired
+quote detector (components.p seam post-sanitize — a rehype-minted span gets STRIPPED by the schema;
+line-bound like ST), mid-stream tinting, knob `colorQuotedSpeech` default ON, per-character authored
+dialogueColor proven by computed-value CT. ⚠ OWNER KNOB-TURN NEEDED FOR VISIBILITY: the default themes
+define `--color-dialogue` ≈ foreground (dark/mocha byte-identical) — the mechanism is live but visually
+no-op until themes pick a distinct dialogue hue (D71: one tokens.json edit regenerates all; or set it
+live in the theme editor per theme). QUEUED: greeting-preview surfaces (greeting studio/facet editor)
+don't get the tint (need the appearance query in the character feature — preview-fidelity small).
+THEME AUDIT VERDICT (scout): dialogue was the ONLY dormant field — every other override/token/text knob
+traced LIVE to a consuming rule; blurSurfaces selector the one unconfirmed low-risk.
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
