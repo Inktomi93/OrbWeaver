@@ -381,6 +381,18 @@ weak-model misread is fixed with one copy line in BOTH teach variants ("cards ar
 see — never a status readout/stat block; tracked values stay woven in prose"). Versioned-constant copy bump;
 55 reminder/gather tests green.
 
+**PROSE-1 QUEUED (owner direction, 08-01: "prose shouldn't live in the code")** — model-facing prose
+becomes HOST-EDITABLE DATA with shipped defaults (the RPG-Companion `customHtmlPrompt` precedent + the
+gen-settings-are-preset-owned philosophy). Inventory to classify at spec time: RPG_CARD_TEACH(+STATIC) ·
+RPG_CYOA_TEACH · RPG_STEERING_LICENSE · the delta/scene-opens headings · the impersonate/continue/response
+NUDGES · the R2 tool-description TEMPLATES (per-game hints already exist — the template shells themselves) ·
+FOLDED_RECONCILE_NOTE. Design constraints: shipped defaults stay VERSIONED constants (copy-revision
+legibility — an edit is a fork from the versioned default, like the preset copy-on-edit model); homes split
+per scope (card/cyoa teach = per-game features; nudges = preset-owned per the ST impersonation-prompt
+precedent); macro substitution + freeze-at-commit apply; the F2 probe's winning copy lands as the card
+teach's DEFAULT. Spec-first; natural sequencing = after the preset fork-flood fix (it IS the copy-on-edit
+model this reuses) and alongside/after SET-SEAMS (same contribution grammar).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
