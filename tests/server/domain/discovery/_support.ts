@@ -433,7 +433,10 @@ export async function seedMessage(
       id: variantId,
       messageId,
       idx: 0,
-      content: overrides.variant.content ?? "",
+      // A non-empty default ON PURPOSE: an EMPTY body is precisely an rpg state-anchor slot (a snapshot key,
+      // not a message), which the visible-canon reads exclude. Defaulting to "" silently minted anchors and
+      // made every count fixture lie. A test that wants an anchor passes `content: ""` explicitly.
+      content: overrides.variant.content ?? `body-${overrides.seq}`,
       model: overrides.variant.model ?? null,
       provider: overrides.variant.provider ?? null,
       tokensIn: overrides.variant.tokensIn ?? null,

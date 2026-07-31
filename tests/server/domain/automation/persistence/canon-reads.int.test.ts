@@ -12,7 +12,7 @@ import {
 } from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { seedParticipant } from "../../chat/_support.ts";
+import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { seedHostChat, seedUser } from "../_support.ts";
 
 describe("automation canon-reads", () => {
@@ -43,11 +43,20 @@ describe("automation canon-reads", () => {
     expect(present).toEqual([host, member].sort());
   });
 
-  test("countChatMessages counts the chat's messages (0 for an empty chat)", async () => {
+  test("countChatMessages counts VISIBLE messages (0 for an empty chat; rpg state anchors excluded)", async () => {
     const db = await freshDb();
     const host = await seedUser(db);
     const chatId = await seedHostChat(db, host);
     await expect(countChatMessages(db, chatId)).resolves.toBe(0);
+
+    await seedMessage(db, chatId, 1, { role: "user", content: "Ping?" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "Pong." });
+    await expect(countChatMessages(db, chatId)).resolves.toBe(2);
+
+    // An rpg state-anchor slot (`postNarratorMessage(chatId, "")` — a snapshot key, not a message). A CEL
+    // predicate like `chat.messageCount > N` must not fire early because the host resynced.
+    await seedMessage(db, chatId, 3, { role: "assistant", content: "" });
+    await expect(countChatMessages(db, chatId)).resolves.toBe(2);
   });
 
   test("isBookAttachedToChat reflects the chat_books junction", async () => {

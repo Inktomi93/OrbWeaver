@@ -77,8 +77,10 @@ describe("forgottenGems", () => {
     const chat = await seedChat(db, "chat_a");
     const a = await seedCharacter(db, { id: "character_a", ownerId: owner, name: "A" });
     const b = await seedCharacter(db, { id: "character_b", ownerId: owner, name: "B" });
-    await seedMessage(db, { id: "m_a", chatId: chat, seq: 1, createdAt: 1, characterId: a });
-    await seedMessage(db, { id: "m_b", chatId: chat, seq: 2, createdAt: 2, characterId: b });
+    // `variant` is required for a slot to be VISIBLE canon (the gem read inner-joins the selected variant,
+    // as every canon read does) — a pointer-less slot is invisible in production too.
+    await seedMessage(db, { id: "m_a", chatId: chat, seq: 1, createdAt: 1, characterId: a, variant: {} });
+    await seedMessage(db, { id: "m_b", chatId: chat, seq: 2, createdAt: 2, characterId: b, variant: {} });
     expect(await svcFor(db).forgottenGems(owner, 1)).toHaveLength(1);
   });
 });
