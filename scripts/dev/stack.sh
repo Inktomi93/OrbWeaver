@@ -84,18 +84,24 @@ for v in "${PIN_VARS[@]}"; do
   if [ -n "${!v:+x}" ]; then PIN_SRC[$v]=host; else PIN_SRC[$v]=pinned; fi
 done
 # Engine topology (A.4): if the caller set ENGINES_POSTURE (e.g. e2e's adopt-only), it wins and we pass it
-# through untouched. Otherwise default VLLM_DISABLED=true (no engines in-stack), which the env resolver maps
-# to ENGINES_POSTURE=off. Normalize stray VLLM_DISABLED spellings FIRST — the schema takes exactly
-# "true"|"false", and a stale ambient `VLLM_DISABLED=1` (the pre-rebuild devcontainer ships one) is fatal.
+# through untouched. A caller-set VLLM_DISABLED (normalized — the schema takes exactly "true"|"false", and a
+# stale ambient `VLLM_DISABLED=1` from the pre-rebuild devcontainer is fatal) also wins, mapped by the env
+# resolver. Otherwise the DEFAULT is ENGINES_POSTURE=adopt-only (owner ruling 2026-08-01): a bare
+# `pnpm stack restart` ADOPTS a running fleet — never spawns one — so a warm fleet is usable by default.
+# The old engines-off default silently unwired the vllm backend on any restart that lost the posture env
+# (the 12:39 incident: saved vllm connection + bare restart = every turn dead in 2ms, zero logs).
+# Engines-off is now the explicit opt-in: ENGINES_POSTURE=off or VLLM_DISABLED=true.
 if [ -n "${ENGINES_POSTURE:-}" ]; then
   export ENGINES_POSTURE
-else
-  case "${VLLM_DISABLED:-}" in
+elif [ -n "${VLLM_DISABLED:-}" ]; then
+  case "${VLLM_DISABLED}" in
     1 | on | yes) VLLM_DISABLED=true ;;
     0 | off | no) VLLM_DISABLED=false ;;
   esac
-  : "${VLLM_DISABLED:=true}"
   export VLLM_DISABLED
+else
+  ENGINES_POSTURE=adopt-only
+  export ENGINES_POSTURE
 fi
 : "${AUTH_MODE:=single-user}"
 # DEV-ONLY deterministic secrets — INSECURE BY DESIGN, never for a real deploy.
