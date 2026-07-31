@@ -136,17 +136,32 @@ function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): 
           <Text size="micro" tone="muted">
             context
           </Text>
-          <Text size="code">
-            {/* `0` = no trustworthy ceiling (no model window + no soft cap) — say so, never fabricate a denominator. */}
-            {budget.ceilingTokens === 0
-              ? `${formatCount(budget.totalTokens)} tok · no window limit`
-              : `${formatCount(budget.totalTokens)} / ${formatCount(budget.ceilingTokens)} tok`}
-          </Text>
+          <Text size="code">{budgetHeadline(budget)}</Text>
         </Row>
         <SegmentBar segments={segments} />
+        {budget.ceilingEstimated ? (
+          <Text size="micro" tone="muted">
+            The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback — the ratio would be
+            fiction.
+          </Text>
+        ) : null}
       </Stack>
     </Card>
   );
+}
+
+/** The used/ceiling line, in the THREE honest states — a ratio is drawn only against a real window:
+ *   • a known ceiling  ⇒ "4,300 / 8,192 tok" (the mock's reading);
+ *   • an ESTIMATED one ⇒ the total alone + "window unknown" — never a fabricated denominator (D41). The
+ *     server still fits against the fallback (it must fit against something), but this surface won't pretend
+ *     that number came from the model;
+ *   • no ceiling at all ⇒ "no window limit" (nothing bounds the context). */
+function budgetHeadline(budget: AssemblyBudgetPreview): string {
+  const total = formatCount(budget.totalTokens);
+  if (budget.ceilingTokens === 0) {
+    return `${total} tok · no window limit`;
+  }
+  return budget.ceilingEstimated ? `${total} tok · window unknown` : `${total} / ${formatCount(budget.ceilingTokens)} tok`;
 }
 
 // ── The per-source rows ─────────────────────────────────────────────────────────────────────────────

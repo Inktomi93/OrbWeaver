@@ -699,6 +699,18 @@ function fitShapedHistory(args: {
   return { fitted: fitHistory(args.shaped.history, budget), budget };
 }
 
+/** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's
+ *  window is itself marked estimated (`context.windowEstimated` — an OR catalog that couldn't be fetched, a
+ *  BYO endpoint with no declared window) AND that guessed window is what actually BINDS: a preset
+ *  `maxContextTokens` at or below it is the user's own declared cap, which is real truth and wins the `min()`,
+ *  so the ceiling is honest even though the model's window isn't known. */
+function ceilingIsEstimated(capability: ModelCapability | undefined, maxContextTokens: number | undefined): boolean {
+  if (capability?.context.windowEstimated !== true) {
+    return false;
+  }
+  return maxContextTokens === undefined || maxContextTokens > capability.context.window;
+}
+
 /** The `history` row of the budget breakdown, derived from the FIT result. Counts ONLY the id-bearing kept
  *  rows — the canon turns. The id-less rows in the fitted history are the spliced injections, which are each
  *  accounted under their OWN source (steering / world-info / game-state), so the six rows stay disjoint and
@@ -740,6 +752,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       // `null` ⇒ no trustworthy ceiling (no window + no soft cap) ⇒ `0`, the wire's "unbounded" (the bar then
       // renders proportions with no ratio) — never a fabricated number.
       ceilingTokens: fitted.ceilingTokens ?? 0,
+      ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
     // Route through the host-audience redaction seam (chat-crew-design/04 §2, CREW-6). The verdict is DERIVED
     // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
@@ -810,12 +823,16 @@ function resolveContextFitPreview(env: {
   readonly canon: readonly MessageView[];
   readonly compactSummary: string | null;
   readonly coveragePoint: number;
+  /** The connected model's window was a guess, so the divider's "N of M used" must say so (same verdict the
+   *  Preview tab's budget carries — one rule, both surfaces). */
+  readonly ceilingEstimated: boolean;
 }): ContextFitPreview {
   const { fitted, canon, compactSummary, coveragePoint } = env;
   const hasSummary = compactSummary !== null && compactSummary.length > 0;
   const common = {
     usedTokens: fitted.usedTokens,
     ceilingTokens: fitted.ceilingTokens ?? 0,
+    ceilingEstimated: env.ceilingEstimated,
     reserveOutputTokens: env.budget.reserveOutputTokens,
     droppedCount: fitted.droppedCount,
   };
@@ -854,6 +871,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       canon,
       compactSummary: checkpointVisible ? (chatRow?.compactSummary ?? null) : null,
       coveragePoint: checkpointVisible ? (chatRow?.compactedAtSeq ?? 0) : 0,
+      ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
   };
 }

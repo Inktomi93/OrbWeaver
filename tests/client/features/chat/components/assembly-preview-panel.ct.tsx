@@ -38,6 +38,7 @@ const NIKO_CARD = "Niko — a wary scout.";
 
 const PLAIN_BUDGET = {
   ceilingTokens: 8192,
+  ceilingEstimated: false,
   totalTokens: 4300,
   sources: [
     {
@@ -106,6 +107,7 @@ const RE_CARDS = /Cards/;
 const RE_SYSTEM = /System/;
 const RE_CARDS_COUNT = /1,208/;
 const RE_DIAGNOSTICS = /Diagnostics/;
+const RE_WINDOW_UNPUBLISHED = /context window isn.t published/;
 
 /** The label→count pairs every source row must render (the accessible datum beside each bar segment). */
 const SOURCE_ROWS: readonly (readonly [string, string])[] = [
@@ -272,6 +274,26 @@ test("no trustworthy ceiling ⇒ the total stands alone, never a fabricated deno
   const component = await mount(<AssemblyPreviewPanelStory />);
 
   await expect(component.getByText("4,300 tok · no window limit")).toBeVisible();
+});
+
+test("an ESTIMATED ceiling is never drawn as a ratio — the panel says the window is unknown", async ({ mount, page }) => {
+  // The owner-reported defect: a cold catalog makes the server fit against a blanket fallback, and the tab
+  // showed it as "4,300 / 200,000" — a denominator no model published. The number still drives the fit; this
+  // surface refuses to present it as the connected model's window (D41).
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      budget: { ...PLAIN_BUDGET, ceilingTokens: 200_000, ceilingEstimated: true },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  await expect(component.getByText("4,300 tok · window unknown")).toBeVisible();
+  await expect(component.getByText(RE_WINDOW_UNPUBLISHED)).toBeVisible();
+  // The fabricated denominator appears NOWHERE on the surface.
+  await expect(component.getByText("200,000", { exact: false })).toHaveCount(0);
 });
 
 test("the diagnostics drawer still carries the BUILD + SHAPE traces (collapsed by default)", async ({ mount, page }) => {

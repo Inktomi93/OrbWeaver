@@ -11,8 +11,7 @@ import { AgentSdkCatalogUnavailableError } from "../contract/errors";
 import type { RefreshCatalogParams } from "../contract/params";
 import type { AgentSdkCatalogSnapshot } from "../contract/results";
 import type { ConnectionService } from "../contract/service";
-import { readAgentSdkCatalogSnapshot, writeAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
-import { seedAgentSdkModelCache } from "../substrate/agent-sdk-model-cache";
+import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
 
 export function createRefreshAgentSdkCatalog(ctx: ConnectionContext): ConnectionService["refreshAgentSdkCatalog"] {
   return async (params: RefreshCatalogParams): Promise<AgentSdkCatalogSnapshot> => {
@@ -29,9 +28,9 @@ export function createRefreshAgentSdkCatalog(ctx: ConnectionContext): Connection
       });
     }
     const snapshot: AgentSdkCatalogSnapshot = { fetchedAt: ctx.now(), models };
-    await writeAgentSdkCatalogSnapshot(ctx.db, snapshot);
-    // Warm the sync TTL cache immediately so the next alias resolution reads fresh without a re-read.
-    seedAgentSdkModelCache(snapshot.models, snapshot.fetchedAt);
+    // Persist + warm the sync TTL mirror in one call, so the next alias resolution + capability synthesis read
+    // fresh truth without a re-read (`persistAgentSdkCatalogSnapshot` is the one home for the pair).
+    await persistAgentSdkCatalogSnapshot(ctx.db, snapshot);
     return snapshot;
   };
 }

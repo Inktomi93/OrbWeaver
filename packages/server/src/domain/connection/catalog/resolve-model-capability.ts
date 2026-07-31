@@ -218,7 +218,11 @@ function synthesizeInput(inputModalities: readonly string[] | undefined, outputM
 function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntryInput | undefined): ModelCapability {
   const family = detectModelFamily(model);
   const supported = new Set(entry?.supportedParameters ?? []);
-  const window = entry?.contextLength ?? OR_DEFAULT_WINDOW;
+  // The catalog's advertised `contextLength` is the truth; its absence (a cold/never-refreshed snapshot — the
+  // norm on a fresh install — or an entry that omits it) leaves only the blanket default, which is a GUESS and
+  // says so (D41). Everything downstream that renders a "used / window" ratio reads that flag.
+  const advertisedWindow = entry?.contextLength ?? null;
+  const window = advertisedWindow ?? OR_DEFAULT_WINDOW;
   // The REAL per-model output cap when OR advertises it; else degrade to the window-derived estimate (D68:
   // absence-degrades, never a guessed cap). Floored at MIN_OUTPUT so a bogus 0 can't zero the range.
   const advertisedMax = entry?.maxCompletionTokens;
@@ -237,7 +241,7 @@ function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntr
       maxTokens: { min: MIN_OUTPUT, max: outputMax },
       ...(supported.has("structured_outputs") ? { structured: true } : {}),
     },
-    context: { window },
+    context: { window, ...(advertisedWindow === null ? { windowEstimated: true } : {}) },
     turns: family === "anthropic" ? synthesizeAnthropicTurns(model, wireShape) : { ...NON_CACHING_TURNS },
   };
 }
@@ -245,8 +249,9 @@ function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntr
 /** `sampling` is the full OpenAI-compatible knob set when `fullSampling`, else `{}`. `structuredOutput`
  *  marks native constrained output (vLLM guided decoding); `tools` stays ABSENT here — the vLLM arm folds
  *  `tools: { parallel: true }` on AFTER this static resolve (its engine launches with hermes tool parsing,
- *  U0), and only that arm does; every other static arm has no tool support to claim. */
-function staticProfile(window: number, fullSampling: boolean, structuredOutput = false): ModelCapability {
+ *  U0), and only that arm does; every other static arm has no tool support to claim. `windowEstimated` marks
+ *  a window that is a FALLBACK GUESS (no advertised/declared/engine truth was available) — see the contract. */
+function staticProfile(window: number, fullSampling: boolean, structuredOutput = false, windowEstimated = false): ModelCapability {
   const sampling: ModelCapability["sampling"] = fullSampling
     ? {
         temperature: TEMP_RANGE,
@@ -271,7 +276,7 @@ function staticProfile(window: number, fullSampling: boolean, structuredOutput =
       maxTokens: { min: MIN_OUTPUT, max: Math.min(window, OUTPUT_CAP) },
       ...(structuredOutput ? { structured: true } : {}),
     },
-    context: { window },
+    context: { window, ...(windowEstimated ? { windowEstimated: true } : {}) },
     turns: { ...NON_CACHING_TURNS },
   };
 }
@@ -314,8 +319,9 @@ export function resolveModelCapability(
       if (daemon !== undefined) {
         return { ...daemon.capability, turns: synthesizeAnthropicTurns(model, wireShape) };
       }
-      // No curated match and no daemon row: a conservative no-reasoning profile, not synthesis.
-      return staticProfile(OR_DEFAULT_WINDOW, false);
+      // No curated match and no daemon row: a conservative no-reasoning profile, not synthesis. Its window is
+      // the blanket default — a GUESS (nothing advertised it), so it is marked as one.
+      return staticProfile(OR_DEFAULT_WINDOW, false, false, true);
     }
     case "openrouter":
       return synthesizeOpenRouter(model, wireShape, caches?.orEntry);
@@ -331,10 +337,14 @@ export function resolveModelCapability(
       return { ...staticProfile(caches?.vllmGenWindow ?? env.VLLM_GEN_MAX_MODEL_LEN, true, true), tools: { parallel: true } };
     case "local-light":
       return staticProfile(LOCAL_LIGHT_WINDOW, false);
-    case "custom_openai":
+    case "custom_openai": {
       // BYO profile (PD-12): the user-declared window (`metadata.contextWindow`) when set, else the
       // conservative default. No nested `CustomModelProfile` type — the flat metadata pair IS the profile.
-      return staticProfile(caches?.customContextWindow ?? CUSTOM_OPENAI_DEFAULT_WINDOW, true);
+      // An arbitrary BYO endpoint has no catalog we may call, so an UNDECLARED window is unknowable here —
+      // the default is marked a guess rather than presented as this endpoint's window.
+      const declared = caches?.customContextWindow;
+      return staticProfile(declared ?? CUSTOM_OPENAI_DEFAULT_WINDOW, true, false, declared === undefined);
+    }
     default:
       return assertNever(source);
   }

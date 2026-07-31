@@ -1070,6 +1070,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
     },
     budget: {
       ceilingTokens: 8192,
+      ceilingEstimated: false,
       totalTokens: 5,
       sources: [
         {

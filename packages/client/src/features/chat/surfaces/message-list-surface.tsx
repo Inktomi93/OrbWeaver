@@ -5,7 +5,7 @@
 // never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
-import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -189,11 +189,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // A RESOLVED preview is authoritative — a `null` boundary means "everything fits" (suppress the divider),
   // NOT "fall back". Only an unresolved/errored preview defers to the canon-stamp resolver.
   const contextBoundaryMessageId = previewFit.data !== undefined ? previewFit.data.boundaryMessageId : resolveContextBoundaryMessageId(messages);
-  // The budget line the boundary divider carries once the preview resolves: "N of M used · R reserved".
-  const contextBoundaryLabel =
-    previewFit.data !== undefined
-      ? `${previewFit.data.usedTokens} of ${previewFit.data.ceilingTokens} used · ${previewFit.data.reserveOutputTokens} reserved`
-      : undefined;
+  // The budget line the boundary divider carries once the preview resolves: "N of M used · R reserved" — or,
+  // when the connected model's window is a fallback GUESS (`ceilingEstimated`, e.g. an unreachable catalog),
+  // the used total with the window named unknown. Never a ratio against a fabricated denominator (D41).
+  const contextBoundaryLabel = previewFit.data !== undefined ? contextFitLabel(previewFit.data) : undefined;
   // The memory fact: when a compactSummary covers the span above the boundary, the divider says the older
   // messages are compacted into memory + offers a peek at the summary text. Null ⇒ nothing above is compacted.
   const contextBoundaryCompactSummary = previewFit.data?.compactSummary ?? null;
@@ -272,6 +271,15 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
 }
 
 /** The newest assistant message's id (drives swipe-strip visibility), or null for none. */
+/** The context-boundary divider's budget line. A ratio is drawn ONLY against a real model window: when the
+ *  window is a fallback guess (`ceilingEstimated`) the line reports the used total and names the window
+ *  unknown, because "N of 200,000 used" against a number nobody published is a lie the divider would tell on
+ *  every scroll (D41 no-silent-degrade). */
+function contextFitLabel(fit: ContextFitPreview): string {
+  const reserved = `${fit.reserveOutputTokens} reserved`;
+  return fit.ceilingEstimated ? `${fit.usedTokens} used · window unknown · ${reserved}` : `${fit.usedTokens} of ${fit.ceilingTokens} used · ${reserved}`;
+}
+
 function findLastAssistantId(messages: readonly MessageView[]): MessageView["id"] | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];

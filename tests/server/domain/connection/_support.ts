@@ -24,6 +24,8 @@ import { DomainNoCredentialError } from "../../../../packages/kit/src/errors/ind
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";
 import type { ConnectionContext } from "../../../../packages/server/src/domain/connection/context.ts";
+import { __resetAgentSdkModelCache } from "../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
+import { __resetOrModelCache } from "../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { __resetVllmGenWindowCache } from "../../../../packages/server/src/domain/connection/substrate/vllm-gen-window-cache.ts";
 import type { Clock } from "../../../support/clock.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
@@ -87,6 +89,13 @@ export interface ConnHarness {
   readonly credentialCalls: CredentialSource[];
   /** Every request `testClaudeAuth` handed the faked `verifyClaudeAuth` diagnostic. */
   readonly verifyCalls: { readonly source: CredentialSource; readonly model: string }[];
+  /** How many times the faked live `/models` fetch ran — proves the cold-cache warm fired, and fired ONCE
+   *  under concurrency (the single-flight). */
+  readonly orCatalogFetches: () => number;
+  /** How many times the faked agent-sdk discovery ran (the max-pro-sub twin of `orCatalogFetches`). */
+  readonly agentSdkFetches: () => number;
+  /** Make the faked live fetches REJECT — the gateway/daemon-unreachable path (the warm must swallow). */
+  readonly setCatalogFetchFails: (fails: boolean) => void;
 }
 
 /** Build a ConnectionContext over a real db with the three injected ops faked + a frozen clock. */
@@ -95,6 +104,10 @@ export function makeConnHarness(db: Db): ConnHarness {
   // a run, so a test that warms it (setVllmGenWindow → resolveRole on vllm) would leak into the next. Reset
   // per-harness so each test starts cold (the resolver falls back to the env window until it re-warms).
   __resetVllmGenWindowCache();
+  // Same rationale for the two CATALOG mirrors: they are module-scope + per-process, and the resolve seam now
+  // WARMS them on a cold read, so a warmed mirror would leak into the next test and hide the cold path.
+  __resetOrModelCache();
+  __resetAgentSdkModelCache();
   const clock = createFrozenClock();
   let roleDefaults: RoleDefaults = DEFAULT_USER_SETTINGS.routing.roleDefaults;
   let orCatalog: ModelCatalogEntry[] = [];
@@ -103,6 +116,9 @@ export function makeConnHarness(db: Db): ConnHarness {
   let enginesPosture: ConnectionContext["enginesPosture"] = "adopt-or-start";
   let genReachability: ReturnType<ConnectionContext["localGenEngineReachability"]> = "up";
   let vllmGenWindow: number | null = null;
+  let orCatalogFetches = 0;
+  let agentSdkFetches = 0;
+  let catalogFetchFails = false;
   const noCredentialSources = new Set<CredentialSource>();
   const credentialCalls: CredentialSource[] = [];
   const verifyCalls: { readonly source: CredentialSource; readonly model: string }[] = [];
@@ -117,8 +133,14 @@ export function makeConnHarness(db: Db): ConnHarness {
       }
       return Promise.resolve(fakeCredential(source));
     },
-    fetchOrCatalog: () => Promise.resolve([...orCatalog]),
-    fetchAgentSdkModels: () => Promise.resolve([...agentSdkCatalog]),
+    fetchOrCatalog: () => {
+      orCatalogFetches += 1;
+      return catalogFetchFails ? Promise.reject(new Error("or catalog unreachable")) : Promise.resolve([...orCatalog]);
+    },
+    fetchAgentSdkModels: () => {
+      agentSdkFetches += 1;
+      return catalogFetchFails ? Promise.reject(new Error("agent-sdk daemon unreachable")) : Promise.resolve([...agentSdkCatalog]);
+    },
     fetchVllmGenWindow: () => Promise.resolve(vllmGenWindow),
     loadUserSettings: () => Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
     // apiKeySource: "none" signals host login active (contract/service.ts).
@@ -187,6 +209,11 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setVllmGenWindow: (window: number | null): void => {
       vllmGenWindow = window;
+    },
+    orCatalogFetches: (): number => orCatalogFetches,
+    agentSdkFetches: (): number => agentSdkFetches,
+    setCatalogFetchFails: (fails: boolean): void => {
+      catalogFetchFails = fails;
     },
     credentialCalls,
     verifyCalls,

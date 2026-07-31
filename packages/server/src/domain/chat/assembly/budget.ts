@@ -137,6 +137,9 @@ export function buildAssemblyBudget(args: {
   readonly history: HistoryBudgetInput;
   /** `min(capability window, preset maxContextTokens)`; 0 when neither bounds the context. */
   readonly ceilingTokens: number;
+  /** The ceiling came from a GUESSED model window (`capability.context.windowEstimated`) — carried through so
+   *  the surface can refuse to draw a ratio against it. */
+  readonly ceilingEstimated: boolean;
 }): AssemblyBudgetPreview {
   const bySource = new Map<AssemblySource, AssemblySlice[]>();
   for (const slice of args.slices) {
@@ -169,6 +172,7 @@ export function buildAssemblyBudget(args: {
   }
   return {
     ceilingTokens: args.ceilingTokens,
+    ceilingEstimated: args.ceilingEstimated,
     totalTokens: sources.reduce((sum, s) => sum + s.tokens, 0),
     sources,
   };

@@ -36,4 +36,27 @@ export function getCachedOrModels(now: number): readonly ModelCatalogEntry[] | n
 /** @internal test seam — drop the cache for within-file cold/warm transitions. */
 export function __resetOrModelCache(): void {
   cache = null;
+  inFlightWarm = null;
+}
+
+// ── The cold-cache WARM single-flight ───────────────────────────────────────────────────────────────
+// A cold mirror (fresh install, wiped DB, a restart before the daily refresh) used to make every OR model
+// resolve the blanket fallback window — the routing path read a GUESS and could not tell. The warm is now
+// on-demand at the resolve seam, and this guard makes N concurrent turns/previews share ONE fetch instead of
+// stampeding OpenRouter: the second caller awaits the first caller's promise. Module-scope, per-process —
+// the same single-replica posture as the mirror it warms.
+let inFlightWarm: Promise<void> | null = null;
+
+/** Run `warm` at most ONCE concurrently. The promise is cleared on settle (success or failure), so a failed
+ *  warm never poisons the next attempt — the next caller retries rather than inheriting a rejected promise. */
+export async function warmOrModelCacheOnce(warm: () => Promise<void>): Promise<void> {
+  if (inFlightWarm !== null) {
+    await inFlightWarm;
+    return;
+  }
+  const run = warm().finally(() => {
+    inFlightWarm = null;
+  });
+  inFlightWarm = run;
+  await run;
 }
