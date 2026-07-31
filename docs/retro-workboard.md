@@ -73,14 +73,23 @@ cf82ade3): the "empty archive" was NEVER an archive bug — the owner's "cards" 
 `:::card` fences (a nested `:::choices` ate the single closer; two more = mid-stream truncation),
 degrading to literal text that LOOKS like a card in the transcript; archive is byte-consistent with
 the transcript in all 10 card-bearing chats. Shared artifact-row treatment landed (Journal+Scene, the
-collapsed-card title bar anatomy). ROUND 3 (orchestrator-ruled fork): (a) RPG_CARD_TEACH forbids
+collapsed-card title bar anatomy). ROUND 3 DONE `dfa2e427` (teach clause both variants; tokenizer `committed:true` EOF-close, DIRECTIVE-registered names only; call sites classified — `stripHiddenSpans` deliberately STRICT, fail-closed at the §3.6 member boundary; the 3 broken dogfood bodies = regression fixtures, archive now 'Cards — 3'). LANE READY TO MERGE (4 commits, held behind the token-drift fix on main). Was: (a) RPG_CARD_TEACH forbids
 nesting :::choices inside :::card; (b) tokenizer implicit-close-at-EOF for COMMITTED bodies only
 (committed:true option — streaming hold-back untouched; wire projection follows the card class,
 D110 §3 tests incl. the wire-stub arm) · TRK-1 `ae441b0805535fe2e` (wt) — Tracker
 stage-1 server core, LONG · PREV `aa855bb2e7ac7e9d3` (wt) — Preview rebuild · AU-8 scout
 `a8941d8dfb7afd8e1` — final sweep (interim: automation.stream = the one bus with zero client consumer).
 
-**MERGE QUEUE (strictly after smalls lands, serialize + certify each):** 1) `wt/agent-aa010e6ca404b138a`
+**MERGE TRAIN DONE (MP `90409adb` + TIDY `0c2e52e6` merged, certified; ghosts cleared; merged
+worktrees pruned). REMOTE DELETION BLOCKED + TOKEN DRIFT FOUND:** `git push origin --delete
+retro-burn-down` failed on verify:push — tests:node red: TWO D71 token-pipeline tests (theme.css
+hand-edited by the Waystone lane [12 --color-sky-* + 3 motion tokens] and my 30vw panel edit instead
+of the tokens.json pipeline; sky tokens unclassified in the three-class partition). check-is-static
+gap: no commit gate runs tests. FIX LANDED `30cc434d` (sole real drift was the 30vw clamp — sky/motion tokens were already pipeline-sourced, only theme.css was stale; sky family classified STATIC_RATIONALE; panel measured 384px→120px stone at 1280 ✓). Was: fix lane `a3b2e764fdb990032` (main) — move values into the
+pipeline source + regenerate + classify, owner-approved semantics preserved. After green: re-run the
+detached deletion (authorized, contained-in-main verified).
+
+**OLD MERGE QUEUE (done):** 1) `wt/agent-aa010e6ca404b138a`
 (MP done `90409adb` — grouped picker + curated-fallback notice; lesson: new data-testid must register in
 test-ids.ts, gate only fires in structure:full) · 2) `wt/agent-ab95fa9827638dfbf` (TIDY done `0c2e52e6` —
 66 mocks → docs/design/mocks, reviews → docs/reviews, agent defs repointed, crunchy DESIGN.md RESCUED
