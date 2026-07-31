@@ -2,12 +2,11 @@
 // (§12.1.3 — the ONE scope-selector primitive Sheet uses; self default) + the pinned currency line above
 // the OSRS item grid. The pinned line is the PARTY TOTAL derivation (§12.2 — no purse entity exists; totals
 // SUM per-actor wallets, "party total — N carried by <viewer>"), the Sheet chip and band coin being the
-// other two zoom levels of the same number. Grid = `cols="cell"` (§5 — 5-up docked, 6-up mobile,
-// container-driven). Cells: resolved glyph (#37 — the host-picked `item.icon` seal name wins, else the
-// §12.5 keyword resolver; aria-hidden, the NAME is the datum on `title` + a visually-hidden line), qty in
-// the corner, the item LOCATION as a micro line (#37a — display-only, the data was already stored),
-// quest-bound = the ember dot, plus ONE dashed ghost socket (growth affordance — never a fake 28-slot
-// pack; no encumbrance UI, not modeled).
+// other two zoom levels of the same number. Grid = `cols="cell"` (§5 — container-driven: 2-up at the 320px
+// mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (#37 — the host-picked `item.icon`
+// seal name wins, else the §12.5 keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
+// read, and the item LOCATION (#37a — the data was already stored), quest-bound = the ember dot, plus ONE
+// dashed ghost socket (growth affordance — never a fake 28-slot pack; no encumbrance UI, not modeled).
 //
 // #37b — the COMPACT/LIST toggle: one view knob (grid default) on the Pack kicker row; the LIST view is a
 // row per item (glyph · name · ×qty · location · description) for the read-it-all posture.
@@ -18,8 +17,9 @@
 // RV-5 — HAND AUTHORING (host, `canEditShared`): the pack had no add/edit at all, and `location` (which the
 // schema stores and the extraction guidance asks the model for) was display-only. The shared `AddRow` mints an
 // item (a name is required — no "Item 3" orphans), and the LIST view is the EDIT view: name · quantity ·
-// location · description are click-to-edit in place, with a confirmed delete. The GRID stays the glanceable
-// lens (the OSRS pack), so one plane keeps one authoring home. Every hand write stamps the actor's
+// location · description are click-to-edit in place, with a confirmed delete. The GRID authors the SAME
+// field set from a tile popover (owner dogfood, 2026-07-31 — the same components, the same `PackEdit`
+// callbacks, so one plane still keeps one authoring home). Every hand write stamps the actor's
 // `…inventory` lock path (#10 — the same grammar the conditions plane uses: the model writes this plane, so a
 // hand edit pins it, visibly, with a Release on the section).
 

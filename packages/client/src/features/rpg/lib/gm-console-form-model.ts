@@ -25,6 +25,14 @@ export interface GmConsoleFormValues {
   readonly plotProgression: boolean;
   /** The #9 ambient-date mode — narrated (freeform date string) | structured (day counter). */
   readonly dateMode: RpgDateMode;
+  /** The P4 immersive-card knobs (parity-plus §9 #7 + M3) — both were stored, wired through the reminder
+   *  and the §4.8 lenient wrap, and had NO editor: a host who did not want HTML cards had no switch to
+   *  reach (the D107 dead-switch class, owner dogfood 2026-07-31). `immersiveHtml` gates the TEACHING ask;
+   *  `immersiveHtmlInteractive` picks the interactive-vs-static variant of that ask (meaningless with the
+   *  teaching off — the surface disables it rather than hiding it). Neither touches the RENDER: an
+   *  already-emitted card always renders, so a toggle-off never breaks stored content. */
+  readonly immersiveHtml: boolean;
+  readonly immersiveHtmlInteractive: boolean;
 }
 
 export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
@@ -36,6 +44,8 @@ export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
   cyoaChoiceBehavior: "compose",
   plotProgression: true,
   dateMode: "narrated",
+  immersiveHtml: true,
+  immersiveHtmlInteractive: true,
 };
 
 /** Project the host config read into the form's scalar bag. */
@@ -49,6 +59,8 @@ export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
     cyoaChoiceBehavior: config.cyoaChoiceBehavior,
     plotProgression: config.plotProgression,
     dateMode: config.dateMode,
+    immersiveHtml: config.immersiveHtml,
+    immersiveHtmlInteractive: config.immersiveHtmlInteractive,
   };
 }
 
@@ -63,6 +75,8 @@ export interface GmConsoleScalarPatch {
     readonly cyoaChoiceBehavior: CyoaChoiceBehavior;
     readonly plotProgression: boolean;
     readonly dateMode: RpgDateMode;
+    readonly immersiveHtml: boolean;
+    readonly immersiveHtmlInteractive: boolean;
   };
   readonly extractionMode: RpgExtractionMode;
 }
@@ -77,6 +91,8 @@ export function fromGmConsoleForm(values: GmConsoleFormValues): GmConsoleScalarP
       cyoaChoiceBehavior: values.cyoaChoiceBehavior,
       plotProgression: values.plotProgression,
       dateMode: values.dateMode,
+      immersiveHtml: values.immersiveHtml,
+      immersiveHtmlInteractive: values.immersiveHtmlInteractive,
     },
     extractionMode: values.extractionMode,
   };
