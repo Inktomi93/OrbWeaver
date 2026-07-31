@@ -458,6 +458,53 @@ test("a beat row's inline title edit fires editJournalEntry (host) — the mutat
     .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { title: "Sera's bargain" } });
 });
 
+// Owner dogfood (2026-07-31): the BODY edited through a one-line input — "it just does a single line and
+// it's very hard to see". The body now expands IN PLACE into a real textarea (the room-overrides collapse
+// anatomy), autosaving on blur (D66 A4 — no Save button anywhere in the panel).
+test("a beat row's BODY expands in place into a multi-line editor, and blur saves it", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  // At rest the body is the chronicle's muted line — the trigger, not an input (the instrument posture).
+  const bodyTrigger = component.getByRole("button", { name: "Sera's debt entry" });
+  await expect(bodyTrigger).toContainText("She owes the party a favour.");
+  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
+
+  await bodyTrigger.click();
+  const body = component.getByRole("textbox", { name: "Sera's debt entry" });
+  await expect(body).toBeVisible();
+  // The click's continuation: the editor took the trigger's place, so it takes the focus too (the trigger
+  // it replaced is unmounted — without this the keyboard path would dead-end).
+  await expect(body).toBeFocused();
+  // A real multi-line editor, not a letterbox: `rows={4}` floors it well past a single line.
+  const box = await body.boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThan(60);
+
+  await body.fill("She owes the party a favour, and the debt is called in at the Lantern.");
+  await body.blur();
+  await expect.poll(() => trpc.count("rpg.editJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("rpg.editJournalEntry"), { intervals: [20, 50, 100] })
+    .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { content: "She owes the party a favour, and the debt is called in at the Lantern." } });
+  // The editor collapses back to the row (one place at a time — the chronicle stays a reading surface).
+  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
+});
+
+test("Escape abandons an open beat-body draft — nothing is sent", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  await component.getByRole("button", { name: "Sera's debt entry" }).click();
+  const body = component.getByRole("textbox", { name: "Sera's debt entry" });
+  await body.fill("half a thought");
+  await body.press("Escape");
+  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sera's debt entry" })).toContainText("She owes the party a favour.");
+  await expect.poll(() => trpc.count("rpg.editJournalEntry"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
 test("a beat row's confirmed delete fires deleteJournalEntry (host) — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
