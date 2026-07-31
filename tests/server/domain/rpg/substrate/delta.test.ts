@@ -97,6 +97,25 @@ test("R5b — a tracker delta line carries the def's HINT (the delta block is th
   expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [glossed] }))).toContain("kael Grit 6→3 (-3) — resolve you spend");
 });
 
+// The reminder's read half renders a ZERO reading and a locked tracker; the delta is its twin and must
+// agree on both, or a drain-to-zero (the beat that matters most) or a host-owned tracker moving would be
+// the one transition the model never hears about.
+test("trackers — a drain to ZERO is a real transition, and a first reading of 0 sets to 0 (never swallowed)", () => {
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { mana: reading(3) } })] });
+  const zero = state({ actorState: [castVolatile("kael", { trackerValues: { mana: reading(0) } })] });
+  expect(buildDeltaBlock(prev, zero, ctx({ trackerDefs: [MANA] }))).toContain("kael mana 3→0 (-3)");
+  // …and the unset→0 arm: an actor whose row (or whose tracker) is written for the FIRST time at 0.
+  const unset = state({ actorState: [castVolatile("kael")] });
+  expect(buildDeltaBlock(unset, zero, ctx({ trackerDefs: [MANA] }))).toContain("kael mana → 0/10");
+});
+
+test("trackers — a LOCKED tracker still diffs (the lock is a WRITE permission, never a read filter)", () => {
+  const sealed = def({ key: "sealed", label: "Sealed", shape: "meter", write: "delta", subject: "actor", max: 10, locked: true, hint: "the host owns this" });
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { sealed: reading(4) } })] });
+  const cur = state({ actorState: [castVolatile("kael", { trackerValues: { sealed: reading(9) } })] });
+  expect(buildDeltaBlock(prev, cur, ctx({ trackerDefs: [sealed] }))).toContain("kael Sealed 4→9 (+5) — the host owns this");
+});
+
 test("trackers — a tracker with NO def never diffs (the read projects only DEFINED trackers)", () => {
   const prev = state({ actorState: [castVolatile("kael", { trackerValues: { junk: reading(1) } })] });
   const cur = state({ actorState: [castVolatile("kael", { trackerValues: { junk: reading(2) } })] });
