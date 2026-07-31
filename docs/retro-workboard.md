@@ -393,6 +393,12 @@ precedent); macro substitution + freeze-at-commit apply; the F2 probe's winning 
 teach's DEFAULT. Spec-first; natural sequencing = after the preset fork-flood fix (it IS the copy-on-edit
 model this reuses) and alongside/after SET-SEAMS (same contribution grammar).
 
+**QUOTE-1 QUEUED (owner expectation, 08-01):** dialogue speech-tint does NOT exist (markdown policy's
+only quote = blockquote) — build as a chatStyle knob (ST parity: quoted speech colored; tint token in
+appearance, PROSE-1-adjacent). Same session: the "greeting renders unformatted" report likely =
+`autoFixMarkdown` OFF (wiped default) × ST-card unbalanced asterisks — lane verifying the draft arm +
+whether the auto-fix pass covers greeting rows.
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
