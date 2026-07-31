@@ -4,7 +4,8 @@
 // passed through. The verb's member-gate + the swipe-consistency are covered by their own suites; this pins the
 // projection is byte-shared (no drift between the panel and the steering injection).
 
-import type { RpgActorVolatile, RpgSheet } from "@orb/contracts/rpg";
+import type { RpgActorVolatile, RpgSheet, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatTurnId, RpgSheetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -43,7 +44,7 @@ test("projects roster ∪ sheets — a roster actor with no sheet row renders th
   const view = await buildTrackerView(h.ctx, game, false);
   expect(view.actors).toHaveLength(1);
   expect(view.actors[0]?.name).toBe("Kael");
-  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, poolDefs: [], maxHp: null, level: null });
+  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] });
   expect(view.actors[0]?.volatile).toBeNull(); // no snapshot yet — turnless game
 });
 
@@ -98,28 +99,28 @@ test("recentBeatsKeepLast=0 drops the Recent-beats block entirely (durable log u
   expect((await buildTrackerView(ctx, game, false)).recentBeats).toEqual([]);
 });
 
-/** Seed one CHARACTER-actor game with a sheet (poolDefs) AND a committed snapshot carrying that actor's
- *  volatile pools — the exact both-planes shape the pool-max drift lived in. Seeds a REAL character (the
- *  sheet FKs it, and its branded id is what the volatile actorRef + roster both key on — a `cast` ref would
- *  carry no sheet, so it can't exercise the sheet↔volatile pool-max join). Returns game + ctx. */
-async function seedGameWithSheetAndPools(
+/** Seed one CHARACTER-actor game whose CONFIG defines trackers AND whose committed snapshot carries that
+ *  actor's readings — the both-planes shape the retired pool max lived in (a def max on the sheet, a second
+ *  max on the volatile row). Seeds a REAL character: the sheet FKs it, and its branded id is what the volatile
+ *  actorRef + the roster both key on (a `cast` ref carries no sheet, so it can't exercise the carrier join). */
+async function seedGameWithTrackers(
   db: Db,
   key: string,
-  poolDefs: RpgSheet["poolDefs"],
-  pools: RpgActorVolatile["pools"],
+  seed: { trackers: readonly RpgTrackerDef[]; values?: Record<string, RpgTrackerValue>; sheetOver?: Partial<RpgSheet> },
 ): Promise<{ game: RpgGameRow; ctx: RpgContext }> {
+  const { trackers, values = {}, sheetOver = {} } = seed;
   const chatId = await seedChat(db, key);
-  const gameId = await seedGame(db, chatId, key);
+  const gameId = await seedGame(db, chatId, key, { config: { ...liteConfig(), trackers: [...trackers] } });
   const ownerId = await seedUser(db, `owner_${key}`);
   // A REAL minted TypeID — the volatile actorRef's `characterId` is re-validated at snapshot-write, so a
   // fabricated `character_<key>` id would be silently dropped (the write asserts ok below).
   const characterId = await seedCharacter(db, ownerId, key, { id: mintTypeId(ID_PREFIX.character) });
-  const sheet: RpgSheet = { className: "", attributes: {}, poolDefs, maxHp: null, flavor: "", level: null };
+  const sheet: RpgSheet = { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...sheetOver };
   await upsertSheet(db, { id: castId<RpgSheetId>(`rpg_sheet_${key}`), gameId, characterId, userId: null, sheet, now: FROZEN_AT });
   const volatile: RpgActorVolatile = {
     actorRef: { kind: "character", characterId },
     hp: null,
-    pools,
+    trackerValues: values,
     conditions: [],
     inventory: [],
     wallet: [],
@@ -141,49 +142,58 @@ async function seedGameWithSheetAndPools(
   return { game, ctx: makeRpgService(db, { roster }).ctx };
 }
 
-test("pool MAX has ONE home — the displayed max resolves from sheet.poolDefs, NOT the volatile's stored max (both-directions no-drift)", async () => {
-  const db = await freshDb();
-  // The DRIFT shape: the Sheet def says Vitality max 40, but the volatile pool still carries a stale max 30
-  // (e.g. a Sheet max-edit that never touched the volatile). The projection must show 40 on BOTH the Status
-  // meter and the Sheet read — the def is the single source, so the two tabs can never disagree.
-  const { game, ctx } = await seedGameWithSheetAndPools(
-    db,
-    "maxhome",
-    [{ name: "Vitality", max: 40, color: null, hint: "" }],
-    [{ name: "Vitality", value: 24, max: 30 }], // stale volatile max — the def overrides it
-  );
+/** A tracker def with the axes a case cares about; everything else takes its schema default. */
+function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {
+  return rpgTrackerDefSchema.parse(over);
+}
 
-  const view = await buildTrackerView(ctx, game, false);
-  const actor = view.actors[0];
-  expect(view.actors).toHaveLength(1);
-  // Sheet read (what the Sheet tab renders): the def max.
-  expect(actor?.sheet.poolDefs).toEqual([{ name: "Vitality", max: 40, color: null, hint: "" }]);
-  // Status read (what the Status meter renders): the SAME 40, resolved from the def — never the stale 30.
-  expect(actor?.volatile?.pools).toEqual([{ name: "Vitality", value: 24, max: 40 }]);
+test("the MAX has exactly ONE home — the def's; the value plane carries none to drift from", async () => {
+  const db = await freshDb();
+  // The retired shape kept a max on the sheet's pool def AND a second on the volatile pool, so a Sheet edit
+  // and a Status edit could disagree and the read had to clamp one against the other. There is now one max.
+  const { game, ctx } = await seedGameWithTrackers(db, "maxhome", {
+    trackers: [def({ key: "vitality", label: "Vitality", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40 })],
+    values: { vitality: { value: 24, items: null } },
+  });
+  const actor = (await buildTrackerView(ctx, game, false)).actors[0];
+  expect(actor?.trackers.map((t) => [t.key, t.max])).toEqual([["vitality", 40]]);
+  expect(actor?.volatile?.trackerValues["vitality"]).toEqual({ value: 24, items: null });
 });
 
-test("pool max: a def max LOWERED below the volatile value drags the displayed value down (§12.3 tell, read-side)", async () => {
+test("carrier resolution decides what an actor's row SHOWS — class + grants − revokes, resolved server-side", async () => {
   const db = await freshDb();
-  // The Sheet lowered Vitality's def max to 20 while the volatile still holds value 24 — the projection
-  // clamps the displayed value to the def max (so a Status max-edit routed to patchSheet lands honestly even
-  // if the volatile value write is missed), never a value-over-max overflow from a hand-lowered def.
-  const { game, ctx } = await seedGameWithSheetAndPools(
-    db,
-    "drag",
-    [{ name: "Vitality", max: 20, color: null, hint: "" }],
-    [{ name: "Vitality", value: 24, max: 30 }],
-  );
+  const trackers = [
+    def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40 }),
+    def({ key: "suspicion", label: "Suspicion", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 }),
+    def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: "npcs", max: 3 }),
+  ];
+  // Kael is a PARTY actor: the party-class Mana, NOT the npc-class Suspicion — plus a GRANTED Bound Will and
+  // an explicit REVOKE that beats the class.
+  const { game, ctx } = await seedGameWithTrackers(db, "carriers", { trackers, sheetOver: { trackerGrants: ["bound_will"], trackerRevokes: [] } });
   const actor = (await buildTrackerView(ctx, game, false)).actors[0];
-  expect(actor?.volatile?.pools).toEqual([{ name: "Vitality", value: 20, max: 20 }]);
+  expect(actor?.trackers.map((t) => t.key)).toEqual(["bound_will", "mana"]);
+  expect(actor?.trackers.map((t) => t.key)).not.toContain("suspicion");
 });
 
-test("pool max: an ORPHAN volatile pool (no matching def) keeps its own max — no phantom clamp to a def that doesn't exist", async () => {
+test("a REVOKE on the sheet beats the carrier class (the per-actor exception)", async () => {
   const db = await freshDb();
-  // A model-minted pool the host never defined (or a since-deleted def): the def map has no entry, so the
-  // volatile keeps its own max/value — honest, never clamped to a nonexistent def.
-  const { game, ctx } = await seedGameWithSheetAndPools(db, "orphan", [], [{ name: "Fervor", value: 5, max: 8 }]);
-  const actor = (await buildTrackerView(ctx, game, false)).actors[0];
-  expect(actor?.volatile?.pools).toEqual([{ name: "Fervor", value: 5, max: 8 }]);
+  const trackers = [def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone", max: 40 })];
+  const { game, ctx } = await seedGameWithTrackers(db, "revoke", { trackers, sheetOver: { trackerRevokes: ["mana"] } });
+  expect((await buildTrackerView(ctx, game, false)).actors[0]?.trackers).toEqual([]);
+});
+
+test("the band renders the PINNED trackers with a numeric reading — never a def-order coincidence", async () => {
+  const db = await freshDb();
+  const trackers = [
+    def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 40, sort: 0 }),
+    def({ key: "focus", label: "Focus", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 20, sort: 1, pinned: true }),
+    def({ key: "unset", label: "Unset", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 5, sort: 2, pinned: true }),
+  ];
+  const { game, ctx } = await seedGameWithTrackers(db, "band", { trackers, values: { mana: { value: 28, items: null }, focus: { value: 12, items: null } } });
+  const orbs = (await buildTrackerView(ctx, game, false)).trackerOrbs;
+  // Only the PINNED-and-readable one: `mana` is unpinned (the retired auto-first-3 rule would have shown it),
+  // and the pinned-but-unset `unset` has nothing honest to draw.
+  expect(orbs).toEqual([{ key: "focus", label: "Focus", value: 12, max: 20, color: null }]);
 });
 
 test("P5: the plot plane rides the tracker view from the resolved snapshot (null for a turnless game)", async () => {

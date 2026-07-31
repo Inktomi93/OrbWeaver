@@ -32,7 +32,7 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
 
 /** The default sheet a first-write patch merges onto (a missing row = the default sheet, §4.3). */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
+  return { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
 
 /** The actor-id split the persistence upsert takes (a `character` ref → characterId; a `user` ref → userId). */
@@ -54,7 +54,10 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
   return {
     className: patch.className ?? current.className,
     attributes: patch.attributes !== undefined ? { ...patch.attributes } : current.attributes,
-    poolDefs: patch.poolDefs !== undefined ? [...patch.poolDefs] : current.poolDefs,
+    // The per-actor tracker EXCEPTIONS — whole-list replace on a passed array, keep on omit (MA-4). Tracker
+    // DEFS are not reachable here: they home once in `config.trackers` (`updateConfig` is their door).
+    trackerGrants: patch.trackerGrants !== undefined ? [...patch.trackerGrants] : current.trackerGrants,
+    trackerRevokes: patch.trackerRevokes !== undefined ? [...patch.trackerRevokes] : current.trackerRevokes,
     maxHp: "maxHp" in patch ? (patch.maxHp ?? null) : current.maxHp,
     flavor: patch.flavor ?? current.flavor,
     // §2.6 hand-only level — `patchSheet` is the ONLY write door (absent from extraction + tool args).

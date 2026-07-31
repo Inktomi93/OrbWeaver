@@ -89,7 +89,7 @@ function seedState() {
       wallet: { gold: 40, silver: 5 },
     }],
     present: [],
-    widgets: { Suspicion: { value: 10, max: 100 } },
+    trackers: { Suspicion: { value: 10, max: 100 } },
     quests: [],
     journal: [],
     beats: [],

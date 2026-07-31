@@ -20,8 +20,18 @@
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
-import type { RpgCastField, RpgClockTime, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
-import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type {
+  RpgClockTime,
+  RpgDateMode,
+  RpgRelationship,
+  RpgTrackerDef,
+  RpgTrackerEntry,
+  RpgTrackerValue,
+  RpgTrackerView,
+  RpgWeather,
+  TimeOfDay,
+} from "@orb/contracts/rpg";
+import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS, trackerGloss } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -112,27 +122,32 @@ function weatherLine(weather: RpgWeather): string {
   return weather.description !== undefined && weather.description !== "" ? `${head} (${weather.description})` : head;
 }
 
-/** One roster actor's line — name, className flavor, attributes, pools value/max, wallet, inventory summary,
- *  status. A missing plane is omitted (no phantom "0 gold"). */
-/** An actor's volatile-plane segments (hp/pools/wallet/inventory/status/conditions) — hoisted out of `actorLine`
- *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
- *  `poolHints` (#36) glosses each pool with its host-authored MEANING (`mana 5/10 (fuels spellcasting)`)
- *  so the model knows what a pool IS, not just its number — matched by name off `sheet.poolDefs`. */
-function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>, poolHints: ReadonlyMap<string, string>): string[] {
+/** THE ONE tracker gloss path (the tracked-field unification): every tracker on every surface — a roster
+ *  actor's row, a scene cast row, the game-wide readings — renders through `trackerGloss`, which is the one
+ *  `label value/max (hint)` grammar. It replaces the three drifted per-concept builders this file carried (pool segs · cast-field
+ *  segs · widget lines), which is exactly how R4b was born: the cast-field builder silently dropped the hint
+ *  its own docstring promised, so every host-defined tracked field was decoration instead of a steering lever
+ *  (measured: Δ −0.12 bare vs −1.00 glossed). One builder cannot drift from itself. */
+function trackerSegs(defs: readonly RpgTrackerDef[], values: Readonly<Record<string, RpgTrackerValue>>): string[] {
+  const segs: string[] = [];
+  for (const def of defs) {
+    const gloss = trackerGloss(def, values[def.key]);
+    if (gloss !== null) {
+      segs.push(gloss);
+    }
+  }
+  return segs;
+}
+
+/** An actor's volatile-plane segments (hp/trackers/wallet/inventory/status/conditions) — hoisted out of
+ *  `actorLine` so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity
+ *  gate. `trackers` are the defs THIS actor carries (resolved server-side through the ONE carrier predicate). */
+function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>, trackers: readonly RpgTrackerDef[]): string[] {
   const segs: string[] = [];
   if (v.hp !== null) {
     segs.push(`HP ${v.hp.value}/${v.hp.max}`);
   }
-  if (v.pools.length > 0) {
-    segs.push(
-      v.pools
-        .map((p) => {
-          const hint = poolHints.get(p.name);
-          return hint !== undefined && hint !== "" ? `${p.name} ${p.value}/${p.max} (${hint})` : `${p.name} ${p.value}/${p.max}`;
-        })
-        .join(", "),
-    );
-  }
+  segs.push(...trackerSegs(trackers, v.trackerValues));
   if (v.wallet.length > 0) {
     segs.push(v.wallet.map((w) => `${w.amount} ${w.name}`).join(", "));
   }
@@ -161,7 +176,7 @@ function actorLine(actor: RpgTrackerView["actors"][number]): string {
     segs.push(attrs.map(([k, n]) => `${k} ${n}`).join(", "));
   }
   if (actor.volatile !== null) {
-    segs.push(...volatileSegs(actor.volatile, new Map(actor.sheet.poolDefs.map((d) => [d.name, d.hint]))));
+    segs.push(...volatileSegs(actor.volatile, actor.trackers));
   }
   return `- ${segs.join(" — ")}`;
 }
@@ -178,31 +193,7 @@ function relationshipSeg(rel: RpgRelationship, hints: Readonly<Record<string, st
   return rel.kind === "neutral" ? null : rel.kind;
 }
 
-/** A present character's tracked-field segments (§2.8) — a `meter` field as `label N/max`, a `text` field as
- *  `label: value`, joined against the host-defined field SCHEMAS (only DEFINED fields render; an orphan value
- *  from a deleted field is skipped). Kind-aware + hint-glossed (the hint rides the label as a `title`-class gloss
- *  in the panel; in the reminder it appends inline so the model reads the steering meaning). */
-function castFieldSegs(customFields: Readonly<Record<string, string>>, castFields: readonly RpgCastField[]): string[] {
-  const segs: string[] = [];
-  for (const field of castFields) {
-    const raw = customFields[field.key];
-    if (raw === undefined) {
-      continue;
-    }
-    let base: string;
-    if (field.kind === "meter") {
-      base = field.max !== undefined ? `${field.label} ${raw}/${field.max}` : `${field.label} ${raw}`;
-    } else {
-      base = `${field.label}: ${raw}`;
-    }
-    // The hint gloss rides BOTH kinds (the pool/relationship grammar above): a bare tracked number measurably
-    // does NOT steer narration where a one-clause gloss does (the §4d steer probe: Δ −0.12 vs −1.00).
-    segs.push(field.hint !== undefined && field.hint !== "" ? `${base} (${field.hint})` : base);
-  }
-  return segs;
-}
-
-function castLine(cast: RpgTrackerView["cast"][number], castFields: readonly RpgCastField[], hints: Readonly<Record<string, string>>): string {
+function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTrackerEntry[], hints: Readonly<Record<string, string>>): string {
   const segs: string[] = [cast.emoji !== "" ? `${cast.emoji} ${cast.name}` : cast.name];
   if (cast.mood !== "") {
     segs.push(cast.mood);
@@ -211,22 +202,19 @@ function castLine(cast: RpgTrackerView["cast"][number], castFields: readonly Rpg
   if (rel !== null) {
     segs.push(rel);
   }
-  segs.push(...castFieldSegs(cast.customFields, castFields));
+  for (const entry of trackers) {
+    const gloss = trackerGloss(entry.def, entry.value ?? undefined);
+    if (gloss !== null) {
+      segs.push(gloss);
+    }
+  }
   return `- ${segs.join(" — ")}`;
 }
 
-function widgetLine(widget: RpgTrackerView["widgets"][number]): string {
-  const value = widget.value;
-  if (value === null) {
-    return `- ${widget.def.label}`;
-  }
-  if (value.value !== undefined) {
-    return `- ${widget.def.label}: ${value.value}${value.max !== undefined ? `/${value.max}` : ""}`;
-  }
-  if (value.items !== undefined) {
-    return `- ${widget.def.label}: ${value.items.join(", ")}`;
-  }
-  return `- ${widget.def.label}`;
+/** A GAME-subject tracker's line — the SAME gloss every other tracker surface renders. A tracker with no
+ *  reading yet still lists (bare label): the model should know the game HAS an Alarm before it moves it. */
+function gameTrackerLine(entry: RpgTrackerEntry): string {
+  return `- ${trackerGloss(entry.def, entry.value ?? undefined) ?? entry.def.label}`;
 }
 
 /** The P5 plot one-liner (`<story title> — act 2/3: <act title> — <act summary>`) — empty segments omitted,
@@ -301,11 +289,11 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
   if (view.cast.length > 0) {
     stateLines.push("Present:");
-    stateLines.push(...view.cast.map((c) => castLine(c, view.castFields, input.features.relationshipHints)));
+    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], input.features.relationshipHints)));
   }
-  if (view.widgets.length > 0) {
+  if (view.gameTrackers.length > 0) {
     stateLines.push("Trackers:");
-    stateLines.push(...view.widgets.map(widgetLine));
+    stateLines.push(...view.gameTrackers.map(gameTrackerLine));
   }
   const activeQuests = view.quests.filter((q) => q.status === "active");
   if (activeQuests.length > 0) {
@@ -325,7 +313,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   // ALWAYS ON (§13 #10 — no knob); OMITTED on no-change (`null` — the byte-stable quiet-turn signal).
   const delta = buildDeltaBlock(input.prevSnapshot, input.curSnapshot, {
     rosterNames: input.rosterNames,
-    castFields: view.castFields,
+    trackerDefs: view.trackerDefs,
     relationshipHints: input.features.relationshipHints,
   });
   if (delta !== null) {

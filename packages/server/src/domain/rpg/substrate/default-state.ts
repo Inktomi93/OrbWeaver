@@ -19,7 +19,7 @@ export function defaultSnapshotState(): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,

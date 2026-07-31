@@ -8,31 +8,18 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   RpgActorRef,
-  RpgCastField,
   RpgDateMode,
   RpgExtractionContext,
   RpgGameFeatures,
   RpgJournalType,
-  RpgPoolDef,
   RpgQuestStatus,
   RpgSnapshotState,
   RpgStatProfile,
+  RpgTrackerDef,
   RpgTrackerView,
-  RpgWidgetDef,
 } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
-import type {
-  ChatId,
-  MessageId,
-  MessageVariantId,
-  PresetId,
-  RpgCheckpointId,
-  RpgGameId,
-  RpgJournalId,
-  RpgQuestId,
-  RpgSnapshotId,
-  RpgWidgetId,
-} from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgJournalId, RpgQuestId, RpgSnapshotId } from "@orb/kit/ids";
 
 // ── persistence-layer params (W1a) ──────────────────────────────────────────────────────────────────────
 
@@ -72,6 +59,8 @@ export interface StagedTurnFlush {
  *  (rpg-design/05 §2.5). The `variantId`/`sourceMessageId` are supplied by the flush, not the tool. */
 export interface StagedJournalEntry {
   readonly type: string;
+  /** R4c — the free gloss for a `custom`-typed beat (""/absent on the seven built-ins). */
+  readonly label: string;
   readonly title: string;
   readonly content: string;
 }
@@ -102,8 +91,12 @@ export interface UpdateConfigParams {
     | {
         readonly statProfile?: RpgStatProfile | undefined;
         readonly steeringNote?: string | undefined;
-        readonly castFields?: readonly RpgCastField[] | undefined;
+        // THE TRACKERS (the tracked-field unification) — the host's whole tracker set in ONE write
+        // (whole-list replace, the retired castFields/pinnedOrbs semantics).
+        readonly trackers?: readonly RpgTrackerDef[] | undefined;
         readonly relationshipHints?: Readonly<Record<string, string>> | undefined;
+        // R4c — the custom-journal-type gloss map (the relationshipHints sibling); whole-record replace.
+        readonly journalTypeHints?: Readonly<Record<string, string>> | undefined;
         // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value
         // (MA-4 patch semantics) — the verb reads the game's existing value on omit, so a toggle survives an
         // unrelated config edit (never reset to default). `deception`/`omniscience` = the teach + reasoning-strip
@@ -112,8 +105,6 @@ export interface UpdateConfigParams {
         readonly omniscience?: boolean | undefined;
         readonly hiddenContentReveal?: boolean | undefined;
         readonly recentBeatsKeepLast?: number | undefined;
-        // ORB-PINNING (§4.8): pool names pinned as band orbs beyond the auto-first-3 (whole-list replace).
-        readonly pinnedOrbs?: readonly string[] | undefined;
         // P4 card knobs (§9 #7 + M2/M3) — omit keeps the current value (MA-4 patch semantics).
         readonly immersiveHtml?: boolean | undefined;
         readonly immersiveHtmlInteractive?: boolean | undefined;
@@ -149,8 +140,10 @@ export interface PatchSheetParams {
   readonly patch: {
     readonly className?: string | undefined;
     readonly attributes?: Readonly<Record<string, number>> | undefined;
-    // DERIVED from the one pool-def home (`RpgPoolDef` — name/max + the host-pickable `color`), never a re-spell.
-    readonly poolDefs?: readonly RpgPoolDef[] | undefined;
+    // The per-actor TRACKER EXCEPTIONS (the applicability model) — tracker KEYS granted to / revoked from
+    // THIS actor against its carrier class. Whole-list replace; defs themselves live in `config.trackers`.
+    readonly trackerGrants?: readonly string[] | undefined;
+    readonly trackerRevokes?: readonly string[] | undefined;
     readonly maxHp?: number | null | undefined;
     readonly flavor?: string | undefined;
     readonly level?: number | null | undefined;
@@ -170,30 +163,6 @@ export interface EditSnapshotParams {
    *  which values it touched (`actorState.user:<id>.pools.<name>`, `…status`), so the pin lands on the
    *  SPECIFIC datum, not the whole plane. Omit ⇒ the coarse default (every top-level patch key). */
   readonly lockPaths?: readonly string[] | undefined;
-}
-
-/** `createWidget` — add a HUD widget definition (host). */
-export interface CreateWidgetParams {
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly def: RpgWidgetDef;
-}
-
-/** `updateWidget` — patch a HUD widget definition's mutable columns (host). */
-export interface UpdateWidgetParams {
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly widgetId: RpgWidgetId;
-  // A per-field-optional widget def patch; `| undefined` per field so the zod-`.partial()` wire shape the W2
-  // router spreads is assignable under `exactOptionalPropertyTypes` (a bare `Partial<>` rejects the undefined).
-  readonly patch: { readonly [K in keyof RpgWidgetDef]?: RpgWidgetDef[K] | undefined };
-}
-
-/** `deleteWidget` — remove a HUD widget definition (host). */
-export interface DeleteWidgetParams {
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly widgetId: RpgWidgetId;
 }
 
 /** `upsertQuest` — the hand arm of the quest plane (host). Writes the `quests` array on the current resolved
@@ -221,6 +190,8 @@ export interface AddJournalEntryParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly type: RpgJournalType;
+  /** R4c — the free gloss carried when `type === "custom"`; omit ⇒ "". */
+  readonly label?: string | undefined;
   readonly title: string;
   readonly content: string;
 }
@@ -232,6 +203,7 @@ export interface EditJournalEntryParams {
   readonly entryId: RpgJournalId;
   readonly patch: {
     readonly type?: RpgJournalType | undefined;
+    readonly label?: string | undefined;
     readonly title?: string | undefined;
     readonly content?: string | undefined;
   };

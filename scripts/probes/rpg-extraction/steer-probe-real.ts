@@ -11,7 +11,8 @@
 // Run: node_modules/.bin/tsx scripts/probes/rpg-extraction/steer-probe-real.ts   (~$0.15-0.20, OR key)
 
 import fs from "node:fs";
-import type { RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
+import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params";
 import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder";
 
@@ -55,12 +56,29 @@ function emptyState(): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
   };
 }
+
+/** Wren's tracked fields as TRACKER defs — the hinted `Wits` is the probe's independent variable (R4b: a
+ *  bare tracked number moves narration by noise, the same number glossed moves it by a full point). */
+const WREN_TRACKERS = [
+  rpgTrackerDefSchema.parse({ key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 100 }),
+  rpgTrackerDefSchema.parse({
+    key: "wits",
+    label: "Wits",
+    shape: "meter",
+    write: "set",
+    subject: "actor",
+    appliesTo: "npcs",
+    max: 100,
+    hint: "how sharp and quick-thinking she is right now",
+  }),
+  rpgTrackerDefSchema.parse({ key: "role", label: "Role", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" }),
+];
 
 /** The REAL reminder for one turn — the production builder over a view carrying Wren's tracked Wits
  *  (meter, max 100, host hint) exactly as a host-defined tracker renders post-R4b. */
@@ -72,11 +90,12 @@ function realReminder(wits: number, beats: readonly string[]): string {
       {
         actorRef: { kind: "cast", castKey: "kestrel" },
         name: "Kestrel",
-        sheet: { className: "courier", attributes: {}, poolDefs: [{ name: "Stamina", max: 14, color: null, hint: "" }], maxHp: null, level: 3 },
+        sheet: { className: "courier", attributes: {}, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        trackers: [rpgTrackerDefSchema.parse({ key: "Stamina", label: "Stamina", shape: "meter", write: "delta", subject: "actor", max: 14 })],
         volatile: {
           actorRef: { kind: "cast", castKey: "kestrel" },
           hp: { value: 22, max: 30 },
-          pools: [{ name: "Stamina", value: 9, max: 14 }],
+          trackerValues: { Stamina: { value: 9, items: null } },
           conditions: [],
           inventory: [
             { id: "i1", name: "lockbox", description: "", quantity: 1, location: "", type: "" },
@@ -88,27 +107,21 @@ function realReminder(wits: number, beats: readonly string[]): string {
         },
       },
     ],
-    cast: [
-      {
-        key: "Wren",
-        name: "Wren",
-        emoji: "🗝️",
-        mood: "alert",
-        customFields: { trust: "70", wits: String(wits), role: "fixer" },
-        relationship: { kind: "custom", label: "travelling companion" },
-      },
-    ],
-    castFields: [
-      { key: "trust", label: "Trust", kind: "meter", max: 100 },
-      { key: "wits", label: "Wits", kind: "meter", max: 100, hint: "how sharp and quick-thinking she is right now" },
-      { key: "role", label: "Role", kind: "text" },
-    ],
-    widgets: [],
+    cast: [{ key: "Wren", name: "Wren", emoji: "🗝️", mood: "alert", relationship: { kind: "custom", label: "travelling companion" } }],
+    trackerDefs: [...WREN_TRACKERS],
+    castTrackers: {
+      Wren: [
+        { def: WREN_TRACKERS[0] as RpgTrackerDef, value: { value: 70, items: null } },
+        { def: WREN_TRACKERS[1] as RpgTrackerDef, value: { value: wits, items: null } },
+        { def: WREN_TRACKERS[2] as RpgTrackerDef, value: { value: "fixer", items: null } },
+      ],
+    },
+    gameTrackers: [],
     quests: [],
     plot: null,
     recentBeats: beats.slice(-3),
     trackersReadOnly: false,
-    poolOrbs: [],
+    trackerOrbs: [],
   };
   const input: LiteReminderInput = {
     view,
@@ -116,13 +129,12 @@ function realReminder(wits: number, beats: readonly string[]): string {
     curSnapshot: emptyState(),
     prevSnapshot: emptyState(),
     features: {
-      castFields: [...view.castFields],
       relationshipHints: {},
+      journalTypeHints: {},
       deception: false,
       omniscience: false,
       hiddenContentReveal: true,
       recentBeatsKeepLast: 8,
-      pinnedOrbs: [],
       immersiveHtml: false,
       immersiveHtmlInteractive: true,
       cardKeepLastX: 0,

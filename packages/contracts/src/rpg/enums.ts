@@ -25,8 +25,13 @@ export const RPG_QUEST_STATUSES = ["active", "completed", "failed"] as const;
 export type RpgQuestStatus = (typeof RPG_QUEST_STATUSES)[number];
 export const rpgQuestStatusSchema = z.enum(RPG_QUEST_STATUSES);
 
-/** Journal entry type — vocabulary WHOLE; lite's model writes any of them (labels, not engines). */
-export const RPG_JOURNAL_TYPES = ["location", "npc", "combat", "quest", "item", "event", "note"] as const;
+/** Journal entry type — vocabulary WHOLE; lite's model writes any of them (labels, not engines). R4c added
+ *  the `custom` ESCAPE (owner go, 2026-07-31): the closed seven were combat-flavoured on a plane that fires on
+ *  79% of turns, in the genres lite is best at, and a DB CHECK made them a wall. `custom` mirrors
+ *  {@link RPG_RELATIONSHIP_KINDS} exactly — keep the enum (a model can never emit an off-vocab token under an
+ *  enforcing grammar) and reach anything else through the entry's free `label` (+ per-game
+ *  `features.journalTypeHints` so a host-defined type steers, the R4b gloss argument). */
+export const RPG_JOURNAL_TYPES = ["location", "npc", "combat", "quest", "item", "event", "note", "custom"] as const;
 export type RpgJournalType = (typeof RPG_JOURNAL_TYPES)[number];
 export const rpgJournalTypeSchema = z.enum(RPG_JOURNAL_TYPES);
 
@@ -36,15 +41,38 @@ export const RPG_CHECKPOINT_TRIGGERS = ["manual"] as const;
 export type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS);
 
-/** HUD widget display type — legacy vocabulary adopted whole (display metadata). */
-export const RPG_WIDGET_TYPES = ["meter", "counter", "gauge", "badge", "text"] as const;
-export type RpgWidgetType = (typeof RPG_WIDGET_TYPES)[number];
-export const rpgWidgetTypeSchema = z.enum(RPG_WIDGET_TYPES);
+// The TRACKER axes (the tracked-field unification, `docs/design/tracked-field-unification.md` §2). These four
+// tuples ARE the unification: pool/meter/cast-field/band-orb/widget were never five concepts, they were one
+// def read along these axes. The shapes they replace (`RPG_WIDGET_TYPES`/`RPG_WIDGET_POSITIONS`/
+// `RPG_CAST_FIELD_KINDS`) are DELETED outright — no-legacy ruling, no compat vocabulary.
 
-/** HUD widget placement — legacy vocabulary adopted whole. */
-export const RPG_WIDGET_POSITIONS = ["banner", "sidebar", "footer"] as const;
-export type RpgWidgetPosition = (typeof RPG_WIDGET_POSITIONS)[number];
-export const rpgWidgetPositionSchema = z.enum(RPG_WIDGET_POSITIONS);
+/** A tracker's SHAPE — what kind of datum it holds. `meter` = value/max (the old pools, meter cast-fields,
+ *  meter widgets); `text` = a free string chip (the old text cast-fields); `list` = string lines (the old
+ *  widget `items[]`). Drives the value union, the panel render, and the delta diff. */
+export const RPG_TRACKER_SHAPES = ["meter", "text", "list"] as const;
+export type RpgTrackerShape = (typeof RPG_TRACKER_SHAPES)[number];
+export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES);
+
+/** A tracker's WRITE axis — the loud distinction the old surfaces buried. `delta` = a RESOURCE the story
+ *  spends/restores (the tool arm takes `{key, delta}`); `set` = a STATE the story observes (the arm takes
+ *  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
+ *  drain vs a gauge that tracks). */
+export const RPG_TRACKER_WRITES = ["delta", "set"] as const;
+export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number];
+export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES);
+
+/** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
+ *  value on the snapshot; the old game-scoped widgets, no carrier resolution). */
+export const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
+export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number];
+export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS);
+
+/** The carrier CLASSES an actor-subject tracker's `appliesTo` may name (the alternative is an explicit
+ *  `ActorRef[]`). Honest to what the old surfaces were: pool defs were per-party-member (`party`), cast
+ *  fields were per-NPC (`npcs`). `everyone` is the column-field arm. */
+export const RPG_TRACKER_CARRIER_CLASSES = ["party", "npcs", "everyone"] as const;
+export type RpgTrackerCarrierClass = (typeof RPG_TRACKER_CARRIER_CLASSES)[number];
+export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES);
 
 /** Relationship kind (parity-plus §2.1) — the CLOSED genre-floor vocab + an explicit `custom` escape (NOT free
  *  text, NOT a bare closed enum). The five are ordered lover→friend→ally→neutral→enemy (a warmth axis, so a
@@ -63,10 +91,3 @@ export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
 export const RPG_CYOA_CHOICE_BEHAVIORS = ["compose", "send"] as const;
 export type RpgCyoaChoiceBehavior = (typeof RPG_CYOA_CHOICE_BEHAVIORS)[number];
 export const rpgCyoaChoiceBehaviorSchema = z.enum(RPG_CYOA_CHOICE_BEHAVIORS);
-
-/** Custom tracked cast-field kind (parity-plus §2.8) — `text` = a free string chip; `meter` = a 0-max numeric
- *  the panel renders as a `TrackBar` and the delta diffs numerically. The host defines the field SCHEMA per
- *  game (`config.features.castFields`); the model writes DEFINED field keys only (enum-constrained, §2.3). */
-export const RPG_CAST_FIELD_KINDS = ["text", "meter"] as const;
-export type RpgCastFieldKind = (typeof RPG_CAST_FIELD_KINDS)[number];
-export const rpgCastFieldKindSchema = z.enum(RPG_CAST_FIELD_KINDS);

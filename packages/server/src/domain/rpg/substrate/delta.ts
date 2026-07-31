@@ -23,8 +23,8 @@
 // a per-plane guard: a throwing renderer DEGRADES that plane's lines to nothing and the OTHER planes still
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
-import type { RpgCastField, RpgClockTime, RpgSnapshotState, TimeOfDay } from "@orb/contracts/rpg";
-import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgSnapshotState, RpgTrackerDef, RpgTrackerValue, TimeOfDay } from "@orb/contracts/rpg";
+import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
@@ -117,24 +117,91 @@ const hpRenderer: PlaneDiffRenderer<ActorState> = {
     }),
 };
 
-/** Pools — per-actor per-pool signed numeric delta (`mana 5→2 (-3)`), matched by pool name. */
-const poolsRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "pools",
+/** Append the def's steering HINT to a delta line (R5b): `Kael Mana 5→2 (-3) — fuels spellcasting`. The
+ *  delta block is the license's referent ("let the change land in the fiction"), so a line that says WHAT
+ *  moved without saying what it MEANS is the exact R4b class — a bare tracked number that reads as noise.
+ *  An em-dash tail (not the reminder's parenthetical) because the reading itself already carries parens. */
+function withHint(line: string, def: RpgTrackerDef): string {
+  return def.hint === "" ? line : `${line} — ${def.hint}`;
+}
+
+/** ONE tracker's diff line, SHAPE-aware. A `meter` diffs numerically (`Mana 5→2 (-3)`); `text`/`list` diff as
+ *  a transition (`trust: guarded → open`). Returns null when nothing legible changed (an unset→unset tracker,
+ *  a non-numeric meter). The ONE tracker diff — it replaced the pool renderer, the cast-field renderer AND
+ *  the widget renderer, which had three different ideas of what "changed" meant. */
+function trackerLine(prefix: string, def: RpgTrackerDef, was: RpgTrackerValue | undefined, cur: RpgTrackerValue | undefined): string | null {
+  const head = prefix === "" ? "" : `${prefix} `;
+  if (def.shape === "meter") {
+    const curN = trackerNumber(cur);
+    if (curN === null) {
+      return null;
+    }
+    const wasN = trackerNumber(was);
+    if (wasN === null) {
+      return withHint(`${head}${def.label} → ${curN}${def.max === null ? "" : `/${def.max}`}`, def);
+    }
+    return wasN === curN ? null : withHint(`${head}${numDelta(def.label, wasN, curN)}`, def);
+  }
+  const curText = trackerText(def, cur);
+  const wasText = trackerText(def, was);
+  if (curText === null || curText === wasText) {
+    return null;
+  }
+  return withHint(wasText === null ? `${head}${def.label}: ${curText}` : `${head}${def.label}: ${wasText} → ${curText}`, def);
+}
+
+/** A text/list tracker's comparable rendering (the list joined, so a membership change is one transition
+ *  line rather than the widget renderer's separate +/− pair — one grammar for every shape). */
+function trackerText(def: RpgTrackerDef, value: RpgTrackerValue | undefined): string | null {
+  if (def.shape === "list") {
+    const items = value?.items ?? null;
+    return items === null || items.length === 0 ? null : items.join(", ");
+  }
+  const raw = value?.value ?? null;
+  return raw === null ? null : String(raw);
+}
+
+/** The ACTOR-subject tracker deltas — every carried tracker on every actor, diffed by `key` (never by label:
+ *  a rename is not a beat). Silent when the game defines no trackers. */
+const actorTrackersRenderer: PlaneDiffRenderer<ActorState> = {
+  plane: "trackers",
   select: (s) => s.actorState,
-  render: (prev, cur, ctx) =>
-    perActor(cur, prev, ctx, (name, p, c) => {
-      const prevPools = new Map((p?.pools ?? []).map((x) => [x.name, x.value]));
+  render: (prev, cur, ctx) => {
+    if (ctx.trackerDefs.length === 0) {
+      return [];
+    }
+    const actorDefs = ctx.trackerDefs.filter((d) => d.subject === "actor");
+    return perActor(cur, prev, ctx, (name, p, c) => {
       const out: string[] = [];
-      for (const pool of c.pools) {
-        const was = prevPools.get(pool.name);
-        if (was === undefined) {
-          out.push(`${name} ${pool.name} → ${pool.value}/${pool.max}`);
-        } else if (was !== pool.value) {
-          out.push(`${name} ${numDelta(pool.name, was, pool.value)}`);
+      for (const def of actorDefs) {
+        const line = trackerLine(name, def, p?.trackerValues[def.key], c.trackerValues[def.key]);
+        if (line !== null) {
+          out.push(line);
         }
       }
       return out;
-    }),
+    });
+  },
+};
+
+/** The GAME-subject tracker deltas (the retired widget renderer) — the same ONE tracker diff, unprefixed
+ *  (a game tracker belongs to nobody in particular). */
+const gameTrackersRenderer: PlaneDiffRenderer<RpgSnapshotState["trackerValues"]> = {
+  plane: "gameTrackers",
+  select: (s) => s.trackerValues,
+  render: (prev, cur, ctx) => {
+    const out: string[] = [];
+    for (const def of ctx.trackerDefs) {
+      if (def.subject !== "game") {
+        continue;
+      }
+      const line = trackerLine("", def, prev[def.key], cur[def.key]);
+      if (line !== null) {
+        out.push(line);
+      }
+    }
+    return out;
+  },
 };
 
 /** Conditions — the added/removed set per actor (`+Bleeding`, `-Poisoned`), matched by condition name. */
@@ -307,39 +374,6 @@ const questsRenderer: PlaneDiffRenderer<RpgSnapshotState["quests"]> = {
   },
 };
 
-/** The `items` SET-delta for one widget (fold-in #4 — P0 verifier gap: the P0 renderer diffed only the numeric
- *  `.value` arm). Added / removed items produce lines (`widget +Sword`, `widget -Shield`), matched by string;
- *  a REORDER-ONLY change produces NOTHING (set membership is unchanged — order is not a beat). A first-seen list
- *  reads every item as added. */
-function widgetItemLines(label: string, prevItems: readonly string[] | undefined, curItems: readonly string[]): readonly string[] {
-  const before = new Set(prevItems ?? []);
-  const after = new Set(curItems);
-  const added = curItems.filter((x) => !before.has(x)).map((x) => `${label} +${x}`);
-  const removed = [...before].filter((x) => !after.has(x)).map((x) => `${label} -${x}`);
-  return [...added, ...removed];
-}
-
-/** Widgets — per-widget numeric delta (`hunger 5→2 (-3)`) AND the `items` SET-delta (fold-in #4), keyed by widget
- *  label in `widgetValues`. §2.7 table: "widgets | numeric/set delta like pools". Both arms fire independently
- *  (a widget can carry a value AND an item list). */
-const widgetsRenderer: PlaneDiffRenderer<RpgSnapshotState["widgetValues"]> = {
-  plane: "widgets",
-  select: (s) => s.widgetValues,
-  render: (prev, cur) => {
-    const out: string[] = [];
-    for (const [label, val] of Object.entries(cur)) {
-      const was = prev[label];
-      if (val.value !== undefined && was?.value !== val.value) {
-        out.push(was?.value === undefined ? `${label} → ${val.value}` : numDelta(label, was.value, val.value));
-      }
-      if (val.items !== undefined) {
-        out.push(...widgetItemLines(label, was?.items, val.items));
-      }
-    }
-    return out;
-  },
-};
-
 /** The display form of a relationship — the bare kind, or a `custom` label (glossed with the M1 hint when the
  *  host configured one for that label: `vassal (sworn to serve but resentful)`). A custom kind with no label
  *  falls back to "custom"; a non-custom kind ignores the label (the built-ins carry their meaning). */
@@ -374,65 +408,6 @@ const relationshipRenderer: PlaneDiffRenderer<RpgSnapshotState["presentCharacter
       if (prevDisp !== nextDisp) {
         out.push(`${c.name}: ${prevDisp} → ${nextDisp}`);
       }
-    }
-    return out;
-  },
-};
-
-/** One cast member's tracked-field diff lines (§2.8), joined against the host-defined field SCHEMAS. A `meter`
- *  field diffs numerically (`Mari suspicion 3→7 (+4)` — the stored string parses to a number); a `text` field
- *  diffs as a transition (`Mari trust: guarded → open`). Only DEFINED fields diff (an orphan value from a deleted
- *  field-schema is skipped — the read projects only defined fields). A first-seen value reads as a set-to. */
-/** One tracked cast-field's diff line (§2.8) — a `meter` numerically (`Mari suspicion 3→7 (+4)`), a `text` field
- *  as a transition (`Mari trust: guarded → open`). Returns null when there is no line (a non-numeric meter value,
- *  or no meaningful change). `was`/`cur` are the STORED string values (a meter parses to a number). */
-function castFieldLine(name: string, field: RpgCastField, was: string | undefined, cur: string): string | null {
-  if (field.kind === "meter") {
-    const curN = Number.parseInt(cur, 10);
-    if (Number.isNaN(curN)) {
-      return null; // a non-numeric meter value — never a NaN line
-    }
-    const wasN = was === undefined ? undefined : Number.parseInt(was, 10);
-    return wasN === undefined || Number.isNaN(wasN) ? `${name} ${field.label} → ${curN}` : `${name} ${numDelta(field.label, wasN, curN)}`;
-  }
-  return was === undefined ? `${name} ${field.label}: ${cur}` : `${name} ${field.label}: ${was} → ${cur}`;
-}
-
-function castFieldLines(
-  name: string,
-  prevFields: Readonly<Record<string, string>> | undefined,
-  curFields: Readonly<Record<string, string>>,
-  ctx: DeltaContext,
-): readonly string[] {
-  const out: string[] = [];
-  for (const field of ctx.castFields) {
-    const cur = curFields[field.key];
-    const was = prevFields?.[field.key];
-    if (cur === undefined || was === cur) {
-      continue;
-    }
-    const line = castFieldLine(name, field, was, cur);
-    if (line !== null) {
-      out.push(line);
-    }
-  }
-  return out;
-}
-
-/** Cast-fields (feature C, §2.8) — per-cast tracked-field deltas over the host-defined schemas, matched by cast
- *  key. Registered WITH the relationship renderer (both are cast-plane diffs). Silent when no fields are defined
- *  (`ctx.castFields` empty — the feature-off arm). */
-const castFieldRenderer: PlaneDiffRenderer<RpgSnapshotState["presentCharacters"]> = {
-  plane: "castFields",
-  select: (s) => s.presentCharacters,
-  render: (prev, cur, ctx) => {
-    if (ctx.castFields.length === 0) {
-      return [];
-    }
-    const before = new Map(prev.map((c) => [c.key, c]));
-    const out: string[] = [];
-    for (const c of cur) {
-      out.push(...castFieldLines(c.name, before.get(c.key)?.customFields, c.customFields, ctx));
     }
     return out;
   },
@@ -477,17 +452,16 @@ const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
  *  a mutation; level is hand-only identity the prose doesn't react to). */
 export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
   definePlaneDiff(hpRenderer),
-  definePlaneDiff(poolsRenderer),
+  definePlaneDiff(actorTrackersRenderer),
   definePlaneDiff(conditionsRenderer),
   definePlaneDiff(inventoryRenderer),
   definePlaneDiff(walletRenderer),
   definePlaneDiff(ambientRenderer),
   definePlaneDiff(presentCastRenderer),
   definePlaneDiff(relationshipRenderer),
-  definePlaneDiff(castFieldRenderer),
   definePlaneDiff(questsRenderer),
   definePlaneDiff(plotRenderer),
-  definePlaneDiff(widgetsRenderer),
+  definePlaneDiff(gameTrackersRenderer),
 ];
 
 /** Run one registered renderer inside the §2.7.4 defensive guard: a renderer that throws on a malformed plane

@@ -78,7 +78,7 @@ test("reliable mode: runExtraction is called, its delta is staged + flushed", as
   const db = await freshDb();
   const extractionDelta = {
     statePatch: { location: "the obsidian tower" },
-    journal: [{ type: "location", title: "Arrival", content: "They reached the tower." }],
+    journal: [{ type: "location", label: "", title: "Arrival", content: "They reached the tower." }],
   };
   const { chatId, h } = await seedLiteGame(db, { extractionDelta }); // seedLiteGame defaults to reliable
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -121,16 +121,17 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   // The model narrates "the wizard spends 3 mana" — a pool decremented before it was ever established.
-  await rpgToolDefinitions(h.ctx)[0]?.handler({ targetRef: "Wizard", poolDeltas: [{ name: "mana", delta: -3 }] }, exec(chatId, TURN));
+  await rpgToolDefinitions(h.ctx)[0]?.handler({ targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, exec(chatId, TURN));
 
   // Flush the turn onto a committed assistant slot — this is where the poisoned row used to commit.
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
-  // The persisted row is CONTRACT-VALID (floored: value=0, max=1) — a `max <= 0` would have failed parse-on-read.
+  // The persisted row is CONTRACT-VALID — the tracker value is TOTAL (`{value,items}` whole), so a partial
+  // write can never strand a sibling on it, and the ceiling lives on the def where nothing can drift from it.
   const snap = await findSnapshotByVariant(db, variantId);
   const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Wizard");
-  expect(wizard?.pools).toEqual([{ name: "mana", value: 0, max: 1 }]);
+  expect(wizard?.trackerValues["mana"]).toEqual({ value: -3, items: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
   await expect(h.service.getTrackerView({ principal: principal("host"), chatId })).resolves.toBeDefined();
 });
@@ -149,20 +150,22 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
     actorState: [
       {
         actorRef: { kind: "cast", castKey: "Broken" },
-        hp: null,
-        pools: [{ name: "x", value: 0, max: 0 }],
+        // `hp.max = 0` violates the contract belt (`hp.max >= 1`) — parse-on-read would throw AFTER the
+        // insert commits, so the backstop must refuse it at the write boundary.
+        hp: { value: 1, max: 0 },
+        trackerValues: {},
         conditions: [],
         inventory: [],
         wallet: [],
         status: "",
       },
     ],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
   });
-  h.ctx.staging.stageJournal(TURN, { type: "note", title: "beat", content: "c" });
+  h.ctx.staging.stageJournal(TURN, { type: "note", label: "", title: "beat", content: "c" });
 
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
@@ -191,7 +194,7 @@ test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delt
       party: [{ targetRef: "player", status: "Bleeding (Critical)" }],
       inventory: [],
       scene: { location: "cave", weather: { type: "fog", label: "nightfall mist" } },
-      widgets: [],
+      trackers: [],
       quests: [],
       // TITLE-LESS journal entry (the blocker fix, ruling #10): the 8B drops the nested-required `title`; the
       // entry must still land, its title DERIVED from the content head. This is the exact 5/8-failure shape.
@@ -228,7 +231,7 @@ test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then as
   // real 0.8-2.9s call).
   const extractionDelta = {
     statePatch: { location: "the sunken cathedral" },
-    journal: [{ type: "location", title: "Descent", content: "They descended into the cathedral." }],
+    journal: [{ type: "location", label: "", title: "Descent", content: "They descended into the cathedral." }],
   };
   const { chatId, h } = await seedLiteGame(db, { extractionDelta });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -307,7 +310,7 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
   const { chatId, h } = await seedLiteGame(db, { roster: [kael] });
 
   // The model addresses the party member by NAME (it never sees ids).
-  await rpgToolDefinitions(h.ctx)[0]?.handler({ targetRef: "Kael", poolDeltas: [{ name: "focus", delta: 7 }] }, exec(chatId, TURN));
+  await rpgToolDefinitions(h.ctx)[0]?.handler({ targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, exec(chatId, TURN));
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
@@ -315,7 +318,7 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
   // The write SURFACES under the roster character's key — not an orphan cast:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
-  expect(kaelView?.volatile?.pools).toEqual([{ name: "focus", value: 7, max: 7 }]);
+  expect(kaelView?.volatile?.trackerValues["focus"]).toEqual({ value: 7, items: null });
   // And there is NO orphan cast:Kael entry.
   expect(view.actors.some((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Kael")).toBe(false);
 });

@@ -2,30 +2,31 @@
 // instrument cards — D44 portrait · name · relationship badge ON the name line (rendered ONLY when the
 // roster character also stands in the scene cast, §12.2.3 — never a phantom "neutral") · the quiet
 // volatile `status` line (free text; the word "mood" is reserved for Scene cast where the field exists) ·
-// HP + pool meters (labeled `value/max` text is the datum; bars decorative) · lit condition chips with
-// resolved glyphs. NO encounter banner in lite (full-only engine, §12.2). Pool color rides the ONE
-// `resolvePoolColor` derivation (`def.color ?? trackColor(ordinal)`).
+// the actor's TRACKER meters (labeled `value/max` text is the datum; bars decorative) · lit condition chips
+// with resolved glyphs. NO encounter banner in lite (full-only engine, §12.2). Tracker color rides the ONE
+// `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)`).
 //
 // VEILED (P3, §6) — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
 // (`RpgVeiledSection`): the deception plane is being built by its own lane; until entries arrive the
 // shell renders NOTHING (the honest empty plane — no filler). The section + crown-gold grammar land here
 // because secrets are game-state about the roster (the same lens this tab already is).
 //
-// EDIT-in-place (§3.2): a pool VALUE edits through `editSnapshot` (the volatile plane) — host-only in v1
+// EDIT-in-place (§3.2): a tracker VALUE edits through `editSnapshot` (the volatile plane) — host-only in v1
 // (`canEditShared`); the patch is a WHOLE-`actorState`-array overlay ([merge-clear] keyed-array grammar —
-// the server correlates by `actorRefKey`). A pool MAX edits through `patchSheet` (the sheet `poolDefs`
-// plane) — the SINGLE authoritative home for the max (`chat-ops/tracker-view.resolveVolatile` projects the
-// displayed max FROM poolDefs), so a Status max-edit and a Sheet max-edit are the SAME write and never
-// drift. The §12.3 lower-max-drags-value tell rides BOTH writes in one gesture: patchSheet lowers the def
-// max, editSnapshot drags the volatile value down to it.
+// the server correlates by `actorRefKey`). A tracker's MAX is a DEF datum (`config.trackers` — the ONE def
+// home since the tracked-field unification), so editing it here writes `updateConfig`: the SAME write the
+// Game tab's Trackers section makes, against the same one list. That is what the merge bought — there is no
+// second max to drift from (the old sheet-vs-snapshot max duplication is gone). The §12.3 lower-max-drags-
+// value tell still rides both writes in one gesture: the def max drops, the volatile value follows.
 //
 // PER-FIELD PINS (#10): every volatile hand edit stamps its FINE lock path (`actorState.<refKey>.status`,
-// `…pools.<name>`, `…conditions`) via `lockPaths`, and the pin glyph renders ON the locked value (a pool
-// row's leading slot, the status line, the condition row) — model-writable fields only; hand-only planes
-// (poolDefs max/color, level, title) never lock, so they never pin. The legacy section-scoped `actorState`
-// lock keeps its section pin + Release.
+// `…trackerValues.<key>`, `…conditions`) via `lockPaths`, and the pin glyph renders ON the locked value (a
+// meter row's leading slot, the status line, the condition row) — model-writable fields only; hand-only
+// planes (the def's max/color, level, title) never lock, so they never pin. The legacy section-scoped
+// `actorState` lock keeps its section pin + Release.
 
-import type { RpgActorRef, RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgActorView, RpgTrackerDef, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import { RPG_TRACKER_VALUE_EMPTY, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -37,9 +38,9 @@ import { useState } from "react";
 import { MeterRow, RelationshipBadge, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, useUpdateConfig } from "../hooks/use-rpg-mutations";
 import { resolveConditionGlyph } from "../lib/glyphs";
-import { resolvePoolColor, trackColorProps } from "../lib/track-color";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
@@ -52,11 +53,13 @@ type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
  *  NOTE: no HP arm — in LITE health IS a pool (D86); the `hp` FIELD is a full-mode combat slot (born null
  *  in lite, never rendered). The health pool (VIT etc.) rides the pool arm like any other. */
 interface StatusCardEdit {
-  readonly onEditPool: (poolName: string, next: number) => void;
-  /** Lower/raise a pool's MAX (§12.3 clamp-and-tell). Returns the consequence when lowering below the value
-   *  (the value is DRAGGED to the new max in the SAME commit) so the caller can show the microline; `null`
-   *  ⇒ no drag (max ≥ value, or raised). Enforces the `max ≥ 1` floor. */
-  readonly onEditPoolMax: (poolName: string, nextMax: number) => { readonly draggedTo: number } | null;
+  readonly onEditTracker: (key: string, next: number) => void;
+  /** Lower/raise a tracker's MAX (§12.3 clamp-and-tell). The max lives on the DEF, so this writes the game's
+   *  tracker list; returns the consequence when lowering below the value (the value is DRAGGED to the new max
+   *  in the SAME commit) so the caller can show the microline; `null` ⇒ no drag. Enforces the `max ≥ 1` floor. */
+  readonly onEditTrackerMax: (key: string, nextMax: number) => { readonly draggedTo: number } | null;
+  /** Write a `text`/`list` tracker's reading (a list splits on commas — the same one input, one grammar). */
+  readonly onEditTrackerText: (key: string, next: string) => void;
   readonly onAddCondition: (name: string) => void;
   readonly onRemoveCondition: (name: string) => void;
   /** Edit the volatile status line (free text — "on edge"). */
@@ -67,6 +70,13 @@ interface StatusCardEdit {
   readonly onRelease: (sub: string) => void;
 }
 
+/** Overlay ONE tracker's reading on an actor's volatile plane, keeping the value TOTAL (`{value,max,items}`
+ *  always whole — the snapshot merge recurses into this object, so a partial write would strand the previous
+ *  reading's siblings on the new one). */
+function writeTrackerValue(v: ActorVolatile, key: string, patch: Partial<RpgTrackerValue>): ActorVolatile {
+  return { ...v, trackerValues: { ...v.trackerValues, [key]: { ...RPG_TRACKER_VALUE_EMPTY, ...v.trackerValues[key], ...patch } } };
+}
+
 /** The scene-cast row this roster actor also stands in (the §12.2.3 relationship join) — or undefined.
  *  A `user` actor never joins (cast rows are NPCs), so its predicate matches nothing: no row, no badge. */
 function castRowFor(actor: RpgActorView, cast: RpgTrackerView["cast"]): RpgTrackerView["cast"][number] | undefined {
@@ -74,55 +84,52 @@ function castRowFor(actor: RpgActorView, cast: RpgTrackerView["cast"]): RpgTrack
   return cast.find((c) => (ref.kind === "character" ? c.characterId === ref.characterId : ref.kind === "cast" && c.key === ref.castKey));
 }
 
-type ActorPool = ActorVolatile["pools"][number];
-
-/** One editable pool meter with the §12.3 max-lowering value-drag TELL: lowering the max below the value
- *  drags the value down (in `onEditPoolMax`'s one commit) and shows a transient microline ("Vitality 24 →
+/** One editable METER tracker with the §12.3 max-lowering value-drag TELL: lowering the max below the value
+ *  drags the value down (in `onEditTrackerMax`'s one commit) and shows a transient microline ("Vitality 24 →
  *  20 — max lowered"); an overfull value (value above max) reads in warning tone. The note clears on the next
- *  server render (the pool prop changes) — a purely local, ephemeral consequence line. A pinned pool
- *  (`…pools.<name>` locked, #10) leads with the pin glyph + its Release. */
-function StatusPoolMeter({
-  pool,
+ *  server render (the value prop changes) — a purely local, ephemeral consequence line. A pinned tracker
+ *  (`…trackerValues.<key>` locked, #10) leads with the pin glyph + its Release. */
+function StatusTrackerMeter({
+  def,
+  value,
   ordinal,
-  color,
-  hint,
   edit,
 }: {
-  readonly pool: ActorPool;
+  readonly def: RpgTrackerDef;
+  readonly value: RpgTrackerValue;
   readonly ordinal: number;
-  readonly color: string | null;
-  /** #36 — the host-authored pool MEANING (`poolDefs[].hint`); shown as the quiet microline under the
-   *  meter when no transient drag-tell is active. Empty = nothing. */
-  readonly hint: string;
   readonly edit?: StatusCardEdit;
 }): ReactElement {
+  const reading = trackerNumber(value) ?? 0;
+  const max = def.max ?? Math.max(reading, 1);
   const [note, setNote] = useState<string | null>(null);
   // Clear a stale note when the server value/max changes under us (a fresh render = the drag landed).
-  const [seen, setSeen] = useState(`${pool.value}/${pool.max}`);
-  const key = `${pool.value}/${pool.max}`;
+  const [seen, setSeen] = useState(`${reading}/${max}`);
+  const key = `${reading}/${max}`;
   if (key !== seen) {
     setSeen(key);
     setNote(null);
   }
-  const lockSub = `.pools.${pool.name}`;
+  const lockSub = `.trackerValues.${def.key}`;
   const release = edit === undefined || !edit.isLocked(lockSub) ? undefined : (): void => edit.onRelease(lockSub);
-  // The transient drag-tell wins; otherwise the quiet standing hint (#36); empty hint = no microline.
-  const effectiveNote = note ?? (hint === "" ? null : hint);
+  // The transient drag-tell wins; otherwise the standing HINT — the host-authored meaning that is also what
+  // the model reads (one gloss, two audiences). Empty hint = no microline.
+  const effectiveNote = note ?? (def.hint === "" ? null : def.hint);
   return (
     <MeterRow
-      label={pool.name}
-      value={pool.value}
-      max={pool.max}
-      valueWarning={pool.value > pool.max}
-      {...trackColorProps(resolvePoolColor(color, ordinal))}
+      label={def.label}
+      value={reading}
+      max={max}
+      valueWarning={reading > max}
+      {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
       {...(release === undefined ? {} : { leading: <RpgFieldLock onRelease={release} /> })}
       {...(edit === undefined
         ? {}
         : {
-            onEditValue: (next: number): void => edit.onEditPool(pool.name, next),
+            onEditValue: (next: number): void => edit.onEditTracker(def.key, next),
             onEditMax: (next: number): void => {
-              const result = edit.onEditPoolMax(pool.name, next);
-              setNote(result === null ? null : `${pool.name} ${pool.value} → ${result.draggedTo} — max lowered`);
+              const result = edit.onEditTrackerMax(def.key, next);
+              setNote(result === null ? null : `${def.label} ${reading} → ${result.draggedTo} — max lowered`);
             },
           })}
       {...(effectiveNote === null ? {} : { note: effectiveNote })}
@@ -130,19 +137,52 @@ function StatusPoolMeter({
   );
 }
 
-/** The card's meter stack: the actor's pools on their resolved colors (lite health is one of these pools —
- *  D86; there is no separate HP field in lite). Pools are hand-editable when `edit` is supplied (host). */
+/** One TEXT/LIST tracker's row — a labelled reading, editable in place. A meter is the bar above; these are
+ *  the observations (the old text cast-fields), which have no bar to draw. */
+function StatusTrackerText({
+  def,
+  value,
+  edit,
+}: {
+  readonly def: RpgTrackerDef;
+  readonly value: RpgTrackerValue;
+  readonly edit?: StatusCardEdit;
+}): ReactElement {
+  const display = def.shape === "list" ? (value.items ?? []).join(", ") : String(value.value ?? "");
+  return (
+    <Row gap="field" align="baseline" justify="between">
+      <Text as="span" size="label" tone="muted" {...(def.hint === "" ? {} : { title: def.hint })}>
+        {def.label}
+      </Text>
+      <TrackerValue
+        ariaLabel={`${def.label} value`}
+        display={display}
+        placeholder="—"
+        {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
+        className="min-w-0 flex-1 text-right"
+      />
+    </Row>
+  );
+}
+
+/** The card's meter stack: the actor's METER trackers on their resolved colors (lite health is one of these —
+ *  D86; there is no separate HP field in lite). The trackers an actor carries are resolved SERVER-side (the
+ *  one carrier predicate), so this renders exactly what the model was allowed to write. */
 function actorMeters(actor: RpgActorView, edit?: StatusCardEdit): readonly ReactNode[] {
-  const volatile = actor.volatile;
-  if (volatile === null) {
-    return [];
-  }
-  return volatile.pools.map((pool, i) => {
-    const def = actor.sheet.poolDefs.find((d) => d.name === pool.name);
-    return (
-      <StatusPoolMeter key={pool.name} pool={pool} ordinal={i} color={def?.color ?? null} hint={def?.hint ?? ""} {...(edit === undefined ? {} : { edit })} />
-    );
-  });
+  const values = actor.volatile?.trackerValues ?? {};
+  return actor.trackers
+    .filter((def) => def.shape === "meter")
+    .map((def, i) => (
+      <StatusTrackerMeter key={def.key} def={def} value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY} ordinal={i} {...(edit === undefined ? {} : { edit })} />
+    ));
+}
+
+/** The card's non-meter tracker rows (text + list observations). */
+function actorTrackerRows(actor: RpgActorView, edit?: StatusCardEdit): readonly ReactNode[] {
+  const values = actor.volatile?.trackerValues ?? {};
+  return actor.trackers
+    .filter((def) => def.shape !== "meter")
+    .map((def) => <StatusTrackerText key={def.key} def={def} value={values[def.key] ?? RPG_TRACKER_VALUE_EMPTY} {...(edit === undefined ? {} : { edit })} />);
 }
 
 export interface RpgStatusTabProps {
@@ -155,7 +195,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
-  const patchSheet = usePatchSheet({ trpc, invalidation });
+  const updateConfig = useUpdateConfig({ trpc, invalidation });
 
   if (tracker.actors.length === 0) {
     return <Text tone="muted">No one on the roster yet — add characters in Members.</Text>;
@@ -173,25 +213,24 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
     const ref = actor.actorRef;
     const base = actorLockBase(ref);
     return {
-      onEditPool: (poolName, next): void =>
-        patch(ref, `.pools.${poolName}`, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: Math.max(0, next) } : p)) })),
-      onEditPoolMax: (poolName, nextMax): { readonly draggedTo: number } | null => {
+      onEditTracker: (key, next): void => patch(ref, `.trackerValues.${key}`, (v) => writeTrackerValue(v, key, { value: Math.max(0, next) })),
+      onEditTrackerText: (key, next): void => {
+        const def = actor.trackers.find((d) => d.key === key);
+        const trimmed = next.trim();
+        patch(ref, `.trackerValues.${key}`, (v) =>
+          writeTrackerValue(v, key, def?.shape === "list" ? { items: trimmed === "" ? [] : trimmed.split(",").map((x) => x.trim()) } : { value: trimmed }),
+        );
+      },
+      onEditTrackerMax: (key, nextMax): { readonly draggedTo: number } | null => {
         const clampedMax = Math.max(1, nextMax); // the real `max ≥ 1` floor (§12.3 Tier-1)
-        const pool = actor.volatile?.pools.find((p) => p.name === poolName);
-        // The MAX is a SHEET datum (poolDefs — the single source): write it via patchSheet, not the volatile.
-        // The def is upserted (a Status-minted volatile pool the host never defined gets its def created here,
-        // so the max has a durable home from the first edit). Whole-`poolDefs` replace (the wire shape).
-        const defs = actor.sheet.poolDefs;
-        const hasDef = defs.some((d) => d.name === poolName);
-        const nextDefs = hasDef
-          ? defs.map((d) => (d.name === poolName ? { ...d, max: clampedMax } : d))
-          : [...defs, { name: poolName, max: clampedMax, color: null }];
-        patchSheet.mutate({ chatId, actorRef: ref, patch: { poolDefs: nextDefs } });
-        // Lowering below the value drags the volatile VALUE down in the SAME gesture (never a silent truncate);
-        // the read-side clamp (`resolveVolatile`) also enforces this, but writing it keeps the durable value honest.
-        const drag = pool !== undefined && pool.value > clampedMax;
+        const reading = trackerNumber(actor.volatile?.trackerValues[key]);
+        // The MAX is a DEF datum (`config.trackers` — the ONE def home): write the game's tracker list, the
+        // SAME write the Game tab's Trackers section makes. Whole-list replace (the wire shape).
+        updateConfig.mutate({ chatId, patch: { trackers: tracker.trackerDefs.map((d) => (d.key === key ? { ...d, max: clampedMax } : d)) } });
+        // Lowering below the value drags the stored VALUE down in the SAME gesture (never a silent truncate).
+        const drag = reading !== null && reading > clampedMax;
         if (drag) {
-          patch(ref, `.pools.${poolName}`, (v) => ({ ...v, pools: v.pools.map((p) => (p.name === poolName ? { ...p, value: clampedMax } : p)) }));
+          patch(ref, `.trackerValues.${key}`, (v) => writeTrackerValue(v, key, { value: clampedMax }));
         }
         return drag ? { draggedTo: clampedMax } : null;
       },
@@ -241,6 +280,7 @@ function RpgStatusCard({ actor, cast, edit }: RpgStatusCardProps): ReactElement 
   const volatile = actor.volatile;
   const castRow = castRowFor(actor, cast);
   const meters = actorMeters(actor, edit);
+  const trackerRows = actorTrackerRows(actor, edit);
 
   return (
     <Stack gap="field" data-slot="rpg-status-card" className="rounded-card border border-border bg-card px-block py-row">
@@ -267,6 +307,7 @@ function RpgStatusCard({ actor, cast, edit }: RpgStatusCardProps): ReactElement 
       </Row>
 
       {meters.length === 0 ? null : <Stack gap="field">{meters}</Stack>}
+      {trackerRows.length === 0 ? null : <Stack gap="field">{trackerRows}</Stack>}
 
       <ConditionChips
         conditions={volatile?.conditions ?? []}

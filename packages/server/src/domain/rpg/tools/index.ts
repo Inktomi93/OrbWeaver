@@ -21,8 +21,9 @@
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import {
   addJournalEntryArgsSchema,
+  RPG_BASELINE_TOOL_DESCRIPTIONS,
   rollDiceArgsSchema,
-  setWidgetValueArgsSchema,
+  setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
@@ -38,7 +39,7 @@ import { resolveSnapshotForTurn } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import type { RosterRefIndex } from "./apply";
 import {
-  applySetWidgetValue,
+  applySetTracker,
   applyUpdateInventory,
   applyUpdateParty,
   applyUpdateScene,
@@ -100,10 +101,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
   return [
     rpgTool({
       name: "update_party",
-      description:
-        "Update a party member or scene NPC's live state: pool deltas (e.g. mana -1), add/remove a named " +
-        "condition, an HP delta, or a status line. `targetRef` is the actor's NAME. Call after any beat that " +
-        "changes a tracked value.",
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "",
       argsSchema: updatePartyArgsSchema,
       capability: null,
       source: "builtin",
@@ -123,9 +121,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
     }),
     rpgTool({
       name: "update_inventory",
-      description:
-        "Add or remove items in an actor's inventory, or adjust their wallet (named currency deltas). " +
-        "`targetRef` is the actor's NAME. Use for loot, purchases, spending, and gifts.",
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_inventory") ?? "",
       argsSchema: updateInventoryArgsSchema,
       capability: null,
       source: "builtin",
@@ -142,14 +138,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
     }),
     rpgTool({
       name: "update_scene",
-      description:
-        "Update the shared scene: location, calendar date, time of day, weather, present cast (a patch — " +
-        "omitted fields keep), append a recent-events beat, or advance the plot (`plot`: the current act " +
-        "number, the story title, or the current act's title/summary). Call when the scene moves or changes — " +
-        "and specifically whenever the beat spends time (rest, travel, a cut to later), so `timeOfDay` advances " +
-        "through the day, `weather` turns with the sky, and `day` ticks over when the night passes. `weather.type` " +
-        "is one of clear/cloudy/rain/storm/snow/fog/wind/ash — pick the closest; put the vivid phrasing in " +
-        '`weather.label` ("torrential sleet"), which is what the reader sees.',
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_scene") ?? "",
       argsSchema: updateSceneArgsSchema,
       capability: null,
       source: "builtin",
@@ -166,26 +155,24 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
       },
     }),
     rpgTool({
-      name: "set_widget_value",
-      description: "Set a custom HUD widget's value, max, or item list. `widgetRef` is the widget's label. Use for free-form meters the game defines.",
-      argsSchema: setWidgetValueArgsSchema,
+      name: "set_tracker",
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("set_tracker") ?? "",
+      argsSchema: setTrackerArgsSchema,
       capability: null,
       source: "builtin",
       handler: async (args, exec): Promise<ToolHandlerResult> => {
-        const resolved = await resolveToolTurn(ctx, exec, "set_widget_value");
+        const resolved = await resolveToolTurn(ctx, exec, "set_tracker");
         if (!resolved.ok) {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        ctx.staging.stage(resolved.turn.turnId, applySetWidgetValue(state, args));
-        return { ok: true, value: { widgetRef: args.widgetRef } };
+        ctx.staging.stage(resolved.turn.turnId, applySetTracker(state, args));
+        return { ok: true, value: { key: args.key } };
       },
     }),
     rpgTool({
       name: "upsert_quest",
-      description:
-        "Create, update, complete, or fail a quest (addressed by NAME). Optionally set a description and " +
-        "objective lines. Use when the plot introduces or resolves a goal.",
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("upsert_quest") ?? "",
       argsSchema: upsertQuestArgsSchema,
       capability: null,
       source: "builtin",
@@ -207,8 +194,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
     }),
     rpgTool({
       name: "add_journal_entry",
-      description:
-        "Append a journal entry recording a story beat (a typed title + content). Use to log location changes, NPC meetings, combat, and notable events.",
+      description: RPG_BASELINE_TOOL_DESCRIPTIONS.get("add_journal_entry") ?? "",
       argsSchema: addJournalEntryArgsSchema,
       capability: null,
       source: "builtin",

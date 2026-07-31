@@ -7,14 +7,12 @@
 
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { RPG_CAST_FIELD_KINDS, RPG_CYOA_CHOICE_BEHAVIORS } from "./enums";
+import { RPG_CYOA_CHOICE_BEHAVIORS } from "./enums";
 import { RPG_PROFILE_FREEFORM, rpgStatProfileSchema } from "./profile";
+import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker";
 
 /** The steering-note cap — a short always-wins user slot (the reminder tail, §4.7). */
 export const RPG_STEERING_NOTE_MAX = 500;
-
-/** The steering-hint cap — a short prose gloss (M1 relationship hints + §2.8 cast-field hints). */
-export const RPG_HINT_MAX = 120;
 
 /** The recent-beats keep-last default (P3 fold): `snapshot.recentEvents` is an append-only durable log (the
  *  journal keeps the full record); the REMINDER read slices it to the last N so the steering injection never
@@ -22,23 +20,9 @@ export const RPG_HINT_MAX = 120;
  *  budget/cache. `0` = keep none (the reminder drops the "Recent beats" block); the durable log is untouched. */
 export const RPG_RECENT_BEATS_KEEP_DEFAULT = 8;
 
-/** A host-DEFINED tracked cast-field schema (parity-plus §2.8). The host declares which fields cast members
- *  carry per game; the model writes DEFINED keys only (enum-constrained at projection, §2.3). `meter` renders a
- *  0-max `TrackBar` and diffs numerically; `text` is a free chip diffed as a transition. First-class beats the
- *  opaque `customFields` record: a defined schema gets the vocab constraint, the meter render, the hint, the
- *  numeric delta — none of which an opaque record could give. */
-export const rpgCastFieldSchema = z.object({
-  key: z.string().min(1),
-  label: z.string().min(1),
-  kind: z.enum(RPG_CAST_FIELD_KINDS),
-  max: z.number().int().min(1).optional(),
-  hint: z.string().max(RPG_HINT_MAX).optional(),
-});
-export type RpgCastField = z.infer<typeof rpgCastFieldSchema>;
-
 /** The per-game FEATURE knobs (parity-plus §9 — the create-time options + advanced config). Additive defaulted
  *  fields on the JSON blob, self-healing at the parse seam (no version stamp — rpg tables carry no versioned
- *  column). `castFields` empty = the cast-field feature is OFF (no half-state — a defined field or nothing).
+ *  column).
  *  `relationshipHints` maps a custom relationship `label` → a steering gloss (M1: a bare custom label steers as
  *  precisely as the five built-ins when the host glosses it; the hint is a property of the VOCAB, one home, not
  *  duplicated per cast row).
@@ -52,18 +36,16 @@ export type RpgCastField = z.infer<typeof rpgCastFieldSchema>;
  *  hidden bytes regardless) nor the wire (the model always remembers). `recentBeatsKeepLast` caps the reminder's
  *  Recent-beats slice (the P3 fold — the durable log stays append-only). */
 export const rpgGameFeaturesSchema = z.object({
-  castFields: z.array(rpgCastFieldSchema).default([]),
   relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
+  // R4c (owner go, 2026-07-31) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
+  // journal entry may ride `type:"custom"` with a free `label`, and this maps that label → a steering gloss so
+  // a host-defined beat type teaches as precisely as the seven built-ins (the R4b hint argument, applied to
+  // the plane that fires on 79% of turns). Empty ⇒ bare labels.
+  journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
   deception: z.boolean().default(false),
   omniscience: z.boolean().default(false),
   hiddenContentReveal: z.boolean().default(true),
   recentBeatsKeepLast: z.number().int().min(0).default(RPG_RECENT_BEATS_KEEP_DEFAULT),
-  // ORB-PINNING (panel-redesign §3 / owner-ruled): pool NAMES the host pins to surface as band orbs BEYOND
-  // the auto first-3 (§4.8). The band derivation is `first-3 ∪ pinned`, deduped + capped (§4.11 #5 orb-row
-  // envelope). Additive, self-healing at the parse seam (a pre-pin blob → `[]`, the auto-first-3 behavior).
-  // Pool names (not ids) because pools are per-actor blob data keyed by name everywhere (the wallet/pool
-  // vocabulary is name-addressed, D86).
-  pinnedOrbs: z.array(z.string().min(1)).default([]),
   // Feature 7 — immersive HTML cards (parity-plus §4/§9 #7). `immersiveHtml` gates the TEACHING ask + the
   // §4.8 lenient wrap only — an emitted `:::card` ALWAYS renders (the render is toggle-independent, so a
   // stored card never breaks on a later toggle-off). Default on: the sandbox is the wall.
@@ -161,6 +143,13 @@ export const rpgGameConfigSchema = z.object({
   // client's sync gate reads it off `ChatDetail` without a round-trip.
   engaged: z.boolean().default(true),
   statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
+  // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field
+  // unification §5.1). This single array replaces `sheet.poolDefs` (per-actor, on four different sheets),
+  // `features.castFields` (per-game NPC fields), `features.pinnedOrbs` (a third surface for the same defs) and
+  // the whole `rpg_hud_widgets` TABLE. Values are keyed by `key` on the snapshot — actor-subject under
+  // `actorState[].trackerValues`, game-subject under `snapshotState.trackerValues`. Empty = a game that tracks
+  // nothing but the built-in planes (hp/wallet/inventory/conditions stay first-class, never trackers).
+  trackers: z.array(rpgTrackerDefSchema).default([]),
   lite: z
     .object({
       steeringNote: z.string().max(RPG_STEERING_NOTE_MAX).default(""),

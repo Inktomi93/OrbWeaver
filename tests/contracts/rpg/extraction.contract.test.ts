@@ -3,16 +3,21 @@
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
 
-import type { ExtractionRefs, RpgGameConfig } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
+  buildRpgToolDescriptions,
+  buildTrackerWriteGroups,
   composePlaneTeaching,
   constrainExtractionSchema,
   EXTRACTION_PLANE_PROMPTS,
+  gameTrackerWriteKeys,
   malformedToolCalls,
+  RPG_BASELINE_TOOL_DESCRIPTIONS,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_ROUND_TOOL_NAMES,
   rpgExtractionSchema,
   rpgGameConfigSchema,
+  rpgTrackerDefSchema,
   toolCallsToExtraction,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
@@ -25,13 +30,32 @@ import { expect, test } from "../../support/fixtures";
 // establish-when-unset arm is pinned by its own tests further down.
 const NO_ESTABLISH = { location: false, timeOfDay: false, presentCast: false } as const;
 
+/** The tracker-free ref bundle every non-R6 enum test starts from (a game that tracks nothing per-actor). */
+const BARE_REFS: ExtractionRefs = {
+  actorRefs: [],
+  trackerWriteGroups: [],
+  gameTrackerKeys: { deltaKeys: [], setKeys: [] },
+  conditionNames: [],
+  establishScene: NO_ESTABLISH,
+};
+
+/** A tracker def with the axes a test cares about; everything else takes its schema default. */
+function tracker(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {
+  return rpgTrackerDefSchema.parse(over);
+}
+
+/** A carrier (an actor the write surface may target), with no sheet exceptions unless given. */
+function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgTrackerCarrier> = {}): RpgTrackerCarrier {
+  return { actorKey: `${kind === "npcs" ? "cast" : "user"}:${name}`, name, kind, grants: [], revokes: [], ...over };
+}
+
 test("the extraction schema projects to JSON Schema without throwing (the output_config.format class)", () => {
   expect(() => z.toJSONSchema(rpgExtractionSchema)).not.toThrow();
 });
 
 test("an empty object is a valid 'nothing changed this turn' extraction (all fields default empty)", () => {
   const parsed = rpgExtractionSchema.parse({});
-  expect(parsed).toEqual({ party: [], inventory: [], widgets: [], quests: [], journal: [] });
+  expect(parsed).toEqual({ party: [], inventory: [], trackers: [], quests: [], journal: [] });
 });
 
 test("LEVEL is UNREACHABLE from the model (§2.6 hand-only) — absent from the projected extraction schema AND tool args", () => {
@@ -74,7 +98,7 @@ test("the full 7-plane delta parses as one object", () => {
     scene: { recentEvent: "The gate opened." },
     widgets: [{ widgetRef: "Corruption", value: 70 }],
     quests: [{ name: "Find the key", action: "create" }],
-    journal: [{ type: "event", title: "Arrival", content: "They reached the city." }],
+    journal: [{ type: "event", label: "", title: "Arrival", content: "They reached the city." }],
   });
   expect(parsed.party).toHaveLength(1);
   expect(parsed.inventory[0]?.walletDeltas).toEqual([{ name: "gold", delta: 25 }]);
@@ -93,83 +117,139 @@ function refEnum(schema: Record<string, unknown>, path: readonly string[]): unkn
 
 test("constrain injects the actorRefs enum on party/inventory targetRef + scene.presentRemove", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
-  const constrained = constrainExtractionSchema(base, {
-    actorRefs: ["You", "Bramwell"],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
-  });
+  const constrained = constrainExtractionSchema(base, { ...BARE_REFS, actorRefs: ["You", "Bramwell"] });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "inventory", "items", "properties", "targetRef", "enum"])).toEqual(["You", "Bramwell"]);
   expect(refEnum(constrained, ["properties", "scene", "properties", "presentRemove", "items", "enum"])).toEqual(["You", "Bramwell"]);
 });
 
-test("constrain injects the widgetRefs enum on widgets.widgetRef", () => {
+test("R6: the GAME-subject trackers plane binds its key enum and prunes the arm no live tracker needs", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: ["Corruption", "Torch Fuel"],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
+    ...BARE_REFS,
+    gameTrackerKeys: { deltaKeys: [], setKeys: ["alarm", "torch_fuel"] },
   });
-  expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toEqual(["Corruption", "Torch Fuel"]);
+  const item = ["properties", "trackers", "items"] as const;
+  expect(refEnum(constrained, [...item, "properties", "key", "enum"])).toEqual(["alarm", "torch_fuel"]);
+  // Both game trackers are `write:"set"`, so the `delta` arm is REMOVED — not offered as a dead field.
+  expect(refEnum(constrained, [...item, "properties", "delta"])).toBeUndefined();
+  expect(refEnum(constrained, [...item, "properties", "value"])).toBeDefined();
+});
+
+test("R6: a game with NO game-subject trackers loses the whole plane (a disabled feature's tool is omitted)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), BARE_REFS);
+  expect(refEnum(constrained, ["properties", "trackers"])).toBeUndefined();
+  // ...and it leaves `required` with it, so the grammar never demands a plane that no longer exists.
+  expect(refEnum(constrained, ["required"])).not.toContain("trackers");
 });
 
 test("an EMPTY ref list leaves the field unconstrained (never an impossible empty enum — the fresh-game arm)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
-  });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), BARE_REFS);
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toBeUndefined();
-  expect(refEnum(constrained, ["properties", "widgets", "items", "properties", "widgetRef", "enum"])).toBeUndefined();
 });
 
 test("constrain does NOT mutate the input schema (the cached projection also feeds other wires)", () => {
   const base = projectJsonSchema(rpgExtractionSchema);
   const snapshot = JSON.stringify(base);
-  constrainExtractionSchema(base, { actorRefs: ["You"], widgetRefs: ["W"], castFieldKeys: [], conditionNames: [], establishScene: NO_ESTABLISH });
+  constrainExtractionSchema(base, { ...BARE_REFS, actorRefs: ["You"], gameTrackerKeys: { deltaKeys: [], setKeys: ["alarm"] } });
   expect(JSON.stringify(base)).toBe(snapshot);
 });
 
 test("a constrained schema still PROJECTS clean (enum is plain JSON Schema every backend enforces)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: ["You"],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
-  });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { ...BARE_REFS, actorRefs: ["You"] });
   // The enum lives on a leaf string node — valid JSON Schema, no throw, portable to vLLM xgrammar + OR strict.
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toEqual(["You"]);
 });
 
-test("constrain injects the castFieldKeys enum on scene.presentUpsert[].customFields[].name (§2.8)", () => {
+// ── R6: the PER-ACTOR write surface (the tracked-field unification's strongest prevent-at-schema) ──────
+// "The reminder is the model's knowledge; the tools are its permissions." A target actor is offered ONLY the
+// trackers it actually carries, minus the locked ones — so the schema can never hand the model Mana on an
+// actor with no Mana, and the apply-time strip is a backstop rather than the gate.
+
+const MANA = tracker({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party" });
+const TRUST = tracker({ key: "trust", label: "Trust", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" });
+const SEALED = tracker({ key: "sealed", label: "Sealed", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone", locked: true });
+
+test("R6: ONE carrier set keeps the party schema FLAT (the common game pays nothing for the machinery)", () => {
+  const groups = buildTrackerWriteGroups([MANA], [carrier("Kael", "party"), carrier("Sera", "party")]);
+  expect(groups).toHaveLength(1);
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: [],
-    castFieldKeys: ["suspicion", "trust"],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
+    ...BARE_REFS,
+    actorRefs: ["Kael", "Sera"],
+    trackerWriteGroups: groups,
   });
-  const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
-  expect(refEnum(constrained, path)).toEqual(["suspicion", "trust"]);
+  const item = ["properties", "party", "items"] as const;
+  expect(refEnum(constrained, [...item, "oneOf"])).toBeUndefined();
+  expect(refEnum(constrained, [...item, "properties", "targetRef", "enum"])).toEqual(["Kael", "Sera"]);
+  expect(refEnum(constrained, [...item, "properties", "trackerDeltas", "items", "properties", "key", "enum"])).toEqual(["mana"]);
+  // Nobody carries a `set` tracker here, so that arm is REMOVED (never an empty-enum husk).
+  expect(refEnum(constrained, [...item, "properties", "trackerSets"])).toBeUndefined();
 });
 
-test("an EMPTY castFieldKeys leaves the cast-field name unconstrained (the feature-off arm)", () => {
+test("R6: an actor who does NOT carry a tracker is never offered it (the whole point — a oneOf branch each)", () => {
+  // Kael carries Mana (party class); Mira is an NPC carrying Trust; Sera had Mana REVOKED on her sheet.
+  const groups = buildTrackerWriteGroups([MANA, TRUST], [carrier("Kael", "party"), carrier("Sera", "party", { revokes: ["mana"] }), carrier("Mira", "npcs")]);
+  expect(groups).toHaveLength(3);
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
+    ...BARE_REFS,
+    actorRefs: ["Kael", "Sera", "Mira"],
+    trackerWriteGroups: groups,
   });
-  const path = ["properties", "scene", "properties", "presentUpsert", "items", "properties", "customFields", "items", "properties", "name", "enum"];
-  expect(refEnum(constrained, path)).toBeUndefined();
+  const branches = refEnum(constrained, ["properties", "party", "items", "oneOf"]) as Record<string, unknown>[];
+  expect(branches).toHaveLength(3);
+  const byTarget = new Map(
+    branches.map((b) => {
+      const props = b["properties"] as Record<string, Record<string, unknown>>;
+      const target = ((props["targetRef"]?.["enum"] ?? []) as string[])[0] ?? "";
+      return [target, props] as const;
+    }),
+  );
+  /** The key enum a branch's write arm offers ("what may this actor's writes name?"). */
+  const armKeys = (target: string, arm: string): unknown => refEnum(byTarget.get(target) ?? {}, [arm, "items", "properties", "key", "enum"]);
+  // Kael: Mana on the delta arm, no set arm at all.
+  expect(armKeys("Kael", "trackerDeltas")).toEqual(["mana"]);
+  expect(byTarget.get("Kael")?.["trackerSets"]).toBeUndefined();
+  // Sera: Mana revoked ⇒ NO tracker arms whatsoever (she is still targetable for hp/conditions/status).
+  expect(byTarget.get("Sera")?.["trackerDeltas"]).toBeUndefined();
+  expect(byTarget.get("Sera")?.["trackerSets"]).toBeUndefined();
+  expect(byTarget.get("Sera")?.["hpDelta"]).toBeDefined();
+  // Mira: the NPC-class Trust on the SET arm, and no delta arm.
+  expect(armKeys("Mira", "trackerSets")).toEqual(["trust"]);
+  expect(byTarget.get("Mira")?.["trackerDeltas"]).toBeUndefined();
+});
+
+test("R6: a LOCKED tracker is ABSENT from the write schema (prevent-at-schema, not strip-at-apply)", () => {
+  const groups = buildTrackerWriteGroups([MANA, SEALED], [carrier("Kael", "party")]);
+  expect(groups[0]?.deltaKeys).toEqual(["mana"]);
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    ...BARE_REFS,
+    actorRefs: ["Kael"],
+    trackerWriteGroups: groups,
+  });
+  const keys = refEnum(constrained, ["properties", "party", "items", "properties", "trackerDeltas", "items", "properties", "key", "enum"]);
+  expect(keys).toEqual(["mana"]);
+  expect(keys).not.toContain("sealed");
+  // The whole projected schema string never names it — the model cannot spend attention on a write it can't make.
+  expect(JSON.stringify(constrained)).not.toContain("sealed");
+});
+
+test("R6: a GRANT reaches an actor the class missed; a REVOKE beats everything", () => {
+  const bound = tracker({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: "npcs" });
+  const groups = buildTrackerWriteGroups(
+    [MANA, bound],
+    [carrier("Kael", "party", { grants: ["bound_will"] }), carrier("Sera", "party", { revokes: ["mana"] })],
+  );
+  // Ordered by the ONE tracker ordering (sort, then key) — stable across calls, so the per-call schema
+  // never reshuffles for nothing (a prompt-cache + xgrammar-compile miss).
+  expect(groups.find((g) => g.targetRefs.includes("Kael"))?.deltaKeys).toEqual(["bound_will", "mana"]);
+  expect(groups.find((g) => g.targetRefs.includes("Sera"))?.deltaKeys).toEqual([]);
+});
+
+test("R6: the game-subject write keys split by the write axis and drop the locked ones", () => {
+  const alarm = tracker({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game" });
+  const fuel = tracker({ key: "fuel", label: "Fuel", shape: "meter", write: "delta", subject: "game" });
+  const hidden = tracker({ key: "hidden", label: "Hidden", shape: "meter", write: "set", subject: "game", locked: true });
+  expect(gameTrackerWriteKeys([alarm, fuel, hidden, MANA])).toEqual({ deltaKeys: ["fuel"], setKeys: ["alarm"] });
 });
 
 // R5a — the LIST-IN-A-SCALAR fix. The ground-truth 8B run emitted `removeCondition: "Bleeding, Poisoned,
@@ -177,11 +257,9 @@ test("an EMPTY castFieldKeys leaves the cast-field name unconstrained (the featu
 // valid string). Binding the field to the live active-condition enum makes that unrepresentable under xgrammar.
 test("constrain injects the conditionNames enum on party[].removeCondition (R5a — a list-in-a-scalar is unrepresentable)", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
+    ...BARE_REFS,
     actorRefs: ["You"],
-    widgetRefs: [],
-    castFieldKeys: [],
     conditionNames: ["Bleeding", "Poisoned"],
-    establishScene: NO_ESTABLISH,
   });
   const enumValues = refEnum(constrained, ["properties", "party", "items", "properties", "removeCondition", "enum"]);
   expect(enumValues).toEqual(["Bleeding", "Poisoned"]);
@@ -192,22 +270,13 @@ test("constrain injects the conditionNames enum on party[].removeCondition (R5a 
 });
 
 test("an EMPTY conditionNames leaves removeCondition unconstrained (nobody afflicted — never an empty enum)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: ["You"],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: NO_ESTABLISH,
-  });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { ...BARE_REFS, actorRefs: ["You"] });
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "removeCondition", "enum"])).toBeUndefined();
 });
 
 test("establish-when-unset: an UNSET scene forces location/timeOfDay + a non-empty presentUpsert (the fresh-game arm)", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
+    ...BARE_REFS,
     establishScene: { location: true, timeOfDay: true, presentCast: true },
   });
   // xgrammar/`strict` now FORCES the model to emit scene.location + scene.timeOfDay + at least one present character.
@@ -217,13 +286,7 @@ test("establish-when-unset: an UNSET scene forces location/timeOfDay + a non-emp
 });
 
 test("establish-when-unset: an already-SET scene stays OPTIONAL (ongoing turn keeps omit=keep, no re-emit churn)", () => {
-  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
-    actorRefs: [],
-    widgetRefs: [],
-    castFieldKeys: [],
-    conditionNames: [],
-    establishScene: { location: false, timeOfDay: false, presentCast: false },
-  });
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), BARE_REFS);
   // Once the scene is established, nothing is forced — the model patches only what the beat moves.
   expect(refEnum(constrained, ["required"])).not.toContain("scene");
   expect(refEnum(constrained, ["properties", "scene", "properties", "presentUpsert", "minItems"])).toBeUndefined();
@@ -236,7 +299,7 @@ test("RPG_TOOL_ROUND_TOOL_NAMES = the 6 state tools + no_changes (roll_dice excl
     "update_party",
     "update_inventory",
     "update_scene",
-    "set_widget_value",
+    "set_tracker",
     "upsert_quest",
     "add_journal_entry",
     RPG_NO_CHANGES_TOOL,
@@ -249,7 +312,7 @@ test("folds PARALLEL calls into one extraction (same-plane calls accumulate, sce
     { name: "update_party", arguments: JSON.stringify({ targetRef: "player", status: "wounded" }) },
     { name: "update_party", arguments: JSON.stringify({ targetRef: "Kael", hpDelta: -3 }) },
     { name: "update_scene", arguments: JSON.stringify({ location: "the bridge" }) },
-    { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", title: "Fight", content: "A brawl." }) },
+    { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", label: "", title: "Fight", content: "A brawl." }) },
   ]);
   expect(ex.party).toHaveLength(2); // both update_party calls accumulate
   expect(ex.party.map((p) => p.targetRef)).toEqual(["player", "Kael"]);
@@ -262,7 +325,7 @@ test("no_changes (and any unknown tool) contributes nothing — the quiet-turn n
   expect(ex.party).toEqual([]);
   expect(ex.inventory).toEqual([]);
   expect(ex.scene).toBeUndefined();
-  expect(ex.widgets).toEqual([]);
+  expect(ex.trackers).toEqual([]);
   expect(ex.quests).toEqual([]);
   expect(ex.journal).toEqual([]);
 });
@@ -286,7 +349,7 @@ test("a schema-INVALID call is dropped (a tool call missing its required arg nev
 });
 
 // ── EXTRACTION_PLANE_PROMPTS — the §1.6 per-plane prompt-fragment registry + its RATCHET ─────────────────
-const NO_REFS: ExtractionRefs = { actorRefs: [], widgetRefs: [], castFieldKeys: [], conditionNames: [], establishScene: NO_ESTABLISH };
+const NO_REFS: ExtractionRefs = BARE_REFS;
 const baseConfig = (): RpgGameConfig => rpgGameConfigSchema.parse({});
 
 test("RATCHET (§1.6): every top-level rpgExtractionSchema key has a registry row (a new writable plane needs a fragment)", () => {
@@ -348,23 +411,56 @@ test("§1.6: the plot clause is GATED — plotProgression OFF drops it (applicab
   expect(composePlaneTeaching({ config: off, refs: NO_REFS })).not.toContain("scene.plot");
 });
 
-test("§1.6: the widgets fragment is null with no widget refs (feature-off arm) and enumerates live labels when present", () => {
-  // A game with no custom widgets: the widgets plane teaches NOTHING (a fragment returning null is dropped).
-  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("CUSTOM TRACKERS");
-  // With live widget refs, the fragment enumerates them (the reliable-arm gap §1.6 closed).
-  const withWidgets = composePlaneTeaching({ config: baseConfig(), refs: { ...NO_REFS, widgetRefs: ["Corruption", "Torch Fuel"] } });
-  expect(withWidgets).toContain("CUSTOM TRACKERS");
-  expect(withWidgets).toContain("Corruption");
-});
-
-test("§1.6: the cast-fields fragment enumerates host-defined fields with their hints (customFields gap)", () => {
+test("§1.6: the game-tracker fragment is null when the game defines none, and names them when it does", () => {
+  expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("GAME TRACKERS");
   const config = rpgGameConfigSchema.parse({
-    features: { castFields: [{ key: "corruption", label: "Corruption", kind: "meter", max: 100, hint: "rises with dark choices" }] },
+    trackers: [{ key: "alarm", label: "Town alarm", shape: "meter", write: "set", subject: "game", max: 100, hint: "how hard the watch is looking" }],
   });
   const teaching = composePlaneTeaching({ config, refs: NO_REFS });
+  expect(teaching).toContain("GAME TRACKERS");
+  expect(teaching).toContain("Town alarm");
+  expect(teaching).toContain("how hard the watch is looking");
+});
+
+test("R2/R6: the party teaching names THIS game's trackers by label + hint, split by the write axis", () => {
+  // The R4b lesson generalized: a tracked value the model is told about only as a bare key does not steer.
+  // The teaching is a TEMPLATE over the game's own defs — never a static vocabulary this game may not have.
+  const config = rpgGameConfigSchema.parse({
+    trackers: [
+      { key: "grit", label: "Grit", shape: "meter", write: "delta", subject: "actor", max: 10, hint: "resolve you spend to push through danger" },
+      { key: "corruption", label: "Corruption", shape: "meter", write: "set", subject: "actor", max: 100, hint: "rises with dark choices" },
+      { key: "sealed", label: "Sealed", shape: "meter", write: "delta", subject: "actor", locked: true, hint: "the host owns this" },
+    ],
+  });
+  const teaching = composePlaneTeaching({ config, refs: NO_REFS });
+  expect(teaching).toContain("TRACKED RESOURCES");
+  expect(teaching).toContain("Grit");
+  expect(teaching).toContain("0-10");
+  expect(teaching).toContain("resolve you spend to push through danger");
+  expect(teaching).toContain("TRACKED STATES");
   expect(teaching).toContain("Corruption");
-  expect(teaching).toContain("0-100");
   expect(teaching).toContain("rises with dark choices");
+  // A LOCKED tracker is not in the write schema, so teaching it would ask for what the grammar forbids.
+  expect(teaching).not.toContain("Sealed");
+});
+
+test("R2: the per-game tool DESCRIPTIONS interpolate the game's own trackers (templates, never ship strings)", () => {
+  const config = rpgGameConfigSchema.parse({
+    trackers: [
+      { key: "grit", label: "Grit", shape: "meter", write: "delta", subject: "actor", max: 10, hint: "resolve you spend to push through danger" },
+      { key: "alarm", label: "Town alarm", shape: "meter", write: "set", subject: "game", max: 100, hint: "how hard the watch is looking" },
+    ],
+  });
+  const described = buildRpgToolDescriptions({ config, refs: NO_REFS });
+  const party = described.get("update_party") ?? "";
+  expect(party).toContain("Grit");
+  expect(party).toContain("resolve you spend to push through danger");
+  expect(party).toContain("trackerDeltas:[{key:'grit'"); // the worked EXAMPLE speaks this game's vocabulary
+  expect(described.get("set_tracker") ?? "").toContain("Town alarm");
+  // The baseline (no game in scope — the tool-use registry's defs) names no game's trackers, but is the
+  // SAME template: one home, so registry and wire can never say different things about the same tool.
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "").toContain("trackerDeltas");
+  expect(RPG_BASELINE_TOOL_DESCRIPTIONS.get("update_party") ?? "").not.toContain("Grit");
 });
 
 test("§1.6: the structured dateMode prompts the day counter; narrated does NOT (mode-aware fragment)", () => {
@@ -409,7 +505,7 @@ test("R1: an all-good round reports nothing dropped (a quiet log on the happy pa
   expect(
     malformedToolCalls([
       { name: "update_scene", arguments: JSON.stringify({ location: "the ford" }) },
-      { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", title: "t", content: "c" }) },
+      { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", label: "", title: "t", content: "c" }) },
     ]),
   ).toEqual([]);
 });

@@ -7,7 +7,7 @@ import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
-  applySetWidgetValue,
+  applySetTracker,
   applyUpdateInventory,
   applyUpdateParty,
   applyUpdateScene,
@@ -31,7 +31,7 @@ function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
@@ -46,21 +46,66 @@ const idSeq = <T extends string = string>(prefix: string): (() => T) => {
   return () => castId<T>(`${prefix}_${++n}`);
 };
 
-test("update_party mints a fresh cast actor + applies a pool delta", () => {
-  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", poolDeltas: [{ name: "rage", delta: 5 }] }, NO_ROSTER);
+test("update_party mints a fresh cast actor + applies a tracker DELTA", () => {
+  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_ROSTER);
   expect(result.ok).toBe(true);
   if (!result.ok) {
     return;
   }
   const actor = result.patch.actorState[0];
   expect(actor?.actorRef).toEqual({ kind: "cast", castKey: "Goblin" });
-  expect(actor?.pools).toEqual([{ name: "rage", value: 5, max: 5 }]);
+  // TOTAL by construction: the whole `{value,max,items}` is written, so the plane merge (which recurses into
+  // this object) can never strand a previous reading's siblings on the new one.
+  expect(actor?.trackerValues["rage"]).toEqual({ value: 5, items: null });
+});
+
+test("update_party writes a tracker SET arm — a text reading and a list, keyed by tracker key", () => {
+  const result = applyUpdateParty(
+    emptyState(),
+    {
+      targetRef: "Mira",
+      trackerSets: [
+        { key: "role", value: "sellsword" },
+        { key: "pack", items: ["rope", "torch"] },
+      ],
+    },
+    NO_ROSTER,
+  );
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    return;
+  }
+  const values = result.patch.actorState[0]?.trackerValues;
+  expect(values?.["role"]).toEqual({ value: "sellsword", items: null });
+  expect(values?.["pack"]).toEqual({ value: null, items: ["rope", "torch"] });
+});
+
+test("update_party: a SET arm naming neither a value nor items is a no-op, never a blanked tracker", () => {
+  const base = emptyState({
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "Mira" },
+        hp: null,
+        trackerValues: { trust: { value: 62, items: null } },
+        conditions: [],
+        inventory: [],
+        wallet: [],
+        status: "",
+      },
+    ],
+  });
+  const result = applyUpdateParty(base, { targetRef: "Mira", trackerSets: [{ key: "trust" }] }, NO_ROSTER);
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    return;
+  }
+  expect(result.patch.actorState[0]?.trackerValues["trust"]).toEqual({ value: 62, items: null });
 });
 
 test("update_party on a ROSTER-member name mints under the roster ref, not a cast key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
   const roster = buildRosterRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
-  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", poolDeltas: [{ name: "focus", delta: 7 }] }, roster);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, roster);
   expect(result.ok).toBe(true);
   if (!result.ok) {
     return;
@@ -69,19 +114,44 @@ test("update_party on a ROSTER-member name mints under the roster ref, not a cas
   expect(result.patch.actorState[0]?.actorRef).toEqual({ kind: "character", characterId: kaelId });
 });
 
-test("update_party floors a negative pool delta on a FRESH pool to a contract-valid mint (F1)", () => {
-  // "spends 3 mana" on a pool that never existed — must NOT mint max<=0 (the contract belt pools[].max>=1).
-  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", poolDeltas: [{ name: "mana", delta: -3 }] }, NO_ROSTER);
+test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what-you-never-had)", () => {
+  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_ROSTER);
   expect(result.ok).toBe(true);
   if (!result.ok) {
     return;
   }
-  expect(result.patch.actorState[0]?.pools).toEqual([{ name: "mana", value: 0, max: 1 }]);
+  // A negative reading is legal: a tracker's floor is the host's business (the def owns the ceiling), and the
+  // old `max >= 1` mint belt existed only because the retired pool shape carried its own max.
+  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: -3, items: null });
+});
+
+test("a DELTA accumulates over an existing reading and KEEPS its max (the ceiling is the def's)", () => {
+  const base = emptyState({
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "Wizard" },
+        hp: null,
+        trackerValues: { mana: { value: 28, items: null } },
+        conditions: [],
+        inventory: [],
+        wallet: [],
+        status: "",
+      },
+    ],
+  });
+  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_ROSTER);
+  expect(result.ok).toBe(true);
+  if (!result.ok) {
+    return;
+  }
+  expect(result.patch.actorState[0]?.trackerValues["mana"]).toEqual({ value: 25, items: null });
 });
 
 test("update_party hpDelta on an existing hp actor applies the delta", () => {
   const state = emptyState({
-    actorState: [{ actorRef: { kind: "cast", castKey: "Hero" }, hp: { value: 10, max: 20 }, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
+    actorState: [
+      { actorRef: { kind: "cast", castKey: "Hero" }, hp: { value: 10, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+    ],
   });
   const result = applyUpdateParty(state, { targetRef: "Hero", hpDelta: -3 }, NO_ROSTER);
   expect(result.ok).toBe(true);
@@ -118,7 +188,7 @@ test("update_inventory remove decrements quantity, dropping the item at zero", (
       {
         actorRef: { kind: "cast", castKey: "Hero" },
         hp: null,
-        pools: [],
+        trackerValues: {},
         conditions: [],
         inventory: [{ id: "i1", name: "Potion", description: "", quantity: 3, location: "", type: "" }],
         wallet: [],
@@ -149,7 +219,7 @@ test("update_scene writes weather TOTAL — the closed type plus a label that is
 
 test("update_scene presentUpsert is a PATCH — an omitted field keeps the existing value", () => {
   const state = emptyState({
-    presentCharacters: [{ key: "Elder", name: "Elder", emoji: "🧙", mood: "calm", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+    presentCharacters: [{ key: "Elder", name: "Elder", emoji: "🧙", mood: "calm", relationship: { kind: "neutral", label: "" } }],
   });
   const patch = applyUpdateScene(state, { presentUpsert: [{ name: "Elder", mood: "angry" }] });
   const elder = patch.presentCharacters?.[0];
@@ -160,7 +230,7 @@ test("update_scene presentUpsert is a PATCH — an omitted field keeps the exist
 
 test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
   const state = emptyState({
-    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", relationship: { kind: "friend", label: "" } }],
   });
   const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] });
   expect(toEnemy.presentCharacters?.[0]?.relationship).toEqual({ kind: "enemy", label: "" });
@@ -216,7 +286,7 @@ test("update_scene plot: omit = keep (MA-4) — a patch naming only actSummary k
 test("extractionToStateDelta includes the plot plane in the statePatch when the scene wrote it", () => {
   const delta = extractionToStateDelta(
     emptyState(),
-    { party: [], inventory: [], scene: { plot: { act: 2, actTitle: "Descent" } }, widgets: [], quests: [], journal: [] },
+    { party: [], inventory: [], scene: { plot: { act: 2, actTitle: "Descent" } }, trackers: [], quests: [], journal: [] },
     { item: () => "i", quest: () => castId<RpgQuestId>("q"), objective: () => "o" },
     NO_ROSTER,
   );
@@ -232,13 +302,13 @@ test("extractionToStateDelta includes the plot plane in the statePatch when the 
 
 test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 — not model-authored)", () => {
   const base = emptyState({
-    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", relationship: { kind: "friend", label: "" } }],
   });
   const extraction = {
     party: [],
     inventory: [],
     scene: { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" as const } }] },
-    widgets: [],
+    trackers: [],
     quests: [],
     journal: [],
   };
@@ -252,10 +322,10 @@ test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 �
 
 test("extractionToStateDelta does NOT derive a beat when the relationship is unchanged", () => {
   const base = emptyState({
-    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", customFields: {}, relationship: { kind: "friend", label: "" } }],
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "", relationship: { kind: "friend", label: "" } }],
   });
   // A scene write that changes mood but NOT relationship — no relationship beat.
-  const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, widgets: [], quests: [], journal: [] };
+  const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, trackers: [], quests: [], journal: [] };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
   const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
   expect(delta.journal.find((e) => e.title.startsWith("Mari:"))).toBeUndefined();
@@ -274,7 +344,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
       { targetRef: "player", status: "wounded" },
     ],
     inventory: [{ targetRef: "Aldric Vane", add: [{ name: "signet ring" }] }],
-    widgets: [],
+    trackers: [],
     quests: [],
     journal: [{ type: "event" as const, content: "A stranger is named." }],
   };
@@ -294,15 +364,15 @@ test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked cast 
   const userId = castId<UserId>("user_g2");
   const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState({
-    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
-    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" }],
+    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
   });
   const ghosts = ghostTargetRefs(
     base,
     {
       party: [{ targetRef: "Goblin" }, { targetRef: "player" }, { targetRef: "Aldric Vane" }],
       inventory: [{ targetRef: "Bartender" }, { targetRef: "Aldric Vane" }, { targetRef: "Zzyzx" }],
-      widgets: [],
+      trackers: [],
       quests: [],
       journal: [],
     },
@@ -317,7 +387,7 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
     party: [{ targetRef: "Mari", hpDelta: -2 }],
     inventory: [],
     scene: { presentUpsert: [{ name: "Mari", mood: "bleeding" }] },
-    widgets: [],
+    trackers: [],
     quests: [],
     journal: [],
   };
@@ -329,10 +399,11 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
   expect((delta.statePatch["presentCharacters"] as { key: string }[])[0]?.key).toBe("Mari");
 });
 
-test("set_widget_value writes only the provided fields, keeping the rest", () => {
-  const state = emptyState({ widgetValues: { corruption: { value: 10, max: 100 } } });
-  const patch = applySetWidgetValue(state, { widgetRef: "corruption", value: 70 });
-  expect(patch.widgetValues["corruption"]).toEqual({ value: 70, max: 100 });
+test("set_tracker writes the GAME-subject plane by KEY, keeping the untouched fields", () => {
+  const state = emptyState({ trackerValues: { corruption: { value: 10, items: null } } });
+  expect(applySetTracker(state, { key: "corruption", value: 70 }).trackerValues["corruption"]).toEqual({ value: 70, items: null });
+  // Both write arms run through the SAME mechanic the per-actor arm uses — one write behaviour, two subjects.
+  expect(applySetTracker(state, { key: "corruption", delta: -4 }).trackerValues["corruption"]).toEqual({ value: 6, items: null });
 });
 
 test("upsert_quest create mints a quest; a later flip addresses it by name", () => {

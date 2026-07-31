@@ -25,19 +25,18 @@
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
 import type { RpgGameConfig } from "@orb/contracts/rpg";
-import { rpgCheckpoints, rpgGames, rpgHudWidgets, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
+import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import type { ForkGameArgs, ForkGameResult } from "../../chat";
-import type { RpgCheckpointRow, RpgContext, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow, RpgWidgetRow } from "../contract/service";
+import type { RpgCheckpointRow, RpgContext, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service";
 import { listCheckpoints } from "../persistence/checkpoints";
 import { findGameByChat } from "../persistence/games";
 import { listAllJournal } from "../persistence/journal";
 import { listSheets } from "../persistence/sheets";
 import { listSnapshots } from "../persistence/snapshots";
-import { listWidgets } from "../persistence/widgets";
 
 /** Strip the host-only `steeringNote` from a cloned config for a non-host forker (identity for a host forker).
  *  Everything else (statProfile, features, extraction knobs, userMacros) is play-style — member-visible by
@@ -78,11 +77,6 @@ function cloneSheets(cc: CloneCtx, sheets: readonly RpgSheetRow[]): BatchStmt[] 
   return sheets.map((s) =>
     batchStmt(cc.ctx.db.insert(rpgSheets).values({ ...s, id: cc.ctx.ids.sheet(), gameId: cc.newGameId, createdAt: cc.now, updatedAt: cc.now })),
   );
-}
-
-/** rpg_hud_widgets — copy all (new id + new gameId). Definitions, not secrets. */
-function cloneWidgets(cc: CloneCtx, widgets: readonly RpgWidgetRow[]): BatchStmt[] {
-  return widgets.map((w) => batchStmt(cc.ctx.db.insert(rpgHudWidgets).values({ ...w, id: cc.ctx.ids.widget(), gameId: cc.newGameId, createdAt: cc.now })));
 }
 
 /** rpg_snapshots — copy rows whose variant AND message were copied (the fork horizon + D106 floor are respected
@@ -184,9 +178,8 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
 
   // The five source planes (all rows — the clone re-keys + drops by the maps, so it must see the whole set,
   // never a lineage projection).
-  const [sheets, widgets, snapshots, journal, checkpoints] = await Promise.all([
+  const [sheets, snapshots, journal, checkpoints] = await Promise.all([
     listSheets(ctx.db, source.id),
-    listWidgets(ctx.db, source.id),
     listSnapshots(ctx.db, source.id),
     listAllJournal(ctx.db, source.id),
     listCheckpoints(ctx.db, source.id),
@@ -215,7 +208,6 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
   const stmts: BatchStmt[] = [
     batchStmt(ctx.db.insert(rpgGames).values(gameRow)),
     ...cloneSheets(cc, sheets),
-    ...cloneWidgets(cc, widgets),
     ...snapshotsCopy.stmts,
     ...cloneJournal(cc, journal),
     ...cloneCheckpoints(cc, checkpoints, snapshotsCopy.snapshotIdMap),

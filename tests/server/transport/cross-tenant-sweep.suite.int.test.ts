@@ -45,8 +45,8 @@ const MARK = {
   automationRule: "AlphaSecretRule",
   // ── rpg (W2): a game on A's chat, markers on every READABLE surface — a stranger's read probe would echo
   //    one back if the game-scoping regressed (rpg has NO ownerId; authority is chat-FK-derived, D18/D20).
-  //    `rpgSteering` = the host-only `getConfigView.steeringNote`; `rpgWidget` = a HUD widget label
-  //    (`getTrackerView.widgets[].def.label`); `rpgQuest` = a quest name (`getTrackerView.quests[].name`);
+  //    `rpgSteering` = the host-only `getConfigView.steeringNote`; `rpgWidget` = a game-tracker label
+  //    (`getTrackerView.gameTrackers[].def.label`); `rpgQuest` = a quest name (`getTrackerView.quests[].name`);
   //    `rpgJournal` = a journal entry title/content (`listJournal[]`); `rpgCheckpoint` = a checkpoint label
   //    (`listCheckpoints[]`). getGame carries no free-text, so its teeth are the NOT_FOUND collapse alone. ──
   rpgSteering: "AlphaSecretSteering",
@@ -76,7 +76,6 @@ interface OwnerIds {
   automationRuleId: string;
   // rpg (W2) — A's real game-scoped ids, fed to the rpg write probes so a dropped `gameId`/membership predicate
   // on a foreign id would touch A's row (the W1b IDOR class this domain already hid once).
-  rpgWidgetId: string;
   rpgQuestId: string;
   rpgJournalId: string;
   rpgCheckpointId: string;
@@ -760,7 +759,7 @@ const PROBES: readonly Probe[] = [
   //    `rpg_games.chatId → chat_participants` (D18/D20), resolved by the injected `getMembership` at
   //    `domain/rpg/guard.ts`. A NON-MEMBER stranger passing A's chatId collapses to ONE leak-free
   //    `DomainNotFound` → NOT_FOUND (indistinguishable from a no-game chat — a foreigner never learns the
-  //    chat is a game), for reads AND writes alike. The READS carry A's markers (steering note / widget label
+  //    chat is a game), for reads AND writes alike. The READS carry A's markers (steering note / tracker label
   //    / quest name / journal entry / checkpoint label), so a regressed game-scoping would ECHO one on a
   //    stranger's result; the WRITES take A's REAL rule-scoped ids so a dropped `gameId` predicate would touch
   //    A's row (the W1b IDOR class — the post-sweep integrity re-read below proves nothing mutated). `createGame`
@@ -773,16 +772,6 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.rpg.patchSheet({ chatId: i.chatId, actorRef: { kind: "user", userId: OWNER_USER_ID }, patch: { className: "hacked" } }),
   },
   { path: "rpg.editSnapshot", call: (c, i) => c.rpg.editSnapshot({ chatId: i.chatId, patch: { location: "hacked" } }) },
-  {
-    path: "rpg.createWidget",
-    call: (c, i) =>
-      c.rpg.createWidget({
-        chatId: i.chatId,
-        def: { type: "meter", label: "hacked", icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: null } },
-      }),
-  },
-  { path: "rpg.updateWidget", call: (c, i) => c.rpg.updateWidget({ chatId: i.chatId, widgetId: i.rpgWidgetId, patch: { label: "hacked" } }) },
-  { path: "rpg.deleteWidget", call: (c, i) => c.rpg.deleteWidget({ chatId: i.chatId, widgetId: i.rpgWidgetId }) },
   { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
   { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
   { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },
@@ -1122,16 +1111,17 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // ── An rpg GAME on A's chat (front door — A is the chat's host). rpg has NO ownerId: game-ness + authority
     //    derive `rpg_games.chatId → chat_participants` (D18/D20), so a stranger passing A's chatId to ANY rpg
     //    verb must collapse to a leak-free NOT_FOUND. Markers stamp every readable surface (config steering note,
-    //    a widget label, a quest name, a journal entry, a checkpoint label) so a regressed game-scoping would
+    //    a tracker label, a quest name, a journal entry, a checkpoint label) so a regressed game-scoping would
     //    ECHO one back on a stranger's getTrackerView/getConfigView/listJournal/listCheckpoints probe. The
-    //    rule-scoped write ids (widget/quest/journal/checkpoint) are A's REAL ids — a dropped `gameId`/membership
+    //    rule-scoped write ids (quest/journal/checkpoint) are A's REAL ids — a dropped `gameId`/membership
     //    predicate on a foreign id would touch A's row (the W1b IDOR class this domain already hid once). ──
     await owner.rpg.createGame({ chatId, mode: "lite" });
     // The host-only config write door — steeringNote is A's marker (getConfigView.steeringNote, host-read).
     await owner.rpg.updateConfig({ chatId, patch: { steeringNote: MARK.rpgSteering } });
-    const rpgWidgetId = await owner.rpg.createWidget({
+    // The host-only tracker-def door — A's marker rides a game-subject tracker (getTrackerView.gameTrackers).
+    await owner.rpg.updateConfig({
       chatId,
-      def: { type: "meter", label: MARK.rpgWidget, icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: null } },
+      patch: { trackers: [{ key: "mark", label: MARK.rpgWidget, shape: "meter", write: "set", subject: "game", max: 100 }] },
     });
     // upsertQuest clone-forwards off the turnless game's default state → mints the FIRST snapshot (the narrator
     // slot), so the subsequent createCheckpoint has a resolved head to label.
@@ -1170,7 +1160,6 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       messageId,
       documentId,
       automationRuleId: automationRule.id,
-      rpgWidgetId,
       rpgQuestId,
       rpgJournalId,
       rpgCheckpointId,
@@ -1213,7 +1202,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const rpgConfigStill = await ownerCaller.rpg.getConfigView({ chatId: ids.chatId });
     expect(rpgConfigStill.steeringNote).toBe(MARK.rpgSteering); // untouched by the stranger's rpg.updateConfig probe
     const rpgTrackerStill = await ownerCaller.rpg.getTrackerView({ chatId: ids.chatId });
-    expect(rpgTrackerStill.widgets.map((w) => w.def.label)).toContain(MARK.rpgWidget); // widget survived deleteWidget
+    expect(rpgTrackerStill.gameTrackers.map((t) => t.def.label)).toContain(MARK.rpgWidget); // the tracker def survived the stranger's updateConfig probe
     expect(rpgTrackerStill.quests.map((q) => q.name)).toContain(MARK.rpgQuest); // quest survived deleteQuest
     const rpgJournalStill = await ownerCaller.rpg.listJournal({ chatId: ids.chatId });
     expect(rpgJournalStill.map((j) => j.title)).toContain(MARK.rpgJournal); // entry survived deleteJournalEntry

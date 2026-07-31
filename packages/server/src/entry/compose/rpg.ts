@@ -34,10 +34,14 @@
 import { randomInt } from "node:crypto";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import {
+  actorRefKey,
+  buildRpgToolDescriptions,
+  buildTrackerWriteGroups,
   composePlaneTeaching,
   constrainExtractionSchema,
+  gameTrackerWriteKeys,
   malformedToolCalls,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
@@ -65,6 +69,7 @@ import {
   extractionToStateDelta,
   findGameByChat,
   ghostTargetRefs,
+  listSheets,
   publishRpgEvent,
   reachableActorRefs,
   rpgToolDefinitions,
@@ -179,7 +184,7 @@ function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config
  *  ONLY the LATEST BEAT, but it may use the whole story to understand it — a relationship warming over several
  *  turns, an item picked up earlier and still carried, a quest implied across turns. The per-plane teaching
  *  (below, composed from `EXTRACTION_PLANE_PROMPTS`) carries the RECONCILE + INFER doctrine and the newly-
- *  covered planes (plot/widgets/customFields/emoji/day — §1.6). ESTABLISH-when-unset stays the ENFORCED-SCHEMA
+ *  covered planes (plot/trackers/emoji/day — §1.6). ESTABLISH-when-unset stays the ENFORCED-SCHEMA
  *  lever (`constrainExtractionSchema` marks scene fields REQUIRED on a fresh game); this prompt is the content-
  *  quality arm. The R1 ref enums (below) keep targets honest. */
 const EXTRACTION_SYSTEM_HEADER =
@@ -200,7 +205,7 @@ const RECONCILE_PROMPT_LINE =
   "and wear, active quests, the plot act). Correct anything the CURRENT TRACKED STATE gets wrong against the story.";
 
 /** Compose the full reliable-mode system prompt: the header + the per-plane teaching (from the §1.6 registry,
- *  config/refs aware — plot/widgets/customFields/emoji/day/deception-clause) + the R1 ref enumeration + (on a
+ *  config/refs aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
  *  reconcile beat) the reconcile line. The registry is the ONE home both the reliable extraction and the cheap
  *  tool round teach their planes from. */
 function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
@@ -347,36 +352,51 @@ interface ResolvedRefs {
  *  ref under an enforcing backend, and the cast-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
   const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgRoster(chatId), findGameByChat(deps.db, chatId)]);
+  const config = game?.config ?? rpgGameConfigSchema.parse({});
+  // R6 — the per-actor write surface needs each roster actor's SHEET exceptions (grants/revokes). One read,
+  // only when the game actually defines trackers (a tracker-free game pays nothing for the machinery).
+  const sheets = game !== undefined && config.trackers.length > 0 ? await listSheets(deps.db, game.id) : [];
   const player = roster.find((r) => r.actorRef.kind === "user");
   const rosterOwnsPlayerName = roster.some((r) => r.name.toLowerCase() === PLAYER_SEMANTIC_REF);
-  // Insertion-ordered dedup (case-insensitive) — the enum offers each resolvable target exactly once.
+  // The CARRIERS and the target-name enum are built from ONE walk, so they can never diverge: every name the
+  // enum offers belongs to a carrier whose writable-tracker set the schema then pins (R6), and every carrier
+  // is reachable. Insertion-ordered, case-insensitively deduped.
   const seen = new Set<string>();
-  const actorRefs: string[] = [];
-  const add = (ref: string): void => {
-    const key = ref.toLowerCase();
-    if (ref.length > 0 && !seen.has(key)) {
+  const carriers: RpgTrackerCarrier[] = [];
+  const add = (carrier: RpgTrackerCarrier): void => {
+    const key = carrier.name.toLowerCase();
+    if (carrier.name.length > 0 && !seen.has(key)) {
       seen.add(key);
-      actorRefs.push(ref);
+      carriers.push(carrier);
     }
   };
+  const exceptionsBySheet = new Map<string, { grants: readonly string[]; revokes: readonly string[] }>(
+    sheets.map((row) => [
+      actorRefKey(row.characterId !== null ? { kind: "character", characterId: row.characterId } : { kind: "user", userId: row.userId as UserId }),
+      { grants: row.sheet.trackerGrants, revokes: row.sheet.trackerRevokes },
+    ]),
+  );
+  const exceptionsFor = (actorKey: string): { grants: readonly string[]; revokes: readonly string[] } =>
+    exceptionsBySheet.get(actorKey) ?? { grants: [], revokes: [] };
   // The stable semantic token leads — UNLESS a roster member already claims "player" (that char owns it, F10).
+  // It rides as a SECOND carrier over the same actor so it lands in the player's own write-surface group.
   if (player !== undefined && !rosterOwnsPlayerName) {
-    add(PLAYER_SEMANTIC_REF);
+    add({ actorKey: actorRefKey(player.actorRef), name: PLAYER_SEMANTIC_REF, kind: "party", ...exceptionsFor(actorRefKey(player.actorRef)) });
   }
   for (const r of roster) {
-    add(r.name); // every roster display name is valid (persona-name + the F10 "Player"-named char)
+    // every roster display name is valid (persona-name + the F10 "Player"-named char)
+    add({ actorKey: actorRefKey(r.actorRef), name: r.name, kind: "party", ...exceptionsFor(actorRefKey(r.actorRef)) });
   }
   for (const pc of baseState.presentCharacters) {
-    add(pc.key); // an existing scene NPC — targetable for presentRemove + party/inventory (F4)
+    add({ actorKey: `cast:${pc.key}`, name: pc.key, kind: "npcs", grants: [], revokes: [] }); // a scene NPC (F4)
   }
   for (const actor of baseState.actorState) {
     if (actor.actorRef.kind === "cast") {
-      add(actor.actorRef.castKey); // an existing first-class cast actor — party/inventory/wallet reach it (F4)
+      // an existing first-class cast actor — party/inventory/wallet reach it (F4)
+      add({ actorKey: actorRefKey(actor.actorRef), name: actor.actorRef.castKey, kind: "npcs", grants: [], revokes: [] });
     }
   }
-  // §2.8 — the host-defined tracked cast-field KEYS constrain the nested `presentUpsert[].customFields[].name`,
-  // so the model can only write DEFINED fields (never invent a junk key). Empty (feature off) leaves it free.
-  const castFieldKeys = game?.config.features.castFields.map((f) => f.key) ?? [];
+  const actorRefs = carriers.map((c) => c.name);
   // R5a — the CURRENTLY-ACTIVE condition names (across every tracked actor, deduped in encounter order)
   // constrain `party[].removeCondition`, so a retirement can only name a condition that is actually on
   // someone. Nobody afflicted ⇒ an empty list ⇒ the field stays unconstrained (never an empty enum).
@@ -398,9 +418,17 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
         presentCast: baseState.presentCharacters.length === 0,
       };
   return {
-    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, conditionNames, establishScene },
+    refs: {
+      actorRefs,
+      // R6 — the per-actor write surface: each distinct writable-tracker set with the target names that share
+      // it. Identical sets collapse into ONE group, so the common all-`everyone` game projects a flat schema.
+      trackerWriteGroups: buildTrackerWriteGroups(config.trackers, carriers),
+      gameTrackerKeys: gameTrackerWriteKeys(config.trackers),
+      conditionNames,
+      establishScene,
+    },
     playerDisplayName: player?.name ?? null,
-    config: game?.config ?? rpgGameConfigSchema.parse({}),
+    config,
   };
 }
 
@@ -421,10 +449,33 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
       `"${PLAYER_SEMANTIC_REF}" = the human's own character (currently shown as "${playerDisplayName}"); prefer "${PLAYER_SEMANTIC_REF}" for the human.`,
     );
   }
-  if (refs.widgetRefs.length > 0) {
-    lines.push(`Valid widgetRef values (custom trackers — never invent one): ${refs.widgetRefs.join(", ")}.`);
+  // R6 — the TRACKER write surface named in prose (the fallback arm for a wire that can't enforce the enums).
+  // The keys are listed per distinct carrier set, so a model reading only the prompt still learns that not
+  // every actor carries every tracker. Empty groups (a tracker-free game) contribute nothing.
+  for (const group of refs.trackerWriteGroups) {
+    if (group.deltaKeys.length === 0 && group.setKeys.length === 0) {
+      continue;
+    }
+    const arms: string[] = [];
+    if (group.deltaKeys.length > 0) {
+      arms.push(`trackerDeltas keys: ${group.deltaKeys.join(", ")}`);
+    }
+    if (group.setKeys.length > 0) {
+      arms.push(`trackerSets keys: ${group.setKeys.join(", ")}`);
+    }
+    lines.push(`For ${group.targetRefs.join(", ")} — ${arms.join("; ")}.`);
   }
-  lines.push("Location goes in scene.location — NEVER in a widget. Never target a name not in the lists above.");
+  const gameKeys = [...refs.gameTrackerKeys.deltaKeys, ...refs.gameTrackerKeys.setKeys];
+  if (gameKeys.length > 0) {
+    lines.push(`Valid set_tracker keys (game-wide trackers — never invent one): ${gameKeys.join(", ")}.`);
+  }
+  // R5b(a) — the schema binds `removeCondition` to the live conditions (R5a); this is the matching PROMPT half
+  // for a backend that can't enforce the enum. Without it the model retires a condition nobody carries (or
+  // comma-joins four into the scalar, the measured 8B failure) and the write is silently dropped at apply.
+  if (refs.conditionNames.length > 0) {
+    lines.push(`Currently-active conditions (removeCondition must name EXACTLY one of these): ${refs.conditionNames.join(", ")}.`);
+  }
+  lines.push("Location goes in scene.location — NEVER in a tracker. Never target a name not in the lists above.");
   return lines.join("\n");
 }
 
@@ -439,7 +490,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
-    // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + widget labels)
+    // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + tracker keys)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
     // prompt (the fallback arm for a non-enforcing model). `reconcile` (§1.3 cadence) forces establish-
     // EVERYTHING + the reconcile prompt line so a drifted panel self-heals this beat.
@@ -553,7 +604,7 @@ function safeJson(text: string): unknown {
 // honest degrade, capability-keyed: cheap needs `capability.tools`, absent ⇒ readonly upstream).
 
 /** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
- *  SAME per-plane teaching (from the §1.6 registry — plot/widgets/customFields/deception-clause) that the
+ *  SAME per-plane teaching (from the §1.6 registry — plot/trackers/deception-clause) that the
  *  reliable arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
 function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
   // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
@@ -566,7 +617,7 @@ function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisp
     "• Did anyone's HP, pools, conditions, or status change? → update_party (one call PER affected actor)\n" +
     "• Did items or currency move? → update_inventory\n" +
     "• Did the location, time, weather, or present cast change? → update_scene\n" +
-    "• Did a custom tracker change? → set_widget_value\n" +
+    "• Did a game-wide tracker change? → set_tracker\n" +
     "• Did a quest start, advance, complete, or fail? → upsert_quest\n" +
     "• Is there a notable beat worth logging? → add_journal_entry\n" +
     'Most beats change MORE THAN ONE plane — e.g. "she\'s wounded and bleeding as you flee into the cave" ' +
@@ -579,43 +630,50 @@ function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisp
   return parts.join("\n\n");
 }
 
-/** Build the ref-constrained wire tools for the round: each state tool's projected+enum-constrained args +
- *  the zero-arg `no_changes` escape. `constrainExtractionSchema` binds the ref enums on the extraction schema;
- *  we mirror that per-tool by constraining each tool's own arg schema through the SAME projection. */
-function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; description: string; parameters: Record<string, unknown> }[] {
+/** Build the per-game, per-actor wire tools for a state round / a folded turn (R6 + R2). The parameters come
+ *  from ONE projection of the extraction schema constrained by this call's refs — so the tool a model is handed
+ *  offers EXACTLY the trackers each target actually carries, minus the locked ones (prevent-at-schema; the
+ *  apply-time lock strip stays a backstop). The descriptions are the R2 TEMPLATES rendered against THIS game,
+ *  so a host's `Grit ("resolve you spend to push through danger")` reaches the write surface by name + gloss.
+ *
+ *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
+ *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
+ *  tool whose parameters no longer exist would be an invitation to write nothing). */
+function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): { name: string; description: string; parameters: Record<string, unknown> }[] {
   // The per-tool projected args, ref-constrained. We reuse the extraction constraint by projecting the whole
   // extraction schema once and lifting each array field's item schema (which carries the injected enums).
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
     properties?: Record<string, { items?: Record<string, unknown> } | Record<string, unknown>>;
   };
-  const itemSchemaOf = (field: string): Record<string, unknown> => {
+  const itemSchemaOf = (field: string): Record<string, unknown> | undefined => {
     const node = constrained.properties?.[field] as { items?: Record<string, unknown> } | undefined;
-    return node?.items ?? { type: "object" };
+    return node === undefined ? undefined : (node.items ?? { type: "object" });
   };
   const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  return [
-    { name: "update_party", description: "HP, pools, conditions, status on any actor.", parameters: itemSchemaOf("party") },
-    { name: "update_inventory", description: "Items and wallet on an actor.", parameters: itemSchemaOf("inventory") },
-    {
-      name: "update_scene",
-      // RV-9: time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a
-      // field the model never advances renders as a stopped clock (the R4b gloss lesson).
-      description:
-        "Location, time of day, weather, present cast, a recent beat. Call it when the scene moves, when the " +
-        "beat spends time (rest, travel, a cut to later), when the weather turns, or when a new day starts. " +
-        "weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash — pick the closest; the vivid " +
-        'phrasing goes in weather.label ("torrential sleet").',
-      parameters: sceneSchema,
-    },
-    { name: "set_widget_value", description: "Write a custom tracker's value.", parameters: itemSchemaOf("widgets") },
-    { name: "upsert_quest", description: "Create/update/complete/fail a quest.", parameters: itemSchemaOf("quests") },
-    { name: "add_journal_entry", description: "Log a notable beat.", parameters: itemSchemaOf("journal") },
+  const descriptions = buildRpgToolDescriptions({ config, refs });
+  const describeTool = (name: string): string => descriptions.get(name) ?? "";
+  const tools: { name: string; description: string; parameters: Record<string, unknown> }[] = [
+    { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
+    { name: "update_inventory", description: describeTool("update_inventory"), parameters: itemSchemaOf("inventory") ?? { type: "object" } },
+    { name: "update_scene", description: describeTool("update_scene"), parameters: sceneSchema },
+  ];
+  // The game-subject tracker tool — present ONLY when this game defines one (R6 "a disabled feature's tool is
+  // omitted entirely"). `itemSchemaOf` returns undefined exactly when the constraint pruned the plane.
+  const trackerParams = itemSchemaOf("trackers");
+  if (trackerParams !== undefined) {
+    tools.push({ name: "set_tracker", description: describeTool("set_tracker"), parameters: trackerParams });
+  }
+  tools.push(
+    { name: "upsert_quest", description: describeTool("upsert_quest"), parameters: itemSchemaOf("quests") ?? { type: "object" } },
+    { name: "add_journal_entry", description: describeTool("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
     {
       name: RPG_NO_CHANGES_TOOL,
-      description: "Call ONLY when the latest beat changed NOTHING trackable.",
+      description:
+        "Call ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
-  ];
+  );
+  return tools;
 }
 
 /** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
@@ -645,7 +703,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         params: {},
         systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName, reconcile), dynamic: "" },
         history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config) }] }],
-        tools: buildToolRoundWireTools(refs),
+        tools: buildToolRoundWireTools(refs, config),
         toolChoice: { mode: "required" },
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
         // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
@@ -698,8 +756,8 @@ const FOLDED_RECONCILE_NOTE =
  *  back a `null` channel when it can't, which the flush reads as "fall back to the post-commit round"). */
 function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTurn"] {
   return async ({ chatId, baseState, reconcile }) => {
-    const { refs } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
-    return { tools: buildToolRoundWireTools(refs), reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
+    const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
+    return { tools: buildToolRoundWireTools(refs, config), reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
   };
 }
 
@@ -838,7 +896,6 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       game: minter(ID_PREFIX.rpgGame),
       snapshot: minter(ID_PREFIX.rpgSnapshot),
       sheet: minter(ID_PREFIX.rpgSheet),
-      widget: minter(ID_PREFIX.rpgWidget),
       journal: minter(ID_PREFIX.rpgJournal),
       checkpoint: minter(ID_PREFIX.rpgCheckpoint),
       // Quest ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).

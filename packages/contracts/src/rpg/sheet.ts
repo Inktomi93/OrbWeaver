@@ -3,41 +3,21 @@
 // nothing; full backfills at `center` when ITS seeding lands — the mutability rule, §2.3). Sheets live in
 // `rpg_sheets` (the no-party-system ruling: NOT a membership shadow — keyed by durable actor identity,
 // projected roster ∪ rows at read time, created on first write). Full grafts `arc` as an ADD COLUMN.
+//
+// TRACKER DEFS DO NOT LIVE HERE (the tracked-field unification): the old `poolDefs` made the same concept
+// per-ACTOR here and per-GAME in `config.features.castFields`, which is exactly what forced the three-tab
+// define/value/pin dance. Defs now home ONCE in `config.trackers[]`; what the sheet keeps is the per-actor
+// EXCEPTION pair — this actor's grants and revokes against the def-level carrier classes.
 
 import { z } from "zod";
-import { RPG_HINT_MAX } from "./config";
-
-/** The strict pool-color grammar (panel-redesign, owner-ruled FREE HEX): a 3/6-digit hex or a numeric
- *  `oklch(L C H)` (optional `deg` hue + `/ alpha`) — a COLOR literal, never raw CSS (no `var()`, no
- *  `color-mix()`, no url/expression vector). Free hex deliberately does NOT theme-adapt — accepted: the
- *  bar/orb geometry is decorative (aria-hidden), the value TEXT rides theme tokens. ASCII match, no `u`. */
-export const RPG_POOL_COLOR_RE = /^(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|oklch\(\s*\d+(\.\d+)?%?\s+\d+(\.\d+)?\s+\d+(\.\d+)?(deg)?\s*(\/\s*\d+(\.\d+)?%?\s*)?\))$/;
-
-/** A single pool DEFINITION — the mechanical dial (name + max) plus the host-pickable display `color`
- *  (nullable; null ⇒ the ordinal track-ramp derivation `trackColor(i)`, panel-redesign §12.1.2). ONE schema
- *  home: the sheet blob, the `patchSheet` wire input, and the view projection all derive from THIS (never
- *  re-spell). `color` is hand-only (absent from the extraction schema + every tool arg — unwritable by the
- *  model); a pre-redesign blob heals to null at the parse seam via the `.default`. */
-export const rpgPoolDefSchema = z.object({
-  name: z.string().min(1),
-  max: z.number().int().min(1),
-  color: z.string().regex(RPG_POOL_COLOR_RE).nullable().default(null),
-  // #36 — the HOST-authored pool MEANING ("mana fuels spellcasting; empty = exhausted"). Host-set like
-  // `color` (absent from the extraction schema + every tool arg — unwritable by the model; patchSheet is
-  // the only door). Fed into the steering reminder so the model knows what each pool MEANS, and shown as
-  // the quiet hint by the meter. A pre-hint blob heals to "" at the parse seam via the `.default`.
-  hint: z.string().max(RPG_HINT_MAX).default(""),
-});
-export type RpgPoolDef = z.infer<typeof rpgPoolDefSchema>;
 
 /** The per-actor character sheet — identity-plane data. `attributes` keys off the game's `statProfile`
- *  vocabulary (an int per attribute); `poolDefs`/`maxHp` are the lite-live mechanical dials the volatile
- *  plane's values track against. `className` is flavor prose. Full ADDS skills/abilities/strengths/
- *  weaknesses/attack/defense/speed as parse-seam-healed JSON fields (§C — no DDL). */
+ *  vocabulary (an int per attribute); `maxHp` is the lite-live mechanical dial the volatile plane's hp tracks
+ *  against. `className` is flavor prose. Full ADDS skills/abilities/strengths/weaknesses/attack/defense/speed
+ *  as parse-seam-healed JSON fields (§C — no DDL). */
 export const rpgSheetSchema = z.object({
   className: z.string().default(""),
   attributes: z.record(z.string(), z.number().int()).default({}),
-  poolDefs: z.array(rpgPoolDefSchema).default([]),
   maxHp: z.number().int().min(1).nullable(),
   flavor: z.string().default(""),
   // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
@@ -46,5 +26,13 @@ export const rpgSheetSchema = z.object({
   // reachable only through `patchSheet`. A model bumping "level" off a vibe is the progression-inflation footgun
   // the no-`update_stats` posture exists to prevent; matching marinara's restraint here is the honest call.
   level: z.number().int().min(0).nullable().default(null),
+  // The per-actor TRACKER EXCEPTIONS (the unification's applicability model, §5.1). The def carries the class
+  // (`party`/`npcs`/`everyone`/an explicit ref list); THIS actor may additionally be GRANTED a tracker the
+  // class missed (the one-off — a character who alone carries "Bound Will") or have one REVOKED (a party
+  // member with no Mana in a party-wide Mana game). Effective carriers = resolve(appliesTo) + grants − revokes,
+  // computed in ONE place (`carriesTracker`, `./tracker`). Tracker KEYS, never labels — a rename never orphans
+  // an exception. Hand-only (host/owner authority through `patchSheet`); the model never writes them.
+  trackerGrants: z.array(z.string().min(1)).default([]),
+  trackerRevokes: z.array(z.string().min(1)).default([]),
 });
 export type RpgSheet = z.infer<typeof rpgSheetSchema>;

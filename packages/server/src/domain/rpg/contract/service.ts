@@ -27,7 +27,7 @@ import type {
   RpgToolCall,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
-import type { Db, rpgCheckpoints, rpgGames, rpgHudWidgets, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
+import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type {
   ChatId,
   ChatTurnId,
@@ -40,7 +40,6 @@ import type {
   RpgQuestId,
   RpgSheetId,
   RpgSnapshotId,
-  RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
 import type { WireTool } from "#infra/providers";
@@ -49,10 +48,8 @@ import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
   CreateGameParams,
-  CreateWidgetParams,
   DeleteJournalEntryParams,
   DeleteQuestParams,
-  DeleteWidgetParams,
   DetachDanglingPointerParams,
   EditJournalEntryParams,
   EditSnapshotParams,
@@ -66,7 +63,6 @@ import type {
   StagedJournalEntry,
   StagedTurnFlush,
   UpdateConfigParams,
-  UpdateWidgetParams,
   UpsertQuestParams,
 } from "./params";
 import type { CreateGameResult, RollDiceResult } from "./results";
@@ -85,9 +81,6 @@ export type NewRpgSnapshot = typeof rpgSnapshots.$inferInsert;
 export type WriteStagedSnapshotResult = { readonly ok: true; readonly row: RpgSnapshotRow } | { readonly ok: false; readonly reason: string };
 
 export type RpgSheetRow = typeof rpgSheets.$inferSelect;
-
-export type RpgWidgetRow = typeof rpgHudWidgets.$inferSelect;
-export type NewRpgWidget = typeof rpgHudWidgets.$inferInsert;
 
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
 export type NewRpgJournal = typeof rpgJournal.$inferInsert;
@@ -117,7 +110,7 @@ export function snapshotRowToState(row: RpgSnapshotRow): RpgSnapshotState {
     presentCharacters: [...(row.presentCharacters ?? [])],
     recentEvents: [...(row.recentEvents ?? [])],
     actorState: [...(row.actorState ?? [])],
-    widgetValues: { ...(row.widgetValues ?? {}) },
+    trackerValues: { ...(row.trackerValues ?? {}) },
     quests: [...(row.quests ?? [])],
     // P5 — clone-forward like quests, never a SHARED ref: a forwarded snapshot's plot must not alias its
     // base row's parsed object (swipe-consistency by copy — the quests spread precedent, one level deeper
@@ -342,7 +335,6 @@ export interface RpgIdMints {
   readonly game: () => RpgGameId;
   readonly snapshot: () => RpgSnapshotId;
   readonly sheet: () => RpgSheetId;
-  readonly widget: () => RpgWidgetId;
   readonly journal: () => RpgJournalId;
   readonly checkpoint: () => RpgCheckpointId;
   readonly quest: () => RpgQuestId;
@@ -485,9 +477,6 @@ export interface RpgService {
   /** Host any field; a member their own actor's volatile. Writes volatile state on the current resolved
    *  snapshot (clone-forward), auto-locking touched fields. */
   readonly editSnapshot: (params: EditSnapshotParams) => Promise<void>;
-  readonly createWidget: (params: CreateWidgetParams) => Promise<RpgWidgetId>;
-  readonly updateWidget: (params: UpdateWidgetParams) => Promise<void>;
-  readonly deleteWidget: (params: DeleteWidgetParams) => Promise<void>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
   readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;

@@ -9,8 +9,10 @@
 // registrations, zero renames (§C). Widening `update_party.targetRef` to reach cast actors is documented
 // in the def's model-facing description; the name stays (renaming re-litigates for zero capability).
 //
-// The five core names (`update_party`/`update_inventory`/`update_scene`/`set_widget_value`/`roll_dice`)
-// are D86/CP vocabulary the owner ratified. `upsert_quest`/`add_journal_entry` complete the lite set.
+// The core names (`update_party`/`update_inventory`/`update_scene`/`roll_dice`) are D86/CP vocabulary the
+// owner ratified; `upsert_quest`/`add_journal_entry` complete the lite set. `set_widget_value` became
+// `set_tracker` with the tracked-field unification — the widget CONCEPT is gone, so keeping its name would
+// have been the only re-spell in the set.
 
 import { z } from "zod";
 import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient";
@@ -23,7 +25,7 @@ export const RPG_LITE_TOOL_NAMES = [
   "update_party",
   "update_inventory",
   "update_scene",
-  "set_widget_value",
+  "set_tracker",
   "upsert_quest",
   "add_journal_entry",
   "roll_dice",
@@ -34,10 +36,29 @@ export type RpgToolName = (typeof RPG_LITE_TOOL_NAMES)[number];
 // A model-facing actor reference: a NAME the server alias-resolves to a character/user/cast actor (never
 // a branded id — projection-clean). The wallet/inventory-on-every-actor ruling means this reaches cast too.
 const targetRefField = z.string().min(1);
-// customFields as array-of-pairs (D79 regime) — a bare record projects an open additionalProperties. The pair
-// `name` is ENUM-CONSTRAINED at projection to the host-defined cast-field KEYS (§2.8, the R1 machinery applied to
-// field keys) so a model can only write DEFINED fields — never invent `customFields.randomJunk`.
-const customFieldPairSchema = z.object({ name: z.string().min(1), value: z.string() });
+
+// THE TRACKER WRITE ARMS (the tracked-field unification §5.3). Two arms, split by the def's `write` axis —
+// this is the axis being LOUD in the wire, exactly as designed: a `delta` tracker is a resource the beat
+// spends/restores, a `set` tracker is a state the beat observes. The `key` of both is ENUM-CONSTRAINED at
+// projection to the trackers the TARGET ACTOR actually carries and that are not locked (R6 prevent-at-schema,
+// `constrainExtractionSchema`), so a model can never be handed Mana on an actor with no Mana.
+//
+// These replace `update_party.poolDeltas` (name-addressed, meters only), `presentUpsert[].customFields`
+// (an opaque STRING record on the cast row) and `set_widget_value` (label-addressed, game-scoped) — three
+// wire vocabularies for one concept, gone.
+
+/** A `write:"delta"` tracker write — spend/restore a resource by a signed amount. */
+const trackerDeltaSchema = z.object({ key: z.string().min(1), delta: z.number().int() });
+
+/** A `write:"set"` tracker write — record the new reading. `value` carries a `meter`'s number or a `text`
+ *  tracker's string (the projection narrows it to the one type when this call's set-trackers are all one
+ *  shape); `items` carries a `list` tracker's lines. Exactly one is meaningful per key; both omitted is a
+ *  no-op the applier drops. */
+const trackerSetSchema = z.object({
+  key: z.string().min(1),
+  value: z.union([z.number(), z.string()]).optional(),
+  items: z.array(z.string()).optional(),
+});
 
 // A present-cast RELATIONSHIP write (parity-plus §2.1) — `kind` rides the closed vocab (ENUM-constrained at the
 // token level, §2.3); `label` is meaningful only for `kind:"custom"`. Authored strict-style within the object
@@ -60,11 +81,12 @@ const weatherUpsertSchema = z.object({
   label: rpgWeatherLabelSchema.optional(),
 });
 
-/** `update_party` — pool deltas, conditions, hp delta, status on any party-side actor OR cast key.
+/** `update_party` — tracker writes, conditions, hp delta, status on any party-side actor OR cast key.
  *  An `hpDelta` on a null-hp actor → an `ok:false` legality result (the errors-as-data lane, handler-side). */
 export const updatePartyArgsSchema = z.object({
   targetRef: targetRefField,
-  poolDeltas: z.array(z.object({ name: z.string().min(1), delta: z.number().int() })).optional(),
+  trackerDeltas: z.array(trackerDeltaSchema).optional(),
+  trackerSets: z.array(trackerSetSchema).optional(),
   addCondition: z.object({ name: z.string().min(1), modifier: z.number().int().optional() }).optional(),
   removeCondition: z.string().min(1).optional(),
   hpDelta: z.number().int().optional(),
@@ -117,7 +139,6 @@ export const updateSceneArgsSchema = z.object({
         appearance: z.string().optional(),
         outfit: z.string().optional(),
         thoughts: z.string().optional(),
-        customFields: z.array(customFieldPairSchema).optional(),
         relationship: relationshipUpsertSchema.optional(),
       }),
     )
@@ -129,14 +150,18 @@ export const updateSceneArgsSchema = z.object({
 });
 export type UpdateSceneArgs = z.infer<typeof updateSceneArgsSchema>;
 
-/** `set_widget_value` — write a custom widget's value/max/items by widget label. */
-export const setWidgetValueArgsSchema = z.object({
-  widgetRef: z.string().min(1),
-  value: z.number().optional(),
-  max: z.number().optional(),
+/** `set_tracker` — write a GAME-subject tracker (the retired `set_widget_value`, un-widgeted). Addressed by
+ *  tracker `key` (never a label — a rename used to orphan every stored widget value); the `delta` arm serves a
+ *  `write:"delta"` game tracker, `value`/`items` the `write:"set"` ones. The projection constrains `key` to
+ *  the game's UNLOCKED game-subject trackers and prunes the arms no live tracker needs, so a game with no
+ *  game-subject trackers never sees the tool at all. */
+export const setTrackerArgsSchema = z.object({
+  key: z.string().min(1),
+  delta: z.number().int().optional(),
+  value: z.union([z.number(), z.string()]).optional(),
   items: z.array(z.string()).optional(),
 });
-export type SetWidgetValueArgs = z.infer<typeof setWidgetValueArgsSchema>;
+export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 
 /** `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
  *  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards. */
@@ -162,6 +187,11 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  is dropped harmlessly at the fold, where a title-less-but-content-full entry is the valuable beat we must keep. */
 export const addJournalEntryArgsSchema = z.object({
   type: z.enum(RPG_JOURNAL_TYPES),
+  // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
+  // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
+  // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless
+  // on a non-custom type (the applier clears it there — the relationship precedent).
+  label: z.string().optional(),
   title: z.string().min(1).optional(),
   content: z.string(),
 });

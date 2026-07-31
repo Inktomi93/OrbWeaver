@@ -66,7 +66,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
     <RpgTakeoverHeader
       ambient={state.tracker.ambient}
       actors={state.tracker.actors}
-      poolOrbs={state.tracker.poolOrbs}
+      trackerOrbs={state.tracker.trackerOrbs}
       viewerUserId={state.viewerUserId}
       trackersReadOnly={state.tracker.trackersReadOnly}
       extractionMode={state.game.extractionMode}

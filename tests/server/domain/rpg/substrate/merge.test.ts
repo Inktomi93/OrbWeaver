@@ -101,38 +101,31 @@ describe("lock-honoring (manual-edit-wins)", () => {
 
   test("a per-actor SUB-FIELD lock (actorState.<key>.status) pins that value while sibling fields take the patch", () => {
     // The #10 per-field pin: the whole-array tool overlay correlates actors by `actorRefKey`; the locked
-    // `status` survives while the SAME actor's pools take the tool's write — never a whole-roster pin.
+    // `status` survives while the SAME actor's trackers take the tool's write — never a whole-roster pin.
     const base = { actorState: [actorWithWallet("mari", 10, 5)] };
     const patched = { ...actorWithWallet("mari", 10, 2), status: "tool-set" };
     const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.status": true });
-    const actors = out.actorState as { status: string; pools: { value: number }[] }[];
+    const actors = out.actorState as { status: string; trackerValues: Record<string, { value: number }> }[];
     expect(actors[0]?.status).toBe(""); // locked — the hand value (empty) survives
-    expect(actors[0]?.pools[0]?.value).toBe(2); // unlocked sibling field took the patch
+    expect(actors[0]?.trackerValues["focus"]?.value).toBe(2); // unlocked sibling field took the patch
   });
 
-  test("a nested pool lock (actorState.<key>.pools.<name>) pins ONE pool while its siblings take the patch", () => {
-    const base = {
-      actorState: [
-        {
-          ...actorWithWallet("mari", 10, 5),
-          pools: [
-            { name: "focus", value: 5, max: 100 },
-            { name: "mana", value: 8, max: 10 },
-          ],
-        },
-      ],
-    };
-    const patched = {
-      ...actorWithWallet("mari", 10, 5),
-      pools: [
-        { name: "focus", value: 1, max: 100 },
-        { name: "mana", value: 0, max: 10 },
-      ],
-    };
-    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.pools.mana": true });
-    const pools = (out.actorState as { pools: { name: string; value: number }[] }[])[0]?.pools ?? [];
-    expect(pools.find((p) => p.name === "mana")?.value).toBe(8); // pinned
-    expect(pools.find((p) => p.name === "focus")?.value).toBe(1); // took the patch
+  test("a nested TRACKER lock (actorState.<key>.trackerValues.<key>) pins ONE tracker, siblings take the patch", () => {
+    // The tracked-field unification made this FREE: `trackerValues` is a record keyed by tracker key, so the
+    // plain object walk already yields a per-tracker lock path — no keyed-array registry entry needed (the
+    // retired name-addressed `pools[]` array was exactly why that machinery had to exist).
+    const withTrackers = (focus: number, mana: number): Record<string, unknown> => ({
+      ...actorWithWallet("mari", 10, focus),
+      trackerValues: { focus: { value: focus, items: null }, mana: { value: mana, items: null } },
+    });
+    const out = applyLockedPatch(
+      { actorState: [withTrackers(5, 8)] },
+      { actorState: [withTrackers(1, 0)] },
+      { "actorState.cast:mari.trackerValues.mana": true },
+    );
+    const values = (out.actorState as { trackerValues: Record<string, { value: number }> }[])[0]?.trackerValues ?? {};
+    expect(values["mana"]?.value).toBe(8); // pinned
+    expect(values["focus"]?.value).toBe(1); // took the patch
   });
 
   test("an actor carrying a sub-field lock survives a tool that drops the actor (removal defense)", () => {

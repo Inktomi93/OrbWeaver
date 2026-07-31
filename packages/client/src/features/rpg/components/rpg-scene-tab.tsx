@@ -9,8 +9,8 @@
 // arm): ambient fields + widget values ride `editSnapshot` (whole-array/record overlay under [merge-clear]);
 // goals ride `upsertQuest`. Beats are a log (read-only by nature).
 
-import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
-import { RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import { RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerNumber, trackerReading } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -20,8 +20,9 @@ import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, useResyncFromStory } from "../hooks/use-rpg-mutations";
-import { RELATIONSHIP_GLYPHS, WIDGET_TYPE_GLYPHS } from "../lib/glyphs";
-import { resolveAccentColor, trackColor, trackColorProps } from "../lib/track-color";
+import { RELATIONSHIP_GLYPHS, TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
+import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
@@ -66,19 +67,6 @@ function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next
   return hour === undefined ? null : { clock: { day: currentDay, hour, minute: 0 } };
 }
 
-/** Group custom widgets by `subjectName` (§4.4 — "subjectName-grouped widgets"). `pool`/`hp`-bound widgets
- *  render ungrouped (their subject is an actor, shown in Status); only `custom` widgets carry a subject. */
-function widgetsBySubject(widgets: readonly RpgWidgetView[]): ReadonlyMap<string, readonly RpgWidgetView[]> {
-  const groups = new Map<string, RpgWidgetView[]>();
-  for (const w of widgets) {
-    const subject = w.def.binding.source === "custom" ? (w.def.binding.subjectName ?? "General") : "General";
-    const bucket = groups.get(subject) ?? [];
-    bucket.push(w);
-    groups.set(subject, bucket);
-  }
-  return groups;
-}
-
 export interface RpgSceneTabProps {
   readonly state: RpgPanelState;
 }
@@ -100,7 +88,7 @@ const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "we
 interface SceneEditCallbacks {
   readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
   readonly castEdit?: SceneCastEdit;
-  readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
+  readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
   /** Release a hand-lock path back to the model (§12.3). Present only for a host (same gate as the edits). */
   readonly onReleaseLock?: (path: string) => void;
 }
@@ -120,17 +108,51 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
       }
     },
-    castEdit: { onEditCast: (patch): void => editSnapshot.mutate({ chatId, patch }) },
-    // Widget VALUES ride editSnapshot's `widgetValues` record (keyed by widget label — the value plane's key).
-    onEditWidget: (label, current, next): void =>
-      editSnapshot.mutate({ chatId, patch: { widgetValues: { [label]: { ...(current ?? {}), value: Math.max(0, next) } } } }),
+    castEdit: {
+      onEditCast: (patch): void => editSnapshot.mutate({ chatId, patch }),
+      // A cast member's tracked value writes the SAME per-actor plane a roster member's does, under the
+      // member's `cast:<key>` ref (one value home for every actor — the unification's whole point). The
+      // written value stays TOTAL because the snapshot merge recurses into it.
+      onEditCastTracker: (castKey, def, value, next): void => {
+        const ref = { kind: "cast", castKey } as const;
+        editSnapshot.mutate({
+          chatId,
+          patch: actorStatePatch(tracker.actors, ref, (v) => ({
+            ...v,
+            trackerValues: {
+              ...v.trackerValues,
+              [def.key]: {
+                ...RPG_TRACKER_VALUE_EMPTY,
+                ...value,
+                ...(def.shape === "list"
+                  ? {
+                      items: String(next)
+                        .split(",")
+                        .map((x) => x.trim()),
+                    }
+                  : { value: next }),
+              },
+            },
+          })),
+          lockPaths: [`${actorLockBase(ref)}.trackerValues.${def.key}`],
+        });
+      },
+    },
+    // GAME-subject tracker values ride editSnapshot's `trackerValues` record, keyed by tracker KEY (never a
+    // label — the old widget plane keyed by label, so a rename orphaned the value). The written value is TOTAL
+    // (`{value,max,items}` whole) because the snapshot merge recurses into it.
+    onEditGameTracker: (entry, next): void =>
+      editSnapshot.mutate({
+        chatId,
+        patch: { trackerValues: { [entry.def.key]: { ...RPG_TRACKER_VALUE_EMPTY, ...entry.value, value: Math.max(0, next) } } },
+      }),
     // Release-only edit: an empty patch + the lock path to clear (§12.3 — a lock is metadata, not a leaf).
     onReleaseLock: (path): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [path] }),
   };
 }
 
 /** The section-scoped hand-lock pin (§12.3): `editSnapshot` stamps TOP-LEVEL patch paths
- *  (`presentCharacters`, `widgetValues`), so one lock ⇒ one pin ⇒ one Release, rendered beside the
+ *  (`presentCharacters`, `trackerValues`), so one lock ⇒ one pin ⇒ one Release, rendered beside the
  *  section label. `null` unless the path is locked AND the viewer owns the release (host). */
 function sectionLockPin(locked: ReadonlySet<string>, path: string, onReleaseLock: ((path: string) => void) | undefined): ReactNode {
   if (onReleaseLock === undefined || !locked.has(path)) {
@@ -162,13 +184,12 @@ function ambientStripProps(
   };
 }
 
-/** The lite Scene tab — ambient, cast, goals, the live choice echo, widgets, beats. */
+/** The lite Scene tab — ambient, cast, goals, the live choice echo, game trackers, beats. */
 export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   const { tracker } = state;
-  const { onEditAmbient, castEdit, onEditWidget, onReleaseLock } = useSceneEdits(state);
+  const { onEditAmbient, castEdit, onEditGameTracker, onReleaseLock } = useSceneEdits(state);
 
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
-  const groups = widgetsBySubject(tracker.widgets);
   const locked = new Set(tracker.lockedPaths);
   const ambient = tracker.ambient;
 
@@ -177,7 +198,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientStripProps(ambient, locked, onEditAmbient, onReleaseLock)} />}
       <SceneCast
         cast={tracker.cast}
-        castFields={tracker.castFields}
+        castTrackers={tracker.castTrackers}
         {...(castEdit === undefined ? {} : { edit: castEdit })}
         lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)}
       />
@@ -185,7 +206,11 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
           the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />
       <RpgChoiceEcho state={state} />
-      <SceneWidgets groups={groups} {...(onEditWidget === undefined ? {} : { onEditWidget })} lockPin={sectionLockPin(locked, "widgetValues", onReleaseLock)} />
+      <SceneGameTrackers
+        trackers={tracker.gameTrackers}
+        {...(onEditGameTracker === undefined ? {} : { onEditGameTracker })}
+        lockPin={sectionLockPin(locked, "trackerValues", onReleaseLock)}
+      />
       <SceneBeats beats={beats} />
       <RpgSceneCards chatId={state.chatId} enabled={state.game.publicConfig.immersiveHtml} />
       <SceneResyncDoorway state={state} />
@@ -214,41 +239,6 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
   );
 }
 
-/** Split a cast member's stored `customFields` record against the host-defined field SCHEMAS (§2.8): a `meter`
- *  field becomes a MeterRow (numeric value/max, the value parsed from its stored string); a `text` field becomes
- *  a labelled chip. Only DEFINED fields render (an orphan value from a deleted field-schema is dropped).
- *
- *  `ordinal` is the ONE cast-field color source of truth (§12.1.2 — color is a DERIVATION, never a datum):
- *  the field's index among METER-kind fields in the SCHEMA's definition order — stable per field, identical
- *  across members (a per-member filtered index would color the same field differently on different cards),
- *  and the SAME ordinal the GM console's definition swatch derives from (definition and display one system, §3). */
-function castFieldViews(
-  customFields: Readonly<Record<string, string>>,
-  castFields: RpgTrackerView["castFields"],
-): {
-  readonly meters: readonly { key: string; label: string; value: number; max: number; ordinal: number }[];
-  readonly texts: readonly { name: string; value: string }[];
-} {
-  const meters: { key: string; label: string; value: number; max: number; ordinal: number }[] = [];
-  const texts: { name: string; value: string }[] = [];
-  let meterOrdinal = 0;
-  for (const field of castFields) {
-    const raw = customFields[field.key];
-    if (field.kind === "meter") {
-      const ordinal = meterOrdinal;
-      meterOrdinal += 1;
-      if (raw === undefined) {
-        continue;
-      }
-      const value = Number.parseInt(raw, 10);
-      meters.push({ key: field.key, label: field.label, value: Number.isNaN(value) ? 0 : value, max: field.max ?? 0, ordinal });
-    } else if (raw !== undefined) {
-      texts.push({ name: field.label, value: raw });
-    }
-  }
-  return { meters, texts };
-}
-
 /** The whole-`presentCharacters` overlay for one cast member's one-field change ([merge-clear]: the array
  *  is a full replace, rebuilt from the live cast with the target member patched). Used by every cast edit
  *  (mood, relationship kind, cast-field value) so all cast writes share one patch shape. */
@@ -262,16 +252,19 @@ function castPatch(
 
 interface SceneCastEdit {
   readonly onEditCast: (patch: Record<string, unknown>) => void;
+  /** Write ONE tracked value on a cast member (the actorState plane — cast NPCs carry their values on the
+   *  SAME per-actor plane roster members use, keyed `cast:<key>`; there is no second cast-value store). */
+  readonly onEditCastTracker: (castKey: string, def: RpgTrackerDef, value: RpgTrackerValue | null, next: string | number) => void;
 }
 
 function SceneCast({
   cast,
-  castFields,
+  castTrackers,
   edit,
   lockPin,
 }: {
   readonly cast: RpgTrackerView["cast"];
-  readonly castFields: RpgTrackerView["castFields"];
+  readonly castTrackers: RpgTrackerView["castTrackers"];
   readonly edit?: SceneCastEdit;
   /** The section-scoped `presentCharacters` hand-lock pin (§12.3) — `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
@@ -280,13 +273,18 @@ function SceneCast({
     // The honest empty-cast doorway (§12.1.5): the scene fills from the story; nothing to author by hand here.
     return <RpgDoorwayLine>No one on stage yet — the story brings them in.</RpgDoorwayLine>;
   }
-  // Label→key map for cast-field text chips (chips carry the LABEL; customFields keys by field KEY).
-  const keyByLabel = new Map(castFields.map((f) => [f.label, f.key]));
+
   return (
     <Stack gap="field">
       <Kicker trailing={lockPin}>On stage — {cast.length}</Kicker>
       {cast.map((member) => {
-        const { meters, texts } = castFieldViews(member.customFields, castFields);
+        // The trackers THIS member carries, resolved server-side through the ONE carrier predicate — so the
+        // card shows exactly the set the model's write schema offered for them (never a re-derivation).
+        const entries = castTrackers[member.key] ?? [];
+        const meters = entries.filter((e) => e.def.shape === "meter");
+        const texts = entries
+          .filter((e) => e.def.shape !== "meter")
+          .map((e) => ({ name: e.def.label, value: trackerReading(e.def, e.value ?? undefined)?.replace(`${e.def.label}: `, "") ?? "" }));
         const editProps =
           edit === undefined
             ? {}
@@ -297,9 +295,9 @@ function SceneCast({
                     castPatch(cast, member.key, (m) => ({ ...m, relationship: { kind: next, label: next === "custom" ? m.relationship.label : "" } })),
                   ),
                 onEditField: (label: string, next: string): void => {
-                  const fieldKey = keyByLabel.get(label);
-                  if (fieldKey !== undefined) {
-                    edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, customFields: { ...m.customFields, [fieldKey]: next } })));
+                  const entry = entries.find((e) => e.def.label === label);
+                  if (entry !== undefined) {
+                    edit.onEditCastTracker(member.key, entry.def, entry.value, next);
                   }
                 },
               };
@@ -316,31 +314,20 @@ function SceneCast({
             {...(meters.length === 0
               ? {}
               : {
-                  meters: meters.map((m) => {
-                    const fieldKey = keyByLabel.get(m.label);
-                    return (
-                      <MeterRow
-                        key={m.key}
-                        label={m.label}
-                        value={m.value}
-                        max={m.max}
-                        // The schema-ordinal derivation (§12.1.2) — the same field wears the same track
-                        // color on every card AND on its GM-console definition row.
-                        color={trackColor(m.ordinal)}
-                        {...(edit === undefined || fieldKey === undefined
-                          ? {}
-                          : {
-                              onEditValue: (next: number): void =>
-                                edit.onEditCast(
-                                  castPatch(cast, member.key, (mem) => ({
-                                    ...mem,
-                                    customFields: { ...mem.customFields, [fieldKey]: String(Math.max(0, next)) },
-                                  })),
-                                ),
-                            })}
-                      />
-                    );
-                  }),
+                  meters: meters.map((m, i) => (
+                    <MeterRow
+                      key={m.def.key}
+                      label={m.def.label}
+                      value={trackerNumber(m.value ?? undefined) ?? 0}
+                      max={m.def.max ?? 0}
+                      // The def's own color, else the ordinal ramp — the SAME derivation the GM-console
+                      // definition row and the band orb use (definition and display one system, §3).
+                      {...trackColorProps(resolveTrackerColor(m.def.color, i))}
+                      {...(edit === undefined
+                        ? {}
+                        : { onEditValue: (next: number): void => edit.onEditCastTracker(member.key, m.def, m.value, Math.max(0, next)) })}
+                    />
+                  )),
                 })}
           />
         );
@@ -381,43 +368,39 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
   );
 }
 
-function SceneWidgets({
-  groups,
-  onEditWidget,
+function SceneGameTrackers({
+  trackers,
+  onEditGameTracker,
   lockPin,
 }: {
-  readonly groups: ReadonlyMap<string, readonly RpgWidgetView[]>;
-  readonly onEditWidget?: (label: string, current: RpgWidgetView["value"], next: number) => void;
-  /** The section-scoped `widgetValues` hand-lock pin (§12.3) — ONE lock covers every widget value, so the
-   *  pin renders once, beside the FIRST group's label. `null` when unlocked/not-host. */
+  readonly trackers: RpgTrackerView["gameTrackers"];
+  readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
+  /** The section-scoped `trackerValues` hand-lock pin (§12.3) — ONE lock covers every game-tracker value,
+   *  so the pin renders once beside the section label. `null` when unlocked/not-host. */
   readonly lockPin?: ReactNode;
 }): ReactElement | null {
-  if (groups.size === 0) {
+  if (trackers.length === 0) {
     return null;
   }
   return (
-    <>
-      {[...groups.entries()].map(([subject, subjectWidgets], groupIndex) => (
-        <Stack key={subject} gap="field">
-          <Kicker trailing={groupIndex === 0 ? lockPin : null}>{subject}</Kicker>
-          {subjectWidgets.map((widget, i) => (
-            <MeterRow
-              key={widget.def.label}
-              label={widget.def.label}
-              value={widget.value?.value ?? 0}
-              max={widget.value?.max ?? 0}
-              // The widget's TYPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden
-              // decoration; the label stays the datum).
-              leading={<Icon icon={WIDGET_TYPE_GLYPHS[widget.def.type]} size="xs" className="shrink-0 text-muted-foreground" />}
-              // The accent WARD (§12.1.2): a stored accent renders only when it passes the strict
-              // hex/OKLCH grammar; anything else heals to the ordinal ramp.
-              {...trackColorProps(resolveAccentColor(widget.def.accent, i))}
-              {...(onEditWidget === undefined ? {} : { onEditValue: (next: number): void => onEditWidget(widget.def.label, widget.value, next) })}
-            />
-          ))}
-        </Stack>
+    <Stack gap="field">
+      <Kicker trailing={lockPin}>Trackers</Kicker>
+      {trackers.map((entry, i) => (
+        <MeterRow
+          key={entry.def.key}
+          label={entry.def.label}
+          value={trackerNumber(entry.value ?? undefined) ?? 0}
+          max={entry.def.max ?? 0}
+          // The tracker SHAPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden decoration;
+          // the label stays the datum).
+          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}
+          // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.
+          {...trackColorProps(resolveTrackerColor(entry.def.color, i))}
+          {...(entry.def.hint === "" ? {} : { note: entry.def.hint })}
+          {...(onEditGameTracker === undefined ? {} : { onEditValue: (next: number): void => onEditGameTracker(entry, next) })}
+        />
       ))}
-    </>
+    </Stack>
   );
 }
 
