@@ -548,12 +548,18 @@ export interface ChatRpgOps {
    *  host/null-speaker `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CAST in a multi-character
    *  room / the single character in solo). Threaded so rpg can render the steeringNote's identity macros
    *  (guided-safe subset only, mirroring the nudge/guided path) instead of shipping literal braces — rpg SPLICES
-   *  chat's values, never re-deriving identity. Absent ⇒ the steeringNote ships verbatim (byte-identical). */
+   *  chat's values, never re-deriving identity. Absent ⇒ the steeringNote ships verbatim (byte-identical).
+   *  `regenSlotMessageId` is the assistant slot this turn is REGENERATING — a swipe/reroll's `targetMessageId`
+   *  (the `append-variant` persist mode), whose canon context also stops BEFORE the slot. rpg reads its state
+   *  as of before that slot, so a reroll is never told the abandoned variant's beats (VER-1b; without it the
+   *  reminder describes the very prose the model is being asked to rewrite). Absent for a fresh turn AND for
+   *  `continue` — a continuation's context INCLUDES the slot, so its state genuinely is the head. */
   readonly gatherTurnContext: (
     chatId: ChatId,
     pendingUserText: string | undefined,
     respondsToLatestUserTurn: boolean,
     steerIdentity?: { readonly user: string | undefined; readonly char: string },
+    regenSlotMessageId?: MessageId,
   ) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
    *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn

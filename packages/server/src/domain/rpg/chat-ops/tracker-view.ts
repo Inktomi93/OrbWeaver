@@ -1,5 +1,6 @@
 // domain/rpg/chat-ops/tracker-view — the SHARED tracker-view projection (rpg-design/05 §4.8). Resolves the
-// CURRENT snapshot (or the synthesized default for a turnless game) and projects roster ∪ sheets (§4.3) against
+// CURRENT snapshot — or, for a REGEN turn, the state as of before the regenerated slot (VER-1b, the one
+// `regenSlotMessageId` arm) — (or the synthesized default for a turnless game) and projects roster ∪ sheets (§4.3) against
 // the injected roster into the `RpgTrackerView` the CP client renders AND the gather's steering reminder reads.
 // PRINCIPAL-FREE: the member gate lives in the `getTrackerView` VERB (`resolveMember`); the GATHER is internal
 // to a turn chat already gated, so it consumes this projection directly (the `getMembership`/gather-is-gated
@@ -26,10 +27,10 @@ import type {
   RpgTrackerView,
 } from "@orb/contracts/rpg";
 import { actorRefKey, gameTrackers, trackerCeiling, trackerNumber, trackersForCarrier } from "@orb/contracts/rpg";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import type { RpgContext, RpgGameRow } from "../contract/service";
 import { listSheets } from "../persistence/sheets";
-import { currentSnapshotState } from "../snapshot-edit";
+import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit";
 
 /** The orb-row envelope (§4.11 #5) — the band fits at most this many orbs at the 17rem floor. Caps the
  *  PINNED set so a host over-pinning can't crush the row (the pins are ordered by the tracker `sort`, so the
@@ -134,9 +135,16 @@ function ambientView(state: RpgSnapshotState): RpgTrackerView["ambient"] {
 
 /** Build the tracker view for a resolved game. `trackersReadOnly` is passed in (the verb resolves it via
  *  `ctx.resolveStateDelivery` for the CP pill; the gather passes its own already-resolved capability so it
- *  doesn't re-resolve — one connection read per turn). */
-export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, trackersReadOnly: boolean): Promise<RpgTrackerView> {
-  const state = await currentSnapshotState(ctx, game);
+ *  doesn't re-resolve — one connection read per turn).
+ *
+ *  `regenSlotMessageId` (VER-1b) — the assistant slot a REGEN (swipe/reroll) is about to write a NEW variant
+ *  onto. The view then projects the state as of BEFORE that slot instead of the head, because the head IS the
+ *  abandoned variant's snapshot: a reroll's reminder would otherwise teach the model the beats/state of the
+ *  very prose it is being asked to write differently (live-observed: the model's own reasoning wrestled with a
+ *  system note describing a moment that hadn't been written yet, and every reroll paraphrased the rejected
+ *  one). Absent — the PANEL read and every FRESH turn — resolves the head exactly as before. */
+export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, trackersReadOnly: boolean, regenSlotMessageId?: MessageId): Promise<RpgTrackerView> {
+  const state = regenSlotMessageId === undefined ? await currentSnapshotState(ctx, game) : await snapshotStateBeforeSlot(ctx, game, regenSlotMessageId);
   const [roster, sheetRows] = await Promise.all([ctx.resolveRoster(game.chatId), listSheets(ctx.db, game.id)]);
   const defs = game.config.trackers;
 

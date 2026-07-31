@@ -270,11 +270,11 @@ export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDel
  *  Non-exported: reachable only through `RpgContext.buildFoldedTurn`'s signature — no consumer names it (knip). */
 type RpgBuildFoldedTurn = (input: {
   readonly chatId: ChatId;
-  /** The resolution-ladder HEAD the model is shown — the state the player is looking at when the turn is
-   *  assembled, so the enums it is constrained to name the actors currently on stage. The flush's apply base
-   *  is resolved separately and excludes the turn's own slot (VER-1a, `resolveSnapshotBeforeSlot`), so on a
-   *  REROLL the two differ by exactly the rejected variant's delta — a ref the menu carries but the base does
-   *  not is dropped by the R5 ghost guard at apply, errors-as-data (never a mint off a dead sibling). */
+  /** The state the model is shown for this turn — the resolution HEAD on a fresh turn, the state as of before
+   *  the regenerated slot on a REROLL (VER-1b) — so the enums it is constrained to name the actors on stage in
+   *  the state its writes will land on. Since VER-1b this is the SAME state the flush resolves as its apply
+   *  base (`snapshotStateBeforeSlot`, VER-1a), so menu and base agree by construction; the R5 ghost guard stays
+   *  the errors-as-data backstop for a ref that vanished between assembly and apply. */
   readonly baseState: RpgSnapshotState;
   readonly reconcile: boolean;
 }) => Promise<{ readonly tools: readonly WireTool[]; readonly reconcileNote: string | null }>;
