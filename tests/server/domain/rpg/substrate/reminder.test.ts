@@ -4,7 +4,7 @@
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
 import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
-import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
 import {
@@ -30,8 +30,8 @@ function castTrackersFor(castKey: string, entries: readonly RpgTrackerEntry[]): 
 }
 
 /** ONE tracker reading, TOTAL (the stored shape). */
-function value(v: number | string | null, items: string[] | null = null): RpgTrackerValue {
-  return { value: v, items };
+function value(v: number | string | null, items: string[] | null = null, max: number | null = null): RpgTrackerValue {
+  return { value: v, items, max };
 }
 
 /** The feature-knob slice, defaulted ALL-TEACH-OFF so the pre-feature byte-exact assertions stay stable; the
@@ -98,6 +98,9 @@ function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
     steeringNote: "",
     curSnapshot: emptyState(),
     prevSnapshot: emptyState(),
+    // FREEFORM by default (no attribute vocabulary) so the pre-existing byte-exact assertions stay stable;
+    // the attribute-gloss cases pass a real profile.
+    statProfile: RPG_PROFILE_FREEFORM,
     features: features(),
     rosterNames: {},
     deception: false,
@@ -166,7 +169,7 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
         volatile: {
           actorRef: { kind: "cast", castKey: "kael" },
           hp: { value: 8, max: 12 },
-          trackerValues: { focus: { value: 3, items: null } },
+          trackerValues: { focus: { value: 3, items: null, max: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "i1", name: "dagger", description: "", quantity: 2, location: "", type: "" }],
           wallet: [{ name: "gold", amount: 40 }],
@@ -234,6 +237,61 @@ test("a hinted tracker glosses inline for EVERY shape; an unhinted one is unchan
   expect(out).toContain("Bond: frayed (where the two of them stand)"); // text kind
   expect(out).toContain("Debts 3/5"); // hint absent ⇒ today's exact format, no empty parens
   expect(out).not.toContain("Debts 3/5 (");
+});
+
+// RV-4's READ half. The write half (the Game-tab hint editor) is worth nothing if the gloss never ships: the
+// state block used to print `str 14` — the KEY, never the host's label, never the hint the packaged d20
+// profiles actually carry. That is the R4b class (a lever alive in schema, dead in the read path).
+test("attribute LABELS + HINTS reach the model: the vocabulary is taught once, values ride the actor line by label", () => {
+  const view = emptyView({
+    actors: [
+      {
+        actorRef: { kind: "cast", castKey: "kael" },
+        name: "Kael",
+        sheet: { className: "", attributes: { str: 14, wis: 9 }, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        volatile: null,
+        trackers: [],
+      },
+    ],
+  });
+  const out = buildLiteReminder(input({ view, statProfile: RPG_PROFILE_D20 }));
+  // The VOCABULARY line — every attribute, glossed, exactly once.
+  expect(out).toContain("Attributes: Strength (raw physical power — lifting, melee force)");
+  expect(out).toContain("Wisdom (perception, insight, willpower)");
+  // The ACTOR line carries the readings by LABEL — no raw keys, and no second copy of the hints.
+  expect(out).toContain("Strength 14, Wisdom 9");
+  expect(out).not.toContain("str 14");
+  // The hint prose appears ONCE in the whole reminder (the token-budget rule: meaning once, readings N times).
+  expect(out.split("raw physical power")).toHaveLength(2);
+});
+
+test("a FREEFORM profile teaches no attribute vocabulary (no empty header, no phantom line)", () => {
+  const view = emptyView({
+    actors: [
+      {
+        actorRef: { kind: "cast", castKey: "kael" },
+        name: "Kael",
+        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        volatile: null,
+        trackers: [],
+      },
+    ],
+  });
+  expect(buildLiteReminder(input({ view, statProfile: RPG_PROFILE_FREEFORM }))).not.toContain("Attributes:");
+});
+
+test("the gloss teaches the CARRIER's effective ceiling, not the game default it overrode (owner amendment)", () => {
+  // Wren's Nerve tops out at 6 where the game default is 10. Teaching the default would tell the model this
+  // character is at 40% when she is at two-thirds — the exact "the panel and the prompt disagree" class.
+  const view = emptyView({
+    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    castTrackers: castTrackersFor("Wren", [
+      { def: def({ key: "nerve", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(4, null, 6) },
+    ]),
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("Nerve 4/6");
+  expect(out).not.toContain("Nerve 4/10");
 });
 
 test("an EMPTY tracker hint glosses nothing (no empty parens)", () => {

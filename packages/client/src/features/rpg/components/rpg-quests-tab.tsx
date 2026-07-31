@@ -23,13 +23,11 @@ import type { RpgQuestView } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Icon, Plus, Trash2, X } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { SegmentedClock } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog, TrackerValue } from "#components";
+import { AddRow, ConfirmDialog, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useDeleteQuest, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations";
@@ -235,30 +233,10 @@ export interface RpgQuestsTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The host "New quest" affordance (§12.4 flow — no dead ends): an inline name field + create button that
- *  fires `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal: an empty name never sends. A CREATION
- *  draft, not a datum at rest — a plain Input, exempt from the display-at-rest grammar (§12.4.1). */
+/** The host "New quest" affordance (§12.4 flow — no dead ends): the shared `AddRow` (RV-8) firing
+ *  `upsertQuest` with NO `questId` (⇒ create). Tier-2 refusal + Enter-to-commit come with the primitive. */
 function NewQuest({ onCreate }: { readonly onCreate: (name: string) => void }): ReactElement {
-  const [draft, setDraft] = useState("");
-  return (
-    <Row gap="field" align="center">
-      <Input aria-label="New quest name" value={draft} placeholder="Start a quest…" onValueChange={setDraft} className="h-control-sm flex-1" />
-      <Button
-        intent="primary"
-        size="sm"
-        disabled={draft.trim() === ""}
-        onClick={(): void => {
-          const name = draft.trim();
-          if (name !== "") {
-            onCreate(name);
-            setDraft("");
-          }
-        }}
-      >
-        <Icon icon={Plus} size="xs" /> New quest
-      </Button>
-    </Row>
-  );
+  return <AddRow ariaLabel="New quest name" placeholder="Start a quest…" actions={[{ key: "quest", label: "New quest", icon: Plus, onAdd: onCreate }]} />;
 }
 
 /** Build the quest hand-edit callbacks (host) — name/description via a keep-on-omit upsert; objectives as

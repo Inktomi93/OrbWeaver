@@ -46,6 +46,27 @@ export const rpgStatProfileSchema = z.object({
 });
 export type RpgStatProfile = z.infer<typeof rpgStatProfileSchema>;
 
+/** ONE attribute's VOCABULARY gloss — `Strength (raw physical power — lifting, melee force)`, the hint
+ *  omitted when empty. The same `label value (hint)` grammar `trackerGloss` uses, split across two surfaces
+ *  because attributes are a fixed vocabulary shared by every sheet: the MEANING is taught ONCE (this line),
+ *  and each actor's line then carries only `label value` ({@link attributeReading}). Teaching the hint per
+ *  actor would multiply the profile's prose by the party size for zero extra information.
+ *
+ *  Without this the reminder printed raw `str 14` pairs: the key, not the host's label, and never the hint —
+ *  the label-as-mini-prompt (and the packaged d20 profiles' real steering prose) reached the model NOWHERE.
+ *  That is the R4b class exactly: a lever that exists in the schema and dies in the read path. */
+export function attributeGloss(def: RpgStatAttributeDef): string {
+  return def.hint === "" ? def.label : `${def.label} (${def.hint})`;
+}
+
+/** One actor's attribute reading — `Strength 14`, by LABEL (the vocabulary line carries the meaning). An
+ *  attribute value whose key is not in the profile prints its raw key: honest about stored-but-unvocabularied
+ *  data, never silently dropped. */
+export function attributeReading(defs: readonly RpgStatAttributeDef[], key: string, value: number): string {
+  const def = defs.find((d) => d.key === key);
+  return `${def?.label ?? key} ${value}`;
+}
+
 /** The packaged profile keys — `freeform` is lite's create default; `d20`/`special` are templates. */
 export const RPG_PACKAGED_PROFILES = ["freeform", "d20", "special"] as const;
 export type RpgPackagedProfileKey = (typeof RPG_PACKAGED_PROFILES)[number];

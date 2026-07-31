@@ -44,7 +44,8 @@ test("the GAME-subject tracker values live on the snapshot, keyed by tracker key
     fieldLocks: null,
     trackerValues: { alarm: { value: 35, max: 100 } },
   });
-  expect(state.trackerValues["alarm"]).toEqual({ value: 35, items: null });
+  // A game-subject tracker may carry its own ceiling override exactly like an actor's (one value shape).
+  expect(state.trackerValues["alarm"]).toEqual({ value: 35, items: null, max: 100 });
 });
 
 test("present character defaults its display fields and carries NO tracked-value store", () => {

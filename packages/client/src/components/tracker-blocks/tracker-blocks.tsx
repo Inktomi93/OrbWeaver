@@ -48,11 +48,58 @@ export interface MeterRowProps {
   readonly onEditValue?: (next: number) => void;
   /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell, §12.3). */
   readonly onEditMax?: (next: number) => void;
+  /** What the MAX edit actually writes, when that reaches beyond this row — a tracker's ceiling lives on the
+   *  DEF, so editing it from one actor's card moves it for every carrier. The caller states that here (it
+   *  rides the rest button's `title`); absent ⇒ the plain "Click to edit". */
+  readonly maxEditTitle?: string;
   /** A transient consequence microline under the row (§12.3 clamp-and-tell — "Vitality 24 → 20, max
    *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
   readonly note?: ReactNode;
   /** Render the value TEXT in warning tone (§12.3 — an overfull `34/30` reads in warning, never hidden). */
   readonly valueWarning?: boolean;
+}
+
+/** The `/max` half of an editable meter row — static text, or its own click-to-edit field when the caller
+ *  supplies `onEditMax` (whose `maxEditTitle` says what that edit actually writes). */
+function MaxCell({
+  label,
+  max,
+  onEditMax,
+  maxEditTitle,
+}: {
+  readonly label: string;
+  readonly max: number;
+  readonly onEditMax?: (next: number) => void;
+  readonly maxEditTitle?: string;
+}): ReactElement {
+  if (onEditMax === undefined) {
+    return (
+      <Text as="span" size="label" tone="muted" className="tabular-nums">
+        /{max}
+      </Text>
+    );
+  }
+  return (
+    <Row gap="field" align="center">
+      <Text as="span" size="label" tone="muted">
+        /
+      </Text>
+      <TrackerValue
+        ariaLabel={`${label} max`}
+        display={String(max)}
+        kind="numeric"
+        {...(maxEditTitle === undefined ? {} : { editTitle: maxEditTitle })}
+        onEdit={(next): void => {
+          const n = Number.parseInt(next, 10);
+          if (!Number.isNaN(n)) {
+            onEditMax(n);
+          }
+        }}
+        className="!w-avatar-lg px-field text-right tabular-nums"
+        restClassName="tabular-nums"
+      />
+    </Row>
+  );
 }
 
 /** A labeled magnitude meter. The `value/max` text is the datum; the bar underneath is decoration. */
@@ -66,6 +113,7 @@ export function MeterRow({
   dangerBelow,
   onEditValue,
   onEditMax,
+  maxEditTitle,
   note,
   valueWarning,
 }: MeterRowProps): ReactElement {
@@ -105,30 +153,7 @@ export function MeterRow({
               // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
               restClassName={valueWarning === true ? "tabular-nums text-warning" : "tabular-nums"}
             />
-            {onEditMax === undefined ? (
-              <Text as="span" size="label" tone="muted" className="tabular-nums">
-                /{max}
-              </Text>
-            ) : (
-              <Row gap="field" align="center">
-                <Text as="span" size="label" tone="muted">
-                  /
-                </Text>
-                <TrackerValue
-                  ariaLabel={`${label} max`}
-                  display={String(max)}
-                  kind="numeric"
-                  onEdit={(next): void => {
-                    const n = Number.parseInt(next, 10);
-                    if (!Number.isNaN(n)) {
-                      onEditMax(n);
-                    }
-                  }}
-                  className="!w-avatar-lg px-field text-right tabular-nums"
-                  restClassName="tabular-nums"
-                />
-              </Row>
-            )}
+            <MaxCell label={label} max={max} {...(onEditMax === undefined ? {} : { onEditMax })} {...(maxEditTitle === undefined ? {} : { maxEditTitle })} />
           </Row>
         )}
       </Row>

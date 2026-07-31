@@ -115,7 +115,7 @@ export function actorWithWallet(castKey: string, walletAmount: number, poolValue
   return {
     actorRef: { kind: "cast", castKey },
     hp: null,
-    trackerValues: { focus: { value: poolValue, items: null } },
+    trackerValues: { focus: { value: poolValue, items: null, max: null } },
     conditions: [],
     inventory: [],
     wallet: [{ name: "gold", amount: walletAmount }],

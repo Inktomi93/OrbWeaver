@@ -15,6 +15,10 @@
 // primary. Members see the list (the verb is member-read), no restore — PERMISSION-omit, never a disabled
 // control.
 //
+// The row's kicker word is the entry's OWN label when it carries one (the R4c `custom` free label — "prophecy",
+// "faction"), else the type's word: the label is model-writable and stored, so a chronicle that always printed
+// the generic "Custom" was hiding the one word the entry was written to carry.
+//
 // HAND AUTHORING (RV-6 — the three `*JournalEntry` verbs are host-gated, `resolveHost`): a host gets the
 // "New entry" composer at the head of the chronicle (type + title — a CREATION draft, so plain Input/Select,
 // not the display-at-rest grammar; the BODY is written in place on the born row) and, on every BEAT row,
@@ -27,7 +31,6 @@ import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon, Pin, Trash2 } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -37,7 +40,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { BeatLine, ConfirmDialog, TrackerValue } from "#components";
+import { AddRow, BeatLine, ConfirmDialog, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
@@ -77,8 +80,14 @@ const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
 const JOURNAL_TYPE_ITEMS: SelectItems<string> = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";
 
-/** The display label for a stored entry type — unknown/legacy slugs read as themselves, never blank. */
-function journalTypeLabel(type: string): string {
+/** The display label for a stored entry — the R4c free `label` when the entry carries one (a `custom` entry's
+ *  own kind: "prophecy", "faction"), else the type's word. Unknown/legacy slugs read as themselves, never
+ *  blank. The label was stored, model-written and returned on the view while NO surface rendered it — a datum
+ *  the host could author and never see. */
+function journalRowLabel(type: string, label: string): string {
+  if (label !== "") {
+    return label;
+  }
   const labels: Readonly<Record<string, string | undefined>> = JOURNAL_TYPE_LABELS;
   return labels[type] ?? type;
 }
@@ -93,7 +102,7 @@ interface BeatEdit {
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
  *  into one per-day stream by `createdAt`. */
 type ChronicleRow =
-  | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly title: string; readonly content: string }
+  | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly label: string; readonly title: string; readonly content: string }
   | { readonly kind: "card"; readonly card: ArchivedCard };
 
 /** One plain BEAT — a bullet line (§3: cards are reserved for artifacts): the type label, the title, then the
@@ -102,7 +111,7 @@ type ChronicleRow =
 function BeatRow({ row, edit }: { readonly row: Extract<ChronicleRow, { readonly kind: "beat" }>; readonly edit?: BeatEdit }): ReactElement {
   const typeLabel = (
     <Text as="span" size="micro" tone="muted" className="shrink-0 uppercase">
-      {journalTypeLabel(row.type)}
+      {journalRowLabel(row.type, row.label)}
     </Text>
   );
   if (edit === undefined) {
@@ -154,17 +163,11 @@ function BeatRow({ row, edit }: { readonly row: Extract<ChronicleRow, { readonly
  *  from display-at-rest. Tier-2 refusal: a blank title never sends (the wire requires min(1)). */
 function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJournalType; title: string }) => void }): ReactElement {
   const [type, setType] = useState<RpgJournalType>(DEFAULT_JOURNAL_TYPE);
-  const [title, setTitle] = useState("");
-  const submit = (): void => {
-    const trimmed = title.trim();
-    if (trimmed !== "") {
-      onCreate({ type, title: trimmed });
-      setTitle("");
-    }
-  };
   return (
-    <Stack gap="field">
-      <Row gap="field" align="center">
+    <AddRow
+      ariaLabel="New entry title"
+      placeholder="Title this beat…"
+      leading={
         <Select
           aria-label="Entry type"
           items={JOURNAL_TYPE_ITEMS}
@@ -172,14 +175,9 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
           onValueChange={(next): void => setType(next as RpgJournalType)}
           className="h-control-sm basis-1/3"
         />
-        <Input aria-label="New entry title" value={title} placeholder="Title this beat…" onValueChange={setTitle} className="h-control-sm flex-1" />
-      </Row>
-      <Row gap="field" justify="end">
-        <Button intent="primary" size="sm" disabled={title.trim() === ""} onClick={submit}>
-          Add entry
-        </Button>
-      </Row>
-    </Stack>
+      }
+      actions={[{ key: "entry", label: "Add entry", onAdd: (title: string): void => onCreate({ type, title }) }]}
+    />
   );
 }
 
@@ -229,7 +227,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
   const rows: readonly { readonly createdAt: number; readonly row: ChronicleRow }[] = [
     ...entries.map((entry) => ({
       createdAt: entry.createdAt,
-      row: { kind: "beat", key: entry.id, type: entry.type, title: entry.title, content: entry.content } as const,
+      row: { kind: "beat", key: entry.id, type: entry.type, label: entry.label, title: entry.title, content: entry.content } as const,
     })),
     ...cards.map((card) => ({ createdAt: card.createdAt, row: { kind: "card", card } as const })),
   ].sort((a, b) => b.createdAt - a.createdAt);
@@ -285,32 +283,18 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
   const { data: marks } = useSuspenseQuery(trpc.rpg.listCheckpoints.queryOptions({ chatId: state.chatId }));
   const createCheckpoint = useCreateCheckpoint({ trpc, invalidation });
   const restoreCheckpoint = useRestoreCheckpoint({ trpc, invalidation });
-  const [draftLabel, setDraftLabel] = useState("");
 
   const sorted = [...marks].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="section">
       {state.isHost ? (
-        <Row gap="field" align="center">
-          {/* A CREATION draft, not a datum at rest — a plain Input, not the display-at-rest grammar. */}
-          <Input aria-label="New mark label" value={draftLabel} placeholder="Mark this moment…" onValueChange={setDraftLabel} className="h-control-sm flex-1" />
-          <Button
-            intent="primary"
-            size="sm"
-            disabled={draftLabel.trim() === "" || createCheckpoint.isPending}
-            onClick={(): void => {
-              const label = draftLabel.trim();
-              // Tier-2 refusal (§12.3): an empty label never sends (the button is also disabled).
-              if (label !== "") {
-                createCheckpoint.mutate({ chatId: state.chatId, label });
-                setDraftLabel("");
-              }
-            }}
-          >
-            New mark
-          </Button>
-        </Row>
+        <AddRow
+          ariaLabel="New mark label"
+          placeholder="Mark this moment…"
+          pending={createCheckpoint.isPending}
+          actions={[{ key: "mark", label: "New mark", onAdd: (label: string): void => createCheckpoint.mutate({ chatId: state.chatId, label }) }]}
+        />
       ) : null}
 
       {sorted.length === 0 ? (

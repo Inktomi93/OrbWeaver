@@ -24,7 +24,7 @@
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
-import { rpgWeatherText, timeOfDayAtHour, trackerNumber } from "@orb/contracts/rpg";
+import { rpgWeatherText, timeOfDayAtHour, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
@@ -138,7 +138,9 @@ function trackerLine(prefix: string, def: RpgTrackerDef, was: RpgTrackerValue | 
     }
     const wasN = trackerNumber(was);
     if (wasN === null) {
-      return withHint(`${head}${def.label} → ${curN}${def.max === null ? "" : `/${def.max}`}`, def);
+      // The EFFECTIVE ceiling (this carrier's override, else the def default) — the ONE resolver.
+      const ceiling = trackerCeiling(def, cur);
+      return withHint(`${head}${def.label} → ${curN}${ceiling === null ? "" : `/${ceiling}`}`, def);
     }
     return wasN === curN ? null : withHint(`${head}${numDelta(def.label, wasN, curN)}`, def);
   }

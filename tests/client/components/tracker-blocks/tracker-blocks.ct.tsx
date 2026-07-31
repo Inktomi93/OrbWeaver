@@ -9,7 +9,7 @@
 //   • the commit FIRES with the parsed value (assert-the-mutation-fired — not just the UI reaction).
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
 // (reports/snaps/tracker-kit-*.png) — the structure/density/hierarchy receipt against the committed mockup.
-import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow, StatCell, TrackerChip } from "@orb/client/components";
+import { AddRow, AmbientStrip, BeatLine, CastCard, GoalLine, HintEditor, MeterRow, StatCell, TrackerChip } from "@orb/client/components";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -341,6 +341,95 @@ test("GoalLine editable: display-at-rest → click reveals the field; commit fir
   await field.fill("Find the iron key");
   await field.blur();
   expect(committed).toBe("Find the iron key");
+});
+
+// ── AddRow + HintEditor — the RV-8 panel-CRUD primitives ─────────────────────────────────────────
+
+test("AddRow: a blank draft REFUSES (every action disabled) — the Tier-2 no-orphan-names rule, structurally", async ({ mount, page }) => {
+  let added = "";
+  const component = await mount(
+    <AddRow
+      ariaLabel="New tracker name"
+      placeholder="name it first"
+      actions={[
+        {
+          key: "meter",
+          label: "meter",
+          onAdd: (value): void => {
+            added = value;
+          },
+        },
+      ]}
+    />,
+  );
+  await expect(component.getByRole("button", { name: "meter" })).toBeDisabled();
+  // Enter on an empty draft sends nothing either (the button is not the only path in).
+  await page.getByRole("textbox", { name: "New tracker name" }).press("Enter");
+  expect(added).toBe("");
+});
+
+test("AddRow: Enter fires the PRIMARY action with the trimmed name and clears the draft", async ({ mount, page }) => {
+  const added: string[] = [];
+  await mount(
+    <AddRow
+      ariaLabel="New tracker name"
+      placeholder="name it first"
+      actions={[
+        { key: "meter", label: "meter", onAdd: (value): void => void added.push(`meter:${value}`) },
+        { key: "text", label: "text", onAdd: (value): void => void added.push(`text:${value}`) },
+      ]}
+    />,
+  );
+  const field = page.getByRole("textbox", { name: "New tracker name" });
+  await field.fill("  Grit  ");
+  await field.press("Enter");
+  expect(added).toEqual(["meter:Grit"]);
+  await expect(field).toHaveValue("");
+  // The secondary action is a real second arm (one name, several shapes).
+  await field.fill("Rumours");
+  await page.getByRole("button", { name: "text" }).click();
+  expect(added).toEqual(["meter:Grit", "text:Rumours"]);
+});
+
+test("AddRow: a stated REFUSAL disables the row and says why (never a silently dead control)", async ({ mount, page }) => {
+  const component = await mount(
+    <AddRow
+      ariaLabel="New attribute name"
+      placeholder="name it"
+      refusal="A profile carries at most 12 attributes."
+      actions={[{ key: "a", label: "Add", onAdd: (): void => undefined }]}
+    />,
+  );
+  await expect(component).toContainText("A profile carries at most 12 attributes.");
+  await expect(component.getByRole("button", { name: "Add" })).toBeDisabled();
+  await expect(page.getByRole("textbox", { name: "New attribute name" })).toBeDisabled();
+});
+
+test("HintEditor: commits TRUNCATED to the wire cap, and shows the counter only from 80% full", async ({ mount, page }) => {
+  let committed = "";
+  const short = await mount(
+    <HintEditor
+      ariaLabel="Grit hint"
+      hint="resolve you spend"
+      max={20}
+      onEdit={(next): void => {
+        committed = next;
+      }}
+    />,
+  );
+  // 17 of 20 chars is ≥80% — the quiet counter is showing.
+  await expect(short).toContainText("17/20");
+  await short.getByRole("button", { name: "Grit hint" }).click();
+  const field = page.getByRole("textbox", { name: "Grit hint" });
+  await field.fill("a very long gloss that runs past the cap");
+  await field.blur();
+  expect(committed).toBe("a very long gloss th");
+  expect(committed).toHaveLength(20);
+});
+
+test("HintEditor read-only + empty renders NOTHING (no labelled gap on a viewer's surface)", async ({ mount }) => {
+  const component = await mount(<HintEditor ariaLabel="Grit hint" hint="" max={120} />);
+  await expect(component.locator('[data-slot="hint-editor"]')).toHaveCount(0);
 });
 
 // ── CONVERGENCE — assemble the kit into the mockup-v2 block regions + screenshot (the receipt) ───────

@@ -239,7 +239,7 @@ describe("write-boundary structural backstop (stickler F1)", () => {
         {
           actorRef: { kind: "cast" as const, castKey: "Ok" },
           hp: null,
-          trackerValues: { mana: { value: 0, items: null } },
+          trackerValues: { mana: { value: 0, items: null, max: null } },
           conditions: [],
           inventory: [],
           wallet: [],
@@ -249,6 +249,6 @@ describe("write-boundary structural backstop (stickler F1)", () => {
     };
 
     const written = await writeStagedSnapshot(db, valid, target({ gameId, chatId, seq: 1, variantId, key: "ok" }));
-    expect(written.ok ? written.row.actorState?.[0]?.trackerValues : undefined).toEqual({ mana: { value: 0, items: null } });
+    expect(written.ok ? written.row.actorState?.[0]?.trackerValues : undefined).toEqual({ mana: { value: 0, items: null, max: null } });
   });
 });
