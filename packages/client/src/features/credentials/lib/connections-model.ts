@@ -208,44 +208,32 @@ function orUndefined(value: string): string | undefined {
   return trimmed === "" ? undefined : trimmed;
 }
 
-function toRoleConfig(slot: RoleSlotForm): { source?: string; model?: string | null } | undefined {
-  const source = orUndefined(slot.source);
-  const model = orUndefined(slot.model);
-  if (source === undefined && model === undefined) {
-    return;
-  }
+function toRoleConfig(slot: RoleSlotForm): { source: string | null; model: string | null } {
   return {
-    ...(source !== undefined ? { source } : {}),
-    // An empty model on a LIVE slot (one that still carries a source) emits an explicit `null` — the
-    // deepMergePlain clear signal — not an omitted key. Omitting is a no-op merge, so a provider switch
-    // (source changes ⇒ model reset to "") would otherwise leave the previous provider's model id pinned
-    // and mis-route the turn. `null` on an already-empty field is a harmless no-op clear.
-    model: model ?? null,
+    // EVERY leaf is written EXPLICITLY, `null` for an emptied field — never an omitted key. The write
+    // path is `deepMergePlain(stored, patch)`, where an omitted key is a NO-OP: omitting the emptied
+    // fields left the previous selection pinned server-side while the pane rendered the cleared row, so
+    // "Clear" (and a provider switch, which resets the model) silently did nothing to what a turn
+    // resolves. `null` is the clear signal the lenient parser heals — `source` is `.catch(undefined)` (a
+    // null lands as unset) and `model` is `.nullable()` (a null IS the stored empty).
+    source: orUndefined(slot.source) ?? null,
+    model: orUndefined(slot.model) ?? null,
   };
 }
 
-function toChatConfig(slot: ChatSlotForm): Record<string, string | null> | undefined {
-  const base = toRoleConfig(slot) ?? {};
-  const api = orUndefined(slot.api);
-  const config: Record<string, string | null> = {
-    ...base,
-    ...(api !== undefined ? { api } : {}),
-  };
-  return Object.keys(config).length === 0 ? undefined : config;
+function toChatConfig(slot: ChatSlotForm): Record<string, string | null> {
+  return { ...toRoleConfig(slot), api: orUndefined(slot.api) ?? null };
 }
 
 /**
- * Project the flat form back into the sparse `routing` section written by `updateUserSettingsSection`.
- * A fully-empty slot collapses to an omitted key (unset means "no preference"). A slot that still
- * carries a source but has an empty model emits an explicit `model: null` clear (deepMergePlain
- * null=clear), so switching provider drops the previous provider's stale model id.
+ * Project the flat form back into the `routing` section written by `updateUserSettingsSection`. Every
+ * role's every leaf is named: a set field carries its value, an emptied one carries an explicit `null`
+ * clear. Nothing is omitted — an omitted key is a deepMergePlain no-op, i.e. a clear that never lands.
+ * The role objects themselves stay non-null (`roleDefaults.chat: null` would fail the non-nullable role
+ * schema); clearing a role = clearing its leaves.
  */
 export function toRoutingSection(form: RoutingForm): { roleDefaults: Record<string, unknown> } {
-  const roleDefaults: Record<string, unknown> = {};
-  const chat = toChatConfig(form.chat);
-  if (chat !== undefined) {
-    roleDefaults["chat"] = chat;
-  }
+  const roleDefaults: Record<string, unknown> = { chat: toChatConfig(form.chat) };
   const nonChat: readonly [Exclude<RoutingRoleKey, "chat">, RoleSlotForm][] = [
     ["embed", form.embed],
     ["rerank", form.rerank],
@@ -254,12 +242,60 @@ export function toRoutingSection(form: RoutingForm): { roleDefaults: Record<stri
     ["generateImage", form.generateImage],
   ];
   for (const [role, slot] of nonChat) {
-    const config = toRoleConfig(slot);
-    if (config !== undefined) {
-      roleDefaults[role] = config;
-    }
+    roleDefaults[role] = toRoleConfig(slot);
   }
   return { roleDefaults };
+}
+
+// ── LIVE vs DRAFT ──────────────────────────────────────────────────────────────────────────────────
+// The pane is autosaved, so what it renders is FORM state — which is the user's draft until a save lands.
+// On 2026-08-01 that cost a live debugging session: the owner's `roleDefaults` was NULL for two hours
+// while the pane showed a full "OpenRouter · Claude Sonnet · Protocol Auto" row under a "Saved" chip, and
+// turns quietly resolved the owner fallback (resolve-role.ts). A row must therefore say which of the two
+// it is showing, per row, against the PERSISTED projection.
+
+/** A persistable role of the flat form (excludes the read-only `agent` mirror, which has no form entry).
+ *  NOT exported — `no-inline-types` keeps exported type aliases out of a feature's lib; consumers spell
+ *  `keyof RoutingForm` (the same derivation) against the exported form interface. */
+type RoutingFormRole = keyof RoutingForm;
+
+/** `true` when this row's live selection is NOT what the server has persisted (i.e. not what a turn resolves). */
+export function roleRowDrifted(live: RoutingForm, persisted: RoutingForm, role: RoutingFormRole): boolean {
+  const a = live[role];
+  const b = persisted[role];
+  if (a.source !== b.source || a.model !== b.model) {
+    return true;
+  }
+  return role === "chat" && live.chat.api !== persisted.chat.api;
+}
+
+/** `true` when ANY row drifts — the pane-level "this pane is showing a draft" signal. Iterates the CONTRACT's
+ *  role keys (never a re-spelled list): a role the form stops carrying is a `tsc` error here, not a silent gap. */
+export function routingFormDrifted(live: RoutingForm, persisted: RoutingForm): boolean {
+  return ROUTING_ROLE_KEYS.some((role) => roleRowDrifted(live, persisted, role));
+}
+
+/** The chip copy per DRAFTING state — and, as its key set, the ONE home of those states (the row derives
+ *  `keyof typeof` from it; a matching row has no state here because it discloses nothing). The save-phase →
+ *  state dispatch lives in the row component: mapping it here would need `AutosaveSaveState` from `#forms`,
+ *  and this module is imported by node-lane tests that must not drag the DOM form barrel into their program. */
+export const ROLE_ROW_SYNC_LABELS = {
+  pending: "Unsaved",
+  saving: "Saving…",
+  failed: "Not saved",
+} as const;
+
+/** What a turn resolves for this row TODAY — the PERSISTED selection in plain words (the honest answer to
+ *  "is this my live connection?"). An unset row names the app default rather than pretending to a value. */
+export function persistedRoleLabel(persisted: RoutingForm, role: RoutingFormRole): string {
+  const slot = persisted[role];
+  if (slot.source === "") {
+    return "the app default";
+  }
+  // The cast is sound HERE (unlike the live form value): `persisted` is the server projection, whose
+  // `source` came through the `credentialSourceSchema` enum parse — an unknown string can't reach it.
+  const source = SOURCE_LABELS[slot.source as CredentialSource];
+  return slot.model === "" ? `${source} · its default model` : `${source} · ${slot.model}`;
 }
 
 const CHAT_API_LABEL_PAIRS: readonly (readonly [ChatApi, string])[] = [

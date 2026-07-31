@@ -36,6 +36,7 @@ import {
   PROVIDER_LABELS,
   projectRoutingForm,
   ROLE_SLOTS_ORDERED,
+  routingFormDrifted,
   toRoutingSection,
 } from "../lib/connections-model";
 import { CONNECTIONS_SUBCATEGORY_IDS } from "../lib/connections-nav";
@@ -99,6 +100,9 @@ function ModelRolesSection(): ReactElement {
   const isOwner = viewer.globalRole === "owner";
   const customCredentialId = credentials.find((cred) => cred.provider === "custom_openai" && cred.active)?.id ?? null;
   const update = useUpdateRouting({ trpc, invalidation });
+  // The PERSISTED projection — the pane's LIVE truth (what `resolveRole` reads at turn time), distinct from
+  // the form values the rows render. Both are threaded down so every row can disclose which one it shows.
+  const persisted = projectRoutingForm(data.config.routing);
 
   const save = (values: RoutingForm): Promise<unknown> =>
     update.mutateAsync({
@@ -107,20 +111,21 @@ function ModelRolesSection(): ReactElement {
     });
 
   return (
-    <ConnectionsForm entityId={CONNECTIONS_ENTITY_ID} serverValues={projectRoutingForm(data.config.routing)} save={save}>
-      {(session): ReactElement => <ModelRolesBody session={session} isOwner={isOwner} customCredentialId={customCredentialId} />}
+    <ConnectionsForm entityId={CONNECTIONS_ENTITY_ID} serverValues={persisted} save={save}>
+      {(session): ReactElement => <ModelRolesBody session={session} persisted={persisted} isOwner={isOwner} customCredentialId={customCredentialId} />}
     </ConnectionsForm>
   );
 }
 
 interface ModelRolesBodyProps {
   readonly session: AutosaveSession<RoutingForm>;
+  readonly persisted: RoutingForm;
   readonly isOwner: boolean;
   readonly customCredentialId: UserCredentialId | null;
 }
 
 /** The form-bearing role-slots body — remounted per epoch by the boundary's keyed Session. */
-function ModelRolesBody({ session, isOwner, customCredentialId }: ModelRolesBodyProps): ReactElement {
+function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: ModelRolesBodyProps): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
@@ -128,12 +133,27 @@ function ModelRolesBody({ session, isOwner, customCredentialId }: ModelRolesBody
         <Text size="micro" tone="muted">
           Pick the provider and model for each role. Leave a row on “Default” to let the app choose.
         </Text>
-        <AutosaveStatus state={saveState} onRetry={retrySave} />
+        {/* The pane may NOT read "Saved" while it is rendering a draft: a drifted pane whose session is
+            otherwise idle is one armed debounce away from saving, so it reads "Saving…" — the ratified
+            three-state vocabulary, no fourth state minted (D78 §6). Which rows are drafts, and what a turn
+            resolves meanwhile, is disclosed per row (RowSyncDisclosure). */}
+        <form.Subscribe selector={(state): boolean => routingFormDrifted(state.values, persisted)}>
+          {(drifted): ReactElement => <AutosaveStatus state={drifted && saveState === "saved" ? "saving" : saveState} onRetry={retrySave} />}
+        </form.Subscribe>
       </Row>
       <FieldLayout orientation="horizontal">
         <Stack gap="block">
           {ROLE_SLOTS_ORDERED.map((slot) => (
-            <RoleSlotRow key={slot.role} slot={slot} form={form} isOwner={isOwner} customCredentialId={customCredentialId} onScrollToKeys={scrollToKeys} />
+            <RoleSlotRow
+              key={slot.role}
+              slot={slot}
+              form={form}
+              persisted={persisted}
+              saveState={saveState}
+              isOwner={isOwner}
+              customCredentialId={customCredentialId}
+              onScrollToKeys={scrollToKeys}
+            />
           ))}
           <form.Subscribe selector={(state): string | null => embedDimensionWarning(state.values.embed, state.values.imageEmbed)}>
             {(warning): ReactElement | null =>
