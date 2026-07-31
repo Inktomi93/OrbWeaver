@@ -336,6 +336,18 @@ per-tick hygiene is a REAL gap (impersonate yields RAW deltas — AI_OUTPUT rege
 content only; a leaked "Name:" prefix lands in the composer verbatim; cheapest fix = final replacement delta
 carrying the reduced text).
 
+**LOOSE BITS SWEPT (owner caught the gap):** BUS-FLAP — opening a chat does a
+subscribe→unsubscribe→subscribe chat-bus flap (invalidation lane, live-observed, untouched) · BOOT-4X —
+every page load's user-bus connect gap-heal double-fetches persona.list/listChats/getUserSettings/
+character.list right after the initial reads settle ("by design" but 4 free round-trips at boot — evaluate
+against the gap-heal contract) · VERIFY-BURST — the burst fix's "after" numbers are map arithmetic; re-drive
+the three snap commands the lane recorded (startChat send / draft→rpg arm / committed-rpg arm) against the
+NOW-MERGED code and confirm ≤2/≤2 live (the lane couldn't — the stack served pre-merge main) · ✨-PERSPECTIVE —
+the invalidation lane's snap drive clicked Impersonate → "1st person" and the composer stayed empty with NO
+stream traffic — selector miss or a dead menu item; owner glance or CT-verify (may already be fixed by the
+zombie-lane toasts — verify, don't assume) · WAKE-STATUS (deferred by spec's own out): no "waking engine…"
+turn-status surface — the 3s wait is silent; revisit if it ever feels laggy.
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
