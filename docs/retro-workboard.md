@@ -45,11 +45,11 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 
 | # | Item | Lane | Size |
 |---|---|---|---|
-| 1 | **R4b** cast-field hint → reminder | server/rpg | 1 line + test |
-| 2 | **R5a + R5** extraction-schema enum hardening + ghost-actor guard | server/rpg | S |
+| 1 | ~~**R4b**~~ LANDED `7604bd6f` (steer-probe verify pending) | server/rpg | done |
+| 2 | ~~**R5a + R5**~~ LANDED `7d0e6f60` (enum bind + ghost guard, one-homed predicate) | server/rpg | done |
 | 3 | **OR-1…OR-4** provider-layer defects (one commit) | server/providers | S |
-| 4 | **W-I / D111** mint the crunchy-cluster ledger entry | docs/law | S |
-| 5 | **R1** fold extraction into the narrative turn | server/rpg+chat | **L** |
+| 4 | ~~**W-I / D111**~~ MINTED (registry + laws index) | docs/law | done |
+| 5 | **R1** fold extraction into the narrative turn — **consumes PRESET gen settings, no effort forcing** | server/rpg+chat | **L** |
 | 6 | **R6 + R2** per-game tool assembly, gating at the schema, templated descriptions | server/rpg | **L** |
 | 7 | stretch: **R4c** journal `custom` escape (needs a migration) | contracts/db | M |
 
@@ -77,6 +77,8 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **R3** | Keep `reliable`/structured for the local 8B — revised: for **ACCURACY, not capability**. The 8B *can* do the fold (co-emitted 589-char narrative + valid `update_party`, `finish_reason: tool_calls`), but inverted a subtractive case (`addCondition:{Bleeding}` on the beat that ENDS bleeding). Ground truth vs Sonnet: `removeCondition` 0/5 vs 5/5, `hpDelta` 4/4 both, 33/43 vs 38/43 fields. | decided (no build beyond R1's gate) | — |
 | **R6** | **Per-game dynamic tool assembly + lock/toggle gating AT THE SCHEMA.** The principle: *the reminder is the model's knowledge, the tools are its permissions.* Read-surface always shows full state (incl. locked); write-surface exposes only enabled-and-unlocked — a locked field is REMOVED from the tool schema, a disabled feature's tool omitted entirely (prevent-at-schema; today's `staging.stage` strip becomes a backstop). Custom def descriptions thread into per-tool guidance, not just plane teaching. | **REQUIRED**, not built | **L** |
 | **R4c** | `RPG_JOURNAL_TYPES` is closed (`location·npc·combat·quest·item·event·note`) **with a DB CHECK** (`db/schema/rpg.ts:238,253`) and no `custom` arm — inconsistent with `RPG_RELATIONSHIP_KINDS`, which solved exactly this with `{kind:"custom", label}`. Combat-flavoured on a plane that fires on **79%** of turns, in the genres lite is best at. Fix: keep the enum, add `custom` + free `label`, per-game hints in `config.features` so host types gloss. **Needs a migration — decide before more rows accumulate.** | open, wants a go/no-go | M |
+| **R5b** | Follow-ups from the R4b/R5 landing (executor-surfaced, 2026-07-31): (a) `refEnumerationLines` (the prompt fallback for non-enforcing backends) doesn't enumerate active conditions — the matching half of R5a's schema bind, ~2 lines when R2/R6 touch the prompt; (b) `substrate/delta.ts` (CHANGES-SINCE block) renders cast-field transitions UNGLOSSED — same steering argument as R4b. Fold both into the R6+R2 lane. Also noted: `ExtractionRefs` is a 4-way coupled site (interface + constrain body + compose resolve + ~11 test literals; tsc catches all — budget the churn). | open | S |
+| **EFF-1** | **Effort-preset wiring verification** (owner 2026-07-31): confirm reasoning effort exists as a preset knob, threads to the OR wire (`reasoning.effort`), and WORKS — never feature-forced ([[gen-settings-are-preset-owned]]). Optional: a GM-tab recommendation flag when the game's connection has thinking off. | open — tonight if time | S |
 | **F2** | Immersive `:::card` was rare across ALL spike methods (0/6 for the winner, and also 0/6 for the pure narrative call) → points at prompt/seed, not tools. Own investigation. | open | ? |
 | **F4** | Do the enriched descriptions still hit the prompt-cache prefix? (+$0.008/game is trivial; the per-turn input growth is the question.) | open | S |
 | **F4a** | Does an `effort` change bust the cache **on the OR wire**? Anthropic documents effort as rendered into the prompt; our path goes through the OpenAI-compat shim. Decides whether per-turn effort variation is merely inadvisable or ruinous. Cheap: two requests, identical cached prefix, differ only in effort, read `cache_read_input_tokens`. | open | S |
@@ -150,21 +152,20 @@ d20-derived profiles, not just seeded freeform — build them aware of each othe
   ([[vllm-sleep-fleet-facts]]).
 - Flakes/facelift micro-ledgers · grimstone theme ship-or-skip (add anytime as a theme.json, zero code).
 
-### E. OWNER DECISIONS (the only things gating build)
+### E. OWNER DECISIONS — the 2026-07-31 late-night Q&A RESOLVED nearly everything
 
-- **persona=character model (#3)** — parked; owner "need to think about this one."
-  See [[persona-pin-prompt-resolution]].
-- **The push** — 13 commits ahead + tonight's work. Needs an explicit per-push word.
-- **R4c** journal-type migration go/no-go (a DB CHECK change; cheaper now than after more rows).
-- **`permitsHost` purge** go/no-go.
-- **D-1…D-4** (`docs/design/context-panel-fidelity-findings.md`): This-chat 5-section depth ·
-  injection-row shape (built full-form vs mock switch+kebab — "off=delete" loses disable-without-delete) ·
-  beat-notifications residual (dice-cues already ruled dead: lite ≠ dice roller) · Preview rebuild
-  greenlight (new ui primitives + possible server trace split).
-- **Tracked-field unification** (`docs/design/tracked-field-unification.md`, direction AGREED
-  2026-07-31): (a) the single user-facing NOUN for the unified field; (b) greenlight to write the
-  schema-level spec BEFORE R6/RV-8 build per-concept. Live-drive found the burning gap: cast-field
-  hints (the R4b steering lever) have NO edit UI anywhere.
+**RULED (recorded in the cited docs):** noun = **TRACKER** · unification spec §5 APPROVED (widgets
+full-fold + table drop; appliesTo classes) · **R4c GO — batched into the unification baseline regen** ·
+D-1 split host-ops subgroup · D-2 converge injections to mock (adds an `enabled` flag) · D-3
+beat-notifications DEAD · D-4 Preview rebuild GREENLIT · `permitsHost` KEEP (doorway, not purged) ·
+**push word GRANTED for ONE end-of-overnight-run push, only on check+battery green** · effort/gen
+settings are PRESET-OWNED, global, never feature-forced ([[gen-settings-are-preset-owned]]) — R1
+consumes the preset; add an effort-wiring verification + optional GM-tab recommendation flag ·
+e2e stretch = existing-suite-green (multi-user harness already exists — `scripts/dev/multi-user-*`).
+
+**STILL PARKED:** persona=character (#3) — owner's 07-31 thinking captured in
+[[persona-pin-prompt-resolution]] (anchor-vs-active, host-chosen {{user}} needs VERIFY, per-persona
+state retention cost); wants a design pass, not ruled.
 
 **SCOPED OUT (owner):** rpg game-data macro fields (quest titles / pool hints / widget labels) do NOT
 render macros — deliberate, not a bug.

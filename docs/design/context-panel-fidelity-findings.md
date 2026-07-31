@@ -91,7 +91,13 @@ data via `connection.getModelsForSource`, 5-arm switch in `get-models-for-source
   no-silent-degrade smell). Wants a "curated fallback" marker row or badge.
 - Recent-models MRU group is fine. No duplicates / cross-source mixing / recent structural churn found.
 
-## 4. Owner decisions this doc wants (D-*)
+## 4. Owner decisions this doc wants (D-*) — ALL ANSWERED 2026-07-31 late
+
+> **D-1: split the host-ops trio** (Background/Group/Tool-use under a distinct "Host controls" group,
+> same tab). **D-2: converge injections to the mock** (compact rows + enabled switch + kebab; needs an
+> `enabled` flag on the row — disable-without-delete restored). **D-3: beat-notifications DEAD** (with
+> dice-cues). **D-4: Preview rebuild GREENLIT** (budget bar + per-source breakdown + primitives).
+> Bonus ruling: `permitsHost` stays (doorway, not purged).
 
 - **D-1** — This-chat depth: accept 5 sections in one tab, or split (e.g. host-ops — Background /
   Group / Tool use — behind a sub-grouping)? The mock's clean 1-concern-per-tab is gone either way;

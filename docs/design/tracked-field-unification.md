@@ -1,6 +1,8 @@
 # Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle
 
-**Status:** direction AGREED (owner, 2026-07-31); schema-level spec NOT yet written; nothing built.
+**Status:** direction + spec APPROVED (owner, 2026-07-31 late — noun = **TRACKER**; widgets full-fold
++ hud_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
+this lane's baseline regen). Nothing built.
 **Scope:** rpg panel Status/Sheet/Game tabs + band, the field def contracts, the 7-tools write surface.
 **Evidence:** eyes-on live drive 2026-07-31 (`reports/snaps/untangle-*.png`, dogfood konbini game +
 seeded d20/freeform games) + code recon. Supersedes **RV-14** (the rename) — the name problem dissolves
@@ -115,12 +117,91 @@ values = host (existing permission grammar, unchanged).
   path — fixes the R4b class for every axis at once), panel components, ~7 writable-field coupled
   sites. A LANE, not an evening. Old wire vocab may need read-compat for existing game rows.
 
-## 5. Open before build
+## 5. The schema-level spec (drafted 2026-07-31 overnight — owner review pending)
 
-1. **The name** (owner) — the single user-facing noun.
-2. **Schema spec** — the unified def + value storage + migration map (poolDefs/castFields/widgets →
-   fields), incl. whether `set_widget_value`/`poolDeltas` alias or merge on the tool surface.
-   Interacts with R1/R6 build order: decide the shape BEFORE R6 assembles tools per-concept.
+Grounded in the actual current shapes (scouted with receipts; def/value homes verified):
+pools `sheet.poolDefs {name,max,color,hint}` per-actor in `rpg_sheets.sheet`, values
+`actorState[].pools {name,value,max}` · cast fields `features.castFields {key,label,kind,max?,hint?}`
+per-game in `rpg_games.config`, values `presentCharacters[].customFields Record<string,string>`
+(STRING record — meter values stored as strings today) · widgets `rpg_hud_widgets` own TABLE
+{type,label,icon,position,accent,sort,binding:custom|pool|hp}, values `widgetValues` keyed by LABEL ·
+attributes `statProfile.attributes {key,label,hint}` ≤12, values `sheet.attributes Record<key,int>`.
+
+### 5.1 The unified def — `RpgFieldDef` (noun pending; lives in `config.fields[]`, ONE home)
+
+```ts
+{ key: string,                      // stable mint-once id; ALL addressing by key (kills the
+                                    //   name/label dual-addressing — widgetValues-by-label dies)
+  label: string,                    // display; renameable without breaking values
+  shape: "meter" | "text" | "list", // list absorbs widget items[]
+  write: "delta" | "set",           // resource vs observation — drives tool arm + panel read
+  subject: "actor" | "game",        // game = one value on the snapshot (widgets); actor = per-carrier
+  appliesTo: "party" | "npcs" | "everyone" | ActorRef[],  // actor-subject only; carrier CLASSES are
+                                    //   honest to today (pools≈party-member lists, castFields≈npcs)
+  max: int | null,                  // meters
+  hint: string (≤120, default "") , // THE steering lever; add flow nudges it (R4b class)
+  color: string | null, icon: string | null, sort: int,   // display chrome (absorbs widget chrome)
+  pinned: boolean,                  // band visibility (absorbs BAND ORBS + binding:pool/hp widgets —
+                                    //   a "pool widget" IS a pinned actor field; first-3-auto rule dies
+                                    //   in favor of explicit pins, band renders pinned ∪ wallet)
+  locked: boolean }                 // R6 prevent-at-schema; joins the fieldLocks registry by key
+```
+
+Per-actor exceptions live on the SHEET (actor-side state): `sheet.fieldGrants: key[]` +
+`sheet.fieldRevokes: key[]`. Effective carriers = resolve(appliesTo) + grants − revokes.
+Attributes stay in `statProfile` (settled) but adopt the same label+hint editor primitives.
+
+### 5.2 Value storage — one shape, two homes (by subject)
+
+`RpgFieldValue = { value: number | string, max?: number, items?: string[] }` (typed by shape —
+meter:number, text:string, list:items). Actor-subject values: `actorState[].fieldValues:
+Record<key, RpgFieldValue>` (replaces `pools[]` AND `presentCharacters[].customFields` — present
+non-roster NPCs keep their values on the presentCharacters entry under the same record shape).
+Game-subject values: `snapshotState.fieldValues: Record<key, RpgFieldValue>` (replaces
+`widgetValues`). Sheet keeps NO values (authoritative max lives on the def; today's sheet/snapshot
+max duplication dies).
+
+### 5.3 Migration map (pre-launch reality: blobs + ONE squashed baseline — no incremental SQL)
+
+- **`rpg_games.config` lift** (versioned, [[versioned-config-lift-drops-overrides]] discipline —
+  stamp SCHEMA_VERSION): `features.castFields[]` → `fields[]` with `{subject:"actor",
+  appliesTo:"npcs", write:"set"}`; statProfile untouched.
+- **`rpg_sheets.sheet` lift**: each actor's `poolDefs[]` → game-level `fields[]` with
+  `{subject:"actor", write:"delta", appliesTo:[thatActor]}`; identical defs (name,max,hint) across
+  actors MERGE into one def with the union list (or "party" when it covers every party member);
+  minted `key` = slugged name (name-addressing was the D86 rule, so name≡identity already).
+- **`rpg_hud_widgets` table DROPPED at baseline regen**: `binding:custom` rows → game-subject defs;
+  `binding:pool`/`hp` rows → `pinned:true` on the corresponding actor field (they were always just
+  pins); chrome (icon/accent/position/sort) folds into the def. Baseline regen only on a quiesced
+  tree ([[baseline-regen-on-shared-tree]]).
+- **Snapshot rows: versioned lift AT PARSE, no row rewrite.** `rpgSnapshotStateSchema` gains a lift:
+  legacy `{pools, customFields, widgetValues}` shapes transform into `fieldValues` on read; writes
+  emit only the new shape. Old dogfood games keep working; a transition test pins legacy-parse ≡
+  lifted-shape ([[merge-clear-needs-transition-test]] class).
+- **Tool surface (R6's lane)**: `update_party` gains per-carrier `fields` writes typed by the def's
+  `write` axis (delta fields take `{key, delta}`, set fields `{key, value}`); `set_widget_value`
+  retires into the game-subject arm; `constrainExtractionSchema` emits per-actor key enums from the
+  carrier resolution (the model can never write a field an actor doesn't carry). Wire-compat: the
+  OLD arms (`poolDeltas`, `customFields`, `set_widget_value`) stay accepted at apply for one era,
+  mapped onto fieldValues — swipes/replays of pre-migration turns must still apply.
+- **Reminder**: ONE gloss seg builder for all fields (label value/max (hint)) — R4b's pattern
+  generalized; per-plane special-casing dies.
+- Coupled-site sweep: the ~7 writable-field sites ([[rpg-writable-field-coupled-sites]]) + panel
+  components + `mergeFeatures` threading + gates (knob-wire/bus-coverage rows).
+
+### 5.4 Sizing + sequencing
+
+Contracts + db schema + lifts ≈ M · tool surface (inside R6) ≈ M · unified GM-tab editor + Status
+absorption (RV-8 primitives) ≈ L · sweep + tests ≈ M. One serialized lane (or worktree), AFTER
+tonight's R1; the spec is the gate — build nothing per-concept once it's approved.
+
+## 6. Open before build
+
+1. ~~The name~~ — **SETTLED: "Tracker"** (owner 2026-07-31). "Add tracker"; GM-tab section =
+   Trackers; RpgFieldDef renames to RpgTrackerDef at build.
+2. ~~Schema spec~~ — **APPROVED as drafted** (§5; owner 2026-07-31): widgets full-fold + table drop
+   YES, appliesTo classes YES. Also batch **R4c** (journal `custom` type + label + per-game hints)
+   into this lane's baseline regen — owner go.
 3. ~~Sheet dissolution detail~~ — SETTLED (§3): expand = sheet view, full panel takeover with
    breadcrumb; mobile behavior verified at build time (modal fallback sanctioned).
 4. Default-name hygiene — no more "Pool 4"/"Meter 3": the add flow requires a name (and nudges a
