@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { Kicker } from "./rpg-kicker";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
@@ -49,8 +50,10 @@ export interface RpgSceneCardsProps {
   readonly enabled: boolean;
 }
 
-/** The card-archive section (parity-plus P4). Renders nothing when the game's immersiveHtml option is off or
- *  the transcript holds no cards (applicability, never a disabled twin). */
+/** The card-archive section (parity-plus P4). Renders nothing when the game's immersiveHtml option is OFF
+ *  (applicability, never a disabled twin); with cards ON but none written yet it renders the honest empty
+ *  doorway — the section is silent-when-empty ONLY for a game that can't have cards at all (RV-2: an
+ *  invisible section reads as an absent feature, and the Journal "Cards" scope already words this state). */
 export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactElement | null {
   const trpc = useTRPC();
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled });
@@ -61,7 +64,12 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // Newest first — Scene is the birth home; Journal archives the same cards into their day groups.
   const cards = [...collectArchivedCards(messagesQuery.data?.messages ?? [])].reverse();
   if (cards.length === 0) {
-    return null;
+    return (
+      <Stack gap="field" data-slot="rpg-card-archive">
+        <Kicker>Cards</Kicker>
+        <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
+      </Stack>
+    );
   }
   return (
     <Stack gap="field" data-slot="rpg-card-archive">
