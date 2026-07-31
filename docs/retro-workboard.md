@@ -41,11 +41,17 @@ big lane, with R6+R2 inside it. The workloads junk-drawer exit
 
 **E2E SUITE 30/30 GREEN (08-01):** one real app regression found+fixed (`a2658fbc` — useRpgBus SSE
 socket starvation, see [[sse-per-origin-connection-budget]]); stale-IA tests re-pinned to current law
-(`b0f0b353`). New board items from the pass: **SSE-1** — the connection budget is 1 socket from the
-cliff on game chats (2 tabs = 6 again); durable fix = stream multiplexing OR HTTP/2 — an architecture
-fork, SPEC IT first · **D111-GAP** — the ratified ☰ relocation (composer-left, topbar removed) is NOT
-built; app out of compliance with its own ledger — own lane · useRpgBus has no CT (e2e-consequence
-coverage only).
+(`b0f0b353`). New board items from the pass: **SSE-1 — RULED (owner 08-01): BUILD THE MULTIPLEX PROPERLY, spec
+first.** Context: prod runs h2+h3 on Caddy (cap invisible there), but dev/e2e live on plain-h1 :5173,
+and one typed-envelope channel makes the starvation CLASS unmakeable — it collapses the transport back
+to the ONE-bus shape D38 already has domain-side. Spec must cover: per-stream auth scopes (user vs
+chat-membership vs game-gated), reconnect/replay semantics (member-strip replay is the leak-prone
+path — [[reasoning-cut-durable-replay-leak]]), subscription lifecycle (per-room attach/detach on one
+socket), the CT SSE-stub harness reshape, bus-coverage gate rows. Own lane, queued behind the Tracker
+unification · **D111-GAP resolved as PARKED (owner 08-01):** the ☰ relocation "got boogered up" — breaks NOTHING
+(menu functional in the topbar, no test pins location); owner isn't loving the current look and wants
+to get it right — a DISCUSSION item, not a build item; D111's clause amended to "OPEN, neither
+location is law" · useRpgBus has no CT (e2e-consequence coverage only).
 
 **Open from the night:** UI stretch order ruled:
 Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
