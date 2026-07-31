@@ -15,22 +15,21 @@
 // primary. Members see the list (the verb is member-read), no restore — PERMISSION-omit, never a disabled
 // control.
 //
-// The row's kicker word is the entry's OWN label when it carries one (the R4c `custom` free label — "prophecy",
-// "faction"), else the type's word: the label is model-writable and stored, so a chronicle that always printed
-// the generic "Custom" was hiding the one word the entry was written to carry.
+// The BEAT ROW itself (its label vocabulary, the host's inline title + EXPAND-IN-PLACE body editor, the
+// confirmed delete) lives in `./rpg-beat-row.tsx` — this file owns the scopes, the day grouping and the
+// composers. The edit verb reaches MODEL entries too, so the row affordances gate on HOST alone — never on
+// who wrote the entry. Members see the chronicle read-only (PERMISSION-omit, never a disabled control).
 //
 // HAND AUTHORING (RV-6 — the three `*JournalEntry` verbs are host-gated, `resolveHost`): a host gets the
 // "New entry" composer at the head of the chronicle (type + title — a CREATION draft, so plain Input/Select,
-// not the display-at-rest grammar; the BODY is written in place on the born row) and, on every BEAT row,
-// click-to-edit title/content plus a confirmed delete. The edit verb reaches MODEL entries too, so the row
-// affordances gate on HOST alone — never on who wrote the entry. Members see the chronicle read-only
-// (PERMISSION-omit, never a disabled control). Immersive CARD rows carry no affordances: they are projected
-// from the transcript, not `rpg_journal` rows — there is nothing for these verbs to address.
+// not the display-at-rest grammar; the BODY is written in place on the born row). Immersive CARD rows carry
+// no affordances: they are projected from the transcript, not `rpg_journal` rows — there is nothing for
+// these verbs to address.
 
 import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
-import { Icon, Pin, Trash2 } from "@orb/ui/icons";
+import { Icon, Pin } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -40,13 +39,16 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AddRow, BeatLine, ConfirmDialog, TrackerValue } from "#components";
+import { AddRow, ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { collectArchivedCards } from "../lib/archived-cards";
+import { JOURNAL_TYPE_LABELS } from "../lib/journal-labels";
+import type { BeatEdit } from "./rpg-beat-row";
+import { BeatRow } from "./rpg-beat-row";
 import { RpgCardRow } from "./rpg-card-row";
 import { Kicker } from "./rpg-kicker";
 import { RpgCardLightbox } from "./rpg-scene-cards";
@@ -62,106 +64,14 @@ function isJournalScope(value: string | undefined): value is JournalScope {
   return (JOURNAL_SCOPES as readonly (string | undefined)[]).includes(value);
 }
 
-// The journal-TYPE vocabulary — an exhaustive Record over the contracts tuple (§5.5: a new member fails tsc
-// here, never renders as a raw slug). The composer's Select derives from it; the row label reads through the
-// widened lookup because the VIEW carries `type` as a free string (an older/renamed slug degrades to itself).
-const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
-  location: "Location",
-  npc: "Character",
-  combat: "Combat",
-  quest: "Quest",
-  item: "Item",
-  event: "Event",
-  note: "Note",
-  // R4c — the escape: a `custom` entry carries its own free `label`, so the row renders that label
-  // when present and this generic word only when the model/host left it blank.
-  custom: "Custom",
-};
 const JOURNAL_TYPE_ITEMS: SelectItems<string> = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";
-
-/** The display label for a stored entry — the R4c free `label` when the entry carries one (a `custom` entry's
- *  own kind: "prophecy", "faction"), else the type's word. Unknown/legacy slugs read as themselves, never
- *  blank. The label was stored, model-written and returned on the view while NO surface rendered it — a datum
- *  the host could author and never see. */
-function journalRowLabel(type: string, label: string): string {
-  if (label !== "") {
-    return label;
-  }
-  const labels: Readonly<Record<string, string | undefined>> = JOURNAL_TYPE_LABELS;
-  return labels[type] ?? type;
-}
-
-/** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
-interface BeatEdit {
-  readonly onEditTitle: (entryId: string, next: string) => void;
-  readonly onEditContent: (entryId: string, next: string) => void;
-  readonly onDelete: (entryId: string) => void;
-}
 
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
  *  into one per-day stream by `createdAt`. */
 type ChronicleRow =
   | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly label: string; readonly title: string; readonly content: string }
   | { readonly kind: "card"; readonly card: ArchivedCard };
-
-/** One plain BEAT — a bullet line (§3: cards are reserved for artifacts): the type label, the title, then the
- *  body in the same muted voice. The em-dash marker is BeatLine's own. For a host the title/content are
- *  click-to-edit in place (§12.4.1) and a confirmed delete trails the line; a member reads static text. */
-function BeatRow({ row, edit }: { readonly row: Extract<ChronicleRow, { readonly kind: "beat" }>; readonly edit?: BeatEdit }): ReactElement {
-  const typeLabel = (
-    <Text as="span" size="micro" tone="muted" className="shrink-0 uppercase">
-      {journalRowLabel(row.type, row.label)}
-    </Text>
-  );
-  if (edit === undefined) {
-    return (
-      <BeatLine>
-        {typeLabel}{" "}
-        <Text as="span" size="label" weight="medium">
-          {row.title}
-        </Text>
-        {row.content === "" ? null : (
-          <Text as="span" size="label" tone="muted">
-            {` — ${row.content}`}
-          </Text>
-        )}
-      </BeatLine>
-    );
-  }
-  return (
-    <BeatLine>
-      {typeLabel}
-      <TrackerValue
-        ariaLabel={`${row.title} title`}
-        display={row.title}
-        wrap={true}
-        className="min-w-0 max-w-full"
-        onEdit={(next): void => edit.onEditTitle(row.key, next)}
-      />
-      <TrackerValue
-        ariaLabel={`${row.title} entry`}
-        display={row.content}
-        placeholder="write the beat…"
-        tone="muted"
-        wrap={true}
-        className="min-w-0 max-w-full"
-        onEdit={(next): void => edit.onEditContent(row.key, next)}
-      />
-      <ConfirmDialog
-        title={`Delete "${row.title}"?`}
-        description="The entry leaves the chronicle for good. Nothing else in the game state changes."
-        confirmLabel="Delete"
-        onConfirm={(): void => edit.onDelete(row.key)}
-        trigger={
-          <Button intent="ghost" size="sm" className="!size-5 !p-0 shrink-0" title={`Delete entry: ${row.title}`}>
-            <Icon icon={Trash2} size="xs" />
-          </Button>
-        }
-      />
-    </BeatLine>
-  );
-}
 
 /** The host "New entry" composer (§12.4 flow — no dead ends): TYPE + TITLE, fired as one `addJournalEntry`
  *  with an empty body. The BODY is not a third composer field on purpose — the panel is an instrument, not a
@@ -258,7 +168,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
             row.kind === "card" ? (
               <RpgCardRow key={row.card.key} card={row.card} onOpen={setOpenKey} />
             ) : (
-              <BeatRow key={row.key} row={row} {...(edit === undefined ? {} : { edit })} />
+              <BeatRow key={row.key} beat={row} {...(edit === undefined ? {} : { edit })} />
             ),
           )}
         </Stack>
