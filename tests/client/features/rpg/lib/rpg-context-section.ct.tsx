@@ -896,6 +896,32 @@ function richTracker(): unknown {
   };
 }
 
+/** A FULL pack (8 items) — the grid lens's real load: model-authored long names/descriptions, stacked
+ *  quantities, and stored locations (the three data the tile has to carry without overflowing). */
+const PACKED_ITEMS = [
+  { id: "i1", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "quest" },
+  {
+    id: "i2",
+    name: "Iron dagger of the drowned watch",
+    description: "a long model-authored description that runs on well past any tile width",
+    quantity: 3,
+    location: "strapped across her back",
+    type: "weapon",
+  },
+  { id: "i3", name: "Rope, 30 ft", description: "", quantity: 1, location: "pack", type: "tool" },
+  { id: "i4", name: "Healing potion", description: "", quantity: 12, location: "belt pouch", type: "consumable" },
+  { id: "i5", name: "Map of the sunken road", description: "", quantity: 1, location: "", type: "document" },
+  { id: "i6", name: "Gold ring", description: "", quantity: 2, location: "finger", type: "treasure" },
+  { id: "i7", name: "Rations", description: "", quantity: 5, location: "pack", type: "food" },
+  { id: "i8", name: "Torch", description: "", quantity: 4, location: "pack", type: "tool" },
+];
+
+function packedTracker(): unknown {
+  const base = richTracker() as { readonly actors: readonly { readonly volatile: Record<string, unknown> }[] };
+  const actor = base.actors[0];
+  return { ...base, actors: [{ ...actor, volatile: { ...actor?.volatile, inventory: PACKED_ITEMS } }] };
+}
+
 test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
@@ -1066,4 +1092,98 @@ test("RV-5: a MEMBER reads the pack with no authoring affordances (PERMISSION-om
 
   await expect(component.locator('[data-slot="rpg-inventory-tab"]')).toContainText("Bone key");
   await expect(component.getByRole("textbox", { name: "New item name" })).toHaveCount(0);
+});
+
+// The owner dogfood pass on the GRID lens (2026-07-31): the pack tile was a 3.5rem SQUARE holding a 20px
+// glyph — the quantity was a lost corner digit, the location truncated to "belt p…", and the name existed
+// only on hover. The tile is now the item's own card: name (wrapped) · ×N · where it's kept, in a card
+// SHORTER than the old square, and a host clicks it to edit in place.
+test("the pack GRID tile carries the ×N and the location, at a density SHORTER than the old square", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: packedTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  const cells = component.locator('[data-slot="rpg-pack-cell"]');
+  await expect(cells).toHaveCount(PACKED_ITEMS.length);
+  // The three data the tile now spells out (a stack of ONE renders no ×1 — the list row's exact grammar).
+  const dagger = cells.filter({ hasText: "Iron dagger" });
+  await expect(dagger).toContainText("×3");
+  await expect(dagger).toContainText("strapped across her back");
+  const key = cells.filter({ hasText: "Bone key" });
+  await expect(key).toContainText("belt pouch");
+  await expect(key).not.toContainText("×1");
+
+  // GEOMETRY (the density change, asserted — not eyeballed): a single-line tile is SHORTER than the 3.5rem
+  // square it replaced, and no tile overflows its track (a model-authored name wraps, it never spills).
+  const rope = cells.filter({ hasText: "Rope, 30 ft" });
+  const ropeBox = await rope.boundingBox();
+  expect(ropeBox?.height ?? 0).toBeLessThan(56);
+  const overflow = await cells.evaluateAll((els) => els.map((el) => el.scrollWidth - el.clientWidth));
+  expect(Math.max(...overflow)).toBeLessThanOrEqual(0);
+  await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-grid-after.png" });
+});
+
+test("clicking a GRID tile edits that item in place — the same click-to-edit grammar, one write path", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { tracker: packedTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // The tile IS the door (the grid lens no longer sends the host to the list view to author).
+  await component.getByRole("button", { name: "Edit Bone key" }).click();
+  const editor = page.locator('[data-slot="rpg-pack-tile-editor"]');
+  await expect(editor).toBeVisible();
+
+  // Every entry the list row edits is editable here, through the same TrackerValue grammar + write path.
+  await editor.getByRole("button", { name: "Bone key location" }).click();
+  const location = page.getByRole("textbox", { name: "Bone key location" });
+  await location.fill("sewn into the lining");
+  await location.blur();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(1);
+  // The hand edit PINS the plane it touched (#10) — the grid writes the same lock path the list row does.
+  await expect
+    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
+    .toMatchObject({ lockPaths: ["actorState.character:character_ct_mara.inventory"] });
+
+  await editor.getByRole("button", { name: "Bone key quantity" }).click();
+  const quantity = page.getByRole("textbox", { name: "Bone key quantity" });
+  await quantity.fill("4");
+  await quantity.blur();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(2);
+});
+
+// The P4 card knobs were STORED, wired into the reminder + the §4.8 lenient wrap, and had NO editor —
+// the D107 dead-switch class (owner dogfood 2026-07-31: "we are missing the toggle to enable/disable the
+// interactive html part of the prompt"). The stub game carries both OFF.
+test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is DISABLED (not hidden) while it is off", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // APPLICABILITY, not absence: the sub-toggle is visible and disabled — an interactivity ask is
+  // meaningless with no card ask to make interactive, and the reason has to stay readable.
+  const cards = component.getByRole("switch", { name: "Immersive HTML cards" });
+  const interactive = component.getByRole("switch", { name: "Allow interactivity in cards" });
+  await expect(cards).toBeVisible();
+  await expect(interactive).toBeDisabled();
+
+  // The parent writes through the ONE config door (the autosave form's debounce).
+  await cards.click();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { immersiveHtml: true } });
+
+  // With the teaching on, the sub-toggle becomes reachable and writes its own arm of the same patch.
+  await expect(interactive).toBeEnabled();
+  await interactive.click();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(2);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { immersiveHtml: true, immersiveHtmlInteractive: true } });
+});
+
+test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: packedTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // The member READS everything the host does — and has no tile trigger at all.
+  await expect(component.locator('[data-slot="rpg-pack-cell"]').filter({ hasText: "Healing potion" })).toContainText("×12");
+  await expect(component.getByRole("button", { name: "Edit Bone key" })).toHaveCount(0);
 });

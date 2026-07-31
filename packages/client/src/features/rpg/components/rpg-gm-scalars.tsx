@@ -1,7 +1,8 @@
 // The GM console's SCALAR autosave form (extracted from rpg-game-tab.tsx for the component-size cap):
-// Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Hidden
-// channels → Steering note → Delivery model (the mock's SEGMENTED mode toggle with its honest
-// consequence line — never a resting dropdown, DESIGN §12.4.1). Everything autosaves (D66 A4). The
+// Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Immersive
+// cards (the P4 teaching gate + its interactivity sub-toggle) → Hidden channels → Steering note →
+// Delivery model (the mock's SEGMENTED mode toggle with its honest consequence line — never a resting
+// dropdown, DESIGN §12.4.1). Everything autosaves (D66 A4). The
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
@@ -136,6 +137,40 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                   label="Plot steering"
                   hint="Adds a Plot submenu to the composer wand — one-shot story steers (twist, escalate, advance the act)."
                 />
+              )}
+            </form.AppField>
+          </Stack>
+
+          {/* IMMERSIVE CARDS (P4, parity-plus §9 #7 + M3) — both knobs shipped stored + wired and NEITHER had
+              an editor: a host who did not want HTML in their prompt had no switch (owner dogfood 2026-07-31,
+              the D107 dead-switch class). The pair is a DEPENDENCY, so it reads as one: the sub-toggle sits
+              under its parent and goes DISABLED (not hidden) when the teaching is off — an interactivity ask
+              with nothing to ask for is inapplicable, and the reason stays readable on its hint. */}
+          <Stack gap="field">
+            <Kicker>Immersive cards</Kicker>
+            <form.AppField name="immersiveHtml">
+              {(field): ReactElement => (
+                <field.SwitchField
+                  label="Immersive HTML cards"
+                  hint="Teaches the model to answer with self-contained HTML cards (letters, notices, terminals) rendered in a sandbox. Off = the story stays plain prose; cards already in the chronicle keep rendering."
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="immersiveHtml">
+              {(htmlField): ReactElement => (
+                <form.AppField name="immersiveHtmlInteractive">
+                  {(field): ReactElement => (
+                    <field.SwitchField
+                      label="Allow interactivity in cards"
+                      disabled={!htmlField.state.value}
+                      hint={
+                        htmlField.state.value
+                          ? "Asks for animation and scripting inside those cards. Off = the calmer static table — still cards, no moving parts."
+                          : "Needs immersive HTML cards on — there is no card ask to make interactive."
+                      }
+                    />
+                  )}
+                </form.AppField>
               )}
             </form.AppField>
           </Stack>
