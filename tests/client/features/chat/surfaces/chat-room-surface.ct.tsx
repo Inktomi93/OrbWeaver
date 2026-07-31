@@ -188,6 +188,56 @@ test("autoFixMarkdown OFF leaves the same greeting as authored (the literal aste
   await expect(bubble).toContainText(UNBALANCED_GREETING);
 });
 
+// The ST-card shape (Azarael: quoted dialogue + plain narration, zero asterisks) — the `colorQuotedSpeech`
+// appearance knob has to reach BOTH body arms from the settings read, exactly like autoFixMarkdown above.
+// The knob-OFF case is the discriminator: an always-on tint (a transform mounted unconditionally in the
+// seal) passes the ON tests and fails this one.
+const QUOTED_GREETING = "He doesn’t look up from the ledger. “You’re late,” he says.";
+const DIALOGUE_SPAN = '[data-slot="dialogue"]';
+
+async function routeQuotedGreeting(page: Page, colorQuotedSpeech: boolean): Promise<void> {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech } },
+      updatedAt: 0,
+    }),
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [QUOTED_GREETING] }),
+  });
+}
+
+test("colorQuotedSpeech ON (the default) tints the quoted run on the DRAFT greeting row", async ({ mount, page }) => {
+  await routeQuotedGreeting(page, true);
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  const tinted = component.locator(BUBBLE).first().locator(DIALOGUE_SPAN);
+  await expect(tinted).toHaveCount(1);
+  await expect(tinted).toHaveText("“You’re late,”");
+});
+
+test("colorQuotedSpeech OFF renders the same greeting plain — the knob really reaches the row", async ({ mount, page }) => {
+  await routeQuotedGreeting(page, false);
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble).toContainText("You’re late,");
+  await expect(bubble.locator(DIALOGUE_SPAN)).toHaveCount(0);
+});
+
+test("the COMMITTED arm tints that same quoted body identically (one renderer, both arms)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_quoted"), role: "assistant", content: QUOTED_GREETING })]),
+    ...ROSTER_STUB,
+  });
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+  const tinted = component.locator(BUBBLE).first().locator(DIALOGUE_SPAN);
+  await expect(tinted).toHaveCount(1);
+  await expect(tinted).toHaveText("“You’re late,”");
+});
+
 test("the COMMITTED arm renders that same body identically — the draft is not a second rendering home", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
