@@ -20,8 +20,8 @@ describe("settingsAnchorId", () => {
 });
 
 /** A section contribution stub — `body` returns a marker string so the resolve output is inspectable. */
-function section(id: string): SettingsSectionContribution {
-  return { id, anchor: "chat-behavior", nav: { id, label: id }, body: () => `node:${id}` };
+function section(id: string, anchor: SettingsSectionContribution["anchor"] = "chat-behavior"): SettingsSectionContribution {
+  return { id, anchor, nav: { id, label: id }, body: () => `node:${id}` };
 }
 
 describe("resolveSettingsSections", () => {
@@ -41,5 +41,14 @@ describe("resolveSettingsSections", () => {
   test("navs for an anchor mirror its contributions in declared order (the pane merges these)", () => {
     const registry = createContributorRegistry<SettingsSectionContribution>("t", [section("memory"), section("world-info")]);
     expect(settingsSectionNavs(registry, "chat-behavior").map((n) => n.id)).toEqual(["memory", "world-info"]);
+  });
+
+  // The grouping is keyed by each contribution's own `anchor`, so a registry spanning anchors NEVER leaks a
+  // section into a foreign pane (the `library` ⑪ section belongs to appearance, not chat-behavior).
+  test("a contribution resolves only at its OWN anchor, never a sibling's", () => {
+    const registry = createContributorRegistry<SettingsSectionContribution>("t", [section("memory"), section("library", "appearance")]);
+    expect(resolveSettingsSections(registry, "appearance").map((s) => s.id)).toEqual(["library"]);
+    expect(resolveSettingsSections(registry, "chat-behavior").map((s) => s.id)).toEqual(["memory"]);
+    expect(settingsSectionNavs(registry, "appearance").map((n) => n.id)).toEqual(["library"]);
   });
 });
