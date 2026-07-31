@@ -3,7 +3,7 @@
 // message_variants and arrive pre-aggregated through the injected stats op).
 
 import type { Db } from "@orb/db";
-import { assets, characters, messages, messageVariants } from "@orb/db";
+import { assets, characters, messages, messageVariants, notStateAnchor } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
 
@@ -15,6 +15,9 @@ interface ForgottenGemCandidateRow {
   readonly lastActiveAt: number;
 }
 
+/** VISIBLE canon only: an rpg state-anchor slot (the empty-body snapshot key `resyncFromStory`/`editSnapshot`
+ *  posts) IS an assistant row carrying a `characterId`, so a raw count inflates the gem's "N messages" and a
+ *  raw MAX bumps its "last active" — a silent state write reading as time spent with the character. */
 export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promise<ForgottenGemCandidateRow[]> {
   const messageCount = sql<number>`count(${messages.id})`;
   const lastActiveAt = sql<number>`max(${messages.createdAt})`;
@@ -28,8 +31,9 @@ export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promi
     })
     .from(messages)
     .innerJoin(characters, eq(characters.id, messages.characterId))
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant")))
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant"), notStateAnchor()))
     .groupBy(characters.id);
   return rows.map((r) => ({
     characterId: r.characterId,

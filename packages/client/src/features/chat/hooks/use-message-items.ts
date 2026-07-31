@@ -7,6 +7,7 @@
 // throughout, the new variant streaming in place, never a transient second row beside the old one.
 
 import type { MessageView } from "@orb/contracts/chat";
+import { isStateAnchorSlot } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnPhase } from "#state";
@@ -34,23 +35,14 @@ export function lastUserRowIndex(items: readonly { readonly kind: "message" | "g
   return -1;
 }
 
-/** An rpg STATE-ANCHOR slot: an EMPTY-body assistant row minted only to key a snapshot (a between-turns
- *  hand-edit / resync clone-forward — server `postNarratorMessage(chatId, "")`). It is not a message; hiding
- *  it keeps a hand edit from rendering a blank bubble. A committed canon row is only ever empty when it is an
- *  anchor (a real turn always carries content; a user draft never commits blank), so empty content is the
- *  precise, sufficient discriminator — no server flag needed (the wire prompt already drops the empty row via
- *  the shape-stage empty-row filter, and this hides it from the reading surface). Typed structurally (only the
- *  field it reads) so a `.test.ts` fixture needs no full MessageView. */
-export function isStateAnchorSlot(view: { readonly content: string }): boolean {
-  return view.content.trim() === "";
-}
-
 export function useMessageItems(messages: readonly MessageView[], chatId: ChatId | null): readonly ChatRowItem[] {
   const phase = useTurnPhase(chatId);
   // A live SWIPE reroll's target: the committed row the new variant replaces IN PLACE. Non-null only for a
   // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
   // reading it never re-renders the list on a delta.
   const swipeTargetId = useSwipeTargetMessageId(chatId);
+  // rpg state anchors are snapshot keys, not messages — hidden here so a hand-edit/resync never renders a
+  // blank bubble (the discriminator + every other "which row does a reader mean" answer live in contracts).
   const base: ChatRowItem[] = messages.filter((view) => !isStateAnchorSlot(view)).map((view) => ({ kind: "message", view }));
 
   const live = isLiveTurnPhase(phase);

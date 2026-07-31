@@ -10,18 +10,18 @@
 // first ASSISTANT row and return its stamp verbatim; skip user/system rows (a trailing user message the
 // NEXT generation hasn't fit-passed yet carries no boundary answer) and NEVER walk past that truthful
 // null into a stale older stamp — the resurrection bug (`retro-workboard.md` §6).
+//
+// "Assistant row" here means a real GENERATION: `lastVisibleAssistant` skips rpg state-anchor slots (the
+// empty-body snapshot keys a host resync/hand-edit appends). An anchor never ran a fit-pass, so its null is
+// an ABSENCE, not the truthful "everything fit this turn" — treating it as authoritative suppressed the
+// divider outright on any chat whose host had resynced.
 
 import type { MessageView } from "@orb/contracts/chat";
+import { lastVisibleAssistant } from "@orb/contracts/chat";
 
 /** The id of the earliest message still "in context" as of the most recent ASSISTANT generation, or
  *  `null` when that generation dropped nothing (everything fit) — or no assistant turn has generated
  *  yet. Either way `null` = no divider to show. */
 export function resolveContextBoundaryMessageId(messages: readonly MessageView[]): MessageView["id"] | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m !== undefined && m.role === "assistant") {
-      return m.contextBoundaryMessageId;
-    }
-  }
-  return null;
+  return lastVisibleAssistant(messages)?.contextBoundaryMessageId ?? null;
 }

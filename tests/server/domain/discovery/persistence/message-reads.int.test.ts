@@ -34,12 +34,15 @@ describe("readForgottenGemCandidates", () => {
     // A foreign owner's played character — never surfaces for `owner`.
     const foreign = await seedCharacter(db, { id: "character_foreign", ownerId: other });
 
+    // Each slot carries its SELECTED variant, as every committed slot does in production (the pointer is
+    // column-nullable only to break the circular FK at insert; every canon read inner-joins it).
     await seedMessage(db, {
       id: "m_vet_1",
       chatId: chat,
       seq: 1,
       createdAt: 1000,
       characterId: veteran,
+      variant: { content: "the veteran speaks" },
     });
     await seedMessage(db, {
       id: "m_vet_2",
@@ -47,6 +50,7 @@ describe("readForgottenGemCandidates", () => {
       seq: 2,
       createdAt: 3000,
       characterId: veteran,
+      variant: { content: "and again" },
     });
     await seedMessage(db, {
       id: "m_rook_1",
@@ -54,6 +58,7 @@ describe("readForgottenGemCandidates", () => {
       seq: 3,
       createdAt: 2000,
       characterId: rookie,
+      variant: { content: "the rookie speaks" },
     });
     await seedMessage(db, {
       id: "m_foreign",
@@ -61,6 +66,7 @@ describe("readForgottenGemCandidates", () => {
       seq: 4,
       createdAt: 9000,
       characterId: foreign,
+      variant: { content: "another owner's character" },
     });
 
     const rows = await readForgottenGemCandidates(db, owner);
@@ -72,5 +78,24 @@ describe("readForgottenGemCandidates", () => {
       lastActiveAt: 3000,
     });
     expect(byId.get(rookie)).toMatchObject({ messageCount: 1, lastActiveAt: 2000 });
+  });
+
+  // An rpg state-anchor slot IS an assistant row stamped with the voiced `characterId` — so a raw count made
+  // a resync look like time spent with the character, and a raw MAX(createdAt) made "last active" the moment
+  // of a silent state write. Same discriminator as the chat list's stats read.
+  test("rpg state-anchor slots inflate neither the gem's message count nor its last-active", async () => {
+    db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const chat = await seedChat(db, "chat_a");
+    const played = await seedCharacter(db, { id: "character_vet", ownerId: owner, name: "Veteran" });
+
+    await seedMessage(db, { id: "m_1", chatId: chat, seq: 1, createdAt: 1000, characterId: played, variant: { content: "a real beat" } });
+    // Two host resyncs, stamped LATER than the real beat — the shape that lit this up in the owner's dogfood.
+    await seedMessage(db, { id: "m_anchor_1", chatId: chat, seq: 2, createdAt: 8000, characterId: played, variant: { content: "" } });
+    await seedMessage(db, { id: "m_anchor_2", chatId: chat, seq: 3, createdAt: 9000, characterId: played, variant: { content: "  " } });
+
+    const rows = await readForgottenGemCandidates(db, owner);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ messageCount: 1, lastActiveAt: 1000 });
   });
 });
