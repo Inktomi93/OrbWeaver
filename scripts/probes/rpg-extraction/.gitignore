@@ -10,3 +10,4 @@
 # …except probe OUTPUT that happens to be a flat .json rather than a directory.
 steer-out.json
 steer-real-out.json
+card-teach-out*.json
