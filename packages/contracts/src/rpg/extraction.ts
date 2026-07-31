@@ -20,29 +20,30 @@
 import { z } from "zod";
 import {
   addJournalEntryArgsSchema,
-  setWidgetValueArgsSchema,
+  setTrackerArgsSchema,
   updateInventoryArgsSchema,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
 } from "./tools";
+import type { RpgTrackerWriteGroup } from "./tracker";
 
 /** The reliable-mode extraction delta the model emits in ONE structured-output object (§4.6). Every field is
  *  OPTIONAL and defaults empty — a "nothing changed this turn" extraction is the empty object, which the
  *  W1c-b impl maps to an empty `RpgStateDelta` (no snapshot write — the byte-identical non-writing turn,
  *  `chat-ops/flush.ts`). Each field derives from the matching cheap-mode tool's args (the shared-plane proof):
- *    • `party`      ⟵ `update_party`      (per-actor pool/condition/hp/status deltas)
+ *    • `party`      ⟵ `update_party`      (per-actor tracker/condition/hp/status writes)
  *    • `inventory`  ⟵ `update_inventory`  (per-actor item add/remove + wallet deltas)
  *    • `scene`      ⟵ `update_scene`      (ambient + present-cast patch + a recent beat) — a SINGLE object,
  *                                          not an array (one scene per turn; the tool is a per-call patch too)
- *    • `widgets`    ⟵ `set_widget_value`  (custom-widget value writes)
+ *    • `trackers`   ⟵ `set_tracker`       (GAME-subject tracker writes — the retired widget plane)
  *    • `quests`     ⟵ `upsert_quest`      (create/update/complete/fail)
  *    • `journal`    ⟵ `add_journal_entry` (STAGED → flushed stamped with the committed variant, §2.5) */
 export const rpgExtractionSchema = z.object({
   party: z.array(updatePartyArgsSchema).default([]),
   inventory: z.array(updateInventoryArgsSchema).default([]),
   scene: updateSceneArgsSchema.optional(),
-  widgets: z.array(setWidgetValueArgsSchema).default([]),
+  trackers: z.array(setTrackerArgsSchema).default([]),
   quests: z.array(upsertQuestArgsSchema).default([]),
   journal: z.array(addJournalEntryArgsSchema).default([]),
 });
@@ -51,9 +52,9 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema>;
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // The MIS-TARGET fix (R1) — per-call REF CONSTRAINT injected into the PROJECTED schema.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The extraction fields reference actors + widgets by NAME (`targetRef`/`widgetRef`). A model producing
+// The extraction fields reference actors by NAME (`targetRef`) and trackers by KEY. A model producing
 // SCHEMA-VALID but WRONG refs (targeting "player" when the roster actor is "You", or shoving a location into
-// a nonexistent widget) yields a silent empty panel — the phantom mint never renders. Constraining those
+// a nonexistent tracker) yields a silent empty panel — the phantom mint never renders. Constraining those
 // string fields to an `enum` of the ACTUAL per-call refs makes an invalid ref UNREPRESENTABLE at the token
 // level under a schema-enforcing backend (LIVE-VERIFIED 2026-07-27: vLLM xgrammar forced a "player" ask onto
 // a valid roster ref; OpenRouter strict json_schema binds the same enum; agent-sdk at least sharpens the
@@ -67,18 +68,21 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema>;
 // enum lists are kept SMALL (only the live roster + widget refs), so the grammar stays cheap to compile.
 
 /** The per-call refs the constraint binds: the roster actor names (party/inventory/scene targets) + the
- *  existing custom-widget labels (set_widget_value targets). Empty arrays leave the field unconstrained
- *  (a fresh game with no widgets doesn't force an impossible empty enum). */
+ *  per-actor TRACKER write surface (R6). Empty arrays leave their field unconstrained (a fresh game doesn't
+ *  force an impossible empty enum). */
 export interface ExtractionRefs {
   /** Roster actor names the model may target (`targetRef` on party/inventory; `presentRemove` on scene). */
   readonly actorRefs: readonly string[];
-  /** Existing custom-widget labels the model may write (`widgetRef` on set_widget_value). */
-  readonly widgetRefs: readonly string[];
-  /** Host-defined tracked cast-field KEYS the model may write (§2.8) — constrains
-   *  `scene.presentUpsert[].customFields[].name` so a model can only write a DEFINED field, never invent one.
-   *  Empty (no cast-fields configured) leaves the pair name unconstrained (the opaque-record behavior is gone
-   *  only when a schema is defined — an empty schema means the feature is off, so no constraint to apply). */
-  readonly castFieldKeys: readonly string[];
+  /** R6 — the per-actor WRITE SURFACE, grouped by identical writable-tracker set. Each group binds its
+   *  actors' `party[].trackerDeltas[].key` / `trackerSets[].key` enums, so the schema NEVER offers a tracker
+   *  on an actor that doesn't carry it and a `locked` tracker is unrepresentable rather than stripped at
+   *  apply. One group ⇒ a flat schema (the common case, byte-cheap); several ⇒ a `oneOf` branch each, keyed
+   *  on `targetRef`. Empty ⇒ no tracker arms at all (the game tracks nothing per-actor). */
+  readonly trackerWriteGroups: readonly RpgTrackerWriteGroup[];
+  /** R6 — the GAME-subject write surface (the `trackers` plane / `set_tracker`): the unlocked game trackers'
+   *  keys split by write axis. Both empty ⇒ the whole plane is REMOVED from the schema (a disabled feature's
+   *  tool omitted entirely, never an empty-enum husk). */
+  readonly gameTrackerKeys: { readonly deltaKeys: readonly string[]; readonly setKeys: readonly string[] };
   /** The CURRENTLY-ACTIVE condition names across the tracked actors — constrains `party[].removeCondition`
    *  (R5a). A retirement can only name a condition that is actually on someone, which makes the measured 8B
    *  failure (`removeCondition: "Bleeding, Poisoned, Exhausted, Lamed"` — a comma-joined LIST shoved into the
@@ -134,6 +138,108 @@ function constrainArrayItemRef(root: JsonSchemaNode, arrayField: string, refProp
   constrainStringProperty(refNode, values);
 }
 
+// Delete an object schema node's property AND its `required` entry (the pruning half of R6's prevent-at-schema:
+// an arm no live def needs is REMOVED, never left as an empty-enum husk the model burns attention on).
+function removeField(node: unknown, field: string): void {
+  const props = propsOf(node);
+  if (props === undefined) {
+    return;
+  }
+  delete props[field];
+  const req = (node as JsonSchemaNode)["required"];
+  if (Array.isArray(req)) {
+    (node as JsonSchemaNode)["required"] = (req as string[]).filter((k) => k !== field);
+  }
+}
+
+// A JSON deep clone of a projected schema node (pure JSON by construction — `z.toJSONSchema` output).
+function cloneNode(node: JsonSchemaNode): JsonSchemaNode {
+  return JSON.parse(JSON.stringify(node)) as JsonSchemaNode;
+}
+
+/**
+ * R6 — constrain ONE `party[]` item schema to a write-surface group IN PLACE: the group's target names, the
+ * tracker keys each write arm may name, and the arm pruning. An arm whose key list is empty is REMOVED (an
+ * actor carrying no `delta` tracker is never offered `trackerDeltas`), so what the model is handed is exactly
+ * what it may legally write on that target.
+ */
+function constrainPartyItem(item: JsonSchemaNode, group: RpgTrackerWriteGroup, conditionNames: readonly string[]): void {
+  const props = propsOf(item);
+  if (props === undefined) {
+    return;
+  }
+  constrainStringProperty(props["targetRef"], group.targetRefs);
+  // R5a — a retirement names ONE currently-active condition (the comma-joined list the 8B emitted into the
+  // `{type:"string"}` scalar is then untypeable under an enforcing grammar).
+  constrainStringProperty(props["removeCondition"], conditionNames);
+  for (const [arm, keys] of [
+    ["trackerDeltas", group.deltaKeys],
+    ["trackerSets", group.setKeys],
+  ] as const) {
+    if (keys.length === 0) {
+      removeField(item, arm);
+      continue;
+    }
+    const armItem = itemsOf(props[arm]);
+    constrainStringProperty(armItem !== undefined ? propsOf(armItem)?.["key"] : undefined, keys);
+  }
+}
+
+/**
+ * R6 — bind the whole `party` plane to the per-actor write surface. ONE group (or none) keeps the schema FLAT
+ * (the overwhelmingly common shape: a game whose trackers all apply to everyone projects exactly the schema it
+ * would have without this machinery). SEVERAL groups emit a `oneOf` branch per group, each pinned to its own
+ * target names — the grammar only pays for divergence that actually exists, never for headcount.
+ */
+function constrainPartyPlane(clone: JsonSchemaNode, refs: ExtractionRefs): void {
+  const partyNode = propsOf(clone)?.["party"];
+  const item = itemsOf(partyNode);
+  if (item === undefined || partyNode === null || typeof partyNode !== "object") {
+    return;
+  }
+  const groups = refs.trackerWriteGroups;
+  if (groups.length <= 1) {
+    // No divergence to express: one carrier set (or none at all — then both key lists are empty and the arms
+    // prune away, which is the honest "this game tracks nothing per-actor" schema).
+    constrainPartyItem(item, groups[0] ?? { targetRefs: refs.actorRefs, deltaKeys: [], setKeys: [] }, refs.conditionNames);
+    if (groups.length === 1) {
+      constrainStringProperty(propsOf(item)?.["targetRef"], refs.actorRefs);
+    }
+    return;
+  }
+  const branches = groups.map((group) => {
+    const branch = cloneNode(item);
+    constrainPartyItem(branch, group, refs.conditionNames);
+    return branch;
+  });
+  (partyNode as JsonSchemaNode)["items"] = { oneOf: branches };
+}
+
+/**
+ * R6 — bind the GAME-subject `trackers` plane (`set_tracker`). Constrains `key` to the unlocked game trackers,
+ * prunes the write arm no live game tracker needs, and REMOVES the whole plane when the game defines none (a
+ * disabled feature's tool is omitted entirely, per the read-vs-write-surface principle).
+ */
+function constrainGameTrackerPlane(clone: JsonSchemaNode, refs: ExtractionRefs): void {
+  const { deltaKeys, setKeys } = refs.gameTrackerKeys;
+  if (deltaKeys.length === 0 && setKeys.length === 0) {
+    removeField(clone, "trackers");
+    return;
+  }
+  const item = itemsOf(propsOf(clone)?.["trackers"]);
+  if (item === undefined) {
+    return;
+  }
+  constrainStringProperty(propsOf(item)?.["key"], [...deltaKeys, ...setKeys]);
+  if (deltaKeys.length === 0) {
+    removeField(item, "delta");
+  }
+  if (setKeys.length === 0) {
+    removeField(item, "value");
+    removeField(item, "items");
+  }
+}
+
 // Add `field` to an object schema node's `required` list IN PLACE (creating the list if absent). Idempotent.
 // Under a schema-enforcing backend (xgrammar/`strict`) a required field is one the model MUST emit — the lever
 // that makes an otherwise-skippable field populate. No-op on a missing/non-object node.
@@ -156,33 +262,23 @@ function requireField(node: unknown, field: string): void {
  * Portable: plain JSON Schema out, enforced by each backend's own `response_format` mapping. A ref list left
  * empty leaves its field unconstrained (a fresh game targets no phantom, and an empty enum is never emitted).
  *
- *   • `party[].targetRef`         ⟵ actorRefs   (who takes pool/condition/hp/status deltas)
+ *   • `party[]`                   ⟵ trackerWriteGroups (R6 — per-actor tracker keys, `targetRef`-pinned)
+ *   • `party[].removeCondition`   ⟵ conditionNames (R5a — one ACTIVE condition, never a comma-joined list)
  *   • `inventory[].targetRef`     ⟵ actorRefs   (whose items/wallet move)
  *   • `scene.presentRemove[]`     ⟵ actorRefs   (removing a present actor — must name a real one)
- *   • `widgets[].widgetRef`       ⟵ widgetRefs  (which existing custom widget — NOT an invented one)
- *   • `party[].removeCondition`   ⟵ conditionNames (R5a — one ACTIVE condition, never a comma-joined list)
+ *   • `trackers[]`                ⟵ gameTrackerKeys (R6 — the game-subject write surface, pruned when empty)
  */
 export function constrainExtractionSchema(schema: Record<string, unknown>, refs: ExtractionRefs): Record<string, unknown> {
   // Deep clone so the cached projected schema is never mutated (it also feeds other wires). A JSON round-trip
   // is the right clone here: `z.toJSONSchema` output is pure JSON (no functions/dates/cycles), and it avoids
   // `structuredClone` (not in the contracts package's isomorphic tsc lib — `@orb/contracts` is DOM/node-free).
-  const clone = JSON.parse(JSON.stringify(schema)) as JsonSchemaNode;
-  constrainArrayItemRef(clone, "party", "targetRef", refs.actorRefs);
+  const clone = cloneNode(schema as JsonSchemaNode);
+  constrainPartyPlane(clone, refs);
+  constrainGameTrackerPlane(clone, refs);
   constrainArrayItemRef(clone, "inventory", "targetRef", refs.actorRefs);
-  constrainArrayItemRef(clone, "widgets", "widgetRef", refs.widgetRefs);
-  // R5a — a retirement names ONE currently-active condition (the list-in-a-scalar the 8B emitted is then
-  // untypeable under an enforcing grammar). Empty ⇒ unconstrained, like every ref list above.
-  constrainArrayItemRef(clone, "party", "removeCondition", refs.conditionNames);
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);
-  // §2.8 — constrain the nested cast-field pair NAME to the host-defined field keys:
-  // scene.presentUpsert[].customFields[].name. A model can then only write a DEFINED field under an enforcing
-  // backend (never an invented key). Empty keys leave it unconstrained (the feature-off arm).
-  const upsertItem = sceneProps?.["presentUpsert"] !== undefined ? itemsOf(sceneProps["presentUpsert"]) : undefined;
-  const customFieldsItem = upsertItem !== undefined ? itemsOf(propsOf(upsertItem)?.["customFields"]) : undefined;
-  const nameNode = customFieldsItem !== undefined ? propsOf(customFieldsItem)?.["name"] : undefined;
-  constrainStringProperty(nameNode, refs.castFieldKeys);
   // ESTABLISH-WHEN-UNSET (2026-07-28, the sad-path fix): the projected schema leaves `scene` OPTIONAL with
   // every inner field optional, so under xgrammar/`strict` a weak 8B legally OMITS the scene — and it did, so a
   // fresh game never established its location/time and the panel stayed empty (`rpg.extraction.empty`). Force
@@ -237,7 +333,7 @@ export const RPG_TOOL_ROUND_TOOL_NAMES = [
   "update_party",
   "update_inventory",
   "update_scene",
-  "set_widget_value",
+  "set_tracker",
   "upsert_quest",
   "add_journal_entry",
   RPG_NO_CHANGES_TOOL,
@@ -267,7 +363,7 @@ function parseArgs(raw: string): unknown {
 const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, { readonly schema: z.ZodType; readonly field: keyof RpgExtraction }> = new Map([
   ["update_party", { schema: updatePartyArgsSchema, field: "party" }],
   ["update_inventory", { schema: updateInventoryArgsSchema, field: "inventory" }],
-  ["set_widget_value", { schema: setWidgetValueArgsSchema, field: "widgets" }],
+  ["set_tracker", { schema: setTrackerArgsSchema, field: "trackers" }],
   ["upsert_quest", { schema: upsertQuestArgsSchema, field: "quests" }],
   ["add_journal_entry", { schema: addJournalEntryArgsSchema, field: "journal" }],
 ]);
@@ -280,7 +376,7 @@ const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, { readonly schema: z.ZodType; r
  * wins — one scene per turn). The result feeds the SAME `extractionToStateDelta` fold reliable uses.
  */
 export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtraction {
-  const out: RpgExtraction = { party: [], inventory: [], widgets: [], quests: [], journal: [] };
+  const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
   for (const call of calls) {
     const args = parseArgs(call.arguments);
     if (args === null) {

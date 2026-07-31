@@ -8,12 +8,12 @@
 // and the band text says the story hasn't set the scene yet. Weather needs no resolution step: `weather.type`
 // is already the stone's CLOSED vocabulary (`@orb/kit/weather` — one axis, model-bound at the wire), while the
 // band text shows the model's free `weather.label` when it wrote one.
-// Orb color rides the ONE `resolvePoolColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
+// Orb color rides the ONE `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
 // The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
-import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
@@ -21,11 +21,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { resolvePoolColor, trackColorProps } from "../lib/track-color";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 
-// The band renders the SERVER-derived orb set (§2 — satellites): auto-first-3 ∪ the host's pinned pools,
-// deduped + envelope-capped SERVER-SIDE (`poolOrbs`). The client renders them all — no second cap (a client
+// The band renders the SERVER-derived orb set (§2 — satellites): the host's PINNED trackers, envelope-capped
+// SERVER-SIDE (`trackerOrbs`, and each orb carries its own host-picked color). The client renders them all — no second cap (a client
 // slice would silently drop a pinned orb the host asked for, the orb-pinning bug).
 /** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
 const ORB_TAG_LEN = 3;
@@ -67,18 +67,6 @@ function clockTime(clock: RpgClockTime): string {
   return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}`;
 }
 
-/** Join an orb's label back to its defining actor's poolDef row for the host-picked color (the orb list is
- *  the server first-3 derivation and carries no color itself). First matching def wins. */
-function orbColor(label: string, actors: RpgTrackerView["actors"], ordinal: number): ReturnType<typeof resolvePoolColor> {
-  for (const actor of actors) {
-    const def = actor.sheet.poolDefs.find((d) => d.name === label);
-    if (def !== undefined) {
-      return resolvePoolColor(def.color, ordinal);
-    }
-  }
-  return resolvePoolColor(null, ordinal);
-}
-
 /** The viewer's primary wallet — the FIRST named amount (§12.2.2 ordinal rule); null when unfunded. */
 function primaryWallet(actors: RpgTrackerView["actors"], viewerUserId: string): { readonly name: string; readonly amount: number } | null {
   const viewer = actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
@@ -89,7 +77,7 @@ function primaryWallet(actors: RpgTrackerView["actors"], viewerUserId: string): 
 export interface RpgTakeoverHeaderProps {
   readonly ambient: RpgTrackerView["ambient"];
   readonly actors: RpgTrackerView["actors"];
-  readonly poolOrbs: readonly RpgPoolOrb[];
+  readonly trackerOrbs: readonly RpgTrackerOrb[];
   readonly viewerUserId: string;
   readonly trackersReadOnly: boolean;
   /** The game's delivery-model knob — drives the freshness indicator's honest posture (§4.5, the ruling). */
@@ -107,7 +95,7 @@ export interface RpgTakeoverHeaderProps {
 export function RpgTakeoverHeader({
   ambient,
   actors,
-  poolOrbs,
+  trackerOrbs,
   viewerUserId,
   trackersReadOnly,
   extractionMode,
@@ -162,14 +150,14 @@ export function RpgTakeoverHeader({
         </Stack>
       </Row>
 
-      {poolOrbs.length === 0 && wallet === null ? null : (
+      {trackerOrbs.length === 0 && wallet === null ? null : (
         <Row gap="block" align="start" className="flex-wrap">
-          {poolOrbs.map((orb, i) => (
+          {trackerOrbs.map((orb, i) => (
             <RingGauge
-              key={orb.label}
+              key={orb.key}
               value={orb.value}
-              max={orb.max}
-              {...trackColorProps(orbColor(orb.label, actors, i))}
+              max={orb.max ?? orb.value}
+              {...trackColorProps(resolveTrackerColor(orb.color, i))}
               label={orb.label}
               showCaption={true}
               captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}

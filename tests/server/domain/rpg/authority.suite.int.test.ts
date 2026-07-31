@@ -6,11 +6,10 @@
 
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId, RpgJournalId, RpgWidgetId } from "@orb/kit/ids";
+import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games";
 import { listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal";
-import { listWidgets } from "../../../../packages/server/src/domain/rpg/persistence/widgets";
 import { freshDb } from "../../../support/db";
 import { expect, makeRpgService, principal, seedChat, seedUser, test } from "./_support";
 
@@ -36,21 +35,6 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
     const { chatId, h } = await seedGameWithRoster();
     await expect(h.service.updateConfig({ principal: principal("member"), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.updateConfig({ principal: principal("ghost"), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(DomainNotFoundError);
-  });
-
-  test("createWidget", async () => {
-    const { chatId, h } = await seedGameWithRoster();
-    const def = {
-      type: "meter" as const,
-      label: "Focus",
-      icon: null,
-      position: "sidebar" as const,
-      accent: null,
-      sort: 0,
-      binding: { source: "custom" as const, subjectName: null },
-    };
-    await expect(h.service.createWidget({ principal: principal("member"), chatId, def })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.createWidget({ principal: principal("ghost"), chatId, def })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("upsertQuest", async () => {
@@ -130,7 +114,6 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
     chatA: ChatId;
     chatB: ChatId;
     h: ReturnType<typeof makeRpgService>;
-    widgetB: RpgWidgetId;
     entryB: RpgJournalId;
   }> {
     const chatA = await seedChat(db, "a");
@@ -144,39 +127,10 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
     h.fakes.membership.set("user_hostB", "host");
     await h.service.createGame({ principal: principal("hostA"), chatId: chatA, mode: "lite" });
     await h.service.createGame({ principal: principal("hostB"), chatId: chatB, mode: "lite" });
-    // Game B's own host creates a widget + a journal entry in B.
-    const widgetB = await h.service.createWidget({
-      principal: principal("hostB"),
-      chatId: chatB,
-      def: { type: "meter", label: "B-widget", icon: null, position: "sidebar", accent: null, sort: 0, binding: { source: "custom", subjectName: null } },
-    });
+    // Game B's own host creates a journal entry in B.
     const entryB = await h.service.addJournalEntry({ principal: principal("hostB"), chatId: chatB, type: "note", title: "B-title", content: "B-content" });
-    return { chatA, chatB, h, widgetB, entryB };
+    return { chatA, chatB, h, entryB };
   }
-
-  test("updateWidget with a foreign game's widgetId → leak-free NOT-FOUND, victim row untouched", async () => {
-    const { chatA, chatB, h, widgetB } = await seedTwoGames();
-    const gameB = await findGameByChat(db, chatB);
-    if (!gameB) {
-      throw new Error("no game B");
-    }
-    await expect(h.service.updateWidget({ principal: principal("hostA"), chatId: chatA, widgetId: widgetB, patch: { label: "hijacked" } })).rejects.toThrow(
-      DomainNotFoundError,
-    );
-    // B's widget is UNTOUCHED (label unchanged).
-    expect((await listWidgets(db, gameB.id)).find((w) => w.id === widgetB)?.label).toBe("B-widget");
-  });
-
-  test("deleteWidget with a foreign game's widgetId → leak-free NOT-FOUND, victim row survives", async () => {
-    const { chatA, chatB, h, widgetB } = await seedTwoGames();
-    const gameB = await findGameByChat(db, chatB);
-    if (!gameB) {
-      throw new Error("no game B");
-    }
-    await expect(h.service.deleteWidget({ principal: principal("hostA"), chatId: chatA, widgetId: widgetB })).rejects.toThrow(DomainNotFoundError);
-    // B's widget still exists.
-    expect((await listWidgets(db, gameB.id)).some((w) => w.id === widgetB)).toBe(true);
-  });
 
   test("editJournalEntry with a foreign game's entryId → leak-free NOT-FOUND, victim row untouched", async () => {
     const { chatA, chatB, h, entryB } = await seedTwoGames();

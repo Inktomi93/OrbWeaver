@@ -6,15 +6,7 @@
 // Real libSQL :memory: via freshDb (FK ON).
 
 import type { RpgGameConfig, RpgQuest } from "@orb/contracts/rpg";
-import {
-  RPG_CHECKPOINT_TRIGGERS,
-  RPG_GAME_MODES,
-  RPG_GAME_STATUSES,
-  RPG_JOURNAL_TYPES,
-  RPG_PROFILE_FREEFORM,
-  RPG_WIDGET_POSITIONS,
-  RPG_WIDGET_TYPES,
-} from "@orb/contracts/rpg";
+import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import {
   characters,
   chats,
@@ -23,7 +15,6 @@ import {
   messageVariants,
   rpgCheckpoints,
   rpgGames,
-  rpgHudWidgets,
   rpgJournal,
   rpgSheets,
   rpgSnapshots,
@@ -41,7 +32,6 @@ import type {
   RpgQuestId,
   RpgSheetId,
   RpgSnapshotId,
-  RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -55,8 +45,6 @@ test("rpg enum columns mirror their contracts tuples (db derives, never re-spell
   expect(rpgGames.status.enumValues).toEqual([...RPG_GAME_STATUSES]);
   expect(rpgJournal.type.enumValues).toEqual([...RPG_JOURNAL_TYPES]);
   expect(rpgCheckpoints.trigger.enumValues).toEqual([...RPG_CHECKPOINT_TRIGGERS]);
-  expect(rpgHudWidgets.type.enumValues).toEqual([...RPG_WIDGET_TYPES]);
-  expect(rpgHudWidgets.position.enumValues).toEqual([...RPG_WIDGET_POSITIONS]);
 });
 
 // `isConstraintViolation` returns `ConstraintViolation | undefined`; `toSatisfy` needs a boolean predicate.
@@ -71,14 +59,14 @@ const CONFIG: RpgGameConfig = {
   extractionContext: "window",
   extractionWindowTokens: 4096,
   reconcileEveryBeats: 10,
+  trackers: [],
   features: {
-    castFields: [],
     relationshipHints: {},
+    journalTypeHints: {},
     deception: false,
     omniscience: false,
     hiddenContentReveal: true,
     recentBeatsKeepLast: 8,
-    pinnedOrbs: [],
     immersiveHtml: true,
     immersiveHtmlInteractive: true,
     cardKeepLastX: 0,
@@ -88,8 +76,7 @@ const CONFIG: RpgGameConfig = {
   },
   userMacros: [],
 };
-const EMPTY_SHEET = { className: "", attributes: {}, poolDefs: [], maxHp: null, flavor: "", level: null };
-const CUSTOM_BINDING = { source: "custom", subjectName: null } as const;
+const EMPTY_SHEET = { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 
 async function seedGame(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatId, gameId: RpgGameId): Promise<void> {
   await db.insert(chats).values({ id: chatId });
@@ -218,15 +205,21 @@ test("rpg_checkpoints RESTRICTs a snapshot delete (restore must not break silent
   await expect(db.delete(rpgSnapshots).where(eq(rpgSnapshots.id, snapshotId))).rejects.toSatisfy(isConstraint);
 });
 
-test("rpg_hud_widgets binding JSON round-trips + type/position CHECK", async () => {
+test("R4c: a `custom` journal entry stores its free label; the type CHECK still walls off an invented type", async () => {
   const db = await freshDb();
-  const chatId = castId<ChatId>("chat_widget");
-  const gameId = castId<RpgGameId>("rpg_game_widget");
+  const chatId = castId<ChatId>("chat_r4c");
+  const gameId = castId<RpgGameId>("rpg_game_r4c");
   await seedGame(db, chatId, gameId);
-  const widgetId = castId<RpgWidgetId>("rpg_widget_1");
-  await db.insert(rpgHudWidgets).values({ id: widgetId, gameId, type: "meter", label: "Corruption", position: "banner", binding: CUSTOM_BINDING });
-  const [w] = await db.select().from(rpgHudWidgets).where(eq(rpgHudWidgets.id, widgetId));
-  expect(w?.binding).toEqual(CUSTOM_BINDING);
-  const bad = { id: castId<RpgWidgetId>("rpg_widget_bad"), gameId, type: "dial" as "meter", label: "x", position: "banner" as const, binding: CUSTOM_BINDING };
-  await expect(db.insert(rpgHudWidgets).values(bad)).rejects.toSatisfy(isConstraint);
+  const entryId = castId<RpgJournalId>("rpg_journal_custom");
+  await db.insert(rpgJournal).values({ id: entryId, gameId, type: "custom", label: "ritual", title: "The Binding", content: "Salt and a name." });
+  const [row] = await db.select().from(rpgJournal).where(eq(rpgJournal.id, entryId));
+  expect(row?.type).toBe("custom");
+  expect(row?.label).toBe("ritual");
+  // A built-in type stores the born-default empty label (the gloss is meaningful only on `custom`).
+  const plainId = castId<RpgJournalId>("rpg_journal_plain");
+  await db.insert(rpgJournal).values({ id: plainId, gameId, type: "event", title: "A brawl", content: "It went badly." });
+  expect((await db.select().from(rpgJournal).where(eq(rpgJournal.id, plainId)))[0]?.label).toBe("");
+  // The enum stays CLOSED — `custom` + label is the escape, never an off-vocab token.
+  const bad = { id: castId<RpgJournalId>("rpg_journal_bad"), gameId, type: "ritual" as "note", title: "x", content: "y" };
+  await expect(db.insert(rpgJournal).values(bad)).rejects.toSatisfy(isConstraint);
 });

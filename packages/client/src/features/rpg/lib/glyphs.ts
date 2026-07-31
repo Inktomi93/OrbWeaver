@@ -1,6 +1,6 @@
 // The MODEL-AUTHORED-STRING → GLYPH resolver (panel-redesign DESIGN.md §12.5) — ONE home for every
 // "what icon does this free string get" decision: inventory items and condition chips, plus the CLOSED-vocab
-// Records (relationship kinds, widget types) that are exhaustive mapped types, never the resolver. (WEATHER
+// Records (relationship kinds, tracker shapes) that are exhaustive mapped types, never the resolver. (WEATHER
 // used to bin here — it doesn't anymore: `weather.type` is a closed enum bound at the extraction wire, so
 // there is no free string left to resolve.) Pure data, deterministic TOKEN matching only (no fuzzy dep,
 // no LLM call — testable as a table). Icons come exclusively through the curated `@orb/ui/icons` seal
@@ -8,16 +8,14 @@
 // A11y: every glyph rendered from this module is DECORATION (aria-hidden via `<Icon>` without `label`);
 // the NAME text on the cell/chip stays the datum (the tracker-kit a11y model).
 
-import type { RpgRelationshipKind, RpgWidgetType } from "@orb/contracts/rpg";
+import type { RpgRelationshipKind, RpgTrackerShape } from "@orb/contracts/rpg";
 import type { LucideIcon } from "@orb/ui/icons";
 import {
   Activity,
-  Award,
   Beef,
   Bone,
   BookOpen,
   Cable,
-  CircleGauge,
   Coins,
   Crosshair,
   Droplet,
@@ -26,10 +24,10 @@ import {
   Gauge,
   Gem,
   Handshake,
-  Hash,
   Heart,
   KeyRound,
   Leaf,
+  List,
   MapIcon,
   Minus,
   Package,
@@ -229,11 +227,11 @@ export const RELATIONSHIP_GLYPHS: Readonly<Record<RpgRelationshipKind, LucideIco
   custom: Tag,
 };
 
-/** Widget type → glyph (exhaustive over `RPG_WIDGET_TYPES`). */
-export const WIDGET_TYPE_GLYPHS: Readonly<Record<RpgWidgetType, LucideIcon>> = {
+/** Tracker SHAPE → glyph (exhaustive over `RPG_TRACKER_SHAPES` — a new shape fails tsc here). Replaces the
+ *  five-member widget-type table: the unification collapsed those display types into the three real shapes a
+ *  tracked value can have (`counter`/`gauge`/`badge` were meters wearing different chrome). */
+export const TRACKER_SHAPE_GLYPHS: Readonly<Record<RpgTrackerShape, LucideIcon>> = {
   meter: Gauge,
-  counter: Hash,
-  gauge: CircleGauge,
-  badge: Award,
   text: Type,
+  list: List,
 };

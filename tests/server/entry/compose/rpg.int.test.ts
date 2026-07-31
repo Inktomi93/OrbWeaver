@@ -21,7 +21,7 @@ import type { ChatApi } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
-import { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
+import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
@@ -157,9 +157,9 @@ const CANNED_EXTRACTION = {
   party: [],
   inventory: [],
   scene: { location: "the obsidian tower", recentEvent: "arrived at the tower" },
-  widgets: [],
+  trackers: [],
   quests: [],
-  journal: [{ type: "location", title: "Arrival", content: "They reached the tower." }],
+  journal: [{ type: "location", label: "", title: "Arrival", content: "They reached the tower." }],
 } satisfies RpgExtraction;
 
 /** The route the fake host connection resolves to, and which executor method actually fired. The reliable
@@ -511,10 +511,10 @@ function baseWithCast(): RpgSnapshotState {
     calendarDate: null,
     location: "the tavern",
     weather: null,
-    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
     recentEvents: [],
-    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
-    widgetValues: {},
+    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" }],
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
@@ -773,7 +773,7 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
     TURN,
     foldedTurn([
       { name: "update_scene", args: { location: "the ford", weather: { type: "rain", label: "cold spitting rain" }, recentEvent: "forded the river" } },
-      { name: "add_journal_entry", args: { type: "location", title: "The Ford", content: "They crossed at the ford in the rain." } },
+      { name: "add_journal_entry", args: { type: "location", label: "", title: "The Ford", content: "They crossed at the ford in the rain." } },
     ]),
   );
 
@@ -898,17 +898,49 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
 
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
   const folded = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
-  // The SAME 7 tools the dedicated round sends, in the same order, incl. the `no_changes` escape.
-  expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES]);
+  // The SAME tools the dedicated round sends, in the same order, incl. the `no_changes` escape. R6: this game
+  // defines NO game-subject tracker, so `set_tracker` is OMITTED ENTIRELY (a disabled feature's tool is absent,
+  // never an empty husk) — the rest of the round's set is byte-identical.
+  expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
   // …carrying the live per-call ref enums (`constrainExtractionSchema`), so R5/R5a's hardening rides the fold.
   const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as { properties?: { targetRef?: { enum?: string[] } } };
   expect(Array.isArray(party.properties?.targetRef?.enum)).toBe(true);
   // RV-9: `update_scene`'s description carries the WHEN — the panel's Waystone only reads as a clock if the
   // model actually advances time/weather/day, and a bare field list measurably doesn't get that written.
   const scene = folded?.terminalTools?.find((t) => t.name === "update_scene");
-  expect(scene?.description).toContain("time of day");
+  expect(scene?.description).toContain("timeOfDay");
   expect(scene?.description).toContain("spends time");
   expect(scene?.description).toContain("weather turns");
   // The registry channel stays empty — nothing here is executed or recursed on.
   expect(folded?.tools).toEqual([]);
+
+  // R6/R2 — define a game tracker + a party tracker: the tool APPEARS, its key enum binds, and the party
+  // description names the host's tracker by label AND gloss (the write surface is a per-game assembly).
+  await rpgCompose.service.updateConfig({
+    principal: hostPrincipal(hostId),
+    chatId,
+    patch: {
+      trackers: [
+        rpgTrackerDefSchema.parse({ key: "alarm", label: "Town alarm", shape: "meter", write: "set", subject: "game", max: 100 }),
+        rpgTrackerDefSchema.parse({
+          key: "grit",
+          label: "Grit",
+          shape: "meter",
+          write: "delta",
+          subject: "actor",
+          appliesTo: "everyone",
+          max: 10,
+          hint: "resolve you spend to push through danger",
+        }),
+      ],
+    },
+  });
+  const withTrackers = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  const setTracker = withTrackers?.terminalTools?.find((t) => t.name === "set_tracker");
+  expect((setTracker?.parameters as { properties?: { key?: { enum?: string[] } } }).properties?.key?.enum).toEqual(["alarm"]);
+  const partyTool = withTrackers?.terminalTools?.find((t) => t.name === "update_party");
+  expect(partyTool?.description).toContain("Grit");
+  expect(partyTool?.description).toContain("resolve you spend to push through danger");
+  const partyArms = partyTool?.parameters as { properties?: { trackerDeltas?: { items?: { properties?: { key?: { enum?: string[] } } } } } };
+  expect(partyArms.properties?.trackerDeltas?.items?.properties?.key?.enum).toEqual(["grit"]);
 });

@@ -40,7 +40,7 @@ export function emptyState(): RpgSnapshotState {
     presentCharacters: [],
     recentEvents: [],
     actorState: [],
-    widgetValues: {},
+    trackerValues: {},
     quests: [],
     plot: null,
     fieldLocks: null,
@@ -58,14 +58,14 @@ export function liteConfig(): RpgGameConfig {
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,
     dateMode: "narrated",
+    trackers: [],
     features: {
-      castFields: [],
       relationshipHints: {},
+      journalTypeHints: {},
       deception: false,
       omniscience: false,
       hiddenContentReveal: true,
       recentBeatsKeepLast: RPG_RECENT_BEATS_KEEP_DEFAULT,
-      pinnedOrbs: [],
       immersiveHtml: true,
       immersiveHtmlInteractive: true,
       cardKeepLastX: 0,
@@ -78,7 +78,7 @@ export function liteConfig(): RpgGameConfig {
 }
 
 /** Insert a lite `rpg_games` row for a chat; returns its id. */
-export async function seedGame(db: Db, chatId: ChatId, key = "g1"): Promise<RpgGameId> {
+export async function seedGame(db: Db, chatId: ChatId, key = "g1", over: { config?: RpgGameConfig } = {}): Promise<RpgGameId> {
   const id = castId<RpgGameId>(`rpg_game_${key}`);
   await db.insert(rpgGames).values({
     id,
@@ -88,7 +88,7 @@ export async function seedGame(db: Db, chatId: ChatId, key = "g1"): Promise<RpgG
     sessionNumber: 1,
     gmUserId: null,
     gmPresetId: null,
-    config: liteConfig(),
+    config: over.config ?? liteConfig(),
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
   });
@@ -110,12 +110,12 @@ export function quest(key: string, over: Partial<RpgQuest> = {}): RpgQuest {
   return { id: questId(key), name: over.name ?? key, status: over.status ?? "active", description: over.description ?? "", objectives: over.objectives ?? [] };
 }
 
-/** A minimal actor-volatile with a wallet + pool (for the swipe-consistency drives). */
+/** A minimal actor-volatile with a wallet + a `focus` tracker reading (for the swipe-consistency drives). */
 export function actorWithWallet(castKey: string, walletAmount: number, poolValue: number): RpgActorVolatile {
   return {
     actorRef: { kind: "cast", castKey },
     hp: null,
-    pools: [{ name: "focus", value: poolValue, max: 100 }],
+    trackerValues: { focus: { value: poolValue, items: null } },
     conditions: [],
     inventory: [],
     wallet: [{ name: "gold", amount: walletAmount }],
@@ -331,7 +331,6 @@ export function makeRpgService(
       game: () => mintTypeId(ID_PREFIX.rpgGame),
       snapshot: () => mintTypeId(ID_PREFIX.rpgSnapshot),
       sheet: () => mintTypeId(ID_PREFIX.rpgSheet),
-      widget: () => mintTypeId(ID_PREFIX.rpgWidget),
       journal: () => mintTypeId(ID_PREFIX.rpgJournal),
       checkpoint: () => mintTypeId(ID_PREFIX.rpgCheckpoint),
       quest: () => newId<RpgQuestId>(),

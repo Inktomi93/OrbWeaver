@@ -1,7 +1,7 @@
 // verbs/game/update-config — updateConfig (rpg-design/05 §4.4, §6.2). The knob defaults + the profile
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
 
-import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
+import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../../packages/server/src/domain/rpg/persistence/games";
@@ -27,19 +27,28 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect(game?.config.extractionMode).toBe("cheap");
   });
 
-  test("sets the parity-plus feature knobs — castFields + relationshipHints (§2.8/§2.1 M1)", async () => {
+  test("THE TRACKERS write door — the whole set lands in ONE home, and an unrelated edit never wipes it", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    const castFields = [
-      { key: "suspicion", label: "Suspicion", kind: "meter" as const, max: 10 },
-      { key: "trust", label: "Trust", kind: "text" as const },
+    const trackers = [
+      rpgTrackerDefSchema.parse({ key: "suspicion", label: "Suspicion", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 }),
+      rpgTrackerDefSchema.parse({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game", max: 100 }),
     ];
-    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { castFields, relationshipHints: { vassal: "sworn but resentful" } } });
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers, relationshipHints: { vassal: "sworn but resentful" } } });
     const game = await findGameByChat(db, chatId);
-    expect(game?.config.features.castFields).toEqual(castFields);
+    expect(game?.config.trackers).toEqual(trackers);
     expect(game?.config.features.relationshipHints).toEqual({ vassal: "sworn but resentful" });
-    // Omit keeps the features (a later unrelated patch does not wipe them).
+    // Omit keeps them — the [versioned-config-lift-drops-overrides] trap: this is the ONLY tracker-def door,
+    // so an unrelated `steeringNote` write that dropped `trackers` would silently delete every def.
     await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "x" } });
-    expect((await findGameByChat(db, chatId))?.config.features.castFields).toHaveLength(2);
+    expect((await findGameByChat(db, chatId))?.config.trackers).toHaveLength(2);
+  });
+
+  test("R4c: the custom-journal-type hints are keep-on-omit like every sibling knob", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { journalTypeHints: { ritual: "a binding performed aloud" } } });
+    expect((await findGameByChat(db, chatId))?.config.features.journalTypeHints).toEqual({ ritual: "a binding performed aloud" });
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "y" } });
+    expect((await findGameByChat(db, chatId))?.config.features.journalTypeHints).toEqual({ ritual: "a binding performed aloud" });
   });
 
   test("#40 engaged toggle: OFF disengages + re-writes the pointer mirror; survives an unrelated edit; ON restores", async () => {

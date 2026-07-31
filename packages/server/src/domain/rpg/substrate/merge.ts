@@ -59,15 +59,19 @@ function actorStateKey(element: unknown): string | undefined {
 
 /** The keyed snapshot arrays, matched by the path's FINAL SEGMENT: `quests`/`inventory` (key `id`),
  *  `presentCharacters` (`key`), `actorState` (the computed `actorRefKey` — the #10 per-field-lock wire),
- *  and the per-actor nested planes `pools`/`wallet`/`conditions` (`name` — the name-addressed vocabulary,
- *  D86). Segment-matching (over full-path keys) is what lets the nested planes key under ANY actor prefix
- *  (`actorState.<key>.pools`) without a per-actor registry re-spell. */
+ *  and the per-actor nested planes `wallet`/`conditions` (`name` — the name-addressed vocabulary, D86).
+ *  Segment-matching (over full-path keys) is what lets the nested planes key under ANY actor prefix
+ *  (`actorState.<key>.wallet`) without a per-actor registry re-spell.
+ *
+ *  TRACKER VALUES ARE NOT HERE, and that is the point of the unification: `trackerValues` is a RECORD keyed
+ *  by tracker `key`, not an array, so the plain object walk already gives it per-tracker lock paths
+ *  (`actorState.<actor>.trackerValues.<key>`, `trackerValues.<key>`) for free — the keyed-array machinery
+ *  existed precisely because the old name-addressed `pools[]` array could not express one. */
 const KEYED_ARRAYS: Readonly<Record<string, ElementKeyResolver>> = {
   quests: propKey("id"),
   inventory: propKey("id"),
   presentCharacters: propKey("key"),
   actorState: actorStateKey,
-  pools: propKey("name"),
   wallet: propKey("name"),
   conditions: propKey("name"),
 };

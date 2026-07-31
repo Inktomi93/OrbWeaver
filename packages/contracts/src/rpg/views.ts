@@ -7,10 +7,10 @@
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
-import type { RpgCastField, RpgGameConfig } from "./config";
+import type { RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
-import type { RpgPoolDef } from "./sheet";
-import type { RpgPlot, RpgPresentCharacter, RpgWidgetDef } from "./snapshot";
+import type { RpgPlot, RpgPresentCharacter } from "./snapshot";
+import type { RpgTrackerDef, RpgTrackerValue } from "./tracker";
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
  *  lite/full trim decision (§2.1). `publicConfig` is the member-safe config slice (never the host-only
@@ -55,19 +55,26 @@ export interface RpgActorView {
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    /** DERIVED from the one pool-def home — carries the host-pickable `color` (null ⇒ ordinal ramp). */
-    readonly poolDefs: readonly RpgPoolDef[];
     readonly maxHp: number | null;
     /** The hand-only progression level (§2.6) — null renders nothing (nullable-honesty, no phantom "Level 0"). */
     readonly level: number | null;
+    /** The per-actor tracker exceptions (the applicability model) — surfaced so the editor can show WHY this
+     *  actor carries (or doesn't carry) a tracker its class would otherwise decide. */
+    readonly trackerGrants: readonly string[];
+    readonly trackerRevokes: readonly string[];
   };
   readonly volatile: RpgActorVolatile | null;
+  /** The trackers THIS actor effectively carries (`resolve(appliesTo) + grants − revokes`, resolved
+   *  server-side in ONE place) — the panel renders exactly these rows against `volatile.trackerValues`, and
+   *  never re-derives carriage itself. */
+  readonly trackers: readonly RpgTrackerDef[];
 }
 
-/** A widget in the tracker view — the def paired with its swipe-volatile value. */
-export interface RpgWidgetView {
-  readonly def: RpgWidgetDef;
-  readonly value: { readonly value?: number; readonly max?: number; readonly items?: readonly string[] } | null;
+/** ONE tracked value in a view — the def paired with its swipe-volatile reading (null = the carrier has the
+ *  tracker but the story hasn't moved it). The shape every tracker surface renders, actor or game. */
+export interface RpgTrackerEntry {
+  readonly def: RpgTrackerDef;
+  readonly value: RpgTrackerValue | null;
 }
 
 /** A quest in the tracker view — the goal line + its `n/m` objective completion (served from the RESOLVED
@@ -80,11 +87,15 @@ export interface RpgQuestView {
   readonly objectives: readonly { readonly id: string; readonly text: string; readonly completed: boolean }[];
 }
 
-/** A pool orb — the first-3-pools derivation, server-side (the banner/orbs). */
-export interface RpgPoolOrb {
+/** A band orb — a PINNED tracker with a numeric reading, derived server-side (the banner/orbs). The old
+ *  "first 3 pools auto + extra pins" rule is gone with the unification: the band renders exactly what the host
+ *  pinned (`def.pinned`), so the band is a decision, not a coincidence of def order. */
+export interface RpgTrackerOrb {
+  readonly key: string;
   readonly label: string;
   readonly value: number;
-  readonly max: number;
+  readonly max: number | null;
+  readonly color: string | null;
 }
 
 /** `getTrackerView` (member) — the aggregate the takeover tabs + banner/orbs render in one query. Every
@@ -98,18 +109,21 @@ export interface RpgTrackerView {
   } | null;
   readonly actors: readonly RpgActorView[];
   readonly cast: readonly RpgPresentCharacter[];
-  /** The host-defined tracked cast-field SCHEMAS (§2.8 — `config.features.castFields`) the Scene tab joins
-   *  against each cast member's `customFields` record to render meters/text + the relationship badge. Empty when
-   *  the feature is off (a defined field or nothing — no opaque-record fallback). */
-  readonly castFields: readonly RpgCastField[];
-  readonly widgets: readonly RpgWidgetView[];
+  /** The whole game's tracker DEFS (`config.trackers`) — the ONE def home, surfaced once so every consumer
+   *  (roster rows, scene cast rows, the band, the editor) reads the same list instead of four shapes. */
+  readonly trackerDefs: readonly RpgTrackerDef[];
+  /** Per scene-cast member (by cast `key`), the trackers that member carries paired with its readings —
+   *  resolved server-side through the ONE carrier predicate, so the Scene tab never re-derives carriage. */
+  readonly castTrackers: Readonly<Record<string, readonly RpgTrackerEntry[]>>;
+  /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
+  readonly gameTrackers: readonly RpgTrackerEntry[];
   readonly quests: readonly RpgQuestView[];
   /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one (the rail
    *  renders nothing; no client-invented acts, ever). Swipe-consistent like every other plane here. */
   readonly plot: RpgPlot | null;
   readonly recentBeats: readonly string[];
   readonly trackersReadOnly: boolean;
-  readonly poolOrbs: readonly RpgPoolOrb[];
+  readonly trackerOrbs: readonly RpgTrackerOrb[];
   /** The manual-edit-wins LOCK paths (§12.3 the-lock-consequence-is-visible) — the dotted top-level/keyed
    *  paths a hand edit auto-stamped (`editSnapshot` writes them; tools honor them). The panel renders a pin
    *  glyph on a locked field ("the story won't change this") + a Release affordance. A `[]` = nothing pinned.
@@ -121,6 +135,8 @@ export interface RpgTrackerView {
 export interface RpgJournalEntryView {
   readonly id: string;
   readonly type: string;
+  /** R4c — the free gloss on a `custom`-typed entry (""/absent on the seven built-ins). */
+  readonly label: string;
   readonly title: string;
   readonly content: string;
   readonly createdAt: number;
@@ -141,10 +157,12 @@ export interface RpgConfigView {
   readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
   /** The #9 ambient-date mode knob (host editor). */
   readonly dateMode: RpgGameConfig["dateMode"];
-  /** The parity-plus feature knobs (§2.8/§2.1 M1) — the host defines the tracked cast-field schemas + the
-   *  per-custom-relationship-kind steering hints on this editor surface. */
-  readonly castFields: RpgGameConfig["features"]["castFields"];
+  /** THE TRACKERS (the tracked-field unification) — the host's whole tracker set, the single surface that
+   *  replaced the Sheet-tab pool defs, the Game-tab cast fields, and the band-pin section. */
+  readonly trackers: RpgGameConfig["trackers"];
+  /** The per-custom-kind steering hints — relationship kinds (M1) + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
+  readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
   /** The P3 hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
    *  teaching + the member reasoning-strip; `hiddenContentReveal` (M4) governs the host's reveal eye;
    *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice (the P3 fold). */
@@ -152,8 +170,6 @@ export interface RpgConfigView {
   readonly omniscience: boolean;
   readonly hiddenContentReveal: boolean;
   readonly recentBeatsKeepLast: number;
-  /** ORB-PINNING (§4.8) — the pool names the host pinned as band orbs beyond the auto-first-3. */
-  readonly pinnedOrbs: RpgGameConfig["features"]["pinnedOrbs"];
   /** The P4 card knobs (parity-plus §9 #7 + M2/M3) — teaching gate, interactivity ASK, keep-last-X wire. */
   readonly immersiveHtml: boolean;
   readonly immersiveHtmlInteractive: boolean;

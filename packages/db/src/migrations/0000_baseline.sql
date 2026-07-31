@@ -767,27 +767,11 @@ CREATE TABLE `rpg_games` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `rpg_games_chat_unique` ON `rpg_games` (`chat_id`);--> statement-breakpoint
-CREATE TABLE `rpg_hud_widgets` (
-	`id` text PRIMARY KEY NOT NULL,
-	`game_id` text NOT NULL,
-	`type` text NOT NULL,
-	`label` text NOT NULL,
-	`icon` text,
-	`position` text NOT NULL,
-	`accent` text,
-	`sort` integer DEFAULT 0 NOT NULL,
-	`binding` text NOT NULL,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "rpg_hud_widgets_type_check" CHECK(type in ('meter', 'counter', 'gauge', 'badge', 'text')),
-	CONSTRAINT "rpg_hud_widgets_position_check" CHECK(position in ('banner', 'sidebar', 'footer'))
-);
---> statement-breakpoint
-CREATE INDEX `rpg_hud_widgets_game_idx` ON `rpg_hud_widgets` (`game_id`);--> statement-breakpoint
 CREATE TABLE `rpg_journal` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
 	`type` text NOT NULL,
+	`label` text DEFAULT '' NOT NULL,
 	`title` text NOT NULL,
 	`content` text NOT NULL,
 	`variant_id` text,
@@ -796,7 +780,7 @@ CREATE TABLE `rpg_journal` (
 	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`source_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "rpg_journal_type_check" CHECK(type in ('location', 'npc', 'combat', 'quest', 'item', 'event', 'note'))
+	CONSTRAINT "rpg_journal_type_check" CHECK(type in ('location', 'npc', 'combat', 'quest', 'item', 'event', 'note', 'custom'))
 );
 --> statement-breakpoint
 CREATE INDEX `rpg_journal_game_variant_idx` ON `rpg_journal` (`game_id`,`variant_id`);--> statement-breakpoint
@@ -828,7 +812,7 @@ CREATE TABLE `rpg_snapshots` (
 	`present_characters` text,
 	`recent_events` text,
 	`actor_state` text,
-	`widget_values` text,
+	`tracker_values` text,
 	`quests` text DEFAULT '[]',
 	`plot` text,
 	`field_locks` text,

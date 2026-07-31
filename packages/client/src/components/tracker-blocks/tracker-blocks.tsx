@@ -27,7 +27,7 @@ import { CastMood, CastRelationship } from "./cast-card-slots";
 import { TrackerValue } from "./tracker-value";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 1. METER ROW — pools / per-member meters: `label · value/max` text + a 6px decorative track bar.
+// 1. METER ROW — meter trackers / per-member meters: `label · value/max` text + a 6px decorative track bar.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface MeterRowProps {
@@ -40,7 +40,7 @@ export interface MeterRowProps {
    *  to the decorative `TrackBar` (safe-color-gated there); the value text stays tokened. */
   readonly customColor?: string;
   /** An optional leading glyph before the label (aria-hidden decoration — the label text stays the datum;
-   *  the widget-type glyph is the founding consumer). */
+   *  the tracker-shape glyph is the founding consumer). */
   readonly leading?: ReactNode;
   /** Danger threshold — the bar swaps to the destructive intent below it (never the sole signal). */
   readonly dangerBelow?: number;
@@ -241,7 +241,7 @@ export function TrackerChip({ label, value, guide = false, onEditValue }: Tracke
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 4. CAST CARD — scene NPCs: name + mood line + customFields as chip rows.
+// 4. CAST CARD — scene NPCs: name + mood line + their tracked values as chip rows.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface CastField {

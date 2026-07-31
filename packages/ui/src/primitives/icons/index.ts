@@ -72,6 +72,7 @@ export {
   ListOrdered,
   Loader2,
   Lock,
+  LockOpen,
   LogOut,
   MapIcon,
   MapPin,

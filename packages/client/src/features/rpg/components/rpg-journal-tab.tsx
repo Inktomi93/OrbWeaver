@@ -70,6 +70,9 @@ const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
   item: "Item",
   event: "Event",
   note: "Note",
+  // R4c — the escape: a `custom` entry carries its own free `label`, so the row renders that label
+  // when present and this generic word only when the model/host left it blank.
+  custom: "Custom",
 };
 const JOURNAL_TYPE_ITEMS: SelectItems<string> = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";

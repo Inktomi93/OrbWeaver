@@ -40,13 +40,13 @@ test("the factory returns the 7 lite tool defs — member-floor, builtin, projec
 test("update_party STAGES a pool delta into the turn's accumulator (the mutation fired)", async ({ db }) => {
   const { chatId, h } = await seedLiteGame(db);
   const result = await defOf(rpgToolDefinitions(h.ctx), "update_party").handler(
-    { targetRef: "Goblin", poolDeltas: [{ name: "rage", delta: 5 }] },
+    { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] },
     exec(chatId, TURN),
   );
   expect(result.ok).toBe(true);
   // Assert the accumulator holds the staged mutation — the effective state the flush would take.
   const staged = h.ctx.staging.peek(TURN);
-  expect(staged?.actorState[0]?.pools).toEqual([{ name: "rage", value: 5, max: 5 }]);
+  expect(staged?.actorState[0]?.trackerValues["rage"]).toEqual({ value: 5, items: null });
 });
 
 test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's write)", async ({ db }) => {
@@ -69,13 +69,13 @@ test("upsert_quest STAGES a quest into the snapshot plane", async ({ db }) => {
 test("add_journal_entry STAGES a journal entry (flushed at commit)", async ({ db }) => {
   const { chatId, h } = await seedLiteGame(db);
   const result = await defOf(rpgToolDefinitions(h.ctx), "add_journal_entry").handler(
-    { type: "event", title: "Arrival", content: "They reached the city." },
+    { type: "event", label: "", title: "Arrival", content: "They reached the city." },
     exec(chatId, TURN),
   );
   expect(result.ok).toBe(true);
   // The staged journal rides the same take() the flush drains — assert via take (which also clears the bucket).
   const flush = h.ctx.staging.take(TURN);
-  expect(flush?.journal).toEqual([{ type: "event", title: "Arrival", content: "They reached the city." }]);
+  expect(flush?.journal).toEqual([{ type: "event", label: "", title: "Arrival", content: "They reached the city." }]);
 });
 
 test("roll_dice returns a baked roll, zero state (nothing staged)", async ({ db }) => {

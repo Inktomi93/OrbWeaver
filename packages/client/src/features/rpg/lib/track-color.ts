@@ -1,21 +1,22 @@
-// The categorical track-ramp color picker (Context-Panel-Program §4.8) — pools/meters are user-defined data
+// The categorical track-ramp color picker (Context-Panel-Program §4.8) — trackers are user-defined data
 // and need STABLE categorical color by definition order, never color-alone meaning. Maps an ordinal index to
 // one of the 6 `--color-track-N` steps (`TrackColor`), wrapping past the ramp. One home so every takeover
-// meter/orb colors the same pool the same way.
+// meter/orb colors the same tracker the same way.
 //
-// Panel-redesign additions (DESIGN.md §12.1.2 + the owner free-hex ruling): `resolvePoolColor` is the ONE
-// `def.color ?? trackColor(ordinal)` derivation feeding GM swatch, orb, bar, and budget slice; and
-// `resolveAccentColor` is the `rpg_hud_widgets.accent` WARD — a stored accent must pass the same strict
-// hex/OKLCH grammar the pool color rides (`RPG_POOL_COLOR_RE`); anything else heals to null → the ordinal
-// ramp (a non-color accent string never reaches a style attribute).
+// Panel-redesign additions (DESIGN.md §12.1.2 + the owner free-hex ruling): `resolveTrackerColor` is the ONE
+// `def.color ?? trackColor(ordinal)` derivation feeding the GM swatch, the band orb, and every bar. A stored
+// color must pass the strict hex/OKLCH grammar (`RPG_TRACKER_COLOR_RE`); anything else heals to the ordinal
+// ramp (a non-color string never reaches a style attribute).
 
-import { RPG_POOL_COLOR_RE } from "@orb/contracts/rpg";
+import { RPG_TRACKER_COLOR_RE } from "@orb/contracts/rpg";
 import type { TrackColor } from "@orb/ui/meter";
 
 const TRACK_RAMP_STEPS = 6;
 
-/** The `--color-track-N` step for the `i`-th categorical datum (0-based), wrapping the 6-step ramp. */
-export function trackColor(i: number): TrackColor {
+/** The `--color-track-N` step for the `i`-th categorical datum (0-based), wrapping the 6-step ramp.
+ *  Module-private: every consumer goes through `resolveTrackerColor` (the ONE `def.color ?? ramp` seam), so a
+ *  caller can never pick a raw ramp step and bypass a host-picked color. */
+function trackColor(i: number): TrackColor {
   return ((i % TRACK_RAMP_STEPS) + 1) as TrackColor;
 }
 
@@ -39,17 +40,11 @@ type ResolvedTrackColor = RampTrackColor | CustomTrackColor;
 /** THE `def.color ?? trackColor(ordinal)` resolution (§12.1.2) — one home for every consumer. A stored
  *  color that fails the strict grammar (impossible via the write gate, defensive at the read seam) heals
  *  to the ordinal ramp, never a raw style value. */
-export function resolvePoolColor(color: string | null | undefined, ordinal: number): ResolvedTrackColor {
-  if (color !== null && color !== undefined && RPG_POOL_COLOR_RE.test(color)) {
+export function resolveTrackerColor(color: string | null | undefined, ordinal: number): ResolvedTrackColor {
+  if (color !== null && color !== undefined && RPG_TRACKER_COLOR_RE.test(color)) {
     return { kind: "custom", css: color };
   }
   return { kind: "ramp", step: trackColor(ordinal) };
-}
-
-/** The widget-accent ward (§12.1.2): `rpg_hud_widgets.accent` accepts the SAME validated hex/OKLCH
- *  vocabulary; a non-color accent heals to the ordinal ramp. */
-export function resolveAccentColor(accent: string | null, ordinal: number): ResolvedTrackColor {
-  return resolvePoolColor(accent, ordinal);
 }
 
 /** Spread-ready props for `TrackBar`/`RingGauge` from a resolved color (`color` XOR `customColor`). */

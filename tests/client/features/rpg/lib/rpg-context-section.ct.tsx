@@ -58,7 +58,25 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
   };
 }
 
-// A `rpg.getTrackerView` stub — one roster actor with pools + a condition, ambient + orbs, cast, a goal, beats.
+/** The two tracker defs the stubbed roster actor carries (meters, party-class, band-PINNED). */
+const VITALITY = {
+  key: "vitality",
+  label: "Vitality",
+  shape: "meter",
+  write: "delta",
+  subject: "actor",
+  appliesTo: "party",
+  max: 30,
+  hint: "",
+  color: null,
+  icon: null,
+  sort: 0,
+  pinned: true,
+  locked: false,
+};
+const RESOLVE = { ...VITALITY, key: "resolve", label: "Resolve", max: 10, sort: 1 };
+
+// A `rpg.getTrackerView` stub — one roster actor with trackers + a condition, ambient + orbs, cast, a goal, beats.
 function trackerView(trackersReadOnly: boolean): unknown {
   return {
     ambient: {
@@ -71,14 +89,14 @@ function trackerView(trackersReadOnly: boolean): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
-        sheet: { className: "Warden", attributes: {}, poolDefs: [], maxHp: null },
+        sheet: { className: "Warden", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        // The trackers this actor CARRIES, resolved server-side (the one carrier predicate) and paired with
+        // the readings on its volatile row — the panel renders exactly these, never a re-derivation.
+        trackers: [VITALITY, RESOLVE],
         volatile: {
           actorRef: { kind: "character", characterId: "character_ct_mara" },
           hp: null,
-          pools: [
-            { name: "Vitality", value: 24, max: 30 },
-            { name: "Resolve", value: 7, max: 10 },
-          ],
+          trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [],
           wallet: [],
@@ -93,21 +111,20 @@ function trackerView(trackersReadOnly: boolean): unknown {
         characterId: undefined,
         emoji: "",
         mood: "guarded",
-        // biome-ignore lint/style/useNamingConvention: `customFields` keys are DISPLAY-NAME data (a cast card's field label), not code identifiers — the fixture mirrors the wire shape.
-        customFields: { Trust: "low" },
         relationship: { kind: "ally", label: "" },
       },
     ],
-    // The host-defined cast-field SCHEMAS the Scene joins against `customFields` (empty here — the cast
-    // member's `Trust` value renders only if a schema names it; the stub omits schemas so no meter/chip).
-    castFields: [],
-    widgets: [],
+    trackerDefs: [VITALITY, RESOLVE],
+    // A cast member's carried trackers + readings, resolved server-side (empty here — this stub's cast
+    // carries none, so the Scene renders her row without tracked values).
+    castTrackers: {},
+    gameTrackers: [],
     quests: [{ id: "q1", name: "Keep the bone key", status: "active", description: "", objectives: [{ id: "o1", text: "Hold the door", completed: true }] }],
     recentBeats: ["The rain has not let up since dusk."],
     trackersReadOnly,
-    poolOrbs: [
-      { label: "Vitality", value: 24, max: 30 },
-      { label: "Resolve", value: 7, max: 10 },
+    trackerOrbs: [
+      { key: "vitality", label: "Vitality", value: 24, max: 30, color: null },
+      { key: "resolve", label: "Resolve", value: 7, max: 10, color: null },
     ],
     // A hand-lock on the ambient `location` path (�12.3) — the Scene ambient renders its pin + Release.
     lockedPaths: ["location"],
@@ -131,8 +148,8 @@ function revealView(
   };
 }
 
-// A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, cast-field schemas,
-// relationship hints, the deception knobs, orb-pinning). Empty-but-valid defaults; the console renders it.
+// A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
+// relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
 function configView(): unknown {
   return {
     statProfile: {
@@ -147,13 +164,29 @@ function configView(): unknown {
     steeringNote: "Keep the tone grim.",
     gmPresetId: null,
     extractionMode: "reliable",
-    castFields: [{ key: "trust", label: "Trust", kind: "text" }],
+    trackers: [
+      {
+        key: "trust",
+        label: "Trust",
+        shape: "text",
+        write: "set",
+        subject: "actor",
+        appliesTo: "npcs",
+        max: null,
+        hint: "",
+        color: null,
+        icon: null,
+        sort: 0,
+        pinned: false,
+        locked: false,
+      },
+    ],
     relationshipHints: { debtor: "owes the party a debt" },
+    journalTypeHints: {},
     deception: false,
     omniscience: false,
     hiddenContentReveal: true,
     recentBeatsKeepLast: 6,
-    pinnedOrbs: [],
     // The P4/P5 knobs the scalar form projects (`toGmConsoleForm`).
     immersiveHtml: false,
     immersiveHtmlInteractive: false,
@@ -229,18 +262,17 @@ test("the takeover renders the 6 LIVE game tabs + the locked Map (in the Game st
   await expect(metaStrip.getByRole("tab", { name: "Game" })).toBeVisible();
 });
 
-test("the band renders EVERY server-derived orb — no client cap drops a pinned orb (orb-pinning)", async ({ mount, page }) => {
-  // The server owns the auto-first-3 ∪ pinned selection + the envelope cap; the client renders them ALL. A
-  // 4-orb `poolOrbs` (as if the host pinned a 4th pool) must yield 4 rendered orb data lines — a client
-  // `.slice(0,3)` would silently drop the 4th (the pinning bug this pins against).
+test("the band renders EVERY server-derived orb — no client cap drops a pinned orb", async ({ mount, page }) => {
+  // The server owns the PINNED selection + the envelope cap; the client renders them ALL. A 4-orb set must
+  // yield 4 rendered orb data lines — a client `.slice(0,3)` would silently drop the 4th (the bug this pins).
   await stubTakeover(page, {
     tracker: {
       ...(trackerView(false) as Record<string, unknown>),
-      poolOrbs: [
-        { label: "Vitality", value: 24, max: 30 },
-        { label: "Resolve", value: 7, max: 10 },
-        { label: "Supplies", value: 12, max: 20 },
-        { label: "Fatigue", value: 5, max: 8 },
+      trackerOrbs: [
+        { key: "vitality", label: "Vitality", value: 24, max: 30, color: null },
+        { key: "resolve", label: "Resolve", value: 7, max: 10, color: null },
+        { key: "supplies", label: "Supplies", value: 12, max: 20, color: null },
+        { key: "fatigue", label: "Fatigue", value: 5, max: 8, color: null },
       ],
     },
   });
@@ -251,7 +283,7 @@ test("the band renders EVERY server-derived orb — no client cap drops a pinned
   await Promise.all(["Vitality 24/30", "Resolve 7/10", "Supplies 12/20", "Fatigue 5/8"].map((datum) => expect(component.getByText(datum)).toBeVisible()));
 });
 
-test("the crown GM console (Game tab, host) renders getConfigView — scalars, orb-pin, cast fields, hints", async ({ mount, page }) => {
+test("the crown GM console (Game tab, host) renders getConfigView — scalars, the TRACKER defs, hints", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -264,25 +296,24 @@ test("the crown GM console (Game tab, host) renders getConfigView — scalars, o
   await expect(component.getByRole("textbox", { name: "Steering note" })).toHaveValue("Keep the tone grim.");
   // The stat-profile READ display (the vocabulary badge).
   await expect(component.getByText("Strength")).toBeVisible();
-  // The cast-field schema row (the stubbed "Trust" text field, display-at-rest — the input appears on
-  // click, §12.4.1) + the relationship-hint row ("debtor").
-  const castFieldRest = component.getByRole("button", { name: "Cast field 1 label" });
-  await expect(castFieldRest).toContainText("Trust");
-  await castFieldRest.click();
-  await expect(component.getByRole("textbox", { name: "Cast field 1 label" })).toHaveValue("Trust");
+  // The TRACKER def row (the stubbed "Trust" text tracker, display-at-rest — the input appears on click,
+  // §12.4.1) + the relationship-hint row ("debtor"). ONE section now holds what three surfaces used to.
+  const trackerRest = component.getByRole("button", { name: "Tracker 1 label" });
+  await expect(trackerRest).toContainText("Trust");
+  await trackerRest.click();
+  await expect(component.getByRole("textbox", { name: "Tracker 1 label" })).toHaveValue("Trust");
   await expect(component.getByText("debtor")).toBeVisible();
 });
 
-test("the GM console pin toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
-  // A tracker with pools so the orb-pinning editor lists pool names to toggle.
+test("the GM console PIN toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
 
-  // Pin a pool — the toggle button's accessible name is the pool name ("Vitality"), scoped to the
-  // orb-pin section (its `title` carries "Pin … as a band orb", but the accessible NAME is the text).
-  await component.locator('[data-slot="rpg-game-tab"]').getByRole("button", { name: "Vitality", exact: true }).click();
+  // Pinning is now a control ON THE DEF ROW (the band section is gone — one home): the pin button's
+  // accessible name is its title, and the write is the same whole-list `updateConfig` every axis makes.
+  await component.locator('[data-slot="rpg-game-tab"]').getByRole("button", { name: "Pin Trust as a band orb" }).click();
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
@@ -485,23 +516,24 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
   await expect(rail).toContainText("○ III");
 });
 
-test("a pool max edit writes the SHEET def (patchSheet — the single max home) + drags the volatile value (§12.3)", async ({ mount, page }) => {
+test("a tracker max edit writes the DEF (updateConfig — the single max home) + drags the reading (§12.3)", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // The pool max is a SHEET datum (poolDefs — the single source; the Status meter reads the def-resolved max).
-  // Editing it here fires `patchSheet` (the def write, so a Sheet-tab read sees the SAME max — no drift), and
-  // because the new max (20) is below the value (24) it ALSO fires `editSnapshot` to drag the volatile value.
+  // A tracker's max is a DEF datum (`config.trackers` — the ONE home since the unification). Editing it here
+  // fires `updateConfig` (the same write the Game tab's Trackers section makes — there is no second max to
+  // drift from), and because the new max (20) is below the reading (24) it ALSO fires `editSnapshot` to drag
+  // the stored value down in the same gesture.
   const maxRest = component.getByRole("button", { name: "Vitality max" });
   await expect(maxRest).toBeVisible();
   await maxRest.click();
   const maxField = component.getByRole("textbox", { name: "Vitality max" });
   await maxField.fill("20");
   await maxField.blur();
-  // The MAX write lands on the sheet def (the authoritative home) — this is what keeps Status ↔ Sheet in sync.
-  await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // The MAX write lands on the tracker DEF (the authoritative home) — one max, so nothing can disagree.
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // The value-drag rides editSnapshot in the same gesture (max 20 < value 24 ⇒ a drag).
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // The clamp-and-tell microline (§12.3) — the value dragged to the new max.

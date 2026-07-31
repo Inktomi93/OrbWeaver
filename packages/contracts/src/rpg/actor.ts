@@ -13,6 +13,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { rpgTrackerValuesSchema } from "./tracker";
 
 /** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
  *  its stable normalized-name `key`. Full ADDS `{kind:"npc"}` (additive — `assertNever` consumers error). */
@@ -61,11 +62,14 @@ const rpgConditionSchema = z.object({
 
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `hp` is
  *  born nullable (§8 nullable-honesty — a null-hp actor has no health bar, not a phantom 0). `wallet` is
- *  the STORED named-amount array (§2.6). */
+ *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker
+ *  `key` (the tracked-field unification) — it replaces the old name-addressed `pools[]` AND the cast row's
+ *  opaque `customFields` string record, so every tracked value on every actor (roster member OR scene NPC)
+ *  reads from ONE home with ONE addressing rule. */
 export const rpgActorVolatileSchema = z.object({
   actorRef: rpgActorRefSchema,
   hp: z.object({ value: z.number().int(), max: z.number().int().min(1) }).nullable(),
-  pools: z.array(z.object({ name: z.string().min(1), value: z.number().int(), max: z.number().int().min(1) })).default([]),
+  trackerValues: rpgTrackerValuesSchema.default({}),
   conditions: z.array(rpgConditionSchema).default([]),
   inventory: z.array(rpgInventoryItemSchema).default([]),
   wallet: z.array(z.object({ name: z.string().min(1), amount: z.number().int() })).default([]),

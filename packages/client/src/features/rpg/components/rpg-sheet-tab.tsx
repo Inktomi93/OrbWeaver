@@ -2,21 +2,18 @@
 // mini-tab scope-selector semantics, §12.1.3 — actor scope; self default) → the IDENTITY line (portrait ·
 // name · class · the hand-only Level chip (null renders nothing read-only; an editable view offers the
 // empty field) · the wallet chip listing EVERY named amount, §12.2.2's second zoom level) → the ATTRIBUTES
-// stat-cell grid (profile vocabulary; hint on title) → POOLS (the §12.2.7 honest arm: pools are PER-ACTOR
-// sheet data and this IS their authoring home until `features.defaultPoolDefs` exists — the GM-console
-// pools section stays APPLICABILITY-omitted). A pool row edits name · max · COLOR (the owner free-hex
-// ruling: a `ColorField` — native `<input type=color>` + hex text behind the swatch — writing the strict
-// hex/OKLCH `poolDefs[].color`; clear ⇒ null ⇒ the ordinal ramp) + "Add meter" (member-own row / host).
+// stat-cell grid (profile vocabulary; hint on title) → the TRACKERS this character carries (a READ: the defs
+// home ONCE in `config.trackers` and are authored on the Game tab's Trackers section — the tracked-field
+// unification killed this tab's pool-def editor precisely because a def living in two places is what forced
+// the old three-tab define/value/pin dance; values edit on Status).
 //
 // EDIT authz mirrors the verb (`patchSheet`): host any actor; a member their OWN `user` ref; cast actors
 // carry no sheet. `trackersReadOnly` folds in via the standing `canEdit` gate (consistent with every tab).
 
-import type { RpgActorView, RpgPoolDef, RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_HINT_MAX, RPG_POOL_COLOR_RE } from "@orb/contracts/rpg";
+import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
+import { trackerReading } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
-import { ColorField } from "@orb/ui/color-field";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -26,13 +23,10 @@ import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
 import { actorKey } from "../lib/actor-key";
-import { resolvePoolColor } from "../lib/track-color";
 import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { RpgSubjectSelect } from "./rpg-subject-select";
-
-const DEFAULT_POOL_MAX = 10;
 
 /** The identity line IS the subject selector (owner ruling 2026-07-28): clicking the NAME opens the member
  *  dropdown — no pill shelf; a one-member roster renders the plain name. The TITLE (the sheet's
@@ -173,109 +167,6 @@ function WalletChip({
   );
 }
 
-/** Row key for a pool def — name is the identity (names are the pool address everywhere else too). */
-function poolRowKey(def: RpgPoolDef, i: number): string {
-  return def.name === "" ? `pool-${i}` : def.name;
-}
-
-interface PoolDefsEditorProps {
-  readonly poolDefs: readonly RpgPoolDef[];
-  readonly onCommit: (next: readonly RpgPoolDef[]) => void;
-  /** A RENAME commit (#11 rename-carry): the caller rewrites the matching VOLATILE pool name in the same
-   *  gesture (same dial, new label — the value survives). Falls back to `onCommit` when absent. */
-  readonly onRename?: (oldName: string, next: readonly RpgPoolDef[]) => void;
-}
-
-/** The pool-definition rows (name · max · the free-hex color picker) + "Add meter". Every commit is the
- *  WHOLE `poolDefs` array (the wire shape). Colors ride the swatch's `ColorField`; only a strict
- *  hex/OKLCH value commits (the contract grammar); the picker's clear (`""`) writes null ⇒ ordinal ramp. */
-function PoolDefsEditor({ poolDefs, onCommit, onRename }: PoolDefsEditorProps): ReactElement {
-  const replaceAt = (i: number, patch: Partial<RpgPoolDef>): readonly RpgPoolDef[] => poolDefs.map((d, j) => (j === i ? { ...d, ...patch } : d));
-
-  return (
-    <Stack gap="field" data-slot="rpg-pool-defs">
-      {poolDefs.map((def, i) => {
-        const resolved = resolvePoolColor(def.color, i);
-        return (
-          <Stack key={poolRowKey(def, i)} gap="field">
-            <Row gap="field" align="center">
-              <ColorField
-                // A ramp-derived pool shows its resolved `--color-track-N` in the swatch (definition and
-                // display visibly one system, §3); the var string can never COMMIT (it fails the strict
-                // grammar), so the stored color stays null until a real hex/OKLCH is picked.
-                value={resolved.kind === "custom" ? resolved.css : `var(--color-track-${resolved.step})`}
-                aria-label={`${def.name} color`}
-                onValueChange={(next): void => {
-                  if (next === "") {
-                    onCommit(replaceAt(i, { color: null }));
-                  } else if (RPG_POOL_COLOR_RE.test(next)) {
-                    onCommit(replaceAt(i, { color: next }));
-                  }
-                  // A safe-but-off-grammar color (a named color) is refused at the picker — the popover's
-                  // hex field is the strict path; the contract never receives raw CSS.
-                }}
-              />
-              <TrackerValue
-                ariaLabel={`Pool ${i + 1} name`}
-                display={def.name}
-                onEdit={(next): void => {
-                  const trimmed = next.trim();
-                  // Tier-2 refusal (§12.3): an empty pool name is never sent (min(1) on the wire).
-                  if (trimmed !== "" && trimmed !== def.name) {
-                    // A RENAME rides the carry path (#11) so the volatile pool follows its def.
-                    (onRename ?? ((_old: string, defs: readonly RpgPoolDef[]): void => onCommit(defs)))(def.name, replaceAt(i, { name: trimmed }));
-                  }
-                }}
-                className="flex-1"
-              />
-              <Row gap="field" align="baseline" className="shrink-0">
-                <Text as="span" size="micro" tone="muted">
-                  max
-                </Text>
-                <TrackerValue
-                  ariaLabel={`${def.name} max`}
-                  display={String(def.max)}
-                  kind="numeric"
-                  onEdit={(next): void => {
-                    const n = Number.parseInt(next, 10);
-                    // Tier-1 clamp (§12.3): max ≥ 1 is the real wire floor.
-                    if (!Number.isNaN(n)) {
-                      onCommit(replaceAt(i, { max: Math.max(1, n) }));
-                    }
-                  }}
-                  className="!w-avatar-lg px-field text-right tabular-nums"
-                  restClassName="tabular-nums"
-                />
-              </Row>
-            </Row>
-            {/* #36 — the host-authored pool MEANING (the quiet hint by the meter + the reminder gloss). */}
-            <TrackerValue
-              ariaLabel={`${def.name} hint`}
-              display={def.hint}
-              placeholder="what this pool means…"
-              tone="muted"
-              size="micro"
-              onEdit={(next): void => onCommit(replaceAt(i, { hint: next.trim().slice(0, RPG_HINT_MAX) }))}
-              className="w-full"
-            />
-          </Stack>
-        );
-      })}
-      <Row>
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => {
-            onCommit([...poolDefs, { name: `Pool ${poolDefs.length + 1}`, max: DEFAULT_POOL_MAX, color: null, hint: "" }]);
-          }}
-        >
-          Add meter
-        </Button>
-      </Row>
-    </Stack>
-  );
-}
-
 export interface RpgSheetTabProps {
   readonly state: RpgPanelState;
 }
@@ -387,52 +278,24 @@ export function RpgSheetTab({ state }: RpgSheetTabProps): ReactElement {
         </Stack>
       )}
 
-      {actor.sheet.poolDefs.length === 0 && !canEdit ? null : (
+      {actor.trackers.length === 0 ? null : (
         <Stack gap="field">
           <Text size="label" tone="muted" transform="caps" className="tracking-micro">
-            Pools
+            Trackers
           </Text>
-          {canEdit ? (
-            <PoolDefsEditor
-              poolDefs={actor.sheet.poolDefs}
-              onCommit={(next): void => {
-                patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: [...next] } });
-              }}
-              onRename={(oldName, next): void => {
-                // #11 RENAME-CARRY: the def rename + the matching VOLATILE pool rename land in ONE gesture
-                // (same dial, new label — the value survives; matched-by-name would otherwise orphan it).
-                patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { poolDefs: [...next] } });
-                const renamed = next.find((d) => !actor.sheet.poolDefs.some((p) => p.name === d.name));
-                const newName = renamed?.name;
-                if (newName === undefined || actor.volatile?.pools.some((p) => p.name === oldName) !== true) {
-                  return; // no volatile pool to carry — the def rename alone suffices
-                }
-                // Carry a per-pool pin (#10) with its pool: release the old path, stamp the new one.
-                const oldLock = `${actorLockBase(actor.actorRef)}.pools.${oldName}`;
-                const wasLocked = tracker.lockedPaths.includes(oldLock);
-                editSnapshot.mutate({
-                  chatId,
-                  patch: actorStatePatch(tracker.actors, actor.actorRef, (v) => ({
-                    ...v,
-                    pools: v.pools.map((p) => (p.name === oldName ? { ...p, name: newName } : p)),
-                  })),
-                  lockPaths: wasLocked ? [`${actorLockBase(actor.actorRef)}.pools.${newName}`] : [],
-                  ...(wasLocked ? { releaseLocks: [oldLock] } : {}),
-                });
-              }}
-            />
-          ) : (
-            actor.sheet.poolDefs.map((pool) => (
-              <Row key={pool.name} gap="block" align="baseline" justify="between">
-                <Text as="span" size="label" tone="muted">
-                  {pool.name}
-                </Text>
-                <Text as="span" size="label" className="tabular-nums">
-                  max {pool.max}
-                </Text>
-              </Row>
-            ))
-          )}
+          {/* The trackers THIS character carries, resolved server-side (class + grants - revokes). DEFINING
+              them is the Game tab's Trackers section - ONE def home is the whole point of the unification,
+              so this sheet reads them and never grows a second editor. Their VALUES edit on Status. */}
+          {actor.trackers.map((def) => (
+            <Row key={def.key} gap="block" align="baseline" justify="between">
+              <Text as="span" size="label" tone="muted" {...(def.hint === "" ? {} : { title: def.hint })}>
+                {def.label}
+              </Text>
+              <Text as="span" size="label" className="tabular-nums">
+                {trackerReading(def, actor.volatile?.trackerValues[def.key]) ?? "\u2014"}
+              </Text>
+            </Row>
+          ))}
         </Stack>
       )}
     </Stack>

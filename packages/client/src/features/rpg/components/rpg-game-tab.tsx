@@ -10,12 +10,12 @@
 // are PER-ACTOR sheet data authored on the Sheet tab; the game-wide `features.defaultPoolDefs` template
 // doesn't exist yet — the flagged §12.2.7 arm).
 
-import type { RpgCastField, RpgConfigView } from "@orb/contracts/rpg";
-import { RPG_HINT_MAX } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgTrackerCarrierClass, RpgTrackerDef } from "@orb/contracts/rpg";
+import { RPG_HINT_MAX, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Crown, Icon, Pin, PinOff, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
+import { Crown, Icon, Lock, LockOpen, Pin, PinOff, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
@@ -27,7 +27,7 @@ import { TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
-import { trackColor } from "../lib/track-color";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { GmConsoleScalars } from "./rpg-gm-scalars";
 import { Kicker } from "./rpg-kicker";
@@ -53,86 +53,214 @@ function StatProfileDisplay({ config }: { readonly config: RpgConfigView }): Rea
   );
 }
 
-/** The cast-field SCHEMA editor — the host declares which fields NPCs carry (§2.8). Whole-list replace on
- *  every commit (the wire shape); each row edits label · kind is fixed once created (a kind change is a
- *  delete+add). Tier-2 refusal: an empty label / a `meter` with max below 1 never sends. */
-function CastFieldsEditor({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
+/** Mint a stable tracker `key` from the host's label — slugged, and suffixed until unique. The key is the
+ *  ONE addressing identity (values, grants, locks, the write schema all key on it), so it is minted once and
+ *  never re-derived on a later rename. */
+function mintTrackerKey(label: string, taken: readonly RpgTrackerDef[]): string {
+  const base =
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "tracker";
+  const keys = new Set(taken.map((d) => d.key));
+  if (!keys.has(base)) {
+    return base;
+  }
+  let n = 2;
+  while (keys.has(`${base}_${n}`)) {
+    n += 1;
+  }
+  return `${base}_${n}`;
+}
+
+/** The carrier-class label a def's `appliesTo` reads as. An explicit ref LIST reads as "chosen" and is not
+ *  cycled here (this pass authors classes; a per-actor exception is the sheet's grants/revokes) — the list is
+ *  preserved verbatim through every other edit, never silently flattened to a class. */
+function appliesToLabel(appliesTo: RpgTrackerDef["appliesTo"]): string {
+  return Array.isArray(appliesTo) ? `chosen (${appliesTo.length})` : appliesTo;
+}
+
+/** Cycle the carrier class party → npcs → everyone → party. A def carrying an explicit list is untouched. */
+function nextAppliesTo(appliesTo: RpgTrackerDef["appliesTo"]): RpgTrackerDef["appliesTo"] {
+  if (Array.isArray(appliesTo)) {
+    return appliesTo;
+  }
+  const order: RpgTrackerCarrierClass[] = ["party", "npcs", "everyone"];
+  return order[(order.indexOf(appliesTo) + 1) % order.length] ?? "everyone";
+}
+
+/** ONE tracker's def row — the whole axis set on one line: shape · write · who carries it · the label ·
+ *  the meter ceiling · the steering HINT (non-negotiable per the unification: it is the proven steering
+ *  lever and was previously unauthorable for cast fields) · pin · lock · remove. */
+function TrackerRow({
+  def,
+  index,
+  onCommit,
+}: {
+  readonly def: RpgTrackerDef;
+  readonly index: number;
+  readonly onCommit: (next: RpgTrackerDef) => void;
+}): ReactElement {
+  const patch = (fields: Partial<RpgTrackerDef>): void => onCommit({ ...def, ...fields });
+  return (
+    <Stack gap="field">
+      <Row gap="field" align="center">
+        {def.shape === "meter" ? (
+          <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} className="!w-block shrink-0" />
+        ) : null}
+        <Badge tone="soft" size="sm">
+          {def.shape}
+        </Badge>
+        <Badge tone="soft" size="sm" title={def.write === "delta" ? "a resource the story spends and restores" : "a state the story observes"}>
+          {def.write}
+        </Badge>
+        <TrackerValue
+          ariaLabel={`Tracker ${index + 1} label`}
+          display={def.label}
+          onEdit={(next): void => {
+            const trimmed = next.trim();
+            if (trimmed !== "") {
+              patch({ label: trimmed });
+            }
+          }}
+          className="min-w-0 flex-1"
+        />
+        {def.shape === "meter" ? (
+          <Row gap="field" align="baseline" className="shrink-0">
+            <Text as="span" size="micro" tone="muted">
+              max
+            </Text>
+            <TrackerValue
+              ariaLabel={`${def.label} max`}
+              display={def.max === null ? "—" : String(def.max)}
+              editValue={def.max === null ? "" : String(def.max)}
+              kind="numeric"
+              placeholder="none"
+              onEdit={(next): void => {
+                const n = Number.parseInt(next, 10);
+                patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
+              }}
+              className="!w-avatar-lg px-field text-right tabular-nums"
+              restClassName="tabular-nums"
+            />
+          </Row>
+        ) : null}
+        <Button
+          intent="ghost"
+          size="sm"
+          className="!size-6 !p-0 shrink-0"
+          onClick={(): void => patch({ pinned: !def.pinned })}
+          title={def.pinned ? `Unpin ${def.label} from the band` : `Pin ${def.label} as a band orb`}
+        >
+          <Icon icon={def.pinned ? Pin : PinOff} size="xs" />
+        </Button>
+        <Button
+          intent="ghost"
+          size="sm"
+          className="!size-6 !p-0 shrink-0"
+          onClick={(): void => patch({ locked: !def.locked })}
+          title={def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`}
+        >
+          <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
+        </Button>
+        <Button intent="ghost" size="sm" className="!size-6 !p-0 shrink-0" onClick={(): void => onCommit({ ...def, key: "" })} title={`Remove ${def.label}`}>
+          <Icon icon={Trash2} size="xs" />
+        </Button>
+      </Row>
+      <Row gap="field" align="center">
+        {def.subject === "game" ? (
+          <Badge tone="soft" size="sm" intent="neutral" title="one reading for the whole game">
+            game-wide
+          </Badge>
+        ) : (
+          <Button intent="ghost" size="sm" onClick={(): void => patch({ appliesTo: nextAppliesTo(def.appliesTo) })} title={`Who carries ${def.label}`}>
+            {appliesToLabel(def.appliesTo)}
+          </Button>
+        )}
+        <TrackerValue
+          ariaLabel={`${def.label} hint`}
+          display={def.hint}
+          placeholder="what this means — the story reads this…"
+          onEdit={(next): void => patch({ hint: next.slice(0, RPG_HINT_MAX) })}
+          tone="muted"
+          className="min-w-0 flex-1"
+        />
+      </Row>
+    </Stack>
+  );
+}
+
+/** The ADD flow — a NAME is required before anything persists (the unification's default-name hygiene: the
+ *  old "Add meter"/"+ Meter field" buttons instantly wrote "Pool 4"/"Meter 3" orphans into live games). The
+ *  `write` axis is derived from the shape the host picks — a meter is the spend/restore arm, text and list
+ *  are observations — and can be flipped on the row afterwards. */
+function AddTrackerRow({ defs, onAdd }: { readonly defs: readonly RpgTrackerDef[]; readonly onAdd: (def: RpgTrackerDef) => void }): ReactElement {
+  const [draft, setDraft] = useState("");
+  const [subject, setSubject] = useState<RpgTrackerDef["subject"]>("actor");
+  const label = draft.trim();
+  const add = (shape: RpgTrackerDef["shape"]): void => {
+    if (label === "") {
+      return;
+    }
+    onAdd(
+      rpgTrackerDefSchema.parse({
+        key: mintTrackerKey(label, defs),
+        label,
+        shape,
+        write: shape === "meter" ? "delta" : "set",
+        subject,
+        appliesTo: subject === "game" ? "everyone" : "party",
+        sort: defs.length,
+      }),
+    );
+    setDraft("");
+  };
+  return (
+    <Stack gap="field">
+      <Row gap="field" align="center">
+        {/* A CREATION draft, not a datum at rest — a plain Input, exempt from display-at-rest (§12.4.1). */}
+        <Input aria-label="New tracker name" value={draft} placeholder="name it first (e.g. Grit)" onValueChange={setDraft} className="h-control-sm flex-1" />
+        <Button intent="ghost" size="sm" onClick={(): void => setSubject(subject === "actor" ? "game" : "actor")} title="Who this tracker belongs to">
+          {subject === "actor" ? "per character" : "game-wide"}
+        </Button>
+      </Row>
+      <Row gap="field">
+        {(["meter", "text", "list"] as const).map((shape) => (
+          <Button key={shape} intent="ghost" size="sm" disabled={label === ""} onClick={(): void => add(shape)}>
+            <Icon icon={Plus} size="xs" /> {shape}
+          </Button>
+        ))}
+      </Row>
+    </Stack>
+  );
+}
+
+/** THE TRACKERS editor — the ONE surface where every tracked field in the game is defined (the tracked-field
+ *  unification §3). It replaces three surfaces that each owned a slice of the same concept: the Sheet tab's
+ *  per-actor pool defs, this tab's cast-field schemas, and this tab's band-orb pin section. Whole-list replace
+ *  on every commit (the wire shape); a removal writes the list without the row. */
+function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const commit = (next: readonly RpgCastField[]): void => updateConfig.mutate({ chatId, patch: { castFields: [...next] } });
-  const fields = config.castFields;
-  // The meter-ordinal color derivation (§12.1.2 — ONE source of truth): a meter field's swatch wears
-  // `trackColor(its index among METER-kind fields in definition order)` — the SAME ordinal the Scene cast
-  // cards derive, so definition and display are visibly one system (§3).
-  const meterOrdinals = new Map(fields.filter((f) => f.kind === "meter").map((f, i) => [f.key, i]));
+  const defs = config.trackers;
+  const commit = (next: readonly RpgTrackerDef[]): void => updateConfig.mutate({ chatId, patch: { trackers: [...next] } });
   return (
     <Stack gap="field">
-      <Kicker>Cast fields — tracked on NPCs</Kicker>
-      {fields.map((f, i) => (
-        <Row key={f.key} gap="field" align="center">
-          {f.kind === "meter" ? <TrackBar value={1} max={1} color={trackColor(meterOrdinals.get(f.key) ?? 0)} className="!w-block shrink-0" /> : null}
-          <Badge tone="soft" size="sm">
-            {f.kind}
-          </Badge>
-          <TrackerValue
-            ariaLabel={`Cast field ${i + 1} label`}
-            display={f.label}
-            onEdit={(next): void => {
-              const trimmed = next.trim();
-              if (trimmed !== "") {
-                commit(fields.map((x, j) => (j === i ? { ...x, label: trimmed } : x)));
-              }
-            }}
-            className="min-w-0 flex-1"
-          />
-          {f.kind === "meter" ? (
-            <Row gap="field" align="baseline" className="shrink-0">
-              <Text as="span" size="micro" tone="muted">
-                max
-              </Text>
-              <TrackerValue
-                ariaLabel={`${f.label} max`}
-                display={String(f.max ?? 1)}
-                kind="numeric"
-                onEdit={(next): void => {
-                  const n = Number.parseInt(next, 10);
-                  if (!Number.isNaN(n)) {
-                    commit(fields.map((x, j) => (j === i ? { ...x, max: Math.max(1, n) } : x)));
-                  }
-                }}
-                className="!w-avatar-lg px-field text-right tabular-nums"
-                restClassName="tabular-nums"
-              />
-            </Row>
-          ) : null}
-          <Button
-            intent="ghost"
-            size="sm"
-            className="!size-6 !p-0 shrink-0"
-            onClick={(): void => commit(fields.filter((_, j) => j !== i))}
-            title={`Remove ${f.label}`}
-          >
-            <Icon icon={Trash2} size="xs" />
-          </Button>
-        </Row>
+      <Kicker>Trackers</Kicker>
+      {defs.length === 0 ? <RpgDoorwayLine>No trackers yet — name one below and the story starts keeping it.</RpgDoorwayLine> : null}
+      {defs.map((def, i) => (
+        <TrackerRow
+          key={def.key}
+          def={def}
+          index={i}
+          onCommit={(next): void => {
+            // A row commits its whole def; the remove affordance signals itself by blanking the key.
+            commit(next.key === "" ? defs.filter((_, j) => j !== i) : defs.map((x, j) => (j === i ? next : x)));
+          }}
+        />
       ))}
-      <Row gap="field">
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => commit([...fields, { key: `field_${fields.length + 1}`, label: `Field ${fields.length + 1}`, kind: "text" }])}
-        >
-          <Icon icon={Plus} size="xs" /> Text field
-        </Button>
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => commit([...fields, { key: `meter_${fields.length + 1}`, label: `Meter ${fields.length + 1}`, kind: "meter", max: 100 }])}
-        >
-          <Icon icon={Plus} size="xs" /> Meter field
-        </Button>
-      </Row>
+      <AddTrackerRow defs={defs} onAdd={(def): void => commit([...defs, def])} />
     </Stack>
   );
 }
@@ -204,55 +332,6 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
   );
 }
 
-/** The ORB-PINNING editor — the host picks which pools surface as band orbs beyond the auto-first-3
- *  (§4.8). The pool universe is every distinct pool NAME across the roster (from the tracker view); each
- *  toggles in/out of `features.pinnedOrbs`. Whole-list replace on commit. */
-function OrbPinningEditor({ state, config }: { readonly state: RpgPanelState; readonly config: RpgConfigView }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const pinned = config.pinnedOrbs;
-  // Every distinct pool name across the roster (pins address pools by name).
-  const poolNames = [...new Set(state.tracker.actors.flatMap((a) => a.volatile?.pools.map((p) => p.name) ?? []))];
-  if (poolNames.length === 0) {
-    return (
-      <Stack gap="field">
-        <Kicker>Band orbs</Kicker>
-        <RpgDoorwayLine>No pools yet — define pools on the Sheet tab, then pin them here to surface as band orbs.</RpgDoorwayLine>
-      </Stack>
-    );
-  }
-  const toggle = (name: string): void => {
-    const next = pinned.includes(name) ? pinned.filter((n) => n !== name) : [...pinned, name];
-    updateConfig.mutate({ chatId: state.chatId, patch: { pinnedOrbs: next } });
-  };
-  return (
-    <Stack gap="field">
-      <Kicker>Band orbs — pin beyond the first 3</Kicker>
-      <Text size="micro" tone="muted">
-        The first 3 pools always show. Pin more to surface them as band orbs.
-      </Text>
-      <Row gap="field" className="flex-wrap">
-        {poolNames.map((name) => {
-          const isPinned = pinned.includes(name);
-          return (
-            <Button
-              key={name}
-              intent={isPinned ? "secondary" : "ghost"}
-              size="sm"
-              onClick={(): void => toggle(name)}
-              title={isPinned ? `Unpin ${name}` : `Pin ${name} as a band orb`}
-            >
-              <Icon icon={isPinned ? Pin : PinOff} size="xs" />
-              {name}
-            </Button>
-          );
-        })}
-      </Row>
-    </Stack>
-  );
-}
-
 /** The RESYNC control (§1.3 — the host re-derive escape hatch). Host-only (this whole tab is host-gated; the
  *  `resyncFromStory` verb is a second server-side host gate). One host-initiated model call re-reads a deep
  *  story window and rebuilds the drifted panel — an honest consequence line states the cost. Disabled while a
@@ -290,14 +369,12 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
           GM console — host only
         </Text>
       </Row>
-      {/* The mock's section order (game.html): Stat profile → the pools-adjacent Band-orbs section →
-          Cast fields → Relationship hints → the scalar form (Play style → Hidden channels → Steering
-          note → Delivery model last). The mock's "Pools — defaults for new sheets" section stays
-          APPLICABILITY-omitted until `features.defaultPoolDefs` exists (§12.2.7 — pools are per-actor
-          sheet data, authored on the Sheet tab). */}
+      {/* Section order: Stat profile → TRACKERS (the unified def surface that absorbed the Sheet tab's pool
+          defs, the old cast-field schemas, and the band-pin section — one vocabulary, one add flow, ONE home)
+          → Relationship hints → the scalar form (Play style → Hidden channels → Steering note → Delivery
+          model last). */}
       <StatProfileDisplay config={config} />
-      <OrbPinningEditor state={state} config={config} />
-      <CastFieldsEditor chatId={state.chatId} config={config} />
+      <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
       <GmConsoleScalars chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />

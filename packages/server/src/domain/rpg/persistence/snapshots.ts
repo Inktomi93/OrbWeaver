@@ -22,8 +22,8 @@ import {
   rpgPresentCharacterSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
+  rpgTrackerValuesSchema,
   rpgWeatherSchema,
-  rpgWidgetValueSchema,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
@@ -44,7 +44,6 @@ const presentCharactersSchema = z.array(rpgPresentCharacterSchema);
 const recentEventsSchema = z.array(z.string());
 const actorStateSchema = z.array(rpgActorVolatileSchema);
 const questsSchema = z.array(rpgQuestSchema);
-const widgetValuesSchema = z.record(z.string(), rpgWidgetValueSchema);
 
 /** Validate one JSON column through its contract schema. A schema-invalid persisted blob is a typed
  *  `RpgStateCorruptError` — surfaced loudly, never defaulted away into a poisoned tracker. */
@@ -68,7 +67,7 @@ function parseSnapshotRow(row: RpgSnapshotRow): RpgSnapshotRow {
     presentCharacters: field(presentCharactersSchema, row.presentCharacters ?? [], id, "presentCharacters"),
     recentEvents: field(recentEventsSchema, row.recentEvents ?? [], id, "recentEvents"),
     actorState: field(actorStateSchema, row.actorState ?? [], id, "actorState"),
-    widgetValues: field(widgetValuesSchema, row.widgetValues ?? {}, id, "widgetValues"),
+    trackerValues: field(rpgTrackerValuesSchema, row.trackerValues ?? {}, id, "trackerValues"),
     quests: field(questsSchema, row.quests ?? [], id, "quests"),
     plot: row.plot === null ? null : field(rpgPlotSchema, row.plot, id, "plot"),
     fieldLocks: row.fieldLocks === null ? null : field(rpgFieldLocksSchema, row.fieldLocks, id, "fieldLocks"),
@@ -220,7 +219,7 @@ function snapshotInsertFrom(
     presentCharacters: state.presentCharacters,
     recentEvents: state.recentEvents,
     actorState: state.actorState,
-    widgetValues: state.widgetValues,
+    trackerValues: state.trackerValues,
     quests: state.quests,
     plot: state.plot,
     fieldLocks,
@@ -316,7 +315,7 @@ export async function updateSnapshotState(
       | "presentCharacters"
       | "recentEvents"
       | "actorState"
-      | "widgetValues"
+      | "trackerValues"
       | "quests"
       | "plot"
       | "fieldLocks"
