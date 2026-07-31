@@ -421,3 +421,50 @@ export function StartChatBurstStory({ chatId }: { readonly chatId: ChatId }): Re
     </CtDataProviders>
   );
 }
+
+// ── createEntityMutation `echo` — the write's OWN response seeds the read it makes stale ────────────
+// Driven on the REAL pair the seam exists for (`settings.updateUserSettingsSection` → the identical
+// `settings.getUserSettings` view): a `busDriven` write reconciles via the bus, so between its 200 and the
+// bus tick the read still serves the PRE-write row — and a surface computing its honesty from that read
+// (Connections' "a turn still uses X") calls a persisted selection unsaved for as long as the tick is
+// missing. `echo` closes that window without inventing a second truth source.
+
+interface UpdateSectionVars {
+  readonly section: "routing";
+  readonly patch: Record<string, unknown>;
+}
+
+// TData is left `unknown` HERE only because the tests tree carries no `@trpc/tanstack-react-query` dep to
+// spell `inferOutput<Trpc["settings"]["getUserSettings"]>` with; production derives the response type off
+// the READ (connections-settings-surface.tsx), which is what proves the echo fits the read's cache entry.
+const useEchoingSectionUpdate = createEntityMutation<UpdateSectionVars, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true,
+  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
+});
+
+function SectionEchoInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const mutation = useEchoingSectionUpdate({ trpc, invalidation });
+
+  return (
+    <div>
+      <p data-testid="chat-source">{data.config.routing.roleDefaults.chat?.source ?? "unset"}</p>
+      <button type="button" onClick={(): void => mutation.mutate({ section: "routing", patch: { roleDefaults: { chat: { source: "vllm" } } } })}>
+        save
+      </button>
+    </div>
+  );
+}
+
+export function SectionEchoStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <SectionEchoInner />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}

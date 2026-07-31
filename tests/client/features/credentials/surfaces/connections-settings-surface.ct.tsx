@@ -25,6 +25,8 @@ const SAVE_ROUTE = /updateUserSettingsSection/;
 
 const LIVE_MODEL = "anthropic/claude-sonnet-5";
 const DRAFT_MODEL = "openai/gpt-5";
+/** What a SECOND device persists under a live pane — never this session's own pick. */
+const FOREIGN_MODEL = "anthropic/claude-opus-5";
 
 /** The per-source facade the model cell + status dot read (connection.getModelsForSource). */
 const OR_MODELS = {
@@ -38,9 +40,16 @@ const OR_MODELS = {
   allowsFreeText: false,
 };
 
+/** The settings stub's handle: the recorder plus a FOREIGN-write hook (another device/tab moving the stored
+ *  row under a live pane — the case that decides whether the disclosure names the CURRENT persisted pair). */
+interface SettingsStub {
+  readonly recorder: TrpcRecorder;
+  readonly setStored: (next: Record<string, unknown>) => void;
+}
+
 /** A stateful stub of the user-settings tier: the write stores the patch, the read serves it back — so the
  *  "did the pane go back to LIVE after the save landed?" arm runs against a real echo, not a scripted one. */
-function stubSettings(page: Page, roleDefaults: Record<string, unknown>): Promise<TrpcRecorder> {
+async function stubSettings(page: Page, roleDefaults: Record<string, unknown>): Promise<SettingsStub> {
   let stored = roleDefaults;
   const view = (): unknown => ({
     userId: "user_ct_connections",
@@ -48,7 +57,7 @@ function stubSettings(page: Page, roleDefaults: Record<string, unknown>): Promis
     config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
     updatedAt: 0,
   });
-  return routeTrpc(page, {
+  const recorder = await routeTrpc(page, {
     "settings.getUserSettings": () => view(),
     "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
     "credentials.list": () => [],
@@ -58,6 +67,12 @@ function stubSettings(page: Page, roleDefaults: Record<string, unknown>): Promis
       return view();
     },
   });
+  return {
+    recorder,
+    setStored: (next: Record<string, unknown>): void => {
+      stored = next;
+    },
+  };
 }
 
 /** Hold `updateUserSettingsSection` open; the returned fn lets it through. Registered AFTER routeTrpc so it
@@ -75,7 +90,7 @@ async function gateTheSave(page: Page): Promise<() => void> {
 }
 
 test("a drafted row says so and names what a turn still resolves; it reads LIVE again only once the save lands", async ({ mount, page }) => {
-  const recorder = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
   const release = await gateTheSave(page);
   await mount(<ConnectionsSettingsStory />);
 
@@ -112,6 +127,51 @@ test("a drafted row says so and names what a turn still resolves; it reads LIVE 
   // Persisted at last: the disclosure retires itself and the pane reads Saved — the row IS the truth again.
   await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
   await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saved");
+});
+
+// THE 2026-08-02 STUCK-CHIP REGRESSION. The pane's whole honesty is computed against `settings.
+// getUserSettings`, and the write that invalidates it is `busDriven: true` — so before this pin the
+// disclosure could only retire when a `settingsChanged` bus tick came back and refetched the read. With the
+// user-bus stream dropped/late (a reconnect gap, a coalesced invalidate), the owner's five 200-OK saves left
+// the row stuck on "Not applied yet — a turn still uses OpenRouter · anthropic/claude-sonnet-…" over a
+// selection the DB already held, and the pane's status stuck on "Saving…". A confirmed write is strictly
+// newer than the snapshot it was computed from: the pane must trust its own landed save. NO refetch is
+// replayed here — that is the point of the test.
+test("a landed save retires the disclosure with NO refetch — a persisted selection is never called 'not applied'", async ({ mount, page }) => {
+  const { recorder } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+  await mount(<ConnectionsSettingsStory />);
+
+  await page.getByRole("button", { name: "Chat model" }).click();
+  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
+  await expect(page.locator(SYNC_CHIP)).toContainText("Unsaved");
+
+  await expect.poll(() => recorder.count("settings.updateUserSettingsSection")).toBe(1);
+
+  await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
+  await expect(page.locator(AUTOSAVE_STATUS).first()).toHaveText("Saved");
+  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("GPT-5");
+});
+
+// The disclosure's OTHER failure direction: naming a stale pair. "A turn still uses X" is a claim about the
+// SERVER's row right now, so it must track the live read — never the snapshot the editing session mounted
+// on. A second device moving the stored row under a dirty pane must re-aim the sentence at the new pair.
+test("a drafted row names the CURRENT persisted pair, not the baseline its session mounted on", async ({ mount, page }) => {
+  const { setStored } = await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+  const release = await gateTheSave(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  await page.getByRole("button", { name: "Chat model" }).click();
+  await page.locator(COMMAND_ITEM).filter({ hasText: "GPT-5" }).click();
+  await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${LIVE_MODEL}`);
+
+  // Another device rewrites the row; the pane's read refetches while this session's edit is still in flight.
+  setStored({ chat: { source: "openrouter", model: FOREIGN_MODEL, api: "chat-completions" } });
+  await page.getByRole("button", { name: "refetch settings" }).click();
+
+  await expect(page.locator(SYNC_CHIP)).toContainText(`a turn still uses OpenRouter · ${FOREIGN_MODEL}`);
+  // Still a draft (the held save never landed) — the disclosure re-aimed, it did not retire.
+  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("GPT-5");
+  release();
 });
 
 // The other half of the incident — the owner picked a model and hit REFRESH — is NOT closed by a flush: a

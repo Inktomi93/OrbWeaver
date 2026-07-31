@@ -9,6 +9,8 @@
 import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
 import type { CredentialProvider } from "@orb/contracts/credentials";
 import { CRED_PROVIDERS } from "@orb/contracts/credentials";
+import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
+import type { RoutingForm } from "../../../../../packages/client/src/features/credentials/lib/connections-model";
 import {
   CHAT_API_LABELS,
   chatApisForSource,
@@ -139,6 +141,56 @@ test("clearing a previously-set slot writes the clear — the reason Clear used 
   // the row rendered empty while turns kept resolving openrouter/rerank-v3.5.
   const cleared = { ...configured, rerank: { source: "", model: "" } };
   expect(toRoutingSection(cleared).roleDefaults["rerank"]).toEqual(CLEARED_ROLE);
+});
+
+// --- the SERVER leg: patch → the settings parse → back to the form ------------------------------
+// The projection above only proves the CLIENT half. The pane's drift compare puts a form value beside a
+// projection of the SERVER's stored row, so "empty" has to be ONE value across the whole loop: the form
+// spells it `""`, the patch spells it `null` (the explicit clear), and the stored blob keeps that `null`
+// through the lenient parse. If any leg disagreed, an untouched row would read as a PERPETUAL draft and
+// the "Not applied yet — a turn still uses …" disclosure would never retire. Runs the REAL contract
+// parser (the same `userSettingsConfig` the write seam re-validates through), not a stand-in.
+
+/** The form as the server hands it back: the patch through the whole-blob parse, re-projected. The patch
+ *  is TOTAL over the form's roles, so the server's deep-merge with the previous section is a no-op here. */
+function reprojected(form: RoutingForm): RoutingForm {
+  const stored = userSettingsConfig.parse({ ...DEFAULT_USER_SETTINGS, routing: toRoutingSection(form) }, USER_SETTINGS_SCHEMA_VERSION);
+  return projectRoutingForm(stored.routing);
+}
+
+const EMPTY_FORM: RoutingForm = projectRoutingForm({ roleDefaults: {} });
+
+test("an untouched all-default pane round-trips through the server parse — nothing reads as a draft", () => {
+  expect(reprojected(EMPTY_FORM)).toEqual(EMPTY_FORM);
+});
+
+test("a vllm chat row with NO model round-trips — the form's '' and the stored null are the same empty", () => {
+  // The owner's live state on 2026-08-02: `{"api":"chat-completions","source":"vllm","model":null}`, where
+  // the model cell is a read-only server-config display and the form value is therefore "".
+  const form = { ...EMPTY_FORM, chat: { source: "vllm", model: "", api: "chat-completions" } };
+  expect(reprojected(form)).toEqual(form);
+});
+
+test("every source/model/protocol arm the pickers can produce round-trips through the server parse", () => {
+  const arms: readonly RoutingForm[] = [
+    // Protocol "Auto" — an ABSENT api, the third representation of empty on the chat row.
+    { ...EMPTY_FORM, chat: { source: "vllm", model: "", api: "" } },
+    // A cleared row beside a live one (Clear empties both leaves).
+    { ...EMPTY_FORM, embed: { source: "vllm", model: "" }, rerank: { source: "openrouter", model: "rerank-v3.5" } },
+    // custom_openai's free-text model id (the picker commits it trimmed).
+    { ...EMPTY_FORM, chat: { source: "custom_openai", model: "my-local-model", api: "chat-completions" } },
+    // Every role configured, each on a source its own schema arm permits.
+    {
+      chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "agent-sdk" },
+      embed: { source: "vllm", model: "bge-m3" },
+      rerank: { source: "local-light", model: "rerank-v3.5" },
+      imageEmbed: { source: "openrouter", model: "clip-vit-large" },
+      summarize: { source: "max-pro-sub", model: "claude-haiku-4-5" },
+      generateImage: { source: "openrouter", model: "black-forest-labs/flux-1.1-pro" },
+    },
+  ];
+  const diverged = arms.filter((form) => JSON.stringify(reprojected(form)) !== JSON.stringify(form));
+  expect(diverged).toEqual([]);
 });
 
 // --- LIVE vs DRAFT (the 2026-08-01 phantom: a never-saved pane read as configured) --------------

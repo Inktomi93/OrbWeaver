@@ -18,8 +18,10 @@ import { scrollBehavior } from "@orb/ui/lib";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
@@ -47,9 +49,23 @@ interface UpdateRoutingVars {
   readonly section: "routing";
   readonly patch: Record<string, unknown>;
 }
-const useUpdateRouting = createEntityMutation<UpdateRoutingVars, unknown>({
+
+/** The settings row both `getUserSettings` and `updateUserSettingsSection` resolve to — DERIVED off the
+ *  READ (the view lives server-side, so the wire shape is only nameable through the proxy). Deriving it
+ *  from the read is what proves the write's echo is assignable to the read's cache entry. */
+type UserSettingsRow = inferOutput<Trpc["settings"]["getUserSettings"]>;
+
+const useUpdateRouting = createEntityMutation<UpdateRoutingVars, UserSettingsRow>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true,
+  // ADOPT THE WRITE'S OWN ECHO (the 2026-08-02 stuck-chip incident). The verb returns the authoritative
+  // post-write row — the identical view `getUserSettings` serves — and this pane's entire honesty (the
+  // per-row "a turn still uses X" disclosure AND the Saving…/Saved status) is computed against that read.
+  // `busDriven: true` is right (the server DOES emit `settingsChanged`), but it made the pane's truth
+  // hostage to a bus tick it cannot observe: with the user-bus stream dropped or late, five 200-OK saves
+  // left the row stuck on "Not applied yet — a turn still uses OpenRouter · …" over a selection the DB
+  // already held — the loudest possible lie, in the one surface built to kill exactly that lie.
+  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
   errorToast: "Couldn't save your model-role settings.",
 });
 
@@ -104,6 +120,8 @@ function ModelRolesSection(): ReactElement {
   // the form values the rows render. Both are threaded down so every row can disclose which one it shows.
   const persisted = projectRoutingForm(data.config.routing);
 
+  // The mutation's `echo` seeds `getUserSettings` with the write's authoritative response, so `persisted`
+  // above is post-write the moment this promise resolves — the row's disclosure retires without a refetch.
   const save = (values: RoutingForm): Promise<unknown> =>
     update.mutateAsync({
       section: "routing",
