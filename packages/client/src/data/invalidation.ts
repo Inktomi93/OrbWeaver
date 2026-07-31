@@ -43,21 +43,42 @@ type BusFilterMap = {
 
 const nothing = (): readonly InvalidateFilter[] => [];
 
-// The open chat's detail reads (no chat list) — the room read, message list, the swipe strip's
-// step-target resolver, and the transcript divider's present-tense fit budget (previewContextFit — the
-// boundary moves when canon commits/trims, so it refetches on every canon-terminal alongside the list).
-function chatDetailReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
+// The open chat's CANON reads (no chat list, no `getChat`) — message list, the swipe strip's step-target
+// resolver, and the transcript divider's present-tense fit budget (previewContextFit — the boundary moves
+// when canon commits/trims, so it refetches on every canon-terminal alongside the list).
+//
+// `getChat` is DELIBERATELY ABSENT: `ChatDetail` projects the `chats` ROW + roster only (title/star/archived/
+// anchor/pendingHost/metadata group·overrides·background·rpg·opening/compact checkpoint/participants — see
+// `substrate/chat-detail.ts`), and NOTHING in it derives from canon. Every transition that DOES stale it fires
+// its own event, each naming `getChat` explicitly below: `chatUpdated` (title/star/archive/variables/
+// injections/roster/handoff AND the auto-compaction checkpoint — the engine emits it on every marker write),
+// `personaSwitched`, `chatOpened`, `historyTruncated`, the five `wi*` arms, `chatDeleted`. Carrying it here
+// re-fetched the room on every commit/edit/terminal — the measured startChat burst was FOUR `getChat` wire
+// fetches in 80ms (two of them from the greeting + user-row `messageCommitted` pair), and a plain turn paid
+// two more on commit+complete. `invalidateQueries` does NOT dedupe against an in-flight fetch (it cancels and
+// restarts), so every redundant row here is a real round-trip.
+function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
-    trpc.chat.getChat.queryFilter({ chatId }),
     trpc.chat.listMessages.pathFilter(),
     trpc.chat.listMessageVariants.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
+    ...promptPreviewReads(trpc),
   ];
 }
 
-// Detail reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for.
-function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
-  return [...chatDetailReads(trpc, chatId), trpc.chat.listChats.pathFilter()];
+// The NEXT TURN'S PROMPT, as the Preview tab shows it: the assembled-prompt trace + the content-free shape
+// trace (`features/chat/components/assembly-preview-panel.tsx`). Both were in ZERO map rows, and the
+// QueryClient runs `staleTime: Infinity` — so the tab froze at its first fetch FOREVER (the reported "old
+// persona still in the preview": the server re-pin was correct, the panel was showing a snapshot from before
+// it). They ride the SAME row as `previewContextFit` everywhere — the fit is the budget of exactly this
+// assembly, so a row that refetches one and not the other makes the two halves of that tab disagree.
+function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter()];
+}
+
+// Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for.
+function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
+  return [...chatCanonReads(trpc), trpc.chat.listChats.pathFilter()];
 }
 
 const BUS_FILTERS: BusFilterMap = {
@@ -70,30 +91,38 @@ const BUS_FILTERS: BusFilterMap = {
   warning: nothing,
   worldInfoActivated: nothing,
 
-  // Canon-terminal commit — open chat's detail only; the chat list/character-library recency is
+  // Canon-terminal commit — the open chat's canon only; the chat list/character-library recency is
   // driven by the user-bus chatsChanged fan on this same moment (avoids a triple-invalidate).
-  messageCommitted: (e, trpc) => chatDetailReads(trpc, e.chatId),
-  messageEdited: (e, trpc) => chatReads(trpc, e.chatId),
-  messageHidden: (e, trpc) => chatReads(trpc, e.chatId),
-  variantSelected: (e, trpc) => chatReads(trpc, e.chatId),
-  messagesDeleted: (e, trpc) => chatReads(trpc, e.chatId),
-  messagesReordered: (e, trpc) => chatReads(trpc, e.chatId),
-  reasoningEdited: (e, trpc) => chatReads(trpc, e.chatId),
-  reasoningCleared: (e, trpc) => chatReads(trpc, e.chatId),
+  messageCommitted: (_e, trpc) => chatCanonReads(trpc),
+  messageEdited: (_e, trpc) => chatReads(trpc),
+  messageHidden: (_e, trpc) => chatReads(trpc),
+  variantSelected: (_e, trpc) => chatReads(trpc),
+  messagesDeleted: (_e, trpc) => chatReads(trpc),
+  messagesReordered: (_e, trpc) => chatReads(trpc),
+  reasoningEdited: (_e, trpc) => chatReads(trpc),
+  reasoningCleared: (_e, trpc) => chatReads(trpc),
 
-  turnCompleted: (e, trpc) => chatDetailReads(trpc, e.chatId),
-  turnAborted: (e, trpc) => chatReads(trpc, e.chatId),
+  turnCompleted: (_e, trpc) => chatCanonReads(trpc),
+  turnAborted: (_e, trpc) => chatReads(trpc),
 
-  personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  // A re-anchored persona rewrites `{{user}}` (and the persona block) in the NEXT turn's prompt — the room
+  // read AND the prompt preview.
+  personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
 
-  wiBookAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  wiBookDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  wiEntryAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  wiEntryDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
-  wiEntryScopeChanged: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  // Attachment changes move the ASSEMBLY POOL — the WI reads, the room, and the prompt preview built from it.
+  wiBookAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
+  wiBookDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
+  wiEntryAttached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
+  wiEntryDetached: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
+  wiEntryScopeChanged: (e, trpc) => [trpc.worldInfo.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
 
-  chatCreated: (_e, trpc) => [trpc.chat.listChats.pathFilter()],
-  chatDeleted: (e, trpc) => chatReads(trpc, e.chatId),
+  // NOTHING — the chat list is driven by the user-bus `chatsChanged` fan the SAME commit emits (both
+  // producers, `verbs/start-chat.ts` + `verbs/fork.ts`, call `emitChatChanged` on the line after
+  // `emit({type:"chatCreated"})`). That fan reaches every present member on every device; this chat-bus arm
+  // only ever reaches the creator (through the draft→committed from-zero replay seed in `use-chat-bus.ts`),
+  // so its `listChats` row was a pure second wire fetch of the list the fan had already refetched.
+  chatCreated: nothing,
+  chatDeleted: (e, trpc) => [...chatReads(trpc), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   // The roster/group/override/membership catch-all ("refetch the chat detail"). `getGroupConfig` rides
@@ -101,7 +130,11 @@ const BUS_FILTERS: BusFilterMap = {
   // live under `getChat`, so without this a second tab/device sitting in the same room kept showing the
   // PREVIOUS room behavior forever (staleTime is Infinity and refetchOnWindowFocus is off — the bus is the
   // only freshness driver). The setter's own `invalidates` only ever covered the writing tab.
-  chatUpdated: (e, trpc) => [...chatReads(trpc, e.chatId), trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId })],
+  chatUpdated: (e, trpc) => [
+    ...chatReads(trpc),
+    trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
+    trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
+  ],
 };
 
 // Second map: the per-user bus. staleTime: Infinity means only a bus tick refetches a non-chat
@@ -115,8 +148,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   charactersChanged: (_e, trpc) => [trpc.character.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
-  // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7).
-  presetsChanged: (_e, trpc) => [trpc.preset.pathFilter(), trpc.chat.previewContextFit.pathFilter()],
+  // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
+  // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
+  presetsChanged: (_e, trpc) => [trpc.preset.pathFilter(), trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
@@ -132,6 +166,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     trpc.settings.getUserSettings.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     trpc.connection.resolveChatCapability.pathFilter(),
+    // The same settings feed the ASSEMBLY the fit measures (chat behavior, the resolved model/capability the
+    // shaper builds against) — the preview must move with the budget, never lag a knob behind it.
+    ...promptPreviewReads(trpc),
   ],
   credentialsChanged: (_e, trpc) => [trpc.credentials.pathFilter()],
   // The chat-list + character-library recency driver, and the sole driver on the message-commit
