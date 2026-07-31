@@ -82,8 +82,14 @@ export function RpgFreshnessReliablePendingStory(): ReactElement {
   return <RpgFreshnessIndicator extractionMode="reliable" pending={true} />;
 }
 
-/** Cheap mode — current-beat fresh at commit; a minimal "Live" affordance, never a fake lag label. `pending`
- *  is ignored in cheap mode, so it is set true to prove it does NOT flip the label to "Updating…". */
+/** Cheap mode — a dedicated post-commit tool ROUND, so it lags exactly like reliable (R1 corrected the copy:
+ *  cheap claimed "Live" from D108's inline-tools shape, which D109 replaced with a round). */
 export function RpgFreshnessCheapStory(): ReactElement {
   return <RpgFreshnessIndicator extractionMode="cheap" pending={true} />;
+}
+
+/** Folded mode (R1) — the reply records its own state, so there is no post-commit call to wait on: a minimal
+ *  "Live" affordance, never a fake lag label. `pending` is set true to prove it does NOT flip to "Updating…". */
+export function RpgFreshnessFoldedStory(): ReactElement {
+  return <RpgFreshnessIndicator extractionMode="folded" pending={true} />;
 }

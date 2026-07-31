@@ -5,12 +5,13 @@
 
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RpgActorVolatile, RpgBusEvent, RpgGameConfig, RpgQuest, RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgActorVolatile, RpgBusEvent, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import type { WireTool } from "@orb/server/infra/providers";
 import type { ChatRpgOps, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
 import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type {
@@ -152,6 +153,9 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
     // Default: an empty transcript (the round still fires with an empty beat — the canned fakes ignore prompt
     // content). A §1.3 window-content test overrides `transcript` with real name-stamped rows.
     transcript: [],
+    // R1: `null` = the folded tools did NOT ride this turn, so a `folded` game falls back to its post-commit
+    // round. A fold test overrides it with the calls the character turn co-emitted (`[]` = a quiet beat).
+    terminalToolCalls: null,
     ...over,
   };
 }
@@ -173,6 +177,10 @@ export interface RpgFakes {
   extractionDelta: RpgStateDelta;
   /** The cheap-mode tool-round fake return (the sibling of `extractionDelta`). Default: empty delta = no-op. */
   toolRoundDelta: RpgStateDelta;
+  /** R1 — the `foldTurnToolCalls` fake return (the folded path's delta; NO model call in the real impl). */
+  foldedDelta: RpgStateDelta;
+  /** R1 — the wire tools the `buildFoldedTurn` fake mounts + its reconcile note. Default: one tool, no note. */
+  foldedTools: WireTool[];
   /** The `resyncFromStory` host model-call fake return (§1.3 — W-C). Default: empty delta = no-op resync. */
   resyncDelta: RpgStateDelta;
   /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
@@ -190,6 +198,14 @@ export interface RpgFakes {
   readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
   readonly extractionCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
+  /** R1 — the FOLD fires (`foldTurnToolCalls`): the calls it folded + the beat it folded them onto. A fold
+   *  entry with an EMPTY `toolRoundCalls`/`extractionCalls` IS the proof that no second model call was paid. */
+  readonly foldCalls: { chatId: string; variantId: string; reconcile: boolean; toolCalls: readonly RpgToolCall[] }[];
+  /** R1 — the GATHER's tool-mount asks (`buildFoldedTurn`): records the reconcile verdict the gather derived. */
+  readonly foldedToolBuilds: { chatId: string; reconcile: boolean }[];
+  /** R1 — the resolved state-round PATH per flush (`onStateRoundPath`): the fork's observability, so a test
+   *  asserts a folded game folded (and that a fallback was NAMED, never silent). */
+  readonly stateRoundPaths: { chatId: string; mode: string; path: string; fallbackReason: string | null }[];
   /** The `resyncFromStory` host model-call fires (§1.3) — records the host userId the call resolved UNDER + the
    *  window budget it read, so a test asserts the host-principal seam (never a caller-injected foreign id). */
   readonly resyncCalls: { chatId: string; hostUserId: string; windowTokens: number }[];
@@ -219,7 +235,12 @@ export interface RpgHarness {
  *  a test may mutate `fakes.membership` directly for the authority matrix. */
 export function makeRpgService(
   db: Db,
-  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "resyncDelta" | "canonWindow">> = {},
+  over: Partial<
+    Pick<
+      RpgFakes,
+      "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "foldedDelta" | "foldedTools" | "resyncDelta" | "canonWindow"
+    >
+  > = {},
 ): RpgHarness {
   const fakes: RpgFakes = {
     membership: new Map(),
@@ -228,6 +249,8 @@ export function makeRpgService(
     dice: [...(over.dice ?? [])],
     extractionDelta: over.extractionDelta ?? { statePatch: {}, journal: [] },
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
+    foldedDelta: over.foldedDelta ?? { statePatch: {}, journal: [] },
+    foldedTools: over.foldedTools ?? [{ name: "update_scene", description: "the scene", parameters: { type: "object" } }],
     resyncDelta: over.resyncDelta ?? { statePatch: {}, journal: [] },
     canonWindow: over.canonWindow ?? [],
     ownedPresets: new Set(),
@@ -236,6 +259,9 @@ export function makeRpgService(
     narratorPosts: [],
     extractionCalls: [],
     toolRoundCalls: [],
+    foldCalls: [],
+    foldedToolBuilds: [],
+    stateRoundPaths: [],
     resyncCalls: [],
     canonWindowReads: [],
     busEvents: [],
@@ -266,6 +292,16 @@ export function makeRpgService(
   const runToolRound: RpgRunToolRound = (input) => {
     fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
     return Promise.resolve(fakes.toolRoundDelta);
+  };
+  // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that
+  // sees a `foldCall` and NO extraction/toolRound call has proven the second call is gone.
+  const buildFoldedTurn: RpgContext["buildFoldedTurn"] = ({ chatId, reconcile }) => {
+    fakes.foldedToolBuilds.push({ chatId, reconcile });
+    return Promise.resolve({ tools: fakes.foldedTools, reconcileNote: reconcile ? "RECONCILE" : null });
+  };
+  const foldTurnToolCalls: RpgContext["foldTurnToolCalls"] = (input) => {
+    fakes.foldCalls.push({ chatId: input.chatId, variantId: input.variantId, reconcile: input.reconcile, toolCalls: input.toolCalls });
+    return Promise.resolve(fakes.foldedDelta);
   };
 
   const ctx: RpgContext = {
@@ -300,6 +336,8 @@ export function makeRpgService(
     resolveTrackersReadOnly: () => Promise.resolve(fakes.trackersReadOnly),
     runExtraction,
     runToolRound,
+    buildFoldedTurn,
+    foldTurnToolCalls,
     resolveCanonWindow: (chatId, opts) => {
       fakes.canonWindowReads.push({ chatId, maxTokens: opts.maxTokens });
       return Promise.resolve(fakes.canonWindow);
@@ -316,6 +354,9 @@ export function makeRpgService(
     },
     onFlushDropped: (info) => {
       fakes.flushDrops.push({ chatId: info.chatId, gameId: info.gameId, variantId: info.variantId, reason: info.reason });
+    },
+    onStateRoundPath: (info) => {
+      fakes.stateRoundPaths.push({ chatId: info.chatId, mode: info.mode, path: info.path, fallbackReason: info.fallbackReason });
     },
     flushBarrier: createRpgFlushBarrier((info) => {
       fakes.barrierTimeouts.push({ chatId: info.chatId });
@@ -337,7 +378,12 @@ export interface SeededLiteGame {
 }
 export async function seedLiteGame(
   db: Db,
-  over: Partial<Pick<RpgFakes, "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "resyncDelta" | "canonWindow">> = {},
+  over: Partial<
+    Pick<
+      RpgFakes,
+      "roster" | "trackersReadOnly" | "dice" | "extractionDelta" | "toolRoundDelta" | "foldedDelta" | "foldedTools" | "resyncDelta" | "canonWindow"
+    >
+  > = {},
   key = "a",
 ): Promise<SeededLiteGame> {
   const chatId = await seedChat(db, key);

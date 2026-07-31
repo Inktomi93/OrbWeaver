@@ -1,9 +1,9 @@
 // tests/server/domain/rpg/chat-ops/gather — the game turn's GATHER (rpg-design/05 §4.6-4.7 + the owner ruling
 // 2026-07-27). Drives the real `gatherTurnContext` through the harness's `chatOps`: a non-game chat is
-// byte-identical null; a game contributes the depth-0 reminder injection. THE CHARACTER TURN IS ALWAYS
-// TOOL-LESS PROSE in every mode — state is captured by a DEDICATED STATE ROUND post-commit (cheap = a tool
-// round, reliable = an extraction), so the gather NEVER returns tools + the char-turn reminder omits the
-// update-guidance (the char turn is never asked to call a tool).
+// byte-identical null; a game contributes the depth-0 reminder injection. The gather NEVER returns REGISTRY
+// tools (`tools: []` in every mode — a registry tool would be executed and recursed on) and the reminder never
+// carries update-guidance. On `folded` (R1) it DOES contribute `terminalTools`: the same 7 state tools, mounted
+// on the character turn as a write surface whose calls are read back rather than executed.
 
 import type { RpgActorVolatile } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -273,4 +273,57 @@ test("the gather stages the `rpg` CEL tree so {{expr::rpg.…}} reads scene/cast
   expect(rpg.scene.location).toBe("Village of Dunmoor");
   expect(rpg.cast[0]?.relationship).toBe("enemy");
   expect(rpg.quests[0]?.status).toBe("active");
+});
+
+// ── R1: the FOLDED gather's terminal-tool mount ───────────────────────────────────────────────────
+// `terminalTools` is the ONLY thing the fold adds to the turn. `tools` stays `[]` on every path (the registry
+// is not the vehicle), and the reminder's CONTENT is untouched except on a reconcile beat — the fold adds a
+// WRITE surface, it never changes what the character reads.
+
+test("R1 folded: the gather mounts the terminal tools — registry `tools` stays empty", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+
+  expect(out?.tools).toEqual([]); // never the registry — a registry tool would execute + recurse
+  expect(out?.terminalTools?.map((t) => t.name)).toEqual(["update_scene"]); // the harness fake's set
+  // The tools are built against THIS turn's resolution-ladder head (the same base the flush will apply to).
+  expect(h.fakes.foldedToolBuilds).toEqual([{ chatId, reconcile: false }]);
+  // The reminder is unchanged — no tool-update guidance leaks into what the character narrates from.
+  expect(out?.injections[0]?.content).not.toContain("update_party");
+  expect(out?.injections[0]?.content).not.toContain("RECONCILE");
+});
+
+test("R1: reliable + cheap contribute NO terminal tools (byte-identical to before the fold)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db); // reliable by default
+  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  expect(h.fakes.foldedToolBuilds).toHaveLength(0); // the builder is never even consulted
+});
+
+test("R1 folded + readonly: NO terminal tools — a manual-steering game never mounts a write surface", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  expect(out?.terminalTools).toBeUndefined();
+  expect(h.fakes.foldedToolBuilds).toHaveLength(0);
+});
+
+test("R1 folded: a RECONCILE beat appends the write-surface note to the reminder", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
+  // One prior beat ⇒ this beat's ordinal is 2 ⇒ 2 % 2 === 0 ⇒ RECONCILE.
+  await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
+  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+
+  expect(h.fakes.foldedToolBuilds).toEqual([{ chatId, reconcile: true }]);
+  // The note rides the SAME depth-0 injection (one injection, not a second one) — the harness fake returns
+  // the literal "RECONCILE" as its note.
+  expect(out?.injections).toHaveLength(1);
+  expect(out?.injections[0]?.content).toContain("RECONCILE");
 });

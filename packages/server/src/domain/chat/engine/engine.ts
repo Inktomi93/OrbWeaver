@@ -1086,6 +1086,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       signal: prep.signal,
       tools: ctx.tools,
       attachedToolNames: prep.attachedToolNames ?? [],
+      // R1 — the FOLDED state extraction: the gather's terminal tools ride the persisting turn ONLY (a
+      // non-persisting draft has no committed slot to fold onto). Attached `auto`, never executed, never
+      // recursed on; the calls come back on `result.terminalToolCalls` and go straight to the rpg flush.
+      terminalTools: prep.terminalTools,
       // The M2 card wire knob (parity-plus §3.5) — a game turn's gather threads it; absent = every card stubs
       // (the pipeline owns the 0 default).
       cardKeepLastX: prep.cardKeepLastX,
@@ -1202,7 +1206,15 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // §1.3 — thread the turn's OWN canon transcript (the story the state round reasons from) alongside the
     // resolved route + consent verdict. Projected from the canon already in scope (`canonAll` + this reply):
     // zero extra reads. The rpg consumer slices it to its configured window.
-    fireRpgTurnCompleted(ctx, view, turnId, { connection, ownerConsented, transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames) });
+    // R1 — `terminalToolCalls` is the FOLD's channel: `null` = the folded tools never rode this turn (so the
+    // consumer runs its own post-commit round), `[]` = they rode and the model recorded nothing (a quiet beat).
+    // They are handed ONLY here — never persisted on the variant, never streamed, never member-visible.
+    fireRpgTurnCompleted(ctx, view, turnId, {
+      connection,
+      ownerConsented,
+      transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
+      terminalToolCalls: result.terminalToolCalls,
+    });
 
     return committedOutcome([view]);
   } catch (err) {

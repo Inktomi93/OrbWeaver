@@ -19,10 +19,12 @@ import type {
   EmitRpgEvent,
   RpgActorRef,
   RpgConfigView,
+  RpgExtractionMode,
   RpgGameView,
   RpgJournalEntryView,
   RpgRevealView,
   RpgSnapshotState,
+  RpgToolCall,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgHudWidgets, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
@@ -41,6 +43,7 @@ import type {
   RpgWidgetId,
   UserId,
 } from "@orb/kit/ids";
+import type { WireTool } from "#infra/providers";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat";
 import type {
   AddJournalEntryParams,
@@ -246,6 +249,33 @@ export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDe
  *  (readonly/manual-steering; §4.6). */
 export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
 
+/** R1 (the FOLDED delivery mode) — build the TERMINAL wire tools the CHARACTER turn mounts, so the model
+ *  co-emits its prose AND the turn's state in ONE completion. The product is the SAME
+ *  `buildToolRoundWireTools` set the dedicated cheap round sends (identical per-call ref/condition/cast-field
+ *  enum constraints — the fold changes the DELIVERY, never the schema), plus the reconcile-beat note when this
+ *  beat is the `reconcileEveryBeats`-th (the round would have put that line in its own system prompt; the
+ *  folded turn has no second prompt, so the gather appends it to the reminder). `null` tools ⇒ do not mount
+ *  (the game is not folded / the refs could not resolve) — the gather then contributes a byte-identical
+ *  tool-less turn. Wired at compose (it needs the connection-free ref resolve + the projected schema); a fake
+ *  returns a fixed set in tests.
+ *  Non-exported: reachable only through `RpgContext.buildFoldedTurn`'s signature — no consumer names it (knip). */
+type RpgBuildFoldedTurn = (input: {
+  readonly chatId: ChatId;
+  /** The resolution-ladder head the fold will apply against — the SAME row `stageStateRound` resolves as its
+   *  base at flush time (nothing writes in between), so the enums the model is constrained to are exactly the
+   *  refs the apply path can resolve. */
+  readonly baseState: RpgSnapshotState;
+  readonly reconcile: boolean;
+}) => Promise<{ readonly tools: readonly WireTool[]; readonly reconcileNote: string | null }>;
+
+/** R1 — fold the character turn's co-emitted TERMINAL tool calls into the SAME `RpgStateDelta` the dedicated
+ *  rounds produce, with NO model call of its own (the calls were already paid for by the narrative turn). The
+ *  input mirrors the state rounds' exactly (so the flush can treat it as one more round) plus the calls. It is
+ *  ERRORS-AS-DATA and TOTAL: a malformed arg / a ghost actor is DROPPED and LOGGED, zero calls is a legitimate
+ *  quiet beat (logged distinctly, never an error), and NOTHING here can fail or delay the committed narrative.
+ *  Non-exported: reachable only through `RpgContext.foldTurnToolCalls`'s signature — no consumer names it (knip). */
+type RpgFoldTurnToolCalls = (input: RpgStateRoundInput & { readonly toolCalls: readonly RpgToolCall[] }) => Promise<RpgStateDelta>;
+
 /** The `resyncFromStory` model call (crunchy-cluster §1.3 — the host escape hatch). Rebuilds the tracked state
  *  from a DEEP story window with establish-EVERYTHING forcing (the reconcile arm, applied unconditionally). The
  *  verb resolves the host authority + reads the window (via the injected `resolveCanonWindow`) then hands the
@@ -335,6 +365,11 @@ export interface RpgContext {
   readonly resolveTrackersReadOnly: RpgResolveTrackersReadOnly;
   readonly runExtraction: RpgRunExtraction;
   readonly runToolRound: RpgRunToolRound;
+  /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
+   *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO
+   *  model calls of their own. */
+  readonly buildFoldedTurn: RpgBuildFoldedTurn;
+  readonly foldTurnToolCalls: RpgFoldTurnToolCalls;
   /** The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
    *  chat op (rpg reads no chat table). Wired at compose to a chat-owned builder that shares the engine's
    *  transcript projection. A fake returns a fixed transcript in tests. */
@@ -364,6 +399,26 @@ export interface RpgContext {
    *  visibility violation this program kills). Wired at compose to the `rpg.flush.dropped` warn log; a fake
    *  recorder asserts it fired in tests. Fire-and-forget (`void`) — a logging failure never breaks a turn. */
   readonly onFlushDropped: (info: FlushDropInfo) => void;
+  /** OBSERVABILITY: which STATE-ROUND PATH this flush resolved to (R1). The delivery model is now a fork, and
+   *  a fork that resolves silently is a fork nobody can debug: a `folded` game that quietly fell back to the
+   *  post-commit round still writes correct state, but it also silently pays the second call the fold exists to
+   *  remove. So the resolution is named on every flush, with the reason when it is not what the knob asked for.
+   *  Wired at compose to a log line; a fake recorder asserts it in tests. Fire-and-forget (`void`). */
+  readonly onStateRoundPath: (info: StateRoundPathInfo) => void;
+}
+
+/** The resolved state-round PATH for one flush (R1 observability). `path` is what actually ran; `mode` is what
+ *  the host's knob asked for. They differ exactly when a `folded` game could not fold — `fallbackReason` names
+ *  why (the turn's connection could not carry wire tools, so the engine handed back no terminal channel).
+ *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
+interface StateRoundPathInfo {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly mode: RpgExtractionMode;
+  /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round`/`structured` = a
+   *  dedicated post-commit model call. */
+  readonly path: "folded" | "tool-round" | "structured";
+  readonly fallbackReason: "no-terminal-channel" | null;
 }
 
 /** The write-boundary drop signal (the F1 backstop refused a contract-invalid state at flush). Carries the id

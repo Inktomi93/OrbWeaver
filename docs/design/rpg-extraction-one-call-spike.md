@@ -556,6 +556,19 @@ and let `config.features` hold per-game hints for host-defined types (so they gl
 
 ## 5. Recommendations (prioritized)
 
+> **✅ R1 SHIPPED (2026-07-31).** Landed as a THIRD `extractionMode` member, `folded` (not a capability-derived
+> refinement of `cheap` — the honest-arms discipline wants the host's deliberate lever, and R3 scopes the fold
+> to hosted strong models, which no capability flag distinguishes from the local 8B). `cheap`/`reliable` are
+> byte-unchanged. Seams: the gather mounts the round's OWN `buildToolRoundWireTools` product as TERMINAL tools
+> (a new chat-side `terminalTools` channel — attached `tool_choice:"auto"`, never resolved/executed/recursed on,
+> never persisted as `ToolCallRecord`s); the completion's calls ride `RpgTurnContext.terminalToolCalls` into the
+> flush, which folds them through the SAME `toolCallsToExtraction` → `extractionToStateDelta` path. `null` on
+> that channel = the connection could not carry wire tools (the stateful agent-sdk arm) ⇒ fall back to `cheap`'s
+> post-commit round, LOGGED (`rpg.extraction.path`). Degrade is total: malformed args drop + log
+> (`rpg.extraction.unparseable` with the tool names), ghosts drop (`rpg.extraction.phantom`), zero calls is a
+> quiet beat with its own line (`rpg.extraction.folded.quiet`). Freshness corrected in the same pass: `cheap`
+> claimed "Live" from D108's dead inline-tools shape — only `folded` is live at commit.
+
 **R1 — Adopt `1call-tools` for hosted strong models.** Narrative turn runs with the 7 tools attached,
 `tool_choice:"auto"`, GM persona prompt; keep `content` as narrative + `tool_calls` as state; **drop the
 separate post-commit state round** on this path. No reasoning.

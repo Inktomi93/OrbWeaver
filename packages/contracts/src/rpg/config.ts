@@ -98,11 +98,20 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
   return features.deception || features.omniscience;
 }
 
-/** The delivery-model knob (the 2026-07-26 amendment). `reliable` = a dedicated structured-output extraction
- *  turn proves state landed; `cheap` = the state tools ride the character turn, best-effort. An ADDITIVE
- *  config field, default `"reliable"` — a pre-amendment blob self-heals to the default at the parse seam
- *  (the schema `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
-export const RPG_EXTRACTION_MODES = ["reliable", "cheap"] as const;
+/** The delivery-model knob (the 2026-07-26 amendment / D108, as amended by D109 + the R1 fold). It picks the
+ *  state round's VEHICLE, never its existence:
+ *    • `reliable` (default) = a DEDICATED post-commit structured-output extraction turn (`responseFormat` =
+ *      the projected extraction schema). Two model calls per exchange; the accuracy arm (the local 8B floor).
+ *    • `cheap` = a DEDICATED post-commit TOOL round (the 7 state tools, `tool_choice:"required"`). Two model
+ *      calls per exchange, cheaper than reliable's schema.
+ *    • `folded` = the SAME 7 tools mounted on the CHARACTER turn itself with `tool_choice:"auto"`, whose
+ *      co-emitted `tool_calls` ARE the state round — ONE model call per exchange (measured ~43% cheaper /
+ *      ~34% faster on a hosted strong model). The narrative is never at risk: the fold reads a channel the
+ *      prose does not ride, and a connection that cannot carry wire `tools[]` on a chat turn (the stateful
+ *      agent-sdk wire) falls back to `cheap`'s post-commit round — the SAME delta, one extra call, LOGGED.
+ *  An ADDITIVE config field, default `"reliable"` — a pre-amendment blob self-heals to the default at the parse
+ *  seam (the schema `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
+export const RPG_EXTRACTION_MODES = ["reliable", "cheap", "folded"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
 
 /** The extraction-CONTEXT knob (the crunchy-cluster redesign §1.3) — how much of the turn's OWN story the

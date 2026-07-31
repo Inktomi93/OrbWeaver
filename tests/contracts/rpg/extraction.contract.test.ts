@@ -8,6 +8,7 @@ import {
   composePlaneTeaching,
   constrainExtractionSchema,
   EXTRACTION_PLANE_PROMPTS,
+  malformedToolCalls,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_ROUND_TOOL_NAMES,
   rpgExtractionSchema,
@@ -342,4 +343,35 @@ test("§1.6 #7 (recommendation A): a deception-active game prefixes the surface-
   expect(clause).toContain("Do NOT write a character's secret truth");
   // A non-deception game is byte-free of the clause (the clause is deception-gated).
   expect(composePlaneTeaching({ config: baseConfig(), refs: NO_REFS })).not.toContain("SURFACE reality");
+});
+
+// ── malformedToolCalls (R1 — the DROP predicate the fold's observability reads) ─────────────────────────
+// It must mirror `toolCallsToExtraction`'s silent drops EXACTLY: same input, and whatever the fold threw away
+// is what this names. A drift between the two would make a folded turn's log lie about what it lost.
+
+test("R1: names the calls the fold DROPS — non-JSON args and schema-invalid args alike", () => {
+  const calls = [
+    { name: "update_party", arguments: "{not json" },
+    { name: "update_scene", arguments: JSON.stringify({ presentUpsert: "should be an array" }) },
+    { name: "update_party", arguments: JSON.stringify({ targetRef: "player", hpDelta: -3 }) },
+  ];
+  expect([...malformedToolCalls(calls)]).toEqual(["update_party", "update_scene"]);
+  // …and the fold kept exactly the one good call (the two predicates agree by construction).
+  const ex = toolCallsToExtraction(calls);
+  expect(ex.party).toHaveLength(1);
+  expect(ex.scene).toBeUndefined();
+});
+
+test("R1: `no_changes` and unknown tool names are NOT malformed — they are legitimate no-ops", () => {
+  expect(malformedToolCalls([{ name: RPG_NO_CHANGES_TOOL, arguments: "{}" }])).toEqual([]);
+  expect(malformedToolCalls([{ name: "some_other_tool", arguments: "not json at all" }])).toEqual([]);
+});
+
+test("R1: an all-good round reports nothing dropped (a quiet log on the happy path)", () => {
+  expect(
+    malformedToolCalls([
+      { name: "update_scene", arguments: JSON.stringify({ location: "the ford" }) },
+      { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", title: "t", content: "c" }) },
+    ]),
+  ).toEqual([]);
 });

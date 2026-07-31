@@ -1,12 +1,12 @@
 // The GM console's SCALAR autosave form (extracted from rpg-game-tab.tsx for the component-size cap):
 // Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Hidden
-// channels → Steering note → Delivery model (the mock's SEGMENTED reliable|cheap toggle with its honest
+// channels → Steering note → Delivery model (the mock's SEGMENTED mode toggle with its honest
 // consequence line — never a resting dropdown, DESIGN §12.4.1). Everything autosaves (D66 A4). The
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
 import type { RpgConfigView, RpgDateMode, RpgExtractionMode } from "@orb/contracts/rpg";
-import { RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
+import { RPG_EXTRACTION_MODES, RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -23,9 +23,19 @@ import { Kicker } from "./rpg-kicker";
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
  *  band cue renders), keyed over the closed mode axis. */
 const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
-  reliable: "state extracts after the turn — trackers lag one beat",
-  cheap: "state rides the turn — trackers update live, best-effort",
+  reliable: "a second pass extracts state after the turn — two model calls, most accurate",
+  cheap: "a second pass records state with tools after the turn — two model calls, cheaper",
+  folded: "the reply records its own state — ONE model call, fastest and cheapest",
 };
+
+/** The mode axis, rendered in order — derived from the closed tuple so a new delivery mode cannot be silently
+ *  missing from the picker (a hardcoded pair once was, and the host had no way to reach the new arm). */
+const EXTRACTION_MODE_OPTIONS: readonly RpgExtractionMode[] = RPG_EXTRACTION_MODES;
+
+/** The segmented toggle hands back raw strings; narrow to the closed axis before writing the field. */
+function asExtractionMode(value: string | undefined): RpgExtractionMode | null {
+  return EXTRACTION_MODE_OPTIONS.find((mode) => mode === value) ?? null;
+}
 
 /** The CYOA choice-click consequence per behavior (the P5 knob the Scene echo + transcript obey). */
 const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBehavior"], string>> = {
@@ -159,8 +169,8 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
 
           <Stack gap="field">
             <Kicker>Delivery model</Kicker>
-            {/* The mock's SEGMENTED reliable|cheap toggle + its honest consequence line — never a
-                resting dropdown (§12.4.1). */}
+            {/* The mock's SEGMENTED toggle over the whole mode axis + its honest consequence line — never
+                a resting dropdown (§12.4.1). */}
             <form.AppField name="extractionMode">
               {(field): ReactElement => (
                 <Row gap="block" align="center">
@@ -168,14 +178,17 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                     aria-label="Delivery model"
                     value={[field.state.value]}
                     onValueChange={(next): void => {
-                      const picked = next[0];
-                      if (picked === "reliable" || picked === "cheap") {
+                      const picked = asExtractionMode(next[0]);
+                      if (picked !== null) {
                         field.handleChange(picked);
                       }
                     }}
                   >
-                    <Toggle value="reliable">reliable</Toggle>
-                    <Toggle value="cheap">cheap</Toggle>
+                    {EXTRACTION_MODE_OPTIONS.map((mode) => (
+                      <Toggle key={mode} value={mode}>
+                        {mode}
+                      </Toggle>
+                    ))}
                   </ToggleGroup>
                   <Text size="micro" tone="muted" className="min-w-0 flex-1">
                     {EXTRACTION_CONSEQUENCE[field.state.value]}

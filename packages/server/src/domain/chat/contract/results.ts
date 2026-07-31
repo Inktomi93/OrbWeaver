@@ -242,6 +242,12 @@ export interface TurnPrep {
   /** The union of gather-contributed tool names. Absent/empty means no tools ride, and the loop degenerates
    *  to one runChatTurn call. */
   readonly attachedToolNames?: readonly string[] | undefined;
+  /** The TERMINAL wire tools a game turn's gather contributed (R1 — the folded state extraction): mounted on
+   *  the wire with `tool_choice:"auto"`, never resolved/executed/recursed on, their co-emitted calls handed
+   *  back to the contributor. Threaded ONLY by the PERSISTING lifecycle (`executeTurn`) — a non-persisting
+   *  draft (`generateText`, the impersonate composer fill) has no committed slot to fold onto, so it must
+   *  never spend the model's attention on state tools. Absent ⇒ byte-identical to today. */
+  readonly terminalTools?: readonly WireTool[] | undefined;
   /** The M2 card wire knob a game turn's gather contributed (parity-plus §3.5) — threaded to
    *  `runTurnPipeline.cardKeepLastX`. Absent/0 ⇒ every history card collapses to its stub (the default). */
   readonly cardKeepLastX?: number | undefined;
