@@ -30,6 +30,7 @@ import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
 import { useChatBackground } from "../hooks/use-chat-background";
 import { useSelectedTheme } from "../hooks/use-selected-theme";
 import { useShellLayout } from "../hooks/use-shell-layout";
+import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background";
 import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens";
 import "./shell.css";
@@ -96,6 +97,8 @@ export function AppShell(): ReactElement {
   // BG-C: the active chat's carried background (per-chat > card-carried) wins over the viewer's own appearance
   // ONLY in a true-solo room; `undefined` (any other composition, landing, an unresolved read) ⇒ the viewer's
   // appearance source. fit/dim/blur always stay the viewer's own treatment (source-only carry).
+  // A file dropped anywhere but a dropzone would navigate the tab to that file and take the session with it.
+  useStrayFileDropGuard();
   const chatBg = useChatBackground();
   const effectiveBg = chatBg ?? appearanceBackgroundSource(appearance);
   const bgUrl = resolveThemeBackgroundUrl(effectiveBg);

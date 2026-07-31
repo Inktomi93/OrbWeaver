@@ -323,12 +323,32 @@ const CHAT_APIS_BY_SOURCE_PAIRS: readonly (readonly [CredentialSource, readonly 
  *  known `CredentialSource`), so the lookup can genuinely miss. */
 const CHAT_APIS_BY_SOURCE: Partial<Record<CredentialSource, readonly ChatApi[]>> = Object.fromEntries(CHAT_APIS_BY_SOURCE_PAIRS);
 
-/** The legal chat `api` protocols for a given source (mirrors the server's `assertCoherent`). */
+/**
+ * The legal chat `api` protocols for a given source (mirrors the server's `assertCoherent`).
+ *
+ * An UNSET source has NO legal pinned protocol: the resolver falls back to `api` and `source`
+ * INDEPENDENTLY (resolve-role.ts `ROLE_SELECTORS.chat`), so a pinned `api` over an unpinned source is
+ * paired with whatever default the server picks — for the owner that default is `max-pro-sub`, which
+ * `assertCoherent` rejects for every api but `agent-sdk`. Offering protocols here would let the pane
+ * persist a pair that cannot take a turn; the only honest option over an unset source is Auto.
+ */
 export function chatApisForSource(source: string): readonly ChatApi[] {
   if (source === "") {
-    return CHAT_APIS_ORDERED;
+    return [];
   }
   return CHAT_APIS_BY_SOURCE[source as CredentialSource] ?? CHAT_APIS_ORDERED;
+}
+
+/**
+ * The chat `api` that survives a switch to `source` — the current protocol when it stays legal, else `""`
+ * (Auto, i.e. the resolver picks). The picker MUST apply this in the same patch as the source change: the
+ * two fields are ONE selection server-side, where `assertCoherent` (resolve-role.ts) THROWS on an
+ * incoherent pair at turn time. Leaving the stale `api` behind persisted an agent-sdk protocol against a
+ * vLLM source — a pane that looked fine and a chat that could not take a turn.
+ */
+export function chatApiForSourceChange(api: string, nextSource: string): string {
+  const legal: readonly string[] = chatApisForSource(nextSource);
+  return legal.includes(api) ? api : "";
 }
 
 /** Bucket the credential list by provider, in `PROVIDERS_ORDERED` order (unlisted providers appended last). Only non-empty buckets are returned. */

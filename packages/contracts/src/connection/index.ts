@@ -287,6 +287,26 @@ export interface ResolvedConnection {
   readonly capability: ModelCapability;
 }
 
+/** What `connection.resolveChatCapability` returns: the caller's OWN chat-role descriptor PLUS the
+ *  `(api, source, model)` it was resolved FOR — i.e. exactly what a turn would run as right now.
+ *
+ *  The identity is carried because `ModelCapability` is keyed by `(model, backend)` but names NEITHER: a
+ *  surface that has to say WHICH connection is in play (the Connections pane's never-saved row, which
+ *  otherwise says only "Uses the app default" and names nothing) could not derive it from the descriptor.
+ *  Member-safe: the resolution is the CALLER'S OWN (the verb takes no user id) and the credential is NOT
+ *  carried — this is {@link ResolvedConnection} minus the secret. Not a zod schema for the same reason
+ *  `ResolvedConnection` isn't: `model` is the branded {@link ModelId}. */
+export interface ResolvedChatCapability {
+  /** The protocol axis the turn would be addressed by. */
+  readonly api: ChatApi;
+  /** The provider-source the turn would run on (the axis `ResolvedConnection` carries via `credential`). */
+  readonly source: CredentialSource;
+  /** The healed model id the turn would send. */
+  readonly model: ModelId;
+  /** The descriptor for this `(model, backend)`. */
+  readonly capability: ModelCapability;
+}
+
 /** The inference roles `connection.resolveRole` resolves a connection for. `resolveRole`'s dispatch is
  *  a mapped Record so a new role missing its resolver is a tsc error. */
 export const ROUTING_ROLE_KEYS = ["chat", "embed", "rerank", "imageEmbed", "summarize", "generateImage"] as const;

@@ -2,7 +2,14 @@
 // ConnectionService (selection, not execution). Every cross-feature/infra dep arrives as an injected op,
 // wired at the composition root; connection sideways-imports no sibling runtime.
 
-import type { AgentSdkModel, ChatSendAvailability, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
+import type {
+  AgentSdkModel,
+  ChatSendAvailability,
+  CredentialSource,
+  ModelCatalogEntry,
+  ResolvedChatCapability,
+  ResolvedConnection,
+} from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -116,11 +123,12 @@ export type ConnectionServiceDeps = ConnectionContext;
 export interface ConnectionService {
   readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;
   readonly resolveChat: (params: ResolveChatParams) => Promise<ResolvedConnection>;
-  /** The caller's OWN chat-role `ModelCapability`, resolved END-TO-END in one hop (selection → descriptor) —
-   *  the client params-panel + rpg lite gate read this directly (a vLLM-default chat resolves the same as the
-   *  engine). Collapses the former selection→descriptor round-trip (it superseded the standalone
-   *  `getModelCapability` verb, deleted 2026-07-31 — AU-5). */
-  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ModelCapability>;
+  /** The caller's OWN resolved chat connection — the `(api, source, model)` a turn would run as PLUS its
+   *  `ModelCapability` — resolved END-TO-END in one hop. The client params-panel + rpg lite gate read the
+   *  descriptor; the Connections pane reads the identity to NAME the fallback a never-saved row resolves to
+   *  (a vLLM-default chat resolves the same here as at the engine). Collapses the former selection→descriptor
+   *  round-trip (it superseded the standalone `getModelCapability` verb, deleted 2026-07-31 — AU-5). */
+  readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedChatCapability>;
   /** The deterministic pre-send serveability verdict for a chat's OWN resolved connection (#54) — "would
    *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn/API call?" Mirrors the turn's
    *  selection + coherence + credential-presence + engine-presence and NEVER pre-flights a hosted api. */

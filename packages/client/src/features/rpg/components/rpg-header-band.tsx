@@ -25,7 +25,14 @@ export interface RpgHeaderBandProps {
  *  indicator over the SAME `rpg.revealHidden` read the Status Veiled ledger tails (one cache entry, two
  *  lenses), and the DOORWAY to Status → Veiled (`revealContextPanel`). Renders NOTHING at zero standing
  *  lies (the honest empty plane) — and never mounts for a member (the caller gates on `isHost`;
- *  PERMISSION-omit, so member DOM carries zero veiled traces). */
+ *  PERMISSION-omit, so member DOM carries zero veiled traces).
+ *
+ *  DELIBERATELY UNGATED (no `enabled`): the cue is a STANDING indicator, so it must be current the moment the
+ *  panel is looked at — and a collapsed panel stays mounted (inert/off-screen), so an `enabled: panelOpen`
+ *  gate would only trade a correct count for a fetch-on-open flash. The cost is bounded instead at the
+ *  invalidation seam: the read is a derivation over the stored assistant bodies, so it refetches on a BODY
+ *  WRITE only (`data/invalidation.ts` — `messageCommitted` + the edit/swipe family, never the `turnCompleted`
+ *  that trails the same commit), and it shares ONE cache entry with the Status → Veiled ledger. */
 function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const revealQuery = useQuery(trpc.rpg.revealHidden.queryOptions({ chatId }));

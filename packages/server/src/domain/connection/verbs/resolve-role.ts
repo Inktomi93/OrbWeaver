@@ -2,7 +2,7 @@
 // optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
 // `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
 
-import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCatalogEntry, ResolvedConnection } from "@orb/contracts/connection";
+import type { AgentSdkModel, ChatApi, CredentialSource, ModelCatalogEntry, ResolvedChatCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -289,11 +289,19 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
  *  to the engine) + the `resolveCapability` substrate mediator (no duplication). Credential-free: the chat
  *  role reads the static descriptor as authoritative. */
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
-  return async (params: ResolveChatCapabilityParams): Promise<ModelCapability> => {
+  return async (params: ResolveChatCapabilityParams): Promise<ResolvedChatCapability> => {
     // Role is FIXED to "chat" here and the principal is the ONLY input — there is no caller-supplied user id
     // or role, so this can never resolve another tenant's connection (Injected-op caller gate).
     const { selection, model } = await resolveRoleSelection(ctx, { role: "chat", principal: params.principal });
-    return resolveCapability(model, selection.source, selection.api, capabilityCaches(ctx));
+    // The SELECTION rides along with the descriptor: `ModelCapability` names neither the model nor the source,
+    // so a surface that must say WHICH connection a turn would use (the Connections pane's never-saved row)
+    // has no other honest source for it. The credential is deliberately NOT carried.
+    return {
+      api: selection.api,
+      source: selection.source,
+      model,
+      capability: resolveCapability(model, selection.source, selection.api, capabilityCaches(ctx)),
+    };
   };
 }
 
