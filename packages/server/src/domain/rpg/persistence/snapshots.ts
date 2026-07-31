@@ -2,8 +2,10 @@
 // the swipe-safety CONTRACT lives here as pointer walks over the D26 variant model:
 //   • parse-on-read — every JSON column re-validated through its `@orb/contracts/rpg` schema; a corrupt row
 //     is a typed `RpgStateCorruptError`, never a silent default (the constitution's no-swallow rule).
-//   • resolveSnapshotForTurn — the 4-rung resolution ladder (regen-sibling → visible-selected → committed →
-//     any); the `selectedVariantId` pointer already encodes "visible", so the ladder is variant-pointer walks.
+//   • resolveSnapshotForTurn — the HEAD ladder (visible-selected → committed → any); the `selectedVariantId`
+//     pointer already encodes "visible", so the ladder is variant-pointer walks.
+//   • resolveSnapshotBeforeSlot — the turn's WRITE BASE: the state as of the slot BEFORE the flushing turn,
+//     so a reroll's new variant never inherits its own slot's rejected variant (VER-1a).
 //   • writeStagedSnapshot / writeRestoredSnapshot — clone-forward: a new variant's snapshot inherits ALL
 //     fields from its resolution base (staged born committed=0; restore born committed=1). `fieldLocks`
 //     carry forward from the base unchanged (tools never author locks — only `editSnapshot` does, W1b).
@@ -31,7 +33,7 @@ import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } fr
 import { and, count, desc, eq, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors";
-import type { ForwardSnapshotTarget, ResolveSnapshotOpts, SnapshotGameRef } from "../contract/params";
+import type { ForwardSnapshotTarget, SnapshotGameRef } from "../contract/params";
 import type { NewRpgSnapshot, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 
@@ -105,51 +107,27 @@ export async function findSnapshotById(db: Db, id: RpgSnapshotId): Promise<RpgSn
   return rows[0] ? parseSnapshotRow(rows[0]) : undefined;
 }
 
-/** The last VISIBLE assistant message's selected-variant snapshot (rung 2), excluding a regen message. */
-async function lastVisibleAssistantSnapshot(db: Db, chatId: ChatId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
-  const conds = [eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)];
-  if (excludeMessageId !== undefined) {
-    conds.push(ne(messages.id, excludeMessageId));
-  }
+/** The last VISIBLE assistant message's selected-variant snapshot (the head's rung 1). */
+async function lastVisibleAssistantSnapshot(db: Db, chatId: ChatId): Promise<RpgSnapshotRow | undefined> {
   const rows = await db
     .select({ selectedVariantId: messages.selectedVariantId })
     .from(messages)
-    .where(and(...conds))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)))
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
   const sel = rows[0]?.selectedVariantId ?? undefined;
   return sel ? findSnapshotByVariant(db, sel) : undefined;
 }
 
-/** Rung 1 — a regen/swipe target's CURRENTLY-selected sibling snapshot (≠ the new variant). Returns
- *  `undefined` when the target has no selected sibling or the sibling IS the excluded new variant. */
-async function regenSiblingSnapshot(db: Db, regenMessageId: MessageId, excludeVariantId?: MessageVariantId): Promise<RpgSnapshotRow | undefined> {
-  const rows = await db.select({ selectedVariantId: messages.selectedVariantId }).from(messages).where(eq(messages.id, regenMessageId)).limit(LIMIT_ONE);
-  const sel = rows[0]?.selectedVariantId ?? undefined;
-  return sel && sel !== excludeVariantId ? findSnapshotByVariant(db, sel) : undefined;
-}
-
-/** The resolution base for a turn (rpg-design/05 §2.4). Walks the ladder: (1) regen/swipe → the message's
- *  currently-selected sibling (≠ the new variant); (2) the last visible assistant selected variant; (3)
- *  latest committed by `createdAt`; (4) latest any. Returns `undefined` for a game with no snapshot rows yet
- *  (D108 no-born-seed: createGame stores NO snapshot; a turnless game has zero rows). The caller synthesizes
- *  the born-default from config on `undefined` (`extractionBase`/`getTrackerView` → `defaultSnapshotState`) —
- *  so rung 4's undefined is the LIVE born-default path, not a dead branch. */
-export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef, opts: ResolveSnapshotOpts = {}): Promise<RpgSnapshotRow | undefined> {
-  if (opts.regenMessageId !== undefined) {
-    const sibling = await regenSiblingSnapshot(db, opts.regenMessageId, opts.excludeVariantId);
-    if (sibling) {
-      return sibling;
-    }
-  }
-  const visible = await lastVisibleAssistantSnapshot(db, game.chatId, opts.regenMessageId);
-  if (visible) {
-    return visible;
-  }
+/** The GAME-WIDE fallback rungs: latest COMMITTED by `createdAt`, else latest ANY. `excludeMessageId` drops
+ *  every snapshot keyed to that assistant SLOT — the flushing turn's own slot, whose sibling variants are
+ *  precisely the ones a new variant must not inherit (VER-1a). */
+async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
+  const scope = [eq(rpgSnapshots.gameId, gameId), ...(excludeMessageId !== undefined ? [ne(rpgSnapshots.messageId, excludeMessageId)] : [])];
   const committed = await db
     .select()
     .from(rpgSnapshots)
-    .where(and(eq(rpgSnapshots.gameId, game.id), eq(rpgSnapshots.committed, COMMITTED)))
+    .where(and(...scope, eq(rpgSnapshots.committed, COMMITTED)))
     .orderBy(desc(rpgSnapshots.createdAt), desc(rpgSnapshots.id))
     .limit(LIMIT_ONE);
   if (committed[0]) {
@@ -158,10 +136,51 @@ export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef, opts
   const any = await db
     .select()
     .from(rpgSnapshots)
-    .where(eq(rpgSnapshots.gameId, game.id))
+    .where(and(...scope))
     .orderBy(desc(rpgSnapshots.createdAt), desc(rpgSnapshots.id))
     .limit(LIMIT_ONE);
   return any[0] ? parseSnapshotRow(any[0]) : undefined;
+}
+
+/** The resolution HEAD — the state the panel/reminder/hand-edit read (rpg-design/05 §2.4). Walks the ladder:
+ *  (1) the last visible assistant slot's SELECTED variant (the swipe pointer — a swipe re-resolves the head
+ *  with zero writes); (2) latest committed by `createdAt`; (3) latest any. Returns `undefined` for a game with
+ *  no snapshot rows yet (D108 no-born-seed: createGame stores NO snapshot; a turnless game has zero rows). The
+ *  caller synthesizes the born-default from config on `undefined` (`getTrackerView` → `defaultSnapshotState`)
+ *  — so the last rung's undefined is the LIVE born-default path, not a dead branch.
+ *
+ *  This is the HEAD, never a turn's write BASE: a turn that is about to produce a NEW variant on a slot must
+ *  resolve {@link resolveSnapshotBeforeSlot} instead, or it re-applies its own slot's abandoned variant. */
+export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef): Promise<RpgSnapshotRow | undefined> {
+  const visible = await lastVisibleAssistantSnapshot(db, game.chatId);
+  if (visible) {
+    return visible;
+  }
+  return latestSnapshot(db, game.id);
+}
+
+/** The EXTRACTION BASE for a turn writing onto `messageId` — the state as of the slot BEFORE this turn
+ *  (VER-1a). A reroll mints a NEW variant on an EXISTING slot, and the rejected variant's snapshot already
+ *  carries that slot's extraction applied over this same base; resolving the head would hand the new
+ *  variant its sibling's consequences as base, so the fresh extraction would apply ON TOP (the live-confirmed
+ *  duplicate-beat class: three near-identical "Niko was touched" journal beats from rerolling one turn).
+ *  Excluding the slot makes a variant's snapshot ABSOLUTE per variant — the pre-slot base plus THIS variant's
+ *  delta, nothing else. A swipe then surfaces exactly the selected variant's consequences, and a first-generation turn
+ *  (a fresh slot with no snapshots) resolves byte-identically to the head.
+ *
+ *  Rung 1 is the seq-bounded lineage walk (the last visible assistant SELECTED variant strictly before this
+ *  slot — the same walk `onUserCommit` uses), so rerolling a MID-chat message bases on its predecessor, never
+ *  on a downstream beat. The game-wide fallbacks (committed → any) still exclude this slot's own rows. */
+export async function resolveSnapshotBeforeSlot(db: Db, game: SnapshotGameRef, messageId: MessageId): Promise<RpgSnapshotRow | undefined> {
+  const seq = await findMessageSeq(db, messageId);
+  if (seq !== undefined) {
+    const prevVariant = await findLastAssistantSelectedVariant(db, game.chatId, seq);
+    const prev = prevVariant !== undefined ? await findSnapshotByVariant(db, prevVariant) : undefined;
+    if (prev) {
+      return prev;
+    }
+  }
+  return latestSnapshot(db, game.id, messageId);
 }
 
 /** The turn's prev→current snapshot PAIR on the selected lineage (parity-plus §2.7 — the delta block's input).

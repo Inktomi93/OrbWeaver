@@ -29,14 +29,6 @@ export interface SnapshotGameRef {
   readonly chatId: ChatId;
 }
 
-/** The 4-rung ladder inputs (rpg-design/05 §2.4). `regenMessageId` = a regen/swipe target: rung 1 resolves
- *  that message's CURRENTLY-selected sibling (≠ the new variant, so `excludeVariantId`). Absent ⇒ a fresh
- *  turn, which starts at rung 2 (the last visible assistant slot). */
-export interface ResolveSnapshotOpts {
-  readonly regenMessageId?: MessageId;
-  readonly excludeVariantId?: MessageVariantId;
-}
-
 /** The forward-write target — the committed variant a staged/restored snapshot is keyed to (rpg-design/05
  *  §2.4). `now` is injected (no ambient clock in persistence). */
 export interface ForwardSnapshotTarget {

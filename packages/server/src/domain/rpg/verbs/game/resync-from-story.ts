@@ -24,14 +24,28 @@
 // HONORED — a resync repairs the model plane, never the host's pins), and writes BORN COMMITTED onto a fresh
 // silent state-anchor slot (§4.1 — an empty-content narrator slot, prompt-excluded + surface-hidden, never a
 // blank bubble). An empty rebuild (capability-absent connection / no writes) is a no-op — no slot, no write.
+//
+// IDEMPOTENCE — THE RECONCILER LANDS THE RE-DERIVED TRUTH, IT NEVER APPENDS ONTO IT (VER-1a). The resync is
+// the ONE verb a host fires repeatedly at an unchanged story, so "run it twice ⇒ the same state" is a
+// contract, not a nicety. The turn vehicles' delta is APPEND-shaped on the two log planes, and inheriting
+// that made every click grow the panel (live-confirmed: four resyncs left four paraphrases of ONE story beat
+// in `recentEvents` and three near-identical journal rows). Both are re-shaped here, at the reconciler:
+//   • recentEvents — REBUILT, not appended: the beats this pass re-derived REPLACE the window (the tail past
+//     the base, `resyncStatePatch`). The window is a rolling projection of the story, so re-deriving it from
+//     the story is exactly what "resync" means — and it is what collapses an already-duplicated window back
+//     to one line (the host's one-click cleanup). A pass that re-derived NO beat leaves the window untouched.
+//   • journal — NOT WRITTEN. The archive is an append-only, variant-stamped record of what the LIVE turns
+//     produced; a resync re-reading the same story can only re-author beats already in it, and its anchor
+//     slot carries no narrative to hang them on. Superseding its own prior entries would need a durable
+//     "this row came from a resync" marker (no such column, and no-legacy forbids inventing one for the dev
+//     db); dropping the write makes the plane idempotent by construction instead. A host repairing the
+//     archive itself uses `addJournalEntry`/`editJournalEntry`/`deleteJournalEntry` (built, host-gated).
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
-import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ResyncFromStoryParams } from "../../contract/params";
 import type { RpgContext, RpgService } from "../../contract/service";
 import { snapshotRowToState } from "../../contract/service";
 import { resolveHost } from "../../guard";
-import { insertJournalEntry } from "../../persistence/journal";
 import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots";
 import { defaultSnapshotState } from "../../substrate/default-state";
 import { applyLockedPatch } from "../../substrate/merge";
@@ -44,6 +58,24 @@ const RPG_RESYNC_MAX_TOKENS = 16_384;
 /** The silent state-anchor slot the resynced snapshot keys to (empty content ⇒ prompt-excluded + surface-hidden
  *  by construction — never a blank bubble; the §4.1 hand-edit/restore precedent). */
 const RESYNC_ANCHOR_CONTENT = "";
+
+/** The state-plane key whose vehicle semantics are APPEND (`applyUpdateScene` returns `[...base, beat]`) and
+ *  whose reconciler semantics are REBUILD — the one plane {@link resyncStatePatch} re-shapes. */
+const RECENT_EVENTS = "recentEvents";
+
+/** Re-shape the rebuild's patch for the RECONCILER (the header's idempotence contract): `recentEvents` arrives
+ *  as the append of this pass's beats onto the base window, so keep only the tail past the base — the window
+ *  the resync REBUILT. A pass that re-derived no beat drops the key entirely (the window survives untouched);
+ *  every other plane is already absolute and passes through. Pure — the caller re-checks emptiness after. */
+function resyncStatePatch(baseState: RpgSnapshotState, statePatch: Record<string, unknown>): Record<string, unknown> {
+  const appended = statePatch[RECENT_EVENTS];
+  if (!Array.isArray(appended)) {
+    return statePatch; // the rebuild touched no beat plane
+  }
+  const rebuilt = appended.slice(baseState.recentEvents.length);
+  const { [RECENT_EVENTS]: _dropped, ...rest } = statePatch;
+  return rebuilt.length === 0 ? rest : { ...rest, [RECENT_EVENTS]: rebuilt };
+}
 
 export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resyncFromStory"> {
   async function resyncFromStory(params: ResyncFromStoryParams): Promise<void> {
@@ -63,15 +95,15 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     // The host-principal model call: resolves the room connection AS THE HOST, establish-EVERYTHING rebuild over
     // the deep window. A capability-absent connection / empty rebuild returns an empty delta (a no-op resync).
     const delta = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, transcript });
-    const hasStatePatch = Object.keys(delta.statePatch).length > 0;
-    if (!hasStatePatch && delta.journal.length === 0) {
+    // The RECONCILER re-shape (the header's idempotence contract): the beat window is REBUILT, not appended,
+    // and the journal archive is not written at all — so a second click on an unchanged story is a no-op.
+    const statePatch = resyncStatePatch(baseState, delta.statePatch);
+    if (Object.keys(statePatch).length === 0) {
       return; // nothing rebuilt (readonly / model no-op) — no slot, no write (byte-identical non-writing action)
     }
 
     // Merge the delta onto the base — locks HONORED (a resync repairs the model plane, never a hand-pin).
-    const nextState: RpgSnapshotState = hasStatePatch
-      ? (applyLockedPatch(baseState as unknown as Record<string, unknown>, delta.statePatch, baseState.fieldLocks) as unknown as RpgSnapshotState)
-      : baseState;
+    const nextState = applyLockedPatch(baseState as unknown as Record<string, unknown>, statePatch, baseState.fieldLocks) as unknown as RpgSnapshotState;
 
     // Mint the fresh silent state-anchor slot; write the reconciled state BORN COMMITTED onto it.
     const posted = await ctx.postNarratorMessage(game.chatId, RESYNC_ANCHOR_CONTENT);
@@ -90,27 +122,11 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
       return;
     }
 
-    // The rebuilt journal entries stamp the anchor slot's committed variant (the model-entry lineage stamp).
-    await Promise.all(
-      delta.journal.map((entry) =>
-        insertJournalEntry(ctx.db, {
-          id: ctx.ids.journal(),
-          gameId: game.id,
-          type: rpgJournalTypeSchema.parse(entry.type),
-          title: entry.title,
-          content: entry.content,
-          variantId: posted.variantId,
-          sourceMessageId: posted.messageId,
-          createdAt: ctx.now(),
-        }),
-      ),
-    );
+    // NO journal write (the header's idempotence contract) — `delta.journal` is deliberately unread here, so
+    // no `journalChanged` either: the archive is untouched by a rebuild.
 
     // The resynced snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId });
-    if (delta.journal.length > 0) {
-      ctx.emitBus({ type: "journalChanged", chatId: game.chatId });
-    }
   }
   return { resyncFromStory };
 }
