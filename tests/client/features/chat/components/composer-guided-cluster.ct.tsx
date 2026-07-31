@@ -13,10 +13,17 @@
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
 
+import { GENERATION_FAILED_DETAIL, IMPERSONATE_AFTER_COMMIT_FAILED_LEAD, IMPERSONATE_FAILED_LEAD } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeImpersonateStream } from "../../../../support/ct/route-impersonate-stream";
+import type { Page } from "@playwright/test";
+import {
+  isImpersonateStreamRequest,
+  routeImpersonateStream,
+  routeImpersonateStreamOnce,
+  ZOMBIE_WATCH_MS,
+} from "../../../../support/ct/route-impersonate-stream";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ComposerStory } from "../_ct-stories";
 import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
@@ -32,6 +39,11 @@ const SWIPE_DISABLED_TITLE = /^Swipe — needs a reply to reroll/u;
 const CONTINUE_DISABLED_TITLE = /^Continue — needs a reply to continue/u;
 const ANY_ATTR = /.*/u;
 const GROUP_LABELS = ["Input", "Reply", "Continuation", "Images"] as const;
+/** A curated DOMAIN message on the typed terminal frame (what the participant gate / an honest refusal reads
+ *  like) — it must reach the user verbatim, unlike a raw transport fault. */
+const DOMAIN_REFUSAL = "This chat has no working connection.";
+/** Playwright's `waitForRequest` timeout rejection — the tell that NO zombie connect arrived. */
+const WAIT_TIMEOUT = /Timeout/u;
 
 test("all four guided icons ALWAYS render on a committed chat (never hidden/swapped)", async ({ mount }) => {
   const component = await mount(<ComposerStory />); // committed, empty composer
@@ -197,6 +209,83 @@ test("Impersonate on a DRAFT with a typed steer threads the steer + person, pres
     chatId: COMPOSER_CHAT_ID,
     guided: { action: "impersonate", input: "greet the innkeeper warmly", person: "third" },
   });
+});
+
+// ── The impersonate stream is a ONE-SHOT drive, not a live feed ──────────────────────────────────────────
+// The owner's dead-engine incident: ONE Impersonate click produced `chat.impersonateStream` GETs every ~3s for
+// minutes (each re-running the server generator) with NOTHING on screen. Two defects in one: the subscription
+// was never unsubscribed, and a server fault whose tRPC code is RETRYABLE (INTERNAL_SERVER_ERROR — what a raw
+// ProviderError becomes) is not an error to `httpSubscriptionLink` at all: it reconnects and fires no callback,
+// so the flow's promise never settled and no toast ever fired. The connect COUNT is the zombie assertion (the
+// stub pins a short EventSource retry, so a zombie's next connect lands well inside the watch window).
+
+/** ABSENCE, proven two ways ([[absence needs two methods]]): a POSITIVE wait for the zombie's next connect that
+ *  must TIME OUT (the stub pins the EventSource retry to 200ms, so a live subscription would have re-opened
+ *  several times inside the window), plus the stub's own connect counter still reading 1. */
+async function expectNoReconnect(page: Page, sse: { count: () => number }): Promise<void> {
+  await expect(page.waitForRequest(isImpersonateStreamRequest, { timeout: ZOMBIE_WATCH_MS })).rejects.toThrow(WAIT_TIMEOUT);
+  // ONESHOT-OK: the wait above TIMED OUT, so no stream request reached the page inside the window — the
+  // recorder (fed by the route handler, which only runs on such a request) is provably settled at read.
+  expect(sse.count()).toBe(1);
+}
+
+test("a COMPLETED impersonate stream is unsubscribed — no zombie reconnect", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const sse = await routeImpersonateStreamOnce(page, { deltas: ["I step into the tavern."], end: "return" });
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("I step into the tavern.");
+
+  await expectNoReconnect(page, sse);
+});
+
+test("a domain ERROR FRAME settles the stream once, toasts the domain message, and restores the steer", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const sse = await routeImpersonateStreamOnce(page, { end: "error-frame", message: DOMAIN_REFUSAL });
+  const component = await mount(<ComposerStory />);
+  const box = component.getByRole("textbox", { name: "Message" });
+
+  await box.fill("greet the innkeeper");
+  await component.getByRole("button", { name: "Guided impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+
+  // The frame's message is the CURATED domain message — it rides through as the toast detail.
+  await expect(component.getByTestId("composer-notified")).toHaveText(`${IMPERSONATE_FAILED_LEAD} ${DOMAIN_REFUSAL}`);
+  // D57 restore-on-failure: the consumed steer comes back so the user can re-fire.
+  await expect(box).toHaveValue("greet the innkeeper");
+  await expectNoReconnect(page, sse);
+});
+
+test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect, one toast, on an EMPTY composer", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const sse = await routeImpersonateStreamOnce(page, { end: "server-error", message: "connect ECONNREFUSED 127.0.0.1:8000" });
+  const component = await mount(<ComposerStory />); // empty composer — the D57 restore is a no-op here, so the toast is the ONLY surface
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+
+  // A link-level fault carries framework/operator text, never user copy — the generic detail is shown instead.
+  await expect(component.getByTestId("composer-notified")).toHaveText(`${IMPERSONATE_FAILED_LEAD} ${GENERATION_FAILED_DETAIL}`);
+  await expectNoReconnect(page, sse);
+});
+
+test("a DRAFT whose commit SUCCEEDED then failed to draft says the chat survived", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const sse = await routeImpersonateStreamOnce(page, { end: "server-error" });
+  const component = await mount(<ComposerStory committed={false} />);
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+
+  // The composite: the room EXISTS (startChat committed) and only the drafting generation died — a bare
+  // "couldn't draft your line" would read as "nothing happened" and the user would re-fire, minting a 2nd room.
+  await expect(component.getByTestId("composer-notified")).toHaveText(`${IMPERSONATE_AFTER_COMMIT_FAILED_LEAD} ${GENERATION_FAILED_DETAIL}`);
+  await expectNoReconnect(page, sse);
+  // ONESHOT-OK: the commit is awaited BEFORE the stream, the failure toast proves the flow settled, and
+  // expectNoReconnect proves nothing further is in flight — the recorder cannot move after this point.
+  expect(trpc.count("chat.startChat")).toBe(1); // one room, not one per reconnect
 });
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {
