@@ -5,14 +5,29 @@
 // carries update-guidance. On `folded` (R1) it DOES contribute `terminalTools`: the same 7 state tools, mounted
 // on the character turn as a write surface whose calls are read back rather than executed.
 
-import type { RpgActorVolatile } from "@orb/contracts/rpg";
+import type { RpgActorVolatile, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db";
 import type { RpgHarness } from "../_support";
-import { addVariant, emptyState, expect, principal, questId, seedChat, seedLiteGame, seedMessage, target, test } from "../_support";
+import {
+  addVariant,
+  emptyState,
+  expect,
+  principal,
+  questId,
+  rosterCharacter,
+  rosterUser,
+  seedChat,
+  seedLiteGame,
+  seedMessage,
+  target,
+  test,
+} from "../_support";
 
 /** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
 function kael(hp: number): RpgActorVolatile {
@@ -350,4 +365,128 @@ test("R1 folded: a mount that THROWS never fails the turn — the gather degrade
   // …and the swallow is NOT silent: this recorder is the only evidence the fold stopped folding (and that the
   // game quietly started paying the second call again).
   expect(h.fakes.foldBuildFailures).toEqual([{ chatId, gameId: expect.any(String) }]);
+});
+
+// ── the TRACKER READ SURFACE (the live-turn drop) ────────────────────────────────────────────────
+// A host-defined tracker is state the model MUST see. The live konbini game defined a pinned `party`
+// Corruption meter that the panel showed on BOTH Status cards and the entire reminder mentioned NOWHERE:
+// the per-carrier builder glossed off the READING (an unmoved tracker rendered nothing at all, hint
+// included) and the party line only reached trackers through a volatile ROW (the user actor had none, so it
+// lost every tracker it carried). These drive config → carrier resolution → reminder end-to-end, which is
+// the only path that proves the def, the carrier predicate and the string builder agree.
+
+/** A tracker def with the axes a case cares about; everything else takes its schema default. */
+function trackerDef(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {
+  return rpgTrackerDefSchema.parse(over);
+}
+
+/** ONE stored tracker reading, TOTAL (no per-carrier ceiling override). */
+function reading(value: number | string): RpgTrackerValue {
+  return { value, items: null, max: null };
+}
+
+/** A volatile row carrying ONLY tracker readings (the plane under test). */
+function withTrackers(actorRef: RpgActorVolatile["actorRef"], trackerValues: Record<string, RpgTrackerValue>): RpgActorVolatile {
+  return { actorRef, hp: null, trackerValues, conditions: [], inventory: [], wallet: [], status: "" };
+}
+
+const NIKO = "01kyw994c1ecrtvwbmx4avkqzz"; // a real 26-char TypeID suffix (the actorState schema validates it)
+const CORRUPTION = trackerDef({
+  key: "corruption",
+  label: "Corruption",
+  shape: "meter",
+  write: "delta",
+  subject: "actor",
+  appliesTo: "everyone",
+  max: 100,
+  hint: "how corrupted someone is",
+  sort: 0,
+});
+const ALARM = trackerDef({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game", max: 5, hint: "how alerted the guards are", sort: 1 });
+
+/** Seed the live-shaped game: an `everyone` actor tracker + a game tracker, a roster of a USER and a
+ *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-cast
+ *  member (the three carrier homes) plus the game-subject value. */
+async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness }> {
+  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterUser("host", "You"), rosterCharacter(NIKO, "Niko")] });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [CORRUPTION, ALARM] } });
+  const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await db.insert(rpgSnapshots).values({
+    ...target({ gameId, chatId, seq: 2, variantId, key: "trk" }),
+    ...emptyState(),
+    location: "Konbini",
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    actorState: [
+      // ZERO is state, not absence — a 0/100 meter must reach the model exactly like a 12/100 one.
+      withTrackers({ kind: "user", userId: castId("user_host") }, { corruption: reading(0) }),
+      withTrackers({ kind: "character", characterId: castId(`character_${NIKO}`) }, { corruption: reading(12) }),
+      withTrackers({ kind: "cast", castKey: "Mari" }, { corruption: reading(5) }),
+    ],
+    trackerValues: { alarm: reading(3) },
+    fieldLocks: null,
+    committed: 1,
+  });
+  return { chatId, h };
+}
+
+test("every FILLED tracker reaches the reminder — user + character + cast carriers, the game subject, and a ZERO reading", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedTrackerGame(db);
+  const text = await reminderText(h, chatId);
+
+  // The VOCABULARY, taught once per tracker (the attribute-gloss pattern) — this is the only place the
+  // host's steering hint ships, so an unmoved tracker is still a taught tracker.
+  expect(text).toContain("Trackers: Corruption (how corrupted someone is) · Alarm (how alerted the guards are)");
+  expect(text.match(/how corrupted someone is/g)).toHaveLength(1);
+  // Every carrier's reading, under the same labels: the user actor (0 — present, not swallowed), the
+  // character actor, and the scene-cast member the `everyone` class reaches.
+  expect(text).toContain("- You — Corruption 0/100");
+  expect(text).toContain("- Niko — Corruption 12/100");
+  expect(text).toContain("- Mari — wary — Corruption 5/100");
+  // The game-subject block, under its own heading (the vocabulary line owns the bare word "Trackers").
+  expect(text).toContain("Game trackers:\n- Alarm 3/5");
+});
+
+// "The reminder is the model's knowledge; the tools are its permissions" (D113 #4). A LOCKED tracker is
+// host-owned STATE, not a secret: the read surface shows it in full (reading + hint) so the model narrates
+// around it, and only the WRITE surface omits it. The lock filter therefore belongs at the schema/tool
+// assembly (`buildTrackerWriteGroups`/`gameTrackerWriteKeys`) and NOWHERE in the view/reminder read path —
+// a lock leaking into the projection would silently blind the model to state the panel still shows.
+test("a LOCKED tracker still reads in the reminder (value + hint) while the write surface drops its key", async () => {
+  const db = await freshDb();
+  const sealed = trackerDef({ ...CORRUPTION, key: "sealed", label: "Sealed", hint: "the host owns this one", locked: true });
+  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterCharacter(NIKO, "Niko")] });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [sealed, { ...ALARM, locked: true }] } });
+  const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await db.insert(rpgSnapshots).values({
+    ...target({ gameId, chatId, seq: 2, variantId, key: "lockd" }),
+    ...emptyState(),
+    actorState: [withTrackers({ kind: "character", characterId: castId(`character_${NIKO}`) }, { sealed: reading(40) })],
+    trackerValues: { alarm: reading(2) },
+    fieldLocks: null,
+    committed: 1,
+  });
+
+  const text = await reminderText(h, chatId);
+  expect(text).toContain("Sealed (the host owns this one)"); // taught — a locked tracker is knowledge
+  expect(text).toContain("- Niko — Sealed 40/100"); // read in full, per carrier
+  expect(text).toContain("Game trackers:\n- Alarm 2/5");
+  // …and the SAME defs are unrepresentable on the write surface (the one place the lock is allowed to bite).
+  const carrier = { actorKey: `character_${NIKO}`, name: "Niko", kind: "party", grants: [], revokes: [] } as const;
+  expect(buildTrackerWriteGroups([sealed], [carrier])).toEqual([{ targetRefs: ["Niko"], deltaKeys: [], setKeys: [] }]);
+  expect(gameTrackerWriteKeys([{ ...ALARM, locked: true }])).toEqual({ deltaKeys: [], setKeys: [] });
+});
+
+test("a CARRIED but unmoved tracker still reaches the reminder (the live drop: taught nowhere, on nobody)", async () => {
+  const db = await freshDb();
+  // The exact live shape: the tracker is defined + pinned, and NO snapshot has ever written a reading — the
+  // panel drew `Corruption 0/100` on every Status card while the reminder said nothing at all.
+  const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser("host", "You"), rosterCharacter(NIKO, "Niko")] });
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [CORRUPTION] } });
+  const text = await reminderText(h, chatId);
+
+  expect(text).toContain("Trackers: Corruption (how corrupted someone is)");
+  // Both carriers list it by bare label — carriage is the datum when there is no reading yet.
+  expect(text).toContain("- You — Corruption");
+  expect(text).toContain("- Niko — Corruption");
 });

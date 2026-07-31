@@ -3,11 +3,11 @@
 // gather candidate on `RpgGatherResult.injections` (never a `chat_injections` row — the convergence law,
 // §3.3), delivered as ONE depth-0 `role:"system"` injection.
 //
-// Assembly order (§4.7 + the §2.7 delta insert): (1) the STATE BLOCK per entity — label-as-mini-prompt
-// throughout (each roster actor, each cast row, each custom widget, the ambient line, active quests + open
-// objectives, the recent journal beats); (2) the DELTA BLOCK — the prev→current snapshot diff (`delta.ts`),
-// rendered BEFORE the license so "let the change land in the fiction" has its referent (always on, omitted on
-// no-change); (3) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour,
+// Assembly order (§4.7 + the §2.7 delta insert): (1) the STATE BLOCK — the two VOCABULARY lines (trackers,
+// attributes) then the readings per entity, label-as-mini-prompt throughout (each roster actor, each cast row,
+// the game-subject trackers, the ambient line, active quests + open objectives, the recent journal beats);
+// (2) the DELTA BLOCK — the prev→current snapshot diff (`delta.ts`), rendered BEFORE the license so "let the
+// change land in the fiction" has its referent (always on, omitted on no-change); (3) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour,
 // acknowledge changes, never recite the numbers); (4) `config.lite.steeringNote` — the always-wins user slot, LAST.
 //
 // NO tool-update guidance here (owner ruling 2026-07-27): the character turn is ALWAYS tool-less prose — state
@@ -15,6 +15,15 @@
 // character turn to call a tool. The "call every applicable tool" checklist now lives in the TOOL ROUND's own
 // prompt (`toolRoundSystem`, entry/compose/rpg.ts), where the tools actually fire. This reminder injects the
 // tracked state as FLAVOR the character reacts off — steering, not writing.
+//
+// TWO SURFACES, ONE VOCABULARY (the live-turn drop, 2026-08-01): a tracker's MEANING is taught once per turn
+// (`Trackers: Corruption (how corrupted someone is)`) and every reading below — party, cast, game-subject —
+// carries only `label value/max`, exactly like `attributeGloss`/`attributeReading`. The retired inline gloss
+// was READING-BOUND, so a tracker nobody had moved yet reached the model NOWHERE: the owner's pinned
+// `Corruption 0/100`, visible on every Status card, was absent from the whole injection. A carried tracker
+// with no reading now lists its bare LABEL on its carrier's line — carriage is the datum when there is no
+// value. LOCKED trackers read here in full (D113 #4: the reminder is the model's KNOWLEDGE, the tools are its
+// permissions — the lock filter belongs at the write-schema assembly and nowhere in this path).
 //
 // The license + state-block prose are ARGUED NO-KNOB v1 (§4.11 #4): `steeringNote` IS the designed tuning slot
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
@@ -30,7 +39,7 @@ import type {
   RpgTrackerView,
   RpgWeather,
 } from "@orb/contracts/rpg";
-import { attributeGloss, attributeReading, rpgWeatherText, timeOfDayAtHour, trackerGloss } from "@orb/contracts/rpg";
+import { attributeGloss, attributeReading, rpgWeatherText, sortTrackers, timeOfDayAtHour, trackerReading, trackerVocabulary } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -107,32 +116,40 @@ function weatherLine(weather: RpgWeather): string {
   return weather.description !== undefined && weather.description !== "" ? `${head} (${weather.description})` : head;
 }
 
-/** THE ONE tracker gloss path (the tracked-field unification): every tracker on every surface — a roster
- *  actor's row, a scene cast row, the game-wide readings — renders through `trackerGloss`, which is the one
- *  `label value/max (hint)` grammar. It replaces the three drifted per-concept builders this file carried (pool segs · cast-field
- *  segs · widget lines), which is exactly how R4b was born: the cast-field builder silently dropped the hint
- *  its own docstring promised, so every host-defined tracked field was decoration instead of a steering lever
- *  (measured: Δ −0.12 bare vs −1.00 glossed). One builder cannot drift from itself. */
+/** THE ONE tracker reading path (the tracked-field unification): every tracker on every carrier — a roster
+ *  actor's row, a scene cast row, the game-wide readings — renders through `trackerReading`, the one
+ *  `label value/max` grammar. It replaces the three drifted per-concept builders this file carried (pool segs ·
+ *  cast-field segs · widget lines), which is exactly how R4b was born: the cast-field builder silently dropped
+ *  the hint its own docstring promised, so every host-defined tracked field was decoration instead of a
+ *  steering lever (measured: Δ −0.12 bare vs −1.00 glossed). One builder cannot drift from itself.
+ *
+ *  A carrier's tracker with NO reading yet still renders — its BARE LABEL (the `gameTrackerLine` rule,
+ *  now uniform across subjects). Dropping it was the live-turn bug: a `party` Corruption meter the panel
+ *  showed on every Status card reached the reminder NOWHERE, so the model could neither narrate around it
+ *  nor be expected to move it. The MEANING rides {@link trackerVocabularyLine} once per turn. */
 function trackerSegs(defs: readonly RpgTrackerDef[], values: Readonly<Record<string, RpgTrackerValue>>): string[] {
-  const segs: string[] = [];
-  for (const def of defs) {
-    const gloss = trackerGloss(def, values[def.key]);
-    if (gloss !== null) {
-      segs.push(gloss);
-    }
-  }
-  return segs;
+  return defs.map((def) => trackerReading(def, values[def.key]) ?? def.label);
 }
 
-/** An actor's volatile-plane segments (hp/trackers/wallet/inventory/status/conditions) — hoisted out of
- *  `actorLine` so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity
- *  gate. `trackers` are the defs THIS actor carries (resolved server-side through the ONE carrier predicate). */
-function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>, trackers: readonly RpgTrackerDef[]): string[] {
+/** The tracker VOCABULARY line — every tracker the game defines, taught ONCE with its hint (the
+ *  `Attributes:` line's twin, same reason: the per-carrier lines below carry the numbers under the same
+ *  labels, so one meaning serves N readings at any party size). Rendered whenever the game defines a
+ *  tracker at all — including one nobody has moved yet, which is precisely the case the old reading-bound
+ *  gloss taught nothing about. */
+function trackerVocabularyLine(defs: readonly RpgTrackerDef[]): string {
+  return `Trackers: ${sortTrackers(defs).map(trackerVocabulary).join(" · ")}`;
+}
+
+/** An actor's volatile-plane segments (hp/wallet/inventory/status/conditions) — hoisted out of `actorLine`
+ *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
+ *  The TRACKER segs are NOT here: an actor carries its trackers whether or not a snapshot ever wrote it a
+ *  volatile row, so they render off `actor.trackers` in `actorLine` (the null-volatile actor — the user
+ *  actor on a game whose beats only ever touched the NPC — otherwise lost every tracker it carries). */
+function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>): string[] {
   const segs: string[] = [];
   if (v.hp !== null) {
     segs.push(`HP ${v.hp.value}/${v.hp.max}`);
   }
-  segs.push(...trackerSegs(trackers, v.trackerValues));
   if (v.wallet.length > 0) {
     segs.push(v.wallet.map((w) => `${w.amount} ${w.name}`).join(", "));
   }
@@ -162,8 +179,11 @@ function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly R
     // vocabulary line, so this per-actor line stays compact at any party size.
     segs.push(attrs.map(([k, n]) => attributeReading(attrDefs, k, n)).join(", "));
   }
+  // The trackers THIS actor carries — rendered off the CARRIER set, never off the volatile row's key set, so
+  // a carried-but-unmoved tracker (and an actor with no volatile row at all) still reaches the model.
+  segs.push(...trackerSegs(actor.trackers, actor.volatile?.trackerValues ?? {}));
   if (actor.volatile !== null) {
-    segs.push(...volatileSegs(actor.volatile, actor.trackers));
+    segs.push(...volatileSegs(actor.volatile));
   }
   return `- ${segs.join(" — ")}`;
 }
@@ -189,19 +209,18 @@ function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTr
   if (rel !== null) {
     segs.push(rel);
   }
+  // Every tracker this cast member CARRIES (the server-resolved entry list), unmoved ones included as their
+  // bare label — the same rule the party lines and the game-subject block follow.
   for (const entry of trackers) {
-    const gloss = trackerGloss(entry.def, entry.value ?? undefined);
-    if (gloss !== null) {
-      segs.push(gloss);
-    }
+    segs.push(trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label);
   }
   return `- ${segs.join(" — ")}`;
 }
 
-/** A GAME-subject tracker's line — the SAME gloss every other tracker surface renders. A tracker with no
+/** A GAME-subject tracker's line — the SAME reading every other tracker surface renders. A tracker with no
  *  reading yet still lists (bare label): the model should know the game HAS an Alarm before it moves it. */
 function gameTrackerLine(entry: RpgTrackerEntry): string {
-  return `- ${trackerGloss(entry.def, entry.value ?? undefined) ?? entry.def.label}`;
+  return `- ${trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label}`;
 }
 
 /** The P5 plot one-liner (`<story title> — act 2/3: <act title> — <act summary>`) — empty segments omitted,
@@ -221,9 +240,12 @@ export function plotLine(plot: NonNullable<RpgTrackerView["plot"]>): string {
   return segs.join(" — ");
 }
 
+/** One active quest — the goal line + its open objectives. The `description` rides the head line when the
+ *  host wrote one (it is an EDITABLE panel field whose prose reached the model nowhere — the same
+ *  filled-but-unread class as the tracker hint). */
 function questLine(quest: RpgTrackerView["quests"][number]): string {
   const open = quest.objectives.filter((o) => !o.completed);
-  const head = `- ${quest.name} [${quest.status}]`;
+  const head = quest.description === "" ? `- ${quest.name} [${quest.status}]` : `- ${quest.name} [${quest.status}] — ${quest.description}`;
   if (open.length === 0) {
     return head;
   }
@@ -270,6 +292,12 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   if (view.plot !== null) {
     stateLines.push(`Story: ${plotLine(view.plot)}`);
   }
+  // The tracker VOCABULARY, taught ONCE (label + hint) — the attribute line's twin, and INDEPENDENT of the
+  // party (a game-subject tracker on a rosterless game still has to teach itself). Every reading below —
+  // party, cast, game — then carries only `label value/max` under these same labels.
+  if (view.trackerDefs.length > 0) {
+    stateLines.push(trackerVocabularyLine(view.trackerDefs));
+  }
   if (view.actors.length > 0) {
     // The attribute VOCABULARY, taught ONCE (label + hint): the sheet's steering lever finally reaching the
     // model. Per-actor lines below carry the numbers under the same labels — one meaning, N readings, never
@@ -286,7 +314,9 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], input.features.relationshipHints)));
   }
   if (view.gameTrackers.length > 0) {
-    stateLines.push("Trackers:");
+    // "Game trackers" (not the bare "Trackers:" it used to be) — the vocabulary line above now owns that
+    // word, and this block is specifically the SUBJECT:GAME readings that belong to nobody in particular.
+    stateLines.push("Game trackers:");
     stateLines.push(...view.gameTrackers.map(gameTrackerLine));
   }
   const activeQuests = view.quests.filter((q) => q.status === "active");
