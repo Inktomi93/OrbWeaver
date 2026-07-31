@@ -8,6 +8,7 @@
 // re-renders the editor with a new preset id) so the CT proves switching A→B rekeys the boundary's Session
 // and seeds from B's row (never A's surviving frozen seed).
 
+import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface } from "@orb/client/features/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -24,6 +25,32 @@ const PRESET_B = castId<PresetId>("preset_ct_bbbbbbbbbb");
 export function PresetEditorSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
+      <div style={{ height: 720, width: 720 }}>
+        <PresetEditorSurface presetId={PRESET_A} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** Stands in for the user-bus SSE frame the server fans when Connections writes `routing.roleDefaults`
+ *  (`settings.updateUserSettingsSection` is busDriven — `settingsChanged` is the ONLY freshness driver for
+ *  the editor's capability read). Drives the REAL `useInvalidation()` seam, so the map row is what's under
+ *  test, not a hand-rolled refetch. */
+function ConnectChatModelButton(): ReactElement {
+  const { invalidateUser } = useInvalidation();
+  return (
+    <button type="button" onClick={(): void => invalidateUser({ type: "settingsChanged" })}>
+      connect a chat model
+    </button>
+  );
+}
+
+/** The capability-freshness harness: the real editor plus the settingsChanged trigger, so the CT can prove
+ *  picking a chat model swaps the connect-a-model note for the live Output knobs WITHOUT a page reload. */
+export function PresetEditorCapabilityFreshnessStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ConnectChatModelButton />
       <div style={{ height: 720, width: 720 }}>
         <PresetEditorSurface presetId={PRESET_A} />
       </div>

@@ -4,6 +4,7 @@
 
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { PromptConfig, Quality } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -34,13 +35,7 @@ export function ParamsPanel({ form, capability, axis }: ParamsPanelProps): React
     return <QualityDial form={form} />;
   }
   if (capability === undefined) {
-    return (
-      <Section heading="Model parameters">
-        <Text tone="muted">
-          Connect a chat model in Connections to tune sampling, reasoning, and output — these controls show only the knobs your model honors.
-        </Text>
-      </Section>
-    );
+    return <CapabilityGate axis={axis} />;
   }
   if (axis === "sampling") {
     return <SamplingSection form={form} capability={capability} />;
@@ -49,6 +44,30 @@ export function ParamsPanel({ form, capability, axis }: ParamsPanelProps): React
     return <ReasoningSection form={form} capability={capability} />;
   }
   return <OutputSection form={form} capability={capability} />;
+}
+
+/** The capability-gated copy per axis — what this axis WILL show once a chat model resolves. An empty state
+ *  that only says "connect a model" reads as "this feature doesn't exist" (owner dogfood), so each arm NAMES
+ *  its knobs. Total over the gated axes (Quality never reaches here — it needs no capability). */
+const CAPABILITY_GATE_COPY: Record<Exclude<ParamsPanelProps["axis"], "quality">, { readonly heading: string; readonly knobs: string }> = {
+  sampling: { heading: "Sampling", knobs: "Temperature, top-p, top-k, the penalties and seed" },
+  reasoning: { heading: "Reasoning", knobs: "The reasoning switch, effort level and thinking budget" },
+  output: { heading: "Output", knobs: "Max output tokens, max context tokens and verbosity" },
+};
+
+/** The connect-a-model note for a capability-less axis — names the hidden knobs, not just the blocker. */
+function CapabilityGate({ axis }: { readonly axis: Exclude<ParamsPanelProps["axis"], "quality"> }): ReactElement {
+  const copy = CAPABILITY_GATE_COPY[axis];
+  return (
+    <Section heading={copy.heading}>
+      <Text tone="muted">
+        {copy.knobs} appear here once a chat model is connected — the panel shows only the knobs your model honors, at your model's real caps.
+      </Text>
+      <Text size="micro" tone="muted">
+        Pick one under Settings → Connections → Model roles.
+      </Text>
+    </Section>
+  );
 }
 
 function QualityDial({ form }: { readonly form: AppForm }): ReactElement {
@@ -355,12 +374,18 @@ function OutputSection({ form, capability }: { readonly form: AppForm; readonly 
       <Text size="micro" tone="muted">
         Model context window: {window} tokens · max output: {outputMax} tokens.
       </Text>
+      {/* Both fields are blank-means-default by design (a blank preset must never start writing explicit
+          values), so each PLACEHOLDER carries the effective default the server would apply — a blank field
+          reads as configured, not broken. Max output falls back to the shared `DEFAULT_MAX_OUTPUT_TOKENS`
+          (the pipeline materializes it every turn — deliberately a response length, NOT the model's output
+          cap); max context falls back to the whole window (an unset soft cap leaves the window as ceiling). */}
       <form.AppField name="params.maxOutputTokens">
         {(field): ReactElement => (
           <field.NumberField
             label="Max output tokens"
-            description="Cap the length of the reply (leave blank for the model default)."
+            description="Cap the length of the reply (leave blank for the default)."
             hint={`This model accepts up to ${outputMax} output tokens.`}
+            placeholder={`${DEFAULT_MAX_OUTPUT_TOKENS} (default)`}
             min={1}
             max={outputMax}
           />
@@ -372,6 +397,7 @@ function OutputSection({ form, capability }: { readonly form: AppForm; readonly 
             label="Max context tokens"
             description="Soft-cap the working set below the model window — older turns beyond this are trimmed (leave blank to use the full window)."
             hint={`This model's context window is ${window} tokens.`}
+            placeholder={`${window} (full window)`}
             min={1}
             max={window}
           />

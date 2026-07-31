@@ -174,6 +174,10 @@ const USER_TRACKED_KEYS = [
   "chatList",
   "chatGet",
   "connection",
+  // The preset params panel's capability gate (`connection.resolveChatCapability`) — a SEPARATE tracked key
+  // from `connection` because `settingsChanged` invalidates it NARROWLY (the roleDefaults edit re-resolves the
+  // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
+  "chatCapability",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
   // effective params drive the fit) — PD-#7.
   "previewContextFit",
@@ -189,13 +193,19 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   worldInfoChanged: ["worldInfo"],
   tagsChanged: ["tag"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
-  settingsChanged: ["userSettings", "previewContextFit"], // NOT themes.
+  // NOT themes (its own member). The chat CAPABILITY rides here: Connections persists roleDefaults through
+  // `settings.updateUserSettingsSection` (busDriven), so this event is the ONLY freshness driver for the
+  // preset params panel's capability gate — the row whose absence kept the editor on its connect-a-model note
+  // until a page reload.
+  settingsChanged: ["userSettings", "previewContextFit", "chatCapability"],
   credentialsChanged: ["credentials"],
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
   chatsChanged: ["character", "chatGet", "chatList"],
-  connectionsChanged: ["connection"], // DEFERRED member — never emitted, but the map entry is live.
+  // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
+  // router, so the capability read under it goes stale too.
+  connectionsChanged: ["connection", "chatCapability"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
@@ -222,6 +232,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatList: trpc.chat.listChats.queryKey(),
         chatGet: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
         connection: trpc.connection.getCatalog.queryKey(),
+        chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
       };
       for (const key of Object.values(keys)) {
@@ -269,6 +280,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.credentials.list.queryKey(),
       trpc.chat.listChats.queryKey(),
       trpc.connection.getCatalog.queryKey(),
+      trpc.connection.resolveChatCapability.queryKey(),
     ];
     for (const key of roots) {
       queryClient.setQueryData([...key], [] as never);
