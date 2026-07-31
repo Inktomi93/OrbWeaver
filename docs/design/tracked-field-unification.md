@@ -59,7 +59,7 @@ placeholder). Axes, not siblings:
 
 | Axis | Values | Today's concepts it absorbs |
 |---|---|---|
-| `subject` | per-actor def vs game-wide def (applies to roster/NPCs) | pools (per-actor) vs cast fields (per-game) vs widgets (game-scoped) |
+| `subject` | applicability model (SETTLED, owner 2026-07-31): def-level default `appliesTo: all \| [actors]` **+ per-actor `grants` + per-actor `revokes`**; effective carriers = (all ? whole ROSTER : list) + grants − revokes. Covers column fields (everyone), personal fields (named actors), and one-off ad-hoc grants (the act-3 demon's "Bound Will") with ONE mechanism. Game-scoped widgets = `subject: game` (no carrier resolution). **Vocabulary ruling (owner): the people-group is the ROSTER — "cast" is not canon anywhere in the new surface.** | pools (per-actor) vs "cast fields" (per-game, legacy name) vs widgets (game-scoped) |
 | `shape` | meter (value/max) · text · list | meter fields, text fields, widget lists |
 | `write` | **delta** (spend/restore — a resource) vs **set** (observe — a state) | poolDeltas vs set-value; KEEP THIS LOUD — it drives the tool arg shape, the model's mental model, and the panel read (bar you drain vs gauge that tracks) |
 | `hint` | the gloss — REQUIRED-encouraged (steering lever per §4d of the spike; R4b class) | pool hint, cast-field hint, attribute hint |
@@ -102,7 +102,9 @@ values = host (existing permission grammar, unchanged).
   RV-8 builds against it.
 - **R6 (per-game tool assembly)** — reshaped: one def kind → one constraint path + one description
   template parameterized by axes (write:delta → "spend/restore" guidance; write:set → "record the
-  new state"), instead of per-concept assembly arms.
+  new state"), instead of per-concept assembly arms. The applicability model makes assembly
+  **per-actor-aware**: a target's writable fields = its effective carrier set, so the schema never
+  offers Mana on an actor that doesn't carry it — stronger prevent-at-schema than today.
 - **RV-4/RV-12** — become "attributes get the same label+hint editor," not bespoke work.
 - Migration reality: contracts + db (poolDefs/castFields/widgets converge), the 7-tools schema
   (poolDeltas + set_widget_value + castField writes converge or alias), reminder segs (one gloss
