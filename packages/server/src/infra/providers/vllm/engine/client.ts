@@ -8,6 +8,7 @@ import { getEngineStatus } from "./engine-status";
 // engineBaseUrl lives in the engine-url LEAF (extracted to break the client↔wake-gate↔fleet-control cycle).
 import { engineBaseUrl } from "./engine-url";
 import type { VLLM_ENGINES } from "./engines";
+import type { WakeGateDeps } from "./wake-gate";
 import { ensureAwake } from "./wake-gate";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
@@ -83,12 +84,20 @@ async function httpError(engine: VllmEngine, path: string, res: Response): Promi
   });
 }
 
+/** The per-request knobs both seams share: the caller's abort signal and the auto-wake gate's I/O override
+ *  (undefined ⇒ the gate's real loopback impls). Grouped so each seam stays within the param budget. */
+interface RequestOpts {
+  readonly signal: AbortSignal | undefined;
+  readonly wake: WakeGateDeps | undefined;
+}
+
 /** POST a JSON body to an engine endpoint; typed JSON back or a mapped {@link ProviderError}. */
-async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, opts: RequestOpts): Promise<T> {
   // Pre-dispatch AUTO-WAKE gate (B.1/B.6): a request to a SLEEPING engine silently queues forever, so wake it
-  // FIRST (single-flight, VRAM/hold-gated) rather than react to an error that never comes. A no-op for an
-  // awake engine (one process-local status read). A wake refusal throws a named, non-retryable ProviderError.
-  await ensureAwake(engine);
+  // FIRST (single-flight, VRAM/hold-gated) rather than react to an error that never comes. Near-free for an
+  // awake engine (a cached observation, else one loopback /is_sleeping GET). A wake refusal throws a named,
+  // non-retryable ProviderError.
+  await ensureAwake(engine, opts.wake);
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {
@@ -98,7 +107,7 @@ async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, si
       body: JSON.stringify(body),
       // ALWAYS signalled (F6): the default request-timeout composed with any caller signal, so a hung socket
       // aborts at the bound and the caller's promise settles instead of leaking forever.
-      signal: withTimeout(signal),
+      signal: withTimeout(opts.signal),
     });
   } catch (cause) {
     throw unreachable(engine, url, cause);
@@ -110,8 +119,8 @@ async function enginePost<T>(engine: VllmEngine, path: string, body: unknown, si
 }
 
 /** POST a JSON body and return the raw SSE byte stream (the chat surface drives the reducer over it). */
-async function engineStream(engine: VllmEngine, path: string, body: unknown, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-  await ensureAwake(engine); // pre-dispatch auto-wake gate (see enginePost) — the streaming chat path.
+async function engineStream(engine: VllmEngine, path: string, body: unknown, opts: RequestOpts): Promise<ReadableStream<Uint8Array>> {
+  await ensureAwake(engine, opts.wake); // pre-dispatch auto-wake gate (see enginePost) — the streaming chat path.
   const url = `${engineBaseUrl(engine)}${path}`;
   let res: Response;
   try {
@@ -124,7 +133,7 @@ async function engineStream(engine: VllmEngine, path: string, body: unknown, sig
       // generation mid-token. A stream's lifetime is the turn's — the caller threads the turn's abort `signal`,
       // and the SSE reducer owns per-chunk idle handling. The F6 leak is the non-streaming `enginePost` path
       // (the rpg state round); the streaming chat path is already turn-abortable.
-      ...(signal !== undefined ? { signal } : {}),
+      ...(opts.signal !== undefined ? { signal: opts.signal } : {}),
     });
   } catch (cause) {
     throw unreachable(engine, url, cause);
@@ -135,7 +144,14 @@ async function engineStream(engine: VllmEngine, path: string, body: unknown, sig
   return res.body;
 }
 
-/** The real (env-backed) engine client — the composition wiring for production. */
-export function createVllmEngineClient(): VllmEngineClient {
-  return { enginePost, engineStream, baseUrl: engineBaseUrl };
+/** The real (env-backed) engine client — the composition wiring for production. `wake` overrides the auto-wake
+ *  gate's I/O (sleep probe / reconcile / GPU query / wake POST); production omits it and the gate uses its own
+ *  real loopback impls. A test injects it to drive the sleeping/held/refused arms through THIS seam without
+ *  shelling out to `ps`/`nvidia-smi` or touching a real fleet. */
+export function createVllmEngineClient(wake?: WakeGateDeps): VllmEngineClient {
+  return {
+    enginePost: (engine, path, body, signal) => enginePost(engine, path, body, { signal, wake }),
+    engineStream: (engine, path, body, signal) => engineStream(engine, path, body, { signal, wake }),
+    baseUrl: engineBaseUrl,
+  };
 }
