@@ -126,13 +126,13 @@ test("⑦ host: the Tool-use section renders the cap control seeded from getChat
   await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toBeVisible();
-  await expect(component.getByRole("spinbutton", { name: "Tool-call limit" })).toHaveValue("7"); // CHAT_DETAIL.toolRecurseLimit
+  await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveValue("7"); // CHAT_DETAIL.toolRecurseLimit
 });
 
 test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limit", async ({ mount, page }) => {
   const trpc = await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
-  await component.getByRole("spinbutton", { name: "Tool-call limit" }).fill("10");
+  await component.getByRole("spinbutton", { name: "Tool rounds per turn" }).fill("10");
   await expect.poll(() => (trpc.lastInput(UPDATE_TOOL_LIMIT) as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(10);
 });
 
@@ -140,7 +140,7 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [] });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
-  await expect(component.getByRole("spinbutton", { name: "Tool-call limit" })).toHaveCount(0);
+  await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveCount(0);
 });
 
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
