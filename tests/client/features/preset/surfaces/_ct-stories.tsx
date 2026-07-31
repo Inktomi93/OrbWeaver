@@ -9,17 +9,19 @@
 // and seeds from B's row (never A's surviving frozen seed).
 
 import { useInvalidation } from "@orb/client/data";
-import { PresetEditorSurface } from "@orb/client/features/preset";
+import { PresetEditorSurface, PresetLibrarySurface } from "@orb/client/features/preset";
+import { clearPresetSelection, selectPreset, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CtDataProviders } from "../../../../support/ct/ct-data-providers";
 
-// The two fixed ids (kept module-local — biome forbids non-component exports beside components; the CT
-// mirrors these literals for its save-spy filters).
+// The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT
+// mirrors these literals for its save-spy filters). BUILT_IN is the real seeded system-default id.
 const PRESET_A = castId<PresetId>("preset_ct_aaaaaaaaaa");
 const PRESET_B = castId<PresetId>("preset_ct_bbbbbbbbbb");
+const BUILT_IN = castId<PresetId>("preset_00000000000000000000000000");
 
 /** The single-preset editor (used by the RESET pin — one row, the menu drives reset-to-starter). */
 export function PresetEditorSurfaceStory(): ReactElement {
@@ -54,6 +56,36 @@ export function PresetEditorCapabilityFreshnessStory(): ReactElement {
       <div style={{ height: 720, width: 720 }}>
         <PresetEditorSurface presetId={PRESET_A} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The LIBRARY harness — the real list surface (rows + the ⋯ actions menu + its delete confirm), the owner's
+ *  remediation path for the "(edited)" duplicates the fork-once bug minted. */
+export function PresetLibrarySurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 720, width: 420 }}>
+        <PresetLibrarySurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The FORK-ONCE harness: the editor mounted exactly the way production mounts it — off the SELECTION STORE
+ *  (the `PresetContent` shape) — starting on the LOCKED built-in default. Editing the built-in copy-on-writes
+ *  server-side, and the editor's retarget IS a `selectPreset(fork)` write, so driving the surface through the
+ *  store is what makes the retarget observable end to end. The `<output>` mirrors the live selection. */
+export function PresetForkOnceStory(): ReactElement {
+  const selectedId = useSelectedPresetId();
+  useEffect(() => {
+    selectPreset(BUILT_IN);
+    return (): void => clearPresetSelection();
+  }, []);
+  return (
+    <CtDataProviders>
+      <output>{`selected=${selectedId ?? "none"}`}</output>
+      <div style={{ height: 720, width: 720 }}>{selectedId === null ? null : <PresetEditorSurface presetId={selectedId} />}</div>
     </CtDataProviders>
   );
 }

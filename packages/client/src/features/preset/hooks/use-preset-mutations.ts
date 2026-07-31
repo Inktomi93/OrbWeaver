@@ -16,8 +16,11 @@ export const useCreatePreset = createEntityMutation<inferInput<Trpc["preset"]["c
   errorToast: "Couldn't create the preset.",
 });
 
-/** Persist an edited preset (name/config). Refetches the list (name/updatedAt) + the open editor row. */
-export const useUpdatePreset = createEntityMutation<inferInput<Trpc["preset"]["update"]>, unknown>({
+/** Persist an edited preset (name/config). Refetches the list (name/updatedAt) + the open editor row.
+ *  RESOLVES to the written `PresetDetail` — load-bearing: editing the locked built-in COWs server-side into a
+ *  NEW owned fork, and the response id is the ONLY signal of that (`preset/verbs/update.ts`). The editor
+ *  retargets its save target + the selection off it; a caller that drops the response re-forks on every save. */
+export const useUpdatePreset = createEntityMutation<inferInput<Trpc["preset"]["update"]>, inferOutput<Trpc["preset"]["update"]>>({
   options: (trpc) => trpc.preset.update.mutationOptions(),
   invalidates: (trpc) => [trpc.preset.list.pathFilter(), trpc.preset.get.pathFilter()],
   errorToast: "Couldn't save the preset.",

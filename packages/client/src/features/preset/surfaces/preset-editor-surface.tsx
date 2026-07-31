@@ -10,6 +10,10 @@
 // no manual mount key, no `closeForReseed`. Structural array ops persist via the boundary's store driver, so
 // the child components carry ZERO manual `handleSubmit` flushes (§10 CT-4 / the retired §7 trap).
 //
+// Saving goes through `usePresetAutosave` (never an inline mutateAsync): it serializes the writes and owns the
+// LOCKED built-in's fork-once retarget — editing the system default COWs into ONE owned copy, and the editor
+// session + the active-for-generation seed both follow it (read its header; the ten-duplicates bug lived here).
+//
 // north-star §6.2: the ten leaf tabs render as FOUR primary groups (Generation · Prompt · Context ·
 // Transforms), each group's leaves shown as sub-navigation — leaf CONTENT is unchanged (a regroup). The
 // outer `Tabs` is the group strip; each group panel nests its own `Tabs` over its leaves.
@@ -37,9 +41,10 @@ import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
 import { UserMacrosTab } from "../components/user-macros-tab";
 import { VariablesTab } from "../components/variables-tab";
-import { useResetPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
+import { usePresetAutosave } from "../hooks/use-preset-autosave";
+import { useResetPreset } from "../hooks/use-preset-mutations";
 import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
-import { mergeOnSubmit, seedConfig } from "../lib/preset-editor-model";
+import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorTab } from "../lib/preset-nav";
 import { PRESET_EDITOR_GROUPS } from "../lib/preset-nav";
 
@@ -113,7 +118,9 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
-  const update = useUpdatePreset({ trpc, invalidation });
+  // The active-for-generation pointer — read here (not just in the LIST) because the built-in's copy-on-write
+  // fork must INHERIT it: a fork the user can't generate with makes every edit a silent no-op.
+  const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const reset = useResetPreset({ trpc, invalidation });
 
   // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
@@ -123,14 +130,11 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   const capability = capabilityQuery.data;
 
-  const server = preset.config;
-  const save = async (values: PromptConfig): Promise<void> => {
-    const merged = mergeOnSubmit(values, server);
-    await update.mutateAsync({ id: presetId, config: merged });
-  };
+  // The save path incl. the built-in's fork-once retarget (see the hook header) — never an inline mutateAsync.
+  const save = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });
 
   return (
-    <PresetForm entityId={presetId} serverValues={seedConfig(server)} save={save}>
+    <PresetForm entityId={presetId} serverValues={seedConfig(preset.config)} save={save}>
       {(session): ReactElement => (
         <PresetEditorBody
           session={session}
