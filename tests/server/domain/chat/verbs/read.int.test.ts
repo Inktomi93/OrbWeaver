@@ -10,21 +10,24 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { characterBooks, chatParticipants, chats as chatsTable, messages, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatParticipants, chats as chatsTable, messages, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
+import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant";
 import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
+import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 // The D16 policy SETTER (verbs/roster.ts) — imported here so the round-trip tests below drive the real
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
+import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
@@ -832,6 +835,119 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(gameState?.tokens).toBeGreaterThan(0);
     // Turnless + dice-ineligible: the preview never marks a turn or feeds a queued roll.
     expect(gatherTurnContext).toHaveBeenCalledWith(chatId, undefined, false, expect.objectContaining({ char: expect.any(String) }));
+  });
+
+  // ── the persona-swap CONTEXT leak (owner report 2026-08-01) ────────────────────────────────────────
+  // "I swapped my persona from You to Nate and re-pinned as Nate — the Preview still lists BOTH." The
+  // per-member accounting is only honest if a persona that is neither the live ANCHOR nor any present
+  // human's ACTIVE persona contributes NOTHING, however many past rows are still STAMPED with it (the
+  // transcript keeps those names by design — that is DISPLAY resolution, not context contribution).
+  //
+  // These drive the REAL resolver shape the composition root supplies (anchor ← chats.anchorPersonaId,
+  // active ← the triggering/first present human's chat_participants.activePersonaId), because the
+  // suite's default `resolveForeignInputs` fake returns fixed nulls and would prove nothing.
+  function personaResolvingDeps(): Partial<Parameters<typeof createRead>[1]> {
+    const load = async (personaId: PersonaId | null | undefined): Promise<AssemblePersona | null> => {
+      if (personaId === null || personaId === undefined) {
+        return null;
+      }
+      const [row] = await db.select().from(personasTable).where(eq(personasTable.id, personaId)).limit(1);
+      return row === undefined ? null : { name: row.name, description: row.description, placement: resolvePersonaDescriptionPlacement(row.metadata) };
+    };
+    return {
+      resolveForeignInputs: async ({ anchorPersonaId, personaIds, triggerPersonaId }) => ({
+        promptConfig: DEFAULT_PROMPT_CONFIG,
+        personas: { anchor: await load(anchorPersonaId), active: await load(triggerPersonaId ?? personaIds.at(0) ?? null) },
+        globalRegexScripts: [],
+        scanDepth: 6,
+        injectionTokenBudget: 0,
+      }),
+    };
+  }
+
+  /** The owner's room mid-report: a host whose OLD persona ("You") is the chat anchor + the stamp on past
+   *  canon, and whose NEW persona ("Nate") is the one he now plays. Returns both persona ids + the read bundle
+   *  and the two REAL write verbs the two picker controls call. */
+  async function seedPersonaSwapRoom(): Promise<{
+    me: UserId;
+    chatId: ChatId;
+    oldPersona: PersonaId;
+    newPersona: PersonaId;
+    read: ReturnType<typeof createRead>;
+    rePin: (personaId: PersonaId) => Promise<void>;
+  }> {
+    const me = await seedUser(db, "swap_host");
+    const chatId = await seedRoom("swap", me);
+    const oldPersona = await seedPersona(db, me, "You", { description: "the old traveller nobody plays anymore" });
+    const newPersona = await seedPersona(db, me, "Nate", { description: "Nate, the current player" });
+    // The chat opened under the OLD persona: it is both the anchor pin and the stamp on the canon written then.
+    await db.update(chatsTable).set({ anchorPersonaId: oldPersona }).where(eq(chatsTable.id, chatId));
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, personaId: oldPersona, content: "an old line" });
+    const ctx = makeChatContext(db);
+    const emit = async (): Promise<void> => undefined;
+    // "Playing as Nate" — the REAL write `persona.setActivePersona` delegates to (verbs/roster.ts).
+    await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
+    const life = createChatLifecycle(ctx, { emit, activeTurns: createActiveTurns() });
+    return {
+      me,
+      chatId,
+      oldPersona,
+      newPersona,
+      read: createRead(ctx, makeDeps(personaResolvingDeps())),
+      // "Re-pin" — the host anchor verb.
+      rePin: (personaId) => life.setChatAnchorPersona({ principal: principal(me), chatId, personaId }),
+    };
+  }
+
+  test("re-pinning the anchor drops the swapped-out persona from the preview AND the prompt (owner report)", async () => {
+    const { me, chatId, newPersona, read, rePin } = await seedPersonaSwapRoom();
+
+    // BEFORE the re-pin the old persona is still the ANCHOR, so it legitimately rides card-context (the
+    // both-personas swap rule) — this is the state the owner saw, reproduced.
+    const swapped = await read.previewAssembly({ principal: principal(me), chatId });
+    expect(swapped.budget.sources.find((s) => s.source === "cards")?.parts.map((p) => p.label)).toEqual(
+      expect.arrayContaining(["Nate (persona)", "You (persona)"]),
+    );
+
+    await rePin(newPersona);
+
+    // AFTER: the old persona is neither the anchor nor anyone's active persona ⇒ it contributes NOTHING,
+    // even though canon row 1 is still STAMPED with it (stamp-derived DISPLAY names are untouched by design).
+    const rePinned = await read.previewAssembly({ principal: principal(me), chatId });
+    const cards = rePinned.budget.sources.find((s) => s.source === "cards");
+    expect(cards?.parts.map((p) => p.label)).toContain("Nate (persona)");
+    expect(cards?.parts.map((p) => p.label)).not.toContain("You (persona)");
+    // …and the same verdict on the bytes the model actually receives — this is a PROMPT fact, not a panel fact.
+    const peeked = await read.peekPrompt({ principal: principal(me), chatId });
+    for (const text of [`${rePinned.prompt.static}\n${rePinned.prompt.dynamic}`, `${peeked.static}\n${peeked.dynamic}`]) {
+      expect(text).toContain("Nate, the current player");
+      expect(text).not.toContain("the old traveller nobody plays anymore");
+    }
+  });
+
+  test("a human who LEFT the room takes their persona out of the context with them (live membership)", async () => {
+    // Presence, not history, decides contribution: `loadRoster` is present-only, so a departed member's
+    // active persona stops being a `personaIds` candidate the moment their seat is leftSeq-stamped.
+    const host = await seedUser(db, "left_host");
+    const chatId = await seedRoom("left", host);
+    const guest = await seedUser(db, "left_guest");
+    const guestPersona = await seedPersona(db, guest, "Departed", { description: "the guest who walked out" });
+    await seedParticipant(db, { chatId, key: "left_guest", userId: guest, role: "member", activePersonaId: guestPersona });
+
+    const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
+    // Present: the guest is the only human with an active persona, so they resolve as `active`.
+    const present = await read.previewAssembly({ principal: principal(host), chatId });
+    expect(`${present.prompt.static}\n${present.prompt.dynamic}`).toContain("the guest who walked out");
+
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, guest)));
+
+    const departed = await read.previewAssembly({ principal: principal(host), chatId });
+    expect(`${departed.prompt.static}\n${departed.prompt.dynamic}`).not.toContain("the guest who walked out");
+    const departedCards = departed.budget.sources.find((s) => s.source === "cards")?.parts ?? [];
+    expect(departedCards.map((p) => p.label)).not.toContain("Departed (persona)");
   });
 
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {
