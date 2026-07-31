@@ -77,7 +77,7 @@ import {
 import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access";
-import { projectViewForMember, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
+import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
@@ -174,15 +174,17 @@ interface Room {
 }
 
 /** The §3.6 member RETURN projection for a mutation that hands back ONE `MessageView` (undo/revert continue).
- *  The host reads verbatim; a non-host member gets the body hidden-strip PLUS — on a deception-active game — the
- *  reasoning channel withheld (resolved once via the injected rpg op, `false` for a non-game / non-deception
- *  chat). Mirrors `stripMessagesForViewer` for the single-view return sites. */
+ *  Binds this domain's rpg verdict resolver onto the ONE shared seam (`projectViewReturnForViewer`, shared with
+ *  every `edit.ts` return site) — the host reads verbatim, a non-host member gets the body hidden-strip PLUS,
+ *  on a deception-active game, the reasoning channel withheld. */
 async function projectViewReturn(ctx: ChatContext, view: MessageView, membership: { readonly role: string }): Promise<MessageView> {
-  if (viewerReadsHidden(membership)) {
-    return view;
-  }
-  const reasoningHostOnly = (await ctx.rpg?.resolveReasoningHostOnly(view.chatId)) ?? false;
-  return projectViewForMember(view, reasoningHostOnly);
+  return await projectViewReturnForViewer(view, membership, (chatId) => resolveReasoningHostOnlyFor(ctx, chatId));
+}
+
+/** The injected rpg deception verdict for one chat: `false` when rpg isn't wired / the chat is not a
+ *  deception-active game (so a plain chat is byte-identical to the pre-P3 behavior). */
+async function resolveReasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId): Promise<boolean> {
+  return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
 }
 
 /** The §3.6 deception-active verdict for a mutation OUTCOME return toward a non-host member. `false` for a host
@@ -192,7 +194,7 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
   if (viewerReadsHidden(membership)) {
     return false;
   }
-  return (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false;
+  return await resolveReasoningHostOnlyFor(ctx, chatId);
 }
 
 /** Loads the present roster → the {@link Room}. Hostless is unusable (leak-free NOT_FOUND). Cards read under

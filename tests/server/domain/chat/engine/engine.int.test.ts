@@ -8,7 +8,7 @@ import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
-import { characterStats, chatLocks, chats, dailyStats, messageVariants, ownerStats } from "@orb/db";
+import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -263,6 +263,38 @@ describe("createTurnEngine — happy path", () => {
 
     expect(await selectedReasoning(fromFinal)).toBe("the settled trace");
     expect(await selectedReasoning(fromDeltas)).toBe("weighing two openings");
+  });
+
+  // THE ATTRIBUTION INVARIANT, NAMED. Every reasoning-carrying row is a GENERATED assistant slot, and every
+  // producer writes those with `authorUserId: null` (this turn commit; `postNarratorMessage`). A large amount of
+  // authority rests on that: `assertAuthorOrHost` degrades to HOST-ONLY exactly when `authorUserId` is null, so
+  // "a member can never reach an assistant row" is a consequence of this write-side convention — NOT of the
+  // schema. The `messages_attribution_shape` CHECK permits `role='assistant'` + a non-null `author_user_id`
+  // (it only forbids character_id AND author_user_id together), so nothing but this test stands between a
+  // future producer stamping an author onto a generated row and a silent widening of who may edit/read it.
+  // The §3.6 return belt (`edit.ts::projectEditReturn`) now holds on the CALLER's role regardless — this test
+  // exists so a violating write is caught by a RED TEST that names the invariant, not by a leak finding it.
+  test("the ATTRIBUTION INVARIANT: a reasoning-carrying assistant slot is written authorUserId-NULL (host-only by construction)", async () => {
+    const chatId = await seedChat(db, "attrib_invariant");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "the model's private trace" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", reasoning: "the model's private trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(chatId));
+
+    const [slot] = await db
+      .select({ role: messages.role, authorUserId: messages.authorUserId, reasoning: messageVariants.reasoning })
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.chatId, chatId));
+
+    // The row genuinely carries the model's trace (else the assertion below would be vacuous)…
+    expect(slot?.role).toBe("assistant");
+    expect(slot?.reasoning).toBe("the model's private trace");
+    // …and it is UNAUTHORED, which is what makes every author-or-host verb host-only for it.
+    expect(slot?.authorUserId).toBeNull();
   });
 
   /** The DB truth for a chat's tail assistant row: the reasoning column of its SELECTED variant. */

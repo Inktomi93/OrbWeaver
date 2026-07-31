@@ -5,7 +5,7 @@
 // verbs are reached through the BUNDLE `createEdit(ctx, {emit, resolveForeignInputs})`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -13,7 +13,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterStats, chats, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -1023,5 +1023,101 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .where(eq(messages.id, messageId));
     expect(after[0]?.message_variants.content).toBe("{{user}} waves"); // RAW storage untouched (D51)
     expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: after[0]?.messages.personaId ?? null }, ctx)).toBe("Zara waves");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE §3.6 RETURN BELT (D110 §3.6 / D106 one-verdict). Every edit verb that hands a `MessageView` back to its
+// CALLER routes the return through the same viewer projection `listMessages` uses. This is FAIL-CLOSED
+// hardening, not a live hole: the author-or-host gate means only a HOST reaches a reasoning-carrying row today,
+// because every producer writes assistant slots with `authorUserId: null`. But that is a write-side convention
+// the `messages_attribution_shape` CHECK does NOT enforce (`role='assistant'` + a non-null `author_user_id` is
+// legal SQL), so these tests drive exactly that hypothetical shape — an AUTHORED, reasoning-carrying,
+// hidden-span-carrying assistant row on a deception-active game — and pin that the CALLER'S ROLE decides, not
+// the row's attribution. The companion test in engine.int names the write-side convention itself.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
+  const spill = "I'll say the study, but he is really in the crypt.";
+  const lieTag = '<lie character="Z" type="location" truth="he is in the crypt" reason="the heist"/>';
+  const body = `He shrugs. ${lieTag} "Nothing," he says.`;
+  const strippedBody = 'He shrugs.  "Nothing," he says.';
+
+  /** A deception-active chat ctx: the injected rpg op says the reasoning channel is host-only here. */
+  function deceptionCtx(): ReturnType<typeof makeChatContext> {
+    // FABRICATION-OK: minimal ChatRpgOps stub — the edit return belt reaches only `resolveReasoningHostOnly`.
+    const rpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ReturnType<typeof makeChatContext>["rpg"]>;
+    return makeChatContext(db, { rpg });
+  }
+
+  /** THE HYPOTHETICAL SHAPE the belt exists for, seeded into `room`: an ASSISTANT slot stamped with a human
+   *  `authorUserId` (legal under the CHECK, written by nothing today) carrying BOTH hidden-class channels — a
+   *  `<lie>` body span and a reasoning trace spelling its truth — plus a sibling swipe carrying the same, so
+   *  `selectVariant` has a target. */
+  async function seedAuthoredSpillRow(chatId: ChatId, author: UserId): Promise<{ messageId: MessageId; siblingVariantId: MessageVariantId }> {
+    const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", authorUserId: author, content: body, reasoning: spill });
+    const siblingVariantId = await addVariant(db, messageId, 1, body);
+    await db.update(messageVariants).set({ reasoning: spill }).where(eq(messageVariants.id, siblingVariantId));
+    return { messageId, siblingVariantId };
+  }
+
+  /** Drive EVERY `MessageView`-returning edit verb as `caller`, in an order that keeps the spill alive until
+   *  the reasoning WRITERS run last. Returns each verb's RETURN view, keyed by verb name. */
+  async function driveAllReturns(chatId: ChatId, caller: UserId): Promise<Record<string, MessageView>> {
+    const { messageId, siblingVariantId } = await seedAuthoredSpillRow(chatId, caller);
+    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs });
+    const p = principal(caller);
+    return {
+      setMessageHidden: await edit.setMessageHidden({ principal: p, chatId, messageId, hidden: true }),
+      selectVariant: await edit.selectVariant({ principal: p, chatId, messageId, variantId: siblingVariantId }),
+      duplicateMessage: await edit.duplicateMessage({ principal: p, chatId, messageId }),
+      editMessage: await edit.editMessage({ principal: p, chatId, messageId, content: body }),
+      editReasoning: await edit.editReasoning({ principal: p, chatId, messageId, reasoning: spill }),
+      clearReasoning: await edit.clearReasoning({ principal: p, chatId, messageId }),
+    };
+  }
+
+  test("a NON-HOST author's returns carry ZERO truth bytes — reasoning withheld AND the hidden body span stripped, on EVERY returning verb", async () => {
+    // The member AUTHORS the row, so the author-or-host gate lets them through — the belt is the only thing
+    // between them and the GM-plane bytes.
+    const room = await seedRoom();
+    const returns = await driveAllReturns(room.chatId, room.member);
+
+    for (const [verb, view] of Object.entries(returns)) {
+      expect(view.reasoning, `${verb} must withhold the reasoning channel from a non-host caller`).toBeNull();
+      expect(JSON.stringify(view), `${verb} must carry no truth bytes`).not.toContain("crypt");
+      expect(JSON.stringify(view), `${verb} must carry no hidden tag`).not.toContain("<lie");
+    }
+    // The body strip is the unconditional §3.6 arm — visible on the verbs that do not rewrite content.
+    expect(returns["setMessageHidden"]?.content).toBe(strippedBody);
+    expect(returns["duplicateMessage"]?.content).toBe(strippedBody);
+  });
+
+  test("the HOST's returns are BYTE-IDENTICAL — the belt is identity for a host on every returning verb", async () => {
+    const room = await seedRoom();
+    const returns = await driveAllReturns(room.chatId, room.host);
+
+    for (const [verb, view] of Object.entries(returns)) {
+      // `clearReasoning` legitimately nulls the column — every OTHER verb hands the host the trace verbatim.
+      const expected = verb === "clearReasoning" ? null : spill;
+      expect(view.reasoning, `${verb} must hand the host the stored trace`).toBe(expected);
+      expect(view.content, `${verb} must hand the host the stored body verbatim`).toBe(body);
+    }
+  });
+
+  test("the EMITTED bus event stays UNSTRIPPED — the fan-out strips per-SUBSCRIBER, so pre-stripping would withhold the host's own payload", async () => {
+    const room = await seedRoom();
+    const { messageId } = await seedAuthoredSpillRow(room.chatId, room.member);
+    emitted.length = 0;
+
+    const edit = createEdit(deceptionCtx(), { emit, resolveForeignInputs });
+    const returned = await edit.setMessageHidden({ principal: principal(room.member), chatId: room.chatId, messageId, hidden: true });
+
+    // The RETURN is stripped for this non-host caller…
+    expect(returned.reasoning).toBeNull();
+    // …while the event handed to the bus keeps the truth, for the transport to project per subscriber.
+    const event = emitted.find((e) => e.type === "messageHidden");
+    const emittedView = event !== undefined && "view" in event ? event.view : undefined;
+    expect(emittedView?.reasoning).toBe(spill);
+    expect(emittedView?.content).toBe(body);
   });
 });
