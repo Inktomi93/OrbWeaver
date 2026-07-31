@@ -3,7 +3,7 @@
 // the swipe-rewind mechanism's core — each rung is exercised in isolation and in fall-through order.
 
 import type { Db } from "@orb/db";
-import { rpgSnapshots } from "@orb/db";
+import { messages, rpgSnapshots } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -12,6 +12,7 @@ import {
   commitSnapshotForVariant,
   findSnapshotByVariant,
   insertSnapshot,
+  resolveSnapshotBeforeSlot,
   resolveSnapshotForTurn,
   writeStagedSnapshot,
 } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
@@ -47,21 +48,8 @@ async function seedSnapshot(opts: {
   });
 }
 
-describe("the 4-rung resolution ladder", () => {
-  test("rung 1 — regen/swipe resolves the target message's CURRENTLY-selected sibling (≠ the new variant)", async () => {
-    const chatId = await seedChat(db, "a");
-    const gameId = await seedGame(db, chatId);
-    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
-    await seedSnapshot({ gameId, chatId, seq: 1, variantId, key: "s1", location: "throne-room" });
-    // A new (excluded) variant is being generated for message 1; the base must be the current sibling, not it.
-    const newVariant = await addVariant(db, messageId, 1, "regen body");
-
-    const base = await resolveSnapshotForTurn(db, { id: gameId, chatId }, { regenMessageId: messageId, excludeVariantId: newVariant });
-    expect(base?.location).toBe("throne-room");
-    expect(base?.variantId).toBe(variantId);
-  });
-
-  test("rung 2 — a fresh turn resolves the last VISIBLE assistant slot's selected-variant snapshot", async () => {
+describe("the head resolution ladder", () => {
+  test("rung 1 — a fresh turn resolves the last VISIBLE assistant slot's selected-variant snapshot", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const first = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -73,7 +61,7 @@ describe("the 4-rung resolution ladder", () => {
     expect(base?.location).toBe("new-room");
   });
 
-  test("rung 2 skips an excludedFromPrompt assistant slot", async () => {
+  test("rung 1 skips an excludedFromPrompt assistant slot", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const visible = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -85,7 +73,7 @@ describe("the 4-rung resolution ladder", () => {
     expect(base?.location).toBe("kept-room");
   });
 
-  test("rung 3 — no visible assistant slot ⇒ latest COMMITTED by createdAt", async () => {
+  test("rung 2 — no visible assistant slot ⇒ latest COMMITTED by createdAt", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     // A user message only (no assistant slot to anchor rung 2). Two committed snapshots exist directly.
@@ -99,7 +87,7 @@ describe("the 4-rung resolution ladder", () => {
     expect(base?.location).toBe("newest");
   });
 
-  test("rung 4 — no committed snapshot ⇒ latest ANY (uncommitted)", async () => {
+  test("rung 3 — no committed snapshot ⇒ latest ANY (uncommitted)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const u = await seedMessage(db, chatId, 1, { role: "user" });
@@ -115,6 +103,57 @@ describe("the 4-rung resolution ladder", () => {
     const gameId = await seedGame(db, chatId);
     const base = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(base).toBeUndefined();
+  });
+});
+
+describe("resolveSnapshotBeforeSlot — the turn's WRITE base (VER-1a)", () => {
+  test("a REROLL bases on the slot BEFORE it — never on its own slot's rejected variant", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    // Beat 1 (a prior slot) then beat 2, which is about to be rerolled.
+    const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: first.variantId, key: "s1", location: "the ford" });
+    const slot = await seedMessage(db, chatId, 2, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 2, variantId: slot.variantId, key: "s2", location: "the tower" });
+    // The reroll's new variant is selected on that same slot (the pointer already moved when it streamed).
+    const rerolled = await addVariant(db, slot.messageId, 1, "regen body");
+    await db.update(messages).set({ selectedVariantId: rerolled }).where(eq(messages.id, slot.messageId));
+
+    // The base is beat 1's state — the rejected variant's applied extraction is excluded, so the new variant's
+    // own delta lands ONCE (pre-fix this resolved "the tower" and the fresh extraction stacked onto it).
+    const base = await resolveSnapshotBeforeSlot(db, { id: gameId, chatId }, slot.messageId);
+    expect(base?.location).toBe("the ford");
+    expect(base?.variantId).toBe(first.variantId);
+  });
+
+  test("a FIRST generation on a fresh slot resolves exactly what the head does", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: first.variantId, key: "s1", location: "the ford" });
+    const fresh = await seedMessage(db, chatId, 2, { role: "assistant" }); // no snapshot yet — the turn in flight
+
+    const base = await resolveSnapshotBeforeSlot(db, { id: gameId, chatId }, fresh.messageId);
+    expect(base?.location).toBe("the ford");
+    expect(base?.id).toBe((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.id);
+  });
+
+  test("the game-wide fallback rungs also exclude the flushing slot's own rows", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    // No PRIOR assistant slot at all — only this slot's own (rejected) snapshot exists, so the walk falls
+    // through to the committed/any rungs. They must not hand the turn its own sibling back.
+    const slot = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: slot.variantId, key: "s1", location: "the tower" });
+
+    expect(await resolveSnapshotBeforeSlot(db, { id: gameId, chatId }, slot.messageId)).toBeUndefined(); // ⇒ the born default
+  });
+
+  test("a turnless game resolves undefined (the born-default path is unchanged)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const fresh = await seedMessage(db, chatId, 1, { role: "assistant" });
+    expect(await resolveSnapshotBeforeSlot(db, { id: gameId, chatId }, fresh.messageId)).toBeUndefined();
   });
 });
 

@@ -74,9 +74,11 @@ export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rp
 
 /** `rpg.resyncFromStory` — the §1.3 HOST re-derive-from-the-story escape hatch (host-only; the server gate
  *  refuses a member). Runs ONE host-principal model call that re-reads a deep story window and rebuilds the
- *  drifted panel. Repaints the tracker view (every plane re-resolves off the rebuilt snapshot) + the journal
- *  (the rebuild can stamp a resync entry). The rebuild writes a fresh snapshot, so the CHAT message list also
- *  refetches for the silent anchor slot (invisible — empty content). */
+ *  drifted panel. Repaints the tracker view (every plane re-resolves off the rebuilt snapshot); the journal
+ *  filter rides along because the panel's Journal tab reads the same game and a stale-time miss there would
+ *  show pre-rebuild rows — the rebuild itself writes NO journal entry (VER-1a: a reconciler that appended to
+ *  the archive could never be idempotent, and the host clicks this repeatedly). The rebuild writes a fresh
+ *  snapshot, so the CHAT message list also refetches for the silent anchor slot (invisible — empty content). */
 export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["resyncFromStory"]>, unknown>({
   options: (trpc) => trpc.rpg.resyncFromStory.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
