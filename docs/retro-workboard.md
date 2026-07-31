@@ -63,7 +63,29 @@ band had NO query container + unreachable thresholds; `.shell-panel` now the con
 two off-enum weather rows repaired in the dev DB while down · **FINAL LIVE MEASUREMENT: stone 120px,
 panel 480px** ✓.
 
-## ═══ ▶▶▶ 08-01 DAY WAVE — LIVE STATE @ ~07:00 (compact-safety snapshot) ═══
+## ═══ ▶▶▶ 08-01 DAY: CLOSED (~15:45) — THE SHAKEDOWN CRUISE ═══
+
+**36 lanes dispatched, 33 landed on main, 0 reverted; every merge check-certified; final full battery
+at close (see git log from `b87ec743..HEAD` — pushed through `24989143` at midday, everything after is
+LOCAL awaiting the next push word).** The day's shape: the owner drove the app live all day and every
+find was fixed at its root the same day — headline classes: state-anchor slots (canon, not lost
+completions) · frozen surfaces (now GATED: query-freshness-coverage) · invalidation bursts (fetch-count
+CTs) · invisible SSE retry (consumer fixed; class dies with the multiplex) · the swipe model made
+coherent (write base + read base ONE resolver; empty variants unmintable; full per-variant state swap)
+· folded guarded off both hostile wires (agent-sdk + local, loud) · Sonnet's "card reluctance" = OUR
+tokenizer eating 27/120 over a stray `>` (F2a leniency + F2b example shipped) · every dropzone in the
+app had a dead drag path (primitive fixed) · CSP now obeys the trust toggle (3 policies) ·
+character-embedded images display-only (ST parity) · preset copy-on-edit forks once + activates ·
+Connections autosave/honesty/coherence repaired end to end. Mode map is now EMPIRICAL (§4g/§4h):
+hosted folded ✓ · local cheap ✓ · reliable contradicted. D111–D114 minted/amended.
+
+**⚠ TOMORROW'S FIRST TASK: consolidate this day's accreted note-blocks below into current-state
+(the register + queue lists carry items NOT yet folded — audit before deleting ANYTHING, the 07-31
+thread-loss lesson).** Queue top: pre-multiplex smalls (notifications typed-frame consumer · rpg.stream
+wrapper · START-1) → SSE MULTIPLEX S0 (owner-ruled next) → W-H side-eye (model-populated game) →
+knob editors + QUOTE-1 + PROSE-1 + ZTXT-1 + DRAFT-TRUST/DRAFT-CAST + agent-sdk terminal tools.
+
+## ═══ ▶▶▶ 08-01 DAY WAVE — accreted day notes (consolidate tomorrow — see CLOSED block above) ═══
 
 **TRK-1 "escape" — FALSE ALARM (corrected):** main was NEVER touched. The scary ~84-file list was
 the agent running a doctrine-banned bare `git checkout --` (no pathspec) in its WORKTREE — that no-op
