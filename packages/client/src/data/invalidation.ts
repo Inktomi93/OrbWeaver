@@ -58,20 +58,31 @@ const nothing = (): readonly InvalidateFilter[] => [];
 // two more on commit+complete. `invalidateQueries` does NOT dedupe against an in-flight fetch (it cancels and
 // restarts), so every redundant row here is a real round-trip.
 //
-// `rpg.revealHidden` rides here even though it is an RPG read: the verb DERIVES it from the stored
-// selected-variant assistant BODIES (`domain/rpg/verbs/read/reveal-hidden.ts` — no table of its own), so its
-// freshness driver is CANON, not the rpg bus. Without this row the host's veiled cue + Veiled ledger froze at
-// the count they had when the panel first mounted (the previewAssembly class — every new GM lie invisible
-// until GC or a reload). Costs nothing on a non-RPG chat: `invalidateQueries` is a no-op for a key with no
-// cache entry.
 function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
     trpc.chat.listMessages.pathFilter(),
     trpc.chat.listMessageVariants.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     ...promptPreviewReads(trpc),
-    trpc.rpg.revealHidden.pathFilter(),
   ];
+}
+
+// `rpg.revealHidden` is an RPG read with a CANON driver: the verb DERIVES it from the stored selected-variant
+// assistant BODIES (`domain/rpg/verbs/read/reveal-hidden.ts` — no table of its own), so its freshness driver
+// is a BODY WRITE, not the rpg bus. Without a row the host's veiled cue + Veiled ledger froze at the count
+// they had when the panel first mounted (the previewAssembly class — every new GM lie invisible until GC or
+// a reload).
+//
+// It rides the BODY-WRITE terminals ONLY, never `turnCompleted`: a generated turn emits `messageCommitted`
+// (the commit that writes the body) and then `turnCompleted` on the very next line of the engine — the second
+// event changes no body, so carrying the reveal on both bought a duplicate wire fetch on EVERY turn (and
+// `invalidateQueries` does not dedupe against an in-flight fetch — it cancels and restarts it). Every path
+// that writes/changes an assistant body does emit `messageCommitted` (engine commit, edit, narrator post,
+// generated image, the opening greeting), and the swipe/edit/delete family carries it through `chatReads`,
+// so nothing the host can see goes stale. Costs nothing on a non-RPG chat or for a member: `invalidateQueries`
+// is a no-op for a key with no cache entry, and the read only mounts for the host of a game.
+function hiddenRevealRead(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.rpg.revealHidden.pathFilter()];
 }
 
 // The NEXT TURN'S PROMPT, as the Preview tab shows it: the assembled-prompt trace + the content-free shape
@@ -84,9 +95,11 @@ function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter()];
 }
 
-// Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for.
+// Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every
+// event on this set moves (or can move) a stored body — an edit, a swipe, a hide, a delete/reorder — so the
+// host-reveal derivation rides with it.
 function chatReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [...chatCanonReads(trpc), trpc.chat.listChats.pathFilter()];
+  return [...chatCanonReads(trpc), ...hiddenRevealRead(trpc), trpc.chat.listChats.pathFilter()];
 }
 
 const BUS_FILTERS: BusFilterMap = {
@@ -101,7 +114,7 @@ const BUS_FILTERS: BusFilterMap = {
 
   // Canon-terminal commit — the open chat's canon only; the chat list/character-library recency is
   // driven by the user-bus chatsChanged fan on this same moment (avoids a triple-invalidate).
-  messageCommitted: (_e, trpc) => chatCanonReads(trpc),
+  messageCommitted: (_e, trpc) => [...chatCanonReads(trpc), ...hiddenRevealRead(trpc)],
   messageEdited: (_e, trpc) => chatReads(trpc),
   messageHidden: (_e, trpc) => chatReads(trpc),
   variantSelected: (_e, trpc) => chatReads(trpc),
