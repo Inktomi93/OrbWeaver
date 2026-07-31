@@ -21,7 +21,7 @@ import { RPG_HINT_MAX, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Crown, Icon, Lock, LockOpen, Pin, PinOff, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
+import { Crown, Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
@@ -117,9 +117,12 @@ function TrackerRow({
           size="sm"
           className="!size-6 !p-0 shrink-0"
           onClick={(): void => patch({ pinned: !def.pinned })}
-          title={def.pinned ? `Unpin ${def.label} from the band` : `Pin ${def.label} as a band orb`}
+          // BAND vocabulary + Eye glyph, never "pin" (owner ruling 08-01): "pin" is the HAND-LOCK's word
+          // (RpgFieldLock's "Pinned by hand"), and the band toggle even shared its Pin icon — two different
+          // concepts, one verb+glyph. Band = visibility, so it speaks visibility.
+          title={def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`}
         >
-          <Icon icon={def.pinned ? Pin : PinOff} size="xs" />
+          <Icon icon={def.pinned ? Eye : EyeOff} size="xs" />
         </Button>
         <Button
           intent="ghost"

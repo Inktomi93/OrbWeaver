@@ -9,10 +9,7 @@
 // the caller renders this only when it already owns the edit affordance (a member never mounts it).
 
 import { Button } from "@orb/ui/button";
-import { Icon, Pin, Unlock } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
-import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Text } from "@orb/ui/text";
+import { Icon, Pin } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 
 export interface RpgFieldLockProps {
@@ -20,34 +17,20 @@ export interface RpgFieldLockProps {
   readonly onRelease: () => void;
 }
 
-/** The pin glyph + its Release popover. Render only for a locked field (the caller checks `lockedPaths`). */
+/** The pin glyph — ONE click releases (owner ruling 08-01: the popover-confirm two-step was friction on a
+ *  low-stakes, self-healing action — any hand edit re-pins). The title states the state AND the gesture. */
 export function RpgFieldLock({ onRelease }: RpgFieldLockProps): ReactElement {
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            intent="ghost"
-            size="sm"
-            className="!size-5 !p-0 shrink-0 text-muted-foreground"
-            aria-label="Pinned by hand — release to the model"
-            title="Pinned by hand — the story won't change this. Release to let the model write it again."
-          >
-            <Icon icon={Pin} size="xs" />
-          </Button>
-        }
-      />
-      <PopoverPopup>
-        <Stack gap="field" className="max-w-control-col">
-          <Text size="micro" tone="muted">
-            Pinned by hand — the story won't change this.
-          </Text>
-          <Button intent="secondary" size="sm" onClick={onRelease}>
-            <Icon icon={Unlock} size="xs" /> Release to the model
-          </Button>
-        </Stack>
-      </PopoverPopup>
-    </Popover>
+    <Button
+      type="button"
+      intent="ghost"
+      size="sm"
+      className="!size-5 !p-0 shrink-0 text-muted-foreground"
+      aria-label="Pinned by hand — click to release to the model"
+      title="Pinned by hand — the story won't change this. Click to release it back to the model."
+      onClick={onRelease}
+    >
+      <Icon icon={Pin} size="xs" />
+    </Button>
   );
 }

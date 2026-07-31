@@ -308,15 +308,16 @@ test("the crown GM console (Game tab, host) renders getConfigView — scalars, t
   await expect(component.getByText("debtor")).toBeVisible();
 });
 
-test("the GM console PIN toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
+test("the GM console BAND toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
 
-  // Pinning is now a control ON THE DEF ROW (the band section is gone — one home): the pin button's
-  // accessible name is its title, and the write is the same whole-list `updateConfig` every axis makes.
-  await component.locator('[data-slot="rpg-game-tab"]').getByRole("button", { name: "Pin Trust as a band orb" }).click();
+  // Band visibility is a control ON THE DEF ROW (the band section is gone — one home). It speaks BAND
+  // vocabulary, never "pin" (owner 08-01: "pin" belongs to the hand-lock), and the write is the same
+  // whole-list `updateConfig` every axis makes.
+  await component.locator('[data-slot="rpg-game-tab"]').getByRole("button", { name: "Show Trust as a band orb" }).click();
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
@@ -376,21 +377,20 @@ test("read-only trackers: the pill shows BUT the host still hand-edits (D108 —
   await expect(component.getByRole("button", { name: "Vitality value" }).first()).toBeVisible();
 });
 
-test("a hand-locked field shows the pin + Release affordance (§12.3 the-lock-consequence-is-visible)", async ({ mount, page }) => {
-  // The tracker stub locks the ambient `location` path — the Scene ambient renders the pin + its Release
-  // popover. (The pin RENDERING is the §12.3 deliverable — "the story won't change this" made visible; the
-  // release-fires-editSnapshot wiring is tsc-typed off the same `releaseLocks` wire arm + live-verified.)
-  await stubTakeover(page);
+test("a hand-locked field shows the pin; ONE click releases — the mutation fires (§12.3 + the 08-01 single-click ruling)", async ({ mount, page }) => {
+  // The tracker stub locks the ambient `location` path — the Scene ambient renders the pin. One click
+  // releases directly (the popover-confirm two-step was ruled friction — any hand edit re-pins), so the
+  // assertion is the editSnapshot MUTATION COUNT, not a UI reaction ([[assert-the-mutation-fired]]).
+  const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
 
   // The pin (§12.3 — aria-labelled) sits in the ambient strip beside the locked `location` field.
-  const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Pinned by hand — release to the model" });
+  const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Pinned by hand — click to release to the model" });
   await expect(pin).toBeVisible();
-  // Clicking it opens the Release popover (the doorway to un-pin).
   await pin.click();
-  await expect(page.getByRole("button", { name: "Release to the model" }).first()).toBeVisible();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
