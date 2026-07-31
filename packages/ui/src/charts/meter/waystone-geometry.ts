@@ -15,9 +15,19 @@ export const RING_R = 42;
 export const RING_W = 5.5;
 export const DISC_R = 35.5;
 export const CLIP_R = 34;
-export const MARKER_R = 3.3;
-export const MARKER_STROKE = 1.6;
-export const MARKER_HALO_R = 5.8;
+export const MARKER_STROKE = 1.2;
+export const MARKER_HALO_R = 6.4;
+/** Where the pointer's halo sits on the radius — mid-needle, so the glow reads as the hand's own anchor. */
+export const MARKER_HALO_R_POS = 40;
+// The POINTER needle, drawn at 12 o'clock and rotated to the hour (the hand's shape must communicate "I am
+// the time pointer" — a bare dot near the rim reads as a stray dot; owner round 2). Radii, outermost first:
+// a flat cap OUTSIDE the ring, a shoulder at the ring's inner edge, and a tapered tip touching the sky disc,
+// so the needle visibly CROSSES the band it marks instead of floating beside it.
+const POINTER_TIP_R = 34.6;
+const POINTER_SHOULDER_R = 40.6;
+const POINTER_CAP_R = 45.6;
+const POINTER_HALF_W = 3.4;
+const POINTER_CAP_HALF_W = 2.2;
 export const SKY_XY = 10;
 export const SKY_WH = 76;
 const HOURS_IN_DAY = 24;
@@ -25,12 +35,17 @@ export const MINUTES_IN_HOUR = 60;
 const DEG_FULL = 360;
 const DEG_HALF = 180;
 /** The bezel band between the sky disc and the dial ring — where the hour ticks and the marker's pointer live. */
-const TICK_INNER = 36.3;
-const TICK_OUTER = 38.7;
-export const TICK_MAJOR_INNER = 35.9;
-const TICK_MAJOR_OUTER = 39.2;
-const TICK_EVERY_HOURS = 3;
-const MAJOR_TICK_EVERY_HOURS = 6;
+/** The bezel band between the sky disc and the dial ring — where the cardinal glyphs and the hand's tip live. */
+export const BEZEL_R = 37.5;
+/** The cardinal glyph radius: as large as the bezel allows, because at 76px anything smaller is a dot. */
+export const CARDINAL_R = 3.1;
+export const CARDINAL_STROKE = 1.1;
+export const CARDINAL_RAY_W = 1;
+export const CARDINAL_RAY_GAP = 1.5;
+/** Four rays, not eight: at the sizes this ships at, more than four is mush. Degrees around the sun glyph. */
+const QUARTER_TURN = 90;
+const RAY_COUNT = 4;
+export const CARDINAL_RAYS: readonly number[] = Array.from({ length: RAY_COUNT }, (_, i) => i * QUARTER_TURN);
 export const COORD_PRECISION = 2;
 /** The particle lattice's vertical extent: enough rows to cover the disc plus one pitch above and below, so a
  *  one-pitch translate never exposes an empty band at either end. */
@@ -52,47 +67,137 @@ export const GLOW_R = 2.1;
 export const GLOW_FLOOR = 0.1;
 export const GLOW_ALTITUDE_GAIN = 0.14;
 export const SKY_UNSET_OPACITY = 0.5;
-/** The rest-state opacity of a band that is NOT the current one: quieter, but still unmistakably ITS color. */
-export const ARC_REST_OPACITY = 0.72;
+/** The rest-state opacity of a band that is NOT the current one. High on purpose: the bands are UI CHROME
+ *  telling six sections apart, so they stay vivid — the current one wins on its halo, not by drowning the
+ *  others (owner round 2: at 76px a 0.72 wash made every band read as the same dusty pastel). */
+export const ARC_REST_OPACITY = 0.9;
 /** The current band's halo: how far it spreads past the ring, and how strongly (a hue-agnostic "we are here"
  *  — a pure brightness step reads on the gold bands and disappears on the indigo ones). */
 export const ARC_GLOW_SPREAD = 4;
 export const ARC_GLOW_OPACITY = 0.42;
-export const TICK_W_MINOR = 1;
-export const TICK_W_MAJOR = 1.5;
+/** The hairline break between adjacent bands, in HOURS of dial. Six sections at 76px need a visible seam even
+ *  where neighbouring hues are close — the segmentation is structural, not only chromatic. */
+export const ARC_GAP_HOURS = 0.17;
+
+// ─── The dial band ramp — UI chrome, deliberately vivid ──────────────────────────────────────────
+// Round 2 (owner, at ACTUAL 76px): deriving the band color straight from the sky kept the right HUE but
+// inherited the sky's atmospheric wash — low chroma, mid lightness, six near-identical dusty pastels, worse
+// in light mode. The fix keeps ONE source of hue truth and normalizes the rest: the HUE ANGLE still comes
+// from `waystoneBandTint` (the sky that band paints), while LIGHTNESS and CHROMA are a deliberate UI ramp at
+// candy-level saturation. Atmosphere lives on the DISC; the ring is an instrument scale.
+//
+// The ramp also SEPARATES the same-hue pairs, which is why hue alone could never have worked: morning and
+// afternoon both derive from the day track (light/airy vs full bright), night and midnight both from the
+// night track (deep blue vs darkest indigo).
+//
+// Rendered with CSS relative color syntax — `oklch(from <tint> L C h)` — the idiom this stylesheet already
+// uses. Zero raw color literals: the hue is a token derivation, L/C are scalars.
+interface WaystoneBandRamp {
+  readonly l: number;
+  readonly c: number;
+}
+const ARC_BAND_RAMP: Readonly<Record<WaystonePhase, WaystoneBandRamp>> = {
+  dawn: { l: 0.74, c: 0.105 },
+  morning: { l: 0.88, c: 0.055 },
+  afternoon: { l: 0.76, c: 0.12 },
+  evening: { l: 0.62, c: 0.115 },
+  night: { l: 0.5, c: 0.09 },
+  midnight: { l: 0.37, c: 0.07 },
+};
+/** The lit band is its own color, one step brighter + richer — the halo carries the rest of the emphasis. */
+const ARC_LIT_L_GAIN = 0.06;
+const ARC_LIT_C_GAIN = 0.02;
+
+/** One dial band's stroke: the band's own hue at the normalized ramp, shifted per POLARITY by the two vars
+ *  the stylesheet sets (a light theme needs darker, slightly richer bands to read against a light bezel).
+ *  Defaults inline so the stone still paints correctly if it ever renders outside the stylesheet's scope. */
+export function arcStroke(phase: WaystonePhase, lit: boolean): string {
+  const band = ARC_BAND_RAMP[phase];
+  const l = lit ? band.l + ARC_LIT_L_GAIN : band.l;
+  const c = lit ? band.c + ARC_LIT_C_GAIN : band.c;
+  return `oklch(from ${waystoneBandTint(phase)} calc(${l} + var(--orb-ws-band-l, 0)) calc(${c} * var(--orb-ws-band-c, 1)) h)`;
+}
 
 // ─── Tints (tokens + color-mix ONLY — the §12.1.9 one-home rule for the stone) ───────────────────
-/** The dial band strokes. Each of the six segments wears its OWN band identity (`waystoneBandTint` — the sky
- *  that part of the day actually paints), lifted toward the foreground so a dark band still reads against the
- *  bezel; the CURRENT band is lifted further and runs at full opacity, so "we are here" is a brightness step
- *  within one hue family rather than the only color on an otherwise grey ring (owner, 2026-07-31). */
-export function arcStroke(phase: WaystonePhase, lit: boolean): string {
-  return `color-mix(in oklab, ${waystoneBandTint(phase)} ${lit ? ARC_LIT_MIX : ARC_REST_MIX}%, var(--color-foreground))`;
-}
-/** How much of the band's own hue survives the legibility lift — the LIT band keeps more of itself (it is
- *  already the brightest thing on the ring), a resting band trades a little hue for luminance. */
-const ARC_LIT_MIX = 74;
-const ARC_REST_MIX = 52;
-export const TICK_STROKE = "color-mix(in oklab, var(--color-foreground) 30%, transparent)";
-export const TICK_MAJOR_STROKE = "color-mix(in oklab, var(--color-foreground) 55%, transparent)";
-/** The horizon silhouette — a foreground-shifted sidebar tone (polarity-safe contrast, no raw black). */
+/** The horizon silhouette — a foreground-shifted sidebar tone (polarity-safe contrast, no raw black). It
+ *  renders FULLY OPAQUE: at 0.85 the rain fell straight through the hill, which broke the one depth cue the
+ *  stone has. Any softening belongs in the fill, never in the opacity. */
+/** The noon sun + midnight moon on the bezel — the two marks that teach the 24h convention. Both are lifted
+ *  toward the foreground so they read over ANY of the six band hues they sit against. */
+export const CARDINAL_SUN = "color-mix(in oklab, var(--color-sky-ember) 62%, var(--color-sky-star))";
+export const CARDINAL_MOON = "color-mix(in oklab, var(--color-sky-star) 88%, var(--color-sky-night-horizon))";
 export const HORIZON_FILL = "color-mix(in oklab, var(--color-foreground) 25%, var(--color-sidebar))";
-export const GABLE_FILL = "color-mix(in oklab, var(--color-primary) 45%, var(--color-sidebar))";
-export const RAIN_STROKE = "color-mix(in oklab, var(--color-track-6) 80%, var(--color-foreground))";
-export const SNOW_FILL = "color-mix(in oklab, var(--color-foreground) 85%, transparent)";
-export const ASH_FILL = "color-mix(in oklab, var(--color-primary) 45%, var(--color-foreground))";
-export const FOG_STROKE = "color-mix(in oklab, var(--color-foreground) 62%, transparent)";
-export const WIND_STROKE = "color-mix(in oklab, var(--color-foreground) 45%, transparent)";
-export const CLOUD_LIGHT = "color-mix(in oklab, var(--color-muted) 65%, var(--color-foreground))";
-export const CLOUD_DARK = "color-mix(in oklab, var(--color-track-2) 55%, var(--color-foreground))";
+export const GABLE_FILL = "color-mix(in oklab, var(--color-foreground) 42%, var(--color-sidebar))";
+/** The lit window — the one ember in the landscape, and the reason the horizon is a PLACE and not a shape. */
+export const GABLE_WINDOW_FILL = "var(--color-primary)";
+/** The window's floor glow by day and how much brighter it burns as the sky darkens (it tracks starOpacity). */
+export const GABLE_WINDOW_FLOOR = 0.25;
+export const GABLE_WINDOW_GAIN = 0.7;
+// The homestead on the ridge. Its base sits BELOW the silhouette's ridge line at this x (which runs y≈57.3),
+// so the walls are SEATED in the hill instead of floating above it — the flat-base-on-a-slope tell. Scaled up
+// from the original 4.75px speck: at the shipped size this reads as a building with a lit window.
+const GABLE_BASE_Y = 59.2;
+const GABLE_X = 42.4;
+const GABLE_W = 9.2;
+const GABLE_WALL_H = 5.4;
+const GABLE_ROOF_H = 4.6;
+export const RAIN_STROKE = "var(--color-sky-rain)";
+export const RAIN_W = 1.1;
+export const SNOW_FILL = "var(--color-sky-star)";
+export const ASH_FILL = "var(--color-sky-ash)";
+/** Roughly one ashfall mote in eight is still burning — the only warm thing in a grey fall. */
+export const ASH_EMBER_FILL = "color-mix(in oklab, var(--color-sky-ember) 70%, var(--color-sky-ash))";
+export const FOG_FILL = "var(--color-sky-cloud)";
+export const WIND_FILL = "var(--color-sky-cloud)";
+export const CLOUD_LIGHT = "var(--color-sky-cloud)";
+export const CLOUD_DARK = "var(--color-sky-cloud-dark)";
 export const BOLT_STROKE = "var(--color-highlight)";
-export const FLASH_FILL = "color-mix(in oklab, var(--color-highlight) 60%, var(--color-foreground))";
-export const STAR_FILL = "var(--color-foreground)";
-export const MOON_GLINT = "color-mix(in oklab, var(--color-foreground) 40%, transparent)";
+export const FLASH_FILL = "color-mix(in oklab, var(--color-highlight) 55%, var(--color-sky-star))";
+export const STAR_FILL = "var(--color-sky-star)";
+export const MOON_GLINT = "color-mix(in oklab, var(--color-sky-night-horizon) 60%, transparent)";
 
-/** A point on a dial circle — noon at the top, midnight at the bottom, clockwise. */
-function pointAt(hour: number, radius: number): { readonly x: number; readonly y: number } {
-  const theta = (((hour / HOURS_IN_DAY) * DEG_FULL + DEG_HALF) * Math.PI) / DEG_HALF;
+/** The homestead: walls seated in the ridge, a pitched roof, drawn as ONE path so it silhouettes cleanly. */
+export const GABLE_PATH = [
+  `M ${GABLE_X} ${GABLE_BASE_Y}`,
+  `L ${GABLE_X} ${GABLE_BASE_Y - GABLE_WALL_H}`,
+  `L ${GABLE_X + GABLE_W / 2} ${GABLE_BASE_Y - GABLE_WALL_H - GABLE_ROOF_H}`,
+  `L ${GABLE_X + GABLE_W} ${GABLE_BASE_Y - GABLE_WALL_H}`,
+  `L ${GABLE_X + GABLE_W} ${GABLE_BASE_Y}`,
+  "Z",
+].join(" ");
+/** The window: a real opening in the wall, sized to read at the shipped stone size. */
+const GABLE_WINDOW_W = 2.2;
+const GABLE_WINDOW_H = 2.6;
+const GABLE_WINDOW_DROP = 0.9;
+export const GABLE_WINDOW = {
+  x: GABLE_X + GABLE_W / 2 - GABLE_WINDOW_W / 2,
+  y: GABLE_BASE_Y - GABLE_WALL_H + GABLE_WINDOW_DROP,
+  w: GABLE_WINDOW_W,
+  h: GABLE_WINDOW_H,
+} as const;
+
+/** The pointer needle as one path, drawn pointing UP (12 o'clock); the hand group rotates it to the hour.
+ *  Tapered tip inward at the sky, straight flanks across the bezel, a squared cap just outside the ring. */
+export const POINTER_PATH = [
+  `M ${C} ${C - POINTER_TIP_R}`,
+  `L ${C - POINTER_HALF_W} ${C - POINTER_SHOULDER_R}`,
+  `L ${C - POINTER_CAP_HALF_W} ${C - POINTER_CAP_R}`,
+  `L ${C + POINTER_CAP_HALF_W} ${C - POINTER_CAP_R}`,
+  `L ${C + POINTER_HALF_W} ${C - POINTER_SHOULDER_R}`,
+  "Z",
+].join(" ");
+
+/** THE hour→angle mapping — the dial's single geometric home. Degrees CLOCKWISE from 12 o'clock, so noon sits
+ *  at the top and midnight at the bottom. Everything angular on the stone goes through this one function: the
+ *  band arcs, the cardinal glyphs, and the hour hand's rotation. (A second table with its own origin is
+ *  exactly how a ring drifts out of agreement with its own hand.) */
+export function hourAngle(hour: number): number {
+  return ((((hour / HOURS_IN_DAY) * DEG_FULL + DEG_HALF) % DEG_FULL) + DEG_FULL) % DEG_FULL;
+}
+
+/** A point on a dial circle at a given hour — noon at the top, midnight at the bottom, clockwise. */
+export function pointAt(hour: number, radius: number): { readonly x: number; readonly y: number } {
+  const theta = (hourAngle(hour) * Math.PI) / DEG_HALF;
   return { x: C + radius * Math.sin(theta), y: C - radius * Math.cos(theta) };
 }
 
@@ -107,24 +212,8 @@ export function arcPath(from: number, to: number): string {
 /** The marker's rotation from 12 o'clock, clockwise — the hand is DRAWN at noon and rotated to the hour, so a
  *  time change swings it around the ring (a translated marker would cut a chord across the sky). */
 export function handAngle(hour: number, minute: number): number {
-  return (((hour + minute / MINUTES_IN_HOUR) / HOURS_IN_DAY) * DEG_FULL + DEG_HALF) % DEG_FULL;
+  return hourAngle(hour + minute / MINUTES_IN_HOUR);
 }
-
-/** The bezel hour ticks — every 3h, with 00/06/12/18 longer + brighter (the cardinal read). */
-export const HOUR_TICKS: readonly {
-  readonly key: string;
-  readonly x1: number;
-  readonly y1: number;
-  readonly x2: number;
-  readonly y2: number;
-  readonly major: boolean;
-}[] = Array.from({ length: HOURS_IN_DAY / TICK_EVERY_HOURS }, (_, i) => {
-  const hour = i * TICK_EVERY_HOURS;
-  const major = hour % MAJOR_TICK_EVERY_HOURS === 0;
-  const inner = pointAt(hour, major ? TICK_MAJOR_INNER : TICK_INNER);
-  const outer = pointAt(hour, major ? TICK_MAJOR_OUTER : TICK_OUTER);
-  return { key: `t${hour}`, x1: inner.x, y1: inner.y, x2: outer.x, y2: outer.y, major };
-});
 
 /** The star field — ten fixed positions; each twinkles on its own delay (the `:nth-child` stagger in CSS). */
 export const STAR_POSITIONS: readonly { readonly x: number; readonly y: number; readonly r: number }[] = [
@@ -149,20 +238,60 @@ export const CLOUD_SLOT_PATHS: readonly string[] = [
   "M 26 48 a 4.5 4.5 0 0 1 9 -3 a 5.5 5.5 0 0 1 10 3 z",
 ];
 
+/** One drop/mote: its lattice position plus a deterministic JITTER — a scale (length/width/radius), an alpha,
+ *  and for ash whether this one is still burning. Real precipitation is irregular; a perfect grid at one
+ *  length and one opacity reads as a texture swatch. */
+export interface WaystoneLatticeCell {
+  readonly x: number;
+  readonly y: number;
+  readonly scale: number;
+  readonly alpha: number;
+  readonly ember: boolean;
+}
+
+/** A stable pseudo-random in [0,1) from two ints — deterministic, so the fall is identical every render (no
+ *  Math.random in a component, no re-jitter on every paint). */
+// The classic one-line hash: two large coprime-ish multipliers into sin(), scaled past any float grid. The
+// constants carry no meaning beyond "big and unrelated" — that is the whole point of a hash.
+const HASH_A = 127.1;
+const HASH_B = 311.7;
+const HASH_SCALE = 43_758.545;
+function jitter(a: number, b: number): number {
+  const n = Math.sin(a * HASH_A + b * HASH_B) * HASH_SCALE;
+  return n - Math.floor(n);
+}
+
 /** The lattice a particle layer falls on: `columns` evenly spread across the disc, each offset by a fraction of
- *  the pitch so the fall never reads as a grid, rows covering the disc plus one pitch of overscan. */
-export function latticeCells(layer: WaystoneParticleLayer): readonly { readonly x: number; readonly y: number }[] {
-  const cells: { x: number; y: number }[] = [];
+ *  the pitch so the fall never reads as a grid, rows covering the disc plus one pitch of overscan. The PITCH is
+ *  exact (the loop's seam depends on it); everything else is jittered. */
+export function latticeCells(layer: WaystoneParticleLayer): readonly WaystoneLatticeCell[] {
+  const cells: WaystoneLatticeCell[] = [];
   const span = SKY_WH - LATTICE_INSET * 2;
   for (let col = 0; col < layer.columns; col++) {
-    const x = SKY_XY + LATTICE_INSET + (span * col) / Math.max(layer.columns - 1, 1);
+    const base = SKY_XY + LATTICE_INSET + (span * col) / Math.max(layer.columns - 1, 1);
     const offset = (layer.pitch * col) / layer.columns;
+    let row = 0;
     for (let y = LATTICE_TOP + offset - layer.pitch; y < LATTICE_BOTTOM; y += layer.pitch) {
-      cells.push({ x, y });
+      const seed = jitter(col, row);
+      const seedB = jitter(row, col + HASH_SEED_OFFSET);
+      cells.push({
+        x: Number.parseFloat((base + (seed - HALF) * LATTICE_X_JITTER).toFixed(COORD_PRECISION)),
+        y: Number.parseFloat(y.toFixed(COORD_PRECISION)),
+        scale: Number.parseFloat((1 - LATTICE_SCALE_JITTER * HALF + seedB * LATTICE_SCALE_JITTER).toFixed(COORD_PRECISION)),
+        alpha: Number.parseFloat((LATTICE_ALPHA_FLOOR + seed * (1 - LATTICE_ALPHA_FLOOR)).toFixed(COORD_PRECISION)),
+        ember: seedB > EMBER_CUTOFF,
+      });
+      row++;
     }
   }
   return cells;
 }
+const HASH_SEED_OFFSET = 7;
+const HALF = 0.5;
+const LATTICE_X_JITTER = 3.2;
+const LATTICE_SCALE_JITTER = 0.55;
+const LATTICE_ALPHA_FLOOR = 0.5;
+const EMBER_CUTOFF = 0.875;
 
 export const FALL_SPEED_CLASS: Readonly<Record<WaystoneParticleLayer["speed"], string>> = {
   fast: "orb-ws-fall-fast",
