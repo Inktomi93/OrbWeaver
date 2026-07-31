@@ -18,10 +18,17 @@ describe("healToChatDefault", () => {
     expect(healToChatDefault(DEFAULT_CHAT_MODEL_ID)).toBe(DEFAULT_CHAT_MODEL_ID);
   });
 
-  test("REGRESSION: a stale sonnet version heals to the CURRENT sonnet, not opus", () => {
-    // The owner-reported bug: presets storing the pre-bump `claude-sonnet-4-6` id used to fall all the way
-    // to DEFAULT_CHAT_MODEL_ID (opus), silently upgrading a sonnet user to opus pricing/behavior.
-    expect(healToChatDefault("claude-sonnet-4-6")).toBe("claude-sonnet-5");
+  test("a curated non-flagship (claude-sonnet-4-6) passes through — NEVER healed away (c656bc1b)", () => {
+    // 4.6 was re-curated for its structured flag: a game/preset deliberately on 4.6 must STAY on 4.6 —
+    // healing it to sonnet-5 would undo the exact fix the curation shipped.
+    expect(healToChatDefault("claude-sonnet-4-6")).toBe("claude-sonnet-4-6");
+  });
+
+  test("REGRESSION: a STALE sonnet version heals within-tier to the flagship, not opus", () => {
+    // The owner-reported bug class: a stale sonnet id must never fall all the way to
+    // DEFAULT_CHAT_MODEL_ID (opus), silently upgrading a sonnet user to opus pricing/behavior.
+    // `claude-sonnet-4-5` is genuinely uncurated, so it tier-heals to the flagship.
+    expect(healToChatDefault("claude-sonnet-4-5")).toBe("claude-sonnet-5");
   });
 
   test("a stale/dated haiku variant heals to the curated haiku entry", () => {
@@ -35,8 +42,8 @@ describe("healToChatDefault", () => {
     expect(healToChatDefault("opus")).toBe(DEFAULT_CHAT_MODEL_ID);
   });
 
-  test("an OR-prefixed dotted id resolves via getChatModel to the current sonnet entry", () => {
-    expect(healToChatDefault("anthropic/claude-sonnet-4.6")).toBe("claude-sonnet-5");
+  test("an OR-prefixed dotted id resolves via getChatModel to ITS curated entry (not the flagship)", () => {
+    expect(healToChatDefault("anthropic/claude-sonnet-4.6")).toBe("claude-sonnet-4-6");
   });
 
   test("a non-Claude id heals to the curated default (no false tier match)", () => {

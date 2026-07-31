@@ -142,7 +142,9 @@ export function detectChatModelTier(id: string): "opus" | "sonnet" | "haiku" | u
   return tier === undefined ? undefined : (tier.toLowerCase() as "opus" | "sonnet" | "haiku");
 }
 
-/** The curated shortlist entry for a tier — CHAT_MODELS has exactly one entry per tier. */
+/** The curated FLAGSHIP entry for a tier — the FIRST CHAT_MODELS entry per tier. A tier may carry
+ *  additional curated entries (claude-sonnet-4-6, curated for its structured flag — c656bc1b); list
+ *  order is load-bearing: the flagship precedes them. */
 export function chatModelForTier(tier: "opus" | "sonnet" | "haiku"): CuratedChatModel {
   const entry = CHAT_MODELS.find((candidate) => candidate.tier === tier);
   if (entry === undefined) {

@@ -54,7 +54,7 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 | 2 | ~~**R5a + R5**~~ LANDED `7d0e6f60` (enum bind + ghost guard, one-homed predicate) | server/rpg | done |
 | 3 | **OR-1…OR-4** provider-layer defects (one commit) | server/providers | S |
 | 4 | ~~**W-I / D111**~~ MINTED (registry + laws index) | docs/law | done |
-| 5 | **R1** fold extraction into the narrative turn — **consumes PRESET gen settings, no effort forcing** | server/rpg+chat | **L** |
+| 5 | ~~**R1**~~ **BUILT** `940969f6` — `extractionMode:"folded"` + the terminal-tools primitive; second call provably gone; degrade matrix tested; freshness lie fixed; **D112 MINTED**. Verifier pass in flight. Fallback-arm freshness gap → EFF-3. | server/rpg+chat | done |
 | 6 | **R6 + R2** per-game tool assembly, gating at the schema, templated descriptions | server/rpg | **L** |
 | 7 | stretch: **R4c** journal `custom` escape (needs a migration) | contracts/db | M |
 
@@ -84,7 +84,7 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **R4c** | `RPG_JOURNAL_TYPES` is closed (`location·npc·combat·quest·item·event·note`) **with a DB CHECK** (`db/schema/rpg.ts:238,253`) and no `custom` arm — inconsistent with `RPG_RELATIONSHIP_KINDS`, which solved exactly this with `{kind:"custom", label}`. Combat-flavoured on a plane that fires on **79%** of turns, in the genres lite is best at. Fix: keep the enum, add `custom` + free `label`, per-game hints in `config.features` so host types gloss. **Needs a migration — decide before more rows accumulate.** | open, wants a go/no-go | M |
 | **R5b** | Follow-ups from the R4b/R5 landing (executor-surfaced, 2026-07-31): (a) `refEnumerationLines` (the prompt fallback for non-enforcing backends) doesn't enumerate active conditions — the matching half of R5a's schema bind, ~2 lines when R2/R6 touch the prompt; (b) `substrate/delta.ts` (CHANGES-SINCE block) renders cast-field transitions UNGLOSSED — same steering argument as R4b. Fold both into the R6+R2 lane. Also noted: `ExtractionRefs` is a 4-way coupled site (interface + constrain body + compose resolve + ~11 test literals; tsc catches all — budget the churn). | open | S |
 | **EFF-1** | ~~Effort-preset wiring verification~~ **DONE (scouted 2026-07-31 night): WIRED end-to-end on hosted** — preset `params.effort` (contracts/preset:200) → editor (params-panel.tsx:246, model-real levels, adaptive no-dial) → `foldGenerationParams` (pipeline.ts:277) → `resolveChat` (quality fallback + mandatory/allowlist clamps) → OR `reasoning:{effort}` (kit/reasoning-budget.ts). rpg turns inherit via the shared pipeline, no bypass in compose/rpg.ts. R1 consumes the preset, nothing to build. **Two follow-up gaps → EFF-2/EFF-3.** | done | — |
-| **EFF-2** | `custom-byo` (self-hosted OpenAI-compat) never calls `resolveChat` and emits NO reasoning field — deliberate raw pass-through or a missing seam? Needs a design read ([[customparameters-byok-only]] suggests pass-through is partly intentional; vLLM instruct models don't take effort anyway). | open | M? |
+| **EFF-2** | `custom-byo` bypasses `resolveChat` — **RULED (owner 07-31 night): UNIFY** — same resolution/clamp/warning treatment as hosted; BYO customParameters still pass through AFTER resolution. Building tonight (worktree lane). | building | M |
 | **EFF-3** | **`ResolvedWarning` is a dead-ended pair (D107 class):** produced server-side on every degrade (mandatory clamp, allowlist clamp, adaptive-budget-ignored) and consumed by ZERO client code — degrades are invisible. The owner's "recommend, don't force" flag = build the client surface for these warnings (+ GM-tab note when the game connection resolves thinking-off). | open — tonight if runway | M |
 | **F2** | Immersive `:::card` was rare across ALL spike methods (0/6 for the winner, and also 0/6 for the pure narrative call) → points at prompt/seed, not tools. Own investigation. | open | ? |
 | **F4** | Do the enriched descriptions still hit the prompt-cache prefix? (+$0.008/game is trivial; the per-turn input growth is the question.) | open | S |
@@ -148,12 +148,14 @@ d20-derived profiles, not just seeded freeform — build them aware of each othe
 
 | ID | Finding | Verdict | Size |
 |---|---|---|---|
-| AU-1 | `settings.addExternalBackground` (security fix F-P0-2) fully built server-side; the appearance surface OFFERS "URL" kind but has NO `external` branch — user-visible dead end | **WIRE TONIGHT** | S |
-| AU-2 | rpg journal `addJournalEntry`/`edit`/`delete` verbs real, zero product UI (add's only caller = dev seed) — this IS RV-6's server half, already built | **WIRE TONIGHT** (existing tab idioms, not the Tracker primitives) | M |
-| AU-3 | rpg `deleteQuest` verb real, quests tab has create/edit but no delete | **WIRE TONIGHT** | S |
+| AU-1 | ~~external background~~ **BUILT** `1b1da37b` (worktree, merge pending). Audit premise corrected: "URL" was DELIBERATELY filtered from the select (BG-C: external = transient input, never persisted paintable) — the real gap was the verb + `backgroundLibrary` having ZERO writers. Built: URL row in the Upload branch → `addExternalBackground` → library append + live-select; leak-free inline refusals. | done | — |
+| AU-2 | ~~journal CRUD~~ **BUILT** `ba951deb` (RV-6 closed: composer type+title, in-place body authoring — the ≥3-field form gate steered the design — inline edit, confirmed delete, entry TYPE now rendered; host-only per the verbs, members get permission-omit). Pixel pass caught + fixed a 320px-rail overflow. | done | — |
+| AU-3 | ~~quest delete~~ **BUILT** `ba951deb` (ConfirmDialog, `canEditShared`) | done | — |
+| AU-9 | ~~uploads → library~~ **RULED yes + BUILT** `4a5150d9` (worktree): uploads mint a full `BackgroundLibraryEntry` (mime + derived name), one `addBackground` handler serves upload+URL arms; real-bytes CT. | done | — |
+| AU-10 | Follow-up: no library browse/rename/remove UI in Appearance (add-and-select only). | open | M |
 | AU-4 | rpg widget CRUD verbs unwired | SUPERSEDED — Tracker unification drops the subsystem; build NOTHING | — |
-| AU-5 | `connection.getModelCapability` — refactor leftover (resolveRole collapsed the round-trip per its own comment) | KILL candidate (touches router sweep classification — its own small commit) | S |
-| AU-6 | `settings.get/setGlobalSetting` (adminProcedure) — unbuilt admin panel vs ops escape hatch | classify DOORWAY vs DEFERRED (owner/morning) | — |
+| AU-5 | `connection.getModelCapability` — refactor leftover | KILL (owner no-objection 07-31 night; small commit + sweep-classification touch) | S |
+| AU-6 | `settings.get/setGlobalSetting` — **RULED: DOORWAY** (ops/CLI escape hatch; cite as sanctioned-dormant, no build) | ruled | — |
 | AU-7 | `rollDice` — model-tool surface, not a client gap | no action | — |
 | AU-8 | HUNT-A backlog: 73 unused exports + 12 types from knip:prod UNSCREENED; bus-member/contract-field/warning-sibling sweeps not started | open — future audit session | L |
 
@@ -170,7 +172,9 @@ d20-derived profiles, not just seeded freeform — build them aware of each othe
 - **`permitsHost` dead-code purge** (`auth/decide.ts`, true orphan) — go/no-go, owner call.
 - **#16 engine auto-sleep/wake live pass** — optional polish, already characterized
   ([[vllm-sleep-fleet-facts]]).
-- Flakes/facelift micro-ledgers · grimstone theme ship-or-skip (add anytime as a theme.json, zero code).
+- Flakes/facelift micro-ledgers · grimstone theme — **owner: skip/park (07-31)**.
+- UI-stretch order (owner: "pick the order, all important"): Waystone RV-9/10 → model picker MP-1/2 →
+  card collapse RV-1/2 → Preview D-4.
 
 ### E. OWNER DECISIONS — the 2026-07-31 late-night Q&A RESOLVED nearly everything
 

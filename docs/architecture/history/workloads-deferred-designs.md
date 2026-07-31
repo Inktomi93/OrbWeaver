@@ -22,28 +22,26 @@ The as-built (the code is the law — `@orb/contracts/workloads` `WORKLOAD_KIND_
 
 - **`singular`** — a normal authed caller (`authedProcedure`) runs over their OWN `ownerId` (`start`
   stamps `ownerId = caller`; a request can't stamp a foreign owner). `list`/`get`/`cancel`/`retry`/
-  <<<<<<< Updated upstream
   `subscribe` are IDOR-scoped to the caller's own rows (foreign id → leak-free NOT\_FOUND); admin∪owner
-  \=======
-  `subscribe` are IDOR-scoped to the caller's own rows (foreign id → leak-free NOT\_FOUND); admin∪owner
-
-> > > > > > > Stashed changes
-> > > > > > > get the deployment-wide view (the settled answer to the old open question — **owner-scoped for users,
-> > > > > > > admin-sees-all**), role decided via the `can()` seam (D17), never a bare `role === 'admin'`.
+  get the deployment-wide view (the settled answer to the old open question — **owner-scoped for users,
+  admin-sees-all**), role decided via the `can()` seam (D17), never a bare `role === 'admin'`.
 
 - **`bulk`** — BOX-OWNER-only (`requireOwner`, double-gated router + verb; a `null` caller = a trusted
   system/scheduler trigger). A SWEEP-kind bulk runs across all owners (`ownerId = null`); a CREATE-kind
   bulk (`import-st`) MINTS into a required `targetOwnerId` ("import INTO user X").
+
 - **Per-kind mode policy is the ONE home** — `WORKLOAD_KIND_MODES` (`singular`/`bulk`/`bulkRequiresTarget`
   /`stub`), tsc-exhaustive; consumers read the flags, never branch on a kind id. `stub:true` marks a
   not-yet-built runner (hidden from the run UI). Single-active lock is per-`(kind, ownerId)` for singular,
   per-`(kind)` for bulk.
+
 - **CORRECTION to this doc's original claim** ("the runner bodies are already `ctx.userId`-scoped"):
   they were NOT — the neo-ported `embed-corpus`/`memory-backfill`/analytics runners enumerated ALL owners'
   producers (a global-corpus assumption). The rekey threaded `ownerId` into the enumeration/analytics ops
   so a singular run touches only the caller-owner's producers (and its writes; e.g. themes/duplicates
   delete-scope by owner). `csls` is ALWAYS owner-scoped (never a cross-tenant whole-space read; bulk = a
   per-owner fan-out) — the previously-unscoped hub read was deleted.
+
 - Client: a per-user **Workloads** settings category (all authed users see their own; the owner also gets
   a "Maintenance" group for bulk-only built kinds). Agents-as-principals enqueue through the injected
   `WorkloadService.start` carrying the agent's `ownerId`, unchanged.
@@ -60,27 +58,27 @@ not a per-runner concern. The code is the law (`persistence/queries.ts`, `contra
 - `nextRunnableWorkload` (persistence) gates the queue poll on `resolveDependencyGate`. A queued row with
   a non-empty `dependsOn` is dispatchable ONLY when EVERY dependency reached a TERMINAL state AND each is
   `succeeded`. Terminal is defined off the status lifecycle (`TERMINAL_STATUSES` = succeeded/failed/
-  <<<<<<< Updated upstream
   cancelled/worker\_died; queued/running/cancelling are active). Three verdicts:
-  \=======
-  cancelled/worker\_died; queued/running/cancelling are active). Three verdicts:
-
-> > > > > > > Stashed changes
 
 - **`waiting`** (a dep still active) → the dependent is SKIPPED, stays `queued`, un-dispatched (NOT
   failed) until its deps terminate;
+
 - **`ready`** (all deps `succeeded`) → dispatch, unchanged order `(scheduledAt, createdAt)`;
+
 - **`failed`** (a dep hit a NON-success terminal, or is absent) → the dependent is FAILED IN PLACE with
   the `dependency_failed` arm (queued → failed), the SAME fail-in-place discipline as a poison head row.
+
 - **Any non-`succeeded` terminal dep is a dependency failure** (fail-fast — a single failed/absent dep
   short-circuits even if other deps are still active). The design was silent on cancelled-vs-failed deps;
   the choice is that a `cancelled`/`worker_died` dep is no more "done successfully" than a `failed` one, so
   it fails the dependent. An ABSENT dep (an id with no row) also fails the dependent — it can never become
   `succeeded`, so waiting on it would leak the row in the queue forever.
+
 - The `WorkloadError` union re-gained the `dependency_failed` arm (`contract/workload-error.ts`), keeping
   the §7.5 one-producer-per-arm discipline: `nextRunnableWorkload` is its SOLE producer. It fails in place
   in persistence (no bus event — persistence is pure data access, mirroring the poison-row path; a
   subscriber observes the terminal via list/get).
+
 - `verbs/start.ts` / `verbs/retry.ts` dropped their "NOT enforced" warn-seams; their headers + the
   `WorkloadRowBase.dependsOn` doc now describe the enforcement.
 
