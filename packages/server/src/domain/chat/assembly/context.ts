@@ -175,14 +175,15 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
       depth: entry.inject.depth,
       role: entry.inject.role,
       content,
+      origin: "world-info",
     };
     return { injection, ...meta, bucket: null };
   }
   if (entry.scope === "always") {
-    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content };
+    const injection: ChatInjection = { position: "in_static", depth: 0, role: "system", content, origin: "world-info" };
     return { injection, ...meta, bucket: resolveBucket(entry, args) };
   }
-  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content };
+  const injection: ChatInjection = { position: "in_prompt", depth: 0, role: "system", content, origin: "world-info" };
   return { injection, ...meta, bucket: null };
 }
 
@@ -457,7 +458,7 @@ function routeKept(kept: readonly InjectionCandidate[]): {
 /** A depth-0, ignore-budget guided injection candidate carrying the resolved steer with `role`. */
 function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"]): InjectionCandidate {
   return {
-    injection: { position: "in_chat", depth: 0, role, content: resolved },
+    injection: { position: "in_chat", depth: 0, role, content: resolved, origin: "guided" },
     tokens: estimateTokens(resolved),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -532,7 +533,7 @@ function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePerso
   }
   const { depth, role } = active.placement;
   return {
-    injection: { position: "in_chat", depth, role, content },
+    injection: { position: "in_chat", depth, role, content, origin: "persona", originLabel: active.name },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -555,7 +556,7 @@ function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePerson
   }
   const content = `[${ANCHOR_IDENTITY_PREFIX} ${anchor.name}: ${resolved}]`;
   return {
-    injection: { position: "in_static", depth: 0, role: "system", content },
+    injection: { position: "in_static", depth: 0, role: "system", content, origin: "persona", originLabel: anchor.name },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -618,7 +619,7 @@ function characterDepthNoteCandidates(
     }
     contributorNames.push(member.name);
     candidates.push({
-      injection: { position: "in_chat", depth: note.depth, role: note.role ?? "system", content },
+      injection: { position: "in_chat", depth: note.depth, role: note.role ?? "system", content, origin: "authors-note", originLabel: member.name },
       tokens: estimateTokens(content),
       ignoreBudget: true,
       priority: OPERATOR_PRIORITY,
@@ -648,7 +649,7 @@ function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote, r
     role: AUTHORS_NOTE_DEFAULT_ROLE,
   });
   return {
-    injection: { position: "in_chat", depth, role, content },
+    injection: { position: "in_chat", depth, role, content, origin: "authors-note" },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,

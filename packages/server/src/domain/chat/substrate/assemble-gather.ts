@@ -171,6 +171,9 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
     role: row.role,
     content: row.content,
     ...(row.order !== null ? { order: row.order } : {}),
+    // Provenance for the host preview's per-source accounting — a persisted row is ALWAYS host-authored
+    // (`user` origin); a client never authors this field (it is deliberately off `chatInjectionInputSchema`).
+    origin: "user",
   };
 }
 
@@ -378,7 +381,13 @@ export async function gatherAssembleContext(
       recentMessages,
       // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1) + the crew director's
       // guidance injection (chat-crew-design/04 §1); absent rpg/crew ⇒ unchanged.
-      userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []), ...(args.crewInjections ?? [])],
+      // The rpg reminder is stamped `game-state` HERE (the ONE merge site) so the BUILD walk can account the
+      // state block as its own budget source without chat ever reading an rpg type.
+      userInjections: [
+        ...injectionRows.map(toChatInjection),
+        ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" })),
+        ...(args.crewInjections ?? []),
+      ],
       memory,
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
       ...(databank !== undefined ? { databank } : {}),

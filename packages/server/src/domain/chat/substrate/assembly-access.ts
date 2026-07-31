@@ -9,7 +9,8 @@
 // "the engine's pipeline imports shape from here" — that DIRECT cross-subsystem import is gate-illegal; this
 // substrate bridge is the legal form of the same coupling.)
 
-import { assemblePrompt, previewSection as previewSectionImpl } from "../assembly/assemble";
+import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSectionImpl } from "../assembly/assemble";
+import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget";
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
   fitHistoryToWindow,
@@ -31,6 +32,16 @@ import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
   return assemblePrompt(...args);
+}
+
+/** BUILD + the per-source budget attribution (the host `previewAssembly` read; byte-identical prompt). */
+export function buildPromptWithSlices(...args: Parameters<typeof assemblePromptWithSlices>): ReturnType<typeof assemblePromptWithSlices> {
+  return assemblePromptWithSlices(...args);
+}
+
+/** BUDGET: group the BUILD slices + the fitted history into the host preview's per-source breakdown. */
+export function buildAssemblyBudget(...args: Parameters<typeof buildAssemblyBudgetImpl>): ReturnType<typeof buildAssemblyBudgetImpl> {
+  return buildAssemblyBudgetImpl(...args);
 }
 
 /** SHAPE: scope→splice→squash→name-stamp the wire history + compute the §8 breakpoint. */

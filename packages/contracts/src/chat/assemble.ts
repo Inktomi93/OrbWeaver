@@ -89,7 +89,23 @@ export interface ChatInjection {
   content: string;
   /** Priority WITHIN a depth (ST `injection_order`); co-located `in_chat` injections splice DESC. */
   order?: number;
+  /** WHICH producer minted this injection — the ONLY thing that distinguishes an at-depth world-info entry
+   *  from a host chat-injection once both are `ChatInjection`s in one unified list. Stamped by the producer
+   *  (context.ts's candidate builders + the gather's rpg/foreign merge), read by the BUILD walk's per-source
+   *  accounting ({@link AssemblyBudgetSlice}). Absent ⇒ a hand-built/legacy injection, accounted `steering`. */
+  origin?: ChatInjectionOrigin;
+  /** WHO this injection's bytes belong to, when a person is behind them — a roster member's card name (their
+   *  at-depth note), a persona's name. Absent ⇒ the origin alone names the contributor (a host chat injection,
+   *  the room author's note, the game state block). Display-only provenance for the host budget breakdown:
+   *  never rendered into the prompt, never a wire input. */
+  originLabel?: string;
 }
+
+/** The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
+ *  (§5.5, no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
+ *  (a client never authors provenance — the `user` origin is stamped server-side when the row is mapped). */
+export const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state"] as const;
+export type ChatInjectionOrigin = (typeof CHAT_INJECTION_ORIGINS)[number];
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
  *  axis (`satisfies` binds it to the interface, so a widened union fails `tsc` here; §5.5 no inline
@@ -136,6 +152,53 @@ export interface AssembleTrace {
     scenario?: string;
     authorsNote?: string;
   };
+}
+
+/** The context-BUDGET source axis — the six buckets every byte of a next-turn context lands in (the Preview
+ *  tab's per-source accounting). Declared ONCE as a tuple and DERIVED (§5.5); the order IS prompt order, which
+ *  is also the stacked bar's segment order and the client's colour-ramp keying. `history` is the shaped wire
+ *  history (SHAPE + FIT), every other member is a BUILD-walk contribution. */
+export const ASSEMBLY_SOURCES = ["system", "cards", "world-info", "steering", "game-state", "history"] as const;
+export type AssemblySource = (typeof ASSEMBLY_SOURCES)[number];
+
+/** ONE CONTRIBUTOR's share of a source (`AssemblyBudgetSlice.parts`) — a roster member by their card name, a
+ *  persona, or a preset section by its own name. This is what answers "what is EACH character in the room
+ *  costing me", so `label` is a person's name wherever a person is behind the bytes. */
+export interface AssemblyBudgetPart {
+  label: string;
+  tokens: number;
+  /** This contributor's assembled text, verbatim. Empty only where the source itself carries none (history). */
+  text: string;
+}
+
+/** ONE source's slice of the next turn's estimated context (`AssemblyBudgetPreview.sources`). `tokens` is the
+ *  LOCAL estimate (`@orb/kit/tokens` QuadChars — the same estimator the history fit runs), never billing truth. */
+export interface AssemblyBudgetSlice {
+  source: AssemblySource;
+  /** The contributors that make up this slice, deduped in prompt order ("Mara · Niko · Sera"), or the history
+   *  row's "N turns · M dropped". Empty string ⇒ nothing to add beyond the source name. Derived from
+   *  {@link AssemblyBudgetSlice.parts} — the same names, as one line. */
+  detail: string;
+  tokens: number;
+  /** The per-contributor breakdown, in prompt order and summing to `tokens`. One entry ⇒ the source has a
+   *  single contributor (the row's own drill-in is enough); several ⇒ the panel lists them (the room's
+   *  characters and what each costs). Empty ONLY for `history` (no contributor split exists — see `text`). */
+  parts: readonly AssemblyBudgetPart[];
+  /** The assembled text attributed to this source — the drill-in body, verbatim as the model receives it.
+   *  EMPTY for `history` BY CONSTRUCTION: the wire history is canon the transcript already renders, so the
+   *  preview accounts for its COST without re-serving it (the same content-free posture as {@link ShapeTrace}). */
+  text: string;
+}
+
+/** The next turn's context accounting (`previewAssembly`) — the stacked budget bar + its per-source breakdown.
+ *  `ceilingTokens` = the SAME `min(capability window, preset maxContextTokens)` the engine's history fit uses,
+ *  `0` ⇒ unbounded (no capability window and no soft cap — the bar then renders proportions with no ratio).
+ *  `totalTokens` = Σ `sources[].tokens`, so the segments always partition the bar exactly. */
+export interface AssemblyBudgetPreview {
+  ceilingTokens: number;
+  totalTokens: number;
+  /** Prompt-ordered, EMPTY sources omitted — a plain (non-game) chat carries no `game-state` row. */
+  sources: readonly AssemblyBudgetSlice[];
 }
 
 /** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as
