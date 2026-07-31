@@ -81,12 +81,16 @@ should be reachable from ONE primary surface, with authority split host/player w
   subject/pin/lock — in ONE section with ONE vocabulary and ONE add flow (subject picked inside it),
   replacing Sheet's "Add meter", Game's "+ Text field / + Meter field", and the BAND ORBS pin section.
   Stat-profile attribute defs (add/rename/hint — RV-4/RV-12) live here too, same editing primitives.
-- **Status tab = the living table, and the primary daily surface** (owner: "do more inline on
-  status"). Roster cards grow inline edit for current values AND max (quick-adjust), conditions,
-  status — plus an expand: the card's expanded state absorbs what Sheet held (title, level, wallet,
-  attribute values on d20). **Sheet tab dissolves.** Its subject-picker/level/wallet/attribute-values
-  content moves into the expanded Status card; its pool-def rows move to the Game tab. One tab fewer,
-  zero content lost, and "not being able to set max here" stops being a sentence anyone says.
+- **Status tab = the only list of people; expanding an entry IS the sheet** (SETTLED, owner
+  2026-07-31 "works for me"). Collapsed row keeps today's quick edits (status line, conditions,
+  meter value/max click-to-edit). Expanding is a **full panel takeover** — a character detail view
+  with a breadcrumb back to the roster, NOT a five-line accordion — holding what Sheet held: title,
+  level, wallet, attribute values on d20 (this is the surface d20 must not ship ugly on, RV-13).
+  **Sheet-the-tab dissolves; sheet-the-view survives as the expanded state.** Pool-def rows move to
+  the Game tab. Inventory STAYS its own tab (plane-shaped, not character-card-shaped). Build-time
+  verify: the takeover pattern on mobile (panel = whole screen) — if it fights drawer navigation,
+  fall back to the same card content as a modal (shell anatomy sanctions modal for settings-like
+  surfaces). Nobody asks "Status or Sheet?" again — the answer is "the character."
 - **Band = pure display** of pinned fields (+ wallet). Pinning toggles on the def row (Game tab) and
   optionally right on the Status card (pin glyph) — both write the same `pinned` flag.
 
@@ -117,8 +121,8 @@ values = host (existing permission grammar, unchanged).
 2. **Schema spec** — the unified def + value storage + migration map (poolDefs/castFields/widgets →
    fields), incl. whether `set_widget_value`/`poolDeltas` alias or merge on the tool surface.
    Interacts with R1/R6 build order: decide the shape BEFORE R6 assembles tools per-concept.
-3. **Sheet dissolution detail** — d20 attribute VALUES need a good expanded-card layout (RV-13 makes
-   d20 the flagship; this must not ship ugly).
+3. ~~Sheet dissolution detail~~ — SETTLED (§3): expand = sheet view, full panel takeover with
+   breadcrumb; mobile behavior verified at build time (modal fallback sanctioned).
 4. Default-name hygiene — no more "Pool 4"/"Meter 3": the add flow requires a name (and nudges a
    hint) before persisting.
 5. **The hint editor is non-negotiable in the unified def editor** — today the proven steering lever
