@@ -55,9 +55,20 @@ location is law" · useRpgBus has no CT (e2e-consequence coverage only).
 
 **Open from the night:** UI stretch order ruled:
 Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
-surface + effective-delivery freshness) · AU-8 hunt-A backlog · settings-registry migration
-(owner mentioned; definition unconfirmed — my read: migrate hardcoded settings panes onto the
-contribution-registry pattern; NOT started pending owner confirm).
+surface + effective-delivery freshness) · AU-8 hunt-A backlog · **settings-registry migration DONE-as-scoped** `21abdc42` (merged): the registry pattern was
+already 90% there (nav/search/shell derive from SettingsPaneRegistry); the one foreign straggler
+(library page-size) migrated to features/character via the new `appearance` anchor. TWO principled
+stops recorded in [[settings-section-seam-body-only]] — and then **SUPERSEDED BY OWNER DIRECTION
+(08-01): the SET-SEAMS program.** Settings' end-state is the skim-the-seams doctrine (the workloads-exit
+philosophy applied here): every section becomes SELF-OWNED (own read + own write via section-scoped
+patches — `updateUserSettingsSection` is the existing server mechanism; tonight's migrated library
+section is the proof-of-shape), the autosave-welded panes DECOMPOSE properly (designed per-section
+saves, not N racing blob patches), features host their own sections and contribute them at anchors,
+and the settings shell becomes a pure skimmer. Includes the O3 amendment (tags/regex re-home into
+proper feature homes as part of the program, superseding "settings keeps them"). SPEC FIRST — a real
+design pass (per-section save UX/status, section-patch schema discipline, the anchor map); joins the
+big-lane queue: Tracker unification → SSE multiplex → workloads exit ∥ SET-SEAMS (same doctrine
+family — spec them aware of each other).
 
 **⚡ TONIGHT'S STANCE (owner, 2026-07-31 pre-overnight, verbatim intent):** "if it isn't wired
 properly, do it RIGHT even if it means more work — no half measures, no shims, no whatever. If you
