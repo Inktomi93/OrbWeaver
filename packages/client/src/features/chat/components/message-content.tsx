@@ -46,12 +46,15 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // tierA renders through the sanitized untrusted markdown seal with css discarded (Tier-A forbids
     // <style>); tierB renders the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
     // lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP).
+    // The row's external-media verdict rides along: the sandbox CSP is the SAME axis as MessageMedia's
+    // gate, so a card's <img src="https://…"> obeys the same setting the media block does.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
       return block.trust === "tierB" ? (
         <ImmersiveCard
           key={key}
           html={block.html}
+          allowExternalMedia={allowExternal}
           {...(block.css === undefined ? {} : { css: block.css })}
           {...(block.title === undefined ? {} : { title: block.title })}
           {...(block.origin === undefined ? {} : { origin: block.origin })}
