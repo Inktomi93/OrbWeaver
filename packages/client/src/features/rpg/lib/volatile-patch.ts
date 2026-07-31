@@ -6,8 +6,8 @@
 // A target actor with no volatile row yet gets one MINTED here (an empty volatile the mutate seeds), so a
 // first hand edit on a fresh actor is a real write, never a silent no-op.
 
-import type { RpgActorRef, RpgActorView, RpgActorVolatile, RpgSnapshotState } from "@orb/contracts/rpg";
-import { actorRefKey } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgActorView, RpgActorVolatile, RpgSnapshotState, RpgTrackerValue } from "@orb/contracts/rpg";
+import { actorRefKey, RPG_TRACKER_VALUE_EMPTY } from "@orb/contracts/rpg";
 
 /** The empty volatile plane a first hand edit seeds for an actor with no state row yet. */
 function emptyVolatile(actorRef: RpgActorRef): RpgActorVolatile {
@@ -32,7 +32,14 @@ export function actorStatePatch(
 }
 
 /** The per-actor lock-path base (#10) — `actorState.<refKey>`; append `.status` / `.trackerValues.<key>` /
- *  `.wallet.<name>` / `.conditions` for the fine pin the edit stamps. */
+ *  `.wallet.<name>` / `.conditions` / `.inventory` for the fine pin the edit stamps. */
 export function actorLockBase(ref: RpgActorRef): string {
   return `actorState.${actorRefKey(ref)}`;
+}
+
+/** Overlay ONE tracker's reading (and/or its per-carrier ceiling override) on an actor's volatile plane,
+ *  keeping the value TOTAL (`{value,items,max}` always whole — the snapshot merge recurses into this object,
+ *  so a partial write would strand the previous reading's siblings on the new one). */
+export function writeTrackerValue(v: RpgActorVolatile, key: string, patch: Partial<RpgTrackerValue>): RpgActorVolatile {
+  return { ...v, trackerValues: { ...v.trackerValues, [key]: { ...RPG_TRACKER_VALUE_EMPTY, ...v.trackerValues[key], ...patch } } };
 }

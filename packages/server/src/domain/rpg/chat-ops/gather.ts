@@ -125,6 +125,8 @@ export async function gatherTurnContext(
     steerMacros,
     curSnapshot,
     prevSnapshot,
+    // The attribute vocabulary (label + hint) the state block teaches once — the sheet's steering lever.
+    statProfile: game.config.statProfile,
     features: game.config.features,
     rosterNames,
     // P3 hidden-channel teaching gates (§3.3) — composed into the reminder only when the knob is on.

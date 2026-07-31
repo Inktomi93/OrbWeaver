@@ -28,14 +28,29 @@ export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row";
 export type { TagPickerDialogProps } from "./tag-picker-dialog";
 export { TagPickerDialog } from "./tag-picker-dialog";
 export type {
+  AddRowAction,
+  AddRowProps,
   AmbientStripProps,
   BeatLineProps,
   CastCardProps,
   CastField,
   GoalLineProps,
+  HintEditorProps,
   MeterRowProps,
   StatCellProps,
   TrackerChipProps,
   TrackerValueProps,
 } from "./tracker-blocks";
-export { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow, RelationshipBadge, StatCell, TrackerChip, TrackerValue } from "./tracker-blocks";
+export {
+  AddRow,
+  AmbientStrip,
+  BeatLine,
+  CastCard,
+  GoalLine,
+  HintEditor,
+  MeterRow,
+  RelationshipBadge,
+  StatCell,
+  TrackerChip,
+  TrackerValue,
+} from "./tracker-blocks";

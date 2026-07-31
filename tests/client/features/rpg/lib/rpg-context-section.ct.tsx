@@ -199,9 +199,12 @@ function configView(): unknown {
 
 // A `rpg.listJournal` stub — the paged chronicle the Journal tab's All scope reads. Two hand/model beats
 // (the tab can't tell them apart, and the edit verb deliberately reaches both).
+// R4c: a `custom` entry carries its OWN free `label` ("prophecy") — the row must render that word, not the
+// generic "Custom" (the label was stored + model-written and no surface showed it).
 const JOURNAL_ENTRIES = [
-  { id: "rpg_journal_ct_1", type: "npc", title: "Sera's debt", content: "She owes the party a favour.", createdAt: 2000 },
-  { id: "rpg_journal_ct_2", type: "location", title: "The Rusted Lantern", content: "", createdAt: 1000 },
+  { id: "rpg_journal_ct_1", type: "npc", label: "", title: "Sera's debt", content: "She owes the party a favour.", createdAt: 2000 },
+  { id: "rpg_journal_ct_2", type: "location", label: "", title: "The Rusted Lantern", content: "", createdAt: 1000 },
+  { id: "rpg_journal_ct_3", type: "custom", label: "prophecy", title: "The drowned crown", content: "", createdAt: 500 },
 ];
 
 function stubTakeover(
@@ -241,16 +244,16 @@ function stubTakeover(
   });
 }
 
-test("the takeover renders the 6 LIVE game tabs + the locked Map (in the Game strip) when chat.rpg !== null, meta strip below", async ({ mount, page }) => {
+test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game strip) when chat.rpg !== null, meta strip below", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  // The redesign's top strip (panel-redesign §4): 6 live game tabs — Quests + Journal are LIVE lite tabs
-  // (the owner correction), never APPLICABILITY-omitted.
+  // The redesign's top strip (panel-redesign §4) as the tracked-field unification §3 left it: 5 live game
+  // tabs — Quests + Journal are LIVE lite tabs (the owner correction), and SHEET IS GONE (the sheet is a
+  // STATE of Status now: expanding a roster entry IS the sheet).
   const gameStrip = component.getByRole("tablist", { name: "Game" });
-  await Promise.all(
-    ["Status", "Sheet", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()),
-  );
+  await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()));
+  await expect(gameStrip.getByRole("tab", { name: "Sheet" })).toHaveCount(0);
   // Map is the ONE PHASE-locked tab: visible + aria-disabled with its reason on title (never hidden).
   const mapTab = gameStrip.getByRole("tab", { name: "Map" });
   await expect(mapTab).toBeVisible();
@@ -516,28 +519,58 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
   await expect(rail).toContainText("○ III");
 });
 
-test("a tracker max edit writes the DEF (updateConfig — the single max home) + drags the reading (§12.3)", async ({ mount, page }) => {
+// The per-carrier ceiling (owner amendment 2026-07-31): the max on a character's row is THAT CHARACTER's,
+// stored as an override on their value plane (`editSnapshot`), never the game-wide def (`updateConfig`).
+test("a tracker max edit writes THIS CHARACTER's ceiling override (editSnapshot, never updateConfig) + drags the reading", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
 
-  // A tracker's max is a DEF datum (`config.trackers` — the ONE home since the unification). Editing it here
-  // fires `updateConfig` (the same write the Game tab's Trackers section makes — there is no second max to
-  // drift from), and because the new max (20) is below the reading (24) it ALSO fires `editSnapshot` to drag
-  // the stored value down in the same gesture.
   const maxRest = component.getByRole("button", { name: "Vitality max" });
   await expect(maxRest).toBeVisible();
+  // The control states whose ceiling this is, and how to go back to the game default.
+  await expect(maxRest).toHaveAttribute("title", "Vitality's ceiling for this character — the game's default is 30; type it back to follow the default again.");
   await maxRest.click();
   const maxField = component.getByRole("textbox", { name: "Vitality max" });
   await maxField.fill("20");
   await maxField.blur();
-  // The MAX write lands on the tracker DEF (the authoritative home) — one max, so nothing can disagree.
-  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // The value-drag rides editSnapshot in the same gesture (max 20 < value 24 ⇒ a drag).
+
+  // ONE write, on the actor's own value plane — the def (updateConfig) is untouched.
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  // The clamp-and-tell microline (§12.3) — the value dragged to the new max.
-  await expect(component.getByText("Vitality 24 → 20 — max lowered")).toBeVisible();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(0);
+  // 20 ≠ the def's 30 ⇒ a genuine override is STORED, and because it is below the reading (24) the value is
+  // dragged down in the SAME commit (never a silent truncate).
+  await expect
+    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
+    .toMatchObject({ patch: { actorState: [{ trackerValues: { vitality: { max: 20, value: 20 } } }] } });
+  await expect(component.getByText("Vitality 24 → 20 — ceiling lowered")).toBeVisible();
+});
+
+test("typing the game DEFAULT back into a character's ceiling CLEARS the override (the anti-drift rule)", async ({ mount, page }) => {
+  // This actor carries an override (28 against the def's 30) — the row says so; writing 30 stores `null`.
+  const tracker = trackerView(false) as Record<string, unknown>;
+  const actors = (tracker["actors"] as Record<string, unknown>[]).map((a) => ({
+    ...a,
+    volatile: {
+      ...(a["volatile"] as Record<string, unknown>),
+      trackerValues: { vitality: { value: 24, items: null, max: 28 }, resolve: { value: 7, items: null } },
+    },
+  }));
+  const trpc = await stubTakeover(page, { tracker: { ...tracker, actors } });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // An overridden ceiling STATES the default it departs from (visible ⇒ reversible).
+  await expect(component.getByText("Vitality ceiling 28 — default: 30")).toBeVisible();
+
+  await component.getByRole("button", { name: "Vitality max" }).click();
+  const maxField = component.getByRole("textbox", { name: "Vitality max" });
+  await maxField.fill("30");
+  await maxField.blur();
+  await expect
+    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
+    .toMatchObject({ patch: { actorState: [{ trackerValues: { vitality: { max: null } } }] } });
 });
 
 test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue; send-mode line) and a pick fires chat.send", async ({ mount, page }) => {
@@ -802,4 +835,235 @@ test.describe("§3.3 — the dangling-pointer heal (typed NOT_FOUND, not a retry
     // No detach action for a member — the host owns the heal.
     await expect(component.getByRole("button", { name: "Detach game" })).toHaveCount(0);
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// The CHARACTER TAKEOVER (tracked-field unification §3) — Status is the only list of people, and
+// expanding an entry IS the sheet. Sheet-the-tab dissolved into this state; nothing it held became
+// unreachable (title · level · wallet · attribute values live here, its def rows on the Game tab).
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A d20 game — a real attribute vocabulary, so the takeover renders the stat grid (the surface d20 must
+ *  not ship ugly on, RV-13) instead of the no-attributes teaching line. */
+function d20Game(): unknown {
+  return {
+    id: GAME_ID,
+    chatId: "chat_ct_keystone",
+    mode: "lite",
+    status: "active",
+    trackersReadOnly: false,
+    extractionMode: "reliable",
+    publicConfig: {
+      statProfile: {
+        attributes: [{ key: "str", label: "STR", hint: "raw physical power" }],
+        range: { min: 1, max: 20 },
+        modifier: { center: 10, step: 2 },
+        skillGoverning: {},
+        defaultAttribute: "str",
+        perceptionAttribute: "str",
+        resolution: { kind: "house-d20" },
+      },
+      cyoa: false,
+      cyoaChoiceBehavior: "compose",
+      plotProgression: true,
+      immersiveHtml: false,
+    },
+  };
+}
+
+/** A roster whose one actor carries everything Sheet-the-tab used to show — title, level, wallet, attribute
+ *  values — plus a packed item (the RV-5 surface). */
+function richTracker(): unknown {
+  return {
+    ...(trackerView(false) as Record<string, unknown>),
+    actors: [
+      {
+        actorRef: { kind: "character", characterId: "character_ct_mara" },
+        name: "Mara",
+        sheet: { className: "Warden", attributes: { str: 14 }, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        trackers: [VITALITY, RESOLVE],
+        volatile: {
+          actorRef: { kind: "character", characterId: "character_ct_mara" },
+          hp: null,
+          trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
+          conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
+          inventory: [{ id: "item_ct_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "quest" }],
+          wallet: [{ name: "gold", amount: 128 }],
+          status: "resolute",
+        },
+      },
+    ],
+  };
+}
+
+test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
+  await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // The roster is the list of people; the name IS the door (a named button, not a mystery row).
+  await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  // The takeover REPLACES the roster (one place at a time — not an accordion under the row).
+  const detail = component.locator('[data-slot="rpg-character-detail"]');
+  await expect(detail).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-status-tab"]')).toHaveCount(0);
+
+  // The Sheet-tab inventory of planes, all present on the character: title, level, wallet, the attribute
+  // value under its profile label, and this actor's live tracker readings + conditions.
+  await expect(detail.getByRole("button", { name: "Mara title" })).toContainText("Warden");
+  await expect(detail.getByRole("button", { name: "Level value" })).toContainText("3");
+  await expect(detail.getByRole("button", { name: "gold amount" })).toContainText("128");
+  await expect(detail.getByRole("button", { name: "STR value" })).toContainText("14");
+  await expect(detail).toContainText("Vitality");
+  await expect(detail.getByText("poisoned")).toBeVisible();
+
+  // The breadcrumb is the way back — and it lands on the roster, not on a blank panel.
+  await detail.getByRole("button", { name: "Back to the roster" }).click();
+  await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-character-detail"]')).toHaveCount(0);
+});
+
+test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires editSnapshot — the mutation COUNTs", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  // An ATTRIBUTE value (the plane that only existed on the dissolved tab) writes through patchSheet.
+  await component.getByRole("button", { name: "STR value" }).click();
+  const attr = component.getByRole("textbox", { name: "STR value" });
+  await attr.fill("16");
+  await attr.blur();
+  await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+
+  // A tracker READING on the same surface writes through editSnapshot (the volatile plane).
+  await component.getByRole("button", { name: "Vitality value" }).click();
+  const vit = component.getByRole("textbox", { name: "Vitality value" });
+  await vit.fill("18");
+  await vit.blur();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+// The takeover on a MOBILE-width panel (the build-time verification the unification §3 asks for): the panel
+// IS the screen there, so the takeover must not need a second navigation layer to escape — it swaps the
+// viewport in place, and the breadcrumb is a real ≥44px touch target (the coarse-pointer control floor).
+test.describe("the takeover at mobile width", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 780 } });
+
+  test("expand + return work at 390px, and the breadcrumb meets the coarse touch floor", async ({ mount, page }) => {
+    await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
+    const component = await mount(<RpgTakeoverStory />);
+    await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+    await component.getByRole("button", { name: "Open Mara" }).click();
+
+    const detail = component.locator('[data-slot="rpg-character-detail"]');
+    await expect(detail).toBeVisible();
+    const back = detail.getByRole("button", { name: "Back to the roster" });
+    const box = await back.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await back.click();
+    await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
+  });
+});
+
+// RV-7 — the PHASE-locked Map is `aria-disabled` (its reason stays keyboard-reachable), which means it still
+// OPENS. It used to open onto nothing; now it states the promise.
+test("RV-7: the locked Map tab opens onto a real coming-soon presentation, not a blank viewport", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  // The tab is `aria-disabled`, NOT `disabled` — a deliberate PHASE choice (the reason must stay reachable).
+  // Playwright's actionability treats `aria-disabled` as un-clickable where the browser does not, so the drive
+  // here is the KEYBOARD path the choice exists to preserve: focus the tab, press Enter, read the viewport.
+  const mapTab = component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Map" });
+  await mapTab.focus();
+  await page.keyboard.press("Enter");
+  const map = component.locator('[data-slot="rpg-map-tab"]');
+  await expect(map).toBeVisible();
+  await expect(map).toContainText("Maps unlock with the map arc");
+  await expect(map).toContainText("arrives with MA-3");
+});
+
+// RV-4 / RV-12 — the stat profile was a READ-ONLY badge row: a game shipped with six d20 attributes or none,
+// and the HINT (the steering lever the model reads) was unauthorable. It is now a full def plane.
+test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — each write fires updateConfig", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  const profile = component.locator('[data-slot="rpg-stat-profile"]');
+  // RENAME the stubbed "Strength" (display-at-rest — the field appears on click).
+  await profile.getByRole("button", { name: "Attribute 1 label" }).click();
+  const label = profile.getByRole("textbox", { name: "Attribute 1 label" });
+  await label.fill("Might");
+  await label.blur();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(1);
+
+  // The HINT editor (non-negotiable per the unification — this is what the prompt carries).
+  await profile.getByRole("button", { name: "Strength hint" }).click();
+  const hint = profile.getByRole("textbox", { name: "Strength hint" });
+  await hint.fill("how hard you can push");
+  await hint.blur();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(2);
+
+  // ADD — the shared AddRow: a name is required first, and Enter commits it.
+  const draft = profile.getByRole("textbox", { name: "New attribute name" });
+  await draft.fill("Grace");
+  await draft.press("Enter");
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(3);
+  await expect
+    .poll(() => trpc.lastInput("rpg.updateConfig"), { intervals: [20, 50, 100] })
+    .toMatchObject({ patch: { statProfile: { attributes: [{ key: "str" }, { key: "grace", label: "Grace", hint: "" }] } } });
+});
+
+// RV-5 — the pack had NO add/edit at all, and `location` (stored, and asked of the model in the extraction
+// guidance) never reached a surface. The list view is the edit view.
+test("RV-5: the pack adds an item and edits its LOCATION in place — the editSnapshot writes + the lock path", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { tracker: richTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // ADD (a name is required first — no "Item 3" orphans).
+  await component.getByRole("textbox", { name: "New item name" }).fill("Rope");
+  await component.getByRole("button", { name: "Add item" }).click();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(1);
+
+  // EDIT — the list lens carries every datum, `location` included.
+  await component.getByRole("button", { name: "Show as a list" }).click();
+  const row = component.locator('[data-slot="rpg-pack-row"]').first();
+  await expect(row).toContainText("belt pouch");
+  await row.getByRole("button", { name: "Bone key location" }).click();
+  const location = component.getByRole("textbox", { name: "Bone key location" });
+  await location.fill("sewn into the lining");
+  await location.blur();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(2);
+  // The hand edit PINS the plane it touched (#10) — the pack's Release lives on the section kicker.
+  await expect
+    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
+    .toMatchObject({ lockPaths: ["actorState.character:character_ct_mara.inventory"] });
+});
+
+// R4c — the journal `label` was write-only rot: model-writable, stored, returned on the view, rendered NOWHERE
+// (the chronicle printed the generic type word for every custom entry).
+test("a CUSTOM journal entry renders its own label; an entry without one falls back to the type word", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  const chronicle = component.locator('[data-slot="rpg-journal-tab"]');
+  await expect(chronicle).toContainText("prophecy");
+  await expect(chronicle).not.toContainText("CUSTOM");
+  // The label-less entries still read as their type ("Character" for `npc`).
+  await expect(chronicle).toContainText("Character");
+});
+
+test("RV-5: a MEMBER reads the pack with no authoring affordances (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: richTracker(), chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  await expect(component.locator('[data-slot="rpg-inventory-tab"]')).toContainText("Bone key");
+  await expect(component.getByRole("textbox", { name: "New item name" })).toHaveCount(0);
 });

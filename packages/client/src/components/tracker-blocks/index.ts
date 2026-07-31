@@ -1,5 +1,9 @@
+export type { AddRowAction, AddRowProps } from "./add-row";
+export { AddRow } from "./add-row";
 export type { AmbientStripProps } from "./ambient-strip";
 export { AmbientStrip } from "./ambient-strip";
+export type { HintEditorProps } from "./hint-editor";
+export { HintEditor } from "./hint-editor";
 export { RelationshipBadge } from "./relationship-badge";
 export type { BeatLineProps, CastCardProps, CastField, GoalLineProps, MeterRowProps, StatCellProps, TrackerChipProps } from "./tracker-blocks";
 export { BeatLine, CastCard, GoalLine, MeterRow, StatCell, TrackerChip } from "./tracker-blocks";

@@ -1,6 +1,8 @@
 // @orb/contracts/rpg/tracker — THE tracked-field unification (`docs/design/tracked-field-unification.md` §5).
-// Pins the shapes the whole lane rests on: the def's axes + defaults, the TOTAL value (and the absence of a
-// second `max` — the drift class the merge killed), and above all the ONE carrier predicate
+// Pins the shapes the whole lane rests on: the def's axes + defaults, the TOTAL value (whose `max` is the
+// PER-CARRIER ceiling OVERRIDE — owner amendment 2026-07-31: the def's max is the DEFAULT, and the old drift
+// class is killed by the anti-drift write rule `resolveTrackerMaxOverride`, not by absence), the ONE ceiling
+// resolver `trackerCeiling`, and above all the ONE carrier predicate
 // (`resolve(appliesTo) + grants − revokes`) that every consumer derives from instead of re-deciding who
 // carries what. The R6 write-surface GROUPING + the schema projection it feeds are pinned next door in
 // `extraction.contract.test.ts` (they are a property of the projected schema, not of these shapes).
@@ -11,9 +13,11 @@ import {
   gameTrackers,
   RPG_TRACKER_VALUE_EMPTY,
   resolveTrackerCarriers,
+  resolveTrackerMaxOverride,
   rpgTrackerDefSchema,
   rpgTrackerValueSchema,
   sortTrackers,
+  trackerCeiling,
   trackerGloss,
   trackerNumber,
   trackerReading,
@@ -59,15 +63,39 @@ test("a stored color must pass the strict hex/OKLCH grammar (never raw CSS reach
   expect(rpgTrackerDefSchema.safeParse({ ...base, color: "red" }).success).toBe(false);
 });
 
-test("the VALUE is total and carries NO max — the ceiling has exactly one home (the def)", () => {
+test("the VALUE is total; its `max` is the PER-CARRIER ceiling override, born absent (owner amendment)", () => {
   const parsed = rpgTrackerValueSchema.parse({});
   expect(parsed).toEqual(RPG_TRACKER_VALUE_EMPTY);
-  expect(parsed).toEqual({ value: null, items: null });
-  // The retired shape kept a max on the sheet def AND on the volatile pool; the read had to clamp one
-  // against the other so two tabs agreed. There is no second max to drift from now.
-  expect("max" in parsed).toBe(false);
-  expect(rpgTrackerValueSchema.parse({ value: 5 })).toEqual({ value: 5, items: null });
+  expect(parsed).toEqual({ value: null, items: null, max: null });
+  // Absent = "follow the def's default ceiling". A number = "this carrier is deliberately different"
+  // (Kael's Vitality tops out higher than the party default — the d20 max-HP reality).
+  expect(rpgTrackerValueSchema.parse({ value: 5 })).toEqual({ value: 5, items: null, max: null });
+  expect(rpgTrackerValueSchema.parse({ value: 5, max: 34 }).max).toBe(34);
+  // The `max ≥ 1` floor is the same one the def carries — an override can never be a zero ceiling.
+  expect(rpgTrackerValueSchema.safeParse({ max: 0 }).success).toBe(false);
   expect(rpgTrackerValueSchema.parse({ value: "guarded" }).value).toBe("guarded");
+});
+
+test("trackerCeiling is the ONE fallback: the override wins, absence falls to the def, both null = uncapped", () => {
+  const vit = def({ key: "vit", label: "Vitality", shape: "meter", write: "delta", subject: "actor", max: 30 });
+  expect(trackerCeiling(vit, { value: 24, items: null, max: null })).toBe(30);
+  expect(trackerCeiling(vit, { value: 24, items: null, max: 34 })).toBe(34);
+  expect(trackerCeiling(vit, undefined)).toBe(30);
+  expect(trackerCeiling({ ...vit, max: null }, { value: 1, items: null, max: null })).toBeNull();
+  // The READING the model is taught follows the effective ceiling, never the party default a carrier left.
+  expect(trackerReading(vit, { value: 24, items: null, max: 34 })).toBe("Vitality 24/34");
+  expect(trackerGloss({ ...vit, hint: "how much you can take" }, { value: 24, items: null, max: 34 })).toBe("Vitality 24/34 (how much you can take)");
+});
+
+test("resolveTrackerMaxOverride is the ANTI-DRIFT rule: equal-to-default CLEARS, different STORES, floor is 1", () => {
+  const vit = def({ key: "vit", label: "Vitality", shape: "meter", write: "delta", subject: "actor", max: 30 });
+  // Writing the default back is how a host un-overrides — the number is never stored twice.
+  expect(resolveTrackerMaxOverride(vit, 30)).toBeNull();
+  expect(resolveTrackerMaxOverride(vit, null)).toBeNull();
+  expect(resolveTrackerMaxOverride(vit, 34)).toBe(34);
+  expect(resolveTrackerMaxOverride(vit, 0)).toBe(1);
+  // On an uncapped def, any number is a genuine override (there is no default to collapse into).
+  expect(resolveTrackerMaxOverride({ ...vit, max: null }, 12)).toBe(12);
 });
 
 // ── THE CARRIER MATRIX (the one predicate every consumer derives from) ─────────────────────────────────
@@ -129,11 +157,11 @@ test("tracker ORDER is total and stable — `sort`, then key (never set-insertio
 
 test("the gloss is `label value/max (hint)` — shape-aware, and SILENT on an unset tracker", () => {
   const meter = def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", max: 10, hint: "fuels spellcasting" });
-  expect(trackerGloss(meter, { value: 5, items: null })).toBe("Mana 5/10 (fuels spellcasting)");
+  expect(trackerGloss(meter, { value: 5, items: null, max: null })).toBe("Mana 5/10 (fuels spellcasting)");
   // No hint ⇒ no empty parens (the reading alone).
-  expect(trackerGloss({ ...meter, hint: "" }, { value: 5, items: null })).toBe("Mana 5/10");
+  expect(trackerGloss({ ...meter, hint: "" }, { value: 5, items: null, max: null })).toBe("Mana 5/10");
   // No ceiling ⇒ the bare reading.
-  expect(trackerReading({ ...meter, max: null, hint: "" }, { value: 5, items: null })).toBe("Mana 5");
+  expect(trackerReading({ ...meter, max: null, hint: "" }, { value: 5, items: null, max: null })).toBe("Mana 5");
   // UNSET ⇒ null, never `Mana null` (an unset tracker carries no steering signal).
   expect(trackerGloss(meter, RPG_TRACKER_VALUE_EMPTY)).toBeNull();
   expect(trackerGloss(meter, undefined)).toBeNull();
@@ -141,19 +169,19 @@ test("the gloss is `label value/max (hint)` — shape-aware, and SILENT on an un
 
 test("the gloss reads text + list shapes in the same grammar", () => {
   const text = def({ key: "trust", label: "Trust", shape: "text", write: "set", subject: "actor", hint: "where they stand" });
-  expect(trackerGloss(text, { value: "guarded", items: null })).toBe("Trust: guarded (where they stand)");
+  expect(trackerGloss(text, { value: "guarded", items: null, max: null })).toBe("Trust: guarded (where they stand)");
   const list = def({ key: "pack", label: "Pack", shape: "list", write: "set", subject: "actor" });
-  expect(trackerGloss(list, { value: null, items: ["rope", "torch"] })).toBe("Pack: rope, torch");
+  expect(trackerGloss(list, { value: null, items: ["rope", "torch"], max: null })).toBe("Pack: rope, torch");
   // An EMPTY list is unset, not an empty line.
-  expect(trackerGloss(list, { value: null, items: [] })).toBeNull();
+  expect(trackerGloss(list, { value: null, items: [], max: null })).toBeNull();
 });
 
 test("trackerNumber is the ONE narrowing of the stored union — a string meter never renders NaN", () => {
   // A hand edit or a model writing "5" must still drive a bar; anything genuinely non-numeric reads null
   // (the caller then omits the row rather than painting a NaN geometry).
-  expect(trackerNumber({ value: 5, items: null })).toBe(5);
-  expect(trackerNumber({ value: "5", items: null })).toBe(5);
-  expect(trackerNumber({ value: "guarded", items: null })).toBeNull();
-  expect(trackerNumber({ value: null, items: null })).toBeNull();
+  expect(trackerNumber({ value: 5, items: null, max: null })).toBe(5);
+  expect(trackerNumber({ value: "5", items: null, max: null })).toBe(5);
+  expect(trackerNumber({ value: "guarded", items: null, max: null })).toBeNull();
+  expect(trackerNumber({ value: null, items: null, max: null })).toBeNull();
   expect(trackerNumber(undefined)).toBeNull();
 });
