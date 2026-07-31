@@ -13,6 +13,7 @@
 
 import type { ChatId, ChatTurnId, RpgQuestId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability";
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index";
 import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal";
@@ -458,8 +459,17 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  // `null` = the character turn could not mount the tools (agent-sdk / a tools-incapable model).
-  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: null }));
+  // `null` = the character turn could not mount the tools. The canonical case: the STATEFUL agent-sdk wire,
+  // whose real capability co-emits fine — it simply has no terminal channel — so the reason must stay
+  // `no-terminal-channel` and never inherit the local engine's guard vocabulary.
+  const agentSdk = turnConnection({
+    connection: makeResolvedConnection({
+      api: "agent-sdk",
+      capability: resolveModelCapability("claude-sonnet-5", "max-pro-sub", "agent-sdk"),
+    }),
+    terminalToolCalls: null,
+  });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, agentSdk);
 
   // State still lands — the fold degrades to the SAME tool vehicle one beat later, never to nothing.
   expect(h.fakes.foldCalls).toHaveLength(0);
@@ -467,6 +477,29 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
   // …and the extra call the fold was supposed to delete is VISIBLE in the trail.
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
+});
+
+test("D112 fold guard: a folded game on the LOCAL engine rounds instead — named `local-engine-fold-guard`", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldGuarded: true });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // The REAL local-engine capability (the resolver's own vllm arm), so the reason is read off the wire the turn
+  // actually ran on — not off a synthetic literal that could drift from what the connection domain declares.
+  const local = turnConnection({
+    connection: makeResolvedConnection({ capability: resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions") }),
+    terminalToolCalls: null, // the gather withheld the mount; the engine attached nothing
+  });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, local);
+
+  // State STILL lands — the SAME cheap post-commit round the no-terminal-channel arm runs (one home).
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  // …and the WARN names THIS cause, distinctly from a wire that simply has no terminal channel.
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "local-engine-fold-guard" }]);
 });
 
 test("R1 folded: the readonly gate still wins — a tools-incapable connection fires NOTHING", async () => {

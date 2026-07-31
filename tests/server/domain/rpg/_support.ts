@@ -167,12 +167,15 @@ export function principal(handle: string): Principal {
 }
 
 /** The fakes the harness lets a test program. `membership` maps a userId → role (absent = not a member,
- *  the leak-free null). `roster` is the tracker projection. `trackersReadOnly` is the honest-arms verdict.
+ *  the leak-free null). `roster` is the tracker projection. `trackersReadOnly`/`foldGuarded` are the two honest-arms delivery verdicts.
  *  `extractionDelta` is the reliable-mode `runExtraction` fake's return (default: an empty delta = no-op). */
 export interface RpgFakes {
   membership: Map<string, ParticipantRole>;
   roster: RpgRosterActor[];
   trackersReadOnly: boolean;
+  /** The D112 FOLD GUARD verdict `resolveStateDelivery` returns beside `trackersReadOnly`: this wire silences
+   *  the model's prose when tools ride it (the local vLLM engine), so a `folded` game must not mount. */
+  foldGuarded: boolean;
   dice: number[];
   /** The reliable-mode extraction fake return (W1c supplies the real one; here it's programmable). */
   extractionDelta: RpgStateDelta;
@@ -247,6 +250,7 @@ export function makeRpgService(
       RpgFakes,
       | "roster"
       | "trackersReadOnly"
+      | "foldGuarded"
       | "dice"
       | "extractionDelta"
       | "toolRoundDelta"
@@ -262,6 +266,7 @@ export function makeRpgService(
     membership: new Map(),
     roster: over.roster ?? [],
     trackersReadOnly: over.trackersReadOnly ?? false,
+    foldGuarded: over.foldGuarded ?? false,
     dice: [...(over.dice ?? [])],
     extractionDelta: over.extractionDelta ?? { statePatch: {}, journal: [] },
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
@@ -353,7 +358,7 @@ export function makeRpgService(
     resolveRoster,
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
-    resolveTrackersReadOnly: () => Promise.resolve(fakes.trackersReadOnly),
+    resolveStateDelivery: () => Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded }),
     runExtraction,
     runToolRound,
     buildFoldedTurn,
@@ -393,7 +398,7 @@ export function makeRpgService(
 }
 
 /** A seeded lite game with a `host` membership — the shared per-verb test setup. `over` forwards the harness
- *  fakes (roster/trackersReadOnly/dice). Returns the chat + game ids + the harness. */
+ *  fakes (roster/trackersReadOnly/foldGuarded/dice). Returns the chat + game ids + the harness. */
 export interface SeededLiteGame {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
@@ -406,6 +411,7 @@ export async function seedLiteGame(
       RpgFakes,
       | "roster"
       | "trackersReadOnly"
+      | "foldGuarded"
       | "dice"
       | "extractionDelta"
       | "toolRoundDelta"

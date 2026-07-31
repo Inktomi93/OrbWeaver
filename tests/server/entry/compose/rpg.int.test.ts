@@ -17,7 +17,7 @@
 //     so the second model call is provably gone. The degrade matrix (malformed arg · ghost actor · zero calls)
 //     lands here too — each with the narrative already committed, so none of them may fail or block anything.
 
-import type { ChatApi } from "@orb/contracts/connection";
+import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
@@ -33,6 +33,7 @@ import type { ChatResult } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
+import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
@@ -695,6 +696,54 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
   // The composed chat-side host resolver (what the rpg extraction + capability verdict read) resolves the
   // role='host' participant — NOT the first-joined human. This is the repro-gone assertion.
   expect(await app.chatRpgOps.resolveHostUserId(chatId)).toBe(host);
+});
+
+// ── D112 (as amended): the FOLD GUARD is wired end-to-end off the resolved CAPABILITY, not a source branch ──
+/** Build an rpg whose ROOM connection resolves with `capability` — the wiring the `resolveStateDelivery` op
+ *  reads BOTH delivery verdicts off. The state rounds are unreachable here (the gather is what's under test). */
+function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCapability): ReturnType<typeof buildRpg> {
+  return buildRpg({
+    db,
+    now: () => FROZEN_AT,
+    rpgChatOps: app.chatRpgOps,
+    connection: {
+      resolveChat: () => Promise.resolve(makeResolvedConnection({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability })),
+      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    },
+    executor: {
+      structured: () => Promise.reject(new Error("unreached — the gather makes no model call")),
+      runChatTurn: () => Promise.reject(new Error("unreached")),
+    },
+    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolvePresetOwned: () => Promise.resolve(false),
+    toolUse: { register: () => undefined },
+  });
+}
+
+test("D112 fold guard: a BORN-FOLDED game mounts terminal tools on a hosted wire and NONE on the local engine", async ({ app, db }) => {
+  // The REAL descriptors from the ONE capability factory — the guard must ride the connection domain's declared
+  // truth, never a `credential.source` sniff inside domain/rpg (which D112 bans outright).
+  const hosted = resolveModelCapability("claude-sonnet-5", "openrouter", "chat-completions");
+  const local = resolveModelCapability("Qwen/Qwen3-VL-8B-Instruct", "vllm", "chat-completions");
+
+  const hostedChat = await seedHostGameChat(db, "guard-hosted");
+  const hostedRpg = buildRpgWithCapability(app, db, hosted);
+  await hostedRpg.service.createGame({ principal: hostPrincipal(hostedChat.hostId), chatId: hostedChat.chatId, mode: "lite" });
+  const hostedGather = await hostedRpg.chatOps.gatherTurnContext(hostedChat.chatId, undefined, false);
+  // Unchanged: the hosted wire co-emits (6/6 measured), so the born-folded game still folds.
+  expect(hostedGather?.terminalTools?.length).toBeGreaterThan(0);
+  expect(hostedGather?.tools).toEqual([]);
+
+  const localChat = await seedHostGameChat(db, "guard-local");
+  const localRpg = buildRpgWithCapability(app, db, local);
+  await localRpg.service.createGame({ principal: hostPrincipal(localChat.hostId), chatId: localChat.chatId, mode: "lite" });
+  const localGather = await localRpg.chatOps.gatherTurnContext(localChat.chatId, undefined, false);
+  // Guarded: tools would silence the prose on this wire, so the character turn carries none — the state falls
+  // to the flush's cheap post-commit round (the fallback arm, pinned in the flush suite).
+  expect(localGather?.terminalTools).toBeUndefined();
+  // The game is NOT downgraded to read-only — it keeps its write path and its reminder, exactly as before.
+  expect((await localRpg.service.getGame({ principal: hostPrincipal(localChat.hostId), chatId: localChat.chatId })).trackersReadOnly).toBe(false);
+  expect(localGather?.injections).toHaveLength(1);
 });
 
 // ── FIX 1: a game READ degrades to trackersReadOnly:true when the chat connection is unresolvable, never 500s ──
