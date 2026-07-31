@@ -132,12 +132,20 @@ function BeatRow({ row, edit }: { readonly row: Extract<ChronicleRow, { readonly
   return (
     <BeatLine>
       {typeLabel}
-      <TrackerValue ariaLabel={`${row.title} title`} display={row.title} onEdit={(next): void => edit.onEditTitle(row.key, next)} />
+      <TrackerValue
+        ariaLabel={`${row.title} title`}
+        display={row.title}
+        wrap={true}
+        className="min-w-0 max-w-full"
+        onEdit={(next): void => edit.onEditTitle(row.key, next)}
+      />
       <TrackerValue
         ariaLabel={`${row.title} entry`}
         display={row.content}
         placeholder="write the beat…"
         tone="muted"
+        wrap={true}
+        className="min-w-0 max-w-full"
         onEdit={(next): void => edit.onEditContent(row.key, next)}
       />
       <ConfirmDialog

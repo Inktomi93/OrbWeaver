@@ -41,6 +41,10 @@ export interface TrackerValueProps {
    *  from one actor's row changes the ceiling for everyone who carries that tracker (the unification's one
    *  max home). An edit with game-wide reach says so before it's made. @defaultValue "Click to edit" */
   readonly editTitle?: string;
+  /** Rest-state overflow: MODEL-AUTHORED free text (mood, status) must WRAP — the writer is a model with
+   *  no length contract, and a truncated datum hides the datum (§4.9: the text IS the value). Numerics and
+   *  host-named values keep the default single-line truncate (their width is layout-owned). @defaultValue false */
+  readonly wrap?: boolean;
 }
 
 /** The value cell: static display at rest; click reveals the inline editor (when `onEdit` is set). */
@@ -56,6 +60,7 @@ export function TrackerValue({
   className,
   restClassName,
   editTitle = "Click to edit",
+  wrap = false,
 }: TrackerValueProps): ReactElement {
   const source = editValue ?? display;
   const [editing, setEditing] = useState(false);
@@ -92,7 +97,7 @@ export function TrackerValue({
         // pixel-stable — no layout jump (the owner no-shift bar).
         className={`!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal ${restClassName ?? className ?? ""}`}
       >
-        <Text as="span" size={size} tone={empty ? "muted" : tone} className="truncate">
+        <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
           {restText}
         </Text>
       </Button>

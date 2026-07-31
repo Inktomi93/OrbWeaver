@@ -48,10 +48,13 @@ export interface MeterRowProps {
   readonly onEditValue?: (next: number) => void;
   /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell, §12.3). */
   readonly onEditMax?: (next: number) => void;
-  /** What the MAX edit actually writes, when that reaches beyond this row — a tracker's ceiling lives on the
-   *  DEF, so editing it from one actor's card moves it for every carrier. The caller states that here (it
-   *  rides the rest button's `title`); absent ⇒ the plain "Click to edit". */
+  /** What the MAX edit actually writes, when "Click to edit" understates it (per-carrier ceilings: the
+   *  caller states this-character-vs-default semantics here; it rides the rest button's `title`).
+   *  Absent ⇒ the plain "Click to edit". */
   readonly maxEditTitle?: string;
+  /** The label's hover `title` — the host-authored HINT rides here instead of an inline microline (owner
+   *  ruling 08-01: the same hint echoed under every carrier's row is noise; hover reveals it on demand). */
+  readonly labelTitle?: string;
   /** A transient consequence microline under the row (§12.3 clamp-and-tell — "Vitality 24 → 20, max
    *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
   readonly note?: ReactNode;
@@ -102,6 +105,28 @@ function MaxCell({
   );
 }
 
+/** The meter's label cluster — glyph + name, with the host hint riding the hover `title` (never an inline
+ *  echo). Extracted from MeterRow for the complexity cap; deliberately takes `| undefined` props so the
+ *  caller passes straight through without conditional spreads. */
+function MeterLabel({
+  label,
+  leading,
+  labelTitle,
+}: {
+  readonly label: string;
+  readonly leading: ReactNode | undefined;
+  readonly labelTitle: string | undefined;
+}): ReactElement {
+  return (
+    <Row gap="field" align="center" className="min-w-0">
+      {leading}
+      <Text as="span" size="label" tone="muted" className="truncate" {...(labelTitle === undefined ? {} : { title: labelTitle })}>
+        {label}
+      </Text>
+    </Row>
+  );
+}
+
 /** A labeled magnitude meter. The `value/max` text is the datum; the bar underneath is decoration. */
 export function MeterRow({
   label,
@@ -114,6 +139,7 @@ export function MeterRow({
   onEditValue,
   onEditMax,
   maxEditTitle,
+  labelTitle,
   note,
   valueWarning,
 }: MeterRowProps): ReactElement {
@@ -123,12 +149,7 @@ export function MeterRow({
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}
       <Row justify="between" align="center" gap="block">
-        <Row gap="field" align="center" className="min-w-0">
-          {leading}
-          <Text as="span" size="label" tone="muted" className="truncate">
-            {label}
-          </Text>
-        </Row>
+        <MeterLabel label={label} leading={leading} labelTitle={labelTitle} />
         {onEditValue === undefined ? (
           <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
             {value}/{max}
@@ -358,7 +379,10 @@ export function BeatLine({ children }: BeatLineProps): ReactElement {
       <Text as="span" size="label" aria-hidden={true} className="shrink-0 opacity-50">
         —
       </Text>
-      <Text as="span" size="label" tone="muted">
+      {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
+          contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it
+          the line forces the tab wide (owner horizontal-scrollbar report, 08-01). */}
+      <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
         {children}
       </Text>
     </Text>
