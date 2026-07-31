@@ -65,6 +65,20 @@ panel 480px** ✓.
 
 ## ═══ ▶▶▶ 08-01 DAY WAVE — LIVE STATE @ ~07:00 (compact-safety snapshot) ═══
 
+**⚠ TRK-1 WORKTREE-ESCAPE INCIDENT (~07:4x):** the TRK-1 executor edited ~84 files on MAIN via
+absolute paths copied from its brief (staged, not committed). Contained: STOP sent, index captured
+(empty by then — it self-reverted), main verified CLEAN at `0d48ef39`. TRK-1 ordered to work
+EXCLUSIVELY in `wt/agent-ae441b0805535fe2e` and confirm cwd in its report — treat its next report
+with extra scrutiny (work may need re-doing worktree-side). LESSON (banked): absolute main-checkout
+paths in a worktree agent's brief read as TARGETS — briefs must say "paths are references; resolve
+inside YOUR worktree."
+
+**PREV DONE** (`wt/agent-aa855bb2e7ac7e9d3`, 3 commits, MERGE QUEUED behind TRK containment):
+Preview = the mock's instrument (SegmentBar + SeriesRow primitives, ChatInjection.origin provenance
+stamps, budget Records tsc-total); BUG FOUND+FIXED: preview never ran the rpg gather (game-state
+invisible to the honesty surface); old trace kept under a Diagnostics drawer (owner may want it gone);
+deferred: cast-name detail lines (small server change on request).
+
 **IN-FLIGHT AGENTS (SendMessage ids):** smalls DONE (`edb78a26` AU-5 kill incl. re-homed cold-cache regression tests + `d9563dd1` VER-1d quality guard; NEW ITEM: `resolveAgentSdkAlias` branch now product-unreachable — separate look). Was: smalls ON MAIN — AU-5 `edb78a26`
 (NOTE: my staged density spec got index-swept into that commit — content fine, cosmetic), VER-1d guard
 IN PROGRESS (`resolve-chat.ts` uncommitted in main's tree — **NO git ops on main until it lands**) ·
