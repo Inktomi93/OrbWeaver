@@ -901,6 +901,12 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   // …carrying the live per-call ref enums (`constrainExtractionSchema`), so R5/R5a's hardening rides the fold.
   const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as { properties?: { targetRef?: { enum?: string[] } } };
   expect(Array.isArray(party.properties?.targetRef?.enum)).toBe(true);
+  // RV-9: `update_scene`'s description carries the WHEN — the panel's Waystone only reads as a clock if the
+  // model actually advances time/weather/day, and a bare field list measurably doesn't get that written.
+  const scene = folded?.terminalTools?.find((t) => t.name === "update_scene");
+  expect(scene?.description).toContain("time of day");
+  expect(scene?.description).toContain("spends time");
+  expect(scene?.description).toContain("weather turns");
   // The registry channel stays empty — nothing here is executed or recursed on.
   expect(folded?.tools).toEqual([]);
 });

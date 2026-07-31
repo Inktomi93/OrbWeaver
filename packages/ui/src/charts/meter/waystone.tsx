@@ -1,250 +1,213 @@
-// Waystone — the rpg panel's SIGNATURE composite (panel-redesign DESIGN.md §2/§12): a 24-hour DIAL ring
-// (the day's phases as fixed arcs — dawn ember → day gold → dusk ember-violet → night blue) around a SKY
-// disc (time-of-day gradient + weather overlay + the horizon silhouette with one ember-lit gable — "a
-// place, seen from its sky"; the MA-3 minimap promise). The ember MARKER sits at the current hour (noon
-// top, midnight bottom) — the marker's ANGLE is the datum's shape, but the composite is entirely
-// `aria-hidden` DECORATION (tracker-kit a11y model): the band's TEXT lines carry every datum, so the
-// circle carries ZERO text. Homed in charts/meter (the magnitude-display family; inline data-viz svg is
-// legal only in charts/**, §13.7) — the one new sibling family member beside RingGauge/CoinFigure.
+// Waystone — the rpg panel's SIGNATURE composite (panel-redesign DESIGN.md §2/§12), rebuilt as a LAYERED
+// LIVING CLOCK (owner RV-10 + the mid-flight upgrade: it is the focal element, so it gets the full system).
 //
-// Nullable-honesty (§12.2.1): `hour: null` (ambient clock unset) ⇒ NO marker, NEUTRAL ring (all arcs at
-// track-bg), a plain dim sky, no overlay — the signature element gets the same honesty as every meter.
-// `weather: null` ⇒ no overlay layer (an unresolvable weather type renders NO overlay; the band text
-// still names it — text is the datum, the sky just stays plain).
+// THE LAYER STACK (each an independently animated, composited layer; recipe per cell in `waystone-treatment`):
+//   0. DIAL RING — six label arcs tiling 24h (the `TIME_OF_DAY` bands the panel's TEXT names), the current one
+//      LIT, + a bezel hour scale (00/06/12/18 major).
+//   1. SKY — ONE gradient whose stops are the HOUR's interpolated recipe (continuous, not six presets: every
+//      hour looks subtly different, and the deliberate golden windows ~5-7h / ~17-19h make dawn and dusk glow
+//      without needing a `dusk` write-vocabulary member). The stop colors TRANSITION, so time melts. Tokens
+//      only, including the interpolation — a nested `color-mix`, blended by the browser in oklab (D71).
+//   2. CELESTIAL — the sun/moon at its COMPUTED point on the arc (rises left, peaks overhead, sets right; low
+//      is bigger + warmer, high is small + pale), with a breathing glow and, for the moon, a crescent + glint.
+//      A time advance SLIDES it along the sky: this is the clock a cold viewer reads.
+//   3. STARS — ten fixed stars, each twinkling on its OWN staggered delay (never in sync); the group's opacity
+//      is the phase's darkness, transitioned, so they fade in at dusk and out at dawn.
+//   4. CLOUDS — a deck present in every weather, its count/opacity/tone/drift-speed set by the weather
+//      (clear = one slow wisp · overcast = a dense light deck · storm = fast + dark).
+//   5. PARTICLES — rain streaks (angle + density by weather), snow (slower, with a lateral sway), ashfall.
+//      The lattice translates by exactly one pitch per cycle, so the fall loops seamlessly.
+//   6. WASH + LIGHTNING — the weather's full-sky veil (rain cools, storm darkens, ash warms) and, on a storm,
+//      an occasional sky FLASH plus the drawn bolt.
+//   7. HORIZON — the silhouette + one ember-lit gable: the depth anchor that makes the sky read as sky (and
+//      the MA-3 minimap promise). Precipitation falls BEHIND it; fog/wind bands drift IN FRONT of it.
+//   8. MARKER — the ember hour hand: drawn at 12 o'clock and ROTATED to the hour, so a time change swings it
+//      around the dial along the ring instead of cutting across the face.
 //
-// Every color is a theme token or a `color-mix()` over tokens (the sanctioned tint idiom — zero raw
-// literals, so any seed theme restyles the stone for free). The precipitation drift rides `animate-pulse`
-// (the ONE ambient motion; the global reduced-motion floor REMOVES it outright).
+// THE MATRIX: a CONTINUOUS time axis × 8 discrete weathers, composed by `resolveWaystoneTreatment` — every
+// combination a distinct stack, unit-tested (the stop table, the interpolation at representative hours, and
+// every weather recipe). `clear` is a real treatment (an unveiled sky), not a fallback.
+//
+// A11Y + MOTION: the whole composite is `aria-hidden` DECORATION (tracker-kit a11y model) — the band's TEXT
+// lines carry every datum, so the circle carries ZERO text. Motion is transform/opacity ONLY (GPU-composited,
+// no layout thrash), CSS keyframes + transitions rather than any rAF loop, and it PAUSES entirely while the
+// document is hidden (`animation-play-state`, one visibility subscription). `prefers-reduced-motion` collapses
+// to static-but-still-distinct: every layer still paints, at its natural resting frame (drops at their lattice
+// positions, bolt drawn, stars lit), and the lightning flash is removed outright rather than frozen mid-strike.
+//
+// Nullable-honesty (§12.2.1): `clock: null` (ambient clock unset) ⇒ no marker, no arcs, a plain dim sky.
+// `weather: null` (an unresolvable free string) ⇒ the clear recipe; the band text still names it.
+//
+// Homed in charts/meter (the magnitude-display family; inline data-viz svg is legal only in charts/**, §13.7).
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { useCallback, useId, useSyncExternalStore } from "react";
 import { cn } from "#lib";
-import type { WaystonePhase, WaystoneWeather } from "./variants";
 import { waystoneVariants } from "./variants";
+import {
+  C,
+  CLIP_R,
+  DISC_R,
+  GABLE_FILL,
+  HORIZON_FILL,
+  HOUR_TICKS,
+  handAngle,
+  MARKER_HALO_R,
+  MARKER_R,
+  MARKER_STROKE,
+  MINUTES_IN_HOUR,
+  MOON_MASK_R,
+  MOON_MASK_SHIFT_X,
+  MOON_MASK_SHIFT_Y,
+  RING_R,
+  RING_W,
+  SKY_UNSET_OPACITY,
+  SKY_WH,
+  SKY_XY,
+  TICK_MAJOR_INNER,
+  TICK_MAJOR_STROKE,
+  TICK_STROKE,
+  TICK_W_MAJOR,
+  TICK_W_MINOR,
+  VIEW,
+} from "./waystone-geometry";
+import { BandLayer, DialArcs, SkyLayers } from "./waystone-layers";
+import type { WaystoneWeather } from "./waystone-treatment";
+import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment";
 
-/** The CLOSED weather-overlay vocabulary the sky disc can draw — the ONE importable union home lives in
- *  `variants.ts` (a component-free module, so the const can't be re-exported beside a component; the TYPE
- *  is). The consumer resolves its free-string weather onto this (the glyph-resolver seam); an unresolvable
- *  type maps to `null` = no overlay. */
-export type { WaystoneWeather } from "./variants";
+/** The ambient clock as the stone reads it. The HOUR is the whole time axis: it drives the dial angle, the
+ *  interpolated sky, the sun/moon's point on its arc, and the star ramp — the six `TIME_OF_DAY` labels stay a
+ *  TEXT concern (the band prints them; the ring bands them). One nullable object, so "the story hasn't set the
+ *  clock" is one state rather than props that can disagree. */
+export interface WaystoneClock {
+  readonly hour: number;
+  readonly minute: number;
+}
 
 export interface WaystoneProps {
-  /** Current hour 0–23 (fractional ok), noon at the top of the dial, midnight at the bottom.
-   *  `null` = ambient clock unset: neutral ring, no marker, plain dim sky (§12.2.1). */
-  hour: number | null;
-  /** Minute 0–59 — refines the marker angle. @defaultValue 0 */
-  minute?: number;
-  /** The resolved weather overlay; `null` = no overlay layer. @defaultValue null */
+  /** The ambient clock; `null` = unset: neutral ring, no marker, plain dim sky (§12.2.1). */
+  clock: WaystoneClock | null;
+  /** The resolved weather; `null` = unresolvable/unset ⇒ the clear recipe. @defaultValue null */
   weather?: WaystoneWeather | null;
   /** sm = the mobile/floor 64px stone; md = the 76px band stone. @defaultValue "md" */
   size?: "sm" | "md";
   className?: string;
 }
 
-// ─── Geometry (viewBox units; mirrors the approved mock byte-for-byte) ───────────────────────────
-const VIEW = 96;
-const C = VIEW / 2;
-const RING_R = 42;
-const RING_W = 5.5;
-const DISC_R = 35.5;
-const CLIP_R = 34;
-const MARKER_R = 3.4;
-const MARKER_STROKE = 1.6;
-const SKY_XY = 10;
-const SKY_WH = 76;
-const HOURS_IN_DAY = 24;
-const MINUTES_IN_HOUR = 60;
-const DEG_FULL = 360;
-const DEG_HALF = 180;
-
-// ─── The tint recipes (tokens + color-mix ONLY — the §12.1.9 one-home rule for the stone) ────────
-const ARC_DAWN = "color-mix(in oklab, var(--color-primary) 65%, var(--color-track-3))";
-const ARC_DAY = "color-mix(in oklab, var(--color-track-3) 80%, var(--color-background))";
-const ARC_DUSK = "color-mix(in oklab, var(--color-primary) 75%, var(--color-track-4))";
-const ARC_NIGHT = "color-mix(in oklab, var(--color-track-2) 40%, var(--color-background))";
-/** The horizon silhouette — a foreground-shifted sidebar tone (polarity-safe contrast, no raw black). */
-const HORIZON_FILL = "color-mix(in oklab, var(--color-foreground) 25%, var(--color-sidebar))";
-const GABLE_FILL = "color-mix(in oklab, var(--color-primary) 45%, var(--color-sidebar))";
-const SUN_FILL = "color-mix(in oklab, var(--color-track-3) 85%, var(--color-foreground))";
-const RAIN_STROKE = "color-mix(in oklab, var(--color-track-6) 80%, var(--color-foreground))";
-const SNOW_FILL = "color-mix(in oklab, var(--color-foreground) 85%, transparent)";
-const FOG_STROKE = "color-mix(in oklab, var(--color-foreground) 35%, transparent)";
-
-/** Per-phase sky radial-gradient stops (the mock's four skies, token-mixed). */
-const SKY_STOPS: Readonly<Record<WaystonePhase, { readonly from: string; readonly to: string; readonly cy: string }>> = {
-  dawn: {
-    from: "color-mix(in oklab, var(--color-primary) 42%, var(--color-background))",
-    to: "color-mix(in oklab, var(--color-track-2) 16%, var(--color-background))",
-    cy: "70%",
-  },
-  day: {
-    from: "color-mix(in oklab, var(--color-track-3) 45%, var(--color-background))",
-    to: "color-mix(in oklab, var(--color-track-3) 14%, var(--color-background))",
-    cy: "30%",
-  },
-  dusk: {
-    from: "color-mix(in oklab, var(--color-primary) 50%, var(--color-track-4))",
-    to: "color-mix(in oklab, var(--color-track-4) 18%, var(--color-background))",
-    cy: "70%",
-  },
-  night: {
-    from: "color-mix(in oklab, var(--color-track-2) 26%, var(--color-background))",
-    to: "color-mix(in oklab, var(--color-track-2) 8%, var(--color-background))",
-    cy: "30%",
-  },
-};
-
-/** The four FIXED phase arcs (dawn 5–7h · day 7–18h · dusk 18–20h · night 20–5h) — precomputed `d`
- *  strings from the approved mock (the arc segmentation is the day's real shape, not per-render math). */
-const PHASE_ARCS: readonly { readonly d: string; readonly stroke: string }[] = [
-  { d: "M 7.43 58.87 A 42 42 0 0 1 7.43 37.13", stroke: ARC_DAWN },
-  { d: "M 7.43 37.13 A 42 42 0 0 1 90.00 48.00", stroke: ARC_DAY },
-  { d: "M 90.00 48.00 A 42 42 0 0 1 84.37 69.00", stroke: ARC_DUSK },
-  { d: "M 84.37 69.00 A 42 42 0 0 1 7.43 58.87", stroke: ARC_NIGHT },
-];
-
-const DAWN_START = 5;
-const DAY_START = 7;
-const DUSK_START = 18;
-const NIGHT_START = 20;
-
-/** Day phase from the hour (matches the arc segmentation above). */
-function phaseOf(hour: number): WaystonePhase {
-  if (hour >= DAWN_START && hour < DAY_START) {
-    return "dawn";
-  }
-  if (hour >= DAY_START && hour < DUSK_START) {
-    return "day";
-  }
-  if (hour >= DUSK_START && hour < NIGHT_START) {
-    return "dusk";
-  }
-  return "night";
+/** Subscribe to document visibility — the stone PAUSES every layer while the tab is hidden (no compositing
+ *  work for pixels nobody is looking at). One listener, CSS does the pausing. */
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener("visibilitychange", onChange);
+  return (): void => document.removeEventListener("visibilitychange", onChange);
 }
 
-/** Marker position on the ring — noon top, midnight bottom, clockwise. */
-function markerAt(hour: number, minute: number): { readonly x: number; readonly y: number } {
-  const dayFraction = (hour + minute / MINUTES_IN_HOUR) / HOURS_IN_DAY;
-  const theta = ((dayFraction * DEG_FULL + DEG_HALF) * Math.PI) / DEG_HALF;
-  return { x: C + RING_R * Math.sin(theta), y: C - RING_R * Math.cos(theta) };
-}
-
-/** The star field (night/dawn skies) — fixed mock geometry. */
-function Stars(): ReactElement {
-  return (
-    <g fill="var(--color-foreground)" opacity="0.7">
-      <circle cx="38" cy="32" r="0.9" />
-      <circle cx="56" cy="26" r="0.7" />
-      <circle cx="62" cy="40" r="0.9" />
-      <circle cx="45" cy="22" r="0.6" />
-      <circle cx="31" cy="42" r="0.7" />
-    </g>
-  );
-}
-
-/** The weather overlay layer — rain lines · storm bolt · snow dots · fog bands (mock geometry). The
- *  precipitation drift is the panel's ONE ambient animation (`animate-pulse`; reduced-motion REMOVES it). */
-function WeatherOverlay({ weather }: { readonly weather: WaystoneWeather }): ReactElement | null {
-  if (weather === "clear") {
-    return null;
-  }
-  if (weather === "rain") {
-    return (
-      <g stroke={RAIN_STROKE} strokeWidth="1.1" strokeLinecap="round" opacity="0.75" className="animate-pulse">
-        <line x1="36" y1="36" x2="33" y2="43" />
-        <line x1="46" y1="33" x2="43" y2="40" />
-        <line x1="56" y1="37" x2="53" y2="44" />
-        <line x1="50" y1="45" x2="47" y2="52" />
-        <line x1="40" y1="48" x2="37" y2="55" />
-      </g>
-    );
-  }
-  if (weather === "storm") {
-    return (
-      <g>
-        <g stroke={RAIN_STROKE} strokeWidth="1.1" strokeLinecap="round" opacity="0.7" className="animate-pulse">
-          <line x1="36" y1="38" x2="33" y2="45" />
-          <line x1="58" y1="38" x2="55" y2="45" />
-        </g>
-        <path d="M 47 32 L 42 43 h 5 l -4 11" stroke="var(--color-highlight)" strokeWidth="1.6" fill="none" strokeLinejoin="round" strokeLinecap="round" />
-      </g>
-    );
-  }
-  if (weather === "snow") {
-    return (
-      <g fill={SNOW_FILL} opacity="0.85" className="animate-pulse">
-        <circle cx="38" cy="36" r="1.2" />
-        <circle cx="50" cy="31" r="1" />
-        <circle cx="59" cy="39" r="1.2" />
-        <circle cx="44" cy="46" r="1" />
-        <circle cx="54" cy="50" r="1.1" />
-      </g>
-    );
-  }
-  return (
-    <g stroke={FOG_STROKE} strokeWidth="2.6" strokeLinecap="round" opacity="0.7">
-      <line x1="32" y1="40" x2="58" y2="40" />
-      <line x1="38" y1="47" x2="66" y2="47" />
-      <line x1="30" y1="54" x2="52" y2="54" />
-    </g>
+function useDocumentVisible(): boolean {
+  return useSyncExternalStore(
+    subscribeVisibility,
+    useCallback(() => !document.hidden, []),
+    useCallback(() => true, []),
   );
 }
 
 /** The waystone — a pure-SVG decorative composite; pair it with the band's text lines (the datum). */
-export function Waystone({ hour, minute = 0, weather = null, size = "md", className }: WaystoneProps): ReactElement {
-  const gradientId = useId();
-  const clipId = useId();
+export function Waystone({ clock, weather = null, size = "md", className }: WaystoneProps): ReactElement {
+  const uid = useId();
   const slots = waystoneVariants({ size });
-  const phase = hour === null ? null : phaseOf(hour);
-  const sky = phase === null ? null : SKY_STOPS[phase];
-  const marker = hour === null ? null : markerAt(hour, minute);
+  const visible = useDocumentVisible();
+  const treatment = clock === null ? null : resolveWaystoneTreatment(clock.hour + clock.minute / MINUTES_IN_HOUR, weather);
+  const litPhase = clock === null ? null : waystonePhaseAtHour(clock.hour);
+  const moonMaskId = `${uid}-moon`;
 
   return (
-    <svg aria-hidden={true} className={cn(slots.root(), className)} data-slot="waystone" viewBox={`0 0 ${VIEW} ${VIEW}`}>
+    <svg
+      aria-hidden={true}
+      className={cn(slots.root(), className)}
+      data-slot="waystone"
+      data-phase={litPhase ?? "unset"}
+      data-weather={treatment === null ? "unset" : treatment.overlay}
+      data-paused={!visible}
+      viewBox={`0 0 ${VIEW} ${VIEW}`}
+    >
       <defs>
-        {sky === null ? null : (
-          <radialGradient id={gradientId} cx="50%" cy={sky.cy} r="85%">
-            <stop offset="0%" stopColor={sky.from} />
-            <stop offset="100%" stopColor={sky.to} />
+        {/* LAYER 1 — the sky is ONE gradient whose stops are the hour's interpolated recipe; the stop COLORS
+            transition, so an advance melts the sky from one hour to the next instead of swapping it. */}
+        {treatment === null ? null : (
+          <radialGradient id={`${uid}-sky`} cx="50%" cy={treatment.sky.cy} r="85%">
+            <stop offset="0%" stopColor={treatment.sky.from} className="orb-ws-sky-stop" data-slot="waystone-sky-from" />
+            <stop offset="100%" stopColor={treatment.sky.to} className="orb-ws-sky-stop" data-slot="waystone-sky-to" />
           </radialGradient>
         )}
-        <clipPath id={clipId}>
+        <clipPath id={`${uid}-clip`}>
           <circle cx={C} cy={C} r={CLIP_R} />
         </clipPath>
+        {treatment === null || treatment.celestial.body !== "moon" ? null : (
+          // A luminance mask carves the crescent. `white`/`black` here are mask LUMINANCE values, not paint —
+          // the moon's own color is a theme token (the D71 rule is about what the user SEES).
+          <mask id={moonMaskId}>
+            <circle cx={0} cy={0} r={treatment.celestial.r} fill="white" />
+            <circle
+              cx={treatment.celestial.r * MOON_MASK_SHIFT_X}
+              cy={-treatment.celestial.r * MOON_MASK_SHIFT_Y}
+              r={treatment.celestial.r * MOON_MASK_R}
+              fill="black"
+            />
+          </mask>
+        )}
       </defs>
 
-      {/* The 24h dial ring: track + (clock set) the four phase arcs. */}
+      {/* LAYER 0 — the 24h dial: the neutral track, the six label arcs (the one we're IN lit), the bezel scale. */}
       <circle cx={C} cy={C} r={RING_R} className={slots.track()} stroke="currentColor" strokeWidth={RING_W} fill="none" />
-      {phase === null
-        ? null
-        : PHASE_ARCS.map((arc) => <path key={arc.d} d={arc.d} stroke={arc.stroke} strokeWidth={RING_W} fill="none" strokeLinecap="butt" />)}
+      {litPhase === null ? null : <DialArcs litPhase={litPhase} />}
+      <g data-slot="waystone-ticks">
+        {HOUR_TICKS.map((tick) => (
+          <line
+            key={tick.key}
+            x1={tick.x1}
+            y1={tick.y1}
+            x2={tick.x2}
+            y2={tick.y2}
+            stroke={tick.major ? TICK_MAJOR_STROKE : TICK_STROKE}
+            strokeWidth={tick.major ? TICK_W_MAJOR : TICK_W_MINOR}
+            strokeLinecap="round"
+          />
+        ))}
+      </g>
 
-      {/* The sky disc: gradient sky (or the plain dim unset sky) + celestial layer + horizon + gable + weather. */}
       <circle cx={C} cy={C} r={DISC_R} fill="var(--color-sidebar)" />
-      <g clipPath={`url(#${clipId})`}>
-        {sky === null ? (
-          <rect x={SKY_XY} y={SKY_XY} width={SKY_WH} height={SKY_WH} fill="var(--color-muted)" opacity="0.5" data-slot="waystone-sky-unset" />
+      <g clipPath={`url(#${uid}-clip)`}>
+        {/* LAYER 1 — the hour's interpolated sky (the unset stone shows a plain dim wash instead). */}
+        {treatment === null ? (
+          <rect x={SKY_XY} y={SKY_XY} width={SKY_WH} height={SKY_WH} fill="var(--color-muted)" opacity={SKY_UNSET_OPACITY} data-slot="waystone-sky-unset" />
         ) : (
-          <rect x={SKY_XY} y={SKY_XY} width={SKY_WH} height={SKY_WH} fill={`url(#${gradientId})`} />
+          <>
+            <rect x={SKY_XY} y={SKY_XY} width={SKY_WH} height={SKY_WH} fill={`url(#${uid}-sky)`} data-slot="waystone-sky" />
+            <SkyLayers treatment={treatment} maskId={moonMaskId} />
+          </>
         )}
-        {phase === "day" ? <circle cx="48" cy="32" r="6.5" fill={SUN_FILL} opacity="0.9" /> : null}
-        {phase === "night" || phase === "dawn" ? <Stars /> : null}
-        <path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z" fill={HORIZON_FILL} opacity="0.85" />
+
+        {/* LAYER 7 — the horizon depth anchor: the silhouette + its one ember-lit gable. */}
+        <path d="M 16 58 Q 30 50 42 56 T 80 55 L 80 82 L 16 82 Z" fill={HORIZON_FILL} opacity="0.85" data-slot="waystone-horizon" />
         <path d="M 44 56 l 3 -6 3 6 Z" fill={GABLE_FILL} opacity="0.9" />
-        {weather === null || phase === null ? null : <WeatherOverlay weather={weather} />}
+
+        {/* LAYER 7b — the enveloping bands, in FRONT of the silhouette. */}
+        {treatment === null || treatment.bands === null ? null : <BandLayer key={treatment.bands.kind} layer={treatment.bands} />}
       </g>
       <circle cx={C} cy={C} r={DISC_R} fill="none" stroke="var(--color-border)" strokeWidth="1" />
 
-      {/* The ember hour marker — angle IS the time; absent when the clock is unset. */}
-      {marker === null ? null : (
-        <circle
-          cx={marker.x}
-          cy={marker.y}
-          r={MARKER_R}
-          fill="var(--color-primary)"
-          stroke="var(--color-sidebar)"
-          strokeWidth={MARKER_STROKE}
-          data-slot="waystone-marker"
-        />
+      {/* LAYER 8 — the ember hour hand: drawn at noon, ROTATED to the hour, so time swings it around the ring. */}
+      {clock === null ? null : (
+        <g className="orb-ws-hand" style={{ rotate: `${handAngle(clock.hour, clock.minute)}deg` }} data-slot="waystone-marker">
+          <circle cx={C} cy={C - RING_R} r={MARKER_HALO_R} fill="var(--color-primary)" opacity="0.35" className="orb-ws-marker" />
+          <line x1={C} y1={C - TICK_MAJOR_INNER} x2={C} y2={C - RING_R} stroke="var(--color-primary)" strokeWidth="1.6" strokeLinecap="round" />
+          <circle
+            cx={C}
+            cy={C - RING_R}
+            r={MARKER_R}
+            fill="var(--color-primary)"
+            stroke="var(--color-sidebar)"
+            strokeWidth={MARKER_STROKE}
+            data-slot="waystone-marker-dot"
+          />
+        </g>
       )}
     </svg>
   );
