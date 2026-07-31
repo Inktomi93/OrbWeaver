@@ -1,9 +1,10 @@
 // Unit: the CONNECTIONS pane's pure model (features/credentials/lib/connections-model). No DOM — the
 // node lane. Guards the W10 load-bearing logic: the embedding-dimension mismatch advisory (both slots
-// feed one 1024-dim shared space), the routing project ⇄ patch round-trip (a fully-unset slot ⇒ omitted
-// "no preference"; a live slot with a blank model ⇒ explicit `model: null` clear so a provider switch
-// drops the stale model id), and the per-role source constraints matching the settings schema
-// (a stricter/looser list than the server would hide or mis-offer a legal choice).
+// feed one 1024-dim shared space), the routing project ⇄ patch round-trip (EVERY leaf written
+// explicitly — an emptied field as `null`, never an omitted key, because the server merge treats an
+// omitted key as a no-op and a "cleared" role would keep routing turns to the old model), the
+// LIVE-vs-DRAFT drift model the pane discloses per row, and the per-role source constraints matching the
+// settings schema (a stricter/looser list than the server would hide or mis-offer a legal choice).
 
 import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
 import type { CredentialProvider } from "@orb/contracts/credentials";
@@ -15,9 +16,12 @@ import {
   groupCredentialsByProvider,
   isConfigured,
   PROVIDER_LABELS,
+  persistedRoleLabel,
   projectRoutingForm,
   ROLE_SLOTS,
   ROLE_SLOTS_ORDERED,
+  roleRowDrifted,
+  routingFormDrifted,
   SOURCE_LABELS,
   toRoutingSection,
 } from "../../../../../packages/client/src/features/credentials/lib/connections-model";
@@ -59,9 +63,21 @@ test("isConfigured requires BOTH a source and a non-blank model", () => {
 
 // --- projectRoutingForm ⇄ toRoutingSection round-trip ------------------------
 
-test("an all-empty form projects to an empty roleDefaults (unset ⇒ omitted, never pinned empty)", () => {
+// The patch shape for one fully-unset role: both leaves explicitly cleared (never omitted).
+const CLEARED_ROLE = { source: null, model: null };
+
+test("an all-empty form CLEARS every role leaf explicitly (an omitted key is a merge no-op, not a clear)", () => {
   const empty = projectRoutingForm({ roleDefaults: {} });
-  expect(toRoutingSection(empty)).toEqual({ roleDefaults: {} });
+  expect(toRoutingSection(empty)).toEqual({
+    roleDefaults: {
+      chat: { ...CLEARED_ROLE, api: null },
+      embed: CLEARED_ROLE,
+      rerank: CLEARED_ROLE,
+      imageEmbed: CLEARED_ROLE,
+      summarize: CLEARED_ROLE,
+      generateImage: CLEARED_ROLE,
+    },
+  });
 });
 
 test("a configured chat slot round-trips through the projection with its api knob", () => {
@@ -78,24 +94,20 @@ test("a configured chat slot round-trips through the projection with its api kno
   expect(form.chat.source).toBe("openrouter");
   expect(form.chat.model).toBe("anthropic/claude-opus-4-8");
   expect(form.chat.api).toBe("chat-completions");
-  // Back to the sparse section — the chat config carries every set field.
-  expect(toRoutingSection(form)).toEqual({
-    roleDefaults: {
-      chat: {
-        source: "openrouter",
-        model: "anthropic/claude-opus-4-8",
-        api: "chat-completions",
-      },
-    },
+  // Back to the written section — the chat config carries every set field.
+  expect(toRoutingSection(form).roleDefaults["chat"]).toEqual({
+    source: "openrouter",
+    model: "anthropic/claude-opus-4-8",
+    api: "chat-completions",
   });
 });
 
 test("a blank model on a LIVE slot emits an explicit null clear (deepMergePlain null=clear), not an omitted key", () => {
   const form = projectRoutingForm({ roleDefaults: {} });
   const withBlank = { ...form, embed: { source: "vllm", model: "   " } };
-  // source set but model blank ⇒ the sparse config keeps the source AND sends `model: null` so the
-  // server merge drops any stale model id (an omitted key would be a no-op merge — the mis-route bug).
-  expect(toRoutingSection(withBlank)).toEqual({ roleDefaults: { embed: { source: "vllm", model: null } } });
+  // source set but model blank ⇒ the config keeps the source AND sends `model: null` so the server merge
+  // drops any stale model id (an omitted key would be a no-op merge — the mis-route bug).
+  expect(toRoutingSection(withBlank).roleDefaults["embed"]).toEqual({ source: "vllm", model: null });
 });
 
 test("switching provider (source changes ⇒ model reset) emits a null-clear for the stale model — chat + non-chat", () => {
@@ -112,22 +124,63 @@ test("switching provider (source changes ⇒ model reset) emits a null-clear for
     rerank: { source: "vllm", model: "" },
   };
   // Every switched slot carries `model: null` — the explicit clear deepMergePlain honours (absent = no-op).
-  expect(toRoutingSection(switched)).toEqual({
-    roleDefaults: {
-      chat: { source: "vllm", model: null },
-      rerank: { source: "vllm", model: null },
-    },
-  });
+  const { roleDefaults } = toRoutingSection(switched);
+  expect(roleDefaults["chat"]).toEqual({ source: "vllm", model: null, api: null });
+  expect(roleDefaults["rerank"]).toEqual({ source: "vllm", model: null });
 });
 
-test("clearing a previously-set slot releases it (the section replaces roleDefaults wholesale)", () => {
+test("clearing a previously-set slot writes the clear — the reason Clear used to be a silent no-op", () => {
   const configured = projectRoutingForm({
     roleDefaults: { rerank: { source: "openrouter", model: "rerank-v3.5" } },
   });
   expect(configured.rerank.source).toBe("openrouter");
-  // The user clears both fields → the slot is omitted from the next written section.
+  // The user clears both fields. The patch must NAME both leaves as null: the write path is
+  // deepMergePlain(stored, patch), so the previous omitted-key shape left `rerank` exactly as it was —
+  // the row rendered empty while turns kept resolving openrouter/rerank-v3.5.
   const cleared = { ...configured, rerank: { source: "", model: "" } };
-  expect(toRoutingSection(cleared)).toEqual({ roleDefaults: {} });
+  expect(toRoutingSection(cleared).roleDefaults["rerank"]).toEqual(CLEARED_ROLE);
+});
+
+// --- LIVE vs DRAFT (the 2026-08-01 phantom: a never-saved pane read as configured) --------------
+
+test("a row that matches the persisted projection is LIVE; any leaf differing is a DRAFT", () => {
+  const persisted = projectRoutingForm({
+    roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "chat-completions" } },
+  });
+  expect(roleRowDrifted(persisted, persisted, "chat")).toBe(false);
+  expect(routingFormDrifted(persisted, persisted)).toBe(false);
+
+  const modelEdited = { ...persisted, chat: { ...persisted.chat, model: "openai/gpt-5" } };
+  expect(roleRowDrifted(modelEdited, persisted, "chat")).toBe(true);
+  expect(routingFormDrifted(modelEdited, persisted)).toBe(true);
+
+  // The chat row's protocol knob is part of ITS row — an api-only edit drifts too (and only chat's does).
+  const apiEdited = { ...persisted, chat: { ...persisted.chat, api: "responses" } };
+  expect(roleRowDrifted(apiEdited, persisted, "chat")).toBe(true);
+  expect(roleRowDrifted(apiEdited, persisted, "embed")).toBe(false);
+});
+
+test("a NEVER-SAVED pane reads as unconfigured, and one edited row does not smear onto its siblings", () => {
+  // roleDefaults NULL server-side = every row unset. Touching ONE row must drift ONLY that row.
+  const persisted = projectRoutingForm({ roleDefaults: {} });
+  const draft = { ...persisted, summarize: { source: "vllm", model: "" } };
+  expect(roleRowDrifted(draft, persisted, "summarize")).toBe(true);
+  const otherRolesDrifted = ROUTING_ROLE_KEYS.filter((role) => role !== "summarize" && roleRowDrifted(draft, persisted, role));
+  expect(otherRolesDrifted).toEqual([]);
+});
+
+// (The save-phase → chip dispatch lives in role-slot-row.tsx, beside `AutosaveSaveState`; its arms are
+// driven end-to-end by connections-settings-surface.ct.tsx. This lane keeps the pure drift model.)
+
+test("the disclosure names what a turn ACTUALLY resolves — the app default when nothing is persisted", () => {
+  const unset = projectRoutingForm({ roleDefaults: {} });
+  expect(persistedRoleLabel(unset, "chat")).toBe("the app default");
+
+  const sourceOnly = projectRoutingForm({ roleDefaults: { rerank: { source: "vllm" } } });
+  expect(persistedRoleLabel(sourceOnly, "rerank")).toBe(`${SOURCE_LABELS.vllm} · its default model`);
+
+  const full = projectRoutingForm({ roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5" } } });
+  expect(persistedRoleLabel(full, "chat")).toBe(`${SOURCE_LABELS.openrouter} · anthropic/claude-sonnet-5`);
 });
 
 // --- role-slot source constraints (must match the settings schema) -----------

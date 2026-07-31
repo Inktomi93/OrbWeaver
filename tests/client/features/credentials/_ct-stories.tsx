@@ -5,10 +5,12 @@
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row";
 import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker";
+import { ConnectionsSettingsSurface } from "../../../../packages/client/src/features/credentials/surfaces/connections-settings-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
@@ -135,5 +137,33 @@ export function ModelPickerStory({
       />
       <div data-testid="model-picker-value">{value}</div>
     </div>
+  );
+}
+
+/** The whole Connections pane over the real data layer — the LIVE-vs-DRAFT surface (the 2026-08-01 phantom:
+ *  a never-persisted selection rendered exactly like the live connection, under a "Saved" chip). Every read
+ *  (`settings.getUserSettings`, `sessions.me`, `credentials.list`, `connection.getModelsForSource`) and the
+ *  `settings.updateUserSettingsSection` write are stubbed per-test via routeTrpc. The "refetch settings"
+ *  button stands in for the bus-driven `settingsChanged` refetch: the mutation is `busDriven: true`, so it
+ *  invalidates nothing itself — the USER_BUS does, and a CT has no bus. */
+function ConnectionsPaneInner(): ReactElement {
+  const queryClient = useQueryClient();
+  return (
+    <div>
+      <ConnectionsSettingsSurface />
+      <button type="button" onClick={(): void => void queryClient.invalidateQueries()}>
+        refetch settings
+      </button>
+    </div>
+  );
+}
+
+export function ConnectionsSettingsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <ConnectionsPaneInner />
+      </div>
+    </CtDataProviders>
   );
 }

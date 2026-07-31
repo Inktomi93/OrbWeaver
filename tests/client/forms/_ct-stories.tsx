@@ -387,6 +387,77 @@ export function BoundaryBrickHealStory(): ReactElement {
   );
 }
 
+// ---- CT-9: a serverValues churn DURING the debounce must not drop the pending save -----------------
+// The live defect (2026-08-01 owner session, Connections pane): the save driver held its debounce timer in
+// the effect closure, so ANY re-subscription of that effect (its deps include the server-baseline hash)
+// cleared the armed timer and never re-armed it — the edit sat unsaved forever while the status still read
+// "Saved". A settings write from anywhere (busDriven refetch) or a two-device echo is enough to churn
+// `serverValues`, and the form is DIRTY so the clean-echo re-baseline correctly does nothing.
+const echoDropSpy = createSaveSpy("boundary-ct-echo-drop");
+const EchoDropBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  debounceMs: 300,
+});
+
+/** CT-9: edit → server snapshot churns mid-debounce → the pending save must still land. */
+export function BoundaryEchoDuringDebounceStory(): ReactElement {
+  const [server, setServer] = useState<BoundaryValues>({ text: "srv-1" });
+  return (
+    <div>
+      <EchoDropBoundary
+        entityId="echo-drop-entity"
+        serverValues={server}
+        save={(values): Promise<void> => {
+          echoDropSpy.record("echo-drop-entity", values.text);
+          return Promise.resolve();
+        }}
+      >
+        {(session): ReactElement => (
+          <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Churn text" />}</session.form.AppField>
+        )}
+      </EchoDropBoundary>
+      <SwitchSpyObserverFor spy={echoDropSpy} prefix="echo-drop" />
+      <button type="button" onClick={(): void => setServer({ text: "srv-2" })}>
+        churn server snapshot
+      </button>
+    </div>
+  );
+}
+
+// ---- CT-10: unmounting the BOUNDARY flushes the pending edit (leaving a settings pane / closing a modal)
+// The teardown flush is pinned on the entity-switch path by CT-3; this is its other trigger — the whole
+// boundary going away, which is what "close the settings modal mid-edit" is. Long debounce so the ONLY
+// way the spy sees the edit is the flush.
+const unmountSpy = createSaveSpy("boundary-ct-unmount");
+const UnmountBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  save: (values): Promise<void> => {
+    unmountSpy.record("unmount-entity", values.text);
+    return Promise.resolve();
+  },
+  debounceMs: 5000,
+});
+
+/** CT-10: edit → unmount the boundary → the pending save FIRED (never silently dropped). */
+export function BoundaryUnmountFlushStory(): ReactElement {
+  const [mounted, setMounted] = useState(true);
+  return (
+    <div>
+      {mounted ? (
+        <UnmountBoundary entityId="unmount-entity" serverValues={{ text: "server value" }}>
+          {(session): ReactElement => (
+            <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Unmount text" />}</session.form.AppField>
+          )}
+        </UnmountBoundary>
+      ) : null}
+      <SwitchSpyObserverFor spy={unmountSpy} prefix="unmount" />
+      <button type="button" onClick={(): void => setMounted(false)}>
+        unmount the pane
+      </button>
+    </div>
+  );
+}
+
 // A parameterized spy observer (the switch observer above is hard-bound to switchSpy). Distinct testids
 // per prefix so multiple stories in one page context never collide.
 function SwitchSpyObserverFor({ spy, prefix }: { readonly spy: ReturnType<typeof createSaveSpy>; readonly prefix: string }): ReactElement {
