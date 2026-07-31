@@ -133,11 +133,9 @@ function InvalidationReader({ chatId }: { readonly chatId: ChatId }): ReactEleme
       <button
         type="button"
         onClick={(): void => {
-          const event: ChatBusEvent = {
-            type: "messageCommitted",
-            chatId,
-            messageId: castId("msg_ctinvalidation01"),
-          };
+          // `chatUpdated` — the chat-ROW catch-all, i.e. an event whose filters really do name `getChat`
+          // (a canon event does NOT: nothing in `ChatDetail` derives from canon — see `chatCanonReads`).
+          const event: ChatBusEvent = { type: "chatUpdated", chatId };
           invalidate(event);
         }}
       >
@@ -356,6 +354,69 @@ export function ViewerStory(): ReactElement {
     <CtDataProviders>
       <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <ViewerProbe />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+// ── The startChat BURST probe (bus-invalidation hygiene) — the four events a `chat.startChat` lands on a
+//    client inside ~80ms, each on its OWN button so a CT can attribute a wire fetch to exactly one event
+//    (a whole-burst button fires them in one tick for the end-to-end count). Both burst-touched reads are
+//    mounted and ACTIVE, so an invalidation that reaches them is a real round-trip routeTrpc counts, never
+//    a silent stale-mark. The measured order: user-bus `chatsChanged` (the member fan, chatId present) →
+//    `chatOpened` (the attach synthesis) → `chatCreated` + `messageCommitted` (the draft→committed
+//    from-zero durable replay). ──────────────────────────────────────────────────────────────────────────
+
+function StartChatBurstProbe({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const { invalidate, invalidateUser } = useInvalidation();
+  const chat = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const list = useSuspenseQuery(trpc.chat.listChats.queryOptions());
+  const opened: ChatBusEvent = { type: "chatOpened", chatId };
+  const created: ChatBusEvent = { type: "chatCreated", chatId };
+  const committed: ChatBusEvent = { type: "messageCommitted", chatId, messageId: castId("msg_ctburst00000001") };
+  const edited: ChatBusEvent = { type: "messageEdited", chatId, messageId: castId("msg_ctburst00000002") };
+  return (
+    <div>
+      <p data-testid="burst-state">{`${chat.data.title ?? "untitled"} · ${list.data.length}`}</p>
+      <button type="button" onClick={(): void => invalidateUser({ type: "chatsChanged", chatId })}>
+        chatsChanged
+      </button>
+      <button type="button" onClick={(): void => invalidate(opened)}>
+        chatOpened
+      </button>
+      <button type="button" onClick={(): void => invalidate(created)}>
+        chatCreated
+      </button>
+      <button type="button" onClick={(): void => invalidate(committed)}>
+        messageCommitted
+      </button>
+      {/* A NON-terminal canon event: `chatReads` — the chat list + canon, never `getChat`. The CT's
+          round-trip BARRIER for the getChat assertions (fire it, await its listChats fetch, and any
+          getChat request an earlier click had issued is necessarily already recorded). */}
+      <button type="button" onClick={(): void => invalidate(edited)}>
+        messageEdited
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          invalidateUser({ type: "chatsChanged", chatId });
+          invalidate(opened);
+          invalidate(created);
+          invalidate(committed);
+        }}
+      >
+        whole-burst
+      </button>
+    </div>
+  );
+}
+
+export function StartChatBurstStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <StartChatBurstProbe chatId={chatId} />
       </QueryBoundary>
     </CtDataProviders>
   );
