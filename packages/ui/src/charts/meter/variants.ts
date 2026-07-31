@@ -1,17 +1,6 @@
 // 1-D magnitude skins. The danger state is a token swap (primary -> destructive intent), never a color calculation.
 import { tv } from "#lib";
 
-/** The Waystone's CLOSED weather-overlay vocabulary — the derived TYPE is the seam (the only thing
- *  consumed); the tuple stays LOCAL (no runtime consumer iterates it, so an exported const would be
- *  unused). This data module is component-free, so the type homes here, not beside the component. */
-const WAYSTONE_WEATHERS = ["clear", "rain", "storm", "snow", "fog"] as const;
-export type WaystoneWeather = (typeof WAYSTONE_WEATHERS)[number];
-
-/** The Waystone's day-phase vocabulary (derived from the hour, never passed) — same shape: local tuple,
- *  exported type. */
-const WAYSTONE_PHASES = ["dawn", "day", "dusk", "night"] as const;
-export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
-
 export const meterVariants = tv({
   slots: {
     root: "flex flex-col gap-field",

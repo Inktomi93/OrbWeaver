@@ -139,6 +139,9 @@ export const TOKENS = {
   "motion.layout": { cssVar: "--motion-layout", value: "360ms" },
   "motion.shimmer": { cssVar: "--motion-shimmer", value: "1300ms" },
   "motion.breathe": { cssVar: "--motion-breathe", value: "3000ms" },
+  "motion.precip": { cssVar: "--motion-precip", value: "1100ms" },
+  "motion.transit": { cssVar: "--motion-transit", value: "1400ms" },
+  "motion.ambient": { cssVar: "--motion-ambient", value: "16000ms" },
   "ease.out-expo": { cssVar: "--ease-out-expo", value: "cubic-bezier(0.16, 1, 0.3, 1)" },
 } as const;
 

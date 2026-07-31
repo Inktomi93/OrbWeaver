@@ -12,8 +12,8 @@
 // The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
-import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
-import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView, TimeOfDay } from "@orb/contracts/rpg";
+import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -31,12 +31,13 @@ import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 const ORB_TAG_LEN = 3;
 
 /** Derive the lite time-of-day LABEL back from the stored clock hour (§2.7 — the banner inverts the
- *  `TIME_OF_DAY_HOURS` mapping to the nearest representative hour). */
-function timeOfDayLabel(clock: RpgClockTime): string {
-  let best = "";
+ *  `TIME_OF_DAY_HOURS` mapping to the nearest representative hour, ties to the earlier label). The band's
+ *  TEXT and the Waystone's SKY both resolve from this one call — one datum, two renderings. */
+function timeOfDayLabel(clock: RpgClockTime): TimeOfDay {
+  let best: TimeOfDay = TIME_OF_DAY[0];
   let bestDist = Number.POSITIVE_INFINITY;
-  for (const [label, hour] of Object.entries(TIME_OF_DAY_HOURS)) {
-    const dist = Math.abs(hour - clock.hour);
+  for (const label of TIME_OF_DAY) {
+    const dist = Math.abs(TIME_OF_DAY_HOURS[label] - clock.hour);
     if (dist < bestDist) {
       bestDist = dist;
       best = label;
@@ -127,8 +128,9 @@ export function RpgTakeoverHeader({
     <Stack gap="block" data-slot="rpg-takeover-header">
       <Row gap="block" align="center">
         <Waystone
-          hour={clock === null ? null : clock.hour}
-          minute={clock === null ? 0 : clock.minute}
+          // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
+          // the `timeOfDayLabel` above is the TEXT half of the same datum, never a second source of truth.
+          clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
           weather={weatherType === null ? null : resolveWeatherOverlay(weatherType)}
           className="@max-md:size-16 shrink-0"
         />

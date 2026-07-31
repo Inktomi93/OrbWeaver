@@ -16,5 +16,27 @@ export type { SegmentedClockProps } from "./segmented-clock";
 export { SegmentedClock } from "./segmented-clock";
 export type { TrackBarProps, TrackColor } from "./track-bar";
 export { TrackBar } from "./track-bar";
-export type { WaystoneProps, WaystoneWeather } from "./waystone";
+export type { WaystoneClock, WaystoneProps } from "./waystone";
 export { Waystone } from "./waystone";
+export type {
+  WaystoneCelestial,
+  WaystoneOverlayKind,
+  WaystonePhase,
+  WaystonePhaseSpan,
+  WaystoneSky,
+  WaystoneTreatment,
+  WaystoneWeather,
+  WaystoneWeatherRecipe,
+} from "./waystone-treatment";
+export {
+  resolveWaystoneTreatment,
+  WAYSTONE_PHASE_SPANS,
+  WAYSTONE_PHASES,
+  WAYSTONE_SKY_STOPS,
+  WAYSTONE_WEATHERS,
+  waystoneCelestialAt,
+  waystonePhaseAtHour,
+  waystoneSkyAt,
+  waystoneStarOpacityAt,
+  waystoneWeatherRecipe,
+} from "./waystone-treatment";
