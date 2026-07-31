@@ -6,17 +6,16 @@
 // DIRECTLY (lockdown §12 — the transcript surface shares this exact cache key, so this is a cache read).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { RpgCardRow } from "./rpg-card-row";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { Kicker } from "./rpg-kicker";
 
@@ -75,11 +74,7 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
     <Stack gap="field" data-slot="rpg-card-archive">
       <Kicker>Cards — {cards.length}</Kicker>
       {cards.map((card) => (
-        <Button key={card.key} intent="ghost" size="sm" className="justify-start" onClick={(): void => setOpenKey(card.key)}>
-          <Text size="label" className="truncate">
-            ✦ {cardLabel(card.title)}
-          </Text>
-        </Button>
+        <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}
       <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
     </Stack>
