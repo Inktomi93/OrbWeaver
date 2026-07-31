@@ -1,5 +1,8 @@
 # Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle
 
+> **STATUS (2026-08-01): STAGE 1 SHIPPED** — `ea99b0e3`, merged to main `22cf37ea`, law minted as **D113** (`Core-Path-Registry.md`). §5 shapes are live; stage 2 (Status-absorbs-Sheet takeover view, GM editor polish, RV-8 primitives) remains open on the workboard.
+
+
 **Status:** direction + spec APPROVED (owner, 2026-07-31 late — noun = **TRACKER**; widgets full-fold
 + hud_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
 this lane's baseline regen). Nothing built.

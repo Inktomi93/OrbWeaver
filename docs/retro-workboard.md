@@ -65,19 +65,48 @@ panel 480px** ✓.
 
 ## ═══ ▶▶▶ 08-01 DAY WAVE — LIVE STATE @ ~07:00 (compact-safety snapshot) ═══
 
-**⚠ TRK-1 WORKTREE-ESCAPE INCIDENT (~07:4x):** the TRK-1 executor edited ~84 files on MAIN via
-absolute paths copied from its brief (staged, not committed). Contained: STOP sent, index captured
-(empty by then — it self-reverted), main verified CLEAN at `0d48ef39`. TRK-1 ordered to work
-EXCLUSIVELY in `wt/agent-ae441b0805535fe2e` and confirm cwd in its report — treat its next report
-with extra scrutiny (work may need re-doing worktree-side). LESSON (banked): absolute main-checkout
-paths in a worktree agent's brief read as TARGETS — briefs must say "paths are references; resolve
-inside YOUR worktree."
+**TRK-1 "escape" — FALSE ALARM (corrected):** main was NEVER touched. The scary ~84-file list was
+the agent running a doctrine-banned bare `git checkout --` (no pathspec) in its WORKTREE — that no-op
+prints a file list that reads exactly like a dirty-tree report. The tool layer hard-rejected its one
+main-path attempt. My captures confirmed main clean throughout. Lessons kept: verify with
+`git diff --cached` (staged) not just `diff`; worktree briefs still say "paths are references."
 
-**PREV DONE** (`wt/agent-aa855bb2e7ac7e9d3`, 3 commits, MERGE QUEUED behind TRK containment):
-Preview = the mock's instrument (SegmentBar + SeriesRow primitives, ChatInjection.origin provenance
-stamps, budget Records tsc-total); BUG FOUND+FIXED: preview never ran the rpg gather (game-state
-invisible to the honesty surface); old trace kept under a Diagnostics drawer (owner may want it gone);
-deferred: cast-name detail lines (small server change on request).
+**08-01 BIG-LANE LANDINGS (both merged to main, merge `22cf37ea`, check 12/12 green ×2, battery running):**
+- **TRK-1 stage 1 LANDED** (`ea99b0e3`, → **D113** minted): `RpgTrackerDef` one home in `config.trackers[]`;
+  `RpgTrackerValue` has NO max (drift class unspellable); `carriesTracker` revoke>grant>class one home;
+  `hud_widgets` DROPPED + `widget_values`→`tracker_values` no-legacy baseline regen; R6 per-call grouped
+  schema; R2 game-rendered tool descriptions; TRACKER vocab sweep (roster untouched). Its worktree ran
+  vitest 7295/0 + CT 1551/0. **DB SCHEMA CHANGED — dev DB needs wipe/reseed on next stack cycle (owner).**
+  Stage-2 remains queued: Status-absorbs-Sheet takeover, GM Tracker editor, RV-8 primitives; flagged for
+  side-eye: Status max-edit is now honestly `updateConfig` (game-wide) from a per-actor row.
+- **PREV LANDED** (4 commits, un-defer round done properly per owner): Preview = context-budget instrument;
+  found+fixed 2 real server defects — preview never ran `shapeContextForSpeaker` (multi-character rooms
+  under-reported the prompt) and the merged card block was one opaque string (now per-member slices via the
+  approved `getCard`→`gatherAssembleContext` seam, zero client math). `AssemblyBudgetSlice.parts` per-contributor;
+  `ChatInjection.originLabel`; delivered prompt asserted byte-identical (accounting-only split). Diagnostics
+  drawer KEPT pending owner word.
+- Merge conflicts were import-block-only ×4 (TRK cut pre-TIME_OF_DAY-consolidation); resolved by
+  used-symbol union; both packages tsc-clean.
+
+**OWNER RULING (08-01, mid-stage-2): per-carrier tracker max RESTORED.** Stage 1's "one ceiling on
+the def" was an agent DEVIATION from approved spec §5.2 (which kept `max?` on the value) that I wrongly
+ratified into D113 — owner caught it live ("max lowered for everyone who carries it" is super wrong).
+Amended model: `def.max` = DEFAULT ceiling · `RpgTrackerValue.max?` = per-carrier override (absent = def's;
+written only when it differs, write-equal clears) · effective = `trackerCeiling(def, value)` ONE home in
+contracts/rpg/tracker.ts · max stays host-authored (no model write surface change) · Status-row max edit =
+this character; Game-tab editor = the default. Stage-2 lane redirected to build the whole vertical in its
+worktree; D113 + spec §5.2 amendment ride the merge. LESSON: diff an agent's self-flagged "deliberate
+deviation" against the spec TEXT before minting it into law.
+
+**200k-CEILING FIX LANDED `2934af26`** (owner-found post-wipe): the DB wipe killed the OR catalog
+snapshot; `resolve-model-capability.ts`'s cold-mirror fallback silently handed EVERY OR model a 200k
+window. Fix: `WARM_WINDOW_TRUTH` — an exhaustive per-`CredentialSource` Record (tsc-total) that warms
+each source's real window truth (OR snapshot→live /models · max-pro-sub daemon · vLLM engine
+max_model_len · custom = user-declared · local-light env floor), cold-gated + single-flighted +
+best-effort; genuinely-unknown windows mark themselves (`windowEstimated` → `ceilingEstimated` wire) —
+Preview + transcript divider say "window unknown", ratio suppressed, CT pins that 200,000 appears
+nowhere; a user preset maxContextTokens at/below the guess BINDS (their declared truth un-estimates
+the ceiling). Bonus harness fix: read.int.test.ts makeDeps spread order silently ate overrides.
 
 **IN-FLIGHT AGENTS (SendMessage ids):** smalls DONE (`edb78a26` AU-5 kill incl. re-homed cold-cache regression tests + `d9563dd1` VER-1d quality guard; NEW ITEM: `resolveAgentSdkAlias` branch now product-unreachable — separate look). Was: smalls ON MAIN — AU-5 `edb78a26`
 (NOTE: my staged density spec got index-swept into that commit — content fine, cosmetic), VER-1d guard
