@@ -5,8 +5,8 @@
 // never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
-import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, PersonaAvatarEntry } from "@orb/contracts/chat";
+import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap, lastVisibleAssistant } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -179,7 +179,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     pinnedPromptIdRef.current = promptId;
     listHandleRef.current?.pinToIndex(idx);
   }, [pinMode, items]);
-  const lastAssistantId = live ? null : findLastAssistantId(messages);
+  // Which row carries the swipe controls: the newest real GENERATION. An rpg state anchor (the empty-body
+  // snapshot key a host resync/hand-edit appends) is filtered out of the rendered list, so letting it answer
+  // this stripped the arrows off the last visible reply entirely.
+  const lastAssistantId = live ? undefined : lastVisibleAssistant(messages)?.id;
   // The transcript divider's PRESENT-TENSE source (PD-#7): previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
   // events + settings/preset changes via the central seam). Non-suspense so it never blocks the transcript;
@@ -278,16 +281,6 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
 function contextFitLabel(fit: ContextFitPreview): string {
   const reserved = `${fit.reserveOutputTokens} reserved`;
   return fit.ceilingEstimated ? `${fit.usedTokens} used · window unknown · ${reserved}` : `${fit.usedTokens} of ${fit.ceilingTokens} used · ${reserved}`;
-}
-
-function findLastAssistantId(messages: readonly MessageView[]): MessageView["id"] | null {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m !== undefined && m.role === "assistant") {
-      return m.id;
-    }
-  }
-  return null;
 }
 
 interface DraftGreetingThreadProps {

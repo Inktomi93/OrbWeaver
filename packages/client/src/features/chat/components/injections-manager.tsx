@@ -2,12 +2,14 @@
 // createCollectionSurface — a chat holds a handful of these, so it's a plain mapped list of per-row
 // autosave forms. Source-agnostic: the presentational InjectionsList takes rows + CRUD callbacks,
 // owning neither read nor write; a committed chat wires chat.listChatInjections + the verbs, a draft
-// wires draftConfig.injections + setDraftInjections. No enabled/disabled toggle — "off" = delete the row.
+// wires draftConfig.injections + setDraftInjections. No enabled/disabled toggle — "off" = delete the row,
+// and an EMPTY-content row is inert (assembly skips it at every position), which the row says out loud.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -107,9 +109,25 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
         <Section>
           <Stack gap="block">
             <Row gap="block" align="center" justify="between">
-              <Text size="label" weight="medium" tone="muted">
-                Injection
-              </Text>
+              <Row gap="block" align="center">
+                <Text size="label" weight="medium" tone="muted">
+                  Injection
+                </Text>
+                {/* An empty-content row is INERT: assembly skips it at every position, so it reaches no
+                    prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is also the
+                    normal just-added state — so it is neither refused nor deleted, it just says so. Silence
+                    here reads as "my injection is on", which is the lie: the owner ran a live chat with an
+                    enabled-but-empty row believing it was delivering. */}
+                <form.Subscribe selector={(state): boolean => state.values.content.trim() === ""}>
+                  {(isEmpty): ReactElement | null =>
+                    isEmpty ? (
+                      <Badge intent="warning" tone="soft" size="sm">
+                        Not delivered — no content
+                      </Badge>
+                    ) : null
+                  }
+                </form.Subscribe>
+              </Row>
               {isHost ? (
                 <Button intent="ghost" size="sm" aria-label="Remove injection" onClick={(): void => onDelete(row.key)}>
                   Remove

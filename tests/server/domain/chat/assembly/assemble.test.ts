@@ -2,6 +2,7 @@
 // macro→frame order, render-ONCE {{original}} recovery (card + room override), the static/dynamic split, the
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
 import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/contracts/chat";
+import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
@@ -182,6 +183,29 @@ describe("assemblePrompt — section walk", () => {
     expect(out.static).toContain("BODY");
     expect(out.dynamic).toContain("SUFFIX");
     expect(out.trace.chatInjectionsIncluded).toBe(2);
+  });
+
+  // An injection row with EMPTY content is inert at EVERY position — a no-op, never an empty wire block.
+  // "Add injection" mints exactly this shape (blank content) and the tab has no enabled toggle, so a row a
+  // user added but never filled in is the NORMAL state; the assembled prompt must be byte-identical to
+  // having no injection at all, including the trace counts a budget/fit readout is drawn from. (Owner
+  // dogfood 2026-07-31: an enabled-but-empty in_chat injection sat on a live chat.)
+  test("an empty-content injection is a NO-OP at every position — byte-identical to no injection", () => {
+    const config = configOf([marker({ marker: "main_prompt", template: "BODY" }), marker({ marker: "chat_history" })]);
+    const blank: ChatInjection[] = CHAT_INJECTION_POSITIONS.map((position) => ({ position, depth: 0, role: "system" as const, content: "" }));
+    // Whitespace-only is the same nothing (the frame/append filters both trim).
+    const whitespace: ChatInjection[] = CHAT_INJECTION_POSITIONS.map((position) => ({ position, depth: 0, role: "system" as const, content: "  \n\t " }));
+
+    const none = assemblePrompt(config, ctxOf());
+    expect(assemblePrompt(config, ctxOf({ chatInjections: blank }))).toEqual(none);
+    expect(assemblePrompt(config, ctxOf({ chatInjections: whitespace }))).toEqual(none);
+    // Explicit on the parts a silent empty block would corrupt: no section label, no count, no after-history entry.
+    const out = assemblePrompt(config, ctxOf({ chatInjections: blank }));
+    expect(out.trace.chatInjectionsIncluded).toBe(0);
+    expect(out.afterHistory).toHaveLength(0);
+    expect(out.trace.staticSections).not.toContain("chat-injection:before_prompt");
+    expect(out.trace.staticSections).not.toContain("chat-injection:in_static");
+    expect(out.trace.dynamicSections).not.toContain("chat-injection:in_prompt");
   });
 
   test("a volatile macro ({{date}}) in a STATIC section is reported as a cache-buster", () => {
