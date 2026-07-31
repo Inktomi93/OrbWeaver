@@ -13,8 +13,8 @@
 // The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
-import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView, TimeOfDay } from "@orb/contracts/rpg";
-import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -30,22 +30,6 @@ import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 /** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
 const ORB_TAG_LEN = 3;
 
-/** Derive the lite time-of-day LABEL back from the stored clock hour (§2.7 — the banner inverts the
- *  `TIME_OF_DAY_HOURS` mapping to the nearest representative hour, ties to the earlier label). The band's
- *  TEXT and the Waystone's SKY both resolve from this one call — one datum, two renderings. */
-function timeOfDayLabel(clock: RpgClockTime): TimeOfDay {
-  let best: TimeOfDay = TIME_OF_DAY[0];
-  let bestDist = Number.POSITIVE_INFINITY;
-  for (const label of TIME_OF_DAY) {
-    const dist = Math.abs(TIME_OF_DAY_HOURS[label] - clock.hour);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = label;
-    }
-  }
-  return best;
-}
-
 /** Line 2's when/where caption from the ambient strip. `dateMode` (#9): `narrated` (the default) leads
  *  with the FREEFORM date string and drops the sequential `day N` counter (the model narrates the date;
  *  no forced day-count display); `structured` keeps the counter. Time-of-day + weather render in BOTH
@@ -57,10 +41,10 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
       parts.push(ambient.calendarDate);
     }
     if (ambient.clock !== null) {
-      parts.push(timeOfDayLabel(ambient.clock));
+      parts.push(timeOfDayAtHour(ambient.clock.hour));
     }
   } else if (ambient.clock !== null) {
-    parts.push(`day ${ambient.clock.day}`, timeOfDayLabel(ambient.clock));
+    parts.push(`day ${ambient.clock.day}`, timeOfDayAtHour(ambient.clock.hour));
   } else if (ambient.calendarDate !== null) {
     parts.push(ambient.calendarDate);
   }
@@ -141,7 +125,7 @@ export function RpgTakeoverHeader({
       <Row gap="block" align="center">
         <Waystone
           // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
-          // the `timeOfDayLabel` above is the TEXT half of the same datum, never a second source of truth.
+          // the `timeOfDayAtHour` label above is the TEXT half of the same datum, never a second source of truth.
           clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
           // Already canonical: `weather.type` IS the Waystone's closed vocabulary (one axis, homed in
           // `@orb/kit/weather`) — there is no binning step left to get wrong.

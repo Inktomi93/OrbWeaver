@@ -8,8 +8,9 @@
 //   • the CELESTIAL arc — sun by day, moon by night, rising left → peaking overhead → setting right, wrapping
 //     across midnight;
 //   • the eight WEATHER recipes — each layer slot present, each weather distinct on multiple axes;
-//   • the dial's discrete label bands still matching the contract's nearest-TIME_OF_DAY_HOURS rule (the ring
-//     names what the band's TEXT names).
+//   • the dial's discrete label bands matching the contract's EXPLICIT `TIME_OF_DAY_RANGES` boundaries edge for
+//     edge (the ring names what the band's TEXT names, and a band ARC starts where its time period starts).
+import { TIME_OF_DAY, TIME_OF_DAY_HOURS, TIME_OF_DAY_RANGES, timeOfDayAtHour } from "@orb/contracts/rpg";
 import type { WaystoneParticleLayer, WaystonePhase, WaystoneWeather } from "@orb/ui/meter";
 import {
   handAngle,
@@ -287,16 +288,16 @@ test("the composed treatment is the two axes joined: any hour × any weather is 
 });
 
 // ── The dial's discrete label bands ─────────────────────────────────────────────────────────────
-test("the dial's hour buckets match the contract's nearest-TIME_OF_DAY_HOURS label for every hour of the day", () => {
-  // TIME_OF_DAY_HOURS = dawn 6 · morning 9 · afternoon 14 · evening 18 · night 21 · midnight 0, resolved by
-  // NON-WRAPPING |rep - hour| with ties to the earlier label (contracts/rpg/ambient + the reminder's inverse).
-  // Hour 23 is therefore `night`, not `midnight` — the lit arc must follow the label, not intuition.
+test("the dial's hour buckets ARE the contract's TIME_OF_DAY_RANGES label for every hour of the day", () => {
+  // TIME_OF_DAY_RANGES = the phase START hours: midnight 23 → dawn 5 → morning 8 → afternoon 12 → evening 17
+  // → night 20, wrap-aware (midnight spans 23h-5h). 4am is MIDNIGHT — under the old nearest-representative-hour
+  // inversion it was "dawn", which put a dawn-colored band under a pitch-dark sky.
   const expected: readonly WaystonePhase[] = [
     "midnight",
     "midnight",
     "midnight",
-    "dawn",
-    "dawn",
+    "midnight",
+    "midnight",
     "dawn",
     "dawn",
     "dawn",
@@ -315,9 +316,14 @@ test("the dial's hour buckets match the contract's nearest-TIME_OF_DAY_HOURS lab
     "night",
     "night",
     "night",
-    "night",
+    "midnight",
   ];
   expect(HOURS.map((hour) => waystonePhaseAtHour(hour))).toEqual([...expected]);
+  // The ui MIRROR and the contract's own derivation are the same function of the hour — the D54 seal means the
+  // table is duplicated, so this is the pin that keeps the ring and the band's TEXT from ever drifting apart.
+  for (const hour of HOURS) {
+    expect(waystonePhaseAtHour(hour), `hour ${hour}: ring and text must name the same phase`).toBe(timeOfDayAtHour(hour));
+  }
 });
 
 test("every dial band carries its OWN identity hue, derived from the sky it paints (never a grey ring)", () => {
@@ -349,26 +355,37 @@ test("every dial band carries its OWN identity hue, derived from the sky it pain
   expect(waystoneBandTint("midnight")).toContain("var(--color-sky-night)");
 });
 
-test("ONE GEOMETRY HOME: every band's arc span contains its label's representative hour, through `hourAngle`", () => {
-  // The owner read the ring band-by-band to decode it and asked whether it was even right. It was — but the
-  // only reason a band arc and the hand agree is that BOTH resolve through `hourAngle`; a second table with
-  // its own origin is exactly how a dial drifts out of agreement with its own pointer. This pins it.
-  // TIME_OF_DAY_HOURS (contracts): dawn 6 · morning 9 · afternoon 14 · evening 18 · night 21 · midnight 0.
-  const representativeHour: Readonly<Record<WaystonePhase, number>> = {
-    dawn: 6,
-    morning: 9,
-    afternoon: 14,
-    evening: 18,
-    night: 21,
-    midnight: 0,
-  };
+test("ONE BOUNDARY HOME: every band's arc EDGES are the contract's range boundaries, drawn through `hourAngle`", () => {
+  // The owner's finding: the band edges used to be EMERGENT (the midpoints between two representative hours),
+  // so dawn's arc reached back to ~3am. They are now EXPLICIT — `TIME_OF_DAY_RANGES` is the boundary truth and
+  // the arc starts exactly where the time period starts. This asserts EQUALITY of the edges, not containment.
+  // (The arc and the hand still agree only because both resolve through `hourAngle` — a second table with its
+  // own origin is how a dial drifts out of agreement with its own pointer, so the angles go through it here.)
   for (const span of WAYSTONE_PHASE_SPANS) {
-    const hour = representativeHour[span.phase];
-    expect(waystonePhaseAtHour(hour), `${span.phase}'s own hour must land in its own band`).toBe(span.phase);
+    const next = TIME_OF_DAY[(TIME_OF_DAY.indexOf(span.phase) + 1) % TIME_OF_DAY.length] ?? span.phase;
+    expect(span.from, `${span.phase}'s arc must START at its range start`).toBe(TIME_OF_DAY_RANGES[span.phase]);
+    // …and END where the NEXT phase begins (the tuple is in start order; the wrapping band's `to` is +24).
+    const end = TIME_OF_DAY_RANGES[next];
+    expect(span.to % HOURS.length, `${span.phase}'s arc must END at the next phase's start`).toBe(end);
     // The band's angular wedge, straight off the shared mapping — the rendered arc is drawn from these two.
     // Compared the way a dial actually works (clockwise sweep, wrap-aware): the afternoon band legitimately
-    // straddles 12 o'clock, so a plain >=/<= on raw degrees would be the wrong question.
-    expect(withinWedge(hourAngle(hour), hourAngle(span.from), hourAngle(span.to)), `${span.phase} at ${hour}h sits outside its own arc`).toBe(true);
+    // straddles 12 o'clock and midnight straddles the bottom, so a plain >=/<= on raw degrees is the wrong
+    // question. Every hour the band owns must sit inside the arc the band draws.
+    for (const hour of HOURS.filter((h) => waystonePhaseAtHour(h) === span.phase)) {
+      expect(withinWedge(hourAngle(hour), hourAngle(span.from), hourAngle(span.to)), `${span.phase} at ${hour}h sits outside its own arc`).toBe(true);
+    }
+  }
+  // WRITES CANNOT DISAGREE WITH LABELS: the hour a `timeOfDay` label puts on the clock reads back as that label.
+  for (const label of TIME_OF_DAY) {
+    expect(waystonePhaseAtHour(TIME_OF_DAY_HOURS[label]), `${label}'s representative hour must light ${label}'s arc`).toBe(label);
+  }
+  // PALETTE ↔ BOUNDARIES stay coupled: the sky's deliberate golden windows are what make dawn and dusk glow, so
+  // they must fall INSIDE the dawn and evening bands — otherwise the ring says one thing and the light another.
+  for (const hour of [5.5, 7]) {
+    expect(waystonePhaseAtHour(hour), `the ${hour}h golden stop must sit in dawn`).toBe("dawn");
+  }
+  for (const hour of [17, 18.5]) {
+    expect(waystonePhaseAtHour(hour), `the ${hour}h golden stop must sit in evening`).toBe("evening");
   }
 });
 
@@ -384,12 +401,19 @@ test("the dial's cardinal angles are the clock everyone knows: noon UP, midnight
 });
 
 test("the dial's phase spans tile the whole 24h ring exactly once (no gap, no overlap, one arc per label)", () => {
-  let cursor = 0;
+  // The ring is a CIRCLE, so the tiling is head-to-tail from the first band's start all the way back round to
+  // it — the last band (midnight) crosses the day line, which is why its `to` runs past 24 rather than being
+  // cut into two arcs. Total swept span is exactly one revolution.
+  const first = WAYSTONE_PHASE_SPANS[0];
+  if (first === undefined) {
+    throw new Error("the dial has no bands");
+  }
+  let cursor = first.from;
   for (const span of WAYSTONE_PHASE_SPANS) {
     expect(span.from).toBe(cursor);
     expect(span.to).toBeGreaterThan(span.from);
     cursor = span.to;
   }
-  expect(cursor).toBe(24);
+  expect(cursor - first.from).toBe(HOURS.length);
   expect(new Set(WAYSTONE_PHASE_SPANS.map((s) => s.phase)).size).toBe(WAYSTONE_PHASES.length);
 });

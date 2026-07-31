@@ -9,8 +9,8 @@
 // arm): ambient fields + widget values ride `editSnapshot` (whole-array/record overlay under [merge-clear]);
 // goals ride `upsertQuest`. Beats are a log (read-only by nature).
 
-import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
-import { RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
+import { RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, timeOfDayAtHour } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -29,20 +29,6 @@ import { Kicker } from "./rpg-kicker";
 import { RpgSceneCards } from "./rpg-scene-cards";
 
 const RECENT_BEATS = 3;
-
-/** Invert `TIME_OF_DAY_HOURS` to the nearest label for the ambient strip's Time field. */
-function timeOfDayLabel(clock: RpgClockTime): string {
-  let best = "";
-  let bestDist = Number.POSITIVE_INFINITY;
-  for (const [label, hour] of Object.entries(TIME_OF_DAY_HOURS)) {
-    const dist = Math.abs(hour - clock.hour);
-    if (dist < bestDist) {
-      bestDist = dist;
-      best = label;
-    }
-  }
-  return best;
-}
 
 /** Build the `editSnapshot` overlay for one ambient field edit (§2.7 — timeOfDay steers the clock through
  *  the label→hour mapping). Returns `null` for an unknown timeOfDay label (no-op). */
@@ -150,7 +136,7 @@ function ambientStripProps(
   return {
     ...(ambient !== null && ambient.location !== "" ? { location: ambient.location } : {}),
     ...(ambient !== null && ambient.calendarDate !== null ? { date: ambient.calendarDate } : {}),
-    ...(ambient !== null && ambient.clock !== null ? { timeOfDay: timeOfDayLabel(ambient.clock) } : {}),
+    ...(ambient !== null && ambient.clock !== null ? { timeOfDay: timeOfDayAtHour(ambient.clock.hour) } : {}),
     ...(ambient !== null && ambient.weather !== null ? { weather: ambient.weather.type } : {}),
     ...(onEditAmbient === undefined ? {} : { onEditField: onEditAmbient }),
     // The pin + Release on a hand-locked ambient field (§12.3) — host-only (rides `onReleaseLock`).

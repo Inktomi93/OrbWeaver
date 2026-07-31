@@ -4,7 +4,8 @@
 // minute}` struct (nullable, born null — a born "day 1 · morning" is a phantom fact one banner-render from
 // steering wrong, the §8 nullable-honesty argument); lite writes it through a LABEL vocabulary
 // (`TIME_OF_DAY` → a representative hour via `TIME_OF_DAY_HOURS`, the ONE mapping home) and the banner
-// derives the label back from the hour via the same home. `weather` has `type` required, everything else
+// derives the label back from the hour by RANGE MEMBERSHIP (`TIME_OF_DAY_RANGES` — the boundary truth) via
+// `timeOfDayAtHour`, the ONE derivation home. `weather` has `type` required, everything else
 // optional — lite writes `{type:"rain"}`; full's engine fills the optional fields on the SAME shape.
 
 import { WEATHER_TYPES } from "@orb/kit/weather";
@@ -74,11 +75,12 @@ export function rpgWeatherText(weather: RpgWeather): string {
 export const TIME_OF_DAY = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type TimeOfDay = (typeof TIME_OF_DAY)[number];
 
-/** The ONE label→representative-hour mapping (§2.7) — used both to WRITE the clock from a `timeOfDay` label
- *  and (inverted, NEAREST-hour, non-wrapping, ties to the earlier label) to DERIVE the label back for the
- *  banner. An internal vocabulary constant (§4.11 #6 argued no-knob). It is also the RENDER input in narrated
- *  mode: a lite game's clock only ever holds one of these representative hours, and the Waystone's continuous
- *  sky interpolates from exactly that number. */
+/** The ONE label→representative-hour WRITE mapping (§2.7) — the hour a `timeOfDay` label PUTS ON THE CLOCK.
+ *  An internal vocabulary constant (§4.11 #6 argued no-knob). It is also the RENDER input in narrated mode: a
+ *  lite game's clock only ever holds one of these representative hours, and the Waystone's continuous sky
+ *  interpolates from exactly that number. Reading the label BACK is `timeOfDayAtHour` (range membership) —
+ *  never an inversion of this table; a unit test pins every representative hour inside its own range so the
+ *  write and the read can never disagree. */
 export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   dawn: 6,
   morning: 9,
@@ -87,3 +89,49 @@ export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   night: 21,
   midnight: 0,
 };
+
+/** The ONE boundary truth: each phase's START hour, running until the next phase's start (wrap-aware —
+ *  `midnight` spans 23h→5h across the day line). Owner-tunable: these are the hours the DAY actually turns
+ *  over, not an artifact of where two representative hours happen to average out. (They used to be exactly
+ *  that artifact — inverting `TIME_OF_DAY_HOURS` by nearest hour put dawn's border at 7.5h and reached it
+ *  back to 3am, so a 4am hand sat in dawn's color under a pitch-dark sky.)
+ *
+ *  Coupled to the Waystone's palette: the sky's golden windows (~5-7h and ~17-19h, `waystone-treatment`)
+ *  must fall INSIDE `dawn` and `evening` respectively — the boundaries and the light are one design, and the
+ *  dial's band arcs are drawn from exactly these numbers (mirrored in `WAYSTONE_PHASE_SPANS`, since `@orb/ui`
+ *  may not import contracts, D54; pinned by a test that imports both). */
+export const TIME_OF_DAY_RANGES: Readonly<Record<TimeOfDay, number>> = {
+  dawn: 5,
+  morning: 8,
+  afternoon: 12,
+  evening: 17,
+  night: 20,
+  midnight: 23,
+};
+
+const HOURS_IN_DAY = 24;
+
+/** The label whose range CONTAINS this hour — the ONE derivation home (the banner, the reminder line, the
+ *  delta's `time → night` transition and the scene tab's Time field all read through it, so no two surfaces
+ *  can name the same clock differently). Wrap-aware by construction: the phase in force is the one with the
+ *  LATEST start at or before the hour; before the day's first start, the last-starting phase is still running
+ *  from yesterday. Order-independent — it reads the ranges, never the tuple's order. */
+export function timeOfDayAtHour(hour: number): TimeOfDay {
+  const h = ((hour % HOURS_IN_DAY) + HOURS_IN_DAY) % HOURS_IN_DAY;
+  let current: TimeOfDay | null = null;
+  let currentStart = Number.NEGATIVE_INFINITY;
+  let wrapping: TimeOfDay = TIME_OF_DAY[0];
+  let wrappingStart = Number.NEGATIVE_INFINITY;
+  for (const label of TIME_OF_DAY) {
+    const start = TIME_OF_DAY_RANGES[label];
+    if (start > wrappingStart) {
+      wrappingStart = start;
+      wrapping = label;
+    }
+    if (start <= h && start > currentStart) {
+      currentStart = start;
+      current = label;
+    }
+  }
+  return current ?? wrapping;
+}
