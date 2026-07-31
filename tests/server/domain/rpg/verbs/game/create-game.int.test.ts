@@ -1,5 +1,5 @@
 // verbs/game/create-game — createGame (rpg-design/05 §4.4, §6.2). Pins the knob default-identity (`gmPresetId`
-// NULL, `extractionMode` "reliable"), the `createGame("full")` → RpgModeUnbuilt PHASE refusal, the
+// NULL, `extractionMode` "folded"), the `createGame("full")` → RpgModeUnbuilt PHASE refusal, the
 // pointer-fired-once assertion, and the authority arms — all asserted at the ROW (assert-the-mutation-fired).
 
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
@@ -30,7 +30,7 @@ describe("createGame", () => {
     expect(game?.mode).toBe("lite");
     expect(game?.status).toBe("active");
     expect(game?.gmPresetId).toBeNull(); // the knob's lite default = augment
-    expect(game?.config.extractionMode).toBe("reliable");
+    expect(game?.config.extractionMode).toBe("folded"); // BORN folded — the contract owns the default, never a re-spell at mint
     expect(fakes.pointers).toEqual([{ chatId, gameId: result.gameId, engaged: true }]); // fired EXACTLY once, born engaged (#40)
     expect(result.trackersReadOnly).toBe(false);
     // §4.9: createGame emits `gameChanged` after the row write (the takeover/config reads refetch).

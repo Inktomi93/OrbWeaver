@@ -12,10 +12,10 @@ beforeEach(async () => {
 });
 
 describe("getConfigView", () => {
-  test("carries the knobs at their defaults (gmPresetId null, extractionMode reliable)", async () => {
+  test("carries the knobs at their defaults (gmPresetId null, extractionMode folded)", async () => {
     const { chatId, h } = await seedLiteGame(db);
     const config = await h.service.getConfigView({ principal: principal("host"), chatId });
     expect(config.gmPresetId).toBeNull(); // the knob default
-    expect(config.extractionMode).toBe("reliable"); // the delivery-model knob default
+    expect(config.extractionMode).toBe("folded"); // the delivery-model knob default (born folded, 2026-08-01)
   });
 });
