@@ -6,13 +6,18 @@
 // a total failure keeps the idle glyph (no `data-success`) + a NON-success (console.error) toast; a clean
 // import wears the ✓ + a success toast. `notify` is unbound in CT, so it falls through to the console
 // seam (success→console.info, error→console.error) — the channel is the toast-variant signal.
+//
+// Both FEEDERS are driven: `setInputFiles` (the picker) and a real drag-and-drop (`dropFiles`). The drop
+// arm is the P1 guard — a dropped card used to be swallowed inside the dropzone with ZERO requests made.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { dropFiles } from "../../../../support/ct/drop-files";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { BackupSettingsStory } from "../_ct-stories";
 
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };
+const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
 
 test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imported · 1 failed)", async ({ mount, page }) => {
   await routeTrpc(page, {});
@@ -47,6 +52,28 @@ test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imp
   // …and the toast is the error channel (never a green "Import complete").
   await expect.poll(() => errors.some((line) => line.includes("Import failed")), { intervals: [20, 50, 100] }).toBe(true);
   expect(errors.some((line) => line.includes("Import complete"))).toBe(false);
+});
+
+test("DRAGGING a card onto the dropzone fires the same POST /api/import the picker does", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  // The P1 this guards: the drop was swallowed by the dropzone and NO request was ever made (the owner
+  // saw a clean server log). Count the real uploads — a passing render proves nothing here.
+  const uploads: string[] = [];
+  await page.route("**/api/import", async (route) => {
+    uploads.push(route.request().method());
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ imported: [{ filename: "villain.png", created: true }], failed: [] }),
+    });
+  });
+
+  await mount(<BackupSettingsStory />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_DROPPED_CARD]);
+
+  await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
+  await expect(page.getByTestId("import-report")).toBeVisible();
+  await expect(page.getByText("1 imported")).toBeVisible();
 });
 
 test("a CLEAN card import shows the success ✓ and a success toast", async ({ mount, page }) => {

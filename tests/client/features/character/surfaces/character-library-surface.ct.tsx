@@ -13,7 +13,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { dropFiles } from "../../../../support/ct/drop-files";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories";
@@ -271,4 +272,73 @@ test("⑪ with no stored pageSize, the request falls to the schema default (30)"
   await mount(<CharacterLibrarySurfaceStory />);
   await expect(page.getByText("Aria Nightshade")).toBeVisible();
   await expect.poll(() => (trpc.lastInput("character.list") as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(30);
+});
+
+// ── The card-import DROP path (the owner-reported P1) ──────────────────────────────────────────────
+// Dropping a character card onto "Import card" used to do nothing at all: zero requests, no error. These
+// drive the real product path (+ menu → Import card → DROP) and assert the multipart POST fires, and that
+// a card the server can't read gets a LOUD toast naming why instead of a fabricated "Card imported."
+// `notify` is unbound in CT so it falls through to the console seam (success→info, error→error).
+
+const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
+
+/** Open the create menu's "Import card" dialog and return its dropzone. */
+async function openImportDialog(page: Page): Promise<Locator> {
+  await page.getByRole("button", { name: "New or import a character" }).click();
+  await page.getByRole("menuitem", { name: "Import card" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  return dialog.locator('[data-slot="file-dropzone"]');
+}
+
+test("dropping a card on the Import dialog fires the multipart POST and reports success", async ({ mount, page }) => {
+  await routeThree(page);
+  const uploads: string[] = [];
+  const logged: string[] = [];
+  page.on("console", (msg) => logged.push(`${msg.type()}:${msg.text()}`));
+  await page.route("**/api/import", async (route) => {
+    uploads.push(route.request().method());
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ imported: [{ filename: "villain.png", created: true }], failed: [] }),
+    });
+  });
+
+  await mount(<CharacterLibrarySurfaceStory />);
+  await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
+
+  await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
+  await expect.poll(() => logged.some((line) => line.includes("Card imported.")), { intervals: [20, 50, 100] }).toBe(true);
+  // A successful import closes the dialog.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("a PNG with no character data gets a LOUD toast naming why, and the dialog stays open", async ({ mount, page }) => {
+  await routeThree(page);
+  const errors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      errors.push(msg.text());
+    }
+  });
+  // The per-card-isolation shape: a 200 whose `failed[]` carries the server's own reason.
+  await page.route("**/api/import", async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        imported: [],
+        failed: [{ filename: "villain.png", error: "No character data found in this PNG (no ccv3/chara card chunk)" }],
+      }),
+    });
+  });
+
+  await mount(<CharacterLibrarySurfaceStory />);
+  await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
+
+  await expect.poll(() => errors.some((line) => line.includes("No character data found in this PNG")), { intervals: [20, 50, 100] }).toBe(true);
+  // Never a fabricated success, and the dialog stays open so the owner can try another file.
+  expect(errors.some((line) => line.includes("Card imported."))).toBe(false);
+  await expect(page.getByRole("dialog")).toBeVisible();
 });
