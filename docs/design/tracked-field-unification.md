@@ -174,16 +174,16 @@ max duplication dies).
   `binding:pool`/`hp` rows → `pinned:true` on the corresponding actor field (they were always just
   pins); chrome (icon/accent/position/sort) folds into the def. Baseline regen only on a quiesced
   tree ([[baseline-regen-on-shared-tree]]).
-- **Snapshot rows: versioned lift AT PARSE, no row rewrite.** `rpgSnapshotStateSchema` gains a lift:
-  legacy `{pools, customFields, widgetValues}` shapes transform into `fieldValues` on read; writes
-  emit only the new shape. Old dogfood games keep working; a transition test pins legacy-parse ≡
-  lifted-shape ([[merge-clear-needs-transition-test]] class).
+- **NO legacy machinery (owner ruling 2026-08-01: "we haven't launched — there shouldn't be legacy
+  anything").** The snapshot schema changes CLEANLY to `fieldValues`; no lift-at-parse, no dual-shape
+  era. Old dev-DB rows: wipe/reseed (the DB is expendable pre-launch), or a ONE-TIME throwaway
+  normalization script — never committed runtime compat code.
 - **Tool surface (R6's lane)**: `update_party` gains per-carrier `fields` writes typed by the def's
   `write` axis (delta fields take `{key, delta}`, set fields `{key, value}`); `set_widget_value`
   retires into the game-subject arm; `constrainExtractionSchema` emits per-actor key enums from the
-  carrier resolution (the model can never write a field an actor doesn't carry). Wire-compat: the
-  OLD arms (`poolDeltas`, `customFields`, `set_widget_value`) stay accepted at apply for one era,
-  mapped onto fieldValues — swipes/replays of pre-migration turns must still apply.
+  carrier resolution (the model can never write a field an actor doesn't carry). NO wire-compat era
+  (same no-legacy ruling): the old arms are REPLACED outright; pre-migration turns in an expendable
+  dev DB don't constrain the design.
 - **Reminder**: ONE gloss seg builder for all fields (label value/max (hint)) — R4b's pattern
   generalized; per-plane special-casing dies.
 - Coupled-site sweep: the ~7 writable-field sites ([[rpg-writable-field-coupled-sites]]) + panel
