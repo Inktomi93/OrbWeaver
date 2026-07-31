@@ -24,20 +24,17 @@ via injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any wo
 
 ## ═══ ▶▶▶ CURRENT STATE — 2026-07-30 (READ FIRST) ═══
 
-**`HEAD = fa885614` · `origin/main = 02259150` — 13 commits AHEAD, COMMIT-ONLY (no push word given).**
+**`HEAD = origin/main` — everything through the worktree-hooks commit (`cd5bc9f2`) is COMMITTED and
+PUSHED (verified `rev-list origin/main..HEAD = 0`, 2026-07-30 late).** Tree clean except
+`?? .agents/agents/scout` (pre-existing, unrelated). The former "commit the dirty tree" item is DONE —
+the spike docs + probes landed in `1417e11c`.
 
-**⚠️ TREE DIRTY:**
-- ` M docs/retro-workboard.md` — this rewrite.
-- `?? docs/design/` — `rpg-extraction-one-call-spike.md` + `openrouter-provider-findings.md`. ~$3.6 of
-  live spend behind them; the probe RESULTS dirs are gitignored, so **the analysis survives only in
-  these two files**.
-- `?? scripts/probes/rpg-extraction/` — 16 tracked-able source files (harnesses, captured templates,
-  specs). `.gitignore` there is allowlist-shaped (`*/` ignored, `!*.md !*.mjs !*.json`), so new sweep
-  dirs can never be committed by accident.
-- `?? .agents/agents/scout` — pre-existing, unrelated.
-
-**➤ FIRST ACTION: commit all of the above.** Nothing else starts on a dirty tree
-([[concurrent-main-lanes-gate-thrash]], [[work-directly-on-main]]).
+**2026-07-30 late session — the fidelity audit (owner dogfood concerns):**
+`docs/design/context-panel-fidelity-findings.md` is the new verification target for W-H/#1 — meta-tabs
+vs mocks (Preview tab = worst gap, screenshot-proven), model-roles picker findings (MP-1/MP-2), the
+This-chat IA verdict, owner decisions D-1…D-4. Owner rulings pinned same session: **crew = DEAD scope**
+("we are not doing crew" — zero crew code exists; shipped comments citing it are proposed/-doc drift);
+**rpg-lite = narrative steering device, NOT a dice roller, takes NO GM slot.**
 
 **Engines are AWAKE** (embed/rerank/gen; gen = `Qwen3-VL-8B-Instruct`, port 8703, spawned
 `--enable-auto-tool-choice --tool-call-parser hermes`). `pnpm engines:sleep` to park.
@@ -48,7 +45,6 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 
 | # | Item | Lane | Size |
 |---|---|---|---|
-| 0 | Commit the dirty tree | — | mins |
 | 1 | **R4b** cast-field hint → reminder | server/rpg | 1 line + test |
 | 2 | **R5a + R5** extraction-schema enum hardening + ghost-actor guard | server/rpg | S |
 | 3 | **OR-1…OR-4** provider-layer defects (one commit) | server/providers | S |
@@ -112,7 +108,12 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
   roster cards · duplicate orb numbers · header hierarchy · bar-color grammar). Was gated on "owner
   dogfood populating panels" — **that gate is now CLEARED** (hosted Sonnet 4.6 populates; see §LANDED).
   Runs a side-eye pass, fix ALL findings ([[side-eye-fix-all-findings]]). Mocks:
-  `reports/design-refs/panel-redesign/DESIGN.md`.
+  `reports/design-refs/panel-redesign/DESIGN.md`. **Audited statically 2026-07-30:** findings, per-tab
+  gap table, and owner decisions D-1…D-4 in `docs/design/context-panel-fidelity-findings.md` — that doc
+  is the lane's verification target. Headline: **Preview tab is the worst gap** (screenshot-proven —
+  mock's context-budget bar + per-source token breakdown never built; needs new ui primitives, D-4);
+  model-picker MP-1 flat pile / MP-2 silent catalog-fallback swap ride the same lane. First lane step:
+  reproduce every sighting on :5173 (stale-:8788 suspect).
 - **W-I / D111** — mint the D-ledger entry for the crunchy-cluster redesign (deception→tracker ruling A,
   extraction-transcript, wand map, fork-clone). **D111 is the next free number.** Cheap, closes debt.
 
@@ -121,9 +122,10 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
 - **#24 MU picks pane** — VERIFIED NOT BUILT (no in-chat user-macro picks UI). Typed macro inputs
   resolve to defaults until it lands. Design = extend the ChoiceBlock variables pane
   ([[mu-store-flat-vs-nested-wall]]).
-- **#1 meta-tabs redesign** (settings / injections / preview) — UNCERTAIN. `assembly-preview-panel.tsx`
-  + `draft-context-tabs.tsx` exist; "done vs the mockups" unconfirmed. Needs a side-eye/fidelity pass
-  before it's called done (folded into task #34) — natural companion to W-H.
+- **#1 meta-tabs redesign** (settings / injections / preview) — statically audited 2026-07-30; no
+  longer uncertain: the This-chat merge IS the intended IA (CP-1, newer mock wins), but **Preview never
+  landed its design** and This-chat carries unreviewed deviations. Full gap table + D-1…D-4 =
+  `docs/design/context-panel-fidelity-findings.md`; folded into the W-H lane above.
 - **D22 sub-`full` member tiers** (name-avatar / sheet / +lore + HiddenTierNote) — code + CT verified,
   **NOT live**. Needs a multi-user NON-host view; the 1:1 dogfood chat can't expose it. Fold into the
   next multi-user E2E ([[e2e-live-verification-facts]] — needs Playwright's own adopt-only stack).
@@ -139,6 +141,10 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
 - **The push** — 13 commits ahead + tonight's work. Needs an explicit per-push word.
 - **R4c** journal-type migration go/no-go (a DB CHECK change; cheaper now than after more rows).
 - **`permitsHost` purge** go/no-go.
+- **D-1…D-4** (`docs/design/context-panel-fidelity-findings.md`): This-chat 5-section depth ·
+  injection-row shape (built full-form vs mock switch+kebab — "off=delete" loses disable-without-delete) ·
+  beat-notifications residual (dice-cues already ruled dead: lite ≠ dice roller) · Preview rebuild
+  greenlight (new ui primitives + possible server trace split).
 
 **SCOPED OUT (owner):** rpg game-data macro fields (quest titles / pool hints / widget labels) do NOT
 render macros — deliberate, not a bug.
