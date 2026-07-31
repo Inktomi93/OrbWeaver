@@ -20,10 +20,11 @@ describe("getChatModel — 3-stage lookup", () => {
   });
 
   test("stage 2: OR slash-stripped + dotted id normalizes to the dashed curated id", () => {
-    // The daemon resolves `sonnet` → `claude-sonnet-5` (the curated id); an OR dotted form of a curated
-    // Claude id slash-strips + dashes to match. (The stale `claude-sonnet-4-6` is no longer curated — the
-    // family→version fix routes a stale/aliased id through the daemon map, not this static shortlist.)
+    // An OR dotted form of a curated Claude id slash-strips + dashes to match. `claude-sonnet-4-6` is
+    // curated AGAIN since c656bc1b (deliberately — OR's catalog doesn't advertise structured for it, so
+    // without the curated entry an rpg game on 4.6 wrongly resolves trackers-readonly).
     expect(getChatModel("anthropic/claude-opus-4.8")?.tier).toBe("opus");
+    expect(getChatModel("anthropic/claude-sonnet-4.6")?.id).toBe("claude-sonnet-4-6");
   });
 
   test("stage 3: OR version-only id prefix-matches the dated curated id", () => {
@@ -85,15 +86,20 @@ describe("detectChatModelTier — the tier-preservation heal's lookup", () => {
   });
 });
 
-describe("chatModelForTier — total lookup over the three curated tiers", () => {
-  test("returns the one shortlist entry per tier", () => {
+describe("chatModelForTier — flagship lookup over the three curated tiers", () => {
+  test("returns the tier's FLAGSHIP (first-listed) entry", () => {
     expect(chatModelForTier("opus").tier).toBe("opus");
+    // Sonnet has TWO curated entries since c656bc1b (4.6 curated for its structured flag); the tier
+    // lookup must return the flagship, so LIST ORDER is load-bearing — sonnet-5 stays first.
     expect(chatModelForTier("sonnet").id).toBe("claude-sonnet-5");
     expect(chatModelForTier("haiku").tier).toBe("haiku");
   });
 
-  test("CHAT_MODELS has exactly one entry per tier (the invariant chatModelForTier relies on)", () => {
-    const tiers = CHAT_MODELS.map((entry) => entry.tier);
-    expect(new Set(tiers).size).toBe(tiers.length);
+  test("every tier has at least one entry, and the FIRST per tier is the flagship (the ordering invariant chatModelForTier relies on)", () => {
+    const tiers = new Set(CHAT_MODELS.map((entry) => entry.tier));
+    expect([...tiers].sort()).toEqual(["haiku", "opus", "sonnet"]);
+    // A curated non-flagship (claude-sonnet-4-6) is ALLOWED; it must simply never precede its flagship.
+    const firstSonnet = CHAT_MODELS.find((entry) => entry.tier === "sonnet");
+    expect(firstSonnet?.id).toBe("claude-sonnet-5");
   });
 });
