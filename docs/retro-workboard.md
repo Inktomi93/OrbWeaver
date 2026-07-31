@@ -128,7 +128,7 @@ The owner's comprehensive current-state pass. Extends W-H/#1 well beyond polish 
 | Panel CRUD program | RV-4 attributes add/rename/edit+hints · RV-5 inventory add/edit + surface `location` · RV-6 journal/quests manual add/edit · RV-12 stat-profile editing · **RV-8 the primitive set first** (add-row / inline-edit / hint-editor) — everything above consumes it | build, client+server verbs where missing |
 | Fidelity/polish | RV-3 Sheet pills · RV-7 Map "coming soon" · RV-10 Waystone animation + full time×weather matrix ("does not read as a clock") | W-H side-eye lane |
 | Read-half steering | RV-9 Waystone steering text (R4b class) · RV-4's hint-to-reminder verify · RV-11 surface the guide schemas (clothes/thoughts — schema exists, zero UI; check both ends) | server/rpg |
-| **RULINGS (settled)** | **RV-13** freeform demoted — d20-in-lite properly editable is the direction, + branch-and-save custom modes derived from prebuilt d20 · **RV-14** "cast fields" is a misnomer (= custom stat/resource field) — consistent-vocabulary sweep once owner gives the final name · **RV-15** `__orb.seed` output is NEVER verification evidence (hid rot + dual-homing) — verify against model-populated games | posture/direction |
+| **RULINGS (settled)** | **RV-13** freeform demoted — d20-in-lite properly editable is the direction, + branch-and-save custom modes derived from prebuilt d20 · **RV-14 SUPERSEDED** by the tracked-field unification (`docs/design/tracked-field-unification.md` — pool/cast-field/widget = ONE def with axes; the name ships with the merge) · **RV-15** `__orb.seed` output is NEVER verification evidence (hid rot + dual-homing) — verify against model-populated games | posture/direction |
 
 RV-13 and the CRUD program change R6's shape too: per-game tool assembly must cover host-EDITED
 d20-derived profiles, not just seeded freeform — build them aware of each other.
@@ -161,8 +161,10 @@ d20-derived profiles, not just seeded freeform — build them aware of each othe
   injection-row shape (built full-form vs mock switch+kebab — "off=delete" loses disable-without-delete) ·
   beat-notifications residual (dice-cues already ruled dead: lite ≠ dice roller) · Preview rebuild
   greenlight (new ui primitives + possible server trace split).
-- **RV-14 the final vocabulary** for the cast-fields rename (meaning = custom stat/resource field) —
-  the sweep waits on the owner's word for the actual name.
+- **Tracked-field unification** (`docs/design/tracked-field-unification.md`, direction AGREED
+  2026-07-31): (a) the single user-facing NOUN for the unified field; (b) greenlight to write the
+  schema-level spec BEFORE R6/RV-8 build per-concept. Live-drive found the burning gap: cast-field
+  hints (the R4b steering lever) have NO edit UI anywhere.
 
 **SCOPED OUT (owner):** rpg game-data macro fields (quest titles / pool hints / widget labels) do NOT
 render macros — deliberate, not a bug.
