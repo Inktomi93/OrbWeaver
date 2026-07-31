@@ -66,7 +66,7 @@ function emptyState(): RpgSnapshotState {
  *  (meter, max 100, host hint) exactly as a host-defined tracker renders post-R4b. */
 function realReminder(wits: number, beats: readonly string[]): string {
   const view: RpgTrackerView = {
-    ambient: { location: "the ford road", calendarDate: null, clock: { day: 1, hour: 19, minute: 0 }, weather: { type: "rain" } },
+    ambient: { location: "the ford road", calendarDate: null, clock: { day: 1, hour: 19, minute: 0 }, weather: { type: "rain", label: "" } },
     lockedPaths: [],
     actors: [
       {

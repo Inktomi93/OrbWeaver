@@ -1,7 +1,8 @@
 // The MODEL-AUTHORED-STRING → GLYPH resolver (panel-redesign DESIGN.md §12.5) — ONE home for every
-// "what icon does this free string get" decision: inventory items, condition chips, the waystone's
-// weather overlay, plus the CLOSED-vocab Records (relationship kinds, widget types) that are exhaustive
-// mapped types, never the resolver. Pure data, deterministic TOKEN matching only (no fuzzy-distance dep,
+// "what icon does this free string get" decision: inventory items and condition chips, plus the CLOSED-vocab
+// Records (relationship kinds, widget types) that are exhaustive mapped types, never the resolver. (WEATHER
+// used to bin here — it doesn't anymore: `weather.type` is a closed enum bound at the extraction wire, so
+// there is no free string left to resolve.) Pure data, deterministic TOKEN matching only (no fuzzy dep,
 // no LLM call — testable as a table). Icons come exclusively through the curated `@orb/ui/icons` seal
 // (dep-cruiser `ui-satellite-seals`); every name here is a verified export added to that seal.
 // A11y: every glyph rendered from this module is DECORATION (aria-hidden via `<Icon>` without `label`);
@@ -42,7 +43,6 @@ import {
   Tag,
   Type,
 } from "@orb/ui/icons";
-import type { WaystoneWeather } from "@orb/ui/meter";
 
 // ─── The normalize/tokenize machinery (top-level regexes per the perf lint) ──────────────────────
 const NON_TOKEN_RE = /[^a-z0-9\s-]/g;
@@ -215,91 +215,6 @@ export function resolveItemIcon(icon: string | undefined, name: string, type: st
 /** Condition glyph: name keywords → the designed `Activity` fallback. */
 export function resolveConditionGlyph(name: string): LucideIcon {
   return matchTokens(CONDITION_GLYPHS, name) ?? Activity;
-}
-
-/** Weather-overlay keyword map (§12.5.6) — the free `weather.type` string resolves onto the waystone's
- *  CLOSED overlay vocabulary; `null` = no overlay (the band text still names the weather — text is the
- *  datum, the sky just stays plain). The Scene ambient line shares this one weather-vocabulary home.
- *  RV-10 widened the vocabulary to eight: a fantasy GM writes "overcast", "gale", and "ashfall" as
- *  readily as "rain", and each of those now has its own sky rather than collapsing to a plain one. */
-const WEATHER_OVERLAYS: Readonly<Record<string, WaystoneWeather>> = {
-  clear: "clear",
-  sun: "clear",
-  sunny: "clear",
-  fair: "clear",
-  cloudless: "clear",
-  starry: "clear",
-  bright: "clear",
-  cloudy: "cloudy",
-  clouds: "cloudy",
-  overcast: "cloudy",
-  gloomy: "cloudy",
-  dull: "cloudy",
-  grey: "cloudy",
-  gray: "cloudy",
-  rain: "rain",
-  raining: "rain",
-  rainy: "rain",
-  drizzle: "rain",
-  shower: "rain",
-  showers: "rain",
-  downpour: "rain",
-  monsoon: "rain",
-  wet: "rain",
-  storm: "storm",
-  stormy: "storm",
-  thunder: "storm",
-  thunderstorm: "storm",
-  lightning: "storm",
-  tempest: "storm",
-  snow: "snow",
-  snowing: "snow",
-  snowstorm: "snow",
-  sleet: "snow",
-  hail: "snow",
-  blizzard: "snow",
-  flurries: "snow",
-  frost: "snow",
-  frozen: "snow",
-  fog: "fog",
-  foggy: "fog",
-  mist: "fog",
-  misty: "fog",
-  haze: "fog",
-  hazy: "fog",
-  smoke: "fog",
-  smog: "fog",
-  wind: "wind",
-  windy: "wind",
-  gale: "wind",
-  gusty: "wind",
-  gusts: "wind",
-  breezy: "wind",
-  squall: "wind",
-  sandstorm: "wind",
-  dust: "wind",
-  ash: "ash",
-  ashfall: "ash",
-  ashen: "ash",
-  cinders: "ash",
-  embers: "ash",
-  soot: "ash",
-  fallout: "ash",
-};
-
-/** Resolve a free weather string onto the waystone overlay vocab (`null` = unresolvable ⇒ no overlay). */
-export function resolveWeatherOverlay(type: string): WaystoneWeather | null {
-  const map: Readonly<Record<string, WaystoneWeather | undefined>> = WEATHER_OVERLAYS;
-  let best: WaystoneWeather | undefined;
-  let bestLen = 0;
-  for (const token of tokensOf(type)) {
-    const hit = map[token];
-    if (hit !== undefined && token.length > bestLen) {
-      best = hit;
-      bestLen = token.length;
-    }
-  }
-  return best ?? null;
 }
 
 // ─── The CLOSED vocabs — exhaustive mapped Records, never the resolver (§12.5.5) ─────────────────

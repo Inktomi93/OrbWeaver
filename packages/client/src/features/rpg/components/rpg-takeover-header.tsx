@@ -5,22 +5,22 @@
 // Every datum on the composite is decoration; the band's TEXT lines carry it all (tracker-kit a11y model).
 //
 // Nullable-honesty (§12.2.1): a null ambient clock ⇒ the unset waystone (neutral ring, no marker, dim sky)
-// and the band text says the story hasn't set the scene yet. Weather resolves through the ONE glyph-resolver
-// weather home (`resolveWeatherOverlay`); an unresolvable type = plain sky, the text still names it.
+// and the band text says the story hasn't set the scene yet. Weather needs no resolution step: `weather.type`
+// is already the stone's CLOSED vocabulary (`@orb/kit/weather` — one axis, model-bound at the wire), while the
+// band text shows the model's free `weather.label` when it wrote one.
 // Orb color rides the ONE `resolvePoolColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
 // The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
 import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgPoolOrb, RpgTrackerView, TimeOfDay } from "@orb/contracts/rpg";
-import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { resolveWeatherOverlay } from "../lib/glyphs";
 import { resolvePoolColor, trackColorProps } from "../lib/track-color";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
 
@@ -71,7 +71,9 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
     parts.push(clockTime(ambient.clock));
   }
   if (ambient.weather !== null) {
-    parts.push(ambient.weather.type);
+    // The model's own phrasing when it wrote one ("torrential sleet"), else the canonical type — the band
+    // TEXT is the datum, the stone's sky is the decoration bound to `weather.type`.
+    parts.push(rpgWeatherText(ambient.weather));
   }
   return parts.join(" · ");
 }
@@ -130,7 +132,6 @@ export function RpgTakeoverHeader({
   veiledCue,
 }: RpgTakeoverHeaderProps): ReactElement {
   const clock = ambient?.clock ?? null;
-  const weatherType = ambient?.weather?.type ?? null;
   const when = ambient === null ? "" : whenLine(ambient, dateMode);
   const location = ambient?.location ?? "";
   const wallet = primaryWallet(actors, viewerUserId);
@@ -142,7 +143,9 @@ export function RpgTakeoverHeader({
           // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
           // the `timeOfDayLabel` above is the TEXT half of the same datum, never a second source of truth.
           clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
-          weather={weatherType === null ? null : resolveWeatherOverlay(weatherType)}
+          // Already canonical: `weather.type` IS the Waystone's closed vocabulary (one axis, homed in
+          // `@orb/kit/weather`) — there is no binning step left to get wrong.
+          weather={ambient?.weather?.type ?? null}
           className="shrink-0"
         />
         <Stack gap="field" className="min-w-0 flex-1">

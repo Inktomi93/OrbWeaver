@@ -61,7 +61,12 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
 // A `rpg.getTrackerView` stub — one roster actor with pools + a condition, ambient + orbs, cast, a goal, beats.
 function trackerView(trackersReadOnly: boolean): unknown {
   return {
-    ambient: { location: "The Rusted Lantern — Common Room", calendarDate: null, clock: { day: 3, hour: 21, minute: 0 }, weather: { type: "rain" } },
+    ambient: {
+      location: "The Rusted Lantern — Common Room",
+      calendarDate: null,
+      clock: { day: 3, hour: 21, minute: 0 },
+      weather: { type: "rain", label: "steady rain on the shutters" },
+    },
     actors: [
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
@@ -290,6 +295,8 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   // The header scene banner + a pool orb datum (the visually-hidden `label value/max`) — these ride the
   // `.shell-panel-header` BAND above both strips (the W3c header-contributor seam), not the tab body.
   await expect(component.getByText("The Rusted Lantern — Common Room")).toBeVisible();
+  // The band's when-line shows the model's weather LABEL, not the canonical bin name it renders the sky from.
+  await expect(component.getByText("steady rain on the shutters", { exact: false })).toBeVisible();
   await expect(component.getByText("Vitality 24/30")).toBeVisible();
   // The freshness indicator rides the same band — the getGame stub defaults `reliable` with no live turn,
   // so the accepted one-beat-lag label is surfaced (the honest freshness posture, in real panel geometry).

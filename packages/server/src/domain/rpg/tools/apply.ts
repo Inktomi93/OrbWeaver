@@ -332,7 +332,10 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs)
     patch.calendarDate = args.calendarDate;
   }
   if (args.weather !== undefined) {
-    patch.weather = { type: args.weather };
+    // TOTAL by construction: the label is always written (`""` when the model wrote none). The plane merge
+    // recurses into this object, so an omitted label would leave the PREVIOUS sky's flavor text stranded on
+    // the new weather ("torrential sleet" over `clear`).
+    patch.weather = { type: args.weather.type, label: args.weather.label ?? "" };
   }
   if (args.timeOfDay !== undefined || args.day !== undefined) {
     patch.clock = sceneClock(state, args);

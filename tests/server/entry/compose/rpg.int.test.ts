@@ -772,7 +772,7 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
     variantId,
     TURN,
     foldedTurn([
-      { name: "update_scene", args: { location: "the ford", weather: "rain", recentEvent: "forded the river" } },
+      { name: "update_scene", args: { location: "the ford", weather: { type: "rain", label: "cold spitting rain" }, recentEvent: "forded the river" } },
       { name: "add_journal_entry", args: { type: "location", title: "The Ford", content: "They crossed at the ford in the rain." } },
     ]),
   );
@@ -783,6 +783,8 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
   // The state landed through the SAME fold + accumulator + flush the dedicated round uses.
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the ford");
+  // The folded tool round wrote the closed type + the model's flavor label (the weather enum on the wire).
+  expect(view.ambient?.weather).toEqual({ type: "rain", label: "cold spitting rain" });
   expect(view.recentBeats).toContain("forded the river");
   const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
   expect(journal.map((j) => j.title)).toContain("The Ford");

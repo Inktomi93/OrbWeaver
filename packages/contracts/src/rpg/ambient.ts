@@ -7,6 +7,7 @@
 // derives the label back from the hour via the same home. `weather` has `type` required, everything else
 // optional — lite writes `{type:"rain"}`; full's engine fills the optional fields on the SAME shape.
 
+import { WEATHER_TYPES } from "@orb/kit/weather";
 import { z } from "zod";
 
 const HOUR_MAX = 23;
@@ -21,15 +22,48 @@ export const rpgClockTimeSchema = z.object({
 });
 export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
 
-/** Weather — `type` required, everything else optional. Lite writes `{type}`; full's engine fills the rest. */
+/** The CLOSED weather vocabulary the model writes and the panel's Waystone paints — the axis is homed in
+ *  `@orb/kit/weather` (reachable by BOTH this schema and the ui primitive, which may not import contracts,
+ *  D54); this is the rpg-facing NAME for the same tuple, never a second spelling. */
+export const RPG_WEATHER_TYPES = WEATHER_TYPES;
+export type RpgWeatherType = (typeof RPG_WEATHER_TYPES)[number];
+export const rpgWeatherTypeSchema = z.enum(RPG_WEATHER_TYPES);
+
+/** The weather label cap — a short flavor phrase ("torrential sleet"), not a sentence of prose. */
+const WEATHER_LABEL_MAX = 40;
+
+/** The free flavor label beside the closed `type` — ONE home for the field (the stored shape below and the
+ *  `update_scene` write share it, so the cap can never diverge between the wire and the store). */
+export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX);
+
+/** Weather — a CLOSED `type` + an optional free `label`, everything else optional (the relationship-kind
+ *  `{kind, label}` precedent, §2.1). `type` is the eight-state vocabulary the Waystone renders and the
+ *  extraction wire binds at the token level: a free string had to be BINNED onto these eight anyway, and
+ *  binning at the render silently degraded everything the table missed. `label` keeps the model's vivid
+ *  phrasing as the DISPLAYED datum ("torrential sleet" over `snow`) — the text is the datum, the type is
+ *  the visual. Lite writes `{type}` (+`label`); full's engine fills the rest on the SAME shape.
+ *
+ *  `label` is STORED total (`.default("")`, the `rpgRelationshipSchema.label` precedent) — never optional.
+ *  The volatile-plane merge RECURSES into a plain-object patch ([merge-clear]), so a type-only write over a
+ *  labelled sky would leave the OLD flavor text stranded on the new weather ("torrential sleet" over
+ *  `clear`). A total field means every write carries the answer. */
 export const rpgWeatherSchema = z.object({
-  type: z.string().min(1),
+  type: rpgWeatherTypeSchema,
+  label: rpgWeatherLabelSchema.default(""),
   temperatureC: z.number().optional(),
   description: z.string().optional(),
   wind: z.string().optional(),
   visibility: z.string().optional(),
 });
 export type RpgWeather = z.infer<typeof rpgWeatherSchema>;
+
+/** The DISPLAY text for a weather: the model's free `label` when it wrote one, else the canonical type.
+ *  ONE home — the reminder line, the delta transition, the macro/CEL scene view and the panel band all read
+ *  through it, so they can never disagree about which of the two strings a human sees. */
+export function rpgWeatherText(weather: RpgWeather): string {
+  const label = weather.label.trim();
+  return label.length > 0 ? label : weather.type;
+}
 
 /** The label vocabulary lite steers ambient time through (§2.7). `update_scene.timeOfDay` picks one; the
  *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk` (owner ruling

@@ -288,6 +288,29 @@ test("AmbientStrip Time: the closed 6-label PICKER (never free text, never a res
   await expect(page.getByRole("group", { name: "Time of day" })).toHaveCount(0);
 });
 
+test("AmbientStrip Weather: the closed 8-state PICKER commits a canonical type (off-vocab unconstructable)", async ({ mount, page }) => {
+  let captured: [string, string] = ["", ""];
+  await mount(
+    <AmbientStrip
+      location="The Rusted Lantern"
+      weather="rain"
+      onEditField={(field, next): void => {
+        captured = [field, next];
+      }}
+    />,
+  );
+  const rest = page.getByRole("button", { name: "Weather value" });
+  await expect(rest).toContainText("rain");
+  await rest.click();
+  const group = page.getByRole("group", { name: "Weather" });
+  // The eight states, and NO free-text input — a host can no longer hand-write an off-vocab sky.
+  await expect(group.getByRole("button")).toHaveCount(8);
+  await expect(page.getByRole("textbox", { name: "Weather value" })).toHaveCount(0);
+  await group.getByRole("button", { name: "storm", exact: true }).click();
+  expect(captured).toEqual(["weather", "storm"]);
+  await expect(page.getByRole("group", { name: "Weather" })).toHaveCount(0);
+});
+
 // ── GoalLine ──────────────────────────────────────────────────────────────────────────────────────
 
 test("GoalLine: free-text goal + optional n/m clock segment", async ({ mount }) => {

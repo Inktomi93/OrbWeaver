@@ -125,7 +125,7 @@ const SCENE = {
   location: "The Gilded Ember tavern, lower Ashfall",
   calendarDate: "14th of Emberfall, 3rd Age",
   clock: { day: 3, hour: 21, minute: 40 },
-  weather: { type: "rain", description: "steady rain on the shutters" },
+  weather: { type: "rain", label: "steady rain on the shutters" },
   recentEvents: [
     "Aldric produced the tarnished vault key; the room went quiet.",
     "Corvin bought a round and named a price for his help.",

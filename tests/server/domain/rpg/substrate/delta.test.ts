@@ -107,12 +107,22 @@ test("wallet — a signed numeric delta per currency", () => {
 });
 
 test("ambient — location, weather, and time-of-day transitions (destination, not a numeric delta)", () => {
-  const prev = state({ location: "The Docks", weather: { type: "clear" }, clock: { day: 1, hour: 9, minute: 0 } });
-  const cur = state({ location: "Village of Dunmoor", weather: { type: "storm" }, clock: { day: 1, hour: 21, minute: 0 } });
+  const prev = state({ location: "The Docks", weather: { type: "clear", label: "" }, clock: { day: 1, hour: 9, minute: 0 } });
+  const cur = state({ location: "Village of Dunmoor", weather: { type: "storm", label: "" }, clock: { day: 1, hour: 21, minute: 0 } });
   const out = buildDeltaBlock(prev, cur, ctx());
   expect(out).toContain("location → Village of Dunmoor");
   expect(out).toContain("weather → storm");
   expect(out).toContain("time → night"); // hour 9 (morning) → hour 21 (night)
+});
+
+test("ambient — the weather transition reports the model's LABEL over the canonical type", () => {
+  // The label is what the reader sees, so it is what the "what changed" block must say. And a re-LABELLED sky
+  // is a real beat even when both phrasings bin to the same type — diffing on the type alone would eat it.
+  const prev = state({ weather: { type: "rain", label: "a thin grey drizzle" } });
+  const cur = state({ weather: { type: "rain", label: "torrential rain" } });
+  expect(buildDeltaBlock(prev, cur, ctx())).toContain("weather → torrential rain");
+  // Label CLEARED (a host repick) falls back to the type, and is still a transition.
+  expect(buildDeltaBlock(prev, state({ weather: { type: "rain", label: "" } }), ctx())).toContain("weather → rain");
 });
 
 test("ambient — a within-band minute tick is NOT a beat (no time delta line)", () => {

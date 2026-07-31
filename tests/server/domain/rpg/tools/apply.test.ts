@@ -136,6 +136,17 @@ test("update_scene maps timeOfDay to the representative hour + appends a beat", 
   expect(patch.recentEvents).toEqual(["The bell tolled."]);
 });
 
+test("update_scene writes weather TOTAL — the closed type plus a label that is always answered", () => {
+  const withLabel = applyUpdateScene(emptyState(), { weather: { type: "snow", label: "torrential sleet" } });
+  expect(withLabel.weather).toEqual({ type: "snow", label: "torrential sleet" });
+  // An omitted label writes "" rather than nothing: the plane merge RECURSES into this object, so a partial
+  // write would strand the previous sky's phrasing on the new weather ("torrential sleet" over `clear`).
+  const stale = emptyState({ weather: { type: "snow", label: "torrential sleet" } });
+  expect(applyUpdateScene(stale, { weather: { type: "clear" } }).weather).toEqual({ type: "clear", label: "" });
+  // Weather omitted entirely ⇒ the plane is untouched (MA-4 omit = keep).
+  expect(applyUpdateScene(stale, { location: "the ford" }).weather).toBeUndefined();
+});
+
 test("update_scene presentUpsert is a PATCH — an omitted field keeps the existing value", () => {
   const state = emptyState({
     presentCharacters: [{ key: "Elder", name: "Elder", emoji: "🧙", mood: "calm", customFields: {}, relationship: { kind: "neutral", label: "" } }],

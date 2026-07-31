@@ -177,7 +177,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
       location: "Ashfell Night Market",
       calendarDate: "3rd of Frostwane",
       clock: { day: 2, hour: 22, minute: 0 },
-      weather: { type: "snow", description: "bitter cold" },
+      weather: { type: "snow", label: "bitter cold" },
       recentEvents: ["Stepped into the freezing night market"],
     });
     // Actor volatile plane: HP / pools / wallet / inventory / conditions / status — all first-class in lite.
@@ -240,6 +240,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(after.ambient?.location).toBe("Ashfell Night Market");
     expect(after.ambient?.calendarDate).toBe("3rd of Frostwane");
     expect(after.ambient?.weather?.type).toBe("snow");
+    expect(after.ambient?.weather?.label).toBe("bitter cold");
     expect(after.recentBeats).toContain("Stepped into the freezing night market");
 
     const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
