@@ -22,6 +22,9 @@
 //      depth so an inner directive line doesn't false-close the outer fence.
 //   2. STREAM-TRUNCATION SURVIVAL — an unclosed tag/fence (mid-stream, aborted) falls through to literal
 //      text IN PLACE; nothing is mangled, nothing throws. DEGRADE-NEVER-THROW on all persisted content (D51).
+//      ONE exception, opt-in per call: `committed: true` says no more bytes are coming, so an unterminated
+//      REGISTERED fence closes at EOF (degrade PRESERVING VALUE — see `TokenizeContentOptions.committed`).
+//      Streaming callers never pass it, so mid-stream behavior is byte-identical.
 //   3. MARKDOWN-CODE-FENCE EXCLUSION — tags/fences inside a ``` code fence are the author SHOWING code and
 //      stay literal (the §4.8 hard exclusion, applied to the whole new grammar; image refs keep their
 //      original code-fence-blind behavior for byte-compatibility with stored bodies).
@@ -83,6 +86,24 @@ export type DirectiveFenceName = (typeof DIRECTIVE_FENCE_NAMES)[number];
  *  wires the product gate; the DETECTOR ships with the grammar so the tokenizer stays ONE parser family). */
 export interface TokenizeContentOptions {
   readonly lenientHtml?: boolean | undefined;
+  /**
+   * The body is COMMITTED canon (no more bytes are coming), so an unterminated REGISTERED fence is closed at
+   * EOF instead of degrading to literal text. Default OFF — a live stream MUST keep the strict rule (an
+   * "unclosed" fence mid-stream means the close hasn't arrived yet, and a §4.5 forming card must not
+   * flip-flop into a finished one on every token).
+   *
+   * WHY (owner ruling, the RV-2 root cause): a truncated or nested-closer body left the reader looking at a
+   * raw `:::card title="…"` line in the transcript with nothing in the card archive — the user WATCHED the
+   * card stream in, and committing must not vanish it. Degrade PRESERVING VALUE once the bytes are final.
+   * The EOF-closed span is an ordinary span of its class — it renders on the reading surface and STUBS on
+   * the wire exactly like a terminated card (D110 §3 both planes; a multi-KB unterminated blob no longer
+   * rides the prompt verbatim).
+   *
+   * Scope is deliberately narrow: only a name in `DIRECTIVE_FENCE_NAMES` closes at EOF. An unterminated
+   * UNREGISTERED command-shaped fence stays literal, because closing it would put the message's whole tail
+   * behind the `unknown-directive` allowlist-STRIP and hide it from the reader.
+   */
+  readonly committed?: boolean | undefined;
 }
 
 // ── Image refs (the original D51 grammar — unchanged) ────────────────────────────────────────────────────
@@ -386,8 +407,9 @@ function findCodeFenceClose(lines: readonly Line[], from: number): number {
   return -1;
 }
 
-/** A `:::name` directive fence at line `i` → its span + tail, or null (not a fence / unclosed → literal). */
-function tryDirectiveFence(content: string, lines: readonly Line[], i: number): BlockResult | null {
+/** A `:::name` directive fence at line `i` → its span + tail, or null (not a fence / unclosed → literal,
+ *  unless `committed` lets a registered fence close at EOF). */
+function tryDirectiveFence(content: string, lines: readonly Line[], i: number, committed: boolean): BlockResult | null {
   const line = lines[i];
   if (line === undefined) {
     return null;
@@ -403,7 +425,16 @@ function tryDirectiveFence(content: string, lines: readonly Line[], i: number): 
   const closeIdx = findFenceClose(lines, i + 1);
   const closeLine = lines[closeIdx];
   if (closeIdx === -1 || closeLine === undefined) {
-    return null;
+    // The `committed` EOF close (see `TokenizeContentOptions.committed`): an unterminated REGISTERED fence in
+    // a FINAL body consumes the rest of the content as its body. Everything to `content.length` becomes the
+    // span's `raw`, so the re-emit invariant (`contentSpanRaw` join === body) holds with no tail piece.
+    const unclosedName = open[1] ?? "";
+    if (!(committed && isDirectiveFenceName(unclosedName))) {
+      return null;
+    }
+    const eofBody = sliceTexts(lines, i + 1, lines.length).join("\n");
+    const eofRaw = content.slice(line.start);
+    return { pieces: [{ kind: "span", span: FENCE_BUILDERS[unclosedName](attrs, eofBody, eofRaw) }], next: lines.length };
   }
   const body = sliceTexts(lines, i + 1, closeIdx).join("\n");
   const raw = content.slice(line.start, closeLine.end);
@@ -471,6 +502,8 @@ interface ScanEnv {
   readonly content: string;
   readonly lines: readonly Line[];
   readonly lenient: boolean;
+  /** Final-body semantics: a registered fence with no close consumes to EOF (`TokenizeContentOptions`). */
+  readonly committed: boolean;
 }
 
 /** A code-fence delimiter line: toggle the fence state (its own line stays literal); the lenient html arm may
@@ -495,7 +528,7 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
   if (inCode) {
     return { pieces: linePiece(env.content, env.lines, i, false), next: i + 1, inCode };
   }
-  const fence = tryDirectiveFence(env.content, env.lines, i);
+  const fence = tryDirectiveFence(env.content, env.lines, i, env.committed);
   if (fence !== null) {
     return { ...fence, inCode };
   }
@@ -511,8 +544,8 @@ function stepLine(env: ScanEnv, i: number, inCode: boolean): StepState {
 /** The line walk: recognizes directive fences (balance-aware), excludes markdown code-fence regions from
  *  the new grammar, and (opt-in) runs the §4.8 lenient detection. Text is emitted as offset pieces so bytes
  *  are preserved exactly. */
-function structuralPass(content: string, lines: readonly Line[], lenient: boolean): Piece[] {
-  const env: ScanEnv = { content, lines, lenient };
+function structuralPass(content: string, lines: readonly Line[], lenient: boolean, committed: boolean): Piece[] {
+  const env: ScanEnv = { content, lines, lenient, committed };
   const pieces: Piece[] = [];
   let inCode = false;
   let i = 0;
@@ -607,7 +640,7 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
  * DEGRADES, never throws, on all persisted content (D51).
  */
 export function tokenizeContent(content: string, options?: TokenizeContentOptions): ContentSpan[] {
-  const expanded = expandPieces(content, structuralPass(content, splitLines(content), options?.lenientHtml === true));
+  const expanded = expandPieces(content, structuralPass(content, splitLines(content), options?.lenientHtml === true, options?.committed === true));
   // Merge adjacent text runs (maximal text spans — the pre-grammar byte-identical shape), then image-tokenize.
   const spans: ContentSpan[] = [];
   let pending = "";
@@ -653,6 +686,10 @@ export function contentSpanRaw(span: ContentSpan): string {
  *  bug, never a silent truth-leak). `unknown-directive` spans are NOT stripped here — they are display
  *  noise, not secrets, and the transcript payload stays honest. */
 export function stripHiddenSpans(content: string): { readonly content: string; readonly hadHidden: boolean } {
+  // Deliberately NOT `committed` even though this runs at commit: an EOF-closed card would SWALLOW a hidden
+  // tag sitting in the unterminated tail, and this projection re-emits a card's raw bytes verbatim — the
+  // truth would ride into the member payload. Strict-close keeps that tail as scannable text. Fail-closed
+  // beats consistent here (§3.6 is the trust boundary; the card window is only a rendering nicety).
   const spans = tokenizeContent(content);
   if (!spans.some((s) => s.kind === "hidden")) {
     return { content, hadHidden: false };
@@ -861,7 +898,9 @@ export function cardWireStub(title: string | null): string {
  *  summarized long-horizon memory (the live wire keeps it verbatim until coverage; the standing-lie
  *  inventory reads the transcript, not the summary). Everything else re-emits byte-identically. */
 export function projectBodyForSummary(content: string): string {
-  return tokenizeContent(content)
+  // COMMITTED: compaction only ever reads finalized canon, and an EOF-closed card is strictly safer here —
+  // the whole unterminated blob collapses to the stub instead of being fed to the summarizer verbatim.
+  return tokenizeContent(content, { committed: true })
     .map((s) => {
       if (s.kind === "hidden") {
         return "";

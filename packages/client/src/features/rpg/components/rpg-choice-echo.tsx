@@ -39,7 +39,7 @@ function liveChoices(messages: readonly { readonly role: string; readonly conten
   if (last === undefined || last.role !== "assistant") {
     return null;
   }
-  for (const span of tokenizeContent(last.content)) {
+  for (const span of tokenizeContent(last.content, { committed: true })) {
     if (span.kind === "choices") {
       return span.options;
     }

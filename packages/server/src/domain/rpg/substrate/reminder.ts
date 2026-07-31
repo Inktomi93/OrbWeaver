@@ -56,7 +56,7 @@ export const RPG_OFILTER_TEACH =
 // `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
 // the model emits renders in the same sandbox either way).
 export const RPG_CARD_TEACH =
-  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Embed everything inline (no external scripts/fonts/images). Do not wrap it in a code fence.';
+  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Embed everything inline (no external scripts/fonts/images). Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card).';
 
 // The CYOA teaching block (P5 §5.4 feature 5) — a versioned constant (the RPG_STEERING_LICENSE pattern).
 // Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
@@ -68,7 +68,7 @@ export const RPG_CYOA_TEACH =
 // The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
 // for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
 export const RPG_CARD_TEACH_STATIC =
-  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Embed everything inline (no external fonts/images). Do not wrap it in a code fence.';
+  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Embed everything inline (no external fonts/images). Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card).';
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps

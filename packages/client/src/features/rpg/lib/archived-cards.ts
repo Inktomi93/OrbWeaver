@@ -28,7 +28,7 @@ export function collectArchivedCards(
 ): readonly ArchivedCard[] {
   const cards: ArchivedCard[] = [];
   for (const message of messages) {
-    tokenizeContent(message.content, { lenientHtml: true }).forEach((span, index) => {
+    tokenizeContent(message.content, { lenientHtml: true, committed: true }).forEach((span, index) => {
       if (span.kind === "card") {
         cards.push({
           key: `${message.id}-${index}`,

@@ -766,7 +766,9 @@ async function buildWireHistory(
   fittedHistory: readonly { readonly role: TurnMessage["role"]; readonly content: string; readonly name?: string | undefined }[],
 ): Promise<{ history: TurnMessage[]; imageDropped: boolean }> {
   const visionOk = args.connection.capability.input?.vision === true;
-  const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content) }));
+  // COMMITTED canon (the fitted history is stored rows, never the in-flight stream), so an unterminated
+  // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
+  const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
   const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX ?? 0) };
   const built = await Promise.all(
     tokenized.map(async ({ h, spans }) => {

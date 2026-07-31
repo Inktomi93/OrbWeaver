@@ -169,6 +169,19 @@ test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts
   expect(sandbox).not.toContain("allow-same-origin");
 });
 
+// The committed EOF-close on the READING surface: a card the model never closed (generation truncated
+// mid-attribute) used to leave the reader staring at the raw `:::card title="…"` line as prose. A stored
+// body is final, so it renders as the card it was meant to be.
+test("an UNTERMINATED card in a stored body renders the card chrome, not raw fence syntax", async ({ mount }) => {
+  const truncated = ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New';
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={`Look:\n${truncated}`} />);
+  const card = component.locator('[data-slot="immersive-card"]');
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText("Ashfell Night Market");
+  // The fence syntax itself never reaches the reader.
+  await expect(component.getByText(":::card", { exact: false })).toHaveCount(0);
+});
+
 // ── P5 §5.2-5.3 — the `:::choices` fence renders CLICKABLE send-affordances ───────────────────────
 
 const CHOICE_OPTION = '[data-testid="message-choice-option"]';
