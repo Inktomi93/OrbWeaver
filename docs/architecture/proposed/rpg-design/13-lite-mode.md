@@ -17,8 +17,8 @@ updated: 2026-07-17
 > on any conflict.** NOTHING in this doc is built (2026-07-17): it lands as the L0–L3 chunks (10 §L).
 > **\[SUPERSEDED — AS-BUILT D101: the lite tier IS built — L0 `3f6a57b2` + L1 `db60bd82` (server) +
 > L2/L3 in the wave-6 client close `4f5073ec`/`c469b9ca`.]**
-> The design record with every weighed alternative: `reports/rpg-lite-and-full-cohesion-game-plan.md`;
-> the prior-art evidence: `reports/research/marinara-st-extension-lite-mode.md` (the Marinara ST
+> The design record with every weighed alternative: `docs/design/rpg-lite-and-full-cohesion-game-plan.md`;
+> the prior-art evidence: `docs/reviews/misc/marinara-st-extension-lite-mode.md` (the Marinara ST
 > *extension* — schema-as-data trackers + the steering line; distinct from the marinara RPG corpus
 > docs 01–12 mined). This doc is AUTHORITATIVE for the mode axis and lite semantics; the stat-profile
 > SCHEMA is 03 §1.2/§4.1, its engine consumption is 04 §2/§10 — this doc consumes both, never
@@ -237,4 +237,4 @@ schema, nullable combat slots, widget `subjectName`) · 04 §2/§10 (the profile
 · 05 §1/§3 (gather dispatch, the tool subset, the `update_scene` arg) · 06 §1 (the GM preset is
 full-mode voice) · 09 §c/§+ (the extensibility line; the polyfill + the read-only interim) ·
 10 §L (the L0–L3 chunks; L0 = the window-closing regen) · 11 (lite client surfaces) · 12 §1 (the
-seat is a full-mode plane) · `reports/rpg-lite-and-full-cohesion-game-plan.md` (the design record).
+seat is a full-mode plane) · `docs/design/rpg-lite-and-full-cohesion-game-plan.md` (the design record).

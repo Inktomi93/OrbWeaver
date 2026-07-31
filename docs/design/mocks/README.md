@@ -1,0 +1,24 @@
+# docs/design/mocks — frozen design drawings
+
+Design references, not product code. Nothing here is built, bundled, or served: the `.html` files are
+standalone hand-drawn mocks (inline styles, raw `<svg>`, no tokens) and the `.png` files are reference
+renders and screenshots the design docs cite. They moved here from the gitignored `reports/design-refs/`
+because they kept getting lost behind `git add -f`.
+
+**Excluded from biome** (`biome.json` → `files.includes: "!docs/design/mocks"`). A mock is a drawing —
+a11y/button-type/lang diagnostics on it are noise, and its inline-style density is the point. The token
+law, the `@orb/ui` primitive law, and the a11y gates apply to the BUILD, never to the drawing.
+
+## What's here
+
+| Path | What |
+| - | - |
+| `panel-redesign/` | the chat context-panel strip, per-tab + `all-tabs.html` (the full strip) + `DESIGN.md`. **`this-chat-overrides.html` (07-29) is NEWER and WINS over `all-tabs.html` on Settings/Injections** — the superseded panes in `all-tabs.html` carry visible banners. |
+| `crunchy-cluster-redesign/DESIGN.md` | the rpg state-round / tracker / wand / fork program — the spec home D111 cites. |
+| `waystone/` | reference renders of the Waystone dial across time-of-day × weather × theme. |
+| `osrs-fixed-interface.png`, `osrs-tabs/` | the OSRS fixed-screen interface — the source anatomy for the panel strip (`Context-Panel-Program.md` §CP-4). |
+| `rpg-shell-mockup.{html,png}` · `rpg-shell-mockup-v2.{html,png}` | the CP-4 shell; v2 is the SHARPENED one, v1 is kept as the pre-sharpening record. |
+
+Rulings that override a drawing live in `../context-panel-fidelity-findings.md` and the D-ledger
+(`../../architecture/core/Core-Path-Registry.md`). **A drawing is never law** — where a mock and a
+ruling disagree, the ruling wins, and the mock gets a SUPERSEDED banner rather than a deletion.

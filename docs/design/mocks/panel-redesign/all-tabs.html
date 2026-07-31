@@ -3479,6 +3479,16 @@ svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-wid
 <div class="page">
 <p class="crumb"><a href="index.html">panel redesign</a> / bottom strip · 2/5</p>
 <h1>Settings — this chat's overrides</h1>
+<!-- SUPERSEDED 2026-07-29 — DO NOT BUILD TO THIS TAB.
+     The separate Settings + Injections meta-tabs drawn here were consolidated into ONE "This chat"
+     tab (commit 8e7a22b6; Context-Panel-Program.md §1 CP-1). The WINNING mock is
+     ./this-chat-overrides.html. Ruling: ../../context-panel-fidelity-findings.md §1
+     ("The all-tabs mock's separate Settings/Injections tabs are superseded — do not restore them").
+     This pane is kept as the pre-consolidation drawing record only. -->
+<div style="margin:10px 0;padding:10px 12px;border:2px solid #c2410c;border-radius:8px;background:#2a1206;color:#f5ede2;font:600 12.5px/1.5 system-ui">
+  ⚠ SUPERSEDED (2026-07-29) — do not build to this tab.
+  <span style="display:block;font-weight:400;margin-top:4px">Settings + Injections were merged into ONE <strong>“This chat”</strong> tab (CP-1, commit <code>8e7a22b6</code>). The winning mock is <a href="this-chat-overrides.html" style="color:#fb923c">this-chat-overrides.html</a>; the ruling is <a href="../../context-panel-fidelity-findings.md" style="color:#fb923c">context-panel-fidelity-findings.md §1</a>. Kept as the pre-consolidation record.</span>
+</div>
 <p class="lede">The shipped CP-1 consolidation, in takeover density: appearance overrides · group behavior · game-flavored display toggles. Everything autosaves — the status line replaces every Save button (D66 A4).</p>
 
 <div class="views">
@@ -3582,13 +3592,18 @@ svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-wid
     <span style="font-size:11.5px;flex:1">Default talkativeness</span><span class="num" style="font-size:11px">60%</span>
   </div>
 </div>
+<!-- DEAD SCOPE — BOTH knobs in this "This game" group are ruled dead; do not build either.
+     Dice cues: rpg-lite is a narrative STEERING device, not a dice roller (owner ruling 2026-07-30).
+     Beat notifications: owner decision D-3 (2026-07-31) — DEAD, with dice-cues.
+     Ruling: ../../context-panel-fidelity-findings.md §4 (D-3) + §2 row "This chat" (b).
+     Nothing in packages/** references either toggle. Kept as the drawing record only. -->
 <p class="kicker" style="margin:0">This game<span class="rule"></span></p>
-<div>
-  
+<div style="border:2px solid #c2410c;border-radius:8px;padding:6px 8px;opacity:.55">
+  <p style="margin:0 0 4px;font:600 11px system-ui;color:#fb923c">✕ DEAD SCOPE — both knobs dropped (D-3, 2026-07-31). Do not build.</p>
   <div class="rowline" title="Narrate rolls as fiction, keep numbers in the panel">
     <span style="font-size:11.5px;flex:1">Dice cues in prose</span><span class="switch on" role="switch" aria-checked="true"></span>
   </div>
-  
+
   <div class="rowline" >
     <span style="font-size:11.5px;flex:1">Beat notifications</span><span class="iseg"><span>all</span><span class="on">mine</span><span>off</span></span>
   </div>
@@ -3700,13 +3715,18 @@ svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-wid
     <span style="font-size:11.5px;flex:1">Default talkativeness</span><span class="num" style="font-size:11px">60%</span>
   </div>
 </div>
+<!-- DEAD SCOPE — BOTH knobs in this "This game" group are ruled dead; do not build either.
+     Dice cues: rpg-lite is a narrative STEERING device, not a dice roller (owner ruling 2026-07-30).
+     Beat notifications: owner decision D-3 (2026-07-31) — DEAD, with dice-cues.
+     Ruling: ../../context-panel-fidelity-findings.md §4 (D-3) + §2 row "This chat" (b).
+     Nothing in packages/** references either toggle. Kept as the drawing record only. -->
 <p class="kicker" style="margin:0">This game<span class="rule"></span></p>
-<div>
-  
+<div style="border:2px solid #c2410c;border-radius:8px;padding:6px 8px;opacity:.55">
+  <p style="margin:0 0 4px;font:600 11px system-ui;color:#fb923c">✕ DEAD SCOPE — both knobs dropped (D-3, 2026-07-31). Do not build.</p>
   <div class="rowline" title="Narrate rolls as fiction, keep numbers in the panel">
     <span style="font-size:11.5px;flex:1">Dice cues in prose</span><span class="switch on" role="switch" aria-checked="true"></span>
   </div>
-  
+
   <div class="rowline" >
     <span style="font-size:11.5px;flex:1">Beat notifications</span><span class="iseg"><span>all</span><span class="on">mine</span><span>off</span></span>
   </div>
@@ -3720,7 +3740,7 @@ svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-wid
   
   <aside class="notes">
 <h3>What changed</h3>
-<p>Mostly a density pass — settings rows adopt the takeover's compact row grammar (label left, control right, hint on title). The “This game” group is new: display-only knobs a game adds (dice cues, beat notifications) live beside the standing overrides, so game display prefs don't leak into the GM console.</p>
+<p>Mostly a density pass — settings rows adopt the takeover's compact row grammar (label left, control right, hint on title). The “This game” group is new: display-only knobs a game adds (dice cues, beat notifications) live beside the standing overrides, so game display prefs don't leak into the GM console. <strong style="color:#fb923c">— SUPERSEDED: the “This game” group is DEAD SCOPE (both knobs dropped, owner decision D-3, 2026-07-31; see <a href="../../context-panel-fidelity-findings.md" style="color:#fb923c">context-panel-fidelity-findings.md §4</a>). The rest of this pane is superseded by <a href="this-chat-overrides.html" style="color:#fb923c">this-chat-overrides.html</a>.</strong></p>
 <h3>Autosave</h3>
 <p>The micro status line (“Saved — changes save automatically”) is the only save chrome, per D66 A4.</p></aside>
 </div>
@@ -3774,6 +3794,16 @@ svg.ic{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;stroke-wid
 <div class="page">
 <p class="crumb"><a href="index.html">panel redesign</a> / bottom strip · 3/5</p>
 <h1>Injections — the steering channel's authoring home</h1>
+<!-- SUPERSEDED 2026-07-29 — DO NOT BUILD TO THIS TAB AS A SEPARATE TAB.
+     Injections is no longer its own meta-tab: it is a SECTION inside the merged "This chat" tab
+     (commit 8e7a22b6; Context-Panel-Program.md §1 CP-1). The WINNING mock is
+     ./this-chat-overrides.html. Ruling: ../../context-panel-fidelity-findings.md §1.
+     The ROW GRAMMAR drawn here is still live design intent — owner decision D-2 (2026-07-31)
+     converges the built injection rows to this mock's compact row + enabled switch + kebab. -->
+<div style="margin:10px 0;padding:10px 12px;border:2px solid #c2410c;border-radius:8px;background:#2a1206;color:#f5ede2;font:600 12.5px/1.5 system-ui">
+  ⚠ SUPERSEDED AS A TAB (2026-07-29) — Injections is a SECTION of “This chat”, not its own tab.
+  <span style="display:block;font-weight:400;margin-top:4px">Merged under CP-1 (commit <code>8e7a22b6</code>); the winning mock is <a href="this-chat-overrides.html" style="color:#fb923c">this-chat-overrides.html</a>, ruling <a href="../../context-panel-fidelity-findings.md" style="color:#fb923c">context-panel-fidelity-findings.md §1</a>. The compact row grammar below is still LIVE intent (owner decision D-2) — only the tab placement is dead.</span>
+</div>
 <p class="lede">One seam, two lenses: guides and notes are authored here; tracker-class injections ride the SAME channel and are glanced in the game tabs. The cross-link card keeps the geography learnable.</p>
 
 <div class="views">

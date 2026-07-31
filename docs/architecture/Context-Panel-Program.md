@@ -16,7 +16,7 @@ updated: 2026-07-25
 >
 > **Sharpened 2026-07-25** (design pass): CP-1/CP-2 marked SHIPPED; CP-3 respecced as the shared
 > tracker block kit; CP-4 expanded from a sketch into the buildable blueprint. Refreshed mockup:
-> `reports/design-refs/rpg-shell-mockup-v2.html` (v1 kept as the pre-sharpening record).
+> `docs/design/mocks/rpg-shell-mockup-v2.html` (v1 kept as the pre-sharpening record).
 
 ## 0. Why (receipts, 2026-07-25)
 
@@ -27,9 +27,9 @@ updated: 2026-07-25
 - **Duplication (§13 IA rule)**: the chat title + avatar cluster render in the topbar AND again in
   the panel header, 300px apart.
 - **The owner's direction**: repurpose the column in rpg/rpg-lite as the OSRS right panel — reference
-  image committed at `reports/design-refs/osrs-fixed-interface.png`; lite mode is a steering posture
+  image committed at `docs/design/mocks/osrs-fixed-interface.png`; lite mode is a steering posture
   over NORMAL chat (D101 lite tier; the guided-generations audit §5 convergence — one ChatInjection
-  steering channel — `reports/stickler/2026-07-25-guided-generations-parity-audit.md`).
+  steering channel — `docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md`).
 
 ## 1. CP-1 — Tab consolidation — **SHIPPED**
 
@@ -61,7 +61,7 @@ CP-4's scene banner is a NEW `header`-slot component, not a resurrection).
 
 ### 3.1 One block kit, three mounts — the anti-duplication ruling
 
-The cohesion game plan (`reports/rpg-lite-and-full-cohesion-game-plan.md`) and D101 make trackers
+The cohesion game plan (`docs/design/rpg-lite-and-full-cohesion-game-plan.md`) and D101 make trackers
 ONE concept that surfaces at three escalation rungs. The rule: **one component family (the block
 kit), mounted in different tab sets — never re-implemented per rung.**
 
@@ -128,11 +128,11 @@ Game tab is merely the BULK editor, not the only door:
 
 The committed visual references (all `git add -f`'d past the reports gitignore — cited records rule):
 
-![The OSRS fixed-screen interface — the source anatomy](../../reports/design-refs/osrs-fixed-interface.png)
+![The OSRS fixed-screen interface — the source anatomy](../design/mocks/osrs-fixed-interface.png)
 
-![The CP-4 v1 mockup — pre-sharpening record](../../reports/design-refs/rpg-shell-mockup.png)
+![The CP-4 v1 mockup — pre-sharpening record](../design/mocks/rpg-shell-mockup.png)
 
-(`reports/design-refs/rpg-shell-mockup-v2.html` is the SHARPENED mockup reflecting this section —
+(`docs/design/mocks/rpg-shell-mockup-v2.html` is the SHARPENED mockup reflecting this section —
 render it for the current picture; v1 + its PNG are the pre-sharpening record.)
 
 ### 4.0 What the reference actually is (read from `osrs-fixed-interface.png`)

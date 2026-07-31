@@ -3,7 +3,7 @@
 Date: 2026-07-26
 Scope: the whole uncommitted working tree (34 `git status` entries; most of `domain/rpg/**` is new/untracked)
 before its single atomic W1 commit. Reviewed against the constitution (`AGENTS.md`), the D-ledger
-(`Core-Path-Registry.md`), the ratified spec (`reports/lite-plus-guided-substrate-spec.md`), and the D108
+(`Core-Path-Registry.md`), the ratified spec (`docs/design/lite-plus-guided-substrate-spec.md`), and the D108
 draft (`scratchpad/d108-draft.md`).
 
 Mandates: (A) code correctness + law-vs-code coherence; (B) HARD focus on the cross-tenant write-boundary /

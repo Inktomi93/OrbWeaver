@@ -6,8 +6,8 @@
 the Preview tab (2026-07-30). **Origin:** owner dogfood unease — "the app is getting dirty; menus feel
 garbled; did the tabs land like their mocks?"
 
-**Mocks of record:** `reports/design-refs/panel-redesign/all-tabs.html` (the full strip, 07-27) and
-`reports/design-refs/panel-redesign/this-chat-overrides.html` (approved 07-29 — NEWER; where the two
+**Mocks of record:** `docs/design/mocks/panel-redesign/all-tabs.html` (the full strip, 07-27) and
+`docs/design/mocks/panel-redesign/this-chat-overrides.html` (approved 07-29 — NEWER; where the two
 conflict on Settings/Injections, this one wins because the CP-1 consolidation was built to it).
 
 > **This doc is the verification target for the W-H / #1 side-eye lane.** Every finding below is
@@ -55,7 +55,7 @@ at all.** One tab, five concerns is the structural root of "a whole menu got gar
 | **This chat** | Merged per newer mock; deviations unreviewed. | (a) Injection rows: mock draws compact rows + on/off switch + kebab; built is full expanded form + Remove ("off = delete", `injections-manager.tsx` header). Keep-or-converge decision → D-2. (b) All-tabs Settings mock's "This game" group (dice-cues, beat-notifications toggles) built NOWHERE → D-3. (c) Mock Injections' "One channel" cross-link footer card absent (not fully verified). (d) 5-section overload → D-1. |
 | **Members** | Built RICHER than mock (invite/kick/nominate/leave, force-turn, talkativeness). | Mock's "Veiled — host only" note relocated to the Status tab (`rpg-veiled-section.tsx` ← `rpg-status-tab.tsx`) — relocation, not loss. Verify live only. |
 | **Game** | Present, host-gated, structurally matches GM-console concept. | NOT section-diffed in depth (Stat profile / Cast fields / Relationship hints / Steering note / Delivery model vs built `rpg-game-tab.tsx` + `GmConsoleScalars`) — lane must diff live. |
-| **Game strip** (Status…Map) | Registered + gated correctly (7 tabs, `rpg-context-section.tsx:102-209`). | Fidelity vs each per-tab mock = the existing **W-H panel-beauty** punch list (dead space, tiny Waystone, asymmetric roster cards, duplicate orb numbers, header hierarchy, bar-color grammar) — `reports/design-refs/panel-redesign/DESIGN.md` §4.2. Owner screenshot header (no stat-ring row on a pool-less chat, thin header band) folds in here. |
+| **Game strip** (Status…Map) | Registered + gated correctly (7 tabs, `rpg-context-section.tsx:102-209`). | Fidelity vs each per-tab mock = the existing **W-H panel-beauty** punch list (dead space, tiny Waystone, asymmetric roster cards, duplicate orb numbers, header hierarchy, bar-color grammar) — `docs/design/mocks/panel-redesign/DESIGN.md` §4.2. Owner screenshot header (no stat-ring row on a pool-less chat, thin header band) folds in here. |
 
 No vestigial registrations found: every declared `ContextTabDef` traces to `main.tsx`'s registry; no
 registered-but-dead or present-but-unregistered tab (both ends checked).

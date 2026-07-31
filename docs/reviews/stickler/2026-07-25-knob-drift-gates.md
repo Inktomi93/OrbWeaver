@@ -1,6 +1,6 @@
 # Knob-drift enforcement design — gate review (2026-07-25)
 
-Owner-ruled gate-design pass over the completed buried-knobs audit (`reports/scout/2026-07-25-buried-knobs-audit-wip.md`).
+Owner-ruled gate-design pass over the completed buried-knobs audit (`docs/reviews/misc/2026-07-25-buried-knobs-audit-wip.md`).
 Scope: design the enforcement that makes the audit's six disease classes unrepresentable — where reasonable.
 Review + design only; nothing fixed, nothing built.
 
@@ -9,7 +9,7 @@ Grounding read IN FULL this session: the audit ledger (both waves, both owner ru
 `Core-0-Architecture-and-Structure.md` §7, `Spine-Config-and-Serialization.md`, `scripts/check/contract.ts`,
 `scripts/check/bus-coverage-lib.ts`, gates `verify-registry-parity` / `bus-coverage` / `no-inline-union-redecl` /
 `d-citation-integrity` / `no-manual-token-estimate` (+ `schema-banned-shapes` header/row-kinds),
-`reports/stickler/2026-07-25-contracts-layer-audit.md` §"what NOT to gate". Every disease-class site
+`docs/reviews/stickler/2026-07-25-contracts-layer-audit.md` §"what NOT to gate". Every disease-class site
 re-verified against live code this session (evidence inline below; "grep is a no-no" honored — every claim
 is a full-file read or a typed sweep whose absence-result was cross-checked with `/usr/bin/grep -a`).
 
