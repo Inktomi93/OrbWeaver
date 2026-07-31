@@ -1,0 +1,488 @@
+{
+  "messages": [
+    {
+      "content": [
+        {
+          "cache_control": {
+            "type": "ephemeral"
+          },
+          "text": "You maintain the tracked game state. Read the RECENT STORY + current state + the latest story beat, then call a SEPARATE tool for EACH plane the beat changed. Check every plane independently:\n• Did anyone's HP, pools, conditions, or status change? → update_party (one call PER affected actor)\n• Did items or currency move? → update_inventory\n• Did the location, time, weather, or present cast change? → update_scene\n• Did a custom tracker change? → set_widget_value\n• Did a quest start, advance, complete, or fail? → upsert_quest\n• Is there a notable beat worth logging? → add_journal_entry\nMost beats change MORE THAN ONE plane — e.g. \"she's wounded and bleeding as you flee into the cave\" needs update_party (a Bleeding condition on her) AND update_scene (location → cave), so call BOTH in this one turn. Emit every applicable call together. If — and only if — the beat changed NOTHING trackable, call no_changes and nothing else. Do not narrate.\n\nSCENE — set scene.location (WHERE) and scene.timeOfDay (dawn/morning/afternoon/evening/night/midnight); when the beat doesn't change them, restate the current values, never blank them. Set scene.weather when the story mentions it, and scene.recentEvent = a one-line summary of what just happened.\nSet scene.calendarDate for a narrated in-world date the story gives (e.g. \"3rd of Frostmoon\").\nWHO IS PRESENT — scene.presentUpsert: one entry per character who speaks or acts (name required). Fill what the beat reveals: mood, appearance, outfit, thoughts (inner state), and relationship toward the player (kind = lover/friend/ally/neutral/enemy/custom) as it shifts. scene.presentRemove a character who leaves.\nGive a NEW character a fitting single emoji (presentUpsert[].emoji) — the portrait fallback.\nTrack these host-defined fields for each present character (scene.presentUpsert[].customFields):\n  • Trust (0-100) — how much this NPC trusts the player\n  • Role — the NPC's function in the scene\nWhen the story crosses into a NEW act, set scene.plot (act number + a short act title); set the story title once it's clear.\nPARTY — party: ONLY mechanical changes. pool changes (poolDeltas), conditions gained/lost (addCondition/removeCondition, e.g. \"bleeding\", \"on edge\"), hp (hpDelta), and a short status line (status). A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here.\nINVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, e.g. gold). INFER what a character has on them from what the story showed — recording an item the story established (a key pocketed three turns ago) is NOT inventing.\nQUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.\nJOURNAL — journal: one short entry (type + content) for a notable beat worth logging.\nRECONCILE: when the CURRENT TRACKED STATE contradicts the story (a character shown leaving is still listed present, an outfit the story replaced), fix it in this delta. Recording facts the story states is not inventing — but never fabricate numbers, items, or events the story does not show.\n\nValid targetRef values (use EXACTLY one of these for any party/inventory/scene target): player, Alex, Aldric Vane, mira, corvin.\n\"player\" = the human's own character (currently shown as \"Alex\"); prefer \"player\" for the human.\nLocation goes in scene.location — NEVER in a widget. Never target a name not in the lists above.",
+          "type": "text"
+        }
+      ],
+      "role": "system"
+    },
+    {
+      "content": "RECENT STORY (oldest first):\nAldric Vane: Rain again. Fitting, for the night everything changes.\nGroup: \nGroup: \nGroup: \nNate: I push open the heavy tavern door and step inside out of the rain. Describe the room in vivid, immersive detail — the fire, the patrons, what catches my eye.\nAldric Vane: The door takes your shoulder to budge — swollen wood, iron hinges gone rust-orange from the flood. It opens with a sound like a held breath released.\n\n---\n\nThe Gilded Ember is warm the way a wound is warm. Low-beamed ceiling, smoke-black above the rafters, four tallow candles guttering on a central iron wheel. The hearth dominates the far wall — a proper stone mouth, fire banked high, throwing amber light that reaches halfway across the room before giving up. The rest lives in shadow.\n\nSmell hits first. Wet wool. Tallow. Something spiced and cheap in the mulled wine. Under all of it, the flood-mud that Ashfall hasn't shaken from its bones yet — that damp rot that seeps up through the floorboards and stays.\n\nMaybe a dozen souls. A pair of dockworkers at the bar, elbows down, not talking. An old woman by the fire with a cup she hasn't touched. Two men in the corner playing cards with the focused silence of people who've bet more than they should. The barkeep — heavyset, cropped grey hair, a jaw like a closed fist — polishes the same tankard he's been polishing since the flood came through.\n\nMira catches your eye first. She's already here, back pressed to the wall between a shutter and a support beam. Good sightlines to the door. To you. To the table near the fire where—\n\nCorvin Ashe sits with his legs crossed and a cup of something amber, watching you arrive the way a cat watches a mouse it isn't hungry for yet.\n\n:::card title=\"The Gilded Ember — notice board\"\n<div style=\"font-family: Georgia, 'Times New Roman', serif; background: #1a1208; border: 2px solid #5a3e1b; border-radius: 6px; padding: 20px 24px; max-width: 480px; color: #c9a96e; position: relative; box-shadow: 0 4px 24px #0009;\">\n  <div style=\"text-align:center; font-size: 1.18em; letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 1px solid #5a3e1b; padding-bottom: 8px; margin-bottom: 14px; color: #e2c07a;\">\n    The Gilded Ember — Public Board\n  </div>\n  <div style=\"font-size:0.78em; color:#a07840; text-align:right; margin-bottom:12px; font-style:italic;\">\n    14th Emberfall · Lower Ashfall\n  </div>\n  <div style=\"margin-bottom: 14px; padding: 10px 12px; background:#120d04; border-left: 3px solid #8b1a1a; border-radius:3px;\">\n    <span style=\"font-size:0.82em; text-transform:uppercase; letter-spacing:0.08em; color:#b03030;\">⚠ Flood Recovery Notice</span><br>\n    <span style=\"font-size:0.93em;\">The lower vault district remains sealed by order of the Ashfall Wardenship. Unauthorised descent is punishable by confiscation of property and detainment.</span>\n  </div>\n  <div style=\"margin-bottom: 14px; padding: 10px 12px; background:#120d04; border-left: 3px solid #4a6a3a; border-radius:3px;\">\n    <span style=\"font-size:0.82em; text-transform:uppercase; letter-spacing:0.08em; color:#6a9a50;\">Rooms Available</span><br>\n    <span style=\"font-size:0.93em;\">Two rooms. Dry. Rats are manageable. Ask Berris.</span>\n  </div>\n  <div style=\"padding: 10px 12px; background:#120d04; border-left: 3px solid #5a3e1b; border-radius:3px;\">\n    <span style=\"font-size:0.82em; text-transform:uppercase; letter-spacing:0.08em; color:#8a7040;\">Wanted — Information</span><br>\n    <span style=\"font-size:0.93em;\">Seeking any knowledge of the Vane estate holdings, pre-flood. Discretion assured. Generous finder's fee. <em style=\"color:#a07840;\">— C.A.</em></span>\n  </div>\n</div>\n:::\n\nThat last notice. Corvin's initials. Posted *before* you arrived.\n\nHe's been asking around. About your family. About your vault.\n\nHe raises his cup slightly when your eyes meet his — not quite a toast. More like a reminder that he got here first.\n\nCURRENT TRACKED STATE:\n{\"clock\":{\"day\":3,\"hour\":21,\"minute\":40},\"calendarDate\":\"14th of Emberfall, 3rd Age\",\"location\":\"The Gilded Ember tavern, lower Ashfall\",\"weather\":{\"type\":\"rain\",\"description\":\"steady rain on the shutters\"},\"presentCharacters\":[{\"key\":\"mira\",\"name\":\"Mira Solheart\",\"emoji\":\"🗡️\",\"mood\":\"guarded\",\"appearance\":\"a lean duelist in travel-worn leathers, one hand always near her hilt\",\"outfit\":\"oiled leather cuirass, a faded green cloak\",\"thoughts\":\"he talks a good game — but can he hold a line when it breaks?\",\"customFields\":{\"trust\":\"62\",\"role\":\"sellsword escort\"},\"relationship\":{\"kind\":\"ally\",\"label\":\"\"}},{\"key\":\"corvin\",\"name\":\"Corvin Ashe\",\"emoji\":\"🔥\",\"mood\":\"smug\",\"appearance\":\"a silver-tongued mage with soot under his nails and a collector's grin\",\"outfit\":\"a burnt-hem coat stitched with cooling runes\",\"thoughts\":\"the relic is mine by right — Aldric merely doesn't know it yet\",\"customFields\":{\"trust\":\"18\",\"role\":\"rival arcanist\"},\"relationship\":{\"kind\":\"custom\",\"label\":\"sworn rival\"}}],\"recentEvents\":[\"Aldric produced the tarnished vault key; the room went quiet.\",\"Corvin bought a round and named a price for his help.\",\"Mira put her back to the wall, watching the door.\"],\"actorState\":[{\"actorRef\":{\"kind\":\"user\",\"userId\":\"01kym2tmzqe8msp1n9hf7dta04\"},\"hp\":{\"value\":31,\"max\":38},\"pools\":[{\"name\":\"Mana\",\"value\":28,\"max\":40},{\"name\":\"Focus\",\"value\":20,\"max\":20},{\"name\":\"Grit\",\"value\":6,\"max\":10}],\"conditions\":[],\"inventory\":[{\"id\":\"itm-sword\",\"name\":\"Ashfall Longsword\",\"description\":\"a heirloom blade that hums faintly near old magic\",\"quantity\":1,\"location\":\"sheathed\",\"type\":\"weapon\"},{\"id\":\"itm-potions\",\"name\":\"Elixir of Mending\",\"description\":\"restores vigor; bitter as regret\",\"quantity\":3,\"location\":\"belt pouch\",\"type\":\"consumable\"},{\"id\":\"itm-key\",\"name\":\"Tarnished Vault Key\",\"description\":\"cold to the touch, etched with the sigil of House Vane\",\"quantity\":1,\"location\":\"inner pocket\",\"type\":\"key\"}],\"wallet\":[{\"name\":\"gold\",\"amount\":214},{\"name\":\"silver\",\"amount\":47}],\"status\":\"on edge\"}],\"widgetValues\":{},\"plot\":{\"act\":2,\"title\":\"The Ashfall Inheritance\",\"acts\":[{\"title\":\"A Death in Vane Keep\",\"summary\":\"the old lord dies; the vault key surfaces\"},{\"title\":\"The Rival's Bargain\",\"summary\":\"Corvin offers an alliance Aldric can't quite trust\"},{\"title\":\"What the Vault Holds\",\"summary\":\"the relic — and the price of claiming it\"}]},\"quests\":[{\"name\":\"Claim the Vault\",\"status\":\"active\",\"description\":\"reach the Vane family vault beneath the keep and open it before Corvin does\",\"objectives\":[{\"text\":\"Recover the second half of the key from the crypt\",\"completed\":true},{\"text\":\"Descend to the vault door\",\"completed\":false},{\"text\":\"Decide what to do with the relic\",\"completed\":false}]},{\"name\":\"Earn Mira's Trust\",\"status\":\"active\",\"description\":\"the sellsword follows the coin, but her loyalty is worth more\",\"objectives\":[{\"text\":\"Back her in a fight\",\"completed\":false},{\"text\":\"Keep your word once\",\"completed\":false}]}]}\nLocked by the players — do not rewrite: location, calendarDate, clock, weather, recentEvents, presentCharacters, plot, actorState, quests.01kymtzrb7e8gav49twfhs519y, quests.01kymtzrgse8gav4byeyvkwrw8.\n\nLATEST BEAT (the newest story turn above — your delta covers exactly this):\nThe barkeep doesn't look up when you enter. Doesn't need to. The room already knows you're here — that small recalibration, heads not quite turning, conversations not quite continuing.\n\nCorvin's cup stays raised a half-second longer than courtesy requires.\n\n---\n\n**\"Aldric.\"**\n\nHis voice carries without effort, the particular trick of a man trained to project across lecture halls. He says your name like it's a piece of evidence.\n\n**\"Sit. The wine is mediocre and the fire is excellent. I've paid for both.\"**\n\nMira's eyes find yours across the room — a flick, nothing more. *Your call.* She hasn't moved from the wall. Her hand isn't on her sword but it's near it, resting on her belt with a casualness that isn't casual at all.\n\nThe old woman by the fire turns her untouched cup slowly. Listening, maybe.\n\nThe rain finds a gap in the shutters and hisses against a hot ember.\n\nCorvin unfolds slightly in his chair — that studied looseness of someone who wants you to believe they're comfortable — and sets a folded paper on the table between you. Doesn't push it toward you. Just places it. Lets it sit there like a third party to the conversation.\n\n:::card title=\"Corvin's Offer — folded letter, tavern table\"\n<div style=\"font-family: Georgia, 'Times New Roman', serif; background: #1a1208; border: 2px solid #5c3d1a; border-radius: 4px; padding: 32px 36px; max-width: 520px; margin: 0 auto; position: relative; box-shadow: 0 4px 32px #000a, inset 0 0 60px #00000055;\">\n\n<div style=\"position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 28px,#2a1a0808 28px,#2a1a0808 29px);pointer-events:none;border-radius:4px;\"></div>\n\n<div style=\"text-align:center;letter-spacing:0.18em;font-size:0.72em;color:#8a6a3a;text-transform:uppercase;margin-bottom:18px;\">— private correspondence —</div>\n\n<p style=\"color:#d4b483;font-size:1.05em;line-height:1.75;margin:0 0 18px 0;\">\nAldric —\n</p>\n\n<p style=\"color:#c8a86a;font-size:0.97em;line-height:1.8;margin:0 0 18px 0;\">\nI know what is behind the vault door. I have known since the third week of my research, which is to say <em>longer than you have</em>. I also know you cannot open it without what I carry, any more than I can open it without what you carry.\n</p>\n\n<p style=\"color:#c8a86a;font-size:0.97em;line-height:1.8;margin:0 0 18px 0;\">\nThe relic inside is not an inheritance. It is a <strong style=\"color:#e8c070;\">liability</strong>. House Vane buried it for a reason your grandfather never wrote down and your father never asked about.\n</p>\n\n<p style=\"color:#c8a86a;font-size:0.97em;line-height:1.8;margin:0 0 18px 0;\">\nI am not asking for the relic. I am asking for <em>first examination</em>. Two hours with it before you decide its fate. In return I will get you through the lower ward, past the Warden's seals, and to the door itself — tonight, before whoever else is watching this tavern moves.\n</p>\n\n<p style=\"color:#c8a86a;font-size:0.97em;line-height:1.8;margin:0 0 24px 0;\">\nYou don't trust me. You shouldn't. But you need me.\n</p>\n\n<div style=\"border-top:1px solid #5c3d1a;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end;\">\n  <span style=\"color:#8a6a3a;font-size:0.82em;font-style:italic;\">written before your arrival — the ink is dry</span>\n  <span style=\"color:#d4b483;font-size:1.1em;font-family:'Palatino Linotype',serif;letter-spacing:0.08em;\">— C.A.</span>\n</div>\n\n</div>\n:::\n\n*The ink is dry.* He wrote this before he knew if you'd walk through that door tonight.\n\nWhich means he was certain you would.\n\nMira has read the room. She gives you the smallest shake of her head — not *no*, exactly. More like: *don't answer yet.*",
+      "role": "user"
+    }
+  ],
+  "model": "anthropic/claude-sonnet-4.6",
+  "plugins": [
+    {
+      "enabled": false,
+      "id": "context-compression"
+    }
+  ],
+  "provider": {
+    "order": [
+      "Anthropic"
+    ]
+  },
+  "reasoning": {
+    "effort": "none"
+  },
+  "stream": true,
+  "tool_choice": "required",
+  "tools": [
+    {
+      "function": {
+        "description": "HP, pools, conditions, status on any actor.",
+        "name": "update_party",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "targetRef": {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "player",
+                "Alex",
+                "Aldric Vane",
+                "mira",
+                "corvin"
+              ]
+            },
+            "poolDeltas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "delta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "addCondition": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "modifier": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "removeCondition": {
+              "type": "string",
+              "minLength": 1
+            },
+            "hpDelta": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "targetRef"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Items and wallet on an actor.",
+        "name": "update_inventory",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "targetRef": {
+              "type": "string",
+              "minLength": 1,
+              "enum": [
+                "player",
+                "Alex",
+                "Aldric Vane",
+                "mira",
+                "corvin"
+              ]
+            },
+            "add": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "location": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "remove": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "walletDeltas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "name",
+                  "delta"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "targetRef"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Location, time, weather, present cast, a recent beat.",
+        "name": "update_scene",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string"
+            },
+            "calendarDate": {
+              "type": "string"
+            },
+            "day": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "timeOfDay": {
+              "type": "string",
+              "enum": [
+                "dawn",
+                "morning",
+                "afternoon",
+                "evening",
+                "night",
+                "midnight"
+              ]
+            },
+            "weather": {
+              "type": "string"
+            },
+            "presentUpsert": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "emoji": {
+                    "type": "string"
+                  },
+                  "mood": {
+                    "type": "string"
+                  },
+                  "appearance": {
+                    "type": "string"
+                  },
+                  "outfit": {
+                    "type": "string"
+                  },
+                  "thoughts": {
+                    "type": "string"
+                  },
+                  "customFields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "enum": [
+                            "trust",
+                            "role"
+                          ]
+                        },
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "relationship": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "lover",
+                          "friend",
+                          "ally",
+                          "neutral",
+                          "enemy",
+                          "custom"
+                        ]
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "presentRemove": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "enum": [
+                  "player",
+                  "Alex",
+                  "Aldric Vane",
+                  "mira",
+                  "corvin"
+                ]
+              }
+            },
+            "recentEvent": {
+              "type": "string"
+            },
+            "plot": {
+              "type": "object",
+              "properties": {
+                "act": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "title": {
+                  "type": "string"
+                },
+                "actTitle": {
+                  "type": "string"
+                },
+                "actSummary": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Write a custom tracker's value.",
+        "name": "set_widget_value",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "widgetRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "widgetRef"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Create/update/complete/fail a quest.",
+        "name": "upsert_quest",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "create",
+                "update",
+                "complete",
+                "fail"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "name",
+            "action"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Log a notable beat.",
+        "name": "add_journal_entry",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "location",
+                "npc",
+                "combat",
+                "quest",
+                "item",
+                "event",
+                "note"
+              ]
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    },
+    {
+      "function": {
+        "description": "Call ONLY when the latest beat changed NOTHING trackable.",
+        "name": "no_changes",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      "type": "function"
+    }
+  ]
+}

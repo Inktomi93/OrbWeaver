@@ -1,0 +1,10 @@
+# Spike results — large transcripts + per-turn JSON. On disk, not in git.
+# Ignore-all-then-unignore-sources, so a NEW sweep dir can never be committed by accident just because
+# nobody remembered to add its prefix here (out2-medium/, f1-none-1/, … each needed a new rule otherwise).
+*/
+!.gitignore
+!*.md
+!*.mjs
+!*.json
+# …except probe OUTPUT that happens to be a flat .json rather than a directory.
+steer-out.json
