@@ -31,7 +31,7 @@ import type {
 import { normalizeFinishReason, ProviderError } from "../../../../contract";
 import { resolveChat } from "../../../../resolve-chat";
 import {
-  ANTHROPIC_CACHE_5M,
+  ANTHROPIC_CACHE_1H,
   chatHistoryText,
   effortToResponsesReasoning,
   isAnthropicModel,
@@ -50,6 +50,7 @@ import {
   resolveProviderPreferences,
   warningEvents,
   withCustomParametersDrop,
+  withToolResultErrorDrop,
 } from "./shared";
 
 const USER_ROLE = "user";
@@ -183,7 +184,7 @@ function buildResponsesBody(req: OpenRouterChatRequest, resolved: ResolvedChatKn
     ...(instructions.length > 0 ? { instructions } : {}),
     // Anthropic cacheControl is a measured no-op here (stripped by the Responses→Messages wrap); kept for
     // forward-compat. Non-Anthropic routes get the sticky promptCacheKey instead.
-    ...(isAnthropic && instructions.length > 0 ? { cacheControl: ANTHROPIC_CACHE_5M } : {}),
+    ...(isAnthropic && instructions.length > 0 ? { cacheControl: ANTHROPIC_CACHE_1H } : {}),
     ...(!isAnthropic && instructions.length > 0 ? { promptCacheKey: promptCacheKey(req.model, instructions) } : {}),
     ...(resolved.sampling.temperature !== undefined ? { temperature: resolved.sampling.temperature } : {}),
     ...(resolved.sampling.topP !== undefined ? { topP: resolved.sampling.topP } : {}),
@@ -467,8 +468,9 @@ export async function runResponsesTurn(client: OpenRouterResponsesClient, req: O
     maxOutputTokens: req.capability.output.maxTokens.max,
   });
   emitSamplingReceipt(req.params, resolved);
-  // A customParameters blob is BYOK-only and dropped loudly on the OpenRouter wire (D41 no-silent-degrade).
-  const warnings = warningEvents(withCustomParametersDrop(resolved.warnings, req.customParameters), deps.now());
+  // A customParameters blob is BYOK-only and dropped loudly on the OpenRouter wire; a tool-result `isError`
+  // flag has no slot on `function_call_output` and is dropped loudly too (D41 no-silent-degrade).
+  const warnings = warningEvents(withToolResultErrorDrop(withCustomParametersDrop(resolved.warnings, req.customParameters), req.history), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }

@@ -125,10 +125,84 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(blocks[0]).toEqual({
       type: "text",
       text: "You are a bot.",
-      cacheControl: { type: "ephemeral" },
+      cacheControl: { type: "ephemeral", ttl: "1h" },
     });
     expect(blocks[1]).toEqual({ type: "text", text: "Be terse." });
-    expect(captured.chatRequest?.["provider"]).toEqual({ order: ["Anthropic"] });
+    // The pin is order + allowFallbacks:false — `order` alone let a turn leak to Bedrock/Azure/Google,
+    // every hop a non-caching endpoint that re-bills the prefix (findings §2).
+    expect(captured.chatRequest?.["provider"]).toEqual({ order: ["Anthropic"], allowFallbacks: false });
+  });
+
+  // Findings §1: 1h is honored on the OR wire with NO anthropic-beta header, and it must survive the SDK's
+  // outbound (camelCase→snake_case) transform — the ttl living only on the pre-serialize object would buy
+  // nothing. Asserted on the TRUE wire bytes, incl. the rolling history breakpoint blocks.
+  test("the 1h cache ttl reaches the TRUE wire on every Anthropic cache block (system + history)", async () => {
+    const { client } = streamingClient(OK_STREAM);
+    const wires: Record<string, unknown>[] = [];
+    const longText = "word ".repeat(1500);
+    await runChatCompletionTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, turns: CACHE_TURNS(1024) },
+        history: Array.from({ length: 6 }, (_, i) => ({
+          role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
+          content: [{ type: "text" as const, text: longText }],
+        })),
+        historyCacheBreakpointFromEnd: 1,
+      }),
+      { ...DEPS, captureWire: (e): void => void wires.push(e.body) },
+    );
+    const messages = wires.at(0)?.["messages"] as { content: unknown }[];
+    const blocks: Record<string, unknown>[] = messages.flatMap((m) => (Array.isArray(m.content) ? (m.content as Record<string, unknown>[]) : []));
+    const cacheBlocks = blocks.filter((b) => b["cache_control"] !== undefined);
+    expect(cacheBlocks).toHaveLength(3); // the static system block + the R1 rolling pair
+    for (const block of cacheBlocks) {
+      expect(block["cache_control"]).toEqual({ type: "ephemeral", ttl: "1h" });
+    }
+  });
+
+  // D41: `isError` on a tool result has no slot on the chat-completions wire, so the flag is dropped — the
+  // model reads a failed tool result as an ordinary one. The drop is LOUD, never silent (findings §4).
+  test("a tool-result isError:true drops loudly as `tool_result_error_dropped` (D41)", async () => {
+    const onEvent = vi.fn();
+    const { client, captured } = streamingClient(OK_STREAM);
+    const result = await runChatCompletionTurn(
+      client,
+      makeRequest({
+        history: [
+          { role: "user", content: [{ type: "text", text: "go" }] },
+          { role: "assistant", content: [{ type: "tool-call", toolCallId: "call_1", name: "tick", arguments: "{}" }] },
+          { role: "tool", content: [{ type: "tool-result", toolCallId: "call_1", content: '{"err":"boom"}', isError: true }] },
+        ],
+        onEvent,
+      }),
+      DEPS,
+    );
+    // The flag is genuinely absent from the wire message (nothing invented to carry it).
+    const messages = captured.chatRequest?.["messages"] as Record<string, unknown>[];
+    expect(messages.at(-1)).toEqual({ role: "tool", toolCallId: "call_1", content: '{"err":"boom"}' });
+    expect(result.events.filter((e) => e.kind === "warning")).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "tool_result_error_dropped",
+      message: "tool-result isError ignored: the OpenRouter chat wire has no tool-result error field",
+    });
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ code: "tool_result_error_dropped" }));
+  });
+
+  test("a SUCCESSFUL tool result (no isError) emits NO tool_result_error_dropped warning", async () => {
+    const { client } = streamingClient(OK_STREAM);
+    const result = await runChatCompletionTurn(
+      client,
+      makeRequest({
+        history: [
+          { role: "user", content: [{ type: "text", text: "go" }] },
+          { role: "tool", content: [{ type: "tool-result", toolCallId: "call_1", content: '{"ok":true}' }] },
+        ],
+      }),
+      DEPS,
+    );
+    expect(result.events.filter((e) => e.kind === "warning" && e.code === "tool_result_error_dropped")).toEqual([]);
   });
 
   test("non-Anthropic: the system prompt collapses to a string + no provider pin", async () => {

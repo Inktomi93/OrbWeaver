@@ -25,6 +25,11 @@ export const WARNING_CODES = [
   // applied — OpenRouter's knobs are the modeled sampling surface (anti-sprawl); customParameters is BYOK/
   // custom-byo-only. Dropped-and-loud (D41), never silently swallowed. Emitted from the OR chat runners.
   "custom_parameters_ignored",
+  // A history `tool-result` part carried `isError:true`, which neither OpenRouter chat dialect can express
+  // (chat-completions' `tool` message is content-only; responses' `function_call_output` has no error slot)
+  // — the model reads a failed tool result as an ordinary one. Dropped-and-loud (D41), never encoded onto a
+  // wire that has no field for it. Emitted from the OR chat runners.
+  "tool_result_error_dropped",
 ] as const;
 export type WarningCode = (typeof WARNING_CODES)[number];
 
