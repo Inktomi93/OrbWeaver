@@ -6,7 +6,7 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatBooks, chatParticipants, chats, messages, worldEntries } from "@orb/db";
+import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, notStateAnchor, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -38,9 +38,16 @@ export async function isBookAttachedToChat(db: Db, chatId: ChatId, bookId: World
   return rows.length > 0;
 }
 
-/** The chat's message count — the CEL `chat.messageCount` projection (02 §1). A narrow COUNT, not a row read. */
+/** The chat's message count — the CEL `chat.messageCount` projection (02 §1). A narrow COUNT, not a row read.
+ *  VISIBLE rows only: rpg state-anchor slots (the empty-body snapshot keys `resyncFromStory`/`editSnapshot`
+ *  post) are canon but not messages, and a rule predicate like `chat.messageCount > 10` firing early because
+ *  the host resynced would be silently wrong. Same join + predicate the chat list's stats read uses. */
 export async function countChatMessages(db: Db, chatId: ChatId): Promise<number> {
-  const rows = await db.select({ count: sql<number>`count(*)` }).from(messages).where(eq(messages.chatId, chatId));
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), notStateAnchor()));
   return rows[0]?.count ?? 0;
 }
 
