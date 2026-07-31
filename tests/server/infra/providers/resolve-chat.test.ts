@@ -9,6 +9,7 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import { VERBOSITY_LEVELS } from "@orb/contracts/connection";
+import type { UserIntent } from "@orb/contracts/preset";
 import { describe } from "vitest";
 import { resolveChat } from "../../../../packages/server/src/infra/providers/resolve-chat.ts";
 import { expect, test } from "../../../support/fixtures";
@@ -339,6 +340,30 @@ describe("resolveChat — the quality dial → sampling (Proposal 2, sampling ha
 
   test("no quality + no explicit temperature ⇒ temperature stays unset (no phantom default)", () => {
     expect(resolveChat({ topP: 0.5 }, FULL).sampling.temperature).toBeUndefined();
+  });
+
+  // VER-1(d): the quality dial is typed at every call site, but the VALUE comes off a persisted preset / the
+  // wire, where an unrecognized string is possible — and the table lookup used to double-index it
+  // (`QUALITY_SAMPLING[quality][knob]`), throwing a TypeError that took the whole turn down. Both arms:
+  test("a KNOWN quality fills the dial and emits no quality warning (the guard doesn't disturb the live arm)", () => {
+    const out = resolveChat({ quality: "balanced" }, FULL);
+    expect(out.sampling.temperature).toBe(0.7);
+    expect(out.warnings).toEqual([]);
+  });
+
+  test("an UNKNOWN quality (untyped/persisted value) degrades to no-quality + warns — never throws", () => {
+    // The subject is a `quality` UserIntent cannot spell (a stale/typo'd persisted value) — no factory can make it.
+    // FABRICATION-OK: deliberate invalid-input probe.
+    const persisted = { quality: "ludicrous", topP: 0.5 } as unknown as UserIntent;
+
+    const out = resolveChat(persisted, FULL);
+
+    expect(out.sampling.temperature).toBeUndefined(); // no dial-derived default, and no crash
+    expect(out.sampling.topP).toBe(0.5); // the rest of the funnel still resolves
+    expect(out.warnings).toContainEqual({
+      code: "sampling_knob_dropped",
+      message: 'quality "ludicrous" ignored: not a known quality level (fast, balanced, deep)',
+    });
   });
 });
 
