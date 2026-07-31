@@ -20,8 +20,9 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { PresetEditorSurfaceStory, PresetEditorSwitchStory } from "./_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
+import { makeModelCapability } from "../../../../support/factories/resolved-connection";
+import { PresetEditorCapabilityFreshnessStory, PresetEditorSurfaceStory, PresetEditorSwitchStory } from "./_ct-stories";
 
 // The two fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
 // story exporting non-component consts, so the literals live in both places).
@@ -80,6 +81,48 @@ interface UpdateCall {
 function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
   return (trpc.inputs("preset.update") as UpdateCall[]).filter((call) => call.id === presetId);
 }
+
+// ── The capability-freshness pin (owner dogfood: "connected a model, the editor still said connect one
+// until I reloaded"). Connections persists `routing.roleDefaults` through the busDriven
+// `settings.updateUserSettingsSection`, so the user-bus `settingsChanged` row in data/invalidation.ts is the
+// ONLY thing that can refresh `connection.resolveChatCapability` (staleTime Infinity, no focus refetch).
+// The FIRST resolve fails (no chat connection configured) → the axis shows its connect-a-model note naming
+// the hidden knobs; after the event the second resolve succeeds and the Output knobs render with the model's
+// real caps as their blank-means-default PLACEHOLDERS.
+const CAPABILITY = makeModelCapability({
+  sampling: { temperature: { min: 0, max: 2 } },
+  output: { maxTokens: { min: 1, max: 8192 } },
+  context: { window: 32_768 },
+});
+const OUTPUT_GATE_RE = /Max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
+
+test("capability freshness — a settingsChanged tick swaps the connect-a-model note for the live Output knobs", async ({ mount, page }) => {
+  // Fail-then-succeed script (the routeTrpc header's own counter idiom): resolve #1 rejects — no chat
+  // connection configured — and every later resolve returns the capability, i.e. the user picked a model in
+  // Connections. The refetch COUNT below is what proves the invalidation seam fired; the script only decides
+  // what that refetch gets back.
+  let resolves = 0;
+  const trpc = await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: "no chat connection configured" }) : CAPABILITY),
+  });
+  const component = await mount(<PresetEditorCapabilityFreshnessStory />);
+
+  await component.getByRole("tab", { name: "Output" }).click();
+  await expect(component.getByText(OUTPUT_GATE_RE)).toBeVisible();
+  // Fire the bus tick only AFTER the mount fetch has landed — invalidating an in-flight query yields NO
+  // second call, which would make this pin pass for the wrong reason.
+  await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(1);
+
+  await component.getByRole("button", { name: "connect a chat model" }).click();
+
+  // The seam refetches the capability (proof the map row exists) and the axis re-renders with the knobs.
+  await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(2);
+  await expect(component.getByText(OUTPUT_GATE_RE)).toBeHidden();
+  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveAttribute("placeholder", "2048 (default)");
+  await expect(component.getByLabel("Max context tokens", { exact: true })).toHaveAttribute("placeholder", "32768 (full window)");
+});
 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

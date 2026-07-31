@@ -17,6 +17,7 @@ export const numberFieldVariants = tv({
     ],
     input: [
       "h-touch-target w-full min-w-0 bg-transparent text-center text-body leading-body text-foreground tabular-nums",
+      "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       DISABLED_STATE,
       "data-invalid:text-destructive",

@@ -122,8 +122,17 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // Themes live under the settings router but are a distinct read surface.
   themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],
   // User settings only — not the app/global settings. Routing/roleDefaults changes re-resolve the chat
-  // capability (the fit window), so the divider's budget refetches with the settings read.
-  settingsChanged: (_e, trpc) => [trpc.settings.getUserSettings.pathFilter(), trpc.chat.previewContextFit.pathFilter()],
+  // capability (the fit window), so the divider's budget refetches with the settings read — and so does
+  // `connection.resolveChatCapability`, the read the preset params panel gates its sampling/reasoning/output
+  // axes on (Connections writes roleDefaults through `settings.updateUserSettingsSection`, which is
+  // busDriven — without this row, picking a chat model left the editor on its connect-a-model note until a
+  // full page reload). Narrow filter, not the connection ROOT: the catalog reads under it are cold-fetch
+  // expensive and no roleDefaults edit changes them.
+  settingsChanged: (_e, trpc) => [
+    trpc.settings.getUserSettings.pathFilter(),
+    trpc.chat.previewContextFit.pathFilter(),
+    trpc.connection.resolveChatCapability.pathFilter(),
+  ],
   credentialsChanged: (_e, trpc) => [trpc.credentials.pathFilter()],
   // The chat-list + character-library recency driver, and the sole driver on the message-commit
   // terminal path (the server fans this to every present member on both canon-commit terminals and
