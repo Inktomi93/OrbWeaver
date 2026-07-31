@@ -3,12 +3,17 @@
 // membership-gated through the one `requireParticipant` chokepoint; listings are pure membership; the
 // lineage/fork walks gate per-ancestor independently (a fork grants no parent membership).
 //
-// The dry-run previews (`previewAssembly`/`peekPrompt`/`previewSection`/`getActivePresetConfig`) build the
-// assemble ctx + render through the `substrate/assembly-access` seam and return the BUILD product for
-// inspection — no turn runs, nothing persists. The two FULL-PROMPT previews (`previewAssembly`/`peekPrompt`)
-// gate at `requireHost` (matrix `host`): the assembled prompt merges every member's card at FULL, so a plain
-// member reading it would bypass the D22 `memberCardVisibility` clamp — `previewSection`/`getActivePresetConfig`
-// stay `member` (a single rendered section / the bare `PromptConfig` — no merged-card leak).
+// The dry-run previews (`previewAssembly`/`peekPrompt`/`previewSection`) build the assemble ctx + render
+// through the `substrate/assembly-access` seam and return the BUILD product for inspection — no turn runs,
+// nothing persists. ALL THREE gate at `requireHost` (matrix `host`): a RENDERED preview resolves the roster's
+// cards at FULL fidelity, so a plain member reading one bypasses the D22 `memberCardVisibility` clamp. That
+// holds per-SECTION, not just for the whole prompt — `main_prompt` renders `character.systemPrompt` (+ every
+// co-speaker's), `post_history` the postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples`
+// the card text, and the `persona` marker another human's persona description (security fix 2026-08-01:
+// `previewSection` was `member`, which made naming a section the cheap way around the two host-gated doors).
+// The two member-gated reads on this path build NO rendered bytes: `getActivePresetConfig` returns the bare
+// `PromptConfig` (preset templates, no assemble ctx), and `previewContextFit` returns only the boundary id +
+// budget numbers off a ctx it never serializes.
 //
 // Deps not on `ChatContext`: `loadParticipantViews` resolves the roster read-model; `resolveConnection`
 // resolves the model the previews need; `resolveForeignInputs` is the foreign half of the assemble ctx.
@@ -233,7 +238,14 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
 
 /** Resolve the {@link PreviewInputs} for a chat: the present roster → host + cast + personas, then the
  *  connection (`model`) + the cross-domain assemble inputs. A hostless room is unusable (leak-free
- *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` primary when supplied. */
+ *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` primary when supplied.
+ *
+ *  A preview has no TRIGGERING human (no turn is running), so `{{user}}` for the prompt-config sections binds
+ *  to the HOST's own active persona (`triggerPersonaId`) — the preview already resolves everything else under
+ *  the host (`runAsUserId`, the connection, the preset). Without it the resolver fell back to `personaIds[0]`,
+ *  the presence-order-arbitrary first present human, so a multi-human room's preview could show ANOTHER
+ *  member's persona as `{{user}}` — nondeterministic (join order) and a cross-member read on the host's
+ *  instrument. A host with no active persona still falls back to `personaIds[0]` (the resolver's own arm). */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -255,6 +267,7 @@ async function resolvePreviewInputs(
       ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
       : castIds;
   const personaIds = roster.flatMap((r) => (r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
+  const hostPersonaId = roster.find((r) => r.kind === "human" && r.userId === hostUserId)?.activePersonaId ?? null;
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
   const foreign = await deps.resolveForeignInputs({
     chatId,
@@ -262,6 +275,7 @@ async function resolvePreviewInputs(
     model: connection.model,
     anchorPersonaId,
     personaIds,
+    triggerPersonaId: hostPersonaId,
   });
   return { hostUserId, model: connection.model, capability: connection.capability, api: connection.api, castCharacterIds, personaIds, foreign };
 }
@@ -889,10 +903,15 @@ function createGetActivePresetConfig(ctx: ChatContext, deps: ReadDeps): ChatServ
 }
 
 /** `previewSection` — render ONE preset section against the live assemble ctx (the COMPOSER/editor preview).
+ *  HOST/ADMIN (`requireHost`, matrix `previewSection: "host"`): a rendered section carries the roster's cards
+ *  at FULL (`main_prompt` ← systemPrompt, `char_description` ← the card text, `persona` ← another human's
+ *  persona), so a member reading one bypasses the D22 clamp exactly as `previewAssembly`/`peekPrompt` would —
+ *  see the file header. A member-facing section preview must project through the D22 tier first; it has no
+ *  consumer today (the client's Preview tab is host-only, and this verb is not on the tRPC router at all).
  *  An unknown `sectionId` is a leak-free NOT_FOUND (the section, not the chat). */
 function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["previewSection"] {
   return async ({ principal, chatId, sectionId, speakerCharacterId }: PreviewSectionParams): Promise<SectionPreview> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
+    const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
