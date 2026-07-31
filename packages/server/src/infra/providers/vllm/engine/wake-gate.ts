@@ -1,19 +1,31 @@
 // The AUTO-WAKE pre-dispatch gate (B.6/B.7). A request sent to a SLEEPING engine silently QUEUES (never
 // errors — B.1), so the gate MUST run BEFORE dispatch, never react to an error. Every role's dispatch funnels
-// through client.ts's enginePost/engineStream, which calls `ensureAwake` first: a cheap process-local status
-// read (no per-request HTTP) decides if a wake is needed; when it is, a SINGLE-FLIGHT per-engine wake runs the
-// VRAM headroom + hold-marker gate (decideWake), then POST /wake_up + poll until ready, then the caller
-// dispatches. A refusal (held marker, or insufficient VRAM) throws a typed NON-retryable ProviderError
-// carrying the holder-naming message verbatim — a GREAT error ("engine cannot wake: GPU0 held by python3
-// (pid …, 38GiB)"), never a CUDA OOM. The orphan reconcile runs FIRST so a dead engine's own core is reaped
-// as ours, never named as a foreign tenant.
+// through client.ts's enginePost/engineStream, which calls `ensureAwake` first.
+//
+// SLEEP DETECTION IS HONEST (the 2026-07-31 live bug): the gate asks the ENGINE (`GET /is_sleeping`), never
+// `/health` and no longer the supervisor's process-local status registry. Both of those LIE about a slept
+// engine — /health answers 200 while asleep, and the registry only learns "sleeping" if this process runs a
+// supervisor, with sleepMode on, within its 21s tick (a fleet slept by the CLI verb, by another worktree's
+// stack, or before this server booted reads `adopted`/`undefined` forever → the gate no-op'd and the turn hung
+// on a paused scheduler). The probe is COLD-GATED by a short-TTL awake cache, so a warm engine costs one
+// process-local map read per request and one loopback GET per {@link AWAKE_TTL_MS} window; staleness only ever
+// costs one extra probe (the TTL is two orders of magnitude below the auto-sleep idle floor, so a request
+// can't fall inside the cache window of an engine that just auto-slept).
+//
+// On a sleeping engine a SINGLE-FLIGHT per-engine wake runs the VRAM headroom + hold-marker gate (decideWake),
+// then POST /wake_up + poll until ready (~3s), then the caller dispatches. A refusal (held marker, or
+// insufficient VRAM) throws a typed non-retryable ProviderError naming the engine STATE + the holder verbatim
+// — a GREAT error ("vllm gen engine is asleep (sleeping-held) and cannot wake: engines held …"), never a CUDA
+// OOM, never a hang, never a silent no-op. The orphan reconcile runs FIRST so a dead engine's own core is
+// reaped as ours, never named as a foreign tenant. Every arm LOGS (the live bug was also invisible: the
+// production deps never wired a logger).
 
 import process from "node:process";
 import { env } from "#foundation/env";
+import { getLog } from "#foundation/observability";
 import { ProviderError } from "../../contract";
-import { getEngineStatus } from "./engine-status";
 import type { VLLM_ENGINES } from "./engines";
-import { decideWake, fleetRunDir, isHeld, postWakeAndAwait } from "./fleet-control";
+import { decideWake, fleetRunDir, getIsSleeping, isHeld, postWakeAndAwait } from "./fleet-control";
 import { countGpus } from "./gpu";
 import { reapOrphanedFamily } from "./reaper";
 import type { EngineUtilFractions } from "./wake-budget";
@@ -21,7 +33,12 @@ import { queryGpuVram } from "./wake-budget";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
-const SLEEP_STATUSES = new Set(["sleeping", "sleeping-held"]);
+/** How long an honest "not sleeping" observation is trusted before the next probe. Chosen against the
+ *  auto-sleep idle FLOOR (VLLM_AUTO_SLEEP_IDLE_MS, 10 minutes by default): an engine cannot fall asleep
+ *  inside this window after serving traffic, so the cache can't hand a request to a freshly-slept engine.
+ *  It only bounds the wasted probes on a hot chat (one GET per engine per 10s). */
+const AWAKE_TTL_MS = 10_000;
+
 const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** The launch-floor util fractions (the SAME source the serve argv reads, so the wake footprint can't drift
@@ -39,6 +56,8 @@ function utilFractions(): EngineUtilFractions {
 /** The injectable I/O the wake gate needs (real impls default; tests inject fakes). */
 export interface WakeGateDeps {
   readonly repoRoot: string;
+  /** The HONEST sleep probe — `GET /is_sleeping` on the engine itself (never /health, never the registry). */
+  readonly isSleeping: (engine: VllmEngine) => Promise<boolean>;
   readonly reap: (repoRoot: string) => Promise<number[]>;
   readonly queryGpu: typeof queryGpuVram;
   readonly wakeAndAwait: (engine: VllmEngine) => Promise<boolean>;
@@ -50,11 +69,15 @@ export interface WakeGateDeps {
 function defaultDeps(): WakeGateDeps {
   return {
     repoRoot: process.cwd(),
+    isSleeping: getIsSleeping,
     reap: reapOrphanedFamily,
     queryGpu: queryGpuVram,
     wakeAndAwait: (engine) => postWakeAndAwait(engine, { now: Date.now, sleep: realSleep }),
     held: (repoRoot) => isHeld(fleetRunDir(repoRoot)),
     now: Date.now,
+    // The live bug was INVISIBLE as well as broken — production never wired a logger, so a refused/attempted
+    // wake left zero trace. Every arm now lands in the server log under the supervisor's component name.
+    log: (msg, fields) => getLog().child({ component: "vllm-engines" }).info(fields, msg),
   };
 }
 
@@ -65,44 +88,58 @@ function defaultDeps(): WakeGateDeps {
 // fans across hosts, the single-flight seam moves to a per-host lock keyed on the engine's run dir.
 const inFlight = new Map<VllmEngine, Promise<void>>();
 
+// The cold gate on the honest probe: epoch-ms through which each engine was OBSERVED awake (see AWAKE_TTL_MS).
+// ASSUMES(single-replica): same reasoning as `inFlight` — per-process, and the engines are host-local.
+const awakeUntil = new Map<VllmEngine, number>();
+
 /** Perform the wake once (single-flighted by the caller): reconcile → hold+VRAM gate → wake+wait. Throws a
  *  non-retryable ProviderError on a refusal (held / no headroom) or a wake timeout. */
 async function performWake(engine: VllmEngine, deps: WakeGateDeps): Promise<void> {
   // Reconcile FIRST so a dead engine's own core is reaped as ours, never named as a foreign tenant.
   await deps.reap(deps.repoRoot);
+  const held = deps.held(deps.repoRoot);
   const decision = decideWake(engine, {
-    held: deps.held(deps.repoRoot),
+    held,
     gpuCount: countGpus(),
     util: utilFractions(),
     gpus: await deps.queryGpu(),
   });
   if (!decision.ok) {
-    deps.log?.("vllm-engines: wake refused", { engine, reason: decision.reason });
+    // The HOLD is an owner POSTURE (`pnpm engines:sleep` = "stay down for the tenant that hasn't grabbed its
+    // VRAM yet"), never something a stray turn may override — so it refuses like a headroom shortfall, but
+    // names the DISTINCT state (`sleeping-held`) so the operator reads "your hold did this", not "no VRAM".
+    const state = decision.heldMarker ? "sleeping-held" : "sleeping";
+    deps.log?.("vllm-engines: wake refused", { engine, state, reason: decision.reason });
     throw new ProviderError({
       kind: "server",
       retryable: false, // backoff can't free someone else's VRAM (or clear a manual hold) — the user acts.
-      message: `vllm ${engine} engine cannot wake: ${decision.reason}`,
+      message: `vllm ${engine} engine is asleep (${state}) and cannot wake: ${decision.reason}`,
     });
   }
-  deps.log?.("vllm-engines: waking", { engine });
+  deps.log?.("vllm-engines: waking on demand", { engine });
   const woke = await deps.wakeAndAwait(engine);
   if (!woke) {
     throw new ProviderError({
       kind: "server",
       retryable: true, // a wake that ran long once may succeed on retry (transient PCIe/scheduler pressure).
-      message: `vllm ${engine} engine waking timed out — aborted so the caller's request doesn't hang on a paused scheduler.`,
+      message: `vllm ${engine} engine is asleep and waking timed out — aborted so the caller's request doesn't hang on a paused scheduler.`,
     });
   }
-  deps.log?.("vllm-engines: woke", { engine });
+  deps.log?.("vllm-engines: woke on demand", { engine });
 }
 
-/** Pre-dispatch gate: if the status registry says this engine is sleeping, wake it (single-flight, gated)
- *  before the caller dispatches. A no-op for a non-sleeping engine (the cheap common path — one process-local
- *  read, no HTTP). `deps` is injected in tests; production uses the real I/O. Throws on a wake refusal/timeout. */
+/** Pre-dispatch gate: ask the engine whether it is asleep (cold-gated by the awake cache) and, if it is, wake
+ *  it (single-flight, VRAM/hold-gated) before the caller dispatches. `deps` is injected in tests; production
+ *  uses the real loopback I/O. Throws a named ProviderError on a wake refusal/timeout — never returns while
+ *  the engine is still asleep. */
 export async function ensureAwake(engine: VllmEngine, deps: WakeGateDeps = defaultDeps()): Promise<void> {
-  const status = getEngineStatus(engine)?.status;
-  if (status === undefined || !SLEEP_STATUSES.has(status)) {
-    return; // awake (or unknown — the supervisor hasn't marked it sleeping) → dispatch straight through.
+  const until = awakeUntil.get(engine);
+  if (until !== undefined && deps.now() < until) {
+    return; // observed awake within the TTL — dispatch straight through (no HTTP).
+  }
+  if (!(await deps.isSleeping(engine))) {
+    awakeUntil.set(engine, deps.now() + AWAKE_TTL_MS);
+    return; // the engine itself says it is awake (a down engine also lands here — the dispatch maps that error).
   }
   const existing = inFlight.get(engine);
   if (existing !== undefined) {
@@ -112,4 +149,11 @@ export async function ensureAwake(engine: VllmEngine, deps: WakeGateDeps = defau
   const promise = performWake(engine, deps).finally(() => inFlight.delete(engine));
   inFlight.set(engine, promise);
   await promise;
+  awakeUntil.set(engine, deps.now() + AWAKE_TTL_MS);
+}
+
+/** @internal test seam — drop the awake cache so a spec can drive cold/warm transitions (mirrors the
+ *  vllm-window cache's reset seam). Never called by production code. */
+export function __resetWakeGateCache(): void {
+  awakeUntil.clear();
 }
