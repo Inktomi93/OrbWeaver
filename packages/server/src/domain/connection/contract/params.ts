@@ -46,15 +46,6 @@ export interface ResolveChatCapabilityParams {
   readonly principal: Principal;
 }
 
-/** `getModelCapability(params)` — resolve the ONE descriptor for a `(model, source, api)` (feeds the params
- *  panel + an active request). `model` is a curated branded id OR a plain OR id; `source` selects the arm;
- *  `api` drives the wire-shape the `turns` cell keys on (D66, part 01 §3). */
-export interface GetModelCapabilityParams {
-  readonly model: ModelId | string;
-  readonly source: CredentialSource;
-  readonly api: ChatApi;
-}
-
 /** `getModelsForSource(params)` — the read-only Connections picker facade (CONNECTIONS-BUILD-SPEC §2.2).
  *  Reads snapshots/config/state ONLY — ZERO outbound fetch (the SSRF-guarded probes stay on the
  *  `.mutation()`s). `principal` gates `max-pro-sub` (owner) + resolves the per-source credential presence;

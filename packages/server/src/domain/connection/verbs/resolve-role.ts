@@ -208,10 +208,10 @@ async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleP
 
 /** Resolve the caller's OWN chat-role capability descriptor END-TO-END (selection → ModelCapability) in ONE
  *  server hop — the client params-panel + the rpg lite gate consume ONLY the capability, so this collapses
- *  the former selection→getModelCapability round-trip. Reuses the SAME selector as `resolveRole` (a vLLM
- *  default resolves identically to the engine) + the SAME `resolveCapability` mediator as `getModelCapability`
- *  (no duplication). Credential-free: the chat role reads the static descriptor as authoritative
- *  (matching `getModelCapability`). */
+ *  the former selection→descriptor round-trip (the standalone `getModelCapability` verb it superseded was
+ *  deleted 2026-07-31, AU-5). Reuses the SAME selector as `resolveRole` (a vLLM default resolves identically
+ *  to the engine) + the `resolveCapability` substrate mediator (no duplication). Credential-free: the chat
+ *  role reads the static descriptor as authoritative. */
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
   return async (params: ResolveChatCapabilityParams): Promise<ModelCapability> => {
     // Role is FIXED to "chat" here and the principal is the ONLY input — there is no caller-supplied user id

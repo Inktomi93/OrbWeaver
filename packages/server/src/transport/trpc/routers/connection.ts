@@ -4,7 +4,7 @@
 // verbs are internal (chat's turn path, P5) — NOT exposed here. `source` derives from the credentials axis
 // (`CredentialSource`, re-exported verbatim by connection).
 
-import { chatApiSchema, routingRoleKeySchema } from "@orb/contracts/connection";
+import { routingRoleKeySchema } from "@orb/contracts/connection";
 import { credentialSourceSchema } from "@orb/contracts/credentials";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc";
@@ -28,16 +28,6 @@ export const connectionRouter = t.router({
   // resolves the same in the UI as at turn time. Reads the acting principal's settings ONLY (no input) —
   // cross-tenant-safe by construction; the internal `resolveRole`/`resolveChat` verbs stay unexposed.
   resolveChatCapability: authedProcedure.query(({ ctx }) => ctx.services.connection.resolveChatCapability({ principal: ctx.auth })),
-
-  getModelCapability: authedProcedure
-    .input(z.object({ model: z.string().min(1), source: credentialSourceSchema, api: chatApiSchema }))
-    .query(({ ctx, input }) =>
-      ctx.services.connection.getModelCapability({
-        model: input.model,
-        source: input.source,
-        api: input.api,
-      }),
-    ),
 
   refreshCatalog: adminProcedure.mutation(({ ctx, signal }) => ctx.services.connection.refreshCatalog({ signal })),
 

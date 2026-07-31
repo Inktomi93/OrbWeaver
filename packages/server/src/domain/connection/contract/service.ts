@@ -14,7 +14,6 @@ import type {
   CheckChatAvailabilityParams,
   GetCatalogParams,
   GetGenerationCostParams,
-  GetModelCapabilityParams,
   GetModelsForSourceParams,
   GetOrCreditsParams,
   RefreshCatalogParams,
@@ -119,13 +118,13 @@ export interface ConnectionService {
   readonly resolveChat: (params: ResolveChatParams) => Promise<ResolvedConnection>;
   /** The caller's OWN chat-role `ModelCapability`, resolved END-TO-END in one hop (selection → descriptor) —
    *  the client params-panel + rpg lite gate read this directly (a vLLM-default chat resolves the same as the
-   *  engine). Collapses the former selection→getModelCapability round-trip. */
+   *  engine). Collapses the former selection→descriptor round-trip (it superseded the standalone
+   *  `getModelCapability` verb, deleted 2026-07-31 — AU-5). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ModelCapability>;
   /** The deterministic pre-send serveability verdict for a chat's OWN resolved connection (#54) — "would
    *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn/API call?" Mirrors the turn's
    *  selection + coherence + credential-presence + engine-presence and NEVER pre-flights a hosted api. */
   readonly checkChatAvailability: (params: CheckChatAvailabilityParams) => Promise<ChatSendAvailability>;
-  readonly getModelCapability: (params: GetModelCapabilityParams) => Promise<ModelCapability>;
   /** Derive the mode-2 (OR-Anthropic skin) tier→OpenRouter-slug map from the two live catalogs this domain
    *  holds. Never throws — a cold catalog degrades to the curated shortlist. */
   readonly getOrSkinTierModels: () => Promise<OrSkinTierModels>;

@@ -909,7 +909,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "discovery.themeDetail": "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
   "connection.getCatalog": "not-owned: the deployment-global model catalog",
   "connection.getAgentSdkCatalog": "not-owned: the deployment-global agent-sdk daemon model catalog (no id, authed browse)",
-  "connection.getModelCapability": "not-owned: a model/source lookup, no owned id",
   "connection.resolveChatCapability":
     "self-scoped: resolves the caller's OWN chat-role ModelCapability from principal.userId's settings — " +
     "NO input at all (no caller-supplied user id/role), so there is no foreign id to probe",

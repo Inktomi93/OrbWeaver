@@ -9,7 +9,6 @@ import { createCheckChatAvailability } from "./verbs/check-chat-availability";
 import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog";
 import { createGetCatalog } from "./verbs/get-catalog";
 import { createGetGenerationCost } from "./verbs/get-generation-cost";
-import { createGetModelCapability } from "./verbs/get-model-capability";
 import { createGetModelsForSource } from "./verbs/get-models-for-source";
 import { createGetOrCredits } from "./verbs/get-or-credits";
 import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models";
@@ -28,7 +27,6 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     resolveChat,
     resolveChatCapability: createResolveChatCapability(ctx),
     checkChatAvailability: createCheckChatAvailability(ctx, resolveChat),
-    getModelCapability: createGetModelCapability(ctx),
     getModelsForSource: createGetModelsForSource(ctx),
 
     getOrSkinTierModels: createGetOrSkinTierModels(ctx),
