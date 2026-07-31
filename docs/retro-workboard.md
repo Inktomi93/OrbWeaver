@@ -418,6 +418,15 @@ thread the roster render policy, W-H/side-eye adjacent). CSP flags accepted as s
 wildcard (per-load click-to-load remains the consent layer) · per-character opt-in above a blocking
 deployment stays (labeled in UI; owner may later rule tighten-only).
 
+**DRAFT LANE MERGED `d47a0a03`** (report not reproducible — pipeline shared; REAL fix = draft macro
+context now resolves the true persona via the server's seed chain). QUEUED FROM ITS FLAGS:
+**DRAFT-TRUST** — the likely true cause of the owner's sighting: draft = untrusted floor (strips
+<i>/<b> HTML that ST-imported cards use) vs committed trustHtml renders it; needs a "what policy would
+this card get" server seam (architecture call) · **DRAFT-CAST UNION** — DraftGreetingThread uses
+seed.characterIds only while commit unions addedCharacterIds (panel-added character shows no greeting
+row pre-commit; cheap) · confirmed again: quote-tint = nonexistent (--color-dialogue's only consumers
+are two preview swatches — QUOTE-1 stands); autoFixMarkdown honored on greetings both arms (pinned).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
