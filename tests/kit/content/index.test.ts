@@ -165,6 +165,55 @@ describe("directive fences (§3.2b — registry-driven)", () => {
     }
   });
 
+  // The `committed` EOF-close arm (the RV-2 root cause): a FINAL body's unterminated registered fence
+  // closes at EOF, so a truncated or nested-closer card still renders + still stubs on the wire. A live
+  // stream never opts in, so mid-stream behavior is byte-identical to before.
+  describe("committed: an unterminated fence closes at EOF (degrade PRESERVING value)", () => {
+    const truncated = ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New';
+
+    test("truncated card + committed → a card span whose body is the surviving tail; streaming → unchanged literal", () => {
+      expect(tokenizeContent(truncated, { committed: true })).toEqual<ContentSpan[]>([
+        { kind: "card", title: "Ashfell Night Market", body: "\n<div style=\"font-family: 'Courier New", origin: "fence", raw: truncated },
+      ]);
+      expect(tokenizeContent(truncated)).toEqual<ContentSpan[]>([{ kind: "text", text: truncated }]);
+    });
+
+    // The LIVE repro (chat_01kym4aq7…): the model opened a card, wrote prose, then opened `:::choices`
+    // INSIDE it and spent the single closer on the inner fence — the outer card never closed, so the whole
+    // message degraded to raw fence text in the transcript with nothing in the archive.
+    test("nested-closer repro + committed → ONE card at EOF; the swallowed choices ride the card body as text", () => {
+      const body = ':::card title="The Blade’s Whisper"\n\nA flicker of steel.\n\n:::choices\n1. Demand answers\n2. Walk away\n:::';
+      const spans = tokenizeContent(body, { committed: true });
+      expect(spans).toHaveLength(1);
+      expect(spans[0]).toMatchObject({ kind: "card", title: "The Blade’s Whisper", origin: "fence" });
+      // HONEST rendering of the model's mistake: the card owns the tail, so the nested block is card content
+      // (flat text inside the sandboxed body), NOT a second interactive choices block outside it.
+      expect(spans[0]).toMatchObject({ body: expect.stringContaining(":::choices") });
+      // Untouched without the flag: the inner fence parses and the card open line stays literal prose.
+      expect(tokenizeContent(body).map((s) => s.kind)).toEqual(["text", "choices"]);
+    });
+
+    test("the re-emit invariant survives the EOF close (raw joins back to the exact body)", () => {
+      for (const body of [truncated, ':::card title="t"\n<p>x</p>', "prose then\n:::choices\n1. one"]) {
+        expect(tokenizeContent(body, { committed: true }).map(contentSpanRaw).join("")).toBe(body);
+      }
+    });
+
+    test("an UNREGISTERED unterminated fence stays literal even when committed — closing it would HIDE the tail", () => {
+      // `unknown-directive` is the allowlist-STRIP class: EOF-closing `:::teleport` would erase the rest of
+      // the message from the reading surface. Only registered names get the EOF close.
+      const body = ':::teleport to="the crypt"\nthe tail the reader must still see';
+      expect(tokenizeContent(body, { committed: true })).toEqual<ContentSpan[]>([{ kind: "text", text: body }]);
+    });
+
+    test("WIRE PLANE (D110 §3): an EOF-closed card STUBS exactly like a terminated one — no raw blob on the wire", () => {
+      // The security/cost-relevant half: the same body that now renders must ALSO collapse to `[card: …]`
+      // in the summary/wire projection, never ride the prompt verbatim.
+      expect(projectBodyForSummary(truncated)).toBe(cardWireStub("Ashfell Night Market"));
+      expect(projectBodyForSummary(`before\n${truncated}`)).toBe(`before\n${cardWireStub("Ashfell Night Market")}`);
+    });
+  });
+
   test("§3.2.1 #3: a fence inside a markdown code fence stays literal", () => {
     const body = "```\n:::card\n<div>x</div>\n:::\n```";
     expect(tokenizeContent(body)).toEqual<ContentSpan[]>([{ kind: "text", text: body }]);

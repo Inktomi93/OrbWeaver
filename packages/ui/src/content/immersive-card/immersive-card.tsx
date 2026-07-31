@@ -3,13 +3,15 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "#primitives/collapsible";
 import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
-import { Code, Expand, Icon } from "#primitives/icons";
+import { ChevronDown, ChevronUp, Code, Expand, Icon } from "#primitives/icons";
 import { SandboxFrame, useSandboxTheme } from "../sandbox-frame";
 import { immersiveCardVariants } from "./variants";
 
-// The inline (collapsed) render height — mirrors the SandboxFrame default; the expand affordance is the
-// "see it big" path, so the inline card stays a bounded strip in the transcript.
+// The inline render height — mirrors the SandboxFrame default; the expand affordance is the "see it big"
+// path, so the inline card stays a bounded strip in the transcript (and the collapse affordance takes it
+// down to the bare title bar).
 const DEFAULT_HEIGHT_PX = 320;
 
 const UNTITLED_LABEL = "Immersive card";
@@ -66,15 +68,20 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
 }
 
 /**
- * `<ImmersiveCard>` — the tierB card LIFECYCLE chrome (parity-plus §4.7): the collapsed inline sandbox
- * with a header band, a VIEW-RAW toggle (the exact stored source in a code view — the in-lore "read the
- * code the character wrote" arm and the lenient-wrap safety valve), and an EXPAND affordance (a dialog
- * lightbox at full shell size, labelled by the card title). The security boundary is entirely
- * `SandboxFrame`'s (one sandbox home); this component is chrome + state only.
+ * `<ImmersiveCard>` — the tierB card LIFECYCLE chrome (parity-plus §4.7): the inline sandbox with a header
+ * band, a COLLAPSE disclosure down to the bare title bar (the §4.7 "formed-collapsed" state — RV-1: a card
+ * a reader is done with stops eating the transcript), a VIEW-RAW toggle (the exact stored source in a code
+ * view — the in-lore "read the code the character wrote" arm and the lenient-wrap safety valve), and an
+ * EXPAND affordance (a dialog lightbox at full shell size, labelled by the card title). The security
+ * boundary is entirely `SandboxFrame`'s (one sandbox home); this component is chrome + state only.
+ *
+ * Collapse is PER-VIEWER CLIENT state, like the raw/lightbox toggles beside it: a fresh render of the row
+ * is born open, so the keep-last-X wire rules and the forming-card placeholder are untouched by it.
  */
 export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEIGHT_PX, className }: ImmersiveCardProps): ReactElement {
   const [showRaw, setShowRaw] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(true);
   const slots = immersiveCardVariants();
   const label = title !== undefined && title !== "" ? title : UNTITLED_LABEL;
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
@@ -96,7 +103,7 @@ export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEI
   );
 
   return (
-    <div className={cn(slots.root(), className)} data-slot="immersive-card" data-origin={origin}>
+    <Collapsible open={open} onOpenChange={setOpen} className={slots.root({ className })} data-slot="immersive-card" data-origin={origin}>
       <div className={slots.header()} data-slot="immersive-card-header">
         <span className={slots.title()} data-slot="immersive-card-title">
           ✦ {label}
@@ -106,12 +113,25 @@ export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEI
             auto
           </span>
         ) : null}
-        {rawToggle}
+        {/* View-raw acts on the inline BODY, so it is inapplicable while the card is collapsed to its title
+            bar (applicability-omit, never a disabled twin). The lightbox has its own copy. */}
+        {open ? rawToggle : null}
         <Button intent="ghost" size="icon" aria-label="Expand card" title="Expand card" onClick={(): void => setExpanded(true)}>
           <Icon icon={Expand} size="sm" />
         </Button>
+        {/* The disclosure — Base UI owns `aria-expanded`/`aria-controls` + the keyboard; the chrome stays the
+            header's uniform ghost icon button (`chevron={false}` — this IS the chevron). */}
+        <CollapsibleTrigger
+          chevron={false}
+          render={<Button intent="ghost" size="icon" aria-label={open ? "Collapse card" : "Show card"} title={open ? "Collapse card" : "Show card"} />}
+          data-slot="immersive-card-collapse"
+        >
+          <Icon icon={open ? ChevronUp : ChevronDown} size="sm" />
+        </CollapsibleTrigger>
       </div>
-      <CardBody fill={false} {...bodyProps} />
+      <CollapsiblePanel data-slot="immersive-card-panel">
+        <CardBody fill={false} {...bodyProps} />
+      </CollapsiblePanel>
       <Dialog open={expanded} onOpenChange={setExpanded}>
         <DialogPopup size="xl" className="gap-row">
           <div className={slots.lightboxHeader()} data-slot="immersive-card-lightbox-header">
@@ -123,6 +143,6 @@ export function ImmersiveCard({ html, css, title, origin, heightPx = DEFAULT_HEI
           </div>
         </DialogPopup>
       </Dialog>
-    </div>
+    </Collapsible>
   );
 }

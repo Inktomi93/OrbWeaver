@@ -6,17 +6,17 @@
 // DIRECTLY (lockdown §12 — the transcript surface shares this exact cache key, so this is a cache read).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import type { ArchivedCard } from "../lib/archived-cards";
 import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { RpgCardRow } from "./rpg-card-row";
+import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { Kicker } from "./rpg-kicker";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
@@ -49,8 +49,10 @@ export interface RpgSceneCardsProps {
   readonly enabled: boolean;
 }
 
-/** The card-archive section (parity-plus P4). Renders nothing when the game's immersiveHtml option is off or
- *  the transcript holds no cards (applicability, never a disabled twin). */
+/** The card-archive section (parity-plus P4). Renders nothing when the game's immersiveHtml option is OFF
+ *  (applicability, never a disabled twin); with cards ON but none written yet it renders the honest empty
+ *  doorway — the section is silent-when-empty ONLY for a game that can't have cards at all (RV-2: an
+ *  invisible section reads as an absent feature, and the Journal "Cards" scope already words this state). */
 export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactElement | null {
   const trpc = useTRPC();
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled });
@@ -61,17 +63,18 @@ export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactEle
   // Newest first — Scene is the birth home; Journal archives the same cards into their day groups.
   const cards = [...collectArchivedCards(messagesQuery.data?.messages ?? [])].reverse();
   if (cards.length === 0) {
-    return null;
+    return (
+      <Stack gap="field" data-slot="rpg-card-archive">
+        <Kicker>Cards</Kicker>
+        <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>
+      </Stack>
+    );
   }
   return (
     <Stack gap="field" data-slot="rpg-card-archive">
       <Kicker>Cards — {cards.length}</Kicker>
       {cards.map((card) => (
-        <Button key={card.key} intent="ghost" size="sm" className="justify-start" onClick={(): void => setOpenKey(card.key)}>
-          <Text size="label" className="truncate">
-            ✦ {cardLabel(card.title)}
-          </Text>
-        </Button>
+        <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}
       <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
     </Stack>

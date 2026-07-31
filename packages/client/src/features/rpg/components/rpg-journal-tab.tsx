@@ -43,7 +43,8 @@ import { timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations";
 import type { ArchivedCard } from "../lib/archived-cards";
-import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
+import { collectArchivedCards } from "../lib/archived-cards";
+import { RpgCardRow } from "./rpg-card-row";
 import { Kicker } from "./rpg-kicker";
 import { RpgCardLightbox } from "./rpg-scene-cards";
 
@@ -91,17 +92,6 @@ interface BeatEdit {
 type ChronicleRow =
   | { readonly kind: "beat"; readonly key: string; readonly type: string; readonly title: string; readonly content: string }
   | { readonly kind: "card"; readonly card: ArchivedCard };
-
-/** One archived-card row — the artifact title line (✦ chrome voice); opens the sandboxed card. */
-function CardRow({ card, onOpen }: { readonly card: ArchivedCard; readonly onOpen: (key: string) => void }): ReactElement {
-  return (
-    <Button intent="ghost" size="sm" className="justify-start" onClick={(): void => onOpen(card.key)} data-slot="rpg-journal-card-row">
-      <Text size="label" className="truncate">
-        ✦ {cardLabel(card.title)}
-      </Text>
-    </Button>
-  );
-}
 
 /** One plain BEAT — a bullet line (§3: cards are reserved for artifacts): the type label, the title, then the
  *  body in the same muted voice. The em-dash marker is BeatLine's own. For a host the title/content are
@@ -257,7 +247,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
           <Kicker>{day}</Kicker>
           {dayRows.map((row) =>
             row.kind === "card" ? (
-              <CardRow key={row.card.key} card={row.card} onOpen={setOpenKey} />
+              <RpgCardRow key={row.card.key} card={row.card} onOpen={setOpenKey} />
             ) : (
               <BeatRow key={row.key} row={row} {...(edit === undefined ? {} : { edit })} />
             ),
@@ -279,7 +269,7 @@ function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): R
   return (
     <Stack gap="field">
       {newestFirst.map((card) => (
-        <CardRow key={card.key} card={card} onOpen={setOpenKey} />
+        <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}
       <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
     </Stack>
