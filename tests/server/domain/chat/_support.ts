@@ -189,6 +189,9 @@ export async function seedMessage(
     readonly personaId?: PersonaId | null;
     readonly excludedFromPrompt?: boolean;
     readonly content?: string;
+    /** The selected variant's DURABLE reasoning trace (`message_variants.reasoning` — what a completed turn
+     *  persists and `MessageView.reasoning` serves). Omitted ⇒ null, the no-reasoning row. */
+    readonly reasoning?: string | null;
     /** Stamp the selected variant's fit-boundary provenance (the earliest-KEPT message id the turn that
      *  produced this row committed) — the recall live-window cutoff reads the newest assistant row's stamp. */
     readonly contextBoundaryMessageId?: MessageId | null;
@@ -212,6 +215,7 @@ export async function seedMessage(
     messageId,
     idx: 0,
     content: overrides.content ?? `body-${seq}`,
+    reasoning: overrides.reasoning ?? null,
     ...(overrides.contextBoundaryMessageId !== undefined ? { contextBoundaryMessageId: overrides.contextBoundaryMessageId } : {}),
     createdAt: FROZEN_AT,
   });

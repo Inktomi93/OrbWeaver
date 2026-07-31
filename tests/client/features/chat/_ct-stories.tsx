@@ -181,6 +181,12 @@ export interface MessageRowStoryProps {
   readonly metadataVisibility?: MessageMetadataVisibility;
   /** The row's persisted tool exchanges (D48) — omitted ⇒ `[]`, the non-tool turn every other story drives. */
   readonly toolCalls?: readonly ToolCallRecord[];
+  /** The DURABLE reasoning trace (`MessageView.reasoning`) a completed turn persisted. Omitted/null ⇒ the
+   *  no-reasoning row AND the §3.6-stripped shape a member of a deception game receives — both must render
+   *  no disclosure at all. */
+  readonly reasoning?: string | null;
+  /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref. */
+  readonly showLLMReasoningIcon?: boolean;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -203,6 +209,8 @@ export function MessageRowStory({
   showInChatAvatars,
   metadataVisibility,
   toolCalls,
+  reasoning = null,
+  showLLMReasoningIcon,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -236,8 +244,18 @@ export function MessageRowStory({
     <CtDataProviders>
       <MessageThreadAnchor>
         <MessageRow
-          message={makeMessageView({ role: messageRole, content, characterId, personaId, tokensOut: 128, model: "ct/model-x", toolCalls: toolCalls ?? [] })}
+          message={makeMessageView({
+            role: messageRole,
+            content,
+            characterId,
+            personaId,
+            tokensOut: 128,
+            model: "ct/model-x",
+            toolCalls: toolCalls ?? [],
+            reasoning,
+          })}
           chatStyle={chatStyle}
+          showLLMReasoningIcon={showLLMReasoningIcon}
           metadataVisibility={metadataVisibility}
           avatarSize={avatarSize}
           avatarShape={avatarShape}

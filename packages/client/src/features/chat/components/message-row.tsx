@@ -31,6 +31,7 @@ import {
   renderRowAvatar,
   renderRowBubble,
   renderRowIdentity,
+  renderRowReasoning,
   renderRowSwipe,
   resolveRowContent,
 } from "./message-row-parts";
@@ -70,6 +71,9 @@ export interface MessageRowProps {
    *  Fork/Delete/Hide are suppressed (no server row). Body/attribution render identically to committed. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
+  /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
+   *  as the surface threads it to the live ghost row. */
+  readonly showLLMReasoningIcon?: boolean | undefined;
   /** Undefined ⇒ every metadata chip hidden. */
   readonly metadataVisibility?: MessageMetadataVisibility | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
@@ -135,6 +139,7 @@ export function MessageRow({
   onChatForked,
   greeting,
   autoFixMarkdown,
+  showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
   messageActions,
   contextBoundary = false,
@@ -248,6 +253,7 @@ export function MessageRow({
               role,
               message,
               content,
+              reasoning: renderRowReasoning({ editing, message, renderContext, showLLMReasoningIcon }),
               trainParagraphs,
               skin,
               decoration,

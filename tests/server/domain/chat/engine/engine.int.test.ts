@@ -234,6 +234,47 @@ describe("createTurnEngine — happy path", () => {
     expect(t.indexOf("reasoningStreamDone")).toBeLessThan(t.indexOf("turnCompleted"));
   });
 
+  // THE DURABLE HALF of the reasoning channel. `reasoningStreamDone` (above) only proves the LIVE signal
+  // fired; the committed transcript re-reads `message_variants.reasoning`, so a turn whose trace was never
+  // written to canon shows reasoning while it streams and loses it forever at commit. Pinned at the ROW, not
+  // the event: the engine's `variantPayloadOf` must land the reduced trace on the persisted variant — for the
+  // deltas-only shape too (the OpenRouter chat-completions path accumulates its trace from `reasoning`-kind
+  // deltas; the terminal `final` chunk carries no `reasoning` field there).
+  test("a turn's reasoning trace is PERSISTED on the committed variant — both from the final chunk and from deltas alone", async () => {
+    const fromFinal = await seedChat(db, "reason_final");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "ignored — the terminal chunk is authoritative" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", reasoning: "the settled trace", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(fromFinal));
+
+    // The deltas-only shape: no `reasoning` on the terminal economics ⇒ the accumulated deltas ARE the trace.
+    const fromDeltas = await seedChat(db, "reason_deltas");
+    await harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "weighing " },
+        { kind: "reasoning", text: "two openings" },
+        { kind: "text", text: "Hi" },
+        { kind: "final", economics: { content: "Hi there", tokensIn: 4, tokensOut: 2, model: "test-model" } },
+      ]),
+    }).engine.runTurn(prepOf(fromDeltas));
+
+    expect(await selectedReasoning(fromFinal)).toBe("the settled trace");
+    expect(await selectedReasoning(fromDeltas)).toBe("weighing two openings");
+  });
+
+  /** The DB truth for a chat's tail assistant row: the reasoning column of its SELECTED variant. */
+  async function selectedReasoning(chatId: ChatId): Promise<string | null | undefined> {
+    const history = await loadCanonHistory(db, chatId);
+    const [row] = await db
+      .select({ reasoning: messageVariants.reasoning })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, castId(history.at(-1)?.selectedVariantId ?? "")));
+    return row?.reasoning;
+  }
+
   test("D50 pt-2 (PD-117): a turn whose assembled WI pool fired entries emits worldInfoActivated with them", async () => {
     const chatId = await seedChat(db, "wi");
     const firedId = castId<WorldEntryId>("world_entry_dragon");

@@ -1174,6 +1174,89 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(hostPage.messages[0]?.content).toBe(`He nods. ${lieTag} "Nothing," he says.`);
   });
 
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  // THE DURABLE REASONING CHANNEL (§3.6 P3). The pre-existing pins covered the LIVE/replay halves (deltas +
+  // `reasoningStreamDone`); this block pins the DURABLE one — `message_variants.reasoning`, the column every
+  // completed turn persists and `MessageView.reasoning` serves, which the transcript now RENDERS as an
+  // expandable block on a settled row. That render makes the field user-visible rather than devtools-only, so
+  // `listMessages` — the read a member's transcript is built from — must drop it for a member of a
+  // deception-active game, and must follow the ROLE, not the row: the verdict is re-derived per read
+  // (`membership.role === "host" ? false : resolveReasoningHostOnly(...)`), so a host handoff moves the
+  // channel with the seat on the very next read.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  /** The GM-plane spill a deceptive model puts in its thinking trace — the bytes a member must never receive. */
+  const reasoningSpill = "I'll deflect: say the study, but he is really in the crypt.";
+  /** Deception-active: the injected op returns true for every chat. read.ts calls ONLY this member of
+   *  `ChatRpgOps` on the non-host read path. */
+  function deceptionCtx(): ChatContext {
+    // FABRICATION-OK: minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads.
+    const rpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
+    return makeChatContext(db, { rpg });
+  }
+
+  test("listMessages (deception game): a MEMBER's payload carries ZERO durable reasoning bytes; the HOST reads the trace", async () => {
+    const host = await seedUser(db, "dr_host");
+    const member = await seedUser(db, "dr_member");
+    const chatId = await seedRoom("dr", host);
+    await seedParticipant(db, { chatId, key: "dr_m", userId: member, role: "member" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: reasoningSpill });
+
+    const { listMessages } = createRead(deceptionCtx(), makeDeps());
+
+    const memberPage = await listMessages({ principal: principal(member), chatId });
+    // The whole serialized payload, not just the field — a devtools-open member must find no truth bytes.
+    expect(JSON.stringify(memberPage)).not.toContain("crypt");
+    expect(memberPage.messages[0]?.reasoning).toBeNull();
+    // The body is untouched — the reasoning cut is whole-channel, never a body edit.
+    expect(memberPage.messages[0]?.content).toBe("He shrugs.");
+
+    const hostPage = await listMessages({ principal: principal(host), chatId });
+    expect(hostPage.messages[0]?.reasoning).toBe(reasoningSpill);
+  });
+
+  test("listMessages (deception game): a host HANDOFF moves the channel — the PROMOTED member gains the reasoning on the next read, the DEMOTED host loses it", async () => {
+    const founder = await seedUser(db, "dh_founder");
+    const successor = await seedUser(db, "dh_successor");
+    const chatId = await seedRoom("dh", founder);
+    await seedParticipant(db, { chatId, key: "dh_s", userId: successor, role: "member" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: reasoningSpill });
+
+    const { listMessages } = createRead(deceptionCtx(), makeDeps());
+
+    expect((await listMessages({ principal: principal(founder), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
+    expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBeNull();
+
+    // The handoff: the successor takes the host seat, the founder drops to member (the roster shape a
+    // host-handoff leaves). No re-seeding, no cache to bust — the SAME verbs are called again.
+    await db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, successor)));
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, founder)));
+
+    expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
+    const demoted = await listMessages({ principal: principal(founder), chatId });
+    expect(demoted.messages[0]?.reasoning).toBeNull();
+    expect(JSON.stringify(demoted)).not.toContain("crypt");
+  });
+
+  test("listMessages (NO deception): a member KEEPS the durable reasoning channel — the P3 cut is game-conditional, not a blanket withhold", async () => {
+    const host = await seedUser(db, "nd_host");
+    const member = await seedUser(db, "nd_member");
+    const chatId = await seedRoom("nd", host);
+    await seedParticipant(db, { chatId, key: "nd_m", userId: member, role: "member" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: "weighing two openings" });
+
+    // The default harness ctx wires NO rpg op ⇒ `resolveReasoningHostOnly` resolves false (a plain chat).
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+
+    expect((await listMessages({ principal: principal(member), chatId })).messages[0]?.reasoning).toBe("weighing two openings");
+  });
+
   test("replayChatEvents: a replayed view payload is stripped for a MEMBER, full for the HOST; chatEventBounds resolves viewerIsHost", async () => {
     const host = await seedUser(db, "mr_host");
     const member = await seedUser(db, "mr_member");

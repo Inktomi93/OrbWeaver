@@ -225,6 +225,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
+        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
         messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastAssistantId}
