@@ -1,6 +1,7 @@
-// E2E: chat-injection DB roundtrip (neo 10-injection-roundtrip port) — the CONTEXT panel's Injections tab
-// is a loud write-path (ad-hoc positional context spliced into a chat's prompt). This drives it end-to-end:
-//   1. open a chat, jump to the Injections tab (via the ⋯ "Injections…" option → docks the context panel).
+// E2E: chat-injection DB roundtrip (neo 10-injection-roundtrip port) — the CONTEXT panel's Injections
+// surface is a loud write-path (ad-hoc positional context spliced into a chat's prompt). This drives it
+// end-to-end:
+//   1. open a chat, open the CONTEXT panel's "This chat" tab and scroll to its Injections section.
 //   2. Add an injection, set its Content to a unique marker (autosave persists it — chat.setChatInjection).
 //   3. reload → the row persists (read from the DB).
 //   4. Remove the row (chat.deleteChatInjection).
@@ -15,12 +16,15 @@
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openChatOptions, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room";
+import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room";
 
-/** From an open chat, jump to the docked Injections tab (chat-options-menu.tsx "Injections…" seam). */
+/** From an open chat, reach the Injections editor. IA UPDATE (panel-redesign consolidation): the ⋯ menu's
+ *  "Injections…" jump and the standalone Injections meta-tab are BOTH gone — an option with a context-panel
+ *  home does not belong in the three dots, so Injections is now a section of the ONE "This chat" tab
+ *  (settings-context-tab.tsx). Same editor, same verbs; only the navigation changed. */
 async function openInjectionsTab(page: Page): Promise<void> {
-  await openChatOptions(page);
-  await page.getByRole("menuitem", { name: "Injections…" }).click();
+  await openDetailPanel(page);
+  await openContextTab(page, "This chat");
   await expect(page.getByRole("button", { name: "Add injection" })).toBeVisible({
     timeout: 10_000,
   });

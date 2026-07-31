@@ -19,7 +19,17 @@
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { assistantRows, castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openMemberRowMenu, typeAndSend } from "./support/chat-room";
+import {
+  assistantRows,
+  castChipNames,
+  castChips,
+  openChatByTitle,
+  openContextTab,
+  openDetailPanel,
+  openGroupBehaviorSection,
+  openMemberRowMenu,
+  typeAndSend,
+} from "./support/chat-room";
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc";
 
 const CAST = [
@@ -80,7 +90,11 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     expect(await castChipNames(tabB)).toHaveLength(2);
 
     // Tab A seats the third character through the cast bar's own affordance (the only committed-room
-    // add-member path) — a REAL user gesture, not an API poke.
+    // add-member path) — a REAL user gesture, not an API poke. Tab A must be the FOREGROUND tab for it:
+    // the picker is an anchored Popover, and an anchored layer in a backgrounded page never settles open
+    // (Base UI dismisses on the window's focus loss). That is also the honest scenario — the human acts in
+    // the tab they are looking at; tab B's passivity is the property under test, not tab A's.
+    await tabA.bringToFront();
     await tabA.getByRole("button", { name: "Add a character", exact: true }).click();
     await tabA.getByRole("option", { name: CAST[2].name, exact: true }).click();
     await expect.poll(async () => (await castChipNames(tabA)).length, { timeout: 15_000 }).toBe(3);
@@ -104,7 +118,7 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
   }
 });
 
-test("a group-config change in tab A reaches tab B's open Group tab live", async ({ browser }) => {
+test("a group-config change in tab A reaches tab B's open Group-behavior section live", async ({ browser }) => {
   const room = await seedRoom("config", 2);
   const ctx = await browser.newContext();
   try {
@@ -112,12 +126,13 @@ test("a group-config change in tab A reaches tab B's open Group tab live", async
     const tabB = await ctx.newPage();
     await joinRoom(tabA, room.title);
     await joinRoom(tabB, room.title);
-    // BOTH tabs sit on the Group tab, so B's `chat.getGroupConfig` read is already mounted and cached —
-    // the only thing that can refresh it is a bus-driven invalidation.
+    // BOTH tabs sit on the "This chat" tab's Group-behavior section (the panel-redesign home of the former
+    // Group tab), so B's `chat.getGroupConfig` read is already mounted and cached — the only thing that can
+    // refresh it is a bus-driven invalidation.
     for (const tab of [tabA, tabB]) {
       // biome-ignore lint/performance/noAwaitInLoops: the two tabs open their panels sequentially so a failure names the tab that failed.
       await openDetailPanel(tab);
-      await openContextTab(tab, "Group");
+      await openGroupBehaviorSection(tab);
     }
     await expect(tabB.getByRole("button", { name: "Per-speaker", exact: true })).toHaveAttribute("aria-pressed", "true");
 
@@ -125,7 +140,7 @@ test("a group-config change in tab A reaches tab B's open Group tab live", async
     // The write really landed (so a red below is a SYNC failure, never a lost write).
     await expect.poll(async () => (await getGroupConfig(room.chatId)).output, { timeout: 20_000 }).toBe("narrator");
 
-    // THE load-bearing assertion: tab B's open Group tab re-reads the room's behavior off the bus.
+    // THE load-bearing assertion: tab B's open Group-behavior section re-reads the room's behavior off the bus.
     await expect(tabB.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
   } finally {
     await ctx.close();

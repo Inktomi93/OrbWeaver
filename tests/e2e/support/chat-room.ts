@@ -198,6 +198,15 @@ export async function openChatOptions(page: Page): Promise<void> {
   await options.press("Enter");
 }
 
+/** Open the composer's ✨ UTILITY menu (composer-utility-menu.tsx — the wand-v2 home of Recover input /
+ *  Corrections / Regenerate / Simple send / Undo · Revert / images / plot steers, D111 §3). Its trigger is
+ *  a plain composer-bar button, so a pointer click lands it (no topbar overlay to dodge). */
+export async function openUtilityMenu(page: Page): Promise<void> {
+  const trigger = page.getByRole("button", { name: "Message tools" });
+  await expect(trigger).toBeVisible({ timeout: 15_000 });
+  await trigger.click();
+}
+
 /** Rename the OPEN chat via the ⋯ menu → Rename dialog → Save. Waits on the real `chat.updateChatTitle`
  *  round-trip so a subsequent reload reads DB truth, not an in-flight write. */
 export async function renameOpenChat(page: Page, title: string): Promise<void> {
@@ -257,7 +266,12 @@ export async function openDetailPanel(page: Page): Promise<void> {
   if ((await show.count()) > 0) {
     await show.first().click();
   }
-  await expect(page.getByRole("tablist", { name: "Detail" })).toBeVisible({ timeout: 15_000 });
+  // The panel's strip is EITHER the single "Detail" strip (a plain chat — every tab is `meta`) OR the
+  // two-strip bracket a GAME chat summons (Context-Panel-Program §4.2, context-tabs-panel.tsx): "Game"
+  // above the viewport, "Chat" (the same meta tabs) pinned below it. Both mean "the panel is open", and a
+  // spec that reuses whatever chat the shared DB hands it must tolerate either.
+  const strip = page.getByRole("tablist", { name: "Detail" }).or(page.getByRole("tablist", { name: "Chat" }));
+  await expect(strip.first()).toBeVisible({ timeout: 15_000 });
 }
 
 /** Select one CONTEXT tab by its visible label (Members / Group / Overrides / …). Assumes the detail
@@ -266,6 +280,20 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
   const tab = page.getByRole("tab", { name: label, exact: true });
   await expect(tab).toBeVisible({ timeout: 15_000 });
   await tab.click();
+}
+
+/** Open the group-behavior controls. Since the panel-redesign consolidation there is NO "Group" TAB: the
+ *  former Group tab is a host+group-gated SECTION ("Group behavior") inside the ONE "This chat" tab
+ *  (chats-section.tsx `settings` → settings-context-tab.tsx — the §8.1 permission-omit moved from tab to
+ *  section granularity). Gates on the section's real h3, so a caller acting on its controls can't race the
+ *  suspended group-config read. */
+export async function openGroupBehaviorSection(page: Page): Promise<void> {
+  await openContextTab(page, "This chat");
+  await expect(page.getByRole("heading", { name: "Group behavior" })).toBeVisible({ timeout: 15_000 });
+  // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any
+  // control exists. Gate on the reply-mode toggle — the first control of the resolved form — or a caller
+  // acting immediately races the skeleton.
+  await expect(page.getByRole("button", { name: "Per-speaker", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 /** The cast bar's chip locator (chat-cast-bar.tsx) — one chip per PRESENT character, and the whole bar is

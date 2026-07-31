@@ -4,7 +4,7 @@
 // half — the mechanics that need no generation and that a unit test cannot reach:
 //   1. a solo room CONVERTS to a group (the roster-size-gated group surfaces appear live, off the bus),
 //   2. the add/remove roster verbs move the real roster (remove is the newly-wired `removeCharacterFromChat`),
-//   3. the group config actually PERSISTS what the Group tab shows (the "lying setting" class: a control
+//   3. the group config actually PERSISTS what the Group-behavior section shows (the "lying setting" class: a control
 //      that flips in the DOM, never reaches `chats.metadata.group`, and reads back stale after a reload),
 //   4. seat knobs (mute · talkativeness) persist PER SEAT.
 // Every assertion's ground truth is the SERVER (`chat.getGroupConfig` / `chat.getChat` over the tRPC
@@ -17,11 +17,18 @@
 //
 // The group surfaces are roster-size-gated BY CONSTRUCTION (chats-section.tsx): the Cast bar renders only
 // above 1 character (chat-cast-bar.tsx), the Members tab only when the cast justifies it (lib/roster.ts
-// `membersTabJustified`), the Group tab only for a host of a >1-character room. So asserting their
-// PRESENCE/ABSENCE is a statement about the ROSTER, not about pixels.
+// `membersTabJustified`), the group-behavior controls only for a host of a >1-character room. So asserting
+// their PRESENCE/ABSENCE is a statement about the ROSTER, not about pixels.
+//
+// IA NOTE (panel-redesign consolidation — this spec's pre-consolidation "Group TAB" pins are updated, not
+// dodged): the standalone Group tab is GONE. Its whole body is now the host+group-gated "Group behavior"
+// SECTION of the ONE "This chat" tab (settings-context-tab.tsx), so the roster gate that used to add/remove
+// a TAB now adds/removes a SECTION — same behavior, same `showGroup` predicate, one less tab. Every control
+// below (Narrator · Label each speaker · Advanced · the policy/visibility selects) is byte-identical; only
+// the navigation to them changed (`openGroupBehaviorSection`).
 
 import { expect, test } from "@playwright/test";
-import { castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openMemberRowMenu } from "./support/chat-room";
+import { castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openGroupBehaviorSection, openMemberRowMenu } from "./support/chat-room";
 import type { RosterSeat } from "./support/trpc";
 import {
   addCharacterToChat,
@@ -70,7 +77,9 @@ function seatFor(seats: readonly RosterSeat[], characterId: string): RosterSeat 
   return seats.find((s) => s.characterId === characterId);
 }
 
-test("a solo room converts to a group: the cast bar and the Members/Group tabs appear live when a second character joins", async ({ page }) => {
+test("a solo room converts to a group: the cast bar, the Members tab and the Group-behavior section appear live when a second character joins", async ({
+  page,
+}) => {
   const cast = await mintCast(2);
   const title = `e2e-group-convert-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: [cast.characterIds[0] ?? ""], title });
@@ -78,10 +87,12 @@ test("a solo room converts to a group: the cast bar and the Members/Group tabs a
     await openChatByTitle(page, title);
     await openDetailPanel(page);
 
-    // SOLO: one character ⇒ no cast bar, and neither group-only CONTEXT tab is offered.
+    // SOLO: one character ⇒ no cast bar, no Members tab, and the "This chat" tab carries NO Group-behavior
+    // section (the `showGroup` gate is the same roster predicate the old Group TAB's `when` was).
     expect(await castChips(page).count()).toBe(0);
     await expect(page.getByRole("tab", { name: "Members", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("tab", { name: "Group", exact: true })).toHaveCount(0);
+    await openContextTab(page, "This chat");
+    await expect(page.getByRole("heading", { name: "Group behavior" })).toHaveCount(0);
 
     // The conversion itself — the server-side seat insert; the open room must learn about it off the
     // chat bus (`chatUpdated` → getChat refetch), with NO reload.
@@ -90,7 +101,8 @@ test("a solo room converts to a group: the cast bar and the Members/Group tabs a
     await expect.poll(async () => (await castChipNames(page)).length, { timeout: 15_000 }).toBe(2);
     expect(await castChipNames(page)).toEqual(expect.arrayContaining([CAST[0].name, CAST[1].name]));
     await expect(page.getByRole("tab", { name: "Members", exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("tab", { name: "Group", exact: true })).toBeVisible();
+    // …and the group-behavior controls arrive with it, live, inside the "This chat" tab.
+    await openGroupBehaviorSection(page);
 
     // The roster is really two present character seats server-side, not just two chips.
     expect((await characterSeats(chat.id)).map((s) => s.displayName)).toEqual([CAST[0].name, CAST[1].name]);
@@ -123,7 +135,9 @@ test("removing a character through the Members row menu drops the seat server-si
   }
 });
 
-test("group config round-trips through the Group tab: output / speaker tags / policy / card visibility persist and survive a reload", async ({ page }) => {
+test("group config round-trips through the Group-behavior section: output / speaker tags / policy / card visibility persist and survive a reload", async ({
+  page,
+}) => {
   const cast = await mintCast(2);
   const title = `e2e-group-config-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: cast.characterIds, title });
@@ -136,7 +150,7 @@ test("group config round-trips through the Group tab: output / speaker tags / po
 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Group");
+    await openGroupBehaviorSection(page);
 
     // `output` is the union DISCRIMINATOR — flipping it re-derives the coupled speakerTags default
     // (narrator ⇒ true), so the speakerTags flip comes AFTER, and lands on `false`.
@@ -168,7 +182,7 @@ test("group config round-trips through the Group tab: output / speaker tags / po
     await page.reload();
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Group");
+    await openGroupBehaviorSection(page);
     await expect(page.getByRole("button", { name: "Narrator", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("switch", { name: "Label each speaker" })).toHaveAttribute("aria-checked", "false");
   } finally {
@@ -177,7 +191,7 @@ test("group config round-trips through the Group tab: output / speaker tags / po
   }
 });
 
-test("per-speaker card scope persists: scoping each character to their own card round-trips through the Group tab", async ({ page }) => {
+test("per-speaker card scope persists: scoping each character to their own card round-trips through the Group-behavior section", async ({ page }) => {
   const cast = await mintCast(2);
   const title = `e2e-group-scope-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: cast.characterIds, title });
@@ -186,7 +200,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Group");
+    await openGroupBehaviorSection(page);
     // `cardScope` is per-speaker-ONLY, so its control exists only on that arm (the default) — under
     // Advanced, beside the policy select.
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
@@ -197,7 +211,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await page.reload();
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Group");
+    await openGroupBehaviorSection(page);
     await page.getByRole("button", { name: "Advanced", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Each character sees only their own card" })).toHaveAttribute("aria-checked", "true");
   } finally {
@@ -223,6 +237,10 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     // Mute BRAVO through the row menu (the canonical action home).
     await openMemberRowMenu(page, CAST[1].name);
     await page.getByRole("menuitem", { name: `Mute ${CAST[1].name}` }).click();
+    // Base UI keeps a CLOSING popup mounted (and in the a11y tree) through its exit animation, so opening
+    // the next row's menu back-to-back leaves BRAVO's dying menu and ALPHA's live one both matchable — a
+    // strict-mode collision, not an app defect. Gate on the first menu actually being gone.
+    await expect(page.getByRole("menuitem", { name: "Talkativeness…" })).toHaveCount(0);
 
     // Re-weight ALPHA through the anchored talkativeness slider. Base UI commits a KEYBOARD adjustment via
     // `onValueCommitted`, one step per ArrowLeft (step 0.05) — `Home`/`End` do NOT move the underlying
