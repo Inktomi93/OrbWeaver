@@ -219,7 +219,17 @@ answer nothing that blocks tonight's builds).
 - **SERIALIZE main-tree build lanes** — 2+ concurrent lanes cause gate-thrash + index collisions
   ([[concurrent-main-lanes-gate-thrash]], [[work-directly-on-main]]); worktree-isolate genuinely
   concurrent big lanes ([[worktree-isolate-concurrent-lanes]]).
-- **Worktrees are already cheap — just `git worktree add` + `pnpm install`. MEASURED 2026-07-30:
+- **Worktree setup is AUTOMATIC — nobody has to remember it.** `EnterWorktree` (and subagent
+  `isolation:"worktree"`) fires the `WorktreeCreate` hook → `.claude/hooks/worktree-setup.sh`, which
+  creates the worktree on `wt/<name>`, runs `pnpm install`, and symlinks the gitignored
+  `settings.local.json` in. `ExitWorktree`-remove fires `worktree-remove.sh` (scoped to
+  `.claude/worktrees/`, deletes only `wt/*` branches). ⚠️ **Configuring `WorktreeCreate` REPLACES the
+  built-in creation** — the hook owns it, and **stdout IS the worktree path** (anything else printed
+  becomes a bogus directory). Payloads (probed, undocumented): create gets `{cwd = MAIN checkout,
+  name}` and NO path; remove gets `worktree_path` with `cwd` = the worktree. `ExitWorktree` may say
+  "could not verify worktree state" and need `discard_changes: true` — expected, since the harness
+  did not create it.
+- **Worktrees are cheap on their own — `git worktree add` + `pnpm install`. MEASURED 2026-07-30:
   2.06 s install, 48 MiB real disk.** The 1.9 G `du` is apparent size: default pnpm HARDLINKS every
   file from the content-addressable store (`~/.local/share/pnpm/store/v11`), verified same-inode
   across main + worktree + store. Requires only that worktrees sit on the same filesystem as the
