@@ -42,10 +42,12 @@ import {
   composePlaneTeaching,
   constrainExtractionSchema,
   gameTrackerWriteKeys,
+  healedJournalTypes,
   malformedToolCalls,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
   rpgGameConfigSchema,
+  salvageExtraction,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -514,42 +516,42 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg reliable extraction failed");
       return empty;
     }
-    const parsed = rpgExtractionSchema.safeParse(safeJson(text));
-    if (!parsed.success) {
-      // OBSERVABILITY (the last blind spot): a non-conforming extraction returns empty AND is LOGGED with the
-      // zod issue paths — this is the path reliable was silently dying on (an 8B dropping the nested-required
-      // `journal[].title` failed `safeParse` here with NO log while every other rpg log stayed silent; that
-      // contradiction is how the diagnosis surfaced). The observability set is now TOTAL: failed (throw) /
-      // unparseable (this) / empty (logExtractionOutcome) / phantom (logExtractionOutcome) / dropped (flush).
+    // EXT-4a — SALVAGE PER PLANE / PER ENTRY, never all-or-nothing. The old whole-object `safeParse` let ONE
+    // malformed nested field (the measured case: a journal entry missing its nested-required `type`) discard all
+    // six planes for the turn, while the two TOOL vehicles — validating per call — lost only the bad call. The
+    // three delivery paths now carry EQUAL drop semantics: a bad entry costs that entry, never the writes beside
+    // it. What was dropped is itemized by the SAME function that built the extraction (one home — the log
+    // cannot disagree with what applied, the `ghostTargetRefs`/D112 (3) posture).
+    const { extraction, dropped } = salvageExtraction(safeJson(text));
+    if (dropped.length > 0) {
+      // OBSERVABILITY: this is the path reliable was silently dying on (an 8B dropping `journal[].title` failed
+      // `safeParse` with NO log while every other rpg log stayed silent; that contradiction is how the diagnosis
+      // surfaced). The set is TOTAL: failed (throw) / unparseable (this) / healed (logExtractionOutcome) / empty
+      // / phantom (logExtractionOutcome) / dropped (flush). A `root` drop means NOTHING was salvageable.
       logger.warn(
-        {
-          event: "rpg.extraction.unparseable",
-          chatId,
-          model: conn.model,
-          api: conn.api,
-          issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-        },
-        "rpg reliable extraction did not conform to the schema — dropped (no state written)",
+        { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, dropped },
+        "rpg reliable extraction: plane(s)/entry(ies) did not conform — DROPPED (the rest of the delta still applies)",
       );
-      return empty; // a non-conforming extraction never writes — the model gets one shot, no retry corruption
     }
     // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a reliable write on a party member must render too).
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
-    const delta = extractionToStateDelta(baseState, parsed.data, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: parsed.data, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     return delta;
   };
 }
 
-/** R3 — the extraction-outcome visibility log. Emits a line when the delta writes NOTHING renderable (the
- *  silent-empty-panel signal) AND whenever the extraction named a GHOST actor (a target with no referent this
- *  turn — the R5 guard dropped its arg). Metadata only (ref counts + names), never beat/reply text.
+/** R3 — the extraction-outcome visibility log, and the ONE TAIL all three delivery vehicles run through (so a
+ *  degrade reads identically whichever way the calls arrived). Emits a line when the delta writes NOTHING
+ *  renderable (the silent-empty-panel signal), whenever the extraction named a GHOST actor (a target with no
+ *  referent this turn — the R5 guard dropped its arg), and whenever a journal `type` was HEALED (EXT-4b).
+ *  Metadata only (ref counts + names + indexes), never beat/reply text.
  *
- *  The two lines are INDEPENDENT (not an either/or): since R5 drops the ghost args, a ghost-only extraction is
+ *  The lines are INDEPENDENT (not an either/or): since R5 drops the ghost args, a ghost-only extraction is
  *  precisely the case that also writes nothing — an `else if` would have hidden the cause behind the symptom. */
 function logExtractionOutcome(args: {
   readonly chatId: ChatId;
@@ -574,6 +576,16 @@ function logExtractionOutcome(args: {
       "rpg extraction named ghost actor(s) with no live referent — those args were DROPPED (no cast mint)",
     );
   }
+  // EXT-4b — the HEAL is visible. A journal entry whose `type` the model omitted is healed to `note` rather than
+  // dropped (the nested-required blind spot), which is a silent quality loss unless it is named. Read off the
+  // FOLDED extraction, so all three delivery paths report it identically (this function is their one tail).
+  const healed = healedJournalTypes(args.parsed);
+  if (healed.length > 0) {
+    logger.warn(
+      { event: "rpg.extraction.healed", chatId: args.chatId, model: args.model, api: args.api, healedJournalTypes: healed },
+      "rpg extraction: journal entry(ies) omitted `type` — HEALED to note (the entry still applies)",
+    );
+  }
   const wroteNothing = Object.keys(args.delta.statePatch).length === 0 && args.delta.journal.length === 0;
   if (wroteNothing) {
     logger.warn(
@@ -581,6 +593,26 @@ function logExtractionOutcome(args: {
       "rpg extraction wrote NOTHING renderable (mis-target or empty beat)",
     );
   }
+}
+
+/** The TOOL vehicles' drop log (EXT-4a — one home for both, so the cheap round and the folded turn can never
+ *  report a loss differently). Names the calls `toolCallsToExtraction` threw away, via the one-homed
+ *  `malformedToolCalls` predicate that mirrors its silent `continue`s. Silent on the happy path. */
+function logMalformedCalls(args: {
+  readonly chatId: ChatId;
+  readonly model: string;
+  readonly api: string;
+  readonly calls: readonly RpgToolCall[];
+  readonly vehicle: string;
+}): void {
+  const dropped = malformedToolCalls(args.calls);
+  if (dropped.length === 0) {
+    return;
+  }
+  logger.warn(
+    { event: "rpg.extraction.unparseable", chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
+    `rpg ${args.vehicle}: tool call(s) with unusable args — DROPPED (every other call this turn still applies)`,
+  );
 }
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
@@ -715,7 +747,10 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       return empty;
     }
     // Fold the parallel tool calls → an RpgExtraction → the SAME state delta reliable produces (`no_changes`
-    // and any unknown tool contribute nothing — the quiet-turn no-op).
+    // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
+    // same way the folded arm names its drops (EXT-4a: equal drop semantics means equal VISIBILITY too — the
+    // dedicated round was the one vehicle that dropped silently).
+    logMalformedCalls({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
     const extraction = toolCallsToExtraction(calls);
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
@@ -769,13 +804,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     const conn = turnConnection.connection;
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
-    const malformed = malformedToolCalls(toolCalls);
-    if (malformed.length > 0) {
-      logger.warn(
-        { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, droppedTools: malformed },
-        "rpg folded extraction: tool call(s) with unusable args — DROPPED (the narrative is unaffected)",
-      );
-    }
+    logMalformedCalls({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
     // ZERO calls is a legitimate no-change beat, NOT a failure: with `tool_choice:"auto"` a quiet beat is the
     // model correctly declining to write. It gets its OWN event so it can never be confused with a parse
     // failure or a dead fold, and it returns before the ref resolve (nothing to constrain, nothing to apply).
@@ -867,23 +896,20 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
       logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
       return empty;
     }
-    const parsed = rpgExtractionSchema.safeParse(safeJson(text));
-    if (!parsed.success) {
+    // EXT-4a — the resync reads the SAME structured emission the reliable round does, so it salvages the same
+    // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
+    // re-established state (the resync is the expensive call — discarding it whole is the worst place to be
+    // all-or-nothing).
+    const { extraction, dropped } = salvageExtraction(safeJson(text));
+    if (dropped.length > 0) {
       logger.warn(
-        {
-          event: "rpg.resync.unparseable",
-          chatId,
-          model: conn.model,
-          api: conn.api,
-          issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-        },
-        "rpg resync did not conform to the schema — no state rebuilt",
+        { event: "rpg.resync.unparseable", chatId, model: conn.model, api: conn.api, dropped },
+        "rpg resync: plane(s)/entry(ies) did not conform — DROPPED (the rest of the rebuild still applies)",
       );
-      return empty;
     }
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
-    const delta = extractionToStateDelta(baseState, parsed.data, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: parsed.data, delta });
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     return delta;
   };
 }

@@ -307,6 +307,13 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
       (presentUpsert as JsonSchemaNode)["minItems"] = 1;
     }
   }
+  // EXT-4b — PREVENTION WHERE ENFORCEMENT WORKS. `journal[].type` is `.optional()` in the zod (the heal arm,
+  // for the backends that ignore `required` on nested array items), which would otherwise ALSO tell a strict
+  // backend the field is skippable. Re-marking it required in the projected grammar keeps the strong arm
+  // strong: an enforcing wire (OR `strict`) must emit the kind, a non-enforcing one omits it and the applier
+  // heals to `note` + logs. `title` is deliberately NOT re-required — its absence is fully recoverable from the
+  // content head, so forcing it would spend tokens on a field we derive for free (the 2026-07-27 ruling).
+  requireField(itemsOf(propsOf(clone)?.["journal"]), "type");
   return clone;
 }
 
@@ -402,6 +409,116 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
     }
   }
   return out;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// EQUAL DROP SEMANTICS (EXT-4a) — the RELIABLE arm salvages PER PLANE / PER ENTRY, like the tool arms.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The defect this kills: reliable used to validate the WHOLE extraction object with one `safeParse`, so ONE
+// malformed nested field (the measured case: a journal entry missing `type`, in the nested-array required
+// blind spot) discarded ALL SIX planes for the turn — while cheap/folded, validating per CALL, lost only the
+// bad call. The "reliable" path was the most fragile of the three. The invariant now: **an equivalent payload
+// delivered on any of the three vehicles leaves IDENTICAL surviving state** — a bad journal entry drops that
+// entry, never the party/inventory/scene/tracker/quest writes beside it.
+//
+// Errors-as-data, D112 (3): the drop list comes OUT of the same function that builds the extraction (one home,
+// stronger than the `malformedToolCalls` mirror — a log here cannot disagree with what applied by construction).
+
+/** The plane a salvage drop belongs to — an extraction plane, or `root` when the payload wasn't an object at
+ *  all (non-JSON / an array / a scalar), in which case NOTHING was salvageable. */
+export type RpgExtractionDropPlane = keyof RpgExtraction | "root";
+
+/** ONE thing {@link salvageExtraction} threw away: which plane, which entry (`null` = the whole plane — a
+ *  non-array field, a malformed `scene`, or the unusable root), and the zod issues that condemned it. */
+export interface RpgExtractionDrop {
+  readonly plane: RpgExtractionDropPlane;
+  readonly index: number | null;
+  readonly issues: readonly string[];
+}
+
+/** What a salvaging parse yields: the extraction assembled from everything that DID conform, plus the itemized
+ *  losses (empty on the happy path). */
+export interface RpgExtractionSalvage {
+  readonly extraction: RpgExtraction;
+  readonly dropped: readonly RpgExtractionDrop[];
+}
+
+// The ARRAY planes' field → arg-schema pairing, DERIVED from the tool-round arm map (never re-spelled: the
+// shared-plane proof means the reliable plane and its tool validate through the identical schema).
+const EXTRACTION_ARRAY_PLANES: ReadonlyMap<keyof RpgExtraction, z.ZodType> = new Map(
+  [...TOOL_ROUND_ARRAY_ARMS.values()].map((arm) => [arm.field, arm.schema] as const),
+);
+
+// A zod error's issues as `path: message` lines (the log-ready shape the reliable arm already emitted).
+function issueLines(error: z.ZodError): string[] {
+  return error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+}
+
+// Salvage ONE array plane IN PLACE: push every conforming entry onto `out` and return the drops. An omitted
+// plane is "nothing changed here" (never a drop); a non-array field is one whole-plane drop; a bad entry costs
+// exactly itself. Hoisted out of {@link salvageExtraction} to keep it under the complexity ceiling.
+function salvageArrayPlane(raw: unknown, plane: keyof RpgExtraction, schema: z.ZodType, out: unknown[]): RpgExtractionDrop[] {
+  if (raw === undefined || raw === null) {
+    return [];
+  }
+  if (!Array.isArray(raw)) {
+    return [{ plane, index: null, issues: ["expected an array"] }];
+  }
+  const dropped: RpgExtractionDrop[] = [];
+  for (const [index, entry] of raw.entries()) {
+    const parsed = schema.safeParse(entry);
+    if (parsed.success) {
+      out.push(parsed.data);
+    } else {
+      dropped.push({ plane, index, issues: issueLines(parsed.error) });
+    }
+  }
+  return dropped;
+}
+
+/**
+ * Parse a RELIABLE-mode extraction payload PER PLANE / PER ENTRY (EXT-4a). Never throws, never all-or-nothing:
+ * each array plane's entries are validated one at a time (a bad entry is dropped, its siblings survive), the
+ * single `scene` object stands or falls alone, an absent plane is simply empty, and a payload that isn't an
+ * object at all yields the empty extraction with ONE `root` drop. The result feeds the SAME
+ * `extractionToStateDelta` fold the tool vehicles feed — so the three delivery paths differ in transport only.
+ */
+export function salvageExtraction(value: unknown): RpgExtractionSalvage {
+  const extraction: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
+  const dropped: RpgExtractionDrop[] = [];
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return { extraction, dropped: [{ plane: "root", index: null, issues: ["expected a JSON object"] }] };
+  }
+  const record = value as Record<string, unknown>;
+  for (const [plane, schema] of EXTRACTION_ARRAY_PLANES) {
+    // The plane key names an array field; each surviving entry parsed through that plane's own arg schema.
+    dropped.push(...salvageArrayPlane(record[plane], plane, schema, extraction[plane] as unknown[]));
+  }
+  const scene = record["scene"];
+  if (scene !== undefined && scene !== null) {
+    const parsed = updateSceneArgsSchema.safeParse(scene);
+    if (parsed.success) {
+      extraction.scene = parsed.data;
+    } else {
+      dropped.push({ plane: "scene", index: null, issues: issueLines(parsed.error) });
+    }
+  }
+  return { extraction, dropped };
+}
+
+/**
+ * The HEAL predicate (EXT-4b), read off a folded extraction so ALL THREE vehicles report it identically: the
+ * `journal` indexes whose `type` the model omitted and `journalTypeFor` therefore healed to `note`. One
+ * home with nothing to drift from — the applier heals exactly the entries this names.
+ */
+export function healedJournalTypes(extraction: RpgExtraction): readonly number[] {
+  const healed: number[] = [];
+  for (const [index, entry] of extraction.journal.entries()) {
+    if (entry.type === undefined) {
+      healed.push(index);
+    }
+  }
+  return healed;
 }
 
 /**

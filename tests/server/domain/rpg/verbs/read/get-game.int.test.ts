@@ -12,15 +12,16 @@ beforeEach(async () => {
 });
 
 describe("getGame", () => {
-  test("returns the mode/status + the honest-arms trackersReadOnly verdict + the default reliable extractionMode", async () => {
+  test("returns the mode/status + the honest-arms trackersReadOnly verdict + the default folded extractionMode", async () => {
     const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
     const view = await h.service.getGame({ principal: principal("host"), chatId });
     expect(view.mode).toBe("lite");
     expect(view.status).toBe("active");
     expect(view.trackersReadOnly).toBe(true);
-    // The delivery-model knob rides the member view (the panel's freshness indicator reads it); create
-    // defaults to reliable, so the freshness lag is surfaced by default.
-    expect(view.extractionMode).toBe("reliable");
+    // The delivery-model knob rides the member view (the panel's freshness indicator reads it); a game is BORN
+    // `folded` (owner ruling 2026-08-01), which is the ONE mode whose state is live AT COMMIT — so the default
+    // view reports no freshness lag.
+    expect(view.extractionMode).toBe("folded");
   });
 
   test("surfaces the cheap extractionMode after a host flips the delivery-model knob", async () => {

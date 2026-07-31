@@ -297,11 +297,15 @@ test("R1 folded: the gather mounts the terminal tools — registry `tools` stays
 
 test("R1: reliable + cheap contribute NO terminal tools (byte-identical to before the fold)", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db); // reliable by default
+  const { chatId, h } = await seedLiteGame(db);
+  // A FRESH game is BORN folded (owner ruling 2026-08-01), so the fold is what a new room gets with no config.
+  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeDefined();
+  // …and each two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable" });
   expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
   expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
-  expect(h.fakes.foldedToolBuilds).toHaveLength(0); // the builder is never even consulted
+  expect(h.fakes.foldedToolBuilds).toHaveLength(1); // consulted for the born-folded gather ONLY
 });
 
 test("R1 folded + readonly: NO terminal tools — a manual-steering game never mounts a write surface", async () => {

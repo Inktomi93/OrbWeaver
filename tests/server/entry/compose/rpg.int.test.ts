@@ -195,8 +195,11 @@ function buildReliableRpgWithText(args: {
   readonly api: ChatApi;
   readonly spy: ExtractionSpy;
   readonly cannedText: string;
+  /** The tool calls the fake model answers a CHEAP tool round with (`ChatResult.toolCalls`) — the third
+   *  delivery vehicle's canned output, so one harness can drive all three (EXT-4a's equal-drop pin). */
+  readonly cannedToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
 }): ReturnType<typeof buildRpg> {
-  const { app, db, api, spy, cannedText } = args;
+  const { app, db, api, spy, cannedText, cannedToolCalls } = args;
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -249,10 +252,10 @@ function buildReliableRpgWithText(args: {
           spy.systemPrompts.push(req.systemPrompt.static);
           spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
         }
-        // Only `reply` is read by the extraction (the impl parses the JSON out of it); the rest of the
+        // Only `reply` (the extraction) and `toolCalls` (a cheap tool round) are read; the rest of the
         // ~18-field ChatResult is inert, so a full construction would be noise.
-        // FABRICATION-OK: minimal ChatResult double — extraction reads only `reply`; the other fields never run.
-        return Promise.resolve({ reply: cannedText } as unknown as ChatResult);
+        // FABRICATION-OK: minimal ChatResult double — the two fields the two arms read; the others never run.
+        return Promise.resolve({ reply: cannedText, ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }) } as unknown as ChatResult);
       },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
@@ -272,6 +275,7 @@ test("RELIABLE turn (summarize arm) — a NON-agent-sdk host connection routes t
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
 
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -291,6 +295,7 @@ test("RELIABLE turn (agent-sdk arm) — a max-pro-sub-class host connection rout
   const rpgCompose = buildReliableRpg(app, db, "agent-sdk", spy);
 
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -312,6 +317,7 @@ test("R1: the extraction schema carries the roster-ref enum + the system prompt 
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -333,6 +339,7 @@ test("R1: the ref enum reaches the agent-sdk chat arm too (portable — same sha
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "agent-sdk", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -351,6 +358,7 @@ test("F1 (consent inherited): a state round threads the turn's ownerConsented ve
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "agent-sdk", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A member acts." });
 
   const subNoConsent = tc("agent-sdk", {
@@ -378,6 +386,7 @@ test("F1 (room connection): the round runs on the TURN's connection (vllm), neve
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
 
   const vllmTurn = tc("chat-completions", {
@@ -400,6 +409,7 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // reliable → needs structured
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing writable here." });
 
   // A connection that CANNOT do structured output → reliable mode is readonly (manual-steering). The flush must
@@ -430,6 +440,7 @@ test("§1.3 (window arm): the RECENT STORY block carries the turn's transcript, 
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born window (default)
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The dragon lunges." });
 
   const turn = tc("chat-completions", {
@@ -459,6 +470,7 @@ test("§1.3 (beat arm): the request is BYTE-IDENTICAL to the pre-redesign shape 
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, patch: { extractionContext: "beat" } });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
 
@@ -486,6 +498,7 @@ test("§1.6 (plane registry): the reliable system prompt teaches the newly-cover
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A new act dawns." });
   await rpgCompose.chatOps.onTurnCompleted(
     chatId,
@@ -526,6 +539,7 @@ test("F4: presentRemove enum names an existing scene NPC + party.targetRef reach
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
 
   // Seed a COMMITTED base snapshot carrying the scene NPC + cast actor, so the round's `baseState` (resolved via
   // the ladder) hands those keys to `resolveExtractionRefs`.
@@ -561,6 +575,7 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
 
   // A committed base snapshot where the tracked cast actor CARRIES conditions — the only source of the enum.
   const afflicted = baseWithCast();
@@ -602,6 +617,7 @@ test("F10: a roster character named 'Player' is enum-able and the semantic 'play
   const spy = emptySpy();
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Player draws a blade." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -621,6 +637,7 @@ test("R3: an extraction that writes NOTHING renderable logs rpg.extraction.empty
   // Override the canned text to an EMPTY extraction (parses, but folds to zero writes).
   const rpgCompose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy, cannedText: JSON.stringify({}) });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing tracked changed." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -644,6 +661,7 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
     cannedText: JSON.stringify({ party: [{ targetRef: "Zzyzx the Unknown", status: "cursed" }] }),
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -805,6 +823,7 @@ test("R1 composed-real: the same calls, folded vs a tool ROUND, produce the SAME
   const round = await seedHostGameChat(db, "r1-parity-round");
   const roundCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
   await roundCompose.service.createGame({ principal: hostPrincipal(round.hostId), chatId: round.chatId, mode: "lite" });
+  await roundCompose.service.updateConfig({ principal: hostPrincipal(round.hostId), chatId: round.chatId, extractionMode: "reliable" }); // the fold is the BORN default — this test drives the structured arm
   const roundSlot = await seedMessage(db, round.chatId, 1, { role: "assistant", content: "They arrive." });
   await roundCompose.chatOps.onTurnCompleted(round.chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
 
@@ -887,13 +906,200 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
   expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
 });
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// EXT-4a — EQUAL DROP SEMANTICS: one malformed payload, all THREE delivery paths, identical survivors.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The defect: reliable validated the WHOLE extraction with one `safeParse`, so a single malformed nested field
+// discarded all six planes — while cheap/folded, validating per call, lost only the bad call. This is the
+// invariant that can never regress: change only the VEHICLE and the surviving state is byte-identical.
+
+/** The turn's writes, as TOOL CALLS: four good planes + a content-less journal entry (MALFORMED — the whole
+ *  entry is unsalvageable) + a type-less one (HEALED to `note`, the EXT-4b arm). */
+const MIXED_CALLS = [
+  { name: "update_party", args: { targetRef: "player", status: "wounded" } },
+  { name: "update_scene", args: { location: "the ford", recentEvent: "forded the river" } },
+  { name: "upsert_quest", args: { name: "Cross the river", action: "create", objectives: ["Find the ford"] } },
+  { name: "add_journal_entry", args: { type: "note", title: "a title with no body" } },
+  { name: "add_journal_entry", args: { content: "They forded the river." } },
+];
+
+/** The SAME writes as a reliable structured-output payload (the shared-plane proof: an extraction is a batch of
+ *  the tool calls the model would otherwise have made). Derived from `MIXED_CALLS` so the two can never drift. */
+function mixedExtractionText(): string {
+  const argsFor = (name: string): unknown[] => MIXED_CALLS.filter((c) => c.name === name).map((c) => c.args);
+  return JSON.stringify({
+    party: argsFor("update_party"),
+    scene: argsFor("update_scene")[0],
+    quests: argsFor("upsert_quest"),
+    journal: argsFor("add_journal_entry"),
+  });
+}
+
+/** The DURABLE survivors of a turn, read back through the real views — the thing the three paths must agree on
+ *  (ids/timestamps excluded: they are per-run mints, not semantics). */
+async function survivingState(compose: ReturnType<typeof buildRpg>, hostId: UserId, chatId: ChatId): Promise<unknown> {
+  const principal = hostPrincipal(hostId);
+  const view = await compose.service.getTrackerView({ principal, chatId });
+  const journal = await compose.service.listJournal({ principal, chatId, limit: 50 });
+  return {
+    location: view.ambient?.location,
+    beats: view.recentBeats,
+    statuses: view.actors.map((a) => a.volatile?.status ?? null),
+    quests: view.quests.map((q) => ({ name: q.name, status: q.status, objectives: q.objectives.map((o) => ({ text: o.text, completed: o.completed })) })),
+    journal: journal.map((j) => ({ type: j.type, label: j.label, title: j.title, content: j.content })),
+  };
+}
+
+test("EXT-4a: the SAME malformed payload leaves IDENTICAL state on all three delivery paths", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+
+  // (1) RELIABLE — the structured emission, salvaged per plane / per entry.
+  const rel = await seedHostGameChat(db, "ext4-reliable");
+  const relCompose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: mixedExtractionText() });
+  await relCompose.service.createGame({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, mode: "lite" });
+  await relCompose.service.updateConfig({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, extractionMode: "reliable" });
+  const relSlot = await seedMessage(db, rel.chatId, 1, { role: "assistant", content: "They ford the river." });
+  await relCompose.chatOps.onTurnCompleted(rel.chatId, relSlot.messageId, relSlot.variantId, TURN, tc("chat-completions"));
+
+  // (2) CHEAP — the dedicated tool round, answered with the same writes as parallel calls.
+  const cheap = await seedHostGameChat(db, "ext4-cheap");
+  const cheapCompose = buildReliableRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    cannedToolCalls: MIXED_CALLS.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
+  });
+  await cheapCompose.service.createGame({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, mode: "lite" });
+  await cheapCompose.service.updateConfig({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
+  const cheapSlot = await seedMessage(db, cheap.chatId, 1, { role: "assistant", content: "They ford the river." });
+  await cheapCompose.chatOps.onTurnCompleted(cheap.chatId, cheapSlot.messageId, cheapSlot.variantId, TURN, tc("chat-completions"));
+
+  // (3) FOLDED — the character turn's own co-emitted calls.
+  const fold = await seedHostGameChat(db, "ext4-folded");
+  const foldCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await foldCompose.service.createGame({ principal: hostPrincipal(fold.hostId), chatId: fold.chatId, mode: "lite" });
+  const foldSlot = await seedMessage(db, fold.chatId, 1, { role: "assistant", content: "They ford the river." });
+  await foldCompose.chatOps.onTurnCompleted(fold.chatId, foldSlot.messageId, foldSlot.variantId, TURN, foldedTurn(MIXED_CALLS));
+
+  const survivors = await Promise.all([
+    survivingState(relCompose, rel.hostId, rel.chatId),
+    survivingState(cheapCompose, cheap.hostId, cheap.chatId),
+    survivingState(foldCompose, fold.hostId, fold.chatId),
+  ]);
+  // THE INVARIANT: three vehicles, one outcome.
+  expect(survivors[1]).toEqual(survivors[0]);
+  expect(survivors[2]).toEqual(survivors[0]);
+  // …and that outcome is the RIGHT one: the four good planes landed, the malformed journal entry alone died,
+  // and the type-less beat was healed rather than dropped. (Pre-fix, the reliable arm's survivors were EMPTY.)
+  expect(survivors[0]).toEqual({
+    location: "the ford",
+    beats: ["forded the river"],
+    statuses: ["wounded"],
+    quests: [{ name: "Cross the river", status: "active", objectives: [{ text: "Find the ford", completed: false }] }],
+    journal: [{ type: "note", label: "", title: "They forded the river.", content: "They forded the river." }],
+  });
+  // Every path NAMED its loss (D109-7 totality): the structured arm itemizes plane+entry, the tool arms name
+  // the tool — and the heal has its own line, so a silently-degrading model is visible on all three.
+  const unparseable = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
+  expect(unparseable.length).toBe(3);
+  expect((unparseable[0]?.[0] as { dropped?: { plane: string; index: number | null }[] }).dropped).toEqual([
+    { plane: "journal", index: 0, issues: expect.arrayContaining([expect.stringContaining("content")]) },
+  ]);
+  expect((unparseable[1]?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["add_journal_entry"]);
+  expect((unparseable[2]?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["add_journal_entry"]);
+  const healed = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.healed");
+  expect(healed).toHaveLength(3);
+  expect((healed[0]?.[0] as { healedJournalTypes?: number[] }).healedJournalTypes).toEqual([0]);
+});
+
+test("EXT-4a: a totally unparseable reliable payload is still one WARN + an empty delta (no partial garbage)", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "ext4-garbage");
+  const rpgCompose = buildReliableRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "I'm sorry, I can't do that." });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing lands." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
+  expect((line?.[0] as { dropped?: { plane: string }[] }).dropped).toEqual([{ plane: "root", index: null, issues: ["expected a JSON object"] }]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient).toBeNull(); // nothing salvageable ⇒ no snapshot at all (the non-writing turn)
+});
+
+test("BORN FOLDED: a FRESH game on an agent-sdk wire still lands state — via the LOUD fallback round", async ({ app, db }) => {
+  // Games are born `folded` (owner ruling 2026-08-01), and the stateful agent-sdk wire cannot carry terminal
+  // tools — so the very first turn of a brand-new room on that backend takes the degrade arm. It must (a) still
+  // write its state and (b) SAY it fell back: a delivery fork that resolves silently is BANNED (D112 (3)).
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "born-folded-sdk");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // NO updateConfig — born folded
+  expect((await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId })).extractionMode).toBe("folded");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+
+  // `terminalToolCalls: null` = the character turn could not mount the tools (the agent-sdk wire).
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  // The state landed anyway (cheap's round on agent-sdk rides the SAME structured extraction — shared plane).
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the obsidian tower");
+  // …and the extra call the fold exists to delete is VISIBLE in the trail, named.
+  const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
+  expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" });
+});
+
+test("EXT-4c: a quest UPDATE restating its objectives keeps the completed ones (composed-real, folded)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ext4-quest");
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  // Beat 1: the quest is created with two objectives.
+  const slot1 = await seedMessage(db, chatId, 1, { role: "assistant", content: "The task opens." });
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    slot1.messageId,
+    slot1.variantId,
+    castId<ChatTurnId>("chat_turn_quest_1"),
+    foldedTurn([{ name: "upsert_quest", args: { name: "Reach the Vault", action: "create", objectives: ["Find the road", "Enter the vault"] } }]),
+  );
+
+  // Beat 2: the model marks ONE objective done AND restates the list (the shape that used to wipe the flag).
+  const slot2 = await seedMessage(db, chatId, 2, { role: "assistant", content: "The road is found." });
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    slot2.messageId,
+    slot2.variantId,
+    castId<ChatTurnId>("chat_turn_quest_2"),
+    foldedTurn([
+      {
+        name: "upsert_quest",
+        args: { name: "Reach the Vault", action: "update", objectives: ["Find the road", "Enter the vault"], completeObjectives: ["Find the road"] },
+      },
+    ]),
+  );
+
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.quests[0]?.objectives.map((o) => ({ text: o.text, completed: o.completed }))).toEqual([
+    { text: "Find the road", completed: true },
+    { text: "Enter the vault", completed: false },
+  ]);
+  // The ids survived the restatement too — the objective is the SAME line, not a re-mint.
+  const ids = view.quests[0]?.objectives.map((o) => o.id) ?? [];
+  expect(new Set(ids).size).toBe(2);
+});
+
 test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the fold changes delivery, not schema)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "r1-tools");
   const rpgCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
+  // The host's opt-out (reliable) mounts NONE — the two-call arms never touch the character turn's wire.
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "reliable" });
   const built = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
-  // Reliable (the default) mounts none — the fold is opt-in per game.
   expect(built?.terminalTools).toBeUndefined();
 
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
