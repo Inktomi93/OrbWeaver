@@ -111,6 +111,16 @@ export const trackBarVariants = tv({
   },
 });
 
+/** The stacked composition rail (SegmentBar) — the SAME rail geometry as the TrackBar (one `field`-tall
+ *  pill), laid out as a flex row so the segments partition it. Each segment's COLOR is a ramp token
+ *  (`TRACK_FILL`); only its width is inline data. */
+export const segmentBarVariants = tv({
+  slots: {
+    root: "flex h-field w-full overflow-hidden rounded-full bg-input",
+    segment: "h-full",
+  },
+});
+
 /** The coin-disc tint maps (CoinFigure) — `color-mix` recipes over the track ramp (the sanctioned tint
  *  idiom; tv can't build these from a runtime number, so each is a literal Record like the fills above).
  *  Fill = a soft wash over the sidebar; stroke = the strong rim; ring = the faint inner engraving. */
