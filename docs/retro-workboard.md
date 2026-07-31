@@ -63,7 +63,40 @@ band had NO query container + unreachable thresholds; `.shell-panel` now the con
 two off-enum weather rows repaired in the dev DB while down · **FINAL LIVE MEASUREMENT: stone 120px,
 panel 480px** ✓.
 
-## ═══ ▶▶▶ 08-01 DAY WAVE — lanes firing now ═══
+## ═══ ▶▶▶ 08-01 DAY WAVE — LIVE STATE @ ~07:00 (compact-safety snapshot) ═══
+
+**IN-FLIGHT AGENTS (SendMessage ids):** smalls DONE (`edb78a26` AU-5 kill incl. re-homed cold-cache regression tests + `d9563dd1` VER-1d quality guard; NEW ITEM: `resolveAgentSdkAlias` branch now product-unreachable — separate look). Was: smalls ON MAIN — AU-5 `edb78a26`
+(NOTE: my staged density spec got index-swept into that commit — content fine, cosmetic), VER-1d guard
+IN PROGRESS (`resolve-chat.ts` uncommitted in main's tree — **NO git ops on main until it lands**) ·
+CARD round-2 SOLVED (`aa20a1940c51c9826`, wt alive, commits 3326615d/1fb37fca/83f3464b rebased on
+cf82ade3): the "empty archive" was NEVER an archive bug — the owner's "cards" are UNTERMINATED
+`:::card` fences (a nested `:::choices` ate the single closer; two more = mid-stream truncation),
+degrading to literal text that LOOKS like a card in the transcript; archive is byte-consistent with
+the transcript in all 10 card-bearing chats. Shared artifact-row treatment landed (Journal+Scene, the
+collapsed-card title bar anatomy). ROUND 3 (orchestrator-ruled fork): (a) RPG_CARD_TEACH forbids
+nesting :::choices inside :::card; (b) tokenizer implicit-close-at-EOF for COMMITTED bodies only
+(committed:true option — streaming hold-back untouched; wire projection follows the card class,
+D110 §3 tests incl. the wire-stub arm) · TRK-1 `ae441b0805535fe2e` (wt) — Tracker
+stage-1 server core, LONG · PREV `aa855bb2e7ac7e9d3` (wt) — Preview rebuild · AU-8 scout
+`a8941d8dfb7afd8e1` — final sweep (interim: automation.stream = the one bus with zero client consumer).
+
+**MERGE QUEUE (strictly after smalls lands, serialize + certify each):** 1) `wt/agent-aa010e6ca404b138a`
+(MP done `90409adb` — grouped picker + curated-fallback notice; lesson: new data-testid must register in
+test-ids.ts, gate only fires in structure:full) · 2) `wt/agent-ab95fa9827638dfbf` (TIDY done `0c2e52e6` —
+66 mocks → docs/design/mocks, reviews → docs/reviews, agent defs repointed, crunchy DESIGN.md RESCUED
+from untracked; owner BLESSED the biome mocks exclusion) · 3) after TIDY merge: DELETE the stale
+untracked dupes in main's reports/ (crunchy DESIGN.md, 2 stickler, appsettings, marinara audit,
+user-macro spec — they became tracked copies in docs/) · 4) detached
+`setsid nohup git push origin --delete retro-burn-down` (OWNER AUTHORIZED; contained-in-main VERIFIED;
+first attempt died at a 2-min timeout — the pre-push hook runs ~10min even for deletions; use the
+overnight detached+watcher pattern) · then CARD-2/TRK-1/PREV merges as they land.
+
+**Waystone: owner-approved state** (night sky + lit homestead + vivid bands + needle + numeric hour +
+weather label all landing). Two OPEN card issues (CARD-2 owns both). Push word SPENT at `b87ec743`;
+everything since is LOCAL commit-only. Owner decisions pending: the three spec docs' flagged sections
+(SSE §14 · SET-SEAMS §10 · DENSITY §7 D1–D10) — morning review stack.
+
+## ═══ (superseded wave table below) ═══
 
 | Lane | Where | Scope |
 |---|---|---|
