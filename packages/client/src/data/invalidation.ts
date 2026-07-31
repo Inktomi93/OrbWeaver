@@ -57,12 +57,20 @@ const nothing = (): readonly InvalidateFilter[] => [];
 // fetches in 80ms (two of them from the greeting + user-row `messageCommitted` pair), and a plain turn paid
 // two more on commit+complete. `invalidateQueries` does NOT dedupe against an in-flight fetch (it cancels and
 // restarts), so every redundant row here is a real round-trip.
+//
+// `rpg.revealHidden` rides here even though it is an RPG read: the verb DERIVES it from the stored
+// selected-variant assistant BODIES (`domain/rpg/verbs/read/reveal-hidden.ts` — no table of its own), so its
+// freshness driver is CANON, not the rpg bus. Without this row the host's veiled cue + Veiled ledger froze at
+// the count they had when the panel first mounted (the previewAssembly class — every new GM lie invisible
+// until GC or a reload). Costs nothing on a non-RPG chat: `invalidateQueries` is a no-op for a key with no
+// cache entry.
 function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
     trpc.chat.listMessages.pathFilter(),
     trpc.chat.listMessageVariants.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     ...promptPreviewReads(trpc),
+    trpc.rpg.revealHidden.pathFilter(),
   ];
 }
 
@@ -130,10 +138,15 @@ const BUS_FILTERS: BusFilterMap = {
   // live under `getChat`, so without this a second tab/device sitting in the same room kept showing the
   // PREVIOUS room behavior forever (staleTime is Infinity and refetchOnWindowFocus is off — the bus is the
   // only freshness driver). The setter's own `invalidates` only ever covered the writing tab.
+  // `listChatInjections` rides here for the SAME reason as `getGroupConfig`: the injections manager reads the
+  // `chat_injections` rows through their OWN proc (not under `getChat`), and every injection write emits this
+  // catch-all (`verbs/chat-lifecycle.ts` set/delete). Without the row, only the writing tab reconciled — a
+  // member (or the host's second tab) sat on the pre-edit splice list forever.
   chatUpdated: (e, trpc) => [
     ...chatReads(trpc),
     trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
+    trpc.chat.listChatInjections.queryFilter({ chatId: e.chatId }),
   ],
 };
 
@@ -145,7 +158,11 @@ type UserBusFilterMap = {
 };
 
 const USER_BUS_FILTERS: UserBusFilterMap = {
-  charactersChanged: (_e, trpc) => [trpc.character.pathFilter()],
+  // `chat.getMemberCard` is a CHAT-scoped projection of a character card (host-owned, clamped by the room's
+  // memberCardVisibility) — a card edit is announced HERE, not on the chat bus, so without this row the member-
+  // card dialog re-opened inside its gcTime window showed the pre-edit card. Path-level and free when the
+  // dialog is closed (the read is `enabled: open`, so there is no cache entry to refetch).
+  charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
@@ -199,7 +216,13 @@ type RpgBusFilterMap = {
 
 const RPG_BUS_FILTERS: RpgBusFilterMap = {
   // The game row itself changed (create/config/knob/mode) — the takeover mode read + the host editor refetch.
-  gameChanged: (e, trpc) => [trpc.rpg.getGame.queryFilter({ chatId: e.chatId }), trpc.rpg.getConfigView.queryFilter({ chatId: e.chatId })],
+  // `revealHidden` rides along: the M4 knob (`config.features.hiddenContentReveal`) makes the verb return the
+  // EMPTY reveal, so flipping it must empty/refill the host's veiled surfaces immediately.
+  gameChanged: (e, trpc) => [
+    trpc.rpg.getGame.queryFilter({ chatId: e.chatId }),
+    trpc.rpg.getConfigView.queryFilter({ chatId: e.chatId }),
+    trpc.rpg.revealHidden.queryFilter({ chatId: e.chatId }),
+  ],
   // A swipe-volatile snapshot was written — the WHOLE panel re-resolves against the new resolved-current
   // snapshot (§4.9), so the single tracker aggregate refetches (every tab reads it).
   snapshotPatched: (e, trpc) => [trpc.rpg.getTrackerView.queryFilter({ chatId: e.chatId })],
@@ -214,13 +237,15 @@ const RPG_BUS_FILTERS: RpgBusFilterMap = {
 };
 
 /** Every rpg filter, for the (re)connect gap-heal (the `use-rpg-bus.ts` blanket invalidate) — the game +
- *  tracker + config + journal reads for one open game, derived so a new read can't drift the heal set. */
+ *  tracker + config + journal + host-reveal reads for one open game, derived so a new read can't drift the
+ *  heal set. */
 function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
   return [
     trpc.rpg.getGame.queryFilter({ chatId }),
     trpc.rpg.getTrackerView.queryFilter({ chatId }),
     trpc.rpg.getConfigView.queryFilter({ chatId }),
     trpc.rpg.listJournal.pathFilter(),
+    trpc.rpg.revealHidden.queryFilter({ chatId }),
   ];
 }
 
