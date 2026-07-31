@@ -186,11 +186,15 @@ function castFieldSegs(customFields: Readonly<Record<string, string>>, castField
     if (raw === undefined) {
       continue;
     }
+    let base: string;
     if (field.kind === "meter") {
-      segs.push(field.max !== undefined ? `${field.label} ${raw}/${field.max}` : `${field.label} ${raw}`);
+      base = field.max !== undefined ? `${field.label} ${raw}/${field.max}` : `${field.label} ${raw}`;
     } else {
-      segs.push(`${field.label}: ${raw}`);
+      base = `${field.label}: ${raw}`;
     }
+    // The hint gloss rides BOTH kinds (the pool/relationship grammar above): a bare tracked number measurably
+    // does NOT steer narration where a one-clause gloss does (the §4d steer probe: Δ −0.12 vs −1.00).
+    segs.push(field.hint !== undefined && field.hint !== "" ? `${base} (${field.hint})` : base);
   }
   return segs;
 }
