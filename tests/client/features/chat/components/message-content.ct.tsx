@@ -146,6 +146,29 @@ test("the EXPAND affordance opens the lightbox dialog labelled by the card title
   await expect(dialog.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
 });
 
+// RV-1 — a card in the TRANSCRIPT collapses to its title bar, per viewer. The prose around it is
+// untouched (the collapse is card chrome, not a message-level fold), and the sandbox attributes on the
+// re-shown frame are the SAME scripts-off, null-origin pair (the collapse must not re-open the boundary).
+test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts-off sandbox", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={LETTER_CARD_BODY} />);
+  const card = component.locator('[data-slot="immersive-card"]');
+
+  await card.getByRole("button", { name: "Collapse card" }).click();
+  await expect(card.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(0);
+  await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText("Zandik's letter");
+  // The message's own prose is unaffected — only the card body folded.
+  await expect(component.getByText("before")).toBeVisible();
+  await expect(component.getByText("after")).toBeVisible();
+
+  await card.getByRole("button", { name: "Show card" }).click();
+  const frame = card.locator('iframe[data-slot="sandbox-frame"]');
+  await expect(frame).toHaveCount(1);
+  const sandbox = await frame.getAttribute("sandbox");
+  expect(sandbox).not.toBeNull();
+  expect(sandbox).not.toContain("allow-scripts");
+  expect(sandbox).not.toContain("allow-same-origin");
+});
+
 // ── P5 §5.2-5.3 — the `:::choices` fence renders CLICKABLE send-affordances ───────────────────────
 
 const CHOICE_OPTION = '[data-testid="message-choice-option"]';
