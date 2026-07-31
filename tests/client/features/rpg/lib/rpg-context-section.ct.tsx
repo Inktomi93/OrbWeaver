@@ -159,19 +159,40 @@ function configView(): unknown {
   };
 }
 
+// A `rpg.listJournal` stub — the paged chronicle the Journal tab's All scope reads. Two hand/model beats
+// (the tab can't tell them apart, and the edit verb deliberately reaches both).
+const JOURNAL_ENTRIES = [
+  { id: "rpg_journal_ct_1", type: "npc", title: "Sera's debt", content: "She owes the party a favour.", createdAt: 2000 },
+  { id: "rpg_journal_ct_2", type: "location", title: "The Rusted Lantern", content: "", createdAt: 1000 },
+];
+
 function stubTakeover(
   page: Page,
-  opts: { readonly readOnly?: boolean; readonly reveal?: unknown; readonly tracker?: unknown; readonly game?: unknown; readonly messages?: unknown } = {},
+  opts: {
+    readonly readOnly?: boolean;
+    readonly reveal?: unknown;
+    readonly tracker?: unknown;
+    readonly game?: unknown;
+    readonly messages?: unknown;
+    readonly chat?: unknown;
+  } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
-    "chat.getChat": () => gameChat(),
+    "chat.getChat": () => opts.chat ?? gameChat(),
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
     "rpg.patchSheet": () => undefined,
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
+    "rpg.deleteQuest": () => undefined,
+    // The Journal tab's own reads + the RV-6 hand-authoring verbs (all host-gated server-side).
+    "rpg.listJournal": () => JOURNAL_ENTRIES,
+    "rpg.listCheckpoints": () => [],
+    "rpg.addJournalEntry": () => "rpg_journal_ct_new",
+    "rpg.editJournalEntry": () => undefined,
+    "rpg.deleteJournalEntry": () => undefined,
     "rpg.getConfigView": () => configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened) + the transcript
@@ -344,6 +365,82 @@ test("the host New-quest affordance fires upsertQuest (create) — the mutation 
   await nameField.blur();
   await component.getByRole("button", { name: "New quest" }).click();
   await expect.poll(() => trpc.count("rpg.upsertQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("the host quest DELETE fires deleteQuest behind a confirm — the mutation COUNT", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+
+  // The per-card destructive action names its target; the confirm names the consequence (never a bare click).
+  await component.getByRole("button", { name: "Delete quest: Keep the bone key" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.deleteQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+// RV-6 — hand journal authoring. The three verbs are host-gated (`resolveHost`), so the host arm is the
+// composer + per-row edit/delete, and a member gets the chronicle read-only (PERMISSION-omit).
+test("the host New-entry composer fires addJournalEntry with the chosen type and title (body born empty)", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  await component.getByRole("combobox", { name: "Entry type" }).click();
+  await page.getByRole("option", { name: "Location" }).click();
+  await component.getByRole("textbox", { name: "New entry title" }).fill("The bone door");
+  await component.getByRole("button", { name: "Add entry" }).click();
+
+  // The body is authored in place on the born row (§12.4.1), so the create carries an empty `content`.
+  await expect.poll(() => trpc.count("rpg.addJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("rpg.addJournalEntry"), { intervals: [20, 50, 100] })
+    .toMatchObject({ type: "location", title: "The bone door", content: "" });
+});
+
+test("a beat row's inline title edit fires editJournalEntry (host) — the mutation COUNT + patch", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  // Display-at-rest (§12.4.1): the title is a button; the inline field appears on click, commits on blur.
+  await component.getByRole("button", { name: "Sera's debt title" }).click();
+  const field = component.getByRole("textbox", { name: "Sera's debt title" });
+  await field.fill("Sera's bargain");
+  await field.blur();
+
+  await expect.poll(() => trpc.count("rpg.editJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect
+    .poll(() => trpc.lastInput("rpg.editJournalEntry"), { intervals: [20, 50, 100] })
+    .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { title: "Sera's bargain" } });
+});
+
+test("a beat row's confirmed delete fires deleteJournalEntry (host) — the mutation COUNT", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  await component.getByRole("button", { name: "Delete entry: Sera's debt" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect.poll(() => trpc.count("rpg.deleteJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("rpg.deleteJournalEntry"), { intervals: [20, 50, 100] }).toMatchObject({ entryId: "rpg_journal_ct_1" });
+});
+
+test("a MEMBER reads the chronicle with NO authoring affordances (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {
+  await stubTakeover(page, { chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+
+  // The beats still READ (the list verb is member-read) — the entry text is there…
+  await expect(component.getByText("Sera's debt")).toBeVisible();
+  // …but nothing to author with: no composer, no per-row edit button, no delete.
+  await expect(component.getByRole("textbox", { name: "New entry title" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sera's debt title" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Delete entry: Sera's debt" })).toHaveCount(0);
 });
 
 test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; null plot ⇒ no rail)", async ({ mount, page }) => {

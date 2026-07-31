@@ -5,7 +5,7 @@ import { useRef } from "react";
 // consumer — including PD-130's showGenerationTimer, now that the turn engine writes the gen-window
 // bounds and the read seam surfaces them on MessageView.
 
-import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { AppearanceSettings, BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { FieldLayout } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Section, Stack } from "@orb/ui/layout";
@@ -22,6 +22,7 @@ import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { BackgroundUploadField } from "../components/background-upload-field";
+import { ExternalBackgroundField } from "../components/external-background-field";
 import { APPEARANCE_ENTITY_ID, AppearanceForm } from "../hooks/use-appearance-form";
 import {
   BACKGROUND_BLUR_MAX,
@@ -144,6 +145,15 @@ function LibraryPageSizeRow({ pageSize }: { readonly pageSize: number }): ReactE
 /** The form-bearing appearance body — remounted per epoch by the boundary's keyed Session. */
 function AppearanceFormBody({ session }: { readonly session: AutosaveSession<AppearanceSettings> }): ReactElement {
   const { form, saveState, retrySave } = session;
+  // A newly-added background — uploaded or materialized from a URL — SAVES to the library (BG-D) and becomes
+  // the live one in the same autosave patch. Byte-identical adds legitimately produce two rows: `assetId` is
+  // content-addressed and shared, `entryId` is the per-row identity (F-P2), so no de-duplication here.
+  const addBackground = (entry: BackgroundLibraryEntry): void => {
+    form.setFieldValue("backgroundLibrary", [...form.state.values.backgroundLibrary, entry]);
+    form.setFieldValue("backgroundAssetId", entry.assetId);
+    form.setFieldValue("backgroundAssetHash", entry.assetHash);
+    form.setFieldValue("backgroundAssetMime", entry.mime);
+  };
   return (
     <Stack gap="section">
       <Stack gap="section">
@@ -295,17 +305,17 @@ function AppearanceFormBody({ session }: { readonly session: AutosaveSession<App
                   )}
 
                   {kind === "asset" && (
-                    <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
-                      {(hash): ReactElement => (
-                        <BackgroundUploadField
-                          currentHash={hash}
-                          onUploaded={(stored): void => {
-                            form.setFieldValue("backgroundAssetId", stored.assetId);
-                            form.setFieldValue("backgroundAssetHash", stored.hash);
-                          }}
-                        />
-                      )}
-                    </form.Subscribe>
+                    <>
+                      {/* Two ways INTO the one library (BG-D), one landing: an own upload and a pasted URL
+                          (which the server materializes into an owned CAS asset — never an external URL is
+                          persisted, BG-C). Both hand up a ready entry and take the SAME append + select
+                          path, so `/setbackground <name>` and the carried-background picker (which points
+                          users here to add one) see every background either way. */}
+                      <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
+                        {(hash): ReactElement => <BackgroundUploadField currentHash={hash} onUploaded={addBackground} />}
+                      </form.Subscribe>
+                      <ExternalBackgroundField onAdded={addBackground} />
+                    </>
                   )}
                   <form.AppField name="backgroundFit">{(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}</form.AppField>
                   <form.AppField name="backgroundDim">

@@ -7,8 +7,9 @@
 // breaks here at compile time, never a re-spelled union at the call site (§5.5).
 //
 // Runtime authz lives INSIDE each verb: `patchSheet` = host any actor / a member their own `user` ref;
-// `editSnapshot` + `upsertQuest` = host-only in v1 (a member gets a leak-free FORBIDDEN). The panel's
-// `canEditShared` gate mirrors the shared-plane arm so a member never SEES a control that would refuse.
+// `editSnapshot` + `upsertQuest`/`deleteQuest` + the three `*JournalEntry` verbs = host-only (each opens with
+// `resolveHost`; a member gets a leak-free FORBIDDEN). The panel's `canEditShared`/`isHost` gates mirror the
+// shared-plane arm so a member never SEES a control that would refuse.
 
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -90,6 +91,38 @@ export const useSendChoice = createEntityMutation<inferInput<Trpc["chat"]["send"
   options: (trpc) => trpc.chat.send.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't send your choice.",
+});
+
+/** `rpg.deleteQuest` — remove a quest from the current snapshot AND clear its `quests.<id>` lock (Quests
+ *  tab card action; host-only, the verb refuses a member). Repaints the tracker view (quests ride the
+ *  snapshot, and the Scene goal echo is the same rows through a filter). */
+export const useDeleteQuest = createEntityMutation<inferInput<Trpc["rpg"]["deleteQuest"]>, unknown>({
+  options: (trpc) => trpc.rpg.deleteQuest.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't delete the goal.",
+});
+
+/** `rpg.addJournalEntry` — the HAND arm of the chronicle (Journal → All; host). Stamps a `variantId: NULL`
+ *  every-lineage entry. Repaints the paged journal read (the tab's only source for beats). */
+export const useAddJournalEntry = createEntityMutation<inferInput<Trpc["rpg"]["addJournalEntry"]>, unknown>({
+  options: (trpc) => trpc.rpg.addJournalEntry.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't add the journal entry.",
+});
+
+/** `rpg.editJournalEntry` — patch an entry's type/title/content (host). Reaches MODEL-written entries too
+ *  (the verb's recovery path), so every beat row is host-editable, not just hand ones. */
+export const useEditJournalEntry = createEntityMutation<inferInput<Trpc["rpg"]["editJournalEntry"]>, unknown>({
+  options: (trpc) => trpc.rpg.editJournalEntry.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't save the journal entry.",
+});
+
+/** `rpg.deleteJournalEntry` — remove a chronicle entry (host; a foreign game's id is a leak-free 404). */
+export const useDeleteJournalEntry = createEntityMutation<inferInput<Trpc["rpg"]["deleteJournalEntry"]>, unknown>({
+  options: (trpc) => trpc.rpg.deleteJournalEntry.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't delete the journal entry.",
 });
 
 /** `rpg.createCheckpoint` — mint a MARK on the current resolved snapshot (Journal → Marks; host). */
