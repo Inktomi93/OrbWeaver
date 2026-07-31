@@ -10,7 +10,10 @@
 //     registry (§3.2a — lie/ofilter are the first two REGISTRANTS; a third channel is a registry row).
 //   • a DIRECTIVE FENCE is `:::name key="value"` on its own line … body … `:::` on its own line, for any
 //     name in the OPEN `DIRECTIVE_FENCE_NAMES` registry (§3.2b — card/choices first; a new fence is a member
-//     + a projection arm). Unknown attrs on a fence are IGNORED, never fatal (version-tolerant, graft #V4).
+//     + a projection arm). Unknown attrs on a fence are IGNORED, never fatal (version-tolerant, graft #V4),
+//     and a REGISTERED name's open line tolerates ONE measured malformation — the trailing HTML-tag-close
+//     reflex `:::card title="…">` (spike §4h; see `FENCE_OPEN_TAG_CLOSE_RE` for the observed distribution and
+//     the exact scope). Everything else about the open line, the close line, and attr parsing stays strict.
 //   • a COMMAND-SHAPED but UNREGISTERED tag/fence (an attr-carrying `<gmnote …/>`, a `:::teleport` fence) is
 //     an `unknown-directive` span — the §3.2.1 ALLOWLIST-STRIP class: hidden on the reading surface (model
 //     noise, never rendered as raw garbage), kept VERBATIM on the wire (the transcript is honest). A
@@ -234,9 +237,34 @@ function scanSelfClosingTag(content: string, start: number): TagScan | null {
   }
 }
 
+// The MEASURED OPEN-LINE reflex (spike §4h) — the `committed` EOF-close's sibling: another measured-leniency
+// arm, not a general loosening. Hosted Sonnet closes a fence opener like an HTML tag —
+// `:::card title="Maintenance Terminal — LOGIN">` — and the strict parse rejected the whole line, so a
+// well-formed card degraded to LITERAL bytes instead of a card span (§4h reports the reader's end of it: the
+// prose arrives and the card is a hole). Worse, the malformed opener lands in the assistant history and the
+// model imitates itself (one slip cost eight consecutive cards). Measured: 114/120 emitted, 87/120 rendered.
+//
+// THE OBSERVED DISTRIBUTION (the receipt, `scripts/probes/rpg-extraction/card-teach-out{,-run2,-run3,-run4}
+// .json` + the other probe corpora — 203 fence-open lines, of which 78 are `:::choices`): exactly 27 lines
+// failed to parse, and EVERY ONE carried the identical residue `">"` after a well-formed attr list. ZERO
+// leading-space opens, ZERO single-quoted attrs, ZERO `/>`. §4h's prose also proposed recovering the
+// single-quoted title and the leading-space open; both are UNMEASURED (0/203) and both would loosen the attr
+// grammar / the line anchor rather than the trailing junk, so they are deliberately NOT shipped.
+//
+// SCOPE, exhaustively: the tolerance is trailing junk AFTER a well-formed attr list, on a REGISTERED fence
+// name only (`tryDirectiveFence` — tolerating it on an unregistered fence would turn literal text into a
+// HIDDEN span, the same reason the EOF close is registered-only). Attr parsing itself never loosens — a `>`
+// INSIDE quotes stays exact bytes of the title. The CLOSE line never loosens. `stripHiddenSpans` and the
+// mid-stream scrubber are untouched: the §3.6 member trust boundary stays strict + fail-closed.
+const FENCE_OPEN_TAG_CLOSE_RE = /^>[ \t]*$/;
+
 /** The fence-open attr list (`:::name key="value" key2="…"`), same quote/escape rules as the tag walker.
- *  Empty/whitespace rest → `{}`; any malformed rest → null (the line is NOT a directive open — literal). */
-function parseFenceAttrs(rest: string): Record<string, string> | null {
+ *  Empty/whitespace rest → `{}`; any malformed rest → null (the line is NOT a directive open — literal).
+ *  `lenient` adds ONLY the §4h measured arm above: a leftover that is exactly the HTML-tag-close reflex keeps
+ *  the attrs parsed so far. The rejecting arm survives for genuinely unparseable opens — an unquoted value
+ *  (`:::card title=broken`), an unclosed quote, a stray `>` with more attrs behind it — and those still
+ *  degrade loudly. */
+function parseFenceAttrs(rest: string, lenient: boolean): Record<string, string> | null {
   const attrs: Record<string, string> = {};
   let i = 0;
   for (;;) {
@@ -246,7 +274,7 @@ function parseFenceAttrs(rest: string): Record<string, string> | null {
     }
     const pair = scanAttrPair(rest, i, rest.length);
     if (pair === null) {
-      return null;
+      return lenient && FENCE_OPEN_TAG_CLOSE_RE.test(rest.slice(i)) ? attrs : null;
     }
     attrs[pair.key] = pair.value;
     i = pair.end;
@@ -418,7 +446,10 @@ function tryDirectiveFence(content: string, lines: readonly Line[], i: number, c
   if (open === null) {
     return null;
   }
-  const attrs = parseFenceAttrs(open[2] ?? "");
+  const name = open[1] ?? "";
+  // The §4h open-line leniency rides the ALLOWLIST (`FENCE_OPEN_TAG_CLOSE_RE`): `card`/`choices` share the one
+  // recognizer, so the registry is what widens — an unregistered `:::teleport …>` still degrades to literal.
+  const attrs = parseFenceAttrs(open[2] ?? "", isDirectiveFenceName(name));
   if (attrs === null) {
     return null;
   }
@@ -428,17 +459,15 @@ function tryDirectiveFence(content: string, lines: readonly Line[], i: number, c
     // The `committed` EOF close (see `TokenizeContentOptions.committed`): an unterminated REGISTERED fence in
     // a FINAL body consumes the rest of the content as its body. Everything to `content.length` becomes the
     // span's `raw`, so the re-emit invariant (`contentSpanRaw` join === body) holds with no tail piece.
-    const unclosedName = open[1] ?? "";
-    if (!(committed && isDirectiveFenceName(unclosedName))) {
+    if (!(committed && isDirectiveFenceName(name))) {
       return null;
     }
     const eofBody = sliceTexts(lines, i + 1, lines.length).join("\n");
     const eofRaw = content.slice(line.start);
-    return { pieces: [{ kind: "span", span: FENCE_BUILDERS[unclosedName](attrs, eofBody, eofRaw) }], next: lines.length };
+    return { pieces: [{ kind: "span", span: FENCE_BUILDERS[name](attrs, eofBody, eofRaw) }], next: lines.length };
   }
   const body = sliceTexts(lines, i + 1, closeIdx).join("\n");
   const raw = content.slice(line.start, closeLine.end);
-  const name = open[1] ?? "";
   // Allowlist (§3.2.1 #2): a registered name projects; an unregistered command-shaped fence strips.
   const span = isDirectiveFenceName(name) ? FENCE_BUILDERS[name](attrs, body, raw) : ({ kind: "unknown-directive", raw } as const);
   return { pieces: [{ kind: "span", span }, ...tailPiece(content, lines, closeIdx, true)], next: closeIdx + 1 };
@@ -823,7 +852,9 @@ function completedCardOpen(content: string, lines: readonly Line[], i: number): 
   if (open === null || open[1] !== "card") {
     return null;
   }
-  return parseFenceAttrs(open[2] ?? "");
+  // `card` is registered, so the ghost chip gets the same §4h leniency as the committed parse — otherwise a
+  // malformed opener would stream as raw HTML and then snap into a card at commit.
+  return parseFenceAttrs(open[2] ?? "", true);
 }
 
 /** One consumed forming-card block: its segment + where the next text run / line scan resumes. A card whose

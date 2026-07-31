@@ -840,6 +840,15 @@ partly recovered).
 
 **Recommendation — the fix is the TOKENIZER, and the copy change is a cheap second layer.**
 
+> **✅ BOTH LAYERS SHIPPED (2026-07-31, F2a+F2b).** The tokenizer arm is `FENCE_OPEN_TAG_CLOSE_RE` in
+> `packages/kit/src/content/index.ts` — scoped NARROWER than the prose below on the raw evidence: mining every
+> probe transcript for unparseable fence-open rests returned **27/203 lines, all with the identical residue
+> `">"`**, and **zero** single-quoted attrs, **zero** leading-space opens, **zero** `/>`. Only the measured
+> trailing-`>` class is tolerated (after a well-formed attr list, on a REGISTERED name — `:::choices>` rides
+> the same recognizer for free); the single-quote and leading-space arms are NOT shipped, because both would
+> loosen the attr grammar / the line anchor rather than the open line's trailing junk. The copy layer is
+> `RPG_CARD_TEACH_EXAMPLE` in `domain/rpg/substrate/reminder.ts`, appended to BOTH variants.
+
 `packages/kit/src/content/index.ts` already states the posture this violates: *"Unknown attrs on a fence are
 IGNORED, never fatal (version-tolerant, graft #V4)."* A malformed *rest* is fatal today. For a REGISTERED
 fence name (`card`/`choices`), an unparseable rest should fall back to best-effort attrs rather than rejecting

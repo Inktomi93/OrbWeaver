@@ -502,6 +502,21 @@ test("BOTH card teach variants forbid nesting a directive inside the card (the l
   }
 });
 
+test("F2b (§4h): BOTH variants carry the worked example, and its opener is the EXACT shape the tokenizer parses", () => {
+  // The example's measured job is GRAMMAR — it pins the opener bytes where hosted Sonnet drifts to
+  // `:::card title="…">`. Teaching a shape our own tokenizer rejects would be the worst possible copy, so
+  // the assertion runs the taught bytes THROUGH the tokenizer rather than matching the string.
+  for (const teach of [RPG_CARD_TEACH, RPG_CARD_TEACH_STATIC]) {
+    expect(teach).toContain("For example, a three-line sign is enough:");
+    const example = teach.slice(teach.indexOf(':::card title="Crossing sign"'));
+    const spans = tokenizeContent(example, { committed: true });
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toMatchObject({ kind: "card", title: "Crossing sign", origin: "fence" });
+  }
+  // The example is a STILL sign — it mirrors into the static variant without inviting scripts/animation.
+  expect(RPG_CARD_TEACH_STATIC).not.toContain("<script");
+});
+
 test("immersiveHtml OFF emits NO card teach (applicability — absent, not a stub)", () => {
   const out = buildLiteReminder(input({ features: features({ immersiveHtml: false }) }));
   expect(out).not.toContain(":::card");
