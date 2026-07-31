@@ -51,7 +51,7 @@ at all.** One tab, five concerns is the structural root of "a whole menu got gar
 
 | Tab | Verdict | Gaps (mock → built) |
 |---|---|---|
-| **Preview** | **WORST — screenshot-confirmed.** Tab exists (`assembly-preview-panel.tsx`), design did not land. | Mock: stacked color-coded context-budget bar (e.g. 4,300/8,192 tok) · per-source rows with token counts + drill-in chevrons (System/GM charter · Cards · World info · Steering · Game state · History-N-turns-squashed) · monospace game-state excerpt card. Built: three plain "advisory" token rows (static/dynamic/total), one provenance line, raw system-prompt text dump. Missing: the budget-bar + source-row **UI primitives** (new primitives, D44 applies), per-source token accounting (may need server-side assembly-trace splitting — check what `assembly-preview` returns before assuming client-only), history accounting, excerpt card. |
+| **Preview** | **REBUILT 2026-07-31 (D-4/D-4a) — was: WORST, screenshot-confirmed.** Tab exists (`assembly-preview-panel.tsx`); the gap below is CLOSED (budget bar + per-source rows + per-member breakdown + excerpt), with the bar drawn fill-vs-headroom per D-4a, not the mock's composition. | Mock: stacked color-coded context-budget bar (e.g. 4,300/8,192 tok) · per-source rows with token counts + drill-in chevrons (System/GM charter · Cards · World info · Steering · Game state · History-N-turns-squashed) · monospace game-state excerpt card. Built: three plain "advisory" token rows (static/dynamic/total), one provenance line, raw system-prompt text dump. Missing: the budget-bar + source-row **UI primitives** (new primitives, D44 applies), per-source token accounting (may need server-side assembly-trace splitting — check what `assembly-preview` returns before assuming client-only), history accounting, excerpt card. |
 | **This chat** | Merged per newer mock; deviations unreviewed. | (a) Injection rows: mock draws compact rows + on/off switch + kebab; built is full expanded form + Remove ("off = delete", `injections-manager.tsx` header). Keep-or-converge decision → D-2. (b) All-tabs Settings mock's "This game" group (dice-cues, beat-notifications toggles) built NOWHERE → D-3. (c) Mock Injections' "One channel" cross-link footer card absent (not fully verified). (d) 5-section overload → D-1. |
 | **Members** | Built RICHER than mock (invite/kick/nominate/leave, force-turn, talkativeness). | Mock's "Veiled — host only" note relocated to the Status tab (`rpg-veiled-section.tsx` ← `rpg-status-tab.tsx`) — relocation, not loss. Verify live only. |
 | **Game** | Present, host-gated, structurally matches GM-console concept. | NOT section-diffed in depth (Stat profile / Cast fields / Relationship hints / Steering note / Delivery model vs built `rpg-game-tab.tsx` + `GmConsoleScalars`) — lane must diff live. |
@@ -98,6 +98,16 @@ data via `connection.getModelsForSource`, 5-arm switch in `get-models-for-source
 > `enabled` flag on the row — disable-without-delete restored). **D-3: beat-notifications DEAD** (with
 > dice-cues). **D-4: Preview rebuild GREENLIT** (budget bar + per-source breakdown + primitives).
 > Bonus ruling: `permitsHost` stays (doorway, not purged).
+
+> **D-4a (2026-07-31, BUILT) — the budget bar is FILL-VS-HEADROOM, superseding the mock on this point.**
+> The mock drew the bar as pure COMPOSITION: the per-source segments span the full rail and the ratio lives
+> only in the text ("4,300 / 8,192 tok"). Live that reads as a FULL bar at 0.4% usage (891 of a real 200k
+> window) — the owner called it, and ruled: the bar's filled LENGTH is `used / window`, the fill keeps its
+> per-source segments, the remainder is visible headroom. The mock's reading survives ONLY where no real
+> window exists (unknown or unbounded) — there is no headroom truth to draw there, so the bar falls back to
+> composition across the full rail and the headline says which case it is (never a proportion against a
+> fallback). `SegmentBar`'s `total` prop is the seam; CTs pin the ~52% fill, the sliver, and both no-window
+> arms.
 
 - **D-1** — This-chat depth: accept 5 sections in one tab, or split (e.g. host-ops — Background /
   Group / Tool use — behind a sub-grouping)? The mock's clean 1-concern-per-tab is gone either way;
