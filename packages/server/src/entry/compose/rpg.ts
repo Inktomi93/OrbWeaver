@@ -596,7 +596,15 @@ function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; descript
   return [
     { name: "update_party", description: "HP, pools, conditions, status on any actor.", parameters: itemSchemaOf("party") },
     { name: "update_inventory", description: "Items and wallet on an actor.", parameters: itemSchemaOf("inventory") },
-    { name: "update_scene", description: "Location, time, weather, present cast, a recent beat.", parameters: sceneSchema },
+    {
+      name: "update_scene",
+      // RV-9: time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a
+      // field the model never advances renders as a stopped clock (the R4b gloss lesson).
+      description:
+        "Location, time of day, weather, present cast, a recent beat. Call it when the scene moves, when the " +
+        "beat spends time (rest, travel, a cut to later), when the weather turns, or when a new day starts.",
+      parameters: sceneSchema,
+    },
     { name: "set_widget_value", description: "Write a custom tracker's value.", parameters: itemSchemaOf("widgets") },
     { name: "upsert_quest", description: "Create/update/complete/fail a quest.", parameters: itemSchemaOf("quests") },
     { name: "add_journal_entry", description: "Log a notable beat.", parameters: itemSchemaOf("journal") },

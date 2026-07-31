@@ -65,6 +65,12 @@
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.
     "tests/client/features/chat/hooks/use-message-items.test.ts",
+    // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
+    // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
+    // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That
+    // drags lib.dom globals into this DOM-LESS node program. The SOURCE stays dom-typechecked by
+    // packages/ui/tsconfig; this test lives in tsconfig.tests-dom.json.
+    "tests/ui/charts/meter/waystone-treatment.test.ts",
     // The WHOLE e2e tree is DOM-context by ruling (owner, 2026-07-24): playwright specs read browser
     // state inside `page.evaluate` callbacks, and typing them DOM-less forced hand-rolled element-shape
     // bridges + `as unknown as` casts in every spec (the DomEl/DomRow pattern). The tree lives in

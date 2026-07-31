@@ -219,13 +219,24 @@ export function resolveConditionGlyph(name: string): LucideIcon {
 
 /** Weather-overlay keyword map (§12.5.6) — the free `weather.type` string resolves onto the waystone's
  *  CLOSED overlay vocabulary; `null` = no overlay (the band text still names the weather — text is the
- *  datum, the sky just stays plain). The Scene ambient line shares this one weather-vocabulary home. */
+ *  datum, the sky just stays plain). The Scene ambient line shares this one weather-vocabulary home.
+ *  RV-10 widened the vocabulary to eight: a fantasy GM writes "overcast", "gale", and "ashfall" as
+ *  readily as "rain", and each of those now has its own sky rather than collapsing to a plain one. */
 const WEATHER_OVERLAYS: Readonly<Record<string, WaystoneWeather>> = {
   clear: "clear",
   sun: "clear",
   sunny: "clear",
   fair: "clear",
   cloudless: "clear",
+  starry: "clear",
+  bright: "clear",
+  cloudy: "cloudy",
+  clouds: "cloudy",
+  overcast: "cloudy",
+  gloomy: "cloudy",
+  dull: "cloudy",
+  grey: "cloudy",
+  gray: "cloudy",
   rain: "rain",
   raining: "rain",
   rainy: "rain",
@@ -233,6 +244,8 @@ const WEATHER_OVERLAYS: Readonly<Record<string, WaystoneWeather>> = {
   shower: "rain",
   showers: "rain",
   downpour: "rain",
+  monsoon: "rain",
+  wet: "rain",
   storm: "storm",
   stormy: "storm",
   thunder: "storm",
@@ -241,10 +254,13 @@ const WEATHER_OVERLAYS: Readonly<Record<string, WaystoneWeather>> = {
   tempest: "storm",
   snow: "snow",
   snowing: "snow",
+  snowstorm: "snow",
   sleet: "snow",
   hail: "snow",
   blizzard: "snow",
   flurries: "snow",
+  frost: "snow",
+  frozen: "snow",
   fog: "fog",
   foggy: "fog",
   mist: "fog",
@@ -252,6 +268,23 @@ const WEATHER_OVERLAYS: Readonly<Record<string, WaystoneWeather>> = {
   haze: "fog",
   hazy: "fog",
   smoke: "fog",
+  smog: "fog",
+  wind: "wind",
+  windy: "wind",
+  gale: "wind",
+  gusty: "wind",
+  gusts: "wind",
+  breezy: "wind",
+  squall: "wind",
+  sandstorm: "wind",
+  dust: "wind",
+  ash: "ash",
+  ashfall: "ash",
+  ashen: "ash",
+  cinders: "ash",
+  embers: "ash",
+  soot: "ash",
+  fallout: "ash",
 };
 
 /** Resolve a free weather string onto the waystone overlay vocab (`null` = unresolvable ⇒ no overlay). */
