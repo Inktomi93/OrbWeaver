@@ -84,7 +84,8 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // in `shell-store.ts` beside `SETTINGS_CATEGORY_IDS` (§5 rule 5 / M6.1; re-declaring it here trips
 // `no-parallel-section-map`). It is imported above; `chat-behavior` hosts per-chat generation sections
 // (memory master switch, world-info), `admin` hosts the AppSettings admin-tier sections (memory tuning,
-// summarizer, rate limits). Each anchor is a checked SUBSET of `SettingsCategoryId` — the pane it targets.
+// summarizer, rate limits), `appearance` hosts display prefs another feature owns (the library page size).
+// Each anchor is a checked SUBSET of `SettingsCategoryId` — the pane it targets.
 
 /** A contributed settings section (§6c) — a discriminated union BY ANCHOR (the `ChatSurfaceContribution`
  *  shape), so a second anchor carrying a different projection narrows cleanly with zero casts. One arm
