@@ -198,3 +198,40 @@ export interface MessageView {
    *  plain array (`[]` = no calls), so a client maps it unconditionally through the `TOOL_RENDERERS` seam. */
   toolCalls: readonly ToolCallRecord[];
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// STATE-ANCHOR SLOTS — the canon rows that are NOT messages
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// An rpg STATE-ANCHOR is an EMPTY-body assistant slot minted only to KEY a snapshot: the between-turns
+// hand-edit (`editSnapshot`) and the host `resyncFromStory` clone-forward both post
+// `postNarratorMessage(chatId, "")` and write the rebuilt state onto that slot's variant. It is a durable
+// canon row that no reader ever sees and no actor may target.
+//
+// Empty content is the precise, sufficient discriminator — no server flag needed: a real generation always
+// carries content, a user draft never commits blank, and the slot deliberately stays
+// `excludedFromPrompt=false` so the rpg snapshot-resolution ladder (which keys on that flag) still resolves
+// it as head. The wire prompt already drops it (the shape stage's empty-row filter / `squashSameRole`).
+//
+// These selectors are the ONE home for "which canon row does a reader/actor mean". Every consumer that asks
+// for "the tail" or "the last assistant" MUST go through them: an anchor answering that question is how a
+// swipe/continue/rewrite ends up targeting an invisible slot (appending a prose variant onto the snapshot's
+// own message and moving the ladder head), and how the last VISIBLE reply loses its swipe controls.
+// Consumed by both the client surfaces and server assembly.
+
+/** An rpg state-anchor slot: an empty-body canon row that KEYS a snapshot rather than carrying a message. */
+export function isStateAnchorSlot(view: Pick<MessageView, "content">): boolean {
+  return view.content.trim() === "";
+}
+
+/** The newest canon row a reader actually sees — the tail, skipping state anchors. `undefined` on an empty
+ *  (or anchors-only) transcript. The target resolver for every tail-addressed action. */
+export function lastVisibleRow(rows: readonly MessageView[]): MessageView | undefined {
+  return rows.findLast((row) => !isStateAnchorSlot(row));
+}
+
+/** The newest REAL assistant generation — the last assistant row that is not a state anchor. `undefined`
+ *  when none. An anchor is not a generation, so its (never-stamped) per-turn fields must never answer
+ *  "what did the last generation do". */
+export function lastVisibleAssistant(rows: readonly MessageView[]): MessageView | undefined {
+  return rows.findLast((row) => row.role === "assistant" && !isStateAnchorSlot(row));
+}

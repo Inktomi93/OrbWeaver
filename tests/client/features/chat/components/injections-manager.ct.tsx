@@ -39,6 +39,27 @@ test("list renders the routed rows (position/role/depth/content)", async ({ moun
   await expect(component.getByLabel("Content")).toHaveValue("The tavern is on fire.");
 });
 
+// An EMPTY-content row is inert — assembly skips it at every position, so it reaches no prompt (pinned
+// byte-identical in tests/server/domain/chat/assembly/assemble.test.ts). With no enabled/disabled toggle,
+// a blank row looks exactly like an active one, so the row must SAY it isn't delivering. (Owner dogfood
+// 2026-07-31: a live chat carried an enabled-but-empty in_chat injection he believed was in the prompt.)
+test("an empty-content row is badged NOT DELIVERED, and the badge clears the moment content is typed", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChatInjections": () => [{ ...INJECTION_ROW, content: "" }],
+    "chat.setChatInjection": () => ({ ...INJECTION_ROW }),
+  });
+
+  const component = await mount(<InjectionsManagerStory isHost={true} />);
+
+  await expect(component.getByText("Not delivered — no content")).toBeVisible();
+  // Whitespace-only is the same nothing (assembly trims).
+  await component.getByLabel("Content").fill("   ");
+  await expect(component.getByText("Not delivered — no content")).toBeVisible();
+  // Real content ⇒ the row IS delivering; the warning must not linger.
+  await component.getByLabel("Content").fill("The tavern is on fire.");
+  await expect(component.getByText("Not delivered — no content")).toHaveCount(0);
+});
+
 test("the empty state shows when there are no injections", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChatInjections": () => [],

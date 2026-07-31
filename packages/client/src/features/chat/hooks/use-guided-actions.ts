@@ -4,6 +4,7 @@
 // impersonate. swipe/continue's tail-assistant target is resolved via a separate gated query on the
 // same listMessages key the surface already reads — one shared cache entry, not a second round-trip.
 
+import { lastVisibleRow } from "@orb/contracts/chat";
 import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
@@ -176,14 +177,18 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   };
 
   const tailQuery = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
+  // `lastVisibleRow`, not the raw tail: an rpg state anchor (the empty-body snapshot key a host
+  // resync/hand-edit appends) is an assistant row nobody can see. Targeting it would have pointed
+  // swipe/continue/rewrite at the slot the snapshot is keyed to — appending a prose variant onto it and
+  // moving the resolution-ladder head.
   const tailAssistantMessageId = useMemo<MessageId | null>(() => {
-    const tail = tailQuery.data?.messages.at(-1);
+    const tail = lastVisibleRow(tailQuery.data?.messages ?? []);
     return tail !== undefined && tail.role === "assistant" ? tail.id : null;
   }, [tailQuery.data]);
   // The tail assistant slot's continue snapshot (D26 `hasContinuation`) — the utility menu's Undo/Revert
   // phase-gate (nothing to undo until a continue has run on this reply's shown swipe).
   const tailHasContinuation = useMemo<boolean>(() => {
-    const tail = tailQuery.data?.messages.at(-1);
+    const tail = lastVisibleRow(tailQuery.data?.messages ?? []);
     return tail !== undefined && tail.role === "assistant" && tail.hasContinuation;
   }, [tailQuery.data]);
 

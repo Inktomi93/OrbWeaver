@@ -253,6 +253,38 @@ test("a swipe reroll streams the new variant IN PLACE — one row, the committed
   await expect(component.getByText("Ping?")).toBeVisible();
 });
 
+// An rpg STATE-ANCHOR slot: the EMPTY-body assistant row a host `resyncFromStory` / `editSnapshot` posts to
+// KEY a snapshot (server `postNarratorMessage(chatId, "")`). Real canon, but not a message — it renders no
+// row, and no "which row is the tail / the last assistant" question may resolve to it.
+const ANCHOR_VIEW = makeMessageView({
+  id: castId<MessageId>("msg_anchor"),
+  role: "assistant",
+  content: "",
+  seq: 3,
+});
+
+// REGRESSION (owner dogfood 2026-07-31, chat_01kyw9dexbecrtvwvejswtxstk): three host resyncs + a hand-edit
+// stacked FOUR anchors on that chat's tail. The list already hid them, but every other consumer still read
+// the RAW last row — so the anchor became "the last assistant" and the last VISIBLE reply lost its swipe
+// controls entirely (and the composer's continue-on-empty target pointed at the invisible slot, which would
+// have appended prose onto the very message the snapshot is keyed to).
+test("a trailing rpg state-anchor renders no row AND does not steal the swipe strip from the last visible reply", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW, ANCHOR_VIEW]),
+    ...ROSTER_STUB,
+  });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.getByText("Hello world")).toBeVisible();
+  // The anchor is not a row at all — no blank bubble.
+  await expect(component.locator('[data-message-id="msg_anchor"]')).toHaveCount(0);
+  // ...and the swipe strip sits on the last VISIBLE reply. The bug's signature: zero swipe controls on
+  // screen (the strip was assigned to the hidden anchor, which renders nothing to carry it).
+  await expect(component.locator('[data-message-id="msg_ai"]').getByRole("button", { name: "Next variant" })).toBeVisible();
+});
+
 // The head of a turn (start + two deltas, NO completion) — the ghost holds its streamed text; shared by
 // the stopping-phase pin and the replay-seed recovery below.
 const HEAD_DELTAS: ChatBusEvent[] = [
