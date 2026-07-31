@@ -19,16 +19,15 @@
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode, RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat";
 import type { StagedTurnFlush } from "../contract/params";
 import type { RpgContext, RpgFoldFallbackReason, RpgGameRow, RpgRunExtraction } from "../contract/service";
-import { snapshotRowToState } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
-import { resolveSnapshotBeforeSlot, writeStagedSnapshot } from "../persistence/snapshots";
-import { defaultSnapshotState } from "../substrate/default-state";
+import { writeStagedSnapshot } from "../persistence/snapshots";
+import { snapshotStateBeforeSlot } from "../snapshot-edit";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
 import { isReconcileBeat } from "./reconcile-cadence";
 
@@ -41,21 +40,6 @@ interface CompletedTurn {
   readonly turnConnection: RpgTurnContext;
 }
 
-/** Resolve the state round's BASE — the state as of the slot BEFORE this turn (or the synthesized default for
- *  a turnless game). Every vehicle reasons against this; it is never re-resolved by the op.
- *
- *  VER-1a — THE BASE EXCLUDES THIS TURN'S OWN SLOT. A reroll mints a NEW variant on an EXISTING assistant
- *  slot, and the rejected variant's snapshot is `base + that variant's delta`; taking the resolution HEAD
- *  would feed the new variant its own sibling's applied extraction, so the fresh delta would stack on top
- *  (live-confirmed: rerolling one turn produced three near-identical journal beats + a recentEvents window
- *  that grew a paraphrase per reroll). Basing before the slot makes every variant's snapshot ABSOLUTE — the
- *  new variant SUPERSEDES the rejected one instead of accumulating, and a swipe surfaces exactly the selected
- *  variant's consequences (both ends of the journal + snapshot planes already project by selected variant). */
-async function extractionBase(ctx: RpgContext, game: RpgGameRow, messageId: MessageId): Promise<RpgSnapshotState> {
-  const row = await resolveSnapshotBeforeSlot(ctx.db, { id: game.id, chatId: game.chatId }, messageId);
-  return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
-}
-
 /** Stage a state DELTA (from either dedicated state round — reliable's extraction OR cheap's tool round) into
  *  the turn's accumulator: ensure the bucket from the pre-slot base, overlay the state patch, append
  *  the journal entries. An EMPTY delta (no state keys, no journal) stages NOTHING — a "nothing changed this
@@ -65,7 +49,10 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow, messageId: Mess
 // share this exact signature (`RpgStateRoundInput` → delta), so one param type covers both. `turn.turnConnection`
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
-  const baseState = await extractionBase(ctx, game, turn.messageId);
+  // The state as of the slot BEFORE this turn (VER-1a — the base EXCLUDES this turn's own slot, so a reroll
+  // never re-applies onto its own rejected sibling). The gather resolved the SAME reader for the turn's
+  // reminder (VER-1b), so what the model was told and what its writes land on are one state.
+  const baseState = await snapshotStateBeforeSlot(ctx, game, turn.messageId);
   const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
     chatId: game.chatId,

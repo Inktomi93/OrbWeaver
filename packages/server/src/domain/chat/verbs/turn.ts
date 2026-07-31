@@ -429,6 +429,11 @@ async function buildTurnContext(
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
+    /** The assistant slot this turn REGENERATES (a swipe/reroll's `append-variant` target — the slot the canon
+     *  context also stops BEFORE). Threaded to the rpg gather so a reroll's tracked state reads as of before
+     *  the slot instead of the still-selected abandoned variant's snapshot (VER-1b). Absent for a fresh turn
+     *  and for `continue` (whose context INCLUDES the slot, so the head is its honest state). */
+    readonly regenSlotMessageId?: MessageId | undefined;
     readonly guided?: GuidedSteer | undefined;
     /** The slot's persisted user-macro draw record (WAVE MU) on a swipe/continue turn — replayed byte-exact
      *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
@@ -467,10 +472,15 @@ async function buildTurnContext(
   // Threaded so rpg renders the steeringNote's macros (guided-safe) instead of shipping literal braces.
   const rpg =
     ctx.rpg !== null
-      ? await ctx.rpg.gatherTurnContext(args.chatId, args.pendingUserText, args.respondsToLatestUserTurn ?? false, {
-          user: foreign.personas.active?.name,
-          char: args.castCharForHostRow,
-        })
+      ? await ctx.rpg.gatherTurnContext(
+          args.chatId,
+          args.pendingUserText,
+          args.respondsToLatestUserTurn ?? false,
+          { user: foreign.personas.active?.name, char: args.castCharForHostRow },
+          // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
+          // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
+          args.regenSlotMessageId,
+        )
       : null;
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
   // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
@@ -1465,6 +1475,8 @@ async function resolveTurnBase(
     readonly triggerPersonaId?: PersonaId | null | undefined;
     /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
+    /** The slot this turn REGENERATES (swipe only — `continue` extends the slot and reads through it). VER-1b. */
+    readonly regenSlotMessageId?: MessageId | undefined;
     readonly guided?: GuidedSteer | undefined;
     /** The target slot's persisted user-macro draws (WAVE MU) — swipe/continue replay them byte-exact so the
      *  re-generation resolves the identical draw. Absent (generate) ⇒ a fresh draw. */
@@ -1502,6 +1514,7 @@ async function resolveTurnBase(
     anchorPersonaId: args.anchorPersonaId,
     triggerPersonaId: args.triggerPersonaId,
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
+    ...(args.regenSlotMessageId !== undefined ? { regenSlotMessageId: args.regenSlotMessageId } : {}),
     guided: args.guided,
     ...(args.frozenUserMacroDraws !== undefined ? { frozenUserMacroDraws: args.frozenUserMacroDraws } : {}),
     // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
@@ -1595,6 +1608,9 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
       respondsToLatestUserTurn,
+      // VER-1b: this turn REGENERATES `messageId` — the slot whose currently-selected variant is the one being
+      // abandoned. The gather cuts the tracked state before it, exactly as the canon context is cut here.
+      regenSlotMessageId: messageId,
       guided,
       // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
       ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),

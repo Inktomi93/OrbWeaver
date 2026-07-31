@@ -1396,3 +1396,123 @@ test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the 
   // durable archive rows on live anchor slots, and the host clears those with `deleteJournalEntry`.
   expect(await panelState(compose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: [] });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// VER-1b — A REGEN IS GENERATED AGAINST THE STATE AS OF BEFORE ITS SLOT (the READ twin of VER-1a).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// VER-1a fixed the WRITE base; the turn's READ still resolved the head, which on a swipe/reroll IS the
+// abandoned variant's snapshot (still selected while the replacement generates). So the reminder taught the
+// model the beats + state of the very prose it was being asked to write DIFFERENTLY — owner-observed live in
+// the model's own reasoning ("a system note describing a moment that hasn't been written yet"), and every
+// reroll got railroaded into paraphrasing the rejected variant. The gather now cuts its state at the slot,
+// exactly where the canon context is already cut, and exactly where the flush will apply the new variant.
+
+/** Flush ONE beat onto a fresh assistant slot through the real folded vehicle: a scene write (location +
+ *  a recorded beat) that the next gather's reminder + delta must reflect. */
+async function driveBeat(args: {
+  readonly compose: ReturnType<typeof buildRpg>;
+  readonly db: Db;
+  readonly chatId: ChatId;
+  readonly seq: number;
+  readonly location: string;
+  readonly beat: string;
+}): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
+  const { compose, db, chatId, seq } = args;
+  const slot = await seedMessage(db, chatId, seq, { role: "assistant", content: `Beat ${seq}.` });
+  await compose.chatOps.onTurnCompleted(
+    chatId,
+    slot.messageId,
+    slot.variantId,
+    castId<ChatTurnId>(`chat_turn_ver1b_${seq}`),
+    foldedTurn([{ name: "update_scene", args: { location: args.location, recentEvent: args.beat } }]),
+  );
+  return slot;
+}
+
+/** The depth-0 state reminder the gather contributes — the exact text the model is handed. */
+function reminderText(gathered: { readonly injections: readonly { readonly content: string }[] } | null): string {
+  return gathered?.injections[0]?.content ?? "";
+}
+
+test("VER-1b: a REGEN's reminder + delta read the state BEFORE the slot, never the abandoned variant's", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1b-regen");
+  const compose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born folded
+
+  // Three beats. The third is the slot a swipe will re-generate; its variant A is the one being abandoned.
+  await driveBeat({ compose, db, chatId, seq: 1, location: "the crossroads", beat: "met the peddler at the crossroads" });
+  await driveBeat({ compose, db, chatId, seq: 2, location: "the rope bridge", beat: "crossed the rope bridge" });
+  const slotC = await driveBeat({ compose, db, chatId, seq: 3, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
+
+  // The FRESH-turn arm is UNTOUCHED: the head is correct there — the next beat is written knowing beat 3 happened.
+  const fresh = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false));
+  expect(fresh).toContain("confessed to Niko at the tower");
+  expect(fresh).toContain("the obsidian tower");
+  expect(fresh).toContain("CHANGES SINCE LAST BEAT: location → the obsidian tower");
+
+  // THE REGEN of slot C: the same gather, told which slot it is re-generating.
+  const regen = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slotC.messageId));
+  // THE DEFECT: variant A's beat + the state it wrote are GONE from what the model is told (pre-fix both were
+  // present — the model was handed the confession beat while being asked to write that same moment afresh).
+  expect(regen).not.toContain("confessed to Niko at the tower");
+  expect(regen).not.toContain("the obsidian tower");
+  // …and what IS there is the state as of the slot's start — beat 2's world, the same one variant A was written against.
+  expect(regen).toContain("crossed the rope bridge");
+  expect(regen).toContain("the rope bridge");
+  // THE DELTA PAIR is pre-slot-consistent too (prev→cur = beat 1→beat 2), so "CHANGES SINCE LAST BEAT" never
+  // describes the abandoned variant's own changes — it is byte-identically the block variant A was generated with.
+  expect(regen).toContain("CHANGES SINCE LAST BEAT: location → the rope bridge");
+});
+
+test("VER-1b: the regen read is the SAME state the flush applies onto (read base == write base)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1b-base-parity");
+  const compose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  await driveBeat({ compose, db, chatId, seq: 1, location: "the rope bridge", beat: "crossed the rope bridge" });
+  const slot = await driveBeat({ compose, db, chatId, seq: 2, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
+
+  // The reroll: a second variant on slot 2, selected, flushed with ITS OWN beat — the gather that generated it
+  // read pre-slot state, and VER-1a's write base applied its writes onto that same pre-slot state.
+  const regen = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slot.messageId));
+  expect(regen).toContain("crossed the rope bridge");
+  expect(regen).not.toContain("confessed to Niko at the tower");
+  const rerolled = await addVariant(db, slot.messageId, 2, "She says nothing at all.");
+  await selectVariant(db, slot.messageId, rerolled);
+  await compose.chatOps.onTurnCompleted(
+    chatId,
+    slot.messageId,
+    rerolled,
+    castId<ChatTurnId>("chat_turn_ver1b_reroll"),
+    foldedTurn([{ name: "update_scene", args: { location: "the tower stair", recentEvent: "turned away on the stair" } }]),
+  );
+
+  // The rerolled variant SUPERSEDES: one beat per moment, and the abandoned variant's beat/location are gone
+  // from the panel — the read the model got and the state its writes landed on describe the same world.
+  expect(await panelState(compose, hostId, chatId)).toEqual({
+    location: "the tower stair",
+    beats: ["crossed the rope bridge", "turned away on the stair"],
+    journal: [],
+  });
+});
+
+test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical reminder on all three vehicles", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ver1b-modes");
+  const compose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born folded
+  // ONE game, ONE state history (landed through the fold), then the host flips the delivery mode under it.
+  await driveBeat({ compose, db, chatId, seq: 1, location: "the rope bridge", beat: "crossed the rope bridge" });
+  const slot = await driveBeat({ compose, db, chatId, seq: 2, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
+
+  const reminders: string[] = [];
+  for (const mode of ["folded", "cheap", "reliable"] as const) {
+    // biome-ignore lint/performance/noAwaitInLoops: each pass flips the game's mode and re-gathers under it — inherently sequential.
+    await compose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: mode });
+    reminders.push(reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slot.messageId)));
+  }
+  // The delivery mode picks the WRITE vehicle; it never changes what the turn READS. The pre-slot cut therefore
+  // rides all three without a per-mode arm (the reminder is one gather — this pins that it stays one).
+  expect(new Set(reminders).size).toBe(1);
+  expect(reminders[0]).toContain("crossed the rope bridge");
+  expect(reminders[0]).not.toContain("confessed to Niko at the tower");
+});

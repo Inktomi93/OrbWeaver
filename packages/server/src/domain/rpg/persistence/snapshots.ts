@@ -4,8 +4,9 @@
 //     is a typed `RpgStateCorruptError`, never a silent default (the constitution's no-swallow rule).
 //   • resolveSnapshotForTurn — the HEAD ladder (visible-selected → committed → any); the `selectedVariantId`
 //     pointer already encodes "visible", so the ladder is variant-pointer walks.
-//   • resolveSnapshotBeforeSlot — the turn's WRITE BASE: the state as of the slot BEFORE the flushing turn,
-//     so a reroll's new variant never inherits its own slot's rejected variant (VER-1a).
+//   • resolveSnapshotBeforeSlot — the state as of the slot BEFORE a turn: its WRITE base always (VER-1a — a
+//     reroll's new variant never inherits its own slot's rejected variant) AND its READ base on a REGEN
+//     (VER-1b — the reminder/delta a reroll is generated against must not describe the abandoned variant).
 //   • writeStagedSnapshot / writeRestoredSnapshot — clone-forward: a new variant's snapshot inherits ALL
 //     fields from its resolution base (staged born committed=0; restore born committed=1). `fieldLocks`
 //     carry forward from the base unchanged (tools never author locks — only `editSnapshot` does, W1b).
@@ -184,15 +185,25 @@ export async function resolveSnapshotBeforeSlot(db: Db, game: SnapshotGameRef, m
 }
 
 /** The turn's prev→current snapshot PAIR on the selected lineage (parity-plus §2.7 — the delta block's input).
- *  `cur` is the resolution-ladder head (the same snapshot the tracker view projects from); `prev` is the
+ *  `cur` is the state this turn reads (the head — or, on a REGEN, the state as of before the regenerated slot;
+ *  see `beforeMessageId`), the same snapshot the tracker view projects from; `prev` is the
  *  snapshot ONE committed beat back on the SAME lineage — the last visible assistant selected variant strictly
  *  before `cur`'s message (`findLastAssistantSelectedVariant`, the existing `onUserCommit` lineage walk). Both
  *  ends re-resolve on the currently-selected chain, so a swipe re-selects prev+current together — the delta is
  *  swipe-consistent for FREE (§2.7). `prev` is `undefined` when `cur` is the FIRST snapshot on the lineage (no
  *  prior visible assistant beat — the delta renders the first-state form or omits) OR when `cur` is undefined (a
- *  turnless game — no rows yet; the caller synthesizes the born default and gets a first-snapshot delta). */
-export async function resolveTurnSnapshotPair(db: Db, game: SnapshotGameRef): Promise<{ cur: RpgSnapshotRow | undefined; prev: RpgSnapshotRow | undefined }> {
-  const cur = await resolveSnapshotForTurn(db, game);
+ *  turnless game — no rows yet; the caller synthesizes the born default and gets a first-snapshot delta).
+ *
+ *  VER-1b — `beforeMessageId` is the slot a REGEN (swipe/reroll) is about to write a new variant onto: `cur`
+ *  then resolves {@link resolveSnapshotBeforeSlot} instead of the head, so the pair is the SAME prev→cur the
+ *  slot's FIRST generation saw ("changes since the beat before this slot"), never the abandoned variant's own
+ *  changes. Absent (a fresh turn) ⇒ the head, byte-identical to before. */
+export async function resolveTurnSnapshotPair(
+  db: Db,
+  game: SnapshotGameRef,
+  beforeMessageId?: MessageId,
+): Promise<{ cur: RpgSnapshotRow | undefined; prev: RpgSnapshotRow | undefined }> {
+  const cur = beforeMessageId === undefined ? await resolveSnapshotForTurn(db, game) : await resolveSnapshotBeforeSlot(db, game, beforeMessageId);
   if (cur === undefined) {
     return { cur: undefined, prev: undefined };
   }

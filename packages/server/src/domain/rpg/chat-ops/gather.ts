@@ -26,7 +26,7 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../contract/params";
 import type { RpgContext, RpgGameRow } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
@@ -62,6 +62,10 @@ export async function gatherTurnContext(
   ctx: RpgContext,
   chatId: ChatId,
   steerIdentity?: { readonly user: string | undefined; readonly char: string },
+  /** VER-1b — the assistant slot this turn is REGENERATING (chat's swipe/reroll target), or `undefined` for a
+   *  fresh turn / the preview. Every state read below resolves as of BEFORE that slot; see the block above the
+   *  `buildTrackerView` call for why. */
+  regenSlotMessageId?: MessageId,
 ): Promise<RpgGatherResult | null> {
   const game: RpgGameRow | undefined = await findGameByChat(ctx.db, chatId);
   if (game === undefined || !game.config.engaged) {
@@ -80,13 +84,23 @@ export async function gatherTurnContext(
   // ONE connection resolve, TWO verdicts (§4.6 + the D112 fold guard): can the model write this game's state at
   // all, and — if it can — does mounting tools on THIS wire cost the narrative?
   const { trackersReadOnly, foldGuarded } = await ctx.resolveStateDelivery(chatId);
-  const view = await buildTrackerView(ctx, game, trackersReadOnly);
+  // THE TURN'S READ BASE (VER-1b — the READ twin of VER-1a's write base). A FRESH turn reads the resolution
+  // HEAD. A REGEN (swipe/reroll) reads the state as of BEFORE its target slot, because on a regen the head IS
+  // the abandoned variant's snapshot — still selected/committed while the replacement generates. Reading it
+  // told the model the beats and state of prose it was about to be asked to write DIFFERENTLY: strong models
+  // visibly wrestled with a system note describing an unwritten moment, and every reroll got railroaded into
+  // paraphrasing the rejected variant (the owner's live rerolls-all-alike). Both state reads below take the
+  // same slot, so the view, the reminder, the delta pair and the fold's ref enums are ONE state — and it is
+  // byte-identically the state the flush will apply the new variant's writes onto (`snapshotStateBeforeSlot`).
+  const view = await buildTrackerView(ctx, game, trackersReadOnly, regenSlotMessageId);
   // The DELTA BLOCK's second ladder read (§2.7): the prev→current snapshot PAIR on the selected lineage. `cur`
-  // is the SAME resolution-ladder head the tracker view projects from (a swipe re-selects both ends together —
+  // is the SAME snapshot the tracker view projects from (a swipe re-selects both ends together —
   // swipe-consistent by construction); `prev` is the snapshot one committed beat back (null on the first
   // snapshot → the delta's first-state arm). A turnless game (no rows) has no `cur` row — the view synthesized
   // the born default, so the reminder's `curSnapshot` mirrors it (`defaultSnapshotState`) with a null prev.
-  const { cur, prev } = await resolveTurnSnapshotPair(ctx.db, { id: game.id, chatId });
+  // On a REGEN the pair is the SAME prev→cur the slot's first generation saw, so "CHANGES SINCE LAST BEAT"
+  // describes the beat BEFORE this slot — never the abandoned variant's own changes.
+  const { cur, prev } = await resolveTurnSnapshotPair(ctx.db, { id: game.id, chatId }, regenSlotMessageId);
   const curSnapshot: RpgSnapshotState = cur !== undefined ? snapshotRowToState(cur) : defaultSnapshotState();
   const prevSnapshot: RpgSnapshotState | null = prev !== undefined ? snapshotRowToState(prev) : null;
   // The delta's roster-name map (fold-in #5): `actorRefKey → display name` so per-actor delta lines name roster
@@ -107,9 +121,10 @@ export async function gatherTurnContext(
   // R1 — the FOLD: on a `folded` game with a live write path, THIS turn carries the 7 state tools as TERMINAL
   // tools, so the model co-emits prose + state in one completion. Resolved BEFORE the reminder because a
   // reconcile beat contributes a note the reminder carries (the post-commit rounds put that line in their own
-  // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — the head the
-  // player is looking at. The flush's apply base excludes the turn's own slot (VER-1a), so on a REROLL the two
-  // differ by the rejected variant's delta; a ref only the head carries is dropped by the R5 ghost guard.
+  // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — which since
+  // VER-1b is the SAME state `stageStateRound` will resolve as its apply base (both go through
+  // `snapshotStateBeforeSlot` on a regen, both the head on a fresh turn), so what the model is constrained to
+  // write is exactly what the apply path can resolve.
   //
   // ERRORS-AS-DATA, AND THIS HALF IS THE DANGEROUS ONE: unlike the flush (which runs post-commit, where the
   // worst case is a lost state write), the mount runs PRE-commit inside turn assembly — a throw here kills the
