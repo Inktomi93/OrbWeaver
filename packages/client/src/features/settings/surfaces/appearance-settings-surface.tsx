@@ -22,6 +22,7 @@ import { settingsAnchorId } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { BackgroundUploadField } from "../components/background-upload-field";
+import { ExternalBackgroundField } from "../components/external-background-field";
 import { APPEARANCE_ENTITY_ID, AppearanceForm } from "../hooks/use-appearance-form";
 import {
   BACKGROUND_BLUR_MAX,
@@ -295,17 +296,31 @@ function AppearanceFormBody({ session }: { readonly session: AutosaveSession<App
                   )}
 
                   {kind === "asset" && (
-                    <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
-                      {(hash): ReactElement => (
-                        <BackgroundUploadField
-                          currentHash={hash}
-                          onUploaded={(stored): void => {
-                            form.setFieldValue("backgroundAssetId", stored.assetId);
-                            form.setFieldValue("backgroundAssetHash", stored.hash);
-                          }}
-                        />
-                      )}
-                    </form.Subscribe>
+                    <>
+                      <form.Subscribe selector={(state): string => state.values.backgroundAssetHash}>
+                        {(hash): ReactElement => (
+                          <BackgroundUploadField
+                            currentHash={hash}
+                            onUploaded={(stored): void => {
+                              form.setFieldValue("backgroundAssetId", stored.assetId);
+                              form.setFieldValue("backgroundAssetHash", stored.hash);
+                            }}
+                          />
+                        )}
+                      </form.Subscribe>
+                      {/* The URL arm of the SAME `asset` kind (BG-C): the server materializes the pasted
+                          address into an owned CAS asset, so what persists here is an asset — never an
+                          external URL. Appending to `backgroundLibrary` (BG-D) is what makes the entry
+                          reusable from the carried-background picker, which points here to add one. */}
+                      <ExternalBackgroundField
+                        onAdded={(entry): void => {
+                          form.setFieldValue("backgroundLibrary", [...form.state.values.backgroundLibrary, entry]);
+                          form.setFieldValue("backgroundAssetId", entry.assetId);
+                          form.setFieldValue("backgroundAssetHash", entry.assetHash);
+                          form.setFieldValue("backgroundAssetMime", entry.mime);
+                        }}
+                      />
+                    </>
                   )}
                   <form.AppField name="backgroundFit">{(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}</form.AppField>
                   <form.AppField name="backgroundDim">
