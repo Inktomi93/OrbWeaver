@@ -179,12 +179,12 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const cap = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
 
     // The vLLM default healed to a concrete selection → a real descriptor: it carries the window + output cap
     // the params panel's Max context / Max output fields bound against (the OLD null key hid these).
-    expect(cap.context.window).toBeGreaterThan(0);
-    expect(cap.output.maxTokens.max).toBeGreaterThan(0);
+    expect(resolved.capability.context.window).toBeGreaterThan(0);
+    expect(resolved.capability.output.maxTokens.max).toBeGreaterThan(0);
   });
 
   test("the OWNER's chat default resolves the Claude curated capability (owner-conditional, same selector as resolveRole)", async () => {
@@ -193,9 +193,40 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
 
     // Owner unconfigured chat → agent-sdk × max-pro-sub → the curated Claude default descriptor (adaptive
     // reasoning is the curated-Claude tell, matching getModelCapability.int.test.ts).
-    const cap = await svc.resolveChatCapability({ principal: principal("owner_1", "owner") });
+    const resolved = await svc.resolveChatCapability({ principal: principal("owner_1", "owner") });
 
-    expect(cap.reasoning.mode).toBe("adaptive");
+    expect(resolved.capability.reasoning.mode).toBe("adaptive");
+  });
+
+  // The IDENTITY half of the read (widened 2026-08-02): `ModelCapability` names neither the model nor the
+  // source, so the Connections pane's never-saved row could only say "Uses the app default" and name nothing.
+  // The resolved `(api, source, model)` rides back with the descriptor — and it is the RESOLVER's answer, so
+  // the pane can never drift from what a turn actually takes (the owner/non-owner fork included).
+  test("the read NAMES the connection it resolved — owner and non-owner defaults differ, as a turn would", async () => {
+    const h = makeConnHarness(await freshDb());
+    const svc = createConnectionService(h.ctx);
+
+    const owner = await svc.resolveChatCapability({ principal: principal("owner_1", "owner") });
+    expect({ api: owner.api, source: owner.source }).toEqual({ api: "agent-sdk", source: "max-pro-sub" });
+    expect(owner.model.startsWith("claude")).toBe(true);
+
+    const member = await svc.resolveChatCapability({ principal: principal("user_1") });
+    expect({ api: member.api, source: member.source }).toEqual({ api: "chat-completions", source: "vllm" });
+    expect(member.model.length).toBeGreaterThan(0);
+  });
+
+  test("the named identity follows an explicit roleDefaults.chat (never a stale/guessed fallback)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-5" } });
+    const svc = createConnectionService(h.ctx);
+
+    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
+
+    expect({ api: resolved.api, source: resolved.source, model: resolved.model }).toEqual({
+      api: "agent-sdk",
+      source: "openrouter",
+      model: "claude-sonnet-5",
+    });
   });
 
   test("an explicit roleDefaults.chat drives the descriptor (parity with resolveRole's heal)", async () => {
@@ -203,10 +234,10 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "max-pro-sub", model: "claude-sonnet-5" } });
     const svc = createConnectionService(h.ctx);
 
-    const cap = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
 
     // The curated Sonnet descriptor (effort reasoning — the same assertion resolveRole's heal test makes).
-    expect(cap.reasoning.mode).toBe("effort");
+    expect(resolved.capability.reasoning.mode).toBe("effort");
   });
 
   // Regression (cold-cache capability loss), re-homed from the deleted getModelCapability verb's test (AU-5):
@@ -233,13 +264,13 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     // Boot-seed (entry/lifecycle calls this on startup) — warms the mirror from the persisted snapshot.
     await svc.getCatalog({});
 
-    const cap = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
 
-    expect(cap.output.structured).toBe(true);
-    expect(cap.tools).toBeDefined();
+    expect(resolved.capability.output.structured).toBe(true);
+    expect(resolved.capability.tools).toBeDefined();
     // The RPG reliable-mode extraction gate: a structured-capable host is NOT trackers-readonly (extraction
     // runs). Cold cache used to yield structured:undefined ⇒ readonly true ⇒ the empty-rpg-panel bug.
-    expect(deriveTrackersReadOnly("reliable", cap)).toBe(false);
+    expect(deriveTrackersReadOnly("reliable", resolved.capability)).toBe(false);
   });
 });
 

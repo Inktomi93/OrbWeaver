@@ -39,9 +39,10 @@ export interface CheckChatAvailabilityParams {
   readonly routableChat: RouteChatAssignment;
 }
 
-/** `resolveChatCapability(params)` — resolve the caller's OWN chat-role `ModelCapability` end-to-end
- *  (selection → descriptor) in one hop, for the client params-panel + the rpg lite gate. Reads the acting
- *  principal's settings ONLY — no caller-supplied user id (the cross-tenant-safe posture). */
+/** `resolveChatCapability(params)` — resolve the caller's OWN chat connection end-to-end (selection →
+ *  `ResolvedChatCapability`: the `(api, source, model)` a turn would run as + its `ModelCapability`) in one
+ *  hop, for the client params-panel, the rpg lite gate, and the Connections pane's named fallback. Reads the
+ *  acting principal's settings ONLY — no caller-supplied user id (the cross-tenant-safe posture). */
 export interface ResolveChatCapabilityParams {
   readonly principal: Principal;
 }
