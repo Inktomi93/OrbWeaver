@@ -39,7 +39,15 @@ fully ruled + spec-approved (§THE BOARD, `docs/design/tracked-field-unification
 big lane, with R6+R2 inside it. The workloads junk-drawer exit
 (`reports/stickler/2026-07-25-workloads-junk-drawer-exit.md`) is queued as its own headline lane.
 
-**Open from the night:** e2e full-suite pass (in progress at write time) · UI stretch order ruled:
+**E2E SUITE 30/30 GREEN (08-01):** one real app regression found+fixed (`a2658fbc` — useRpgBus SSE
+socket starvation, see [[sse-per-origin-connection-budget]]); stale-IA tests re-pinned to current law
+(`b0f0b353`). New board items from the pass: **SSE-1** — the connection budget is 1 socket from the
+cliff on game chats (2 tabs = 6 again); durable fix = stream multiplexing OR HTTP/2 — an architecture
+fork, SPEC IT first · **D111-GAP** — the ratified ☰ relocation (composer-left, topbar removed) is NOT
+built; app out of compliance with its own ledger — own lane · useRpgBus has no CT (e2e-consequence
+coverage only).
+
+**Open from the night:** UI stretch order ruled:
 Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
 surface + effective-delivery freshness) · AU-8 hunt-A backlog · settings-registry migration
 (owner mentioned; definition unconfirmed — my read: migrate hardcoded settings panes onto the
