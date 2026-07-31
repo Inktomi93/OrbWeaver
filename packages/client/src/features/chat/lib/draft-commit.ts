@@ -9,7 +9,7 @@
 // founding cast folds the draft's added members into the seed roster; `readonly` arrays are copied to the
 // mutable shape the wire schema infers at the one call boundary (the `characterIds` precedent).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { ChatHandle, DraftConfig, DraftRosterOverride, DraftSeed } from "#state";
 import { EMPTY_DRAFT_CONFIG, readDraftConfig } from "#state";
 
@@ -48,4 +48,38 @@ export function resolveDraftCommit(handle: ChatHandle, draftSeed: DraftSeed | un
     ...(config.startAsGame !== undefined ? { startAsGame: config.startAsGame } : {}),
   };
   return { draftKey, characterIds, carry };
+}
+
+/** The inputs of the anchor-seed chain — every rung resolved to data a CLIENT honestly holds (the owned
+ *  persona list types + ownership-filters the two lenient `seeds.*` id strings, exactly as the server's
+ *  `resolveCurrentPersona`/`resolveDefaultPersona` do by re-reading the persona as its owner). */
+export interface DraftAnchorPersonaInput {
+  readonly seedAnchorPersonaId: PersonaId | null;
+  /** The viewer's owned personas, id-only (`persona.list`) — the ownership filter for the seed pointers. */
+  readonly ownedPersonaIds: readonly PersonaId[];
+  /** `persona.listConnectedToCharacter` for a SOLO founding cast; empty for a group (the server's rung is
+   *  gated on `characterIds.length === 1`, so a group founding never consults connections). */
+  readonly connectedPersonaIds: readonly PersonaId[];
+  /** `UserSettings.seeds.currentPersonaId` — a lenient string that may name a deleted/foreign persona. */
+  readonly currentPersonaId: string | null;
+  readonly defaultPersonaId: string | null;
+}
+
+const SOLE_CONNECTION = 1;
+
+/** Which persona the draft's `{{user}}`/`{{persona}}` resolve against — i.e. the anchor `chat.startChat`
+ *  WILL write when this draft commits. A MIRROR of the server's anchor seed chain (`verbs/start-chat.ts`:
+ *  explicit anchor \> the connected persona of a solo founding \> the starter's current \> their default),
+ *  kept here beside the commit carry it predicts: the greeting the room shows before send must address the
+ *  same persona it will address after, and the draft has no chat row to read an anchor from. */
+export function resolveDraftAnchorPersona(input: DraftAnchorPersonaInput): PersonaId | null {
+  if (input.seedAnchorPersonaId !== null) {
+    return input.seedAnchorPersonaId;
+  }
+  const [soleConnected] = input.connectedPersonaIds;
+  if (input.connectedPersonaIds.length === SOLE_CONNECTION && soleConnected !== undefined) {
+    return soleConnected;
+  }
+  // A stale/foreign pointer degrades to the next rung, never to a name the commit won't use.
+  return input.ownedPersonaIds.find((id) => id === input.currentPersonaId) ?? input.ownedPersonaIds.find((id) => id === input.defaultPersonaId) ?? null;
 }

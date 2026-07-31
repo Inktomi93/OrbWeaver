@@ -8,7 +8,7 @@
 import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap, lastVisibleAssistant } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
@@ -32,12 +32,16 @@ import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
 import { resolveRowAttribution } from "../lib/attribution";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
+import { resolveDraftAnchorPersona } from "../lib/draft-commit";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster";
 import { synthGreetingRow } from "../lib/synth-greeting-row";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 96;
+
+/** The founding-cast size the server's connected-persona anchor rung is gated on (`verbs/start-chat.ts`). */
+const SOLO_FOUNDING_CAST = 1;
 
 export interface MessageListSurfaceProps {
   readonly handle: ChatHandle;
@@ -71,7 +75,12 @@ export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, s
               fallback={<SkeletonRows count={3} />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="this conversation" onRetry={retry} />}
             >
-              <DraftGreetingThread draftKey={handle.draftKey} characterIds={characterIds} chatStyle={chatStyle} />
+              <DraftGreetingThread
+                draftKey={handle.draftKey}
+                characterIds={characterIds}
+                chatStyle={chatStyle}
+                seedAnchorPersonaId={draftSeed?.anchorPersonaId ?? null}
+              />
             </QueryBoundary>
           );
         }
@@ -288,18 +297,44 @@ interface DraftGreetingThreadProps {
   readonly draftKey: string;
   readonly characterIds: readonly CharacterId[];
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
+  /** The draft seed's explicit anchor pin (rung 1 of the anchor chain); null ⇒ predict it like the commit will. */
+  readonly seedAnchorPersonaId: PersonaId | null;
 }
 
-/** A draft's editable greeting preview — one MessageRow per founding character, in greet-all order. */
-function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetingThreadProps): ReactElement {
+/** A draft's editable greeting preview — one MessageRow per founding character, in greet-all order.
+ *
+ *  The row renders through the SAME `MessageRow` → `MessageContent` → display pipeline a committed row
+ *  does, so it must also be fed the same MACRO producers: the founding cards supply `{{char}}`, and the
+ *  viewer's owned personas + the predicted anchor (`resolveDraftAnchorPersona`) supply `{{user}}`/
+ *  `{{persona}}` — otherwise the greeting reads "User" before send and the persona's name after, for one
+ *  unchanged string. Only the SERVER-resolved half stays absent (no `participants`): render trust and a
+ *  character's authored theme are resolved at roster-build time (`RenderPolicy` — "never re-resolved
+ *  client-side"), so a draft honestly renders at the untrusted floor with the deterministic hash tint. */
+function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPersonaId }: DraftGreetingThreadProps): ReactElement {
   const trpc = useTRPC();
   const draftConfig = useDraftConfig(draftKey);
   const messageAppearance = useMessageAppearance();
   const characters = useSuspenseQueries({
     queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
   });
+  const [{ data: personas }, { data: settings }] = useSuspenseQueries({
+    queries: [trpc.persona.list.queryOptions(), trpc.settings.getUserSettings.queryOptions()],
+  });
+  // The connected-persona rung is gated on a SOLO founding cast server-side — a group founding never reads
+  // connections, so it never issues the query either.
+  const soloFounding = characterIds.length === SOLO_FOUNDING_CAST ? characterIds : [];
+  const connected = useSuspenseQueries({
+    queries: soloFounding.map((characterId) => trpc.persona.listConnectedToCharacter.queryOptions({ characterId })),
+  });
+  const anchorPersonaId = resolveDraftAnchorPersona({
+    seedAnchorPersonaId,
+    ownedPersonaIds: personas.map((p) => p.id),
+    connectedPersonaIds: connected[0]?.data.map((p) => p.id) ?? [],
+    currentPersonaId: settings.config.seeds.currentPersonaId,
+    defaultPersonaId: settings.config.seeds.defaultPersonaId,
+  });
   const characterNamesById = buildCharacterNameMap(characters.map((c) => ({ id: c.data.id, name: c.data.name })));
-  const personaNamesById = buildPersonaNameMap([]);
+  const personaNamesById = buildPersonaNameMap(personas.map((p) => ({ id: p.id, name: p.name, description: p.description })));
 
   const rows = characters.flatMap((c, i) => {
     const character = c.data;
@@ -327,6 +362,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle }: DraftGreetin
           messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}
+          anchorPersonaId={anchorPersonaId}
           greeting={{ draftKey, characterId: character.id, variants: character.greetings.map((g) => (typeof g === "string" ? g : g.text)) }}
         />
       ))}
