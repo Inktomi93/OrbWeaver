@@ -5,6 +5,7 @@
 import type {
   AssembleContext,
   AssembledPrompt,
+  AssemblySource,
   ChatContentPart,
   GroupConfig,
   InviteView,
@@ -144,6 +145,27 @@ export interface TurnRequest {
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;
   readonly signal?: AbortSignal | undefined;
+}
+
+/** ONE rendered contribution to a turn's context, attributed to its BUDGET SOURCE — the per-section product
+ *  of the BUILD walk (`assemblePromptWithSlices`), grouped into the wire `AssemblyBudgetPreview` by
+ *  `assembly/budget`. Domain-internal by design: the WIRE carries the GROUPED six-row shape, never this
+ *  per-section stream (a preset with 20 sections would otherwise ship 20 rows the panel can't draw).
+ *  `label` is the contributor's own name — a `PromptSection.name`, or the injection-origin label. */
+export interface AssemblySlice {
+  readonly source: AssemblySource;
+  readonly label: string;
+  /** The rendered text, exactly as it lands in the prompt half / injection (already macro-resolved). */
+  readonly text: string;
+}
+
+/** The `history` row of the budget breakdown (`assembly/budget`): the shaped+fitted wire history's COST and
+ *  shape, never its content (see `AssemblyBudgetSlice.text`). `keptCount`/`droppedCount` are the FIT's own
+ *  verdict, so the row reads exactly as the transcript's context-boundary divider does. */
+export interface HistoryBudgetInput {
+  readonly usedTokens: number;
+  readonly keptCount: number;
+  readonly droppedCount: number;
 }
 
 /** The per-chat macro name producer maps `renderHistoryMacros` needs to resolve a canon-history row's own

@@ -12,6 +12,7 @@
 import type {
   AssembledPrompt,
   AssembleTrace,
+  AssemblyBudgetPreview,
   CharacterAvatarEntry,
   ChatBusEvent,
   ChatInjection,
@@ -183,6 +184,9 @@ export interface MessageVariantSummary {
 export interface AssemblyPreview {
   readonly prompt: AssembledPrompt;
   readonly trace: AssembleTrace;
+  /** The next turn's CONTEXT BUDGET, partitioned by source (D-4 — the Preview tab's stacked bar + drill-in
+   *  rows). Same build, same fit, same estimator as the turn itself; `sources` partitions `totalTokens`. */
+  readonly budget: AssemblyBudgetPreview;
 }
 
 /** One persisted positional injection (the `chat_injections` row resolved) — the `ChatInjection` wire shape

@@ -20,6 +20,8 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
+import type { AssemblySlice } from "../contract/results";
+import { injectionSource, personaContributorLabel, sectionSource } from "./budget";
 import { renderMacros } from "./macros";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
@@ -84,6 +86,11 @@ interface BuildEnv {
   /** The per-turn user-macro registry (WAVE MU) every section render + volatile-scan reads; the process
    *  `globalMacroRegistry` when the turn authored no user macros (byte-identical). */
   readonly registry: MacroRegistry;
+  /** The MERGED card section's per-roster-member split, keyed by section id — recorded during the render
+   *  (only the render knows which bytes are whose) and read back by the budget walk, so the Preview tab can
+   *  say what EACH member in the room costs instead of one opaque "cards" total. Empty for every other
+   *  section: they have exactly one contributor. */
+  readonly memberBlocks: Map<string, readonly { name: string; text: string }[]>;
 }
 
 /** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
@@ -144,34 +151,35 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
   return { value, merged: true };
 }
 
-/** The merged co-speakers' card block, appended after the active character's description. Empty when
- *  scoped/solo/no co-speakers. */
-function renderCoSpeakers(ctx: AssembleContext, registry: MacroRegistry): string {
-  const co = ctx.coSpeakers;
-  if (co === undefined || co.length === 0) {
+/** ONE present roster member's merged card block, or "" when they contribute nothing. */
+function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
+  const head = [renderMemberField("description", member, ctx, registry), renderMemberField("personality", member, ctx, registry)]
+    .filter((s) => s.trim().length > 0)
+    .join("\n");
+  if (head.trim().length === 0) {
     return "";
   }
-  return co
-    .map((m) => {
-      const head = [renderMemberField("description", m, ctx, registry), renderMemberField("personality", m, ctx, registry)]
-        .filter((s) => s.trim().length > 0)
-        .join("\n");
-      if (head.trim().length === 0) {
-        return "";
-      }
-      const parts = [`[Also present — ${m.name}]\n${head}`];
-      const scenario = renderMemberField("scenario", m, ctx, registry);
-      const examples = renderMemberField("exampleMessages", m, ctx, registry);
-      if (scenario.trim().length > 0) {
-        parts.push(`[${m.name}'s scenario]\n${scenario}`);
-      }
-      if (examples.trim().length > 0) {
-        parts.push(`[${m.name}'s example dialogue]\n${examples}`);
-      }
-      return parts.join("\n\n");
-    })
-    .filter((b) => b.length > 0)
-    .join("\n\n");
+  const parts = [`[Also present — ${member.name}]\n${head}`];
+  const scenario = renderMemberField("scenario", member, ctx, registry);
+  const examples = renderMemberField("exampleMessages", member, ctx, registry);
+  if (scenario.trim().length > 0) {
+    parts.push(`[${member.name}'s scenario]\n${scenario}`);
+  }
+  if (examples.trim().length > 0) {
+    parts.push(`[${member.name}'s example dialogue]\n${examples}`);
+  }
+  return parts.join("\n\n");
+}
+
+/** The merged co-speakers' card blocks, appended after the active character's description — kept PER MEMBER
+ *  (not pre-joined) so the budget can attribute each roster member's own token cost by NAME. Empty when
+ *  scoped/solo/no co-speakers. The joined form is byte-identical to the pre-split render. */
+function renderCoSpeakerBlocks(ctx: AssembleContext, registry: MacroRegistry): { name: string; text: string }[] {
+  const co = ctx.coSpeakers;
+  if (co === undefined || co.length === 0) {
+    return [];
+  }
+  return co.map((m) => ({ name: m.name, text: renderCoSpeakerBlock(m, ctx, registry) })).filter((b) => b.text.length > 0);
 }
 
 const MERGED_CACHE_BUSTER = "merged-present-cast";
@@ -313,12 +321,19 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
     case "scenario":
       return renderScenarioMarker(section, env);
     case "char_description": {
+      // The MERGED card section — the one section whose text belongs to several roster members at once, so it
+      // records a per-member split (`env.memberBlocks`) the budget attributes by NAME. The joined string is
+      // byte-identical to the pre-split render.
       const active = renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry });
-      const co = renderCoSpeakers(ctx, env.registry);
-      if (co.trim().length > 0) {
+      const blocks = renderCoSpeakerBlocks(ctx, env.registry);
+      if (blocks.length > 0) {
         recordMergedCacheBuster(trace);
       }
-      return [active, co].filter((s) => s.trim().length > 0).join("\n\n");
+      env.memberBlocks.set(
+        section.id,
+        [{ name: ctx.character.name, text: active }, ...blocks].filter((b) => b.text.trim().length > 0),
+      );
+      return [active, ...blocks.map((b) => b.text)].filter((s) => s.trim().length > 0).join("\n\n");
     }
     case "char_personality":
       return ctx.character.personality !== null && ctx.character.personality !== ""
@@ -524,6 +539,12 @@ interface WalkAccum {
   dynamicParts: string[];
   afterHistory: ChatInjection[];
   cacheBusters: Set<string>;
+  /** The per-contribution BUDGET attribution (`assembly/budget`) — every non-empty rendered part, tagged with
+   *  the source bucket it lands in. Collected on EVERY build (the walk already holds the text; the tagging is
+   *  a map lookup) but returned only by {@link assemblePromptWithSlices}: `AssembledPrompt` is PERSISTED per
+   *  variant (`message_variants.promptSnapshot`, D26), and carrying a second copy of the whole prompt there
+   *  would double every snapshot row for a host-only debug read. */
+  slices: AssemblySlice[];
 }
 
 /** Deliver an after-history (`in_chat`) section: render → push to the injection bucket at `depth`. The
@@ -545,6 +566,45 @@ function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, 
   }
   acc.afterHistory.push(injection);
   env.trace.afterHistorySections.push(section.id);
+  pushSlices(section, rendered, env, acc);
+}
+
+/** WHO this section's bytes belong to — the budget's per-contributor label. A card section is the roster
+ *  MEMBER whose card it renders; the persona marker is the speaking persona; everything else is authored
+ *  content with no person behind it, so it keeps the preset section's own name (the same name the prompt
+ *  manager shows). Roster vocabulary throughout: members are named, never grouped under a collective noun. */
+function sectionLabel(section: PromptSection, ctx: AssembleContext): string {
+  if (section.type === "literal") {
+    return section.name;
+  }
+  if (section.marker === "char_personality" || section.marker === "dialogue_examples" || section.marker === "scenario") {
+    return ctx.character.name;
+  }
+  if (section.marker === "persona") {
+    return personaLabel(ctx.activePersona?.name);
+  }
+  return section.name;
+}
+
+/** The persona's budget label — the persona's own name, marked so a roster member and the human's persona
+ *  can't read as the same kind of contributor in one list. ONE home for the marking (`assembly/budget`), so
+ *  a marker-delivered persona description and an at-depth one merge into a single contributor row. */
+function personaLabel(name: string | undefined): string {
+  return name === undefined || name.trim().length === 0 ? "persona" : personaContributorLabel(name);
+}
+
+/** Record a rendered section's budget slices: ONE per contributor. The merged card section splits per roster
+ *  member (recorded during its render); every other section is a single contributor. */
+function pushSlices(section: PromptSection, rendered: string, env: BuildEnv, acc: WalkAccum): void {
+  const source = sectionSource(section);
+  const blocks = env.memberBlocks.get(section.id);
+  if (blocks === undefined || blocks.length === 0) {
+    acc.slices.push({ source, label: sectionLabel(section, env.ctx), text: rendered });
+    return;
+  }
+  for (const block of blocks) {
+    acc.slices.push({ source, label: block.name, text: block.text.trim() });
+  }
 }
 
 /** Scan a static section's source strings for volatile macros (cache-busters) into `busters`. */
@@ -573,17 +633,26 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
   }
   (dynamic ? acc.dynamicParts : acc.staticParts).push(rendered);
   (dynamic ? env.trace.dynamicSections : env.trace.staticSections).push(section.id);
+  pushSlices(section, rendered, env, acc);
 }
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),
- *  counting each into the trace. */
-function appendInjections(args: { list: readonly ChatInjection[]; target: string[]; sections: string[]; label: string; trace: AssembleTrace }): void {
+ *  counting each into the trace + attributing each to its budget source. */
+function appendInjections(args: {
+  list: readonly ChatInjection[];
+  target: string[];
+  sections: string[];
+  label: string;
+  trace: AssembleTrace;
+  slices: AssemblySlice[];
+}): void {
   for (const inj of args.list) {
     const text = inj.content.trim();
     if (text.length > 0) {
       args.target.push(text);
       args.sections.push(args.label);
       args.trace.chatInjectionsIncluded += 1;
+      args.slices.push({ ...injectionSource(inj), text });
     }
   }
 }
@@ -596,15 +665,14 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     return;
   }
   // before_prompt: prepend as ONE batched block so the caller's array order = the rendered order.
-  const beforeTexts = all
-    .filter((i) => i.position === "before_prompt")
-    .map((i) => i.content.trim())
-    .filter((t) => t.length > 0);
+  const before = all.filter((i) => i.position === "before_prompt" && i.content.trim().length > 0);
+  const beforeTexts = before.map((i) => i.content.trim());
   if (beforeTexts.length > 0) {
     acc.staticParts.unshift(...beforeTexts);
     trace.chatInjectionsIncluded += beforeTexts.length;
-    for (const _t of beforeTexts) {
+    for (const inj of before) {
       trace.staticSections.unshift("chat-injection:before_prompt");
+      acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
     }
   }
   appendInjections({
@@ -613,6 +681,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     sections: trace.staticSections,
     label: "chat-injection:in_static",
     trace,
+    slices: acc.slices,
   });
   appendInjections({
     list: all.filter((i) => i.position === "in_prompt"),
@@ -620,6 +689,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     sections: trace.dynamicSections,
     label: "chat-injection:in_prompt",
     trace,
+    slices: acc.slices,
   });
 }
 
@@ -628,6 +698,28 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
 export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, registry: MacroRegistry = globalMacroRegistry): AssembledPrompt {
+  return assembleWithSlices(rawConfig, ctx, registry).prompt;
+}
+
+/**
+ * The BUILD product PLUS its per-source budget attribution — the host Preview tab's read (`previewAssembly`).
+ * Byte-identical to {@link assemblePrompt} on the prompt half; the slices are the SAME rendered strings, tagged
+ * with the `AssemblySource` bucket they land in (`assembly/budget`). Kept off `AssembledPrompt` because that
+ * shape is persisted per variant (D26) — see {@link WalkAccum.slices}.
+ */
+export function assemblePromptWithSlices(
+  rawConfig: PromptConfig,
+  ctx: AssembleContext,
+  registry: MacroRegistry = globalMacroRegistry,
+): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
+  return assembleWithSlices(rawConfig, ctx, registry);
+}
+
+function assembleWithSlices(
+  rawConfig: PromptConfig,
+  ctx: AssembleContext,
+  registry: MacroRegistry,
+): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
   const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
   const acc: WalkAccum = {
@@ -635,9 +727,10 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
     dynamicParts: [],
     afterHistory: [],
     cacheBusters: new Set<string>(),
+    slices: [],
   };
   const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
-  const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx, registry), pivotIndex, registry };
+  const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx, registry), pivotIndex, registry, memberBlocks: new Map() };
 
   const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
   // Send history unless a chat_history marker is explicitly present AND disabled.
@@ -659,6 +752,16 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
 
   applySystemInjections(ctx, trace, acc);
 
+  // The `in_chat` injections never touch the system halves (SHAPE splices them into history), but they ARE
+  // part of what the model reads next turn — the rpg state block rides exactly this channel. Account them
+  // here, at their pre-splice content: the splice's role framing (`[Note from system: …]`) adds a handful of
+  // tokens the estimate doesn't chase (advisory by construction, like every count on this surface).
+  for (const inj of ctx.chatInjections ?? []) {
+    if (inj.position === "in_chat" && inj.content.trim().length > 0) {
+      acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
+    }
+  }
+
   for (const b of trace.staticCacheBusters) {
     acc.cacheBusters.add(b);
   }
@@ -668,11 +771,14 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
   // in — an untouched preset returns byte-identical joins. Idempotent + whitespace-only → cache-safe.
   const pp = config.postProcess;
   return {
-    static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
-    dynamic: applyAssemblePostProcess(acc.dynamicParts.join("\n\n"), pp),
-    afterHistory: acc.afterHistory,
-    sendHistory,
-    trace,
+    prompt: {
+      static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
+      dynamic: applyAssemblePostProcess(acc.dynamicParts.join("\n\n"), pp),
+      afterHistory: acc.afterHistory,
+      sendHistory,
+      trace,
+    },
+    slices: acc.slices,
   };
 }
 
@@ -699,6 +805,7 @@ export function previewSection(
     originals: computeOriginals(config, previewCtx, registry),
     pivotIndex: -1,
     registry,
+    memberBlocks: new Map(),
   };
   return { rendered: renderSection(section, env), half, trace };
 }

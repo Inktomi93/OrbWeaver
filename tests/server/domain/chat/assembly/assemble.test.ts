@@ -7,7 +7,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
+import { assemblePrompt, assemblePromptWithSlices } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
 import { expect, test } from "../../../../support/fixtures";
@@ -412,5 +412,83 @@ describe("assemblePrompt — per-turn user-macro registry (WAVE MU)", () => {
     }
     // The scan reads the TURN registry's volatile names (not the process singleton's), so the user macro busts.
     expect(assemblePrompt(config, ctxOf(), turn.registry).trace.staticCacheBusters).toContain("luck");
+  });
+});
+
+// ── The per-source BUDGET attribution (D-4 — the Preview tab's stacked bar) ──────────────────────────────
+// The load-bearing invariant: the slices PARTITION the assembled context. Every non-empty rendered part is
+// attributed to exactly ONE source, and nothing delivered goes unattributed — a mis-bucketed byte makes the
+// host's "where did my context go" instrument lie.
+describe("assemblePromptWithSlices — per-source budget attribution", () => {
+  test("every rendered section + injection lands in its own source bucket (marker + origin driven)", () => {
+    const config = configOf([
+      marker({ marker: "main_prompt", name: "main prompt", template: "SYSTEM RULES" }),
+      marker({ marker: "char_description", name: "character description" }),
+      marker({ marker: "world_info_before", name: "world info (before)" }),
+      marker({ marker: "chat_history" }),
+    ]);
+    const injections: ChatInjection[] = [
+      { position: "in_prompt", depth: 0, role: "system", content: "operator note", origin: "user" },
+      { position: "in_chat", depth: 0, role: "system", content: "## Game state\nroster: Mara", origin: "game-state" },
+      { position: "in_chat", depth: 2, role: "system", content: "the author's note", origin: "authors-note" },
+    ];
+    const ctx = ctxOf({ worldInfoBefore: "LORE: the lantern road", chatInjections: injections });
+
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    expect(slices.map((s) => s.source)).toEqual(["system", "cards", "world-info", "steering", "game-state", "steering"]);
+    expect(slices.find((s) => s.source === "game-state")?.text).toBe("## Game state\nroster: Mara");
+
+    // Every attributed slice IS text the model receives (the system halves ∪ the injection contents)…
+    const delivered = [prompt.static, prompt.dynamic, ...injections.map((i) => i.content)].join("\n");
+    for (const slice of slices) {
+      expect(delivered).toContain(slice.text);
+    }
+    // …and every rendered system-half part is covered by some slice (nothing delivered goes unattributed).
+    const attributed = slices.map((s) => s.text).join("\n");
+    for (const part of [...prompt.static.split("\n\n"), ...prompt.dynamic.split("\n\n")].filter((p) => p.trim().length > 0)) {
+      expect(attributed).toContain(part);
+    }
+  });
+
+  test("an origin-less injection accounts as steering (the honest default), never as a card or as lore", () => {
+    const config = configOf([marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ chatInjections: [{ position: "in_prompt", depth: 0, role: "system", content: "hand-built" }] });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "chat injections", text: "hand-built" }]);
+  });
+
+  test("the MERGED card section splits per ROSTER MEMBER — each member's bytes carry their own name", () => {
+    // The owner's question: what is each character in the room costing me? The merged card block is one
+    // string on the wire, so the split has to happen where the bytes are rendered — here.
+    const config = configOf([marker({ marker: "char_description", name: "character description" }), marker({ marker: "chat_history" })]);
+    const niko: AssembleCharacter = { name: "Niko", description: "a wary scout", personality: "cautious" };
+    const ctx = ctxOf({ coSpeakers: [niko] });
+
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    // One slice per PRESENT member, named by their card name (never a collective bucket).
+    expect(slices.map((s) => s.label)).toEqual(["Aria", "Niko"]);
+    expect(slices.every((s) => s.source === "cards")).toBe(true);
+    expect(slices[1]?.text).toContain("Niko");
+    // …and the delivered prompt is byte-identical to the pre-split merge (the split is accounting only).
+    expect(prompt.static).toBe(assemblePrompt(config, ctx).static);
+    expect(prompt.static).toBe(slices.map((s) => s.text).join("\n\n"));
+  });
+
+  test("a member's at-depth note lands under THAT member, not an anonymous channel", () => {
+    const config = configOf([marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({
+      chatInjections: [{ position: "in_chat", depth: 2, role: "system", content: "Aria is limping.", origin: "authors-note", originLabel: "Aria" }],
+    });
+
+    expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "Aria", text: "Aria is limping." }]);
+  });
+
+  test("the prompt half is byte-identical to plain assemblePrompt (slices are an extra product, not a fork)", () => {
+    const config = configOf([literal("hello"), marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({ chatInjections: [{ position: "in_static", depth: 0, role: "system", content: "note", origin: "user" }] });
+
+    expect(assemblePromptWithSlices(config, ctx).prompt).toEqual(assemblePrompt(config, ctx));
   });
 });

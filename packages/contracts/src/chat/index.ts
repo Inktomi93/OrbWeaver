@@ -28,14 +28,19 @@ export type {
   AssemblePersona,
   AssembleTrace,
   AssembleWorldEntry,
+  AssemblyBudgetPart,
+  AssemblyBudgetPreview,
+  AssemblyBudgetSlice,
+  AssemblySource,
   ChatInjection,
   ChatInjectionInput,
+  ChatInjectionOrigin,
   ContextFitPreview,
   SectionPreview,
   ShapeBreakpointDecision,
   ShapeTrace,
 } from "./assemble";
-export { CHAT_INJECTION_POSITIONS, chatInjectionInputSchema, SHAPE_BREAKPOINT_DECISIONS } from "./assemble";
+export { ASSEMBLY_SOURCES, CHAT_INJECTION_ORIGINS, CHAT_INJECTION_POSITIONS, chatInjectionInputSchema, SHAPE_BREAKPOINT_DECISIONS } from "./assemble";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,
