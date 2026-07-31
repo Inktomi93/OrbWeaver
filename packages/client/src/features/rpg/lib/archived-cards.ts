@@ -11,6 +11,8 @@ import { tokenizeContent } from "@orb/kit/content";
  *  the origin MESSAGE's wall time; Journal's day-grouping key). */
 export interface ArchivedCard {
   readonly key: string;
+  /** The origin message — the row's TurnRef anchor (§12.1.4 "only where the data really carries a ref"). */
+  readonly messageId: string;
   readonly title: string | null;
   readonly html: string;
   readonly origin: CardSpanOrigin;
@@ -28,7 +30,14 @@ export function collectArchivedCards(
   for (const message of messages) {
     tokenizeContent(message.content, { lenientHtml: true }).forEach((span, index) => {
       if (span.kind === "card") {
-        cards.push({ key: `${message.id}-${index}`, title: span.title, html: span.body, origin: span.origin, createdAt: message.createdAt });
+        cards.push({
+          key: `${message.id}-${index}`,
+          messageId: message.id,
+          title: span.title,
+          html: span.body,
+          origin: span.origin,
+          createdAt: message.createdAt,
+        });
       }
     });
   }

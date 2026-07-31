@@ -573,7 +573,7 @@ test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in
 
   const archive = component.locator('[data-slot="rpg-card-archive"]');
   await expect(archive).toContainText("Cards — 1");
-  await archive.getByRole("button", { name: "Zandik's letter" }).click();
+  await archive.getByRole("button", { name: "Open card: Zandik's letter" }).click();
 
   // The archive lightbox renders the card through the SAME chrome (title + null-origin sandboxed iframe);
   // the card's HTML never lands in the main DOM.
@@ -586,6 +586,32 @@ test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in
   expect(sandbox).not.toContain("allow-scripts");
   expect(sandbox).not.toContain("allow-same-origin");
   await expect(page.locator("div", { hasText: "secret page" })).toHaveCount(0);
+});
+
+// The card-row TREATMENT (owner: the bare "✦ title" lines read as dead text). One row component serves both
+// homes — the row IS the card's title bar: ✦ title · provenance · origin TurnRef · the expand glyph, on a
+// real bordered instrument row whose accessible name says what a click does.
+test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, expand glyph, named action", async ({ mount, page }) => {
+  await stubTakeover(page, { game: cardsGame(), messages: CARD_MESSAGES });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const row = component.locator('[data-slot="rpg-card-row"]');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText("Zandik's letter");
+  // The origin turn ref (§12.1.4) — the row carries a REAL message ref, so it renders the anchor chip.
+  await expect(row.locator('[data-slot="rpg-turn-ref"]')).toHaveText("tard1");
+  // The row's action is NAMED (a bare "✦ title" line said nothing about what a click does).
+  await expect(row).toHaveAttribute("aria-label", "Open card: Zandik's letter");
+  // A real bordered instrument row, not a bare text line: it carries the expand glyph + a border box.
+  await expect(row.locator("svg")).toHaveCount(1);
+
+  // The Journal chronicle renders the SAME row component (one projection, one row).
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  await expect(component.locator('[data-slot="rpg-card-row"]').first()).toContainText("Zandik's letter");
+  await component.locator('[data-slot="rpg-card-row"]').first().click();
+  await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
 });
 
 test("RV-2: cards ON with none written renders the honest empty archive; cards OFF omits the section entirely", async ({ mount, page }) => {
