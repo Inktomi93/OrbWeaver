@@ -11,9 +11,11 @@
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `macroNames` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
-import type { CharacterId, MessageId } from "@orb/kit/ids";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
@@ -42,6 +44,8 @@ const PREVIEW_FIT_STUB = {
     compactSummary: null,
   }),
 };
+
+const BUBBLE = '[data-slot="message-bubble"]';
 
 const CANON = [
   makeMessageView({
@@ -75,10 +79,26 @@ const ROSTER_STUB = {
   }),
 };
 
+// The draft transcript's MACRO producers (its half of what a committed room reads off `chat.getChat`):
+// the viewer's owned personas + the two seed pointers + this character's persona connections feed
+// `resolveDraftAnchorPersona`, so a draft greeting's `{{user}}` names the persona the commit will anchor.
+const NOVA = "persona_nova";
+const DRAFT_IDENTITY_STUB = {
+  "persona.list": (): readonly { id: string; name: string; description: string }[] => [{ id: NOVA, name: "Nova", description: "a wandering cartographer" }],
+  "persona.listConnectedToCharacter": (): readonly never[] => [],
+  "settings.getUserSettings": (): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } => ({
+    userId: "user_ct",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA } },
+    updatedAt: 0,
+  }),
+};
+
 test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({ mount, page }) => {
   let listMessagesCalls = 0;
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
     "chat.listMessages": () => {
       listMessagesCalls += 1;
       return makeMessagesPage([]);
@@ -99,6 +119,101 @@ test("a seeded draft renders the founding greeting as an editable row + the live
   await expect(component.getByRole("textbox", { name: "Message" })).toBeVisible();
   // The discriminant gate held — a draft NEVER read CANON (listMessages).
   expect(listMessagesCalls).toBe(0);
+});
+
+// ── one renderer, both surfaces: a draft greeting is NOT a second rendering home ───────────────────
+// The owner report was "markdown doesn't apply before the chat is committed". The draft greeting already
+// rides the same MessageRow → MessageContent → @orb/ui/markdown path a committed row does (synth-greeting-
+// row.ts decision #1), and these two tests pin that convergence with ONE body rendered through BOTH arms:
+// a second, plain-text greeting renderer (or a draft that skipped `renderMessageForDisplay`) fails them.
+// Emphasis is a native <em>; Streamdown renders strong as `<span data-streamdown="strong">` (the
+// ghost-message-row.ct.tsx precedent), and an inline code span as <code>.
+const FORMATTED_BODY = "*She looks up.* **Well met**, {{user}} — try `:help` sometime.";
+
+async function expectFormattedBody(bubble: Locator): Promise<void> {
+  await expect(bubble.locator("em")).toHaveText("She looks up.");
+  await expect(bubble.locator('[data-streamdown="strong"]')).toHaveText("Well met");
+  await expect(bubble.locator("code")).toHaveText(":help");
+  // The macro resolved to the persona the commit will anchor — never the raw `{{user}}`, never the "User" floor.
+  await expect(bubble).toContainText("Well met, Nova —");
+}
+
+test("a DRAFT greeting renders formatted through the shared pipeline (emphasis/strong/code + a resolved {{user}})", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [FORMATTED_BODY] }),
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+
+  await expectFormattedBody(component.locator(BUBBLE).first());
+  // The raw markup never reaches the reader (the tell of a plain-Text draft renderer).
+  await expect(component.locator(BUBBLE).first()).not.toContainText("**Well met**");
+});
+
+// A greeting is the highest-unbalanced-markdown surface there is (hand-authored ST cards habitually
+// leave a narration asterisk open), so the `autoFixMarkdown` appearance knob has to reach the DRAFT
+// greeting row, not just committed canon. OFF (the shipped default) renders the line as authored — a
+// lone `*` is literal per CommonMark; ON closes the run at end-of-line (`@orb/kit/fix-markdown`).
+const UNBALANCED_GREETING = "*She looks up and smiles";
+
+async function routeUnbalancedGreeting(page: Page, autoFixMarkdown: boolean): Promise<void> {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, autoFixMarkdown } },
+      updatedAt: 0,
+    }),
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: [UNBALANCED_GREETING] }),
+  });
+}
+
+test("autoFixMarkdown ON closes an unbalanced greeting asterisk on the DRAFT row", async ({ mount, page }) => {
+  await routeUnbalancedGreeting(page, true);
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  await expect(component.locator(BUBBLE).first().locator("em")).toHaveText("She looks up and smiles");
+});
+
+test("autoFixMarkdown OFF leaves the same greeting as authored (the literal asterisk, no emphasis)", async ({ mount, page }) => {
+  await routeUnbalancedGreeting(page, false);
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble.locator("em")).toHaveCount(0);
+  await expect(bubble).toContainText(UNBALANCED_GREETING);
+});
+
+test("the COMMITTED arm renders that same body identically — the draft is not a second rendering home", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_greeting"), role: "assistant", content: FORMATTED_BODY })]),
+    // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the name producer that carries it
+    // (the exact pair the draft arm predicts client-side).
+    "chat.getChat": (): {
+      participants: never[];
+      anchorPersonaId: string;
+      macroNames: ReturnType<typeof makeMacroNameProducer>;
+      personaAvatars: never[];
+      characterAvatars: never[];
+    } => ({
+      participants: [],
+      anchorPersonaId: NOVA,
+      macroNames: makeMacroNameProducer({ personaNames: [{ id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer" }] }),
+      personaAvatars: [],
+      characterAvatars: [],
+    }),
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble).toBeVisible();
+  await expectFormattedBody(bubble);
 });
 
 test("a committed chat reads canon and renders the rows beside the composer", async ({ mount, page }) => {
@@ -197,6 +312,7 @@ test("the FIRST send on a draft clears the composer for the newly-committed chat
   // when the send settles) stays alive to receive the commit signal driven below.
   const trpc = await routeTrpc(page, {
     ...ROSTER_STUB,
+    ...DRAFT_IDENTITY_STUB,
     "chat.startChat": () => ({ chat: { id: CHAT_ID } }),
     "chat.listMessages": () => makeMessagesPage([]),
     // The founding-card greeting preview the draft reads before commit.

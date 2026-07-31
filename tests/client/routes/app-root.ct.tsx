@@ -10,6 +10,7 @@
 // previews each founding character's greeting as an editable row, J2/J3 — it reads the founding CARD, but
 // never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../packages/client/src/lib/test-ids";
 import { routeTrpc } from "../../support/ct/route-trpc";
@@ -26,7 +27,20 @@ const NO_CHARACTERS = { items: [], nextCursor: null };
 // which forces a blocking, undismissable gate open whenever the viewer owns zero personas. These
 // tests are about the home page's normal (has-persona) render, so a seeded persona keeps the gate
 // closed and out of the way.
-const PERSONAS = [{ id: "persona_home", name: "Alex", avatarHash: null, starred: true }];
+const PERSONAS = [{ id: "persona_home", name: "Alex", description: "", avatarHash: null, starred: true }];
+
+// The seeded draft's greeting row resolves `{{user}}` against the anchor the commit WILL write, so it
+// reads the same two identity sources the server's seed chain does: the viewer's persona connections for
+// this character (none here) and the `seeds.*` pointers off the settings blob.
+const DRAFT_IDENTITY_STUB = {
+  "persona.listConnectedToCharacter": (): readonly never[] => [],
+  "settings.getUserSettings": (): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } => ({
+    userId: "user_ct",
+    schemaVersion: 1,
+    config: DEFAULT_USER_SETTINGS,
+    updatedAt: 0,
+  }),
+};
 
 test("the default chats section renders the landing surface, not an empty room (J1)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -54,6 +68,7 @@ test("picking a character in the library starts a chat with it (the library→ch
       greetings: ["The night market hums."],
     },
     "persona.list": PERSONAS,
+    ...DRAFT_IDENTITY_STUB,
   });
 
   const component = await mount(<HomePageStory />);
