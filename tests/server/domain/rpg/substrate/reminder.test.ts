@@ -194,6 +194,46 @@ test("the cast line renders relationship + cast-fields kind-aware (features 1 + 
   expect(out).toContain("trust: guarded"); // text kind
 });
 
+// R4b (§4d-bis) — the host-authored cast-field `hint` must reach the MODEL, not just the panel tooltip. A bare
+// tracked number moves narration by −0.12 (noise); the same number glossed moves it by −1.00. The gloss rides
+// BOTH kinds, mirroring the pool (`focus 3/5 (…)`) and relationship (`vassal (…)`) grammar.
+test("a hinted cast field glosses inline for BOTH kinds (meter + text); an unhinted one is unchanged", () => {
+  const view = emptyView({
+    cast: [
+      {
+        key: "Wren",
+        name: "Wren",
+        emoji: "",
+        mood: "",
+        customFields: { wits: "10", capped: "4", bond: "frayed", plain: "3" },
+        relationship: { kind: "neutral", label: "" },
+      },
+    ],
+    castFields: [
+      { key: "wits", label: "Wits", kind: "meter", hint: "how sharp and quick-thinking she is right now" },
+      { key: "capped", label: "Nerve", kind: "meter", max: 10, hint: "what she has left to spend on bravery" },
+      { key: "bond", label: "Bond", kind: "text", hint: "where the two of them stand" },
+      { key: "plain", label: "Debts", kind: "meter", max: 5 },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("Wits 10 (how sharp and quick-thinking she is right now)"); // meter, no max
+  expect(out).toContain("Nerve 4/10 (what she has left to spend on bravery)"); // meter with max
+  expect(out).toContain("Bond: frayed (where the two of them stand)"); // text kind
+  expect(out).toContain("Debts 3/5"); // hint absent ⇒ today's exact format, no empty parens
+  expect(out).not.toContain("Debts 3/5 (");
+});
+
+test("an EMPTY cast-field hint glosses nothing (no empty parens — the pool-hint idiom)", () => {
+  const view = emptyView({
+    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", customFields: { wits: "7" }, relationship: { kind: "neutral", label: "" } }],
+    castFields: [{ key: "wits", label: "Wits", kind: "meter", max: 10, hint: "" }],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("- Wren — Wits 7/10");
+  expect(out).not.toContain("()");
+});
+
 test("a neutral relationship is silent in the cast line (no steering signal)", () => {
   const view = emptyView({
     cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
