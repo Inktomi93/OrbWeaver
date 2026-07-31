@@ -109,8 +109,12 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // (reliable / readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
     // has no checks, so the gather ignores them. `steerIdentity` is chat's authoritative `{{user}}`/`{{char}}`
     // binding, threaded so the reminder renders the host steeringNote's identity macros (rpg splices, never
-    // re-derives). `null` for a non-game chat (byte-identical).
-    gatherTurnContext: (chatId, _pending, _responds, steerIdentity): Promise<ChatRpgGatherResult | null> => gatherTurnContext(ctx, chatId, steerIdentity),
+    // re-derives). `regenSlotMessageId` is chat's swipe/reroll target — the turn's state reads resolve as of
+    // BEFORE that slot so a reroll is never told the abandoned variant's beats (VER-1b). `null` for a non-game
+    // chat (byte-identical).
+    // Rest-taken (the contract is 5-positional): lite consumes chatId + steerIdentity + the regen slot; the
+    // two dice-feed inputs at 1/2 are full's, and destructuring them into named holes buys nothing here.
+    gatherTurnContext: (...args): Promise<ChatRpgGatherResult | null> => gatherTurnContext(ctx, args[0], args[3], args[4]),
     // Lite has no d20 checks to feed a die into — a no-op (full's staging eligibility set).
     markDicePreRollEligible: (): void => undefined,
     onUserCommit,

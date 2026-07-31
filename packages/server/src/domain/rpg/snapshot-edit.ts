@@ -11,12 +11,15 @@
 //     would corrupt a locked-in past (a checkpoint's frozen state, a past swipe) — so a committed head is
 //     never mutated; play continues on the new variant. The turnless case is the same forward-write, off the
 //     synthesized default state.
+// It also homes the two STATE READERS every other surface projects from — `currentSnapshotState` (the head) and
+// `snapshotStateBeforeSlot` (the state before a slot: the flush's write base + a regen turn's read base) — so
+// "which snapshot am I reasoning from, and what does a game with no rows read?" is answered in ONE place.
 
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { HandEditLocks, RpgContext, RpgGameRow } from "./contract/service";
 import { snapshotRowToState } from "./contract/service";
-import { insertSnapshot, resolveSnapshotForTurn, updateSnapshotState } from "./persistence/snapshots";
+import { insertSnapshot, resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState } from "./persistence/snapshots";
 import { defaultSnapshotState } from "./substrate/default-state";
 import { applyLockedPatch } from "./substrate/merge";
 
@@ -113,4 +116,18 @@ export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Re
  *  game (no snapshot rows) this is the synthesized default steady-state (the orchestrator no-born-seed ruling). */
 export async function currentSnapshotState(ctx: RpgContext, game: RpgGameRow): Promise<RpgSnapshotState> {
   return (await resolveHead(ctx, game)).state;
+}
+
+/** The state as of the slot BEFORE `messageId` — the head's sibling reader, and the ONE home for "row-or-born-
+ *  default before this slot" (both the flush's WRITE base and a regen turn's READ base resolve through here, so
+ *  the two can never disagree about what a turn reasons from).
+ *
+ *  VER-1a (write) — a reroll mints a NEW variant on an EXISTING slot, and the rejected variant's snapshot is
+ *  `base + that variant's delta`; basing the fresh extraction on the head would stack it on its own dead
+ *  sibling (the live-confirmed duplicate-beat class). VER-1b (read) — the same slot exclusion is what a REGEN's
+ *  reminder + delta block must read, or the model is told the abandoned variant's beats and paraphrases them
+ *  back. For a FRESH turn (a slot with no snapshots of its own) this resolves byte-identically to the head. */
+export async function snapshotStateBeforeSlot(ctx: RpgContext, game: RpgGameRow, messageId: MessageId): Promise<RpgSnapshotState> {
+  const row = await resolveSnapshotBeforeSlot(ctx.db, { id: game.id, chatId: game.chatId }, messageId);
+  return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
 }

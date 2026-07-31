@@ -2543,3 +2543,50 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
   expect(flushes).toEqual([null]);
 });
+
+// VER-1b — the REGEN SLOT reaches the rpg gather. A swipe regenerates an EXISTING slot whose currently-selected
+// variant is the one being abandoned, so rpg must read its tracked state as of BEFORE that slot (else the
+// reminder describes the very prose the model is being asked to rewrite). Chat owns slot mechanics and is the
+// only side that knows which slot this is — this pins the thread, so the rpg-side fix can never be dead wire.
+
+/** A minimal `ctx.rpg` recording the `regenSlotMessageId` (5th positional arg) each gather was handed. */
+function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<ChatContext["rpg"]> } {
+  const slots: (MessageId | undefined)[] = [];
+  // FABRICATION-OK: the turn path reaches only these ops (the `foldedRpg` stub above's precedent).
+  const rpg = {
+    resolvePresetOverride: () => Promise.resolve(null),
+    // Variadic (not 5 named params): the injected contract is POSITIONAL and this stub only needs the 5th.
+    gatherTurnContext: (...args: unknown[]) => {
+      slots.push(args[4] as MessageId | undefined);
+      return Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0 });
+    },
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: () => Promise.resolve(),
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+  return { slots, rpg };
+}
+
+test("VER-1b: a SWIPE tells the rpg gather which slot it regenerates; a SEND tells it none", async () => {
+  const host = await seedUser(db, "ver1bhost");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "ver1b_regen");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+  await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+  const { messageId } = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "first take" });
+
+  const { slots, rpg } = gatherSpyRpg();
+  const h = harness(db, { [charA]: "Aria" }, { rpg });
+
+  await h.turn.swipe({ principal: makePrincipal(host), chatId, messageId });
+  // The swipe's `append-variant` target — the same slot its canon context stops before.
+  expect(slots).toEqual([messageId]);
+
+  // A fresh turn regenerates nothing: the gather resolves the head, exactly as before (byte-identical arm).
+  await h.turn.send({ principal: makePrincipal(host), chatId, content: "and then?" });
+  expect(slots.at(-1)).toBeUndefined();
+});
