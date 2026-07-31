@@ -79,6 +79,13 @@ export interface ExtractionRefs {
    *  Empty (no cast-fields configured) leaves the pair name unconstrained (the opaque-record behavior is gone
    *  only when a schema is defined — an empty schema means the feature is off, so no constraint to apply). */
   readonly castFieldKeys: readonly string[];
+  /** The CURRENTLY-ACTIVE condition names across the tracked actors — constrains `party[].removeCondition`
+   *  (R5a). A retirement can only name a condition that is actually on someone, which makes the measured 8B
+   *  failure (`removeCondition: "Bleeding, Poisoned, Exhausted, Lamed"` — a comma-joined LIST shoved into the
+   *  `{type:"string"}` scalar, semantically right and structurally invalid) UNREPRESENTABLE under xgrammar, and
+   *  is free defence on a hosted `strict` schema. Empty (nobody carries a condition) leaves the field
+   *  unconstrained — never an impossible empty enum. */
+  readonly conditionNames: readonly string[];
   /** ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (in the enforced grammar) ONLY while the current scene
    *  hasn't set them yet. Derived per-call from the base snapshot: a FRESH game is forced to establish the
    *  scene from the first beat, but once a field is set it returns to the optional omit=keep patch — no
@@ -153,6 +160,7 @@ function requireField(node: unknown, field: string): void {
  *   • `inventory[].targetRef`     ⟵ actorRefs   (whose items/wallet move)
  *   • `scene.presentRemove[]`     ⟵ actorRefs   (removing a present actor — must name a real one)
  *   • `widgets[].widgetRef`       ⟵ widgetRefs  (which existing custom widget — NOT an invented one)
+ *   • `party[].removeCondition`   ⟵ conditionNames (R5a — one ACTIVE condition, never a comma-joined list)
  */
 export function constrainExtractionSchema(schema: Record<string, unknown>, refs: ExtractionRefs): Record<string, unknown> {
   // Deep clone so the cached projected schema is never mutated (it also feeds other wires). A JSON round-trip
@@ -162,6 +170,9 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
   constrainArrayItemRef(clone, "party", "targetRef", refs.actorRefs);
   constrainArrayItemRef(clone, "inventory", "targetRef", refs.actorRefs);
   constrainArrayItemRef(clone, "widgets", "widgetRef", refs.widgetRefs);
+  // R5a — a retirement names ONE currently-active condition (the list-in-a-scalar the 8B emitted is then
+  // untypeable under an enforcing grammar). Empty ⇒ unconstrained, like every ref list above.
+  constrainArrayItemRef(clone, "party", "removeCondition", refs.conditionNames);
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);

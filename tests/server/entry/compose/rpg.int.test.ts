@@ -543,6 +543,40 @@ test("F4: presentRemove enum names an existing scene NPC + party.targetRef reach
   expect(schema.properties?.scene?.properties?.presentRemove?.items?.enum).toContain("Bartender");
 });
 
+test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a comma-joined list is untypeable)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "r5a-conditions");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  // A committed base snapshot where the tracked cast actor CARRIES conditions — the only source of the enum.
+  const afflicted = baseWithCast();
+  const { messageId: baseMsg, variantId: baseVar } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The goblin festers." });
+  const written = await writeStagedSnapshot(
+    db,
+    {
+      ...afflicted,
+      actorState: afflicted.actorState.map((a) => ({
+        ...a,
+        conditions: [
+          { name: "Bleeding", stat: null, modifier: 0, turnsLeft: null },
+          { name: "Poisoned", stat: null, modifier: 0, turnsLeft: null },
+        ],
+      })),
+    },
+    { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT },
+  );
+  expect(written.ok).toBe(true);
+  await commitSnapshotForVariant(db, baseVar);
+
+  const { messageId, variantId } = await seedMessage(db, chatId, 2, { role: "assistant", content: "The goblin's wounds close." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const schema = spy.schemas[0] as { properties?: { party?: { items?: { properties?: { removeCondition?: { enum?: string[] } } } } } };
+  const enumValues = schema.properties?.party?.items?.properties?.removeCondition?.enum;
+  expect(enumValues).toEqual(["Bleeding", "Poisoned"]);
+});
+
 // ── F10: a roster character literally named "Player" owns the `player` ref; the token is withheld ───────
 test("F10: a roster character named 'Player' is enum-able and the semantic 'player' token is withheld (no collision)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "f10-player-collision");
@@ -581,12 +615,12 @@ test("R3: an extraction that writes NOTHING renderable logs rpg.extraction.empty
   expect(line).toBeDefined();
 });
 
-test("R3: an extraction targeting a NON-roster ref mints a cast actor + logs rpg.extraction.phantom", async ({ app, db }) => {
+test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs rpg.extraction.phantom", async ({ app, db }) => {
   const warnSpy = vi.spyOn(logger, "warn");
   const { chatId, hostId } = await seedHostGameChat(db, "r3-phantom");
   const spy = emptySpy();
   // A phantom target "player" that the roster doesn't literally contain — but resolveActor's self-alias maps
-  // it to the user, so it is NOT phantom. Use a genuinely-unknown name to force the phantom-mint canary.
+  // it to the user, so it is NOT phantom. Use a genuinely-unknown name to force the ghost-guard canary.
   const rpgCompose = buildReliableRpgWithText({
     app,
     db,
@@ -603,6 +637,12 @@ test("R3: an extraction targeting a NON-roster ref mints a cast actor + logs rpg
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect(line).toBeDefined();
   expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
+  // R5: the ghost arg was DROPPED, so nothing was tracked — the panel never gains a hallucinated actor. The
+  // empty-outcome line fires ALONGSIDE the ghost line (independent branches: the cause must not hide behind
+  // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
+  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
 });
 
 test("F3: the host is resolved by ROLE, not join order (post-handoff: first-joined human is a member)", async ({ app, db }) => {

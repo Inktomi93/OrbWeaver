@@ -39,8 +39,10 @@ export { deriveTrackersReadOnly } from "./substrate/readonly-axis";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools";
-export type { ExtractionMints } from "./tools/apply";
+export type { ExtractionMints, RosterRefIndex } from "./tools/apply";
 // The reliable-mode extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
 // into the `RpgStateDelta` the accumulator flushes. W1c-b's `runExtraction` impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.
-export { buildRosterRefIndex, extractionToStateDelta } from "./tools/apply";
+// `ghostTargetRefs` is the R5 guard's ONE predicate: the fold drops on it, and the compose observability logs
+// the same list (so a "dropped" warning can never disagree with what actually applied).
+export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs } from "./tools/apply";

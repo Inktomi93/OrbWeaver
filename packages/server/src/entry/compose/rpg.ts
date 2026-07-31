@@ -47,7 +47,7 @@ import type { RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
-import type { RpgContext, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
+import type { RosterRefIndex, RpgContext, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
 import {
   buildRosterRefIndex,
   createRpgChatOps,
@@ -57,6 +57,7 @@ import {
   deriveTrackersReadOnly,
   extractionToStateDelta,
   findGameByChat,
+  ghostTargetRefs,
   publishRpgEvent,
   rpgToolDefinitions,
 } from "#domain/rpg";
@@ -368,6 +369,10 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // §2.8 — the host-defined tracked cast-field KEYS constrain the nested `presentUpsert[].customFields[].name`,
   // so the model can only write DEFINED fields (never invent a junk key). Empty (feature off) leaves it free.
   const castFieldKeys = game?.config.features.castFields.map((f) => f.key) ?? [];
+  // R5a — the CURRENTLY-ACTIVE condition names (across every tracked actor, deduped in encounter order)
+  // constrain `party[].removeCondition`, so a retirement can only name a condition that is actually on
+  // someone. Nobody afflicted ⇒ an empty list ⇒ the field stays unconstrained (never an empty enum).
+  const conditionNames = [...new Set(baseState.actorState.flatMap((a) => a.conditions.map((c) => c.name)))];
   // ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (constrainExtractionSchema) ONLY while the current scene
   // lacks them — a fresh game establishes the scene from the first beat, an ongoing scene keeps the optional
   // omit=keep patch. `location` defaults to "" (unset), `clock` is null until a timeOfDay lands, and an empty
@@ -385,7 +390,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
         presentCast: baseState.presentCharacters.length === 0,
       };
   return {
-    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, establishScene },
+    refs: { actorRefs, widgetRefs: Object.keys(baseState.widgetValues), castFieldKeys, conditionNames, establishScene },
     playerDisplayName: player?.name ?? null,
     config: game?.config ?? rpgGameConfigSchema.parse({}),
   };
@@ -476,37 +481,41 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, parsed: parsed.data, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: parsed.data, delta });
     return delta;
   };
 }
 
 /** R3 — the extraction-outcome visibility log. Emits a line when the delta writes NOTHING renderable (the
- *  silent-empty-panel signal) AND whenever the extraction MINTED a `cast:` actor (an unexpected non-roster
- *  target — the mis-target canary). Metadata only (ref counts + names), never beat/reply text. */
+ *  silent-empty-panel signal) AND whenever the extraction named a GHOST actor (a target with no referent this
+ *  turn — the R5 guard dropped its arg). Metadata only (ref counts + names), never beat/reply text.
+ *
+ *  The two lines are INDEPENDENT (not an either/or): since R5 drops the ghost args, a ghost-only extraction is
+ *  precisely the case that also writes nothing — an `else if` would have hidden the cause behind the symptom. */
 function logExtractionOutcome(args: {
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: string;
   readonly refs: ExtractionRefs;
+  readonly base: RpgSnapshotState;
+  readonly roster: RosterRefIndex;
   readonly parsed: RpgExtraction;
   readonly delta: { readonly statePatch: Record<string, unknown>; readonly journal: readonly unknown[] };
 }): void {
+  // The party/inventory targets naming NOBODY reachable this turn — the SAME predicate the fold drops on (one
+  // home, so the log can never disagree with what actually applied).
+  const phantomTargets = ghostTargetRefs(args.base, args.parsed, args.roster);
+  if (phantomTargets.length > 0) {
+    logger.warn(
+      { event: "rpg.extraction.phantom", chatId: args.chatId, model: args.model, api: args.api, phantomTargets },
+      "rpg extraction named ghost actor(s) with no live referent — those args were DROPPED (no cast mint)",
+    );
+  }
   const wroteNothing = Object.keys(args.delta.statePatch).length === 0 && args.delta.journal.length === 0;
-  // The party/inventory targets the model NAMED that are NOT in the valid roster ref list — each becomes a
-  // phantom `cast:` mint (the exact R1 failure). Surfaced as the canary even when SOME writes landed.
-  const validRefs = new Set(args.refs.actorRefs.map((r) => r.toLowerCase()));
-  const named = [...args.parsed.party, ...args.parsed.inventory].map((e) => e.targetRef);
-  const phantomTargets = [...new Set(named.filter((n) => !validRefs.has(n.toLowerCase())))];
   if (wroteNothing) {
     logger.warn(
       { event: "rpg.extraction.empty", chatId: args.chatId, model: args.model, api: args.api, actorRefs: args.refs.actorRefs.length, phantomTargets },
       "rpg reliable extraction wrote NOTHING renderable (mis-target or empty beat)",
-    );
-  } else if (phantomTargets.length > 0) {
-    logger.warn(
-      { event: "rpg.extraction.phantom", chatId: args.chatId, model: args.model, api: args.api, phantomTargets },
-      "rpg reliable extraction minted cast actor(s) for non-roster target(s)",
     );
   }
 }
@@ -630,7 +639,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const extraction = toolCallsToExtraction(calls);
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, parsed: extraction, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: extraction, delta });
     return delta;
   };
 }
@@ -713,7 +722,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     }
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, parsed.data, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, parsed: parsed.data, delta });
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: parsed.data, delta });
     return delta;
   };
 }

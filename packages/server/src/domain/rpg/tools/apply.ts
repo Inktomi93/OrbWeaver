@@ -8,7 +8,9 @@
 // ALIAS RESOLUTION: `targetRef`/`widgetRef` are model-facing NAMES (projection-clean tool args — no branded
 // ids). `resolveActor` matches an existing `actorState` entry by a cast-key/actor-name projection; an unknown
 // name MINTS a new `cast` actor (the model naming a fresh NPC — the wallet/inventory-on-every-actor ruling).
-// `set_widget_value` addresses a widget by its label (the `widgetValues` map key).
+// `set_widget_value` addresses a widget by its label (the `widgetValues` map key). The extraction FOLD gates
+// that mint behind the R5 ghost guard (`ghostTargetRefs`) — an NPC must be on stage (or put there by the same
+// extraction) to be written; the per-tool handlers keep the open mint (a live tool call is the host's own turn).
 
 import type {
   AddJournalEntryArgs,
@@ -415,6 +417,34 @@ export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEn
   return { type: args.type, title: journalTitleFor(args), content: args.content };
 }
 
+/** The GHOST-ACTOR guard (R5). The per-call `targetRef` enum is a MENU the model can misread: a measured spike
+ *  saw a hosted model target "Aldric Vane" — an actor from a STALE enum who was in no live cast — and the
+ *  mint arm of {@link resolveActor} happily made him real, so a hallucinated name became a tracked actor the
+ *  panel then rendered forever. This returns the party/inventory `targetRef`s that name NOBODY reachable this
+ *  turn; {@link extractionToStateDelta} DROPS those args (errors-as-data — a ghost never fails the turn) and
+ *  the caller logs them.
+ *
+ *  Legally reachable = the roster index (members + the player self-aliases) ∪ the tracked cast actors ∪ the
+ *  scene cast ∪ the cast this SAME extraction puts on stage (`scene.presentUpsert`) — that last arm keeps the
+ *  legitimate introduce-and-wound beat working (the model presents a new NPC and damages her in one round),
+ *  so the guard only kills names with no referent anywhere. */
+export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, roster: RosterRefIndex): string[] {
+  const known = new Set<string>(roster.keys()); // already lowercased by `buildRosterRefIndex`
+  for (const actor of base.actorState) {
+    if (actor.actorRef.kind === "cast") {
+      known.add(actor.actorRef.castKey.toLowerCase());
+    }
+  }
+  for (const c of base.presentCharacters) {
+    known.add(c.key.toLowerCase());
+  }
+  for (const up of extraction.scene?.presentUpsert ?? []) {
+    known.add(up.name.toLowerCase());
+  }
+  const named = [...extraction.party, ...extraction.inventory].map((e) => e.targetRef);
+  return [...new Set(named.filter((n) => !known.has(n.toLowerCase())))];
+}
+
 /** The id mints the extraction fold needs (inventory item ids + quest/objective ids) — injected for
  *  determinism (the impl passes `newId`/`ctx.ids.quest`, a test passes stable counters). */
 export interface ExtractionMints {
@@ -423,28 +453,47 @@ export interface ExtractionMints {
   readonly objective: () => string;
 }
 
+/** The ACTOR-plane arms of the fold (`party` + `inventory`) applied over the running state — hoisted out of
+ *  {@link extractionToStateDelta} so the R5 ghost drop stays under the cognitive-complexity ceiling. Each entry
+ *  reads the previous entry's write (the staging-accumulator read-through); a GHOST-targeted arg is dropped
+ *  whole (errors-as-data — never a throw, never a hallucinated mint). An `update_party` legality denial (an
+ *  hpDelta on a null-hp actor) is skipped the same way. */
+function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: RosterRefIndex): RpgSnapshotState {
+  const ghosts = new Set(ghostTargetRefs(base, extraction, roster).map((r) => r.toLowerCase()));
+  let state = base;
+  for (const args of extraction.party) {
+    if (ghosts.has(args.targetRef.toLowerCase())) {
+      continue;
+    }
+    const applied = applyUpdateParty(state, args, roster);
+    if (applied.ok) {
+      state = { ...state, ...applied.patch };
+    }
+  }
+  for (const args of extraction.inventory) {
+    if (ghosts.has(args.targetRef.toLowerCase())) {
+      continue;
+    }
+    state = { ...state, ...applyUpdateInventory(state, args, mints.item, roster) };
+  }
+  return state;
+}
+
 /** Fold a reliable-mode `RpgExtraction` (arrays of the SAME cheap-mode tool args) into ONE `RpgStateDelta` —
  *  the shared-plane proof made runtime: a reliable extraction is exactly "a batch of the tool calls the model
  *  would otherwise have made" (§4.6). Each entry applies over the RUNNING state (read-through, exactly like the
  *  staging accumulator during a cheap turn: entry N sees entry N-1's write), so the delta's `statePatch` is the
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).
  *  An `update_party` legality denial (an hpDelta on a null-hp actor) is SKIPPED — the errors-as-data lane
- *  (cheap mode narrates it; the extraction has no narrator, so a bad delta line is dropped, never a throw). */
+ *  (cheap mode narrates it; the extraction has no narrator, so a bad delta line is dropped, never a throw).
+ *  A GHOST-targeted party/inventory arg is dropped the same way ({@link ghostTargetRefs}, R5). */
 export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: RosterRefIndex): RpgStateDelta {
   let state = base;
   const overlay = (patch: Partial<RpgSnapshotState>): void => {
     state = { ...state, ...patch };
   };
 
-  for (const args of extraction.party) {
-    const applied = applyUpdateParty(state, args, roster);
-    if (applied.ok) {
-      overlay(applied.patch);
-    }
-  }
-  for (const args of extraction.inventory) {
-    overlay(applyUpdateInventory(state, args, mints.item, roster));
-  }
+  state = applyActorArgs(state, extraction, mints, roster);
   if (extraction.scene !== undefined) {
     // `ScenePatch.recentEvents` is `readonly string[]`; the state plane is mutable — split it off and copy it so
     // the overlay type matches (the `update_scene` tool handler spreads the same way through the accumulator).
