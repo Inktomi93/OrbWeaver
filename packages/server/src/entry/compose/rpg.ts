@@ -602,7 +602,9 @@ function buildToolRoundWireTools(refs: ExtractionRefs): { name: string; descript
       // field the model never advances renders as a stopped clock (the R4b gloss lesson).
       description:
         "Location, time of day, weather, present cast, a recent beat. Call it when the scene moves, when the " +
-        "beat spends time (rest, travel, a cut to later), when the weather turns, or when a new day starts.",
+        "beat spends time (rest, travel, a cut to later), when the weather turns, or when a new day starts. " +
+        "weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash — pick the closest; the vivid " +
+        'phrasing goes in weather.label ("torrential sleet").',
       parameters: sceneSchema,
     },
     { name: "set_widget_value", description: "Write a custom tracker's value.", parameters: itemSchemaOf("widgets") },
