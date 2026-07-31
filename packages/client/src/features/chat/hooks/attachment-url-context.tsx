@@ -18,7 +18,9 @@ export const AttachmentUrlContext = createContext<ReadonlyMap<AssetId, string>>(
 /** The distinct `asset:<id>` refs in a body (the ONE ref grammar — `tokenizeContent`, never a regex). */
 export function assetIdsInContent(content: string): AssetId[] {
   const ids = new Set<string>();
-  for (const span of tokenizeContent(content)) {
+  // `committed` must MATCH the renderer's own tokenize (`toContentBlocks`): if this collector saw an image
+  // the block projection has swallowed into an EOF-closed card, the row would ask for a URL nobody renders.
+  for (const span of tokenizeContent(content, { committed: true })) {
     if (span.kind === "image" && span.ref.kind === "asset") {
       ids.add(span.ref.assetId);
     }

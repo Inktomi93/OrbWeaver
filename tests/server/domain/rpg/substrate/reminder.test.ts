@@ -386,6 +386,16 @@ test("immersiveHtml ON composes the card teach AFTER state, BEFORE the license (
   expect(out.indexOf(RPG_CARD_TEACH)).toBeLessThan(out.indexOf(RPG_STEERING_LICENSE));
 });
 
+test("BOTH card teach variants forbid nesting a directive inside the card (the live nested-closer failure class)", () => {
+  // The RV-2 root cause was a model that opened `:::card`, then opened `:::choices` INSIDE it and spent the
+  // single `:::` on the inner fence — the card never closed and the whole message degraded to raw fence text.
+  // The tokenizer's committed EOF-close catches it after the fact; this clause stops it being written.
+  for (const teach of [RPG_CARD_TEACH, RPG_CARD_TEACH_STATIC]) {
+    expect(teach).toContain("Close the card with its own `:::` line BEFORE you open any other directive");
+    expect(teach).toContain(":::choices");
+  }
+});
+
 test("immersiveHtml OFF emits NO card teach (applicability — absent, not a stub)", () => {
   const out = buildLiteReminder(input({ features: features({ immersiveHtml: false }) }));
   expect(out).not.toContain(":::card");

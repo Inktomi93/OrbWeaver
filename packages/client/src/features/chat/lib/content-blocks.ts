@@ -28,5 +28,7 @@ export interface ToContentBlocksOptions extends ContentSpansToBlocksOptions {
  *  is the trust boundary); `:::card`/`:::choices` fences project to their render blocks. `options.cardTrust`
  *  is the row's resolved render trust (§4.3 — the caller maps `render-trust`'s verdict; default tierB). */
 export function toContentBlocks(content: string, options?: ToContentBlocksOptions): readonly MessageContentBlock[] {
-  return contentSpansToBlocks(tokenizeContent(content, { lenientHtml: options?.lenientHtml }), options);
+  // COMMITTED: this projection only ever sees a stored/authored body — the in-flight turn renders through
+  // `scanGhostContent` (the §4.5 forming placeholder), which is untouched by the EOF-close arm.
+  return contentSpansToBlocks(tokenizeContent(content, { lenientHtml: options?.lenientHtml, committed: true }), options);
 }
