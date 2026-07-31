@@ -7,6 +7,7 @@
 
 import { createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
+import { CHAT_MODELS } from "../../../../../packages/server/src/domain/connection/catalog/chat-models.ts";
 import { writeAgentSdkCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/agent-sdk-catalog-snapshot.ts";
 import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
 import { __resetAgentSdkModelCache } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
@@ -150,8 +151,11 @@ describe("getModelsForSource — max-pro-sub", () => {
     });
 
     expect(result.fetchedAt).toBeNull();
-    expect(result.models.map((m) => m.origin)).toEqual(["curated", "curated", "curated"]);
+    // Derive the count from the catalog — CHAT_MODELS may carry curated non-flagships (sonnet-4-6,
+    // c656bc1b) beyond one-per-tier; every entry must come back origin "curated".
+    expect(result.models.map((m) => m.origin)).toEqual(CHAT_MODELS.map(() => "curated"));
     expect(result.models.map((m) => m.id)).toContain("claude-opus-4-8");
+    expect(result.models.map((m) => m.id)).toContain("claude-sonnet-4-6");
   });
 
   test("a NON-owner → owner-only (the curated list still returned so the disabled option renders honest)", async () => {
