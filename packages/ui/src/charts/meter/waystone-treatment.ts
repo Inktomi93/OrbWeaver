@@ -34,7 +34,7 @@ export type WaystoneWeather = (typeof WAYSTONE_WEATHERS)[number];
 
 /** The identity of a weather's air-layer stack (`none` = the unveiled sky IS the treatment, not a fallback) —
  *  one member per weather plus `none`, declared as the axis tuple so the union derives rather than re-spells. */
-export const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash"] as const;
+const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash"] as const;
 export type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
 
 /** The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
@@ -84,7 +84,7 @@ export interface WaystoneBandLayer {
 }
 
 /** The weather's veil over the whole sky — the second half of "storm at noon must not look like clear at noon". */
-export interface WaystoneWash {
+interface WaystoneWash {
   readonly fill: string;
   readonly opacity: number;
 }

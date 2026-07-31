@@ -19,23 +19,23 @@ export const MARKER_STROKE = 1.6;
 export const MARKER_HALO_R = 5.8;
 export const SKY_XY = 10;
 export const SKY_WH = 76;
-export const HOURS_IN_DAY = 24;
+const HOURS_IN_DAY = 24;
 export const MINUTES_IN_HOUR = 60;
-export const DEG_FULL = 360;
-export const DEG_HALF = 180;
+const DEG_FULL = 360;
+const DEG_HALF = 180;
 /** The bezel band between the sky disc and the dial ring — where the hour ticks and the marker's pointer live. */
-export const TICK_INNER = 36.3;
-export const TICK_OUTER = 38.7;
+const TICK_INNER = 36.3;
+const TICK_OUTER = 38.7;
 export const TICK_MAJOR_INNER = 35.9;
-export const TICK_MAJOR_OUTER = 39.2;
-export const TICK_EVERY_HOURS = 3;
-export const MAJOR_TICK_EVERY_HOURS = 6;
+const TICK_MAJOR_OUTER = 39.2;
+const TICK_EVERY_HOURS = 3;
+const MAJOR_TICK_EVERY_HOURS = 6;
 export const COORD_PRECISION = 2;
 /** The particle lattice's vertical extent: enough rows to cover the disc plus one pitch above and below, so a
  *  one-pitch translate never exposes an empty band at either end. */
-export const LATTICE_TOP = -1;
-export const LATTICE_BOTTOM = 70;
-export const LATTICE_INSET = 10;
+const LATTICE_TOP = -1;
+const LATTICE_BOTTOM = 70;
+const LATTICE_INSET = 10;
 export const CLOUD_SLOTS = 4;
 // Layer magnitudes — named so the geometry reads as design intent rather than sprinkled numbers.
 export const SNOW_DOT_R = 1.15;
@@ -85,7 +85,7 @@ export const STAR_FILL = "var(--color-foreground)";
 export const MOON_GLINT = "color-mix(in oklab, var(--color-foreground) 40%, transparent)";
 
 /** A point on a dial circle — noon at the top, midnight at the bottom, clockwise. */
-export function pointAt(hour: number, radius: number): { readonly x: number; readonly y: number } {
+function pointAt(hour: number, radius: number): { readonly x: number; readonly y: number } {
   const theta = (((hour / HOURS_IN_DAY) * DEG_FULL + DEG_HALF) * Math.PI) / DEG_HALF;
   return { x: C + radius * Math.sin(theta), y: C - radius * Math.cos(theta) };
 }
