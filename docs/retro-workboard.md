@@ -310,6 +310,12 @@ accuracy arm · cheap = decoupled round) rides the knob-editors batch — owner 
 better?"; ruled KEEP all three (reliable is the 8B accuracy arm — R3 evidence; cheap's round is
 folded's own fallback machinery).
 
+**IMP-1 QUEUED (from the ST-anatomy recon — `docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md`):**
+impersonate anti-bleed hardening — ST runs TWO layers (char-name stop strings + wrong-name delete at the
+sink); ours is prompt-side voice-lock only. Measure the nudge's hold on hosted+local FIRST; build the
+second layer only if it drifts. Confirmed-equivalent by construction: tool suppression (D112 (5)), event
+separation. Deliberate divergence kept: partial fill preserved on cancel (vs ST clear+overwrite).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
