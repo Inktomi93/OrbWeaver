@@ -47,7 +47,7 @@ so changes are cheap baseline regens today and painful migrations after ship —
 
 ## 3. Prior art we mined — the Marinara SillyTavern extension
 
-Full report: **`reports/research/marinara-st-extension-lite-mode.md`** (READ IN FULL). Repo studied:
+Full report: **`docs/reviews/misc/marinara-st-extension-lite-mode.md`** (READ IN FULL). Repo studied:
 `github.com/SpicyMarinara/rpg-companion-sillytavern` (the flexible tracker *extension*, not her engine).
 The three patterns worth stealing:
 
@@ -146,7 +146,7 @@ Also: swipe-safe (each swipe stores its own stats); schemas export as portable J
   and read every file, README first, then 01→12. The invariants are split across the set; the stat model
   is 03 §4.1 + 04 §2, the pillars are 01, the domain shape/injection is 02, the tool seam is 05, the
   GM/crew is 06, seats are 12. **Do not plan off a subset.**
-- `reports/research/marinara-st-extension-lite-mode.md` (this brief's prior-art source, in full).
+- `docs/reviews/misc/marinara-st-extension-lite-mode.md` (this brief's prior-art source, in full).
 - Ledger `docs/architecture/core/Core-Path-Registry.md` — D58 (the rpg commit), and scan for D18/D20/D24
   (scope/FK discipline), D46 (automation/plugin Tier), D48 (tool-use).
 - This brief.

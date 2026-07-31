@@ -37,7 +37,7 @@ primitive, D112), adversarially VERIFIED (CONFIRMED, 3 findings fixed same night
 loop is PROVEN on production code (R4b steer-probe-real: Δ −2.33 last-3). The Tracker unification is
 fully ruled + spec-approved (§THE BOARD, `docs/design/tracked-field-unification.md`) — it is the next
 big lane, with R6+R2 inside it. The workloads junk-drawer exit
-(`reports/stickler/2026-07-25-workloads-junk-drawer-exit.md`) is queued as its own headline lane.
+(`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`) is queued as its own headline lane.
 
 **E2E SUITE 30/30 GREEN (08-01):** one real app regression found+fixed (`a2658fbc` — useRpgBus SSE
 socket starvation, see [[sse-per-origin-connection-budget]]); stale-IA tests re-pinned to current law
@@ -172,7 +172,7 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **OR-6** | OR under-drives `effort` **3–6×** vs native (`high` 297 vs 1858 thinking tokens; OR `max` returned ZERO tool calls). | none — know it | scopes every effort claim to OR; = **F5** |
 | **OR-7** | Reasoning never round-tripped (`signature` dropped; no reasoning arm on `ChatContentPart`). Measured: **dropping is safe; replaying wrong is a hard 400.** Payoff is agentic continuity, unquantified. | contract change | lowest priority |
 
-### C. Crunchy-cluster leftovers (doc: `reports/design-refs/crunchy-cluster-redesign/DESIGN.md`)
+### C. Crunchy-cluster leftovers (doc: `docs/design/mocks/crunchy-cluster-redesign/DESIGN.md`)
 
 Most of that design landed (extraction-rides-transcript W-B, fork-clone + host-or-sole-human gate W-F,
 dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
@@ -181,7 +181,7 @@ dangling-pointer heal W-G, wand v2) and is pushed @ `adec7490`. Still open:
   roster cards · duplicate orb numbers · header hierarchy · bar-color grammar). Was gated on "owner
   dogfood populating panels" — **that gate is now CLEARED** (hosted Sonnet 4.6 populates; see §LANDED).
   Runs a side-eye pass, fix ALL findings ([[side-eye-fix-all-findings]]). Mocks:
-  `reports/design-refs/panel-redesign/DESIGN.md`. **Audited statically 2026-07-30:** findings, per-tab
+  `docs/design/mocks/panel-redesign/DESIGN.md`. **Audited statically 2026-07-30:** findings, per-tab
   gap table, and owner decisions D-1…D-4 in `docs/design/context-panel-fidelity-findings.md` — that doc
   is the lane's verification target. Headline: **Preview tab is the worst gap** (screenshot-proven —
   mock's context-budget bar + per-source token breakdown never built; needs new ui primitives, D-4);

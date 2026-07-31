@@ -250,7 +250,7 @@ That last row is the argument in one line: **two steering systems that don't sha
 
 ## 10. RECONCILIATION ADDENDUM (coordinator-requested, same session) — the recovered design records vs §5
 
-Read in full: `reports/rpg-lite-and-full-cohesion-game-plan.md` (D86 record, RATIFIED), `reports/rpg-lite-and-full-cohesion-brief.md`, `reports/research/marinara-st-extension-lite-mode.md`.
+Read in full: `docs/design/rpg-lite-and-full-cohesion-game-plan.md` (D86 record, RATIFIED), `docs/design/rpg-lite-and-full-cohesion-brief.md`, `docs/reviews/misc/marinara-st-extension-lite-mode.md`.
 
 **Verdict: the game plan CONFIRMS §5's three pillars and refines two edges; no contradiction.** (1) One-channel: plan §4.4 delivers lite steering as ONE depth-0 injection on the built `RpgGatherResult.injections` → `ChatInjection` channel and explicitly rejects a preset-based delivery — my "everything rides ChatInjection" invariant is its ratified shape, not just my inference. (2) Two content arms, unshared write paths: plan §4.1 rejects the dual-arm design ("tools + a lite-only prose parser — two update grammars forever") and §4.5 splits volatile-model-written vs identity-human-owned — consistent with my "structured→tools, prose→side-gen, never cross" rule. (3) Rewind semantics: §4.5's rejection of model-writable attributes ("per-swipe attribute mutation would force identity into the snapshot plane") is the same swipe-keyed-volatile vs room/identity-state split I drew between lite trackers and prose guides.
 
