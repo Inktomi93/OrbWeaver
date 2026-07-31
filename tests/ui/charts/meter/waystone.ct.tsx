@@ -46,6 +46,38 @@ function distance(x: Lab | undefined, y: Lab | undefined): number {
 const STOP_COLOR_RE = /stop-color/u;
 const TRANSLATE_RE = /translate/u;
 
+test("the size steps interrogate the CONTAINER: 120 · 96 · 76px at the mapped widths, layers gated at the smallest", async ({ mount }) => {
+  // THE BUG THIS PINS: the steps were authored as `@max-lg`/`@max-md` (32rem/28rem) — both ABOVE the context
+  // panel's 30rem ceiling — and the band they live in had no `container-type` ancestor at all, so the query
+  // resolved against nothing. Asserting the CLASS LIST would have stayed green through both faults; only the
+  // RESOLVED geometry inside a real container catches them. One mount, resized in place (mount() is once-per-test).
+  const host = await mount(
+    <div style={{ containerType: "inline-size", width: "480px" }}>
+      <Waystone clock={{ hour: 12, minute: 0 }} weather="clear" />
+    </div>,
+  );
+  const stone = host.locator("[data-slot=waystone]");
+  const sizeAt = async (containerWidth: number): Promise<number> => {
+    await host.evaluate((el, width) => {
+      el.style.width = `${width}px`;
+    }, containerWidth);
+    return Math.round((await stone.boundingBox())?.width ?? 0);
+  };
+  // The variants.ts mapping, in resolved pixels: ≥24rem → 120 · 20–24rem → 96 · <20rem → 76.
+  await expect.poll(async () => sizeAt(480)).toBe(120);
+  await expect.poll(async () => sizeAt(350)).toBe(96);
+  await expect.poll(async () => sizeAt(300)).toBe(76);
+  // …and the sub-pixel layer gate rides the SAME threshold as the smallest step: at 76px the finest details
+  // are gone (they'd be sub-pixel mush), while the sky and the hand still paint.
+  await expect(host.locator("[data-slot=waystone-gable-window]")).toBeHidden();
+  await expect(stone.locator("[data-slot=waystone-marker]")).toBeVisible();
+});
+
+test("with no query container the stone stays at its full 120px (the steps fail OPEN, never to the smallest)", async ({ mount }) => {
+  const component = await mount(<Waystone clock={{ hour: 12, minute: 0 }} weather="clear" />);
+  expect(Math.round((await component.boundingBox())?.width ?? 0)).toBe(120);
+});
+
 test("the clock reads: 24h dial arcs, the bezel hour scale, and the ember hand swung to the current hour", async ({ mount }) => {
   const component = await mount(<Waystone clock={{ hour: 12, minute: 0 }} weather="clear" />);
   await expect(component).toHaveAttribute("data-phase", "afternoon");

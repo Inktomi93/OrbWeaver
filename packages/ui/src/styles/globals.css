@@ -510,11 +510,14 @@
   animation: orb-ws-enter var(--motion-transit) ease-out both;
 }
 
-/* SIZE-GATING (side-eye F7). The stone ships at 120px, but the mobile sheet and any narrow container step it
- * down — and below ~90px the finest layers stop being detail and start being noise (1px stars, a 3-unit sun
- * ray, a 2-unit window). Drop them there and thicken what remains, rather than shipping mush. SVG geometry
- * properties (`r`) are real CSS properties, so this is a paint change with no second render path. */
-@container (max-width: 22rem) {
+/* SIZE-GATING (side-eye F7). The stone ships at 120px, but a narrow container steps it down — and below ~90px
+ * the finest layers stop being detail and start being noise (1px stars, a 3-unit sun ray, a 2-unit window).
+ * Drop them there and thicken what remains, rather than shipping mush. SVG geometry properties (`r`) are real
+ * CSS properties, so this is a paint change with no second render path.
+ * The threshold IS the stone's smallest step (`variants.ts` → `@max-xs`, i.e. `--container-xs` = 20rem = the
+ * 76px stone): one mapping, so the layers drop exactly when the stone is too small to carry them and never
+ * while it is still 96px. A container query can't read a var(), so the length is spelled out here. */
+@container (max-width: 20rem) {
   [data-slot="waystone-cardinal-noon"] line,
   [data-slot="waystone-gable-window"] {
     display: none;

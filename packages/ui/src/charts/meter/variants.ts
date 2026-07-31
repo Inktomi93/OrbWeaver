@@ -148,10 +148,23 @@ export const waystoneVariants = tv({
     //
     // ONE SIZING HOME (side-eye F16 + the owner's grow ruling): the stone was authored at 320px and shipped
     // at 76px — stars at 1.4px, a 4.75px gable, sub-pixel mush, and "the dimmest orb in a row of orbs".
-    // It now ships at 120px (`size-30`) as the panel's focal element, stepping down at the container
-    // thresholds — the mobile sheet keeps the old 76px stone. A dead `size` PROP plus a caller-supplied
-    // responsive className was two homes that never agreed; this is the only one.
-    root: "block size-30 @max-lg:size-24 @max-md:size-19",
+    // It now ships at 120px (`size-30`) as the panel's focal element, stepping down with its CONTAINER.
+    // A dead `size` PROP plus a caller-supplied responsive className was two homes that never agreed;
+    // this is the only one.
+    //
+    // THE MAPPING — container width → stone size. In the shell the container is `.shell-panel` (shell.css
+    // makes the panel the query container; the region `<Container>` wraps the BODY, and this stone rides
+    // the HEADER band), so the container width IS the context panel's width,
+    // `--dimension-panel-context: clamp(17rem, 26vw, 30rem)`:
+    //   ≥ 24rem (384px)          → 120px  — a docked panel from a ~1477px viewport up (30rem/480px at 1920),
+    //                                       and the full-width mobile sheet
+    //   20rem–24rem (320–384px)  →  96px  — a docked panel at ~1231–1477px viewports (20.8rem at 1280)
+    //   < 20rem (320px)          →  76px  — the panel's 17rem floor (≤~1231px) and any narrow host; the SAME
+    //                                       threshold gates the sub-pixel layers off (globals.css §SIZE-GATING)
+    // The steps are CONTAINER breakpoints off the `--container-*` scale (sm = 24rem, xs = 20rem), never
+    // viewport ones (§4b axis-1). The previous `@max-lg`/`@max-md` (32rem/28rem) were both ABOVE the panel's
+    // 30rem ceiling, so even a maxed-out panel could only ever have reached the smallest step.
+    root: "block size-30 @max-sm:size-24 @max-xs:size-19",
     track: "text-muted",
   },
 });
