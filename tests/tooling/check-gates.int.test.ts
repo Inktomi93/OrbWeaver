@@ -289,6 +289,9 @@ function writeFixtures(): void {
   fx(`${D}/hub/__g_serde.ts`, 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n');
   // fetch-fn-in-features: a client feature file hand-writing a bare global fetch( (the R5 offense).
   fx("packages/client/src/features/__g_fetchfeat/lib/load.ts", 'export async function load() {\n  return await fetch("/api/x");\n}\n');
+  // query-freshness-coverage: a consumed query key with no invalidation row and no registry cite — the
+  // frozen-surface class (the read is keyed on a ghost router so it can never collide with a real proc).
+  fx("packages/client/src/features/__g_qfresh/components/__g_qfresh.tsx", "export const g = trpc.__g_ghost.frozenRead.queryOptions({});\n");
   // dangling-refs arm 1: a gates-dir stub whose `gate` object cites a ghost doc. NOT exported — the loader
   // skips it as un-ported (the __g_diaglegi precedent); the arm-1 scanner reads the local `gate` variable.
   fx("scripts/check/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
