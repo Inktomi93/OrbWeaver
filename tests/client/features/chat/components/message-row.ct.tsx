@@ -777,3 +777,43 @@ test("a row with an EMPTY toolCalls array renders no tool block at all", async (
   await expect(component.locator('[data-slot="message-tool-calls"]')).toHaveCount(0);
   await expect(component.locator('[data-slot="tool-call-block"]')).toHaveCount(0);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE SETTLED REASONING DISCLOSURE. The live ghost row renders the streaming trace; before this the
+// committed row rendered nothing, so a completed turn's reasoning vanished at commit and could never be
+// re-read. These pin the durable half: `MessageView.reasoning` (the `message_variants.reasoning` column) is
+// a collapsed, expandable block INSIDE the bubble — and, when the server withheld it (§3.6 strips the field
+// to null for a member of a deception-active game), the row must show NO affordance at all: an empty
+// disclosure would advertise the existence of a channel this viewer is not entitled to.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const REASONING_TRACE = "Weighing the two openings before answering";
+const THOUGHT_FOR_RE = /Thought for/u;
+const THINKING_RE = /Thinking/u;
+
+test("a committed row with a persisted reasoning trace renders it COLLAPSED, inside the bubble, and expands on click", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" reasoning={REASONING_TRACE} />);
+
+  const trigger = component.getByRole("button", { name: "Reasoning" });
+  await expect(trigger).toBeVisible();
+  // Collapsed by default — the trace is NOT shown until the reader asks for it.
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(component.getByText(REASONING_TRACE)).toBeHidden();
+  // It lives inside the bubble (where the streaming ghost puts it) — commit must not jump the affordance out.
+  await expect(component.locator(`${BUBBLE} >> internal:role=button[name="Reasoning"i]`)).toHaveCount(1);
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(component.getByText(REASONING_TRACE)).toBeVisible();
+});
+
+test("a row whose reasoning was WITHHELD (null — the §3.6 member-stripped shape) renders no disclosure at all", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" reasoning={null} />);
+  await expect(component.getByRole("button", { name: "Reasoning" })).toHaveCount(0);
+  await expect(component.getByText(REASONING_TRACE)).toHaveCount(0);
+});
+
+test("the settled disclosure names the CHANNEL, never a fabricated duration (a canon-rehydrated row measured no think window)", async ({ mount }) => {
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" reasoning={REASONING_TRACE} />);
+  await expect(component.getByRole("button", { name: THOUGHT_FOR_RE })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: THINKING_RE })).toHaveCount(0);
+});

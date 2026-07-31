@@ -42,6 +42,7 @@
 import type { ChatBusEvent, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
+import type { ChatId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views";
 
 /** Strip hidden-class spans from one message view's content. Identity when nothing is hidden (the common
@@ -97,6 +98,31 @@ export function stripMessagesForViewer<T extends { readonly messages: readonly M
     return outcome;
   }
   return { ...outcome, messages: outcome.messages.map((v) => projectViewForMember(v, reasoningHostOnly)) };
+}
+
+/**
+ * The §3.6 member RETURN projection for a mutation that hands back ONE `MessageView` — the single-view twin of
+ * {@link stripMessagesForViewer}. THE ONE SEAM every mutation return site routes through (`turn.ts`'s undo/
+ * revert, every `edit.ts` verb), so the host/member split for a mutation return has exactly one spelling and
+ * the two verb files can never drift.
+ *
+ * HOST IS IDENTITY: the same object is returned and `resolveReasoningHostOnly` is never called — a host return
+ * is byte-identical and costs no extra read. A non-host viewer gets the unconditional body hidden-strip PLUS,
+ * on a deception-active game, the whole reasoning channel withheld.
+ *
+ * The verdict resolver is INJECTED rather than read off a `ChatContext`, so this module stays pure and I/O-free
+ * (it may not import the domain context — the caller owns the rpg op, per D106-F1: consumers thread the verdict
+ * as DATA, they never re-derive it).
+ */
+export async function projectViewReturnForViewer(
+  view: MessageView,
+  viewer: ViewerRole,
+  resolveReasoningHostOnly: (chatId: ChatId) => Promise<boolean>,
+): Promise<MessageView> {
+  if (viewerReadsHidden(viewer)) {
+    return view;
+  }
+  return projectViewForMember(view, await resolveReasoningHostOnly(view.chatId));
 }
 
 /** The view-carrying `ChatBusEvent` members — the strip's coverage set, listed explicitly so the boundary
