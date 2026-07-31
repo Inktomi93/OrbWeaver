@@ -95,7 +95,7 @@
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel: clamp(17rem, 24vw, 26rem);
-  --dimension-panel-context: clamp(17rem, 30vw, 30rem); /* 30vw: a 1280px desktop reaches 384px = the 120px-stone threshold (owner: panel was cramped; stone GROWS) */
+  --dimension-panel-context: clamp(17rem, 30vw, 30rem);
   --dimension-shell-breakpoint: 48rem;
   --shadow-glow: 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
   --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.06), inset 0 1px 0 0 oklch(1 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.4), 0 12px 32px oklch(0 0 0 / 0.5);

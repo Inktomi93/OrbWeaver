@@ -155,11 +155,12 @@ export const waystoneVariants = tv({
     // THE MAPPING — container width → stone size. In the shell the container is `.shell-panel` (shell.css
     // makes the panel the query container; the region `<Container>` wraps the BODY, and this stone rides
     // the HEADER band), so the container width IS the context panel's width,
-    // `--dimension-panel-context: clamp(17rem, 26vw, 30rem)`:
-    //   ≥ 24rem (384px)          → 120px  — a docked panel from a ~1477px viewport up (30rem/480px at 1920),
-    //                                       and the full-width mobile sheet
-    //   20rem–24rem (320–384px)  →  96px  — a docked panel at ~1231–1477px viewports (20.8rem at 1280)
-    //   < 20rem (320px)          →  76px  — the panel's 17rem floor (≤~1231px) and any narrow host; the SAME
+    // `--dimension-panel-context: clamp(17rem, 30vw, 30rem)`:
+    //   ≥ 24rem (384px)          → 120px  — a docked panel from a 1280px viewport up (the owner's 30vw
+    //                                       ruling exists to put a STANDARD desktop on this step; the clamp
+    //                                       caps at 30rem/480px from 1600px), and the full-width mobile sheet
+    //   20rem–24rem (320–384px)  →  96px  — a docked panel at ~1067–1280px viewports
+    //   < 20rem (320px)          →  76px  — the panel's 17rem floor (≤~907px) and any narrow host; the SAME
     //                                       threshold gates the sub-pixel layers off (globals.css §SIZE-GATING)
     // The steps are CONTAINER breakpoints off the `--container-*` scale (sm = 24rem, xs = 20rem), never
     // viewport ones (§4b axis-1). The previous `@max-lg`/`@max-md` (32rem/28rem) were both ABOVE the panel's

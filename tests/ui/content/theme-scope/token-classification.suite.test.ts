@@ -57,6 +57,14 @@ const SEED_COVERED = new Set<string>(["color.scrim"]);
 //   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — the SAME species as chart-*: a
 //     categorical ramp for pool/meter/clock FILLS, keyed by definition order for stable per-category
 //     color; base-only (a theme json MAY override, none is required to), meaning never rides color alone.
+//   • sky-*: the Waystone ATMOSPHERIC palette (day/night/ember/twilight/star/cloud/rain/ash). Static for a
+//     STRONGER reason than the ramps — these are POLARITY-FIXED depictions, not palette roles: a night sky
+//     is dark and starlight is bright in EVERY theme, because that is what a night sky IS. Theming them
+//     off the base is the defect they were minted to fix (the stone painted its sky by mixing the
+//     categorical ramp toward --color-background, which inverted day/night on the Light seed — midnight
+//     rendered lighter than noon, and --color-foreground stars turned to dirt). The stone's CHROME (ring,
+//     bezel, horizon line, text) stays fully theme-reactive via the EMITTED class; only the depicted sky
+//     inside it is fixed, so a custom theme still recolours everything a palette legitimately owns.
 const STATIC_RATIONALE = new Set<string>([
   "color.destructive",
   "color.destructive-foreground",
@@ -80,6 +88,18 @@ const STATIC_RATIONALE = new Set<string>([
   "color.track-4",
   "color.track-5",
   "color.track-6",
+  "color.sky-day",
+  "color.sky-day-horizon",
+  "color.sky-night",
+  "color.sky-night-horizon",
+  "color.sky-ember",
+  "color.sky-ember-deep",
+  "color.sky-twilight",
+  "color.sky-star",
+  "color.sky-cloud",
+  "color.sky-cloud-dark",
+  "color.sky-rain",
+  "color.sky-ash",
 ]);
 
 const ALL_COLOR_TOKENS = Object.keys(TOKENS).filter((k) => k.startsWith("color."));
