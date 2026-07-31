@@ -77,8 +77,14 @@ collapsed-card title bar anatomy). ROUND 3 DONE `dfa2e427` (teach clause both va
 nesting :::choices inside :::card; (b) tokenizer implicit-close-at-EOF for COMMITTED bodies only
 (committed:true option — streaming hold-back untouched; wire projection follows the card class,
 D110 §3 tests incl. the wire-stub arm) · TRK-1 `ae441b0805535fe2e` (wt) — Tracker
-stage-1 server core, LONG · PREV `aa855bb2e7ac7e9d3` (wt) — Preview rebuild · AU-8 scout
-`a8941d8dfb7afd8e1` — final sweep (interim: automation.stream = the one bus with zero client consumer).
+stage-1 server core, LONG · PREV `aa855bb2e7ac7e9d3` (wt) — Preview rebuild · AU-8 COMPLETE (final table): #1 `automation.stream` server-built+tested, ZERO client surface — WIRE-L
+or explicit-DOORWAY (OWNER CALL; the sse-multiplex spec should record whichever) · #2
+`chat.setUserMacroValues` zero client caller — this IS #24 MU-picks-pane's server half, WIRE-M · #3
+`chat.setChatDocumentVisibility` (D85 host databank override) zero caller — WIRE-M · #4
+ResolvedWarning = EFF-3 DOORWAY (tracked) · #5 rpg.extraction.* logs-only-by-design · smalls: GroupOutput
+declared 4× (dedup-S) · ~24 internal-use-only over-exports (cosmetic-S) · tailwindcss/tsx manifest
+hygiene-S. Sweep-method find: TWO repo files carry stray NUL bytes (transcript.ts, markdown policy
+test) flipping grep to silent binary no-match — `grep -a` required; two false orphans corrected.
 
 **MERGE TRAIN DONE (MP `90409adb` + TIDY `0c2e52e6` merged, certified; ghosts cleared; merged
 worktrees pruned). REMOTE DELETION BLOCKED + TOKEN DRIFT FOUND:** `git push origin --delete
@@ -161,6 +167,42 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 | 5 | ~~**R1**~~ **BUILT** `940969f6` — `extractionMode:"folded"` + the terminal-tools primitive; second call provably gone; degrade matrix tested; freshness lie fixed; **D112 MINTED**. Verifier pass in flight. Fallback-arm freshness gap → EFF-3. | server/rpg+chat | done |
 | 6 | **R6 + R2** per-game tool assembly, gating at the schema, templated descriptions | server/rpg | **L** |
 | 7 | stretch: **R4c** journal `custom` escape (needs a migration) | contracts/db | M |
+
+## ═══ ▶▶▶ OPEN THREADS — THE COMPLETE REGISTER (2026-08-01, audit-restored) ═══
+
+> Owner asked "100% everything on the board?" — an audit found my snapshot rewrites had DROPPED
+> threads. This register is now the canonical open-thread list; keep it current.
+
+**BIG-LANE QUEUE (all spec-first, specs written):** ① TRACKER stage 1 IN FLIGHT (`ae441b0805535fe2e`
+wt) → **stage 2 QUEUED**: unified GM-tab Tracker editor + Status-absorbs-Sheet (expand = full-takeover
+sheet view) + Sheet-tab dissolution + RV-8 CRUD primitives (spec `docs/design/tracked-field-unification.md`)
+② **SSE MULTIPLEX** — spec at `docs/design/sse-multiplex-spec.md`; OWNER DECISIONS §14 (SSE-vs-wsLink
+fork · presence-moves-to-socket behavior change · impersonateStream exemption · hygiene numbers)
+③ **SET-SEAMS** — spec at `docs/design/set-seams-spec.md`; OWNER DECISIONS §10 Q1–Q6 (tags/regex homes ·
+system+admin merge · status UX · sub-deep-links · UNCLAIMED keys registry · app-shell vs features/appearance)
+④ **DENSITY PASS** — spec at `docs/design/density-pass-spec.md`; OWNER DECISIONS §7 D1–D10 (rounded-card
+demotion · Card.padding retirement · paddings/ratios) ⑤ **WORKLOADS JUNK-DRAWER EXIT** — headline lane,
+investigation ready at `docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md` (seam/skim).
+
+**BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
+effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
+`chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
+`automation.stream` WIRE-vs-DOORWAY (AU-8 #1, OWNER CALL) · VER-1 leftovers: (a) swipe-lineage
+duplicate fold-base (own ticket) · (b) tool-only prose-less completions guard (design item) ·
+(c) custom-byo tool-result `isError` silent drop (OR-4's sibling) · smalls batch: GroupOutput dedup ·
+~24 over-exports strip · tailwindcss/tsx manifest hygiene · `resolveAgentSdkAlias` unreachable-branch
+look · MP footer "from config" mildly untrue on curated fallback · AU-10 background-library manage UI.
+
+**W-H FULL SIDE-EYE (after TRK stage 2):** the panel-beauty §4.2 list + Scene-tab refinement (RV-2's
+second half) + lightbox nested-dialog oddity + icon-only meta-tabs at narrow widths + mock fidelity
+re-verify (`docs/design/context-panel-fidelity-findings.md` is the target).
+
+**DISCUSSION PILE (owner, no build):** ☰ chat-options placement sketch (D111 clause OPEN, breaks
+nothing) · persona=character design pass ([[persona-pin-prompt-resolution]] — anchor-vs-active,
+host-chosen {{user}} VERIFY, per-persona state cost) · Meteocons artwork-fork optional ticket (~8
+icons under MIT, currentColor + CSS motion rewrite) · D22 member-tiers live verification (needs the
+multi-user e2e stack) · #16 engine auto-sleep/wake live pass (optional) · spike probes F2 (card
+frequency) / F4 / F4a (effort-vs-cache on OR wire) / F5 (OR effort translation → native-skin question).
 
 ## ═══ ▶▶▶ THE BOARD — the single backlog ═══
 
