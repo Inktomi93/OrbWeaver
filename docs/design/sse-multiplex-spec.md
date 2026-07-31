@@ -1,6 +1,6 @@
 # SSE multiplex — ONE socket, typed room frames (SSE-1)
 
-**Status:** SPEC, not built. Owner ruling 2026-08-01 (`docs/retro-workboard.md` §CURRENT STATE): *"BUILD
+**Status:** SPEC — **APPROVED TO BUILD (owner, 2026-08-01; §14 fully ruled)**. Not built. Owner ruling 2026-08-01 (`docs/retro-workboard.md` §CURRENT STATE): *"BUILD
 THE MULTIPLEX PROPERLY, spec first."* This document is the blueprint; nothing here is implemented.
 **Scope:** the server transport stream layer (`packages/server/src/transport/trpc/**`), the client bus
 layer (`packages/client/src/data/bus/**` + the two feature stream hooks), the CT SSE stub, the e2e SSE
@@ -582,6 +582,18 @@ the same room.
 ---
 
 ## 14. Owner decisions — flagged, with recommendations
+
+> **RULED (owner, 2026-08-01) — ALL RESOLVED; the spec is build-ready as written:**
+> **1. SSE** (not wsLink) — stages 1–5 stand. **2.** `chat.impersonateStream` stays unfolded, gate-exempt.
+> **3.** `workloads.subscribe` FOLDS at stage 5, with its event union homed in `contracts` first.
+> **4. Presence moves onto the socket** — the behavior change is taken. VOCABULARY RIDER: the owner's
+> people-group vocabulary is ROSTER — spec/code copy says **roster gating**, never "cast-gating", in every
+> surface this build touches. **5.** No dev-only escape hatch — delete on fold. **6.** Hygiene numbers
+> ratified as stated (512 · 15s · 45s · 60s · 32 · 8).
+>
+> **PLUS (AU-8 #1, recorded here per the audit):** `automation.stream` is a **DOORWAY** — sanctioned-dormant,
+> wired through the multiplex at stage 4; the future automation-chips UI consumes it there. Not a WIRE item,
+> not deleted.
 
 1. **SSE multiplex vs `wsLink` (WebSocket).** tRPC's `wsLink` multiplexes natively and would make most of
    §5 disappear. **Recommendation: SSE.** It keeps the fetch-adapter/Hono mount, cookie auth, the CSRF

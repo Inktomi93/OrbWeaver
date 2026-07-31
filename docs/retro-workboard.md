@@ -224,6 +224,13 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 > Owner asked "100% everything on the board?" — an audit found my snapshot rewrites had DROPPED
 > threads. This register is now the canonical open-thread list; keep it current.
 
+**DECISION STACKS: ALL RESOLVED (owner, 2026-08-01)** — SSE §14 (SSE not WS · presence moves + ROSTER-gating
+vocab rider · impersonate exempt · workloads folds · numbers ratified · automation.stream = DOORWAY at
+multiplex stage 4) · SET-SEAMS §10 (features/tag + features/regex minted = **D114** · system→admin merge ·
+sub-deep-links in-program · Q3/Q5/Q6 as recommended) · DENSITY §7 (all ten as recommended incl. D6
+rounded-card demotion + D7 Card.padding retirement). Every big lane is now UNBLOCKED; rulings recorded in
+each spec's decision section.
+
 **BIG-LANE QUEUE (all spec-first, specs written):** ① TRACKER stage 1 IN FLIGHT (`ae441b0805535fe2e`
 wt) → **stage 2 QUEUED**: unified GM-tab Tracker editor + Status-absorbs-Sheet (expand = full-takeover
 sheet view) + Sheet-tab dissolution + RV-8 CRUD primitives (spec `docs/design/tracked-field-unification.md`)

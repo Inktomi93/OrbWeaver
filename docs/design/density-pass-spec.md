@@ -1,6 +1,6 @@
 ---
 kind: spec
-status: draft
+status: approved (owner-ruled 2026-08-01)
 updated: 2026-07-31
 ---
 
@@ -282,7 +282,13 @@ in full before the stage closes (side-eye is the polish authority, not an adviso
 independently shippable; S1 is not partially shippable (a half-written tier map renders a mixed
 surface).
 
-## 7. Owner decisions (recommendations, not rulings)
+## 7. Owner decisions — RULED (owner, 2026-08-01)
+
+> **ALL TEN RULED AS RECOMMENDED**, including the headline pair: **D6 YES** (rounded-card demotes to
+> elevated-only — the 45-call-site sweep runs on the ratchet) and **D7 retire `Card.padding`** (tier-resolved;
+> the removed prop is the enforcement). D1 row · D2 add `--spacing-tight` · D3 keep field=6px · D4 no
+> type-scale re-derivation · D5 datum = `text-label`+mono · D8 two tiers · D9 keep the user density axis ·
+> D10 instrument paddings tune via the S3 side-eye. The build is unblocked as specced.
 
 | # | decision | recommendation |
 | - | - | - |

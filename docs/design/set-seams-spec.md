@@ -1,6 +1,6 @@
 # SET-SEAMS — every settings section is self-owned
 
-**Status:** DESIGN SPEC, nothing built. Owner-directed 2026-08-01 (the settings-registry migration lane's
+**Status:** DESIGN SPEC — **APPROVED TO BUILD (owner, 2026-08-01; §10 fully ruled, O3 amendment = D114)**. Nothing built. Owner-directed 2026-08-01 (the settings-registry migration lane's
 two principled stops, superseded): *every settings section becomes SELF-OWNED, the autosave-welded panes
 DECOMPOSE with designed per-section saves, features host their own sections at anchors, the settings shell
 becomes a pure skimmer.* Includes the **O3 amendment** (client-architecture-lockdown §8 — tags/regex
@@ -369,6 +369,15 @@ CT with a stubbed tRPC cannot prove that (\[\[ct-stub-lie-live-drive-catches]], 
 ---
 
 ## 10. Owner decisions — genuinely-owner forks, not mine to close
+
+> **RULED (owner, 2026-08-01) — ALL RESOLVED; the program is build-ready:**
+> **Q1:** mint `features/tag` + `features/regex`, each owning its pane in `surface` mode ("they are probably
+> going into their own features. i dont like that they are in settings") — the §6.1 O3 amendment is RATIFIED
+> and minted as **D114** (`Core-Path-Registry.md`). **Q2:** `system` MERGES into `admin` at stage 4 (system's
+> sections become the first group; deep links re-pointed). **Q3:** aggregate footer + inline error at the
+> failing section, as specced (side-eye on stage 1 checks it). **Q4:** sub-level deep links
+> (`openSettingsTo(category, subId)`) land IN THE PROGRAM (stage 0/1, while the anchor machinery is open).
+> **Q5:** the two knob registries stay separate. **Q6:** app-shell owns its five appearance sections.
 
 **Q1 — the O3 amendment homes for `tags` and `regex` (blocks stage 5).** Neither has a reader-feature: tags
 label characters, chats, presets and world-info; regex scripts are owner-global and applied in the chat
