@@ -321,6 +321,102 @@ describe("runTurnPipeline — request shaping + fit", () => {
   });
 });
 
+// ── The ATTACHMENT-ONLY image wire rule (owner ruling, ST parity) ────────────────────────────────────────
+// A model-visible image part requires a DELIBERATE user attachment: an owned-CAS `asset:` ref on a
+// user-authored row. Every other embedded image — an imported card's greeting picture (the Azarael bug: the
+// card ends its greeting with `![](https://files.catbox.moe/….png)` and that rode a vision turn as a real
+// image part), narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders forever, and the wire
+// gets a short marker instead of both the image part AND the raw URL bytes.
+const VISION: ResolvedConnection = {
+  ...CONNECTION,
+  capability: makeModelCapability({ input: { vision: true }, output: { maxTokens: { min: 1, max: 8192 } }, context: { window: 200_000 } }),
+};
+/** The real Azarael card's greeting image target (external, empty alt) — the bug's exact shape. */
+const CARD_IMAGE_URL = "https://files.catbox.moe/2dxdt9.png";
+const imageParts = (req: TurnRequest): unknown[] => req.history.flatMap((h) => h.content).filter((p) => p.type === "image");
+
+describe("runTurnPipeline — display-only images (the attachment-only wire rule)", () => {
+  test("a character greeting's inline external image never becomes an image part — the marker rides instead", async () => {
+    const { args } = baseArgs({
+      connection: VISION,
+      canon: [rowOf("assistant", `"D-do you have more...?"\n\n![](${CARD_IMAGE_URL})`), userRow("hi")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(imageParts(result.request)).toEqual([]);
+    // ...and the URL is not riding as TEXT bytes either — the wire carries the compact marker in its place.
+    const text = historyText(result.request);
+    expect(text).toContain('"D-do you have more...?"\n\n[image]');
+    expect(text).not.toContain(CARD_IMAGE_URL);
+    // Not a capability drop: the `image_dropped` warning must not fire every turn of this chat.
+    expect(result.imageDropped).toBe(false);
+  });
+
+  test("the alt text survives into the marker when the card wrote one", async () => {
+    const { args } = baseArgs({
+      connection: VISION,
+      canon: [rowOf("assistant", `she grins ![a throne room](${CARD_IMAGE_URL}) and waits`), userRow("hi")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(imageParts(result.request)).toEqual([]);
+    expect(historyText(result.request)).toContain("she grins [image: a throne room] and waits");
+  });
+
+  test("narrator/imagery media (an ASSET ref on an assistant row) is display-only too", async () => {
+    const { args } = baseArgs({
+      connection: VISION,
+      canon: [rowOf("assistant", "![narrator media](asset:ast_5)"), userRow("hi")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(imageParts(result.request)).toEqual([]);
+    expect(historyText(result.request)).toContain("[image: narrator media]");
+  });
+
+  test("a user's PASTED link is display-only, but their real ATTACHMENT still rides (the vision path lives)", async () => {
+    const { args } = baseArgs({
+      connection: VISION,
+      canon: [userRow(`see ![](${CARD_IMAGE_URL}) and ![attachment](asset:ast_9)`)],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.history.at(-1)?.content).toEqual([
+      { type: "text", text: "see [image] and " },
+      { type: "image", url: "https://cas.test/ast_9" },
+    ]);
+    expect(result.imageDropped).toBe(false);
+  });
+
+  test("the scoped fold's demoted assistant row stays display-only (the delivered `user` role alone would leak it)", async () => {
+    // `cardScope: "scoped"` re-roles another character's assistant line to a `Name: …` USER row — its
+    // narrator asset image is still character-authored, so it must not become an image part.
+    const other = castId<CharacterId>("char_other");
+    const target = castId<CharacterId>("char_target");
+    const foldedRow: MessageView = { ...assistantRow("![narrator media](asset:ast_5)", other), id: castId<MessageId>("message_folded") };
+    const { args } = baseArgs({
+      connection: VISION,
+      canon: [foldedRow, userRow("hi")],
+      shape: {
+        output: "per-speaker",
+        cardScope: "scoped",
+        scopedTargetId: target,
+        speakerName: "Target",
+        speakerRef: { kind: "character", characterId: target },
+      },
+    });
+    const result = await runTurnPipeline(args);
+    // The fold landed (the row is delivered as `user`), and the image still did not ride.
+    const folded = result.request.history.find((h) => h.content.some((p) => p.type === "text" && p.text.includes("[image: narrator media]")));
+    expect(folded?.role).toBe("user");
+    expect(imageParts(result.request)).toEqual([]);
+  });
+
+  test("a non-vision model raises NO image_dropped warning for a card's greeting image (it was never eligible)", async () => {
+    // Contrast with the D45 drop test above: a USER attachment on a non-vision model still flags the warning.
+    const { args } = baseArgs({ canon: [rowOf("assistant", `hi ![](${CARD_IMAGE_URL})`), userRow("hi")] });
+    const result = await runTurnPipeline(args);
+    expect(result.imageDropped).toBe(false);
+    expect(historyText(result.request)).toContain("hi [image]");
+  });
+});
+
 // SHRINKAGE — the full-reset compaction exclusion (#9 verifier fix): covered turns (seq <= compactedThroughSeq)
 // FALL OUT of the shaped prompt history when a marker is present. Api-agnostic (the exclusion is at the domain
 // assembly seam, so it holds on EVERY source — the pipeline path here proves the shared home). The marker itself
