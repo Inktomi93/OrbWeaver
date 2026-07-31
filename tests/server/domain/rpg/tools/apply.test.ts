@@ -14,6 +14,7 @@ import {
   applyUpsertQuest,
   buildRosterRefIndex,
   extractionToStateDelta,
+  ghostTargetRefs,
 } from "../../../../../packages/server/src/domain/rpg/tools/apply";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -247,6 +248,74 @@ test("extractionToStateDelta does NOT derive a beat when the relationship is unc
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
   const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
   expect(delta.journal.find((e) => e.title.startsWith("Mari:"))).toBeUndefined();
+});
+
+// ── R5 — the GHOST-ACTOR guard (the model reads the ref enum as a MENU and names a stale/invented actor) ──
+
+test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the rest of the delta", () => {
+  const userId = castId<UserId>("user_ghost");
+  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const base = emptyState();
+  const extraction = {
+    // "Aldric Vane" is the measured failure: an actor from a STALE enum, in no live cast.
+    party: [
+      { targetRef: "Aldric Vane", status: "brooding" },
+      { targetRef: "player", status: "wounded" },
+    ],
+    inventory: [{ targetRef: "Aldric Vane", add: [{ name: "signet ring" }] }],
+    widgets: [],
+    quests: [],
+    journal: [{ type: "event" as const, content: "A stranger is named." }],
+  };
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  const delta = extractionToStateDelta(base, extraction, mints, roster);
+
+  const actors = delta.statePatch["actorState"] as { actorRef: { kind: string }; status: string; inventory: unknown[] }[];
+  // NO cast:Aldric Vane mint — the ghost never becomes a tracked actor the panel renders forever.
+  expect(actors).toHaveLength(1);
+  expect(actors[0]?.actorRef).toEqual({ kind: "user", userId });
+  expect(actors[0]?.status).toBe("wounded"); // the legitimate write in the SAME extraction still landed
+  expect(actors[0]?.inventory).toEqual([]); // the ghost's inventory arg was dropped, not re-targeted
+  expect(delta.journal).toHaveLength(1); // and the turn is otherwise untouched (errors-as-data, never a throw)
+});
+
+test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked cast / scene cast are reachable)", () => {
+  const userId = castId<UserId>("user_g2");
+  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const base = emptyState({
+    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, pools: [], conditions: [], inventory: [], wallet: [], status: "" }],
+    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", customFields: {}, relationship: { kind: "neutral", label: "" } }],
+  });
+  const ghosts = ghostTargetRefs(
+    base,
+    {
+      party: [{ targetRef: "Goblin" }, { targetRef: "player" }, { targetRef: "Aldric Vane" }],
+      inventory: [{ targetRef: "Bartender" }, { targetRef: "Aldric Vane" }, { targetRef: "Zzyzx" }],
+      widgets: [],
+      quests: [],
+      journal: [],
+    },
+    roster,
+  );
+  expect(ghosts).toEqual(["Aldric Vane", "Zzyzx"]); // deduped across both planes, in encounter order
+});
+
+test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-wound in one beat)", () => {
+  const base = emptyState();
+  const extraction = {
+    party: [{ targetRef: "Mari", hpDelta: -2 }],
+    inventory: [],
+    scene: { presentUpsert: [{ name: "Mari", mood: "bleeding" }] },
+    widgets: [],
+    quests: [],
+    journal: [],
+  };
+  expect(ghostTargetRefs(base, extraction, NO_ROSTER)).toEqual([]);
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  const delta = extractionToStateDelta(base, extraction, mints, NO_ROSTER);
+  // The write lands as a cast actor (the hpDelta itself is refused — no HP track — but the arg was NOT dropped
+  // as a ghost: the status-carrying arm proves reachability, so the cast plane still gained her).
+  expect((delta.statePatch["presentCharacters"] as { key: string }[])[0]?.key).toBe("Mari");
 });
 
 test("set_widget_value writes only the provided fields, keeping the rest", () => {
