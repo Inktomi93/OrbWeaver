@@ -5,6 +5,7 @@
 // the a11y model (text is the datum, the bar is hidden), plus the error + retry paths.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { AssemblyPreviewPanelStory } from "../_ct-stories";
 
@@ -118,6 +119,15 @@ const SOURCE_ROWS: readonly (readonly [string, string])[] = [
   ["History", "1,624"],
 ];
 
+/** What fraction of the rail the segments actually cover — the fill-vs-headroom datum (1 ⇒ no headroom
+ *  drawn, i.e. composition-only). */
+async function filledFraction(component: Locator): Promise<number> {
+  const bar = component.locator("[data-slot=segment-bar]");
+  const rail = await bar.boundingBox();
+  const widths = await bar.locator("[data-slot=segment-bar-segment]").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+  return widths.reduce((sum, w) => sum + w, 0) / (rail?.width ?? 1);
+}
+
 test("the budget bar's segments partition the total, keyed to the per-source rows", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
@@ -130,13 +140,21 @@ test("the budget bar's segments partition the total, keyed to the per-source row
   await expect(component.getByText("4,300 / 8,192 tok")).toBeVisible();
   await expect(component.getByText(RE_ESTIMATED)).toBeVisible();
 
-  // One segment per source, each sized to its share of the total (geometry, not source).
+  // FILL-VS-HEADROOM (owner ruling): the bar's FILLED length is used/window — 4,300 of 8,192 fills ~52% of
+  // the rail and the rest is visible headroom — and each segment is its share of the WINDOW, not of the fill.
   const bar = component.locator("[data-slot=segment-bar]");
   const rail = await bar.boundingBox();
+  const segmentWidths = await Promise.all(
+    PLAIN_BUDGET.sources.filter((s) => s.tokens > 0).map(async (s) => (await bar.locator(`[data-segment=${s.source}]`).boundingBox())?.width ?? 0),
+  );
+  const filled = segmentWidths.reduce((sum, w) => sum + w, 0) / (rail?.width ?? 1);
+  expect(filled).toBeGreaterThan(4300 / 8192 - 0.02);
+  expect(filled).toBeLessThan(4300 / 8192 + 0.02);
+
   const cards = await bar.locator("[data-segment=cards]").boundingBox();
   const share = (cards?.width ?? 0) / (rail?.width ?? 1);
-  expect(share).toBeGreaterThan(1208 / 4300 - 0.02);
-  expect(share).toBeLessThan(1208 / 4300 + 0.02);
+  expect(share).toBeGreaterThan(1208 / 8192 - 0.02);
+  expect(share).toBeLessThan(1208 / 8192 + 0.02);
 
   // …and every source has its labelled TEXT row with its own count (the accessible datum).
   await Promise.all(
@@ -146,6 +164,28 @@ test("the budget bar's segments partition the total, keyed to the per-source row
     ]),
   );
   await expect(component.getByText("41 turns · 3 dropped")).toBeVisible();
+});
+
+test("a barely-used window renders as a SLIVER, not a full bar (the fill-vs-headroom ruling)", async ({ mount, page }) => {
+  // The live case that prompted the ruling: 891 tokens of a real 200k window. Under the old composition-only
+  // reading the bar looked FULL at 0.4% usage — the exact misread the owner called out.
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      budget: {
+        ceilingTokens: 200_000,
+        ceilingEstimated: false,
+        totalTokens: 891,
+        sources: [{ source: "system" as const, detail: "Main", tokens: 891, parts: [{ label: "Main", tokens: 891, text: "You are…" }], text: "You are…" }],
+      },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  await expect(component.getByText("891 / 200,000 tok")).toBeVisible();
+  expect(await filledFraction(component)).toBeLessThan(0.02);
 });
 
 test("the Cards row breaks down PER ROSTER MEMBER — each character's own token size + their card text", async ({ mount, page }) => {
@@ -274,6 +314,9 @@ test("no trustworthy ceiling ⇒ the total stands alone, never a fabricated deno
   const component = await mount(<AssemblyPreviewPanelStory />);
 
   await expect(component.getByText("4,300 tok · no window limit")).toBeVisible();
+  // No window ⇒ no headroom truth to draw, so no fill fraction is invented: the segments span the full rail
+  // as pure composition (the owner's carve-out).
+  await expect.poll(async () => await filledFraction(component)).toBeGreaterThan(0.98);
 });
 
 test("an ESTIMATED ceiling is never drawn as a ratio — the panel says the window is unknown", async ({ mount, page }) => {
@@ -294,6 +337,9 @@ test("an ESTIMATED ceiling is never drawn as a ratio — the panel says the wind
   await expect(component.getByText(RE_WINDOW_UNPUBLISHED)).toBeVisible();
   // The fabricated denominator appears NOWHERE on the surface.
   await expect(component.getByText("200,000", { exact: false })).toHaveCount(0);
+  // …and the BAR tells the same truth: a 2%-of-200k sliver would be a fill fraction against a window nobody
+  // published, so the bar stays composition-only across the full rail.
+  await expect.poll(async () => await filledFraction(component)).toBeGreaterThan(0.98);
 });
 
 test("the diagnostics drawer still carries the BUILD + SHAPE traces (collapsed by default)", async ({ mount, page }) => {

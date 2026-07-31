@@ -25,9 +25,10 @@ export interface SegmentBarSegment {
 export interface SegmentBarProps {
   /** The series, in render order (left → right). */
   segments: readonly SegmentBarSegment[];
-  /** The DOMAIN total. When it exceeds Σ`value` the remainder stays EMPTY rail — visible headroom (e.g. a
-   *  context window with room left). Omit ⇒ the segments partition the FULL rail (pure composition, the
-   *  panel-redesign preview reading, where the ratio lives in the text line instead). */
+  /** The DOMAIN total. When it exceeds Σ`value` the remainder stays EMPTY rail — visible headroom (a context
+   *  window with room left; this is what the Preview tab passes, per the owner's fill-vs-headroom ruling).
+   *  Omit ⇒ the segments partition the FULL rail (pure composition) — for the cases where no domain total is
+   *  KNOWN, so drawing a proportion would invent one. */
   total?: number;
   className?: string;
 }

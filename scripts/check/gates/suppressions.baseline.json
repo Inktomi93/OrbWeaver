@@ -9,7 +9,7 @@
   "packages/client/src/features/character/components/character-appearance-tab.tsx": 2,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 1,
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 1,
-  "packages/client/src/features/chat/components/assembly-preview-panel.tsx": 1,
+  "packages/client/src/features/chat/components/assembly-preview-diagnostics.tsx": 1,
   "packages/client/src/features/chat/components/draft-context-tabs.tsx": 1,
   "packages/client/src/features/chat/components/ghost-message-row.tsx": 2,
   "packages/client/src/features/chat/components/message-content.tsx": 4,
