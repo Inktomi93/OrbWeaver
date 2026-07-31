@@ -27,8 +27,12 @@ export interface ContentClassPolicy {
 }
 
 /** The shipped cells (§3.1 — the rationale column lives in the spec table):
- *  `text` show/full — the baseline; `image` show/drop — the EXISTING vision-gated resolve-or-drop→alt
- *  behavior, now DECLARED; `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
+ *  `text` show/full — the baseline; `image` show/drop — ATTACHMENT-ONLY (owner ruling, ST parity): only a
+ *  deliberate user attachment (an owned-CAS `asset:` ref on a user-authored row) is a resolve-or-drop→alt
+ *  candidate gated by `input.vision`; EVERY other embedded image — a character card's greeting picture, a
+ *  world-info illustration, narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders in the
+ *  transcript forever and rides as a short `[image: alt]` marker, never as a model-visible image part (the
+ *  gate is `isUserAttachment` in the chat engine's pipeline); `hidden` hide/full — `<lie>`/`<ofilter>`: the reader never sees it, the model
  *  MUST remember its own lie/the true event; `card` show/stub — the reader keeps the rich card forever,
  *  the model gets `[card: title]` not the multi-KB blob (M2 keep-last-X excepts the newest X); `choices`
  *  show/drop — buttons for the reader, but the CYOA fence is STRIPPED from the model wire on later turns
