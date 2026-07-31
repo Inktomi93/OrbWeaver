@@ -3,11 +3,22 @@
 // throws ConnectionRoutingError on an incoherent (api, source) selection.
 
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
+import { deriveTrackersReadOnly } from "@orb/server/domain/rpg";
 import { env } from "@orb/server/foundation/env";
-import { describe } from "vitest";
+import { afterEach, describe } from "vitest";
+import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
+import { __resetOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeConnHarness, principal } from "../_support.ts";
+import { makeConnHarness, makeOrEntry, principal } from "../_support.ts";
+
+const MS_PER_HOUR = 3_600_000;
+
+// The OR mirror is module-scope + per-process and the harness clock is frozen (its TTL never expires within a
+// run), so a test that warms it would leak into the next.
+afterEach(() => {
+  __resetOrModelCache();
+});
 
 describe("resolveRole — honors roleDefaults (PD-9)", () => {
   test("an embed role pointed at local-light resolves to a local-light credential (no vllm hard-pin)", async () => {
@@ -159,9 +170,10 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
 
 // resolveChatCapability — the caller's OWN chat-role ModelCapability resolved END-TO-END in ONE hop
 // (selection → descriptor). Reuses resolveRole's chat selector (a vLLM-DEFAULT chat resolves the SAME as the
-// engine) + the same resolveCapability mediator as getModelCapability — collapsing the old
-// selection→getModelCapability round-trip that hid the maxOutputTokens/maxContextTokens fields. Caller-scoped
-// by principal.userId, no input id.
+// engine) + the `resolveCapability` substrate mediator — collapsing the old selection→descriptor round-trip
+// that hid the maxOutputTokens/maxContextTokens fields. Caller-scoped by principal.userId, no input id. It is
+// the ONLY capability surface since the standalone getModelCapability verb was deleted (AU-5), so the
+// cold-cache regression below lives here.
 describe("resolveChatCapability — the end-to-end chat-role descriptor", () => {
   test("a NON-owner vLLM default (no roleDefaults.chat) resolves a valid capability (the panel's output/context fields can render)", async () => {
     const h = makeConnHarness(await freshDb());
@@ -195,6 +207,39 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
 
     // The curated Sonnet descriptor (effort reasoning — the same assertion resolveRole's heal test makes).
     expect(cap.reasoning.mode).toBe("effort");
+  });
+
+  // Regression (cold-cache capability loss), re-homed from the deleted getModelCapability verb's test (AU-5):
+  // a restart clears the in-memory OR mirror, and the daily refresh cadence won't re-warm it for up to a day.
+  // The boot-seed (getCatalog reads the persisted snapshot) must restore capability, and the mirror must NOT
+  // expire the hours/day-old snapshot (the old 1h TTL did).
+  test("cold mirror + persisted snapshot ⇒ boot-seed restores a NON-curated OR model's structured/tools", async () => {
+    const db = await freshDb();
+    const h = makeConnHarness(db);
+    // sonnet-4.5 is NOT on the curated shortlist (only 4-6/5 are), so it MUST resolve through OR catalog
+    // synthesis — the real subject this fix restores. It advertises structured_outputs + tools on OR.
+    const model = "anthropic/claude-sonnet-4.5";
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    const svc = createConnectionService(h.ctx);
+
+    // The last daily refresh landed 2h ago — past the OLD 1h TTL, so this pins the enlarged ceiling too.
+    await writeCatalogSnapshot(db, {
+      fetchedAt: h.clock.now() - 2 * MS_PER_HOUR,
+      models: [makeOrEntry({ id: model, name: "Claude Sonnet 4.5", supportedParameters: ["temperature", "top_p", "structured_outputs", "tools"] })],
+    });
+
+    // Simulate a restart: the module-scope mirror is cold and getCatalog has not run yet.
+    __resetOrModelCache();
+    // Boot-seed (entry/lifecycle calls this on startup) — warms the mirror from the persisted snapshot.
+    await svc.getCatalog({});
+
+    const cap = await svc.resolveChatCapability({ principal: principal("user_1") });
+
+    expect(cap.output.structured).toBe(true);
+    expect(cap.tools).toBeDefined();
+    // The RPG reliable-mode extraction gate: a structured-capable host is NOT trackers-readonly (extraction
+    // runs). Cold cache used to yield structured:undefined ⇒ readonly true ⇒ the empty-rpg-panel bug.
+    expect(deriveTrackersReadOnly("reliable", cap)).toBe(false);
   });
 });
 

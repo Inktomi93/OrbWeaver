@@ -20,7 +20,6 @@ export {
 export type {
   GetCatalogParams,
   GetGenerationCostParams,
-  GetModelCapabilityParams,
   GetOrCreditsParams,
   RefreshCatalogParams,
   ResolveChatParams,
