@@ -29,6 +29,11 @@ PUSHED (verified `rev-list origin/main..HEAD = 0`, 2026-07-30 late).** Tree clea
 `?? .agents/agents/scout` (pre-existing, unrelated). The former "commit the dirty tree" item is DONE —
 the spike docs + probes landed in `1417e11c`.
 
+**⚡ TONIGHT'S STANCE (owner, 2026-07-31 pre-overnight, verbatim intent):** "if it isn't wired
+properly, do it RIGHT even if it means more work — no half measures, no shims, no whatever. If you
+need to delete the db then do it." Applies to every lane tonight: dead knobs get BUILT not flagged,
+e2e reds get root-caused as app defects first, schema fixes may regen the baseline + wipe the dev DB.
+
 **2026-07-30 late session — the fidelity audit (owner dogfood concerns):**
 `docs/design/context-panel-fidelity-findings.md` is the new verification target for W-H/#1 — meta-tabs
 vs mocks (Preview tab = worst gap, screenshot-proven), model-roles picker findings (MP-1/MP-2), the
@@ -45,7 +50,7 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 
 | # | Item | Lane | Size |
 |---|---|---|---|
-| 1 | ~~**R4b**~~ LANDED `7604bd6f` (steer-probe verify pending) | server/rpg | done |
+| 1 | ~~**R4b**~~ LANDED `7604bd6f` + **LIVE-VERIFIED** (`steer-probe-real.ts` through the real `buildLiteReminder`: Δ −1.13 mean / −2.33 last-3 — §4d reproduces on production) | server/rpg | done |
 | 2 | ~~**R5a + R5**~~ LANDED `7d0e6f60` (enum bind + ghost guard, one-homed predicate) | server/rpg | done |
 | 3 | **OR-1…OR-4** provider-layer defects (one commit) | server/providers | S |
 | 4 | ~~**W-I / D111**~~ MINTED (registry + laws index) | docs/law | done |
@@ -78,7 +83,9 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **R6** | **Per-game dynamic tool assembly + lock/toggle gating AT THE SCHEMA.** The principle: *the reminder is the model's knowledge, the tools are its permissions.* Read-surface always shows full state (incl. locked); write-surface exposes only enabled-and-unlocked — a locked field is REMOVED from the tool schema, a disabled feature's tool omitted entirely (prevent-at-schema; today's `staging.stage` strip becomes a backstop). Custom def descriptions thread into per-tool guidance, not just plane teaching. | **REQUIRED**, not built | **L** |
 | **R4c** | `RPG_JOURNAL_TYPES` is closed (`location·npc·combat·quest·item·event·note`) **with a DB CHECK** (`db/schema/rpg.ts:238,253`) and no `custom` arm — inconsistent with `RPG_RELATIONSHIP_KINDS`, which solved exactly this with `{kind:"custom", label}`. Combat-flavoured on a plane that fires on **79%** of turns, in the genres lite is best at. Fix: keep the enum, add `custom` + free `label`, per-game hints in `config.features` so host types gloss. **Needs a migration — decide before more rows accumulate.** | open, wants a go/no-go | M |
 | **R5b** | Follow-ups from the R4b/R5 landing (executor-surfaced, 2026-07-31): (a) `refEnumerationLines` (the prompt fallback for non-enforcing backends) doesn't enumerate active conditions — the matching half of R5a's schema bind, ~2 lines when R2/R6 touch the prompt; (b) `substrate/delta.ts` (CHANGES-SINCE block) renders cast-field transitions UNGLOSSED — same steering argument as R4b. Fold both into the R6+R2 lane. Also noted: `ExtractionRefs` is a 4-way coupled site (interface + constrain body + compose resolve + ~11 test literals; tsc catches all — budget the churn). | open | S |
-| **EFF-1** | **Effort-preset wiring verification** (owner 2026-07-31): confirm reasoning effort exists as a preset knob, threads to the OR wire (`reasoning.effort`), and WORKS — never feature-forced ([[gen-settings-are-preset-owned]]). Optional: a GM-tab recommendation flag when the game's connection has thinking off. | open — tonight if time | S |
+| **EFF-1** | ~~Effort-preset wiring verification~~ **DONE (scouted 2026-07-31 night): WIRED end-to-end on hosted** — preset `params.effort` (contracts/preset:200) → editor (params-panel.tsx:246, model-real levels, adaptive no-dial) → `foldGenerationParams` (pipeline.ts:277) → `resolveChat` (quality fallback + mandatory/allowlist clamps) → OR `reasoning:{effort}` (kit/reasoning-budget.ts). rpg turns inherit via the shared pipeline, no bypass in compose/rpg.ts. R1 consumes the preset, nothing to build. **Two follow-up gaps → EFF-2/EFF-3.** | done | — |
+| **EFF-2** | `custom-byo` (self-hosted OpenAI-compat) never calls `resolveChat` and emits NO reasoning field — deliberate raw pass-through or a missing seam? Needs a design read ([[customparameters-byok-only]] suggests pass-through is partly intentional; vLLM instruct models don't take effort anyway). | open | M? |
+| **EFF-3** | **`ResolvedWarning` is a dead-ended pair (D107 class):** produced server-side on every degrade (mandatory clamp, allowlist clamp, adaptive-budget-ignored) and consumed by ZERO client code — degrades are invisible. The owner's "recommend, don't force" flag = build the client surface for these warnings (+ GM-tab note when the game connection resolves thinking-off). | open — tonight if runway | M |
 | **F2** | Immersive `:::card` was rare across ALL spike methods (0/6 for the winner, and also 0/6 for the pure narrative call) → points at prompt/seed, not tools. Own investigation. | open | ? |
 | **F4** | Do the enriched descriptions still hit the prompt-cache prefix? (+$0.008/game is trivial; the per-turn input growth is the question.) | open | S |
 | **F4a** | Does an `effort` change bust the cache **on the OR wire**? Anthropic documents effort as rendered into the prompt; our path goes through the OpenAI-compat shim. Decides whether per-turn effort variation is merely inadvisable or ruinous. Cheap: two requests, identical cached prefix, differ only in effort, read `cache_read_input_tokens`. | open | S |
@@ -135,7 +142,20 @@ The owner's comprehensive current-state pass. Extends W-H/#1 well beyond polish 
 RV-13 and the CRUD program change R6's shape too: per-game tool assembly must cover host-EDITED
 d20-derived profiles, not just seeded freeform — build them aware of each other.
 
-### D. Rest of the punch list
+### C3. Wiring audit 2026-07-31 night (owner-directed pnpm-ast/knip sweep; snapshot — re-sweep before acting)
+
+11 confirmed zero-client-caller tRPC procs across rpg/settings/connection. Triaged:
+
+| ID | Finding | Verdict | Size |
+|---|---|---|---|
+| AU-1 | `settings.addExternalBackground` (security fix F-P0-2) fully built server-side; the appearance surface OFFERS "URL" kind but has NO `external` branch — user-visible dead end | **WIRE TONIGHT** | S |
+| AU-2 | rpg journal `addJournalEntry`/`edit`/`delete` verbs real, zero product UI (add's only caller = dev seed) — this IS RV-6's server half, already built | **WIRE TONIGHT** (existing tab idioms, not the Tracker primitives) | M |
+| AU-3 | rpg `deleteQuest` verb real, quests tab has create/edit but no delete | **WIRE TONIGHT** | S |
+| AU-4 | rpg widget CRUD verbs unwired | SUPERSEDED — Tracker unification drops the subsystem; build NOTHING | — |
+| AU-5 | `connection.getModelCapability` — refactor leftover (resolveRole collapsed the round-trip per its own comment) | KILL candidate (touches router sweep classification — its own small commit) | S |
+| AU-6 | `settings.get/setGlobalSetting` (adminProcedure) — unbuilt admin panel vs ops escape hatch | classify DOORWAY vs DEFERRED (owner/morning) | — |
+| AU-7 | `rollDice` — model-tool surface, not a client gap | no action | — |
+| AU-8 | HUNT-A backlog: 73 unused exports + 12 types from knip:prod UNSCREENED; bus-member/contract-field/warning-sibling sweeps not started | open — future audit session | L |
 
 - **#24 MU picks pane** — VERIFIED NOT BUILT (no in-chat user-macro picks UI). Typed macro inputs
   resolve to defaults until it lands. Design = extend the ChoiceBlock variables pane

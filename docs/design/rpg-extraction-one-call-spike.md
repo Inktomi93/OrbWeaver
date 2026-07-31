@@ -607,6 +607,12 @@ showed there was no defect for it to fix. The `SPIKE_NUDGE` machinery stays in t
 on it.
 
 
+> **✅ R4b SHIPPED + LIVE-VERIFIED (2026-07-31, commit `7604bd6f`).** `castFieldSegs` now glosses both
+> kinds; `steer-probe-real.ts` re-ran the §4d probe through the REAL `buildLiteReminder` (whole
+> pipeline, production cast line): mean Δ **−1.13** / last-3 Δ **−2.33** vs the pinned arm — §4d's
+> hand-rolled numbers (−1.00 / −2.33) reproduce on the production path. Wits-10 turn judged 3/10.
+> Results: `steer-real-out.json` ($0.18).
+
 **R4b — SHIP THE CAST-FIELD HINT INTO THE REMINDER. One line, highest value/effort ratio here.** §4d-bis:
 `castFieldSegs` (`substrate/reminder.ts:182`) drops `field.hint` despite its own docstring saying it appends
 it, and no other path carries it to the model. §4d measures what that costs: a bare tracked number moves

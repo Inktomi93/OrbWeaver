@@ -5,6 +5,8 @@
 !.gitignore
 !*.md
 !*.mjs
+!*.ts
 !*.json
 # …except probe OUTPUT that happens to be a flat .json rather than a directory.
 steer-out.json
+steer-real-out.json
