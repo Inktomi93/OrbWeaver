@@ -22,12 +22,28 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 Package cake: kit ← contracts ← db ← server ← client + sealed ui; one-directional flow (rpg ↔ chat only
 via injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
-## ═══ ▶▶▶ CURRENT STATE — 2026-07-30 (READ FIRST) ═══
+## ═══ ▶▶▶ CURRENT STATE — 2026-08-01 morning (the overnight run's ledger — READ FIRST) ═══
 
-**`HEAD = origin/main` — everything through the worktree-hooks commit (`cd5bc9f2`) is COMMITTED and
-PUSHED (verified `rev-list origin/main..HEAD = 0`, 2026-07-30 late).** Tree clean except
-`?? .agents/agents/scout` (pre-existing, unrelated). The former "commit the dirty tree" item is DONE —
-the spike docs + probes landed in `1417e11c`.
+**THE OVERNIGHT RUN (07-31 → 08-01) — everything below landed gate-green; FULL BATTERY GREEN at the
+end: vitest 8287/0 (23 skipped) + CT 1531/0/0-flaky.** Commits (local until the authorized
+end-of-run push): R4b `7604bd6f` · R5a+R5 `7d0e6f60` · OR-1…4 `e39418d7` · R1 fold `940969f6` +
+verifier hardening `5fb7816a` · AU-1/2/3+9 (worktree, merged `84a78c4f`) · EFF-2 `f7113ae0` +
+logitBias `28e0892a` · connection-test curation reality (in `b0859a40`'s sibling) · docs/law commits
+(D111, D112, rulings, spec). **Owner granted ONE push on green (07-31)** — verify:push runs e2e-smoke;
+stack must be up.
+
+**Headline:** the R1 fold is LIVE-shaped end-to-end (`extractionMode:"folded"`, terminal-tools
+primitive, D112), adversarially VERIFIED (CONFIRMED, 3 findings fixed same night), and the steering
+loop is PROVEN on production code (R4b steer-probe-real: Δ −2.33 last-3). The Tracker unification is
+fully ruled + spec-approved (§THE BOARD, `docs/design/tracked-field-unification.md`) — it is the next
+big lane, with R6+R2 inside it. The workloads junk-drawer exit
+(`reports/stickler/2026-07-25-workloads-junk-drawer-exit.md`) is queued as its own headline lane.
+
+**Open from the night:** e2e full-suite pass (in progress at write time) · UI stretch order ruled:
+Waystone → model picker → card collapse → Preview · VER-1 routed findings · EFF-3 (warnings client
+surface + effective-delivery freshness) · AU-8 hunt-A backlog · settings-registry migration
+(owner mentioned; definition unconfirmed — my read: migrate hardcoded settings panes onto the
+contribution-registry pattern; NOT started pending owner confirm).
 
 **⚡ TONIGHT'S STANCE (owner, 2026-07-31 pre-overnight, verbatim intent):** "if it isn't wired
 properly, do it RIGHT even if it means more work — no half measures, no shims, no whatever. If you
@@ -52,7 +68,7 @@ vite `:5173`; `pnpm stack restart --force` is the sanctioned re-env ([[dev-stack
 |---|---|---|---|
 | 1 | ~~**R4b**~~ LANDED `7604bd6f` + **LIVE-VERIFIED** (`steer-probe-real.ts` through the real `buildLiteReminder`: Δ −1.13 mean / −2.33 last-3 — §4d reproduces on production) | server/rpg | done |
 | 2 | ~~**R5a + R5**~~ LANDED `7d0e6f60` (enum bind + ghost guard, one-homed predicate) | server/rpg | done |
-| 3 | **OR-1…OR-4** provider-layer defects (one commit) | server/providers | S |
+| 3 | ~~**OR-1…OR-4**~~ LANDED `e39418d7` (1h ttl on the true wire · real pin `allow_fallbacks:false` · type-sealed ttl guard · isError drop loud on BOTH dialects) | server/providers | done |
 | 4 | ~~**W-I / D111**~~ MINTED (registry + laws index) | docs/law | done |
 | 5 | ~~**R1**~~ **BUILT** `940969f6` — `extractionMode:"folded"` + the terminal-tools primitive; second call provably gone; degrade matrix tested; freshness lie fixed; **D112 MINTED**. Verifier pass in flight. Fallback-arm freshness gap → EFF-3. | server/rpg+chat | done |
 | 6 | **R6 + R2** per-game tool assembly, gating at the schema, templated descriptions | server/rpg | **L** |
@@ -84,7 +100,8 @@ context-panel fidelity audit + owner review (`docs/design/context-panel-fidelity
 | **R4c** | `RPG_JOURNAL_TYPES` is closed (`location·npc·combat·quest·item·event·note`) **with a DB CHECK** (`db/schema/rpg.ts:238,253`) and no `custom` arm — inconsistent with `RPG_RELATIONSHIP_KINDS`, which solved exactly this with `{kind:"custom", label}`. Combat-flavoured on a plane that fires on **79%** of turns, in the genres lite is best at. Fix: keep the enum, add `custom` + free `label`, per-game hints in `config.features` so host types gloss. **Needs a migration — decide before more rows accumulate.** | open, wants a go/no-go | M |
 | **R5b** | Follow-ups from the R4b/R5 landing (executor-surfaced, 2026-07-31): (a) `refEnumerationLines` (the prompt fallback for non-enforcing backends) doesn't enumerate active conditions — the matching half of R5a's schema bind, ~2 lines when R2/R6 touch the prompt; (b) `substrate/delta.ts` (CHANGES-SINCE block) renders cast-field transitions UNGLOSSED — same steering argument as R4b. Fold both into the R6+R2 lane. Also noted: `ExtractionRefs` is a 4-way coupled site (interface + constrain body + compose resolve + ~11 test literals; tsc catches all — budget the churn). | open | S |
 | **EFF-1** | ~~Effort-preset wiring verification~~ **DONE (scouted 2026-07-31 night): WIRED end-to-end on hosted** — preset `params.effort` (contracts/preset:200) → editor (params-panel.tsx:246, model-real levels, adaptive no-dial) → `foldGenerationParams` (pipeline.ts:277) → `resolveChat` (quality fallback + mandatory/allowlist clamps) → OR `reasoning:{effort}` (kit/reasoning-budget.ts). rpg turns inherit via the shared pipeline, no bypass in compose/rpg.ts. R1 consumes the preset, nothing to build. **Two follow-up gaps → EFF-2/EFF-3.** | done | — |
-| **EFF-2** | `custom-byo` bypasses `resolveChat` — **RULED (owner 07-31 night): UNIFY** — same resolution/clamp/warning treatment as hosted; BYO customParameters still pass through AFTER resolution. Building tonight (worktree lane). | building | M |
+| **EFF-2** | ~~custom-byo resolveChat unify~~ **BUILT + MERGED** `f7113ae0`: plain-path byte-compat pinned whole-body; `reasoning_effort` scalar (not OR's nested object) emitted only when capability-enabled; budget/off-allowlist drops LOUD; customParameters still win (BYOK). Companion domain fix `28e0892a` (logitBias joins staticProfile's full-sampling claim). | done | — |
+| VER-1 | Verifier-routed (R1 CONFIRMED; not R1 defects): (a) **swipe-lineage duplicate fold-base** — `extractionBase` resolves without `regenMessageId`/exclude, so a re-fold on a new variant duplicates beats; PRE-EXISTING across all three vehicles — own ticket; (b) **tool-only completions** — `auto` permits prose-less completions and the engine has no empty-content guard (design item, spike-accepted risk); (c) custom-byo `role:"tool"` wire drops `isError` SILENTLY (OR-4's unbuilt sibling); (d) latent `QUALITY_SAMPLING[quality]` TypeError if an untyped quality ever reaches resolve-chat.ts:84 (unreachable typed; cheap guard). | open | S–M |
 | **EFF-3** | **`ResolvedWarning` is a dead-ended pair (D107 class):** produced server-side on every degrade (mandatory clamp, allowlist clamp, adaptive-budget-ignored) and consumed by ZERO client code — degrades are invisible. The owner's "recommend, don't force" flag = build the client surface for these warnings (+ GM-tab note when the game connection resolves thinking-off). | open — tonight if runway | M |
 | **F2** | Immersive `:::card` was rare across ALL spike methods (0/6 for the winner, and also 0/6 for the pure narrative call) → points at prompt/seed, not tools. Own investigation. | open | ? |
 | **F4** | Do the enriched descriptions still hit the prompt-cache prefix? (+$0.008/game is trivial; the per-turn input growth is the question.) | open | S |
