@@ -31,7 +31,7 @@
     "ai-bubble-foreground": { "$value": "oklch(0.95 0.01 250)" },
     "system-bubble": { "$value": "oklch(0.26 0.015 250)" },
     "system-bubble-foreground": { "$value": "oklch(0.7 0.01 250)" },
-    "dialogue": { "$value": "oklch(0.95 0.01 250)" },
+    "dialogue": { "$value": "oklch(0.85 0.09 55)" },
     "narration": { "$value": "oklch(0.76 0.03 230)" },
     "prose-body": { "$value": "oklch(0.88 0.015 240)" },
     "speaker": { "$value": "oklch(0.7 0.14 250)" }
