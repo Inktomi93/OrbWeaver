@@ -95,7 +95,13 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
 
       <BackgroundControl characterId={characterId} serverValue={data.backgroundOverride} />
 
-      <Section heading="Trust">
+      {/* The external-media row can only TIGHTEN: the deployment-wide setting is enforced by the page's
+          Content-Security-Policy, which no per-character value can widen. Said out loud so "Allow" on a
+          blocking deployment doesn't read as a working opt-in (it renders, then the fetch is blocked). */}
+      <Section
+        heading="Trust"
+        hint="External media is capped by the deployment-wide “Block external media” setting — “Allow” here cannot load external media while that is on. Changes reach an open tab on reload."
+      >
         <Row gap="field" className="flex-wrap">
           {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
           <Select

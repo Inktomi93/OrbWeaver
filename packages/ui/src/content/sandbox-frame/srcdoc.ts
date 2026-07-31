@@ -13,10 +13,25 @@
  */
 export const SANDBOX_ATTR = "";
 
-/** `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil.
- *  SECURITY-GATED (see `SANDBOX_ATTR`): the scripts flip adds `script-src 'unsafe-inline'` HERE, in the
- *  same review that enables the sandbox attribute — never one without the other. */
-const CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'";
+/**
+ * `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil.
+ * SECURITY-GATED (see `SANDBOX_ATTR`): the scripts flip adds `script-src 'unsafe-inline'` HERE, in the
+ * same review that enables the sandbox attribute — never one without the other.
+ *
+ * `allowExternalMedia` is the ONLY variable part, and it mirrors the app-tier "Block external media"
+ * setting exactly as the document CSP does (`server/entry/http/security-headers.ts`): `https:` on
+ * `img-src`/`media-src`, never `http:`, never any other directive.
+ *
+ * BOTH policies must allow it for a card image to paint. A `srcdoc` frame is a LOCAL-scheme document, so
+ * it INHERITS the embedding document's CSP on top of this meta policy (verified in Chromium: an external
+ * image inside `sandbox=""` `srcdoc` logs two violations — one against the parent policy at `about:srcdoc`,
+ * one against this one). `'self'` still resolves to the EMBEDDER's origin despite the frame's opaque
+ * origin, which is why same-origin `/api/blob` card images work today.
+ */
+function csp(allowExternalMedia: boolean): string {
+  const media = allowExternalMedia ? "'self' https:" : "'self'";
+  return `default-src 'none'; img-src ${media}; media-src ${media}; style-src 'unsafe-inline'; font-src 'self'`;
+}
 
 // A theme var carrying CSS-escape chars could break out of the <style> — drop it (the caller already clamps).
 const CSS_ESCAPE = /[<>{}]/u;
@@ -49,6 +64,8 @@ export function buildSrcDoc(params: {
   readonly css: string | undefined;
   readonly themeTokens: Readonly<Record<string, string>> | undefined;
   readonly fontFamily: string | undefined;
+  /** The resolved external-media verdict for the row this card belongs to. Absent ⇒ blocked (fail closed). */
+  readonly allowExternalMedia?: boolean | undefined;
 }): string {
   const themeCss = themeVarsBlock(params.themeTokens);
   const baseBody = baseBodyBlock(params.fontFamily);
@@ -56,7 +73,7 @@ export function buildSrcDoc(params: {
   return [
     "<!doctype html>",
     '<html><head><meta charset="utf-8">',
-    `<meta http-equiv="Content-Security-Policy" content="${CSP}">`,
+    `<meta http-equiv="Content-Security-Policy" content="${csp(params.allowExternalMedia === true)}">`,
     `<style>${themeCss} ${baseBody} ${cardCss}</style>`,
     "</head><body>",
     params.html,
