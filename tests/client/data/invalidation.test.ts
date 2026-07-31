@@ -14,7 +14,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { ChatId, MessageId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
@@ -22,6 +22,7 @@ import { expect, test } from "../../support/fixtures";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
 const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");
+const CHARACTER_ID = castId<CharacterId>("char_invalidationtest");
 
 /** Fresh client + proxy per test — no shared cache state to bleed across assertions. */
 function setup(): ReturnType<typeof createInvalidation> & {
@@ -63,6 +64,14 @@ const TRACKED_KEYS = [
   // `previewContextFit` — the fit is the budget of exactly this assembly.
   "previewAssembly",
   "getShapeTrace",
+  // The host's veiled cue + Veiled ledger (`rpg.revealHidden`). It is an RPG read with a CANON driver: the
+  // verb derives it from the stored assistant BODIES, so a new GM lie lands with the canon terminal, not with
+  // an rpg-bus tick. It was in zero rows (the previewAssembly class — the count froze at panel mount).
+  "revealHidden",
+  // The injections manager's own read of `chat_injections` (`chat.listChatInjections`). Every injection write
+  // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
+  // `getGroupConfig` case, one proc over.
+  "listChatInjections",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
@@ -72,7 +81,14 @@ type TrackedKey = (typeof TRACKED_KEYS)[number];
 // (chatUpdated/personaSwitched/chatOpened/historyTruncated/wi*/chatDeleted). The canon-TERMINAL events
 // (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
 // `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
-const CHAT_CANON_READS: readonly TrackedKey[] = ["listMessages", "listMessageVariants", "previewContextFit", "previewAssembly", "getShapeTrace"];
+const CHAT_CANON_READS: readonly TrackedKey[] = [
+  "listMessages",
+  "listMessageVariants",
+  "previewContextFit",
+  "previewAssembly",
+  "getShapeTrace",
+  "revealHidden",
+];
 
 // The full canon+list refetch (`chatReads` = canon + `listChats`) — the NON-terminal canon events that fire no
 // server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
@@ -110,7 +126,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // room read (this arm is one of the chat-row transitions that DOES stale `ChatDetail`) PLUS the Group tab's own
   // `getGroupConfig` read (the only bus arm that carries it; proven cross-tab by
   // tests/e2e/multi-tab-room-sync.spec.ts).
-  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig"],
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
   // Room-only (an attach/resume signal — the prompt didn't change, the transport did).
@@ -159,6 +175,8 @@ describe("invalidation — the bus half (invalidate)", () => {
         getGroupConfig: trpc.chat.getGroupConfig.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
+        revealHidden: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
+        listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry.
       for (const key of Object.values(keys)) {
@@ -202,13 +220,17 @@ const USER_TRACKED_KEYS = [
   // The Preview tab's assembled-prompt read — it rides wherever `previewContextFit` does (the fit is that
   // assembly's budget), so a preset/settings edit repaints the preview instead of freezing it at first fetch.
   "previewAssembly",
+  // The member-card dialog's read (`chat.getMemberCard`) — a CHAT-scoped projection of a character card, so a
+  // card edit is announced on THIS bus, not the chat bus. Without the row the dialog re-opened inside its
+  // gcTime window showed the pre-edit card.
+  "memberCard",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
 // EXHAUSTIVE over `UserBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it
 // invalidates — mirroring the `USER_BUS_FILTERS` mapped type it verifies.
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
-  charactersChanged: ["character"],
+  charactersChanged: ["character", "memberCard"],
   personasChanged: ["persona"],
   presetsChanged: ["preset", "previewContextFit", "previewAssembly"],
   worldInfoChanged: ["worldInfo"],
@@ -256,6 +278,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
+        memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
@@ -335,10 +358,10 @@ const RPG_EVENTS: Record<RpgBusEvent["type"], RpgBusEvent> = {
 
 // The rpg reads any `RPG_BUS_FILTERS` entry can touch (one per read the map names). EXHAUSTIVE over
 // `RpgBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it invalidates.
-const RPG_TRACKED_KEYS = ["game", "tracker", "config", "journal"] as const;
+const RPG_TRACKED_KEYS = ["game", "tracker", "config", "journal", "reveal"] as const;
 type RpgTrackedKey = (typeof RPG_TRACKED_KEYS)[number];
 const RPG_EXPECTED: Record<RpgBusEvent["type"], readonly RpgTrackedKey[]> = {
-  gameChanged: ["game", "config"],
+  gameChanged: ["game", "config", "reveal"],
   snapshotPatched: ["tracker"],
   sheetChanged: ["tracker"],
   questChanged: ["tracker"],
@@ -363,6 +386,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
         tracker: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
         config: trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
         journal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID }),
+        reveal: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
       // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
@@ -384,6 +408,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
       trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
       trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
+      trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
     ];
     for (const key of keys) {
       queryClient.setQueryData([...key], [] as never);
