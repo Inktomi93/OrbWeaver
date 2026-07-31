@@ -1117,6 +1117,13 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   expect(scene?.description).toContain("timeOfDay");
   expect(scene?.description).toContain("spends time");
   expect(scene?.description).toContain("weather turns");
+  // EXT-4b/4c — the new arms reach the WIRE tools too (the fold + the cheap round share this assembly, and the
+  // reliable schema is the same projection): the quest completion gesture is offered, and `journal[].type` is
+  // marked required in the grammar even though the zod made it optional for the heal.
+  const quest = folded?.terminalTools?.find((t) => t.name === "upsert_quest")?.parameters as { properties?: Record<string, unknown> };
+  expect(quest.properties?.["completeObjectives"]).toBeDefined();
+  const journal = folded?.terminalTools?.find((t) => t.name === "add_journal_entry")?.parameters as { required?: string[] };
+  expect(journal.required).toEqual(expect.arrayContaining(["type", "content"]));
   // The registry channel stays empty — nothing here is executed or recursed on.
   expect(folded?.tools).toEqual([]);
 
