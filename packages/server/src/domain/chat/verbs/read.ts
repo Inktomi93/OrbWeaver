@@ -96,8 +96,10 @@ import { loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import {
+  buildAssemblyBudget,
   buildHistoryBudget,
   buildPrompt,
+  buildPromptWithSlices,
   buildShapeTrace,
   buildTurnUserMacros,
   fitHistory,
@@ -277,15 +279,51 @@ function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   return built?.registry ?? null;
 }
 
+/** A game chat's GATHER contribution for a PREVIEW (rpg-design/05 §1) — the depth-0 state-block reminder +
+ *  the rpg macro/CEL feed, exactly as the turn path stages them, so a preview of a game chat shows what the
+ *  model actually reads (without this the whole state block is INVISIBLE to the host's honesty instrument).
+ *  Read-only + turnless: no pending user text, `respondsToLatestUserTurn: false` (no dice-feed eligibility),
+ *  nothing staged, nothing persisted. `null` op / non-game ⇒ `{}` ⇒ a byte-identical non-game build. */
+async function previewRpgFields(
+  ctx: ChatContext,
+  chatId: ChatId,
+  steerIdentity: { readonly user: string | undefined; readonly char: string },
+): Promise<{
+  rpgMacros?: Readonly<Record<string, string>>;
+  rpgInjections?: readonly ChatInjection[];
+  rpgCelBindings?: Readonly<Record<string, unknown>>;
+}> {
+  const rpg = ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext(chatId, undefined, false, steerIdentity);
+  if (rpg === null) {
+    return {};
+  }
+  return {
+    rpgMacros: rpg.macros,
+    rpgInjections: rpg.injections,
+    ...(rpg.celBindings !== undefined ? { rpgCelBindings: rpg.celBindings } : {}),
+  };
+}
+
 /** Build the assemble ctx for a preview from the resolved {@link PreviewInputs}. No persist, no turn. An
  *  optional `guided` steer mirrors a real turn's steered assembly. Threads the preview user-macro registry
- *  (WAVE MU) so a previewed prompt resolves user macros exactly as a real turn would (stable-prng posture). */
+ *  (WAVE MU) so a previewed prompt resolves user macros exactly as a real turn would (stable-prng posture) AND
+ *  the game turn's rpg gather (see {@link previewRpgFields}) so a game chat previews its real state block. */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
   chatId: ChatId,
-  opts: { readonly registry: MacroRegistry | null; readonly guided?: GuidedSteer | undefined } = { registry: null },
+  opts: { readonly deps: ReadDeps; readonly registry: MacroRegistry | null; readonly guided?: GuidedSteer | undefined },
 ): ReturnType<typeof gatherAssembleContext> {
+  const participants = await opts.deps.loadParticipantViews(chatId);
+  // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
+  // the active persona; `{{char}}` = the Ruling-B joined present cast (a preview has no triggering speaker).
+  const rpgFields = await previewRpgFields(ctx, chatId, {
+    user: inputs.foreign.personas.active?.name,
+    char: participants
+      .filter((p) => p.kind === "character")
+      .map((p) => p.displayName)
+      .join(", "),
+  });
   return await gatherAssembleContext(
     ctx,
     {
@@ -294,6 +332,7 @@ async function buildPreviewContext(
       model: inputs.model,
       castCharacterIds: inputs.castCharacterIds,
       personaIds: inputs.personaIds,
+      ...rpgFields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
@@ -588,11 +627,92 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
   };
 }
 
-/** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn. HOST/ADMIN
- *  (`requireHost`, matrix `previewAssembly: "host"`): the assembled prompt merges every roster member's
- *  card at FULL fidelity — exposing it to a plain member would bypass the D22 `memberCardVisibility` clamp
- *  (a member reading another member's private card fields). A `guided` steer is routed through the same
- *  gather→build a real turn uses. */
+/** SHAPE the NEXT turn's wire history off the current canon — the one preamble `previewAssembly`,
+ *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
+ *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
+ *  the loaded canon beside the shaped result (the fit's boundary resolution needs both). */
+async function shapeNextTurn(
+  ctx: ChatContext,
+  args: {
+    readonly chatId: ChatId;
+    readonly inputs: PreviewInputs;
+    readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+    readonly assembled: AssembledPrompt;
+  },
+): Promise<{ canon: readonly MessageView[]; shaped: ReturnType<typeof shapeTurn> }> {
+  const { chatId, inputs, assembleContext, assembled } = args;
+  // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
+  // (client-display parity), exactly as the engine builds it for a real turn.
+  const canon = await loadCanonHistory(ctx.db, chatId);
+  const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
+  const historyMacroNames: HistoryMacroNames = {
+    characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
+    personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
+  };
+  const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
+  const turns = inputs.capability?.turns;
+  const shaped = shapeTurn({
+    canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
+    appendUserTurn: null,
+    injections: inChatInjections,
+    output: "per-speaker",
+    cardScope: "merged",
+    scopedTargetId: null,
+    namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
+    speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
+    groupNudge: null,
+    assistantPrefill: turns?.assistantPrefill === true,
+    midConversationSystem: turns?.midConversationSystem === true,
+    roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
+    roleHandlingFloor: turns?.roleHandlingFloor,
+    squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
+  });
+  return { canon, shaped };
+}
+
+/** Run the SAME history FIT the engine's turn pipeline runs over an already-shaped history: the budget is the
+ *  model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output budget + the
+ *  assembled system tokens. One home for the preview reads that need a boundary/ceiling. */
+function fitShapedHistory(args: {
+  readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
+  readonly assembled: AssembledPrompt;
+  readonly capability: ModelCapability | undefined;
+  readonly shaped: ReturnType<typeof shapeTurn>;
+}): { fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> } {
+  const params = args.assembleContext.promptConfig.params;
+  const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
+  const budget = buildHistoryBudget({
+    windowTokens: args.capability?.context.window ?? Number.POSITIVE_INFINITY,
+    maxContextTokens: params.maxContextTokens,
+    maxOutputTokens: params.maxOutputTokens,
+    systemTokens,
+  });
+  return { fitted: fitHistory(args.shaped.history, budget), budget };
+}
+
+/** The `history` row of the budget breakdown, derived from the FIT result. Counts ONLY the id-bearing kept
+ *  rows — the canon turns. The id-less rows in the fitted history are the spliced injections, which are each
+ *  accounted under their OWN source (steering / world-info / game-state), so the six rows stay disjoint and
+ *  `Σ tokens` never double-counts an injection. (A squash that merged an injection INTO an adjacent canon row
+ *  leaves those bytes on both sides of that split — the local estimate is advisory, never billing truth.) */
+function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): { usedTokens: number; keptCount: number; droppedCount: number } {
+  const canonRows = fitted.history.filter((row) => row.messageId !== undefined);
+  return {
+    usedTokens: canonRows.reduce((sum, row) => sum + estimateTokens(row.content), 0),
+    keptCount: canonRows.length,
+    droppedCount: fitted.droppedCount,
+  };
+}
+
+/** `previewAssembly` — the BUILD product + the debug trace + the per-source CONTEXT BUDGET for a hypothetical
+ *  turn. HOST/ADMIN (`requireHost`, matrix `previewAssembly: "host"`): the assembled prompt merges every roster
+ *  member's card at FULL fidelity — exposing it to a plain member would bypass the D22 `memberCardVisibility`
+ *  clamp (a member reading another member's private card fields). A `guided` steer is routed through the same
+ *  gather→build a real turn uses.
+ *
+ *  The BUDGET is the Preview tab's stacked bar (D-4): the BUILD walk's slices grouped by `AssemblySource`, plus
+ *  the `history` row from the SAME shape→fit the next real turn runs — so the panel's numbers and the wire's
+ *  numbers are the same numbers, which is the entire point of a host honesty instrument. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
   return async ({ principal, chatId, speakerCharacterId, guided }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -601,13 +721,22 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry, guided });
-    const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided });
+    const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
+    const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { fitted } = fitShapedHistory({ assembleContext, assembled: prompt, capability: inputs.capability, shaped });
+    const budget = buildAssemblyBudget({
+      slices,
+      history: historyBudgetRow(fitted),
+      // `null` ⇒ no trustworthy ceiling (no window + no soft cap) ⇒ `0`, the wire's "unbounded" (the bar then
+      // renders proportions with no ratio) — never a fabricated number.
+      ceilingTokens: fitted.ceilingTokens ?? 0,
+    });
     // Route through the host-audience redaction seam (chat-crew-design/04 §2, CREW-6). The verdict is DERIVED
     // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
     // gate is ever relaxed to `requireParticipant` the elision inherits automatically (the structural belt: a
     // host-ring `audience:"host"` injection can never leak through a snapshot-serving projection).
-    return { prompt, trace: prompt.trace };
+    return { prompt, trace: prompt.trace, budget };
   };
 }
 
@@ -622,7 +751,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
     return buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
@@ -642,39 +771,10 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-
-    // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
-    // (client-display parity), exactly as the engine builds it for a real turn.
-    const canon = await loadCanonHistory(ctx.db, chatId);
-    const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
-    const historyMacroNames: HistoryMacroNames = {
-      characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
-      personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
-    };
-
-    // SHAPE the next-turn peek (no user input, no group nudge, primary speaker / merged): the same wire
-    // history the pipeline would build, minus the per-speaker round machinery — the trace describes how the
-    // CURRENT canon shapes for the next turn.
-    const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
-    const turns = inputs.capability?.turns;
-    const shaped = shapeTurn({
-      canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
-      appendUserTurn: null,
-      injections: inChatInjections,
-      output: "per-speaker",
-      cardScope: "merged",
-      scopedTargetId: null,
-      namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
-      speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
-      groupNudge: null,
-      assistantPrefill: turns?.assistantPrefill === true,
-      midConversationSystem: turns?.midConversationSystem === true,
-      roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
-      roleHandlingFloor: turns?.roleHandlingFloor,
-      squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
-    });
+    // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
+    const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd);
   };
 }
@@ -729,46 +829,11 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-
-    const canon = await loadCanonHistory(ctx.db, chatId);
-    const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
-    const historyMacroNames: HistoryMacroNames = {
-      characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
-      personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
-    };
-
-    const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
-    const turns = inputs.capability?.turns;
-    const shaped = shapeTurn({
-      canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
-      appendUserTurn: null,
-      injections: inChatInjections,
-      output: "per-speaker",
-      cardScope: "merged",
-      scopedTargetId: null,
-      namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
-      speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
-      groupNudge: null,
-      assistantPrefill: turns?.assistantPrefill === true,
-      midConversationSystem: turns?.midConversationSystem === true,
-      roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
-      roleHandlingFloor: turns?.roleHandlingFloor,
-      squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
-    });
-
-    // FIT — the same budget the engine's turn pipeline builds: window (capability) soft-capped by the
-    // preset's `maxContextTokens`, reserving the materialized output budget + the assembled system tokens.
-    const params = assembleContext.promptConfig.params;
-    const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
-    const budget = buildHistoryBudget({
-      windowTokens: inputs.capability?.context.window ?? Number.POSITIVE_INFINITY,
-      maxContextTokens: params.maxContextTokens,
-      maxOutputTokens: params.maxOutputTokens,
-      systemTokens,
-    });
-    const fitted = fitHistory(shaped.history, budget);
+    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    // FIT — the same budget the engine's turn pipeline builds (one home: `fitShapedHistory`).
+    const { fitted, budget } = fitShapedHistory({ assembleContext, assembled, capability: inputs.capability, shaped });
     const chatRow = await loadChatRow(ctx.db, chatId);
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
     // same verdict `toChatDetail` applies to the `ChatDetail` copy of these two fields. The fit NUMBERS stay
@@ -810,7 +875,7 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
       throw new DomainNotFoundError("prompt_section", sectionId);
     }
     const registry = buildPreviewRegistry(inputs);
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { registry });
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     return previewSection(section, assembleContext, inputs.foreign.promptConfig, registry ?? undefined);
   };
 }

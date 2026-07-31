@@ -20,6 +20,8 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
+import type { AssemblySlice } from "../contract/results";
+import { injectionSource, sectionSource } from "./budget";
 import { renderMacros } from "./macros";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
@@ -524,6 +526,12 @@ interface WalkAccum {
   dynamicParts: string[];
   afterHistory: ChatInjection[];
   cacheBusters: Set<string>;
+  /** The per-contribution BUDGET attribution (`assembly/budget`) — every non-empty rendered part, tagged with
+   *  the source bucket it lands in. Collected on EVERY build (the walk already holds the text; the tagging is
+   *  a map lookup) but returned only by {@link assemblePromptWithSlices}: `AssembledPrompt` is PERSISTED per
+   *  variant (`message_variants.promptSnapshot`, D26), and carrying a second copy of the whole prompt there
+   *  would double every snapshot row for a host-only debug read. */
+  slices: AssemblySlice[];
 }
 
 /** Deliver an after-history (`in_chat`) section: render → push to the injection bucket at `depth`. The
@@ -545,6 +553,7 @@ function pushAfterHistory(section: PromptSection, depth: number, env: BuildEnv, 
   }
   acc.afterHistory.push(injection);
   env.trace.afterHistorySections.push(section.id);
+  acc.slices.push({ source: sectionSource(section), label: section.name, text: rendered });
 }
 
 /** Scan a static section's source strings for volatile macros (cache-busters) into `busters`. */
@@ -573,17 +582,26 @@ function walkSection(section: PromptSection, idx: number, env: BuildEnv, acc: Wa
   }
   (dynamic ? acc.dynamicParts : acc.staticParts).push(rendered);
   (dynamic ? env.trace.dynamicSections : env.trace.staticSections).push(section.id);
+  acc.slices.push({ source: sectionSource(section), label: section.name, text: rendered });
 }
 
 /** Append the non-empty trimmed content of `list` to `target` (with a matching `label` per section),
- *  counting each into the trace. */
-function appendInjections(args: { list: readonly ChatInjection[]; target: string[]; sections: string[]; label: string; trace: AssembleTrace }): void {
+ *  counting each into the trace + attributing each to its budget source. */
+function appendInjections(args: {
+  list: readonly ChatInjection[];
+  target: string[];
+  sections: string[];
+  label: string;
+  trace: AssembleTrace;
+  slices: AssemblySlice[];
+}): void {
   for (const inj of args.list) {
     const text = inj.content.trim();
     if (text.length > 0) {
       args.target.push(text);
       args.sections.push(args.label);
       args.trace.chatInjectionsIncluded += 1;
+      args.slices.push({ ...injectionSource(inj), text });
     }
   }
 }
@@ -596,15 +614,14 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     return;
   }
   // before_prompt: prepend as ONE batched block so the caller's array order = the rendered order.
-  const beforeTexts = all
-    .filter((i) => i.position === "before_prompt")
-    .map((i) => i.content.trim())
-    .filter((t) => t.length > 0);
+  const before = all.filter((i) => i.position === "before_prompt" && i.content.trim().length > 0);
+  const beforeTexts = before.map((i) => i.content.trim());
   if (beforeTexts.length > 0) {
     acc.staticParts.unshift(...beforeTexts);
     trace.chatInjectionsIncluded += beforeTexts.length;
-    for (const _t of beforeTexts) {
+    for (const inj of before) {
       trace.staticSections.unshift("chat-injection:before_prompt");
+      acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
     }
   }
   appendInjections({
@@ -613,6 +630,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     sections: trace.staticSections,
     label: "chat-injection:in_static",
     trace,
+    slices: acc.slices,
   });
   appendInjections({
     list: all.filter((i) => i.position === "in_prompt"),
@@ -620,6 +638,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
     sections: trace.dynamicSections,
     label: "chat-injection:in_prompt",
     trace,
+    slices: acc.slices,
   });
 }
 
@@ -628,6 +647,28 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * enabled section is delivered into the system block or as an `in_chat` injection. Pure.
  */
 export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, registry: MacroRegistry = globalMacroRegistry): AssembledPrompt {
+  return assembleWithSlices(rawConfig, ctx, registry).prompt;
+}
+
+/**
+ * The BUILD product PLUS its per-source budget attribution — the host Preview tab's read (`previewAssembly`).
+ * Byte-identical to {@link assemblePrompt} on the prompt half; the slices are the SAME rendered strings, tagged
+ * with the `AssemblySource` bucket they land in (`assembly/budget`). Kept off `AssembledPrompt` because that
+ * shape is persisted per variant (D26) — see {@link WalkAccum.slices}.
+ */
+export function assemblePromptWithSlices(
+  rawConfig: PromptConfig,
+  ctx: AssembleContext,
+  registry: MacroRegistry = globalMacroRegistry,
+): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
+  return assembleWithSlices(rawConfig, ctx, registry);
+}
+
+function assembleWithSlices(
+  rawConfig: PromptConfig,
+  ctx: AssembleContext,
+  registry: MacroRegistry,
+): { prompt: AssembledPrompt; slices: readonly AssemblySlice[] } {
   const config = withImplicitCompactSummary(rawConfig, ctx);
   const trace = freshTrace(ctx);
   const acc: WalkAccum = {
@@ -635,6 +676,7 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
     dynamicParts: [],
     afterHistory: [],
     cacheBusters: new Set<string>(),
+    slices: [],
   };
   const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
   const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx, registry), pivotIndex, registry };
@@ -659,6 +701,16 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
 
   applySystemInjections(ctx, trace, acc);
 
+  // The `in_chat` injections never touch the system halves (SHAPE splices them into history), but they ARE
+  // part of what the model reads next turn — the rpg state block rides exactly this channel. Account them
+  // here, at their pre-splice content: the splice's role framing (`[Note from system: …]`) adds a handful of
+  // tokens the estimate doesn't chase (advisory by construction, like every count on this surface).
+  for (const inj of ctx.chatInjections ?? []) {
+    if (inj.position === "in_chat" && inj.content.trim().length > 0) {
+      acc.slices.push({ ...injectionSource(inj), text: inj.content.trim() });
+    }
+  }
+
   for (const b of trace.staticCacheBusters) {
     acc.cacheBusters.add(b);
   }
@@ -668,11 +720,14 @@ export function assemblePrompt(rawConfig: PromptConfig, ctx: AssembleContext, re
   // in — an untouched preset returns byte-identical joins. Idempotent + whitespace-only → cache-safe.
   const pp = config.postProcess;
   return {
-    static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
-    dynamic: applyAssemblePostProcess(acc.dynamicParts.join("\n\n"), pp),
-    afterHistory: acc.afterHistory,
-    sendHistory,
-    trace,
+    prompt: {
+      static: applyAssemblePostProcess(acc.staticParts.join("\n\n"), pp),
+      dynamic: applyAssemblePostProcess(acc.dynamicParts.join("\n\n"), pp),
+      afterHistory: acc.afterHistory,
+      sendHistory,
+      trace,
+    },
+    slices: acc.slices,
   };
 }
 
