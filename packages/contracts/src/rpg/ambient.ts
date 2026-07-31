@@ -32,13 +32,19 @@ export const rpgWeatherSchema = z.object({
 export type RpgWeather = z.infer<typeof rpgWeatherSchema>;
 
 /** The label vocabulary lite steers ambient time through (§2.7). `update_scene.timeOfDay` picks one; the
- *  banner derives the label back from the stored hour. */
+ *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk` (owner ruling
+ *  2026-07-31): a WRITE vocabulary with both `dusk` and `evening` invites the model to dither between
+ *  near-synonyms. Dawn/dusk differentiation is a RENDER concern — the Waystone reads `clock.hour` directly and
+ *  glows through the golden windows (`waystone-treatment.ts`), so the visual distinction ships without a
+ *  vocabulary member. */
 export const TIME_OF_DAY = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type TimeOfDay = (typeof TIME_OF_DAY)[number];
 
 /** The ONE label→representative-hour mapping (§2.7) — used both to WRITE the clock from a `timeOfDay` label
- *  and (inverted, nearest-hour) to DERIVE the label back for the banner. An internal vocabulary constant
- *  (§4.11 #6 argued no-knob). */
+ *  and (inverted, NEAREST-hour, non-wrapping, ties to the earlier label) to DERIVE the label back for the
+ *  banner. An internal vocabulary constant (§4.11 #6 argued no-knob). It is also the RENDER input in narrated
+ *  mode: a lite game's clock only ever holds one of these representative hours, and the Waystone's continuous
+ *  sky interpolates from exactly that number. */
 export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   dawn: 6,
   morning: 9,

@@ -77,14 +77,29 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       const lines: string[] = [];
       lines.push(
         `SCENE — set scene.location (WHERE) and scene.timeOfDay (${[...TIME_OF_DAY].join("/")}); when the beat ` +
-          "doesn't change them, restate the current values, never blank them. Set scene.weather when the story " +
-          "mentions it, and scene.recentEvent = a one-line summary of what just happened.",
+          "doesn't change them, restate the current values, never blank them. Set scene.recentEvent = a one-line " +
+          "summary of what just happened.",
+      );
+      // RV-9 — WHEN to move the clock/weather. The panel's Waystone reads these two fields as a live clock, so a
+      // story that runs for pages at one timeOfDay reads as a stopped clock. Terse, one clause per field: the
+      // R4b lesson is that a gloss saying WHEN measurably changes whether a small model writes the field at all.
+      lines.push(
+        "KEEP TIME MOVING — advance scene.timeOfDay whenever the beat spends real time: a rest or a meal, travel, " +
+          "a long conversation, a fight's aftermath, or a cut to later. Move it forward through the day's order " +
+          "and let night follow evening; never jump backwards, and never leave it parked while hours of story pass.",
+      );
+      lines.push(
+        "WEATHER — set scene.weather when the sky turns, when the story steps outdoors, or when the season/place " +
+          "makes it obvious; restate the current weather while it holds, and change it as the storm breaks or clears.",
       );
       // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
       if (ctx.config.dateMode === "structured") {
-        lines.push("Set scene.day (the integer day counter) as in-world days pass; set scene.calendarDate for a narrated in-world date.");
+        lines.push(
+          "Set scene.day (the integer day counter) and advance it by one whenever the party sleeps through the " +
+            "night or the story crosses into the next morning; set scene.calendarDate for a narrated in-world date.",
+        );
       } else {
-        lines.push('Set scene.calendarDate for a narrated in-world date the story gives (e.g. "3rd of Frostmoon").');
+        lines.push('Set scene.calendarDate for a narrated in-world date the story gives (e.g. "3rd of Frostmoon"), and move it on as days pass.');
       }
       lines.push(
         "WHO IS PRESENT — scene.presentUpsert: one entry per character who speaks or acts (name required). Fill " +

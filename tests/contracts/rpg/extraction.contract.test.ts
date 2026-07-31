@@ -305,6 +305,24 @@ test("§1.6: the composed teaching prompts the newly-covered planes (plot gate O
   expect(teaching).toContain("INFER"); // the owner's inventory-inference ask
 });
 
+test("RV-9: the scene fragment teaches WHEN to move time + weather (the panel's Waystone is a live clock, not decoration)", () => {
+  // The owner finding: the Waystone "does not read as a clock" partly because the model never ADVANCES
+  // timeOfDay/weather. Same class as the R4b gloss lesson — a field with no when-to-write clause goes
+  // unwritten, so the teaching must name the triggers (time spent, sky turning), not just the field.
+  const teaching = composePlaneTeaching({ config: baseConfig(), refs: NO_REFS });
+  expect(teaching).toContain("KEEP TIME MOVING");
+  expect(teaching).toContain("advance scene.timeOfDay");
+  expect(teaching).toContain("never leave it parked");
+  expect(teaching).toContain("set scene.weather when the sky turns");
+});
+
+test("RV-9: the structured dateMode teaches WHEN the day counter ticks over (a night passed), not just that it exists", () => {
+  const structured = rpgGameConfigSchema.parse({ dateMode: "structured" });
+  const teaching = composePlaneTeaching({ config: structured, refs: NO_REFS });
+  expect(teaching).toContain("advance it by one");
+  expect(teaching).toContain("sleeps through the");
+});
+
 test("§1.6: the plot clause is GATED — plotProgression OFF drops it (applicability, no dead prompt)", () => {
   const off = rpgGameConfigSchema.parse({ features: { plotProgression: false } });
   expect(composePlaneTeaching({ config: off, refs: NO_REFS })).not.toContain("scene.plot");
