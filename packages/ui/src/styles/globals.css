@@ -266,3 +266,239 @@
 .settings-flash-anchor--lit {
   box-shadow: inset 0 0 0 2px var(--color-ring);
 }
+
+/* ── The WAYSTONE's layered sky (charts/meter/waystone.tsx — RV-10) ────────────────────────────────
+ * The rpg band's focal element is a living clock: eight independently animated layers inside one 96×96
+ * SVG (sky · celestial · stars · clouds · particles · wash+lightning · horizon · the hour hand). These
+ * are @keyframes + transitions Tailwind utilities can't express (SVG geometry, per-layer loops). Homed
+ * here in ui's unlayered floor rather than the client stylesheet so the CT harness — which imports ui's
+ * globals, not the main.tsx-only client one — actually paints them (the ghost-row precedent).
+ *
+ * ENGINEERING FLOOR: `translate`/`rotate`/`opacity` ONLY (GPU-composited, zero layout thrash), CSS over
+ * any rAF loop, and everything PAUSES while the document is hidden (`[data-paused]` — the component
+ * subscribes to visibilitychange once and CSS does the rest).
+ *
+ * STATE TRANSITIONS are the showpiece: a turn that advances time or weather never hard-swaps. The sky
+ * gradients are stacked and crossfade on opacity, the sun/moon TRANSLATES along its arc, the hour hand
+ * ROTATES around the ring, the cloud deck fades its density, and a new particle/band layer enters on
+ * `.orb-ws-enter` — all on `--motion-transit`.
+ *
+ * REDUCED MOTION = REMOVE (guide §3.9), never shorten: every animation is dropped and each layer rests at
+ * its natural frame (drops at their lattice positions, stars lit, bolt drawn, hand at the hour) — the
+ * matrix still reads in full, nothing moves. The lightning FLASH rests at opacity 0, so a reduced-motion
+ * viewer never gets a frozen strobe. The transitions collapse via the floors at the top of this file. */
+@keyframes orb-ws-fall {
+  to {
+    translate: 0 var(--orb-ws-pitch);
+  }
+}
+@keyframes orb-ws-driftx {
+  from {
+    translate: -2.5px 0;
+  }
+  to {
+    translate: 2.5px 0;
+  }
+}
+@keyframes orb-ws-sway {
+  from {
+    translate: -5px 0;
+  }
+  to {
+    translate: 5px 0;
+  }
+}
+@keyframes orb-ws-gust {
+  0% {
+    translate: -14px 0;
+    opacity: 0;
+  }
+  35%,
+  65% {
+    opacity: 0.8;
+  }
+  100% {
+    translate: 16px 0;
+    opacity: 0;
+  }
+}
+@keyframes orb-ws-breathe {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes orb-ws-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+/* The storm's occasional strike: dark for most of the cycle, a double-tap flash, then dark again. */
+@keyframes orb-ws-strike {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+  }
+  88% {
+    opacity: 0.75;
+  }
+  90% {
+    opacity: 0.05;
+  }
+  92% {
+    opacity: 0.5;
+  }
+  95% {
+    opacity: 0;
+  }
+}
+/* The celestial glow breathes AROUND its altitude-derived floor (the component sets --orb-ws-glow; an
+ * `opacity` attribute alone would lose to the animation, and reduced-motion rests on the same value). */
+@keyframes orb-ws-glow {
+  0%,
+  100% {
+    opacity: var(--orb-ws-glow, 0.16);
+  }
+  50% {
+    opacity: calc(var(--orb-ws-glow, 0.16) * 2);
+  }
+}
+@keyframes orb-ws-marker {
+  0% {
+    opacity: 0.35;
+    scale: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.55;
+  }
+}
+@keyframes orb-ws-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Layer 5 — the falling lattices. One keyframe, three speeds; the PITCH is data (`--orb-ws-pitch`), so a
+ * cycle always translates exactly one lattice step and the loop is seamless. */
+.orb-ws-fall-fast {
+  animation: orb-ws-fall var(--motion-precip) linear infinite;
+}
+.orb-ws-fall-mid {
+  animation: orb-ws-fall calc(var(--motion-precip) * 2.5) linear infinite;
+}
+.orb-ws-fall-slow {
+  animation: orb-ws-fall calc(var(--motion-precip) * 5) linear infinite;
+}
+/* …and the lateral sway snow/ash ride on an inner group, so fall × drift compose without a bespoke keyframe. */
+.orb-ws-driftx {
+  animation: orb-ws-driftx calc(var(--motion-precip) * 3) ease-in-out infinite alternate;
+}
+
+/* Layer 4 — the cloud deck: same sway, three speeds by weather (clear wisp → storm scud). */
+.orb-ws-cloud-slow {
+  animation: orb-ws-sway var(--motion-ambient) ease-in-out infinite alternate;
+}
+.orb-ws-cloud-mid {
+  animation: orb-ws-sway calc(var(--motion-ambient) * 0.6) ease-in-out infinite alternate;
+}
+.orb-ws-cloud-fast {
+  animation: orb-ws-sway calc(var(--motion-ambient) * 0.3) ease-in-out infinite alternate;
+}
+
+/* Layer 7b — the enveloping bands: fog drifts slowly and BREATHES its opacity; wind sweeps across and out. */
+.orb-ws-sway-slow {
+  animation: orb-ws-sway calc(var(--motion-ambient) * 1.6) ease-in-out infinite alternate;
+}
+.orb-ws-breathe {
+  animation: orb-ws-breathe calc(var(--motion-ambient) / 2) ease-in-out infinite alternate;
+}
+.orb-ws-gust {
+  animation: orb-ws-gust calc(var(--motion-precip) * 3) ease-in-out infinite;
+}
+/* The second gust runs half a cycle behind the first, so wind is never fully absent from a still frame. */
+.orb-ws-gust-b {
+  animation-delay: calc(var(--motion-precip) * -1.5);
+}
+
+/* Layer 3 — the stars twinkle INDEPENDENTLY: five delay buckets off the one breathe period, so the field
+ * never pulses in unison (the tell that would read as one animation rather than a sky). */
+.orb-ws-star {
+  animation: orb-ws-twinkle var(--motion-breathe) ease-in-out infinite;
+}
+.orb-ws-star:nth-child(5n + 2) {
+  animation-delay: calc(var(--motion-breathe) / 5);
+  animation-duration: calc(var(--motion-breathe) * 1.3);
+}
+.orb-ws-star:nth-child(5n + 3) {
+  animation-delay: calc(var(--motion-breathe) * 2 / 5);
+  animation-duration: calc(var(--motion-breathe) * 0.8);
+}
+.orb-ws-star:nth-child(5n + 4) {
+  animation-delay: calc(var(--motion-breathe) * 3 / 5);
+  animation-duration: calc(var(--motion-breathe) * 1.6);
+}
+.orb-ws-star:nth-child(5n + 5) {
+  animation-delay: calc(var(--motion-breathe) * 4 / 5);
+  animation-duration: calc(var(--motion-breathe) * 1.1);
+}
+
+/* Layer 2 / 6b / 8 — the sun's glow breath, the storm's strike, the hour marker's halo pulse. */
+.orb-ws-glow {
+  animation: orb-ws-glow var(--motion-breathe) ease-in-out infinite;
+}
+.orb-ws-strike {
+  animation: orb-ws-strike calc(var(--motion-precip) * 6) linear infinite;
+}
+.orb-ws-marker {
+  transform-box: view-box;
+  transform-origin: 50% 6.25%;
+  animation: orb-ws-marker var(--motion-breathe) ease-out infinite;
+}
+
+/* The STATE-CHANGE transitions (the showpiece): fades, the celestial slide, the hand's swing. */
+.orb-ws-transit {
+  transition:
+    opacity var(--motion-transit) var(--ease-out-expo),
+    fill var(--motion-transit) var(--ease-out-expo),
+    stroke var(--motion-transit) var(--ease-out-expo);
+}
+/* The sky is ONE gradient whose stop colors melt from hour to hour — the continuous time axis' crossfade. */
+.orb-ws-sky-stop {
+  transition: stop-color var(--motion-transit) var(--ease-out-expo);
+}
+.orb-ws-transit-move {
+  transition:
+    translate var(--motion-transit) var(--ease-out-expo),
+    opacity var(--motion-transit) var(--ease-out-expo);
+}
+.orb-ws-hand {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  transition: rotate var(--motion-transit) var(--ease-out-expo);
+}
+.orb-ws-enter {
+  animation: orb-ws-enter var(--motion-transit) ease-out both;
+}
+
+/* Hidden tab ⇒ nothing composites (the layers are decorative; nobody is looking). */
+[data-slot="waystone"][data-paused="true"] * {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="waystone"] * {
+    animation: none;
+  }
+}
+[data-reduced-motion="true"] [data-slot="waystone"] * {
+  animation: none;
+}

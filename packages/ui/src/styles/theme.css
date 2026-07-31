@@ -138,6 +138,9 @@
   --motion-layout: 360ms;
   --motion-shimmer: 1300ms;
   --motion-breathe: 3000ms;
+  --motion-precip: 1100ms;
+  --motion-transit: 1400ms;
+  --motion-ambient: 16000ms;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
