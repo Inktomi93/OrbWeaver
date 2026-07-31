@@ -13,6 +13,36 @@ import { Waystone } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const ROTATE_RE = /rotate/u;
+const OKLCH_RE = /okl(ab|ch)\(\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/u;
+
+interface Lab {
+  readonly l: number;
+  readonly a: number;
+  readonly b: number;
+}
+
+/** Chromium resolves relative-color/`color-mix` values to `oklab(L a b)` — parse it so the assertions can be
+ *  about PERCEIVED color (is this band actually saturated? are these two actually different?) rather than
+ *  about the strings we happened to author. */
+function parseOklab(value: string): Lab {
+  const m = OKLCH_RE.exec(value);
+  if (m === null) {
+    throw new Error(`not an ok* color: ${value}`);
+  }
+  const [l, x, y] = [Number(m[2]), Number(m[3]), Number(m[4])];
+  // Chromium keeps relative-color-syntax results in oklch — polar chroma/hue onto the same lab plane the
+  // color-mix results land on, so both forms compare apples to apples.
+  return m[1] === "ch" ? { l, a: x * Math.cos((y * Math.PI) / 180), b: x * Math.sin((y * Math.PI) / 180) } : { l, a: x, b: y };
+}
+function chroma(c: Lab): number {
+  return Math.hypot(c.a, c.b);
+}
+function distance(x: Lab | undefined, y: Lab | undefined): number {
+  if (x === undefined || y === undefined) {
+    throw new Error("missing band color");
+  }
+  return Math.hypot(x.l - y.l, x.a - y.a, x.b - y.b);
+}
 const STOP_COLOR_RE = /stop-color/u;
 const TRANSLATE_RE = /translate/u;
 
@@ -23,11 +53,22 @@ test("the clock reads: 24h dial arcs, the bezel hour scale, and the ember hand s
   await expect(component.locator("[data-slot=waystone-arc]")).toHaveCount(6);
   await expect(component.locator("[data-slot=waystone-arc][data-lit=true]")).toHaveCount(1);
   await expect(component.locator("[data-slot=waystone-arc][data-lit=true]")).toHaveAttribute("data-arc-phase", "afternoon");
-  await expect(component.locator("[data-slot=waystone-ticks] line")).toHaveCount(8);
   // A REAL DIAL: all six bands paint their own identity hue (the owner's "grey + dark blue" read was one lit
   // band on an otherwise neutral ring), and the current one is the brightest — a step within its own hue.
   const strokes = await component.locator("[data-slot=waystone-arc]").evaluateAll((els) => els.map((el) => getComputedStyle(el).stroke));
   expect(new Set(strokes).size).toBe(6);
+  // …and DISTINCT AS PIXELS, not merely as strings: the first build kept the right hues but inherited the
+  // sky's atmospheric wash, so at 76px all six converged on the same dusty pastel. Every band must carry real
+  // chroma, and no two may sit within a perceptual delta of each other.
+  const lab = strokes.map(parseOklab);
+  for (const [index, color] of lab.entries()) {
+    expect(chroma(color), `band ${index} is washed out (chroma ${chroma(color)})`).toBeGreaterThan(0.045);
+  }
+  for (let i = 0; i < lab.length; i++) {
+    for (let j = i + 1; j < lab.length; j++) {
+      expect(distance(lab[i], lab[j]), `bands ${i} and ${j} are too close to tell apart`).toBeGreaterThan(0.06);
+    }
+  }
   const opacities = await component
     .locator("[data-slot=waystone-arc]")
     .evaluateAll((els) => els.map((el) => `${getComputedStyle(el).opacity}:${el.getAttribute("data-lit")}`));
@@ -35,9 +76,9 @@ test("the clock reads: 24h dial arcs, the bezel hour scale, and the ember hand s
   expect(opacities.filter((o) => o.startsWith("1:") && o.endsWith(":false"))).toEqual([]);
   // Noon = the top of the dial: the hand's dot sits above the stone's centre and horizontally on it.
   const stone = (await component.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
-  const dot = (await component.locator("[data-slot=waystone-marker-dot]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
-  expect(dot.y + dot.height / 2).toBeLessThan(stone.y + stone.height / 4);
-  expect(Math.abs(dot.x + dot.width / 2 - (stone.x + stone.width / 2))).toBeLessThan(stone.width / 10);
+  const pointer = (await component.locator("[data-slot=waystone-marker-pointer]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  expect(pointer.y + pointer.height / 2).toBeLessThan(stone.y + stone.height / 4);
+  expect(Math.abs(pointer.x + pointer.width / 2 - (stone.x + stone.width / 2))).toBeLessThan(stone.width / 10);
 });
 
 test("midnight swings the hand to the bottom of the same dial and hangs the moon (the angle is the read)", async ({ mount }) => {
@@ -45,8 +86,8 @@ test("midnight swings the hand to the bottom of the same dial and hangs the moon
   await expect(component.locator("[data-slot=waystone-arc][data-lit=true]")).toHaveAttribute("data-arc-phase", "midnight");
   await expect(component.locator("[data-slot=waystone-celestial]")).toHaveAttribute("data-body", "moon");
   const stone = (await component.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
-  const dot = (await component.locator("[data-slot=waystone-marker-dot]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
-  expect(dot.y + dot.height / 2).toBeGreaterThan(stone.y + (stone.height * 3) / 4);
+  const pointer = (await component.locator("[data-slot=waystone-marker-pointer]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  expect(pointer.y + pointer.height / 2).toBeGreaterThan(stone.y + (stone.height * 3) / 4);
 });
 
 test("night + storm paints the WHOLE stack: sky · stars · moon · dark deck · rain · wash · flash · bolt · horizon", async ({ mount }) => {
@@ -83,6 +124,9 @@ test("paint order: precipitation falls BEHIND the horizon silhouette, fog drifts
   const lastSlot = await component.locator("g[clip-path] > *").last().getAttribute("data-slot");
   expect(lastSlot).toBe("waystone-bands-enter");
   await expect(component.locator("[data-slot=waystone-bands-enter] [data-slot=waystone-fog]")).toBeAttached();
+  // A VEIL, not a skeleton loader: soft wide ellipses, never rounded bars.
+  await expect(component.locator("[data-slot=waystone-fog] ellipse")).toHaveCount(2);
+  await expect(component.locator("[data-slot=waystone-fog] line")).toHaveCount(0);
 });
 
 test("every layer runs its OWN animation, and the stars twinkle out of sync with each other", async ({ mount }) => {
@@ -136,6 +180,58 @@ test("a state change TRANSITIONS: the hand swings, the sky MELTS between hours, 
   await expect(component.locator("[data-slot=waystone-precip-enter]")).toHaveCSS("animation-name", "orb-ws-enter");
 });
 
+test("the 24h convention is TAUGHT: a sun glyph at the top cardinal, a crescent at the bottom", async ({ mount }) => {
+  // The owner had to read the ring band-by-band to decode it ("maybe I\u0027m reading it wrong"). A noon-top
+  // 24h dial is unlearnable cold, so the ring explains itself: sun overhead, moon at the bottom.
+  const component = await mount(<Waystone clock={{ hour: 9, minute: 0 }} weather="clear" />);
+  const stone = (await component.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  const sun = (await component.locator("[data-slot=waystone-cardinal-noon] circle").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  const moon = (await component.locator("[data-slot=waystone-cardinal-midnight]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  expect(sun.y + sun.height / 2).toBeLessThan(stone.y + stone.height / 3);
+  expect(moon.y + moon.height / 2).toBeGreaterThan(stone.y + (stone.height * 2) / 3);
+  // Both sit on the vertical axis — they ARE the cardinals.
+  expect(Math.abs(sun.x + sun.width / 2 - (stone.x + stone.width / 2))).toBeLessThan(stone.width / 12);
+  expect(Math.abs(moon.x + moon.width / 2 - (stone.x + stone.width / 2))).toBeLessThan(stone.width / 12);
+});
+
+test("the hand takes the SHORT way round: 11:00 → 13:00 sweeps forward two hours, not backwards round the dial", async ({ mount }) => {
+  // The dial\u0027s angle wraps at NOON (its origin), so 11:00 is 345° and 13:00 is 15°: modulo values told CSS
+  // to interpolate 345 → 15, and the hand visibly ran backwards across the whole face on the most ordinary
+  // state change there is. The accumulated angle keeps going clockwise instead.
+  const component = await mount(<Waystone clock={{ hour: 11, minute: 0 }} weather="clear" />);
+  const hand = component.locator("[data-slot=waystone-marker]");
+  const before = await hand.evaluate((el) => Number.parseFloat(getComputedStyle(el).rotate));
+  expect(before).toBeCloseTo(345, 0);
+  await component.update(<Waystone clock={{ hour: 13, minute: 0 }} weather="clear" />);
+  // 375°, not 15° — the same place on the dial, reached the short way.
+  await expect.poll(async () => hand.evaluate((el) => Math.round(Number.parseFloat(getComputedStyle(el).rotate)))).toBe(375);
+});
+
+test("the celestial body REMOUNTS at the sun/moon handover instead of sliding backwards across the sky", async ({ mount }) => {
+  // 18:00 → 20:00 hands the sky from the setting sun to the rising moon: the arc restarts, so a shared node
+  // would transition the sun\u0027s last position into the moon\u0027s first — an object moving the wrong way.
+  const component = await mount(<Waystone clock={{ hour: 18, minute: 0 }} weather="clear" />);
+  const body = component.locator("[data-slot=waystone-celestial]");
+  await expect(body).toHaveAttribute("data-body", "sun");
+  await component.update(<Waystone clock={{ hour: 20, minute: 0 }} weather="clear" />);
+  await expect(body).toHaveAttribute("data-body", "moon");
+  // A remount replays the enter fade — the tell that this is a NEW node, not the sun sliding home.
+  await expect(body).toHaveCSS("animation-name", "orb-ws-enter");
+});
+
+test("the homestead is SEATED in the ridge with a window that lights up at night", async ({ mount }) => {
+  const day = await mount(<Waystone clock={{ hour: 12, minute: 0 }} weather="clear" />);
+  const gable = (await day.locator("[data-slot=waystone-gable]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0, bottom: 0 };
+  const horizon = (await day.locator("[data-slot=waystone-horizon]").boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+  // Its base is BELOW the silhouette's crest at that x — walls in the hill, never a house floating over it.
+  expect(gable.y + gable.height).toBeGreaterThan(horizon.y);
+  const dayLit = await day.locator("[data-slot=waystone-gable-window]").evaluate((el) => Number(getComputedStyle(el).opacity));
+  await day.update(<Waystone clock={{ hour: 0, minute: 0 }} weather="clear" />);
+  await expect
+    .poll(async () => day.locator("[data-slot=waystone-gable-window]").evaluate((el) => Number(getComputedStyle(el).opacity)))
+    .toBeGreaterThan(dayLit);
+});
+
 test("an unset clock is the honest empty stone: no hand, no arcs, no weather, a plain dim sky", async ({ mount }) => {
   const component = await mount(<Waystone clock={null} weather="rain" />);
   await expect(component).toHaveAttribute("data-phase", "unset");
@@ -164,9 +260,9 @@ test("reduced motion REMOVES every layer's animation (guide §3.9) — the froze
   await expect(component.locator("[data-slot=waystone-clouds]")).toHaveCSS("animation-name", "none");
   await expect(component.locator("[data-slot=waystone-flash]")).toHaveCSS("animation-name", "none");
   await expect(component.locator("[data-slot=waystone-stars] circle").first()).toHaveCSS("animation-name", "none");
-  // REMOVE, not shorten — and static-but-still-distinct: the bolt rests DRAWN (a weather signal survives),
-  // while the strobe-risk flash rests fully transparent.
-  await expect(component.locator("[data-slot=waystone-bolt]")).toHaveCSS("opacity", "1");
+  // REMOVE, not shorten — and static-but-still-distinct: with the animation gone the bolt is DRAWN (the
+  // storm keeps its signature), while the strobe-risk sky flash rests fully transparent.
+  await expect(component.locator("[data-slot=waystone-bolt]")).toHaveCSS("opacity", "0.9");
   await expect(component.locator("[data-slot=waystone-flash]")).toHaveCSS("opacity", "0");
   await expect(component.locator("[data-slot=waystone-precip] line").first()).toBeAttached();
   await expect(component.locator("[data-slot=waystone-sky]")).toHaveCSS("opacity", "1");

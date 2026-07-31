@@ -64,10 +64,21 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
   } else if (ambient.calendarDate !== null) {
     parts.push(ambient.calendarDate);
   }
+  // The numeric hour the Waystone actually draws from (side-eye F17): the stone points at 21:40 while the
+  // text said only "night", so the picture carried a datum the text didn't. TEXT IS THE DATUM — it has to be
+  // a superset of the decoration, never the other way round.
+  if (ambient.clock !== null) {
+    parts.push(clockTime(ambient.clock));
+  }
   if (ambient.weather !== null) {
     parts.push(ambient.weather.type);
   }
   return parts.join(" · ");
+}
+
+/** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at. */
+function clockTime(clock: RpgClockTime): string {
+  return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}`;
 }
 
 /** Join an orb's label back to its defining actor's poolDef row for the host-picked color (the orb list is
@@ -132,7 +143,7 @@ export function RpgTakeoverHeader({
           // the `timeOfDayLabel` above is the TEXT half of the same datum, never a second source of truth.
           clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
           weather={weatherType === null ? null : resolveWeatherOverlay(weatherType)}
-          className="@max-md:size-16 shrink-0"
+          className="shrink-0"
         />
         <Stack gap="field" className="min-w-0 flex-1">
           {location === "" ? (
