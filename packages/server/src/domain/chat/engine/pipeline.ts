@@ -118,7 +118,9 @@ interface TurnPipelineResult {
   readonly economics: TurnEconomics | null;
   readonly cacheBreakpointFromEnd: number | null;
   readonly droppedCount: number;
-  /** True when ≥1 image part was dropped because the model lacks vision. */
+  /** True when ≥1 USER-ATTACHED image part was dropped because the model lacks vision (or its asset no longer
+   *  resolves). A display-only image (a card's greeting picture, narrator media) is NOT a drop — it was never
+   *  eligible to ride, so it must not raise the `image_dropped` warning. */
   readonly imageDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
@@ -391,7 +393,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
 
   // REQUEST — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
-  // content-class visibility registry): tokenize each row's spans, resolve/drop image refs by input.vision,
+  // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT image refs by
+  // input.vision (every other image is display-only and collapses to its marker — `isUserAttachment`),
   // ride hidden/choices/unknown spans VERBATIM ({wire: full} — the model keeps its own memory), and collapse
   // card spans to the deterministic stub (except the M2 keep-last-X newest). This runs DOWNSTREAM of SHAPE
   // (squash joins with `\n\n` before tokenization — fences/tags survive the join) and of every string-body
@@ -679,12 +682,48 @@ function droppedImagePlaceholder(droppedAlts: string[]): string {
   return droppedAlts.length > 0 ? `[image: ${droppedAlts.join(", ")}]` : "[image omitted]";
 }
 
+/** The DISPLAY-ONLY image's wire stand-in (the ST-parity rule below): the reader keeps the real picture, the
+ *  model gets a short marker in its place — it learns an image was shown without a vision part or the raw
+ *  URL bytes riding the prompt. Inline (never a part boundary), so it merges with the surrounding text. */
+function displayOnlyImageText(alt: string): string {
+  return alt.length > 0 ? `[image: ${alt}]` : "[image]";
+}
+
+/** Is this image span a deliberate USER ATTACHMENT — the one image class that may become a model-visible
+ *  image part (owner ruling, ST parity)?
+ *
+ *  BOTH halves are required, and both are structural:
+ *   • the ref is an owned-CAS `asset:<id>` — the ONLY thing the attachment machinery ever mints
+ *     (`composeBodyWithAttachments`, verbs/turn). An `external` http(s) ref is authored bytes: a character
+ *     card's greeting image, a world-info illustration, a pasted link. It also makes the PROVIDER fetch a
+ *     third-party URL (the same tracking-pixel/exfil vector `forbidExternalMedia` exists for), for content
+ *     that can change under us.
+ *   • the row is USER-authored. `role` is the delivered wire role, so it already covers the id-less rows
+ *     (the regen/continue synthetic user turn, injections); the `userAuthored` predicate additionally
+ *     rejects the SCOPED-FOLD demotion — `shape.scopeToSpeaker` re-roles another character's assistant row
+ *     to a `Name: …` USER line, and those images are still character-authored (a narrator/`/imagine` post
+ *     carries real `asset:` refs, so the scheme alone would let them through).
+ *
+ *  Everything else is DISPLAY-ONLY: it renders in the transcript forever and never rides as an image part. */
+function isUserAttachment(span: { readonly ref: ContentImageRef }, role: TurnMessage["role"], userAuthored: boolean): boolean {
+  return span.ref.kind === "asset" && role === "user" && userAuthored;
+}
+
 /** The per-assembly wire environment for the span→part projection (§3.5 — the WIRE plane). */
 interface WirePartsEnv {
   readonly visionOk: boolean;
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
   /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
   readonly fullCards: ReadonlySet<ContentSpan>;
+}
+
+/** The PER-ROW facts the projection needs (only the image arm reads them — see `isUserAttachment`). */
+interface WireRowFacts {
+  /** The DELIVERED wire role. */
+  readonly role: TurnMessage["role"];
+  /** The row's bytes were authored by a human user: it is not a canon ASSISTANT row (an id-less shaped row —
+   *  the synthetic regen/continue user turn, a spliced injection — is judged by `role` alone). */
+  readonly userAuthored: boolean;
 }
 
 const NO_FULL_CARDS: ReadonlySet<ContentSpan> = new Set([]);
@@ -702,12 +741,14 @@ function resolveFullCards(tokenized: readonly { readonly spans: readonly Content
 }
 
 /** One span → its wire part (§3.5, the total dispatch over the content-class registry's WIRE plane):
- *  `text` rides as-is; `image` = the existing drop-to-alt arm gated by vision; `hidden`/`unknown-directive`
- *  ride VERBATIM (wire=full — the model must remember its own lie / the true event / its own bytes; the
- *  transcript is honest); `choices` is STRIPPED entirely (wire=drop — the CYOA fence must not re-pile
- *  unselected options into context on later turns; the user's pick already became a real user turn);
- *  `card` collapses to the deterministic stub unless inside the keep-last-X window (wire=stub). */
-async function spanToWirePart(span: ContentSpan, env: WirePartsEnv): Promise<ChatContentPart | { droppedAlt: string } | null> {
+ *  `text` rides as-is; `image` = the ATTACHMENT-ONLY vision arm (a non-attachment image is DISPLAY-ONLY and
+ *  collapses to its short marker; an attachment resolves-or-drops-to-alt gated by vision);
+ *  `hidden`/`unknown-directive` ride VERBATIM (wire=full — the model must remember its own lie / the true
+ *  event / its own bytes; the transcript is honest); `choices` is STRIPPED entirely (wire=drop — the CYOA
+ *  fence must not re-pile unselected options into context on later turns; the user's pick already became a
+ *  real user turn); `card` collapses to the deterministic stub unless inside the keep-last-X window
+ *  (wire=stub). */
+async function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts): Promise<ChatContentPart | { droppedAlt: string } | null> {
   if (span.kind === "text") {
     return span.text.length > 0 ? { type: "text", text: span.text } : null;
   }
@@ -720,6 +761,12 @@ async function spanToWirePart(span: ContentSpan, env: WirePartsEnv): Promise<Cha
   if (span.kind === "card") {
     return { type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) };
   }
+  if (!isUserAttachment(span, row.role, row.userAuthored)) {
+    // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
+    // `image_dropped` warning means "your model can't see the image you attached", and nagging it on every
+    // turn of a chat whose greeting embeds a picture would be a lie).
+    return { type: "text", text: displayOnlyImageText(span.alt) };
+  }
   if (!env.visionOk) {
     return { droppedAlt: span.alt };
   }
@@ -730,8 +777,8 @@ async function spanToWirePart(span: ContentSpan, env: WirePartsEnv): Promise<Cha
 /** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
  *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
  *  pre-registry wire for every wire=full class. */
-async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
-  const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env)));
+async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv, row: WireRowFacts): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
+  const resolved = await Promise.all(spans.map((span) => spanToWirePart(span, env, row)));
   const parts: ChatContentPart[] = [];
   let dropped = false;
   let mergeBlocked = false;
@@ -769,16 +816,25 @@ async function toContentParts(spans: readonly ContentSpan[], env: WirePartsEnv):
  *  window over the whole assembly, then project every row through the ONE span→part seam. */
 async function buildWireHistory(
   args: RunTurnPipelineArgs,
-  fittedHistory: readonly { readonly role: TurnMessage["role"]; readonly content: string; readonly name?: string | undefined }[],
+  fittedHistory: readonly {
+    readonly role: TurnMessage["role"];
+    readonly content: string;
+    readonly name?: string | undefined;
+    readonly messageId?: MessageId | undefined;
+  }[],
 ): Promise<{ history: TurnMessage[]; imageDropped: boolean }> {
   const visionOk = args.connection.capability.input?.vision === true;
   // COMMITTED canon (the fitted history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
   const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
   const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX ?? 0) };
+  // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
+  // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
+  const assistantMessageIds = new Set(args.canon.filter((m) => m.role === "assistant").map((m) => m.id));
   const built = await Promise.all(
     tokenized.map(async ({ h, spans }) => {
-      const { parts, dropped } = await toContentParts(spans, env);
+      const userAuthored = h.messageId === undefined || !assistantMessageIds.has(h.messageId);
+      const { parts, dropped } = await toContentParts(spans, env, { role: h.role, userAuthored });
       const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
       return { row, dropped };
     }),
