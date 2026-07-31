@@ -307,3 +307,29 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
   }
   return out;
 }
+
+/**
+ * The DROP predicate that mirrors {@link toolCallsToExtraction}'s silent `continue`s — the names of the calls
+ * the fold THREW AWAY because their args were non-JSON or failed their own arg schema. ONE home with the fold
+ * itself (the `ghostTargetRefs` precedent), so an observability log can never disagree with what actually
+ * applied. An UNKNOWN tool name (incl. the `no_changes` escape) is NOT malformed — it is a legitimate no-op and
+ * is excluded here; a caller that wants "the model called nothing applicable" reads the empty extraction.
+ *
+ * D109-7 (observability is TOTAL): a state write may fail only VISIBLY. The reliable arm already logs its
+ * `unparseable` class off the zod issues; this is the tool-vehicle's equivalent, and it is what lets the R1
+ * folded turn tell a MALFORMED beat apart from a legitimately QUIET one.
+ */
+export function malformedToolCalls(calls: readonly RpgToolCall[]): readonly string[] {
+  const bad: string[] = [];
+  for (const call of calls) {
+    const schema = call.name === "update_scene" ? updateSceneArgsSchema : TOOL_ROUND_ARRAY_ARMS.get(call.name)?.schema;
+    if (schema === undefined) {
+      continue; // `no_changes` / an unknown name — a no-op, never a malformed call
+    }
+    const args = parseArgs(call.arguments);
+    if (args === null || !schema.safeParse(args).success) {
+      bad.push(call.name);
+    }
+  }
+  return bad;
+}

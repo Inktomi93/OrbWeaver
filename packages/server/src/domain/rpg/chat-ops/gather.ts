@@ -3,15 +3,19 @@
 // names no rpg type). A non-game chat returns `null` → byte-identical no-op (the existing contract-test
 // pattern). PRINCIPAL-FREE: chat already gated the turn's caller; the gather resolves game-ness by the row.
 //
-// THE CHARACTER TURN IS ALWAYS TOOL-LESS PROSE (owner ruling 2026-07-27). The gather NEVER returns tools:
-// state is captured by a DEDICATED STATE ROUND that runs post-commit (`flushTurn`), symmetric across modes —
-//   • cheap    — a dedicated TOOL round (`runToolRound`: the 7 state tools, `tool_choice:required`, a
-//                `no_changes` escape, enum-constrained args), emitting PARALLEL tool calls in one request.
-//   • reliable — a dedicated STRUCTURED-OUTPUT round (`runExtraction`: one json_schema object).
-//   • readonly/manual-steering — NO state round; the host hand-edits every plane, and those hand values STILL
-//     steer via THIS reminder (the honest degrade is DESIGNED, §4.6 — never a silent mode-downgrade).
-// Prose+state in ONE generation is MODE THREE (deferred; a doorway, not built). The reminder always injects
-// the tracked state as FLAVOR so the character reacts off it — that part rides every mode.
+// WHERE THE TURN'S STATE IS CAPTURED, by resolved mode:
+//   • cheap    — a dedicated POST-COMMIT TOOL round (`runToolRound`: the 7 state tools, `tool_choice:required`,
+//                a `no_changes` escape, enum-constrained args), emitting PARALLEL tool calls in one request.
+//   • reliable — a dedicated POST-COMMIT STRUCTURED-OUTPUT round (`runExtraction`: one json_schema object).
+//   • folded   — R1: the SAME 7 tools ride THIS turn as TERMINAL tools (`tool_choice:"auto"`), so the model
+//                answers in prose AND records the state in ONE completion and no second call is paid. They are
+//                NOT registry tools (`tools` stays `[]` — nothing is executed or recursed on); they ride the
+//                separate `terminalTools` channel and their calls come back on `RpgTurnContext`.
+//   • readonly/manual-steering — NO state capture at all; the host hand-edits every plane, and those hand
+//                values STILL steer via THIS reminder (the honest degrade is DESIGNED, §4.6 — never a silent
+//                mode-downgrade), so a readonly game mounts no tools either.
+// The reminder always injects the tracked state as FLAVOR so the character reacts off it — that part rides
+// every mode, folded included: the fold adds a WRITE surface, it never changes what the character READS.
 //
 // The reminder reads the SAME `buildTrackerView` projection the CP panel renders, so the injection and the
 // panel never drift. `resolveTrackersReadOnly` is the ONE per-turn capability read (already resolved for THIS
@@ -29,6 +33,7 @@ import { resolveTurnSnapshotPair } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import { buildLiteReminder } from "../substrate/reminder";
 import { buildRpgMacroFeed } from "./macro-view";
+import { isReconcileBeat } from "./reconcile-cadence";
 import { buildTrackerView } from "./tracker-view";
 
 export async function gatherTurnContext(
@@ -75,9 +80,21 @@ export async function gatherTurnContext(
   // character in solo). Absent (a caller that supplies no binding) ⇒ `buildLiteReminder` ships the note
   // verbatim; the render is guided-safe (identity substitution only — never full macro/variable power).
   const steerMacros = steerIdentity !== undefined ? { user: steerIdentity.user ?? "User", char: steerIdentity.char } : undefined;
-  // The character turn is tool-less prose in every mode — the reminder injects state as FLAVOR only (no
-  // tool-update guidance; the char turn is NEVER asked to call a tool, the dedicated post-commit state round
-  // does the writing — its checklist prompt is `toolRoundSystem`, entry/compose/rpg.ts).
+  // R1 — the FOLD: on a `folded` game with a live write path, THIS turn carries the 7 state tools as TERMINAL
+  // tools, so the model co-emits prose + state in one completion. Resolved BEFORE the reminder because a
+  // reconcile beat contributes a note the reminder carries (the post-commit rounds put that line in their own
+  // system prompt; a folded turn has no second prompt). The refs are bound to `curSnapshot` — the SAME
+  // resolution-ladder head `stageStateRound` will resolve as its base, so what the model is constrained to
+  // write is exactly what the apply path can resolve.
+  const folded =
+    game.config.extractionMode === "folded" && !trackersReadOnly
+      ? await ctx.buildFoldedTurn({ chatId, baseState: curSnapshot, reconcile: await isReconcileBeat(ctx.db, game) })
+      : null;
+
+  // The reminder injects state as FLAVOR — never tool-update guidance. That holds on the folded path too: the
+  // tool DESCRIPTIONS teach the write surface (measured: a hosted strong model co-emits narrative AND 1–3
+  // strict tool calls on 6/6 turns off the unchanged narrative prompt), so the prose is never asked to carry
+  // bookkeeping instructions it might narrate back at the player.
   const reminder = buildLiteReminder({
     view,
     steeringNote: game.config.lite.steeringNote,
@@ -92,7 +109,12 @@ export async function gatherTurnContext(
     dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
   });
 
-  const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content: reminder };
+  // The reconcile-beat note rides the reminder ONLY on a folded turn (the post-commit rounds append their own
+  // to their own system prompt). It is authored as WRITE-SURFACE guidance, not narration guidance, so a
+  // reconcile beat re-states the panel without the character narrating a stocktake.
+  const reconcileNote = folded?.reconcileNote ?? null;
+  const content = reconcileNote !== null ? `${reminder}\n\n${reconcileNote}` : reminder;
+  const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content };
 
   // The macro + CEL feed (parity-plus §12) — populates `rpgSceneState`/`rpgCast`/`rpgQuests`/`rpgDelta` from the
   // SAME tracker view the reminder + panel read (one projection, three consumers), plus the data-only `rpg` CEL
@@ -106,5 +128,15 @@ export async function gatherTurnContext(
     deltaContext: { rosterNames, castFields: game.config.features.castFields, relationshipHints: game.config.features.relationshipHints },
   });
   // `cardKeepLastX` (M2, parity-plus §3.5) rides the structural gather contract to the engine's wire seam.
-  return { macros: feed.macros, injections: [injection], tools: [], celBindings: { rpg: feed.rpg }, cardKeepLastX: game.config.features.cardKeepLastX };
+  // `tools: []` in EVERY mode — the fold does not use the tool-use registry (a registry tool would be executed
+  // and recursed on, which is the second model call R1 exists to delete); it rides `terminalTools`, omitted
+  // entirely when the fold isn't on so a non-folded turn's request is byte-identical.
+  return {
+    macros: feed.macros,
+    injections: [injection],
+    tools: [],
+    celBindings: { rpg: feed.rpg },
+    cardKeepLastX: game.config.features.cardKeepLastX,
+    ...(folded !== null && folded.tools.length > 0 ? { terminalTools: folded.tools } : {}),
+  };
 }

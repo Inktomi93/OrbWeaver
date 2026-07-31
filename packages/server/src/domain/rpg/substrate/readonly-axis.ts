@@ -7,6 +7,9 @@
 // The axis differs by RESOLVED mode (the amendment §4.6 — NO silent mode-downgrade; the knob is the host's
 // deliberate lever, never secretly re-routed):
 //   • cheap    — needs `capability.tools` (a dedicated TOOL round: parallel state-tool calls, post-commit).
+//   • folded   — needs `capability.tools` too (the R1 fold mounts the SAME tools on the character turn; a
+//                connection that cannot carry wire `tools[]` on a chat turn falls back to cheap's post-commit
+//                round, which needs the identical capability — so ONE verdict covers both delivery shapes).
 //   • reliable — needs `capability.output.structured` (a dedicated structured-output extraction round).
 // ABSENT (or an unresolved capability) ⇒ readonly = manual-steering: the model gets NO write path, the host
 // hand-edits every plane, and those hand values STILL steer via the gather injection (not inert). A caller warns
@@ -15,16 +18,18 @@
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 
+/** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
+ *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
+ *  silently inherit another mode's answer. */
+const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapability) => boolean>> = {
+  reliable: (capability) => capability.output.structured === true,
+  cheap: (capability) => capability.tools !== undefined,
+  folded: (capability) => capability.tools !== undefined,
+};
+
 /** Derive `trackersReadOnly` (= manual-steering: no model write path) from the resolved mode + capability. A
  *  `null` capability (the host connection couldn't be resolved) is readonly by construction — never assume a
  *  write path exists. */
 export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: ModelCapability | null): boolean {
-  if (capability === null) {
-    return true;
-  }
-  if (mode === "cheap") {
-    return capability.tools === undefined;
-  }
-  // reliable — the extraction turn needs structured output.
-  return capability.output.structured !== true;
+  return capability === null || !HAS_WRITE_PATH[mode](capability);
 }

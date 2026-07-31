@@ -1,20 +1,24 @@
 // domain/rpg/chat-ops/flush — the turn-completion FLUSH (rpg-design/05 §2.4-2.5 + the delivery-model amendment
 // §4.6). At `onTurnCompleted` the turn's staged state + journal are written as a clone-forward snapshot keyed to
-// the COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). BOTH
-// delivery modes run a DEDICATED post-commit STATE ROUND (owner ruling 2026-07-27 — the char turn is always
-// tool-less prose; state is captured by its own request), then funnel through ONE flush tail:
-//   • reliable — the flush runs `runExtraction` (a dedicated structured-output turn over the resolution-ladder
-//     base), stages its delta into the accumulator, THEN takes + writes.
-//   • cheap    — the flush runs `runToolRound` (a dedicated tool round: parallel tool calls, `tool_choice`
-//     "required" + a no_changes escape), whose parsed calls fold to the SAME delta shape, stages, THEN writes.
-//   Identical durable outcome — the accumulator is the one flush home (W1a invariant); the two rounds share the
-//   `stageStateRound` signature (input ids + base → delta).
+// the COMMITTED assistant variant, born `committed=0` (the next user send's `onUserCommit` locks it in). THE
+// DELIVERY FORK picks the VEHICLE that produces this turn's delta; all three funnel through ONE flush tail:
+//   • reliable — the flush runs `runExtraction` (a dedicated post-commit structured-output turn over the
+//     resolution-ladder base), stages its delta into the accumulator, THEN takes + writes.
+//   • cheap    — the flush runs `runToolRound` (a dedicated post-commit tool round: parallel tool calls,
+//     `tool_choice:"required"` + a no_changes escape), whose parsed calls fold to the SAME delta shape.
+//   • folded   — NO post-commit model call at all (R1): the CHARACTER turn already carried the same 7 tools
+//     with `tool_choice:"auto"` and co-emitted its state alongside its prose, so the flush just folds the calls
+//     the engine handed it. One model call per exchange instead of two. A folded turn whose connection could
+//     not carry wire tools arrives with a `null` channel and falls back to `cheap`'s round — same delta, one
+//     extra call, LOGGED (`onStateRoundPath`), never a silently dropped state write.
+//   Identical durable outcome — the accumulator is the one flush home (W1a invariant); all three vehicles share
+//   the `stageStateRound` signature (input ids + base → delta).
 //
 // A turn that staged NOTHING (no tools fired, extraction returned an empty delta) writes NO snapshot — the take
 // is `undefined` and the flush is a no-op (a byte-identical non-writing turn). Journal entries stamp the
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
 
-import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat";
@@ -22,9 +26,10 @@ import type { StagedTurnFlush } from "../contract/params";
 import type { RpgContext, RpgGameRow, RpgRunExtraction } from "../contract/service";
 import { snapshotRowToState } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
-import { countSnapshots, resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
+import { resolveSnapshotForTurn, writeStagedSnapshot } from "../persistence/snapshots";
 import { defaultSnapshotState } from "../substrate/default-state";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
+import { isReconcileBeat } from "./reconcile-cadence";
 
 /** The committed assistant slot a completed turn flushes onto (the snapshot key + the journal lineage stamp)
  *  PLUS the character turn's already-resolved route + consent verdict the state round rides (F1/F2). */
@@ -42,21 +47,6 @@ async function extractionBase(ctx: RpgContext, game: RpgGameRow): Promise<RpgSna
   return row === undefined ? defaultSnapshotState() : snapshotRowToState(row);
 }
 
-/** The RECONCILE-CADENCE beat check (crunchy-cluster §1.3): is THIS flush the `reconcileEveryBeats`-th? Derived
- *  from a cheap snapshot COUNT (never a stamped counter) — the count read BEFORE this flush's own write is the
- *  number of PRIOR beats, so this beat's ordinal is `count + 1`. A reconcile fires when `(count + 1) % N === 0`
- *  (beat N, 2N, 3N…); `N === 0` is OFF (opt-out — never reconcile, byte-identical to the pre-cadence round).
- *  On a reconcile beat the round re-emits the full refreshable planes so a deep story's panel self-heals against
- *  drift; locks stay lock-protected at the merge (a reconcile never clobbers a hand-pin). */
-async function isReconcileBeat(ctx: RpgContext, game: RpgGameRow): Promise<boolean> {
-  const n = game.config.reconcileEveryBeats;
-  if (n <= 0) {
-    return false; // opt-out — reconcile disabled for this game
-  }
-  const priorBeats = await countSnapshots(ctx.db, game.id);
-  return (priorBeats + 1) % n === 0;
-}
-
 /** Stage a state DELTA (from either dedicated state round — reliable's extraction OR cheap's tool round) into
  *  the turn's accumulator: ensure the bucket from the resolution-ladder base, overlay the state patch, append
  *  the journal entries. An EMPTY delta (no state keys, no journal) stages NOTHING — a "nothing changed this
@@ -67,7 +57,7 @@ async function isReconcileBeat(ctx: RpgContext, game: RpgGameRow): Promise<boole
 // (the character turn's already-resolved route + consent verdict) is threaded straight through to the round.
 async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, runRound: RpgRunExtraction): Promise<void> {
   const baseState = await extractionBase(ctx, game);
-  const reconcile = await isReconcileBeat(ctx, game);
+  const reconcile = await isReconcileBeat(ctx.db, game);
   const delta = await runRound({
     chatId: game.chatId,
     gameId: game.id,
@@ -89,6 +79,47 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
+}
+
+/** The DEDICATED post-commit round each mode falls back to — a mapped Record, so a new `RpgExtractionMode`
+ *  member without a row is a tsc error (§5.5). `folded` shares `cheap`'s round BY DESIGN: when the character
+ *  turn could not carry the terminal tools, the honest thing is the same tool-vehicle round one beat later
+ *  (the identical delta at the cost of one extra call), never a silent drop of the state write. */
+const POST_COMMIT_ROUND: Readonly<Record<RpgExtractionMode, (ctx: RpgContext) => RpgRunExtraction>> = {
+  reliable: (ctx) => ctx.runExtraction,
+  cheap: (ctx) => ctx.runToolRound,
+  folded: (ctx) => ctx.runToolRound,
+};
+
+/** The observability NAME of each mode's post-commit vehicle (the `path` reported when the fold didn't run) —
+ *  a mapped Record beside the round table above, so the two can never disagree about what actually fired. */
+const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round" | "structured">> = {
+  reliable: "structured",
+  cheap: "tool-round",
+  folded: "tool-round",
+};
+
+/** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
+ *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
+ *  terminal tools at all (`terminalToolCalls === null`: the stateful agent-sdk wire, a tools-incapable model)
+ *  — runs its dedicated post-commit round exactly as before. An EMPTY call array is NOT a fallback: the fold
+ *  ran and the model recorded nothing, which is a legitimate quiet beat the fold op logs as such.
+ *
+ *  The resolution is ANNOUNCED on every flush (`onStateRoundPath`) — a fork that resolves silently would let a
+ *  folded game quietly pay the second call forever with nothing in the trail to say so. */
+function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn, mode: RpgExtractionMode): RpgRunExtraction {
+  const calls = mode === "folded" ? turn.turnConnection.terminalToolCalls : null;
+  ctx.onStateRoundPath({
+    chatId: game.chatId,
+    gameId: game.id,
+    mode,
+    path: calls === null ? POST_COMMIT_PATH[mode] : "folded",
+    fallbackReason: mode === "folded" && calls === null ? "no-terminal-channel" : null,
+  });
+  if (calls === null) {
+    return POST_COMMIT_ROUND[mode](ctx);
+  }
+  return (input): ReturnType<RpgRunExtraction> => ctx.foldTurnToolCalls({ ...input, toolCalls: calls });
 }
 
 /** Write a taken flush: the clone-forward snapshot keyed to the committed variant + the staged journal entries
@@ -157,9 +188,7 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
   if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
     return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
   }
-  // `RpgExtractionMode` is exactly {reliable, cheap} — the else IS cheap (no redundant re-check).
-  const round = mode === "reliable" ? ctx.runExtraction : ctx.runToolRound;
-  await stageStateRound(ctx, game, turn, round);
+  await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
   const flush = ctx.staging.take(turn.turnId);
   if (flush === undefined) {
     return; // nothing staged — a byte-identical non-writing turn

@@ -387,3 +387,139 @@ test("reconcile cadence: cheap mode honors it too (the TOOL ROUND receives recon
   expect(h.fakes.toolRoundCalls.map((c) => c.reconcile)).toEqual([false, true]);
   expect(h.fakes.extractionCalls).toHaveLength(0);
 });
+
+// ── R1: the FOLDED delivery fork ──────────────────────────────────────────────────────────────────
+// `folded` deletes the post-commit round rather than moving it: the character turn already emitted the state,
+// so the flush folds THOSE calls and pays no second model call. The fork's whole risk surface is the fallback
+// arm — a folded turn whose connection could not carry the tools must still land its state (via cheap's round)
+// and must SAY SO. Every case below asserts the call counts on the fakes, because "no second model call" is
+// the entire point and a passing state assertion alone would not prove it.
+
+/** The calls a folded character turn co-emitted (the shape the engine hands the flush off the completion). */
+const FOLDED_CALLS = [{ toolCallId: "c1", name: "update_scene", arguments: '{"location":"the ford"}' }];
+
+test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model calls, path logged", async () => {
+  const db = await freshDb();
+  const foldedDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, gameId, h } = await seedLiteGame(db, { foldedDelta });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  h.fakes.busEvents.length = 0;
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
+
+  // The fold ran with the turn's own calls — and NEITHER dedicated round fired. That pair of assertions IS R1.
+  expect(h.fakes.foldCalls).toEqual([{ chatId, variantId, reconcile: false, toolCalls: FOLDED_CALLS }]);
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(h.fakes.extractionCalls).toHaveLength(0);
+  // The delta landed through the SAME staging → flush tail as any round's.
+  const snap = await findSnapshotByVariant(db, variantId);
+  expect(snap?.location).toBe("the ford");
+  expect(snap?.gameId).toBe(gameId);
+  expect(h.fakes.busEvents).toEqual([{ type: "snapshotPatched", chatId, snapshotId: snap?.id }]);
+  // The resolution is named, with no fallback (the knob got what it asked for).
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
+});
+
+test("R1 folded: ZERO tool calls is a clean no-change beat — the fold runs, no round, no snapshot", async () => {
+  const db = await freshDb();
+  // The fold fake returns the empty delta (what the real op returns on a quiet beat).
+  const { chatId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  h.fakes.busEvents.length = 0;
+
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: [] }));
+
+  // An EMPTY array is NOT a fallback: the fold ran (with nothing), so no post-commit call is paid to re-ask.
+  expect(h.fakes.foldCalls).toHaveLength(1);
+  expect(h.fakes.foldCalls[0]?.toolCalls).toEqual([]);
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(h.fakes.extractionCalls).toHaveLength(0);
+  expect(h.fakes.stateRoundPaths[0]?.path).toBe("folded");
+  // Nothing staged ⇒ the byte-identical non-writing turn (no redundant clone-forward snapshot, no emit).
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  expect(h.fakes.busEvents).toEqual([]);
+});
+
+test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NAMES the fallback", async () => {
+  const db = await freshDb();
+  const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // `null` = the character turn could not mount the tools (agent-sdk / a tools-incapable model).
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: null }));
+
+  // State still lands — the fold degrades to the SAME tool vehicle one beat later, never to nothing.
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  // …and the extra call the fold was supposed to delete is VISIBLE in the trail.
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
+});
+
+test("R1 folded: the readonly gate still wins — a tools-incapable connection fires NOTHING", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "nope" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // Structured-only capability: folded has no write path ⇒ manual-steering (honest arms), so even a populated
+  // terminal channel is not folded — the game is READ-ONLY and the host hand-edits.
+  const readonly = turnConnection({
+    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }),
+    terminalToolCalls: FOLDED_CALLS,
+  });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonly);
+
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect(h.fakes.toolRoundCalls).toHaveLength(0);
+  expect(h.fakes.stateRoundPaths).toHaveLength(0); // gated BEFORE the fork — nothing resolved
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+});
+
+test("R1 regression pin: cheap + reliable IGNORE a populated terminal channel (the not-folded paths unchanged)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, {
+    toolRoundDelta: { statePatch: { location: "round-wrote-this" }, journal: [] },
+    extractionDelta: { statePatch: { location: "extraction-wrote-this" }, journal: [] },
+    foldedDelta: { statePatch: { location: "fold-wrote-this" }, journal: [] },
+  });
+  const withCalls = turnConnection({ terminalToolCalls: FOLDED_CALLS });
+
+  // reliable (the default) — the structured round runs; the terminal channel is not its business.
+  const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m1, v1, castId<ChatTurnId>("chat_turn_pin_1"), withCalls);
+  expect(h.fakes.extractionCalls).toHaveLength(1);
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect((await findSnapshotByVariant(db, v1))?.location).toBe("extraction-wrote-this");
+
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  const { messageId: m2, variantId: v2 } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m2, v2, castId<ChatTurnId>("chat_turn_pin_2"), withCalls);
+  expect(h.fakes.toolRoundCalls).toHaveLength(1);
+  expect(h.fakes.foldCalls).toHaveLength(0);
+  expect((await findSnapshotByVariant(db, v2))?.location).toBe("round-wrote-this");
+
+  // Both non-folded flushes named their own vehicle, with no fallback (nothing was downgraded).
+  expect(h.fakes.stateRoundPaths).toEqual([
+    { chatId, mode: "reliable", path: "structured", fallbackReason: null },
+    { chatId, mode: "cheap", path: "tool-round", fallbackReason: null },
+  ]);
+});
+
+test("R1 folded: the reconcile cadence still fires on the Nth beat (the fold carries it, not a round)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
+
+  const withCalls = turnConnection({ terminalToolCalls: FOLDED_CALLS });
+  const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m1, v1, castId<ChatTurnId>("chat_turn_fold_rc_1"), withCalls);
+  const { messageId: m2, variantId: v2 } = await seedMessage(db, chatId, 2, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, m2, v2, castId<ChatTurnId>("chat_turn_fold_rc_2"), withCalls);
+
+  expect(h.fakes.foldCalls.map((c) => c.reconcile)).toEqual([false, true]);
+});

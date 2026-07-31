@@ -24,6 +24,12 @@
 // BYTE-COMPATIBLE with the pre-redesign one-beat request (the escape hatch). The parsed extraction folds into
 // an `RpgStateDelta` the accumulator flushes exactly like a cheap-mode turn. A game whose resolved connection
 // has no structured-output writer capability is gated OUT by the flush's readonly check (F2) before it reaches here.
+//
+// THE THIRD VEHICLE — `folded` (R1, the one-call exchange): `buildFoldedTurn` + `foldTurnToolCalls` below make
+// NO model call of their own. The gather mounts the SAME `buildToolRoundWireTools` product on the CHARACTER
+// turn as TERMINAL tools (`tool_choice:"auto"`, never `"required"` — required measurably kills the prose), and
+// the flush folds the calls that turn co-emitted through the SAME `toolCallsToExtraction` →
+// `extractionToStateDelta` path. Two model calls per exchange become one.
 
 import { randomInt } from "node:crypto";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
@@ -32,6 +38,7 @@ import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, Rp
 import {
   composePlaneTeaching,
   constrainExtractionSchema,
+  malformedToolCalls,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
   rpgGameConfigSchema,
@@ -645,6 +652,76 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
+// FOLDED mode (R1) — the state round DELETED, not moved: the 7 tools ride the CHARACTER turn itself.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// Two halves, neither of which makes a model call of its own:
+//   • `buildFoldedTurn` (the GATHER's half) — the SAME `buildToolRoundWireTools` product the dedicated round
+//     sends, with the SAME per-call ref/condition/cast-field enums (`constrainExtractionSchema`). The fold
+//     changes the DELIVERY, never the schema, so everything R5/R5a/R6 hardens applies verbatim.
+//   • `foldTurnToolCalls` (the FLUSH's half) — the calls the character turn co-emitted, through the SAME
+//     `toolCallsToExtraction` → `extractionToStateDelta` fold the round uses.
+// The narrative is committed BEFORE either the engine hands us the calls or this code runs, so nothing here
+// can fail or delay it. Everything is errors-as-data + logged: a malformed arg is dropped
+// (`rpg.extraction.unparseable`), a ghost actor is dropped (`rpg.extraction.phantom`), a write-nothing fold is
+// surfaced (`rpg.extraction.empty`), and ZERO calls is a legitimate quiet beat with its OWN line
+// (`rpg.extraction.folded.quiet`) so "the model recorded nothing" can never be misread as "the fold broke".
+
+/** The reconcile-beat note a FOLDED turn's reminder carries. Deliberately NOT `RECONCILE_PROMPT_LINE`: that
+ *  line addresses a state-only round ("re-state the FULL scene…") and, on a turn that is also writing prose,
+ *  reads as an instruction to the NARRATOR — the character would narrate a stocktake. This one addresses the
+ *  write surface explicitly, and pairs with the establish-EVERYTHING schema forcing (`reconcile: true` →
+ *  `constrainExtractionSchema`) that does the structural half of the job. */
+const FOLDED_RECONCILE_NOTE =
+  "STATE BOOKKEEPING (not part of your reply): when you record this turn's state, re-state the FULL scene and " +
+  "everyone currently present as the story now stands — refresh any plane the recent beats stopped mentioning " +
+  "(location, time, weather, who is here, what they carry and wear, active quests, the plot act), and correct " +
+  "anything the tracked state gets wrong against the story. Never mention this in your reply.";
+
+/** Build the `buildFoldedTurn` op (R1 — the gather's half). Resolves the per-call refs off the SAME base state
+ *  the flush will apply against and returns the ref-constrained wire tools. No model call, no connection read:
+ *  the engine decides at request-build time whether the turn's connection can actually carry them (and hands
+ *  back a `null` channel when it can't, which the flush reads as "fall back to the post-commit round"). */
+function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTurn"] {
+  return async ({ chatId, baseState, reconcile }) => {
+    const { refs } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
+    return { tools: buildToolRoundWireTools(refs), reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
+  };
+}
+
+/** Build the `foldTurnToolCalls` op (R1 — the flush's half). ZERO model calls: the character turn already paid
+ *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
+ *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
+function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolCalls"] {
+  return async ({ chatId, baseState, turnConnection, reconcile, toolCalls }) => {
+    const conn = turnConnection.connection;
+    // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
+    // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
+    const malformed = malformedToolCalls(toolCalls);
+    if (malformed.length > 0) {
+      logger.warn(
+        { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, droppedTools: malformed },
+        "rpg folded extraction: tool call(s) with unusable args — DROPPED (the narrative is unaffected)",
+      );
+    }
+    // ZERO calls is a legitimate no-change beat, NOT a failure: with `tool_choice:"auto"` a quiet beat is the
+    // model correctly declining to write. It gets its OWN event so it can never be confused with a parse
+    // failure or a dead fold, and it returns before the ref resolve (nothing to constrain, nothing to apply).
+    if (toolCalls.length === 0) {
+      logger.info({ event: "rpg.extraction.folded.quiet", chatId, model: conn.model, api: conn.api }, "rpg folded turn recorded no state change (quiet beat)");
+      return { statePatch: {}, journal: [] };
+    }
+    const extraction = toolCallsToExtraction(toolCalls);
+    const [{ refs }, roster] = await Promise.all([
+      resolveExtractionRefs(deps, chatId, baseState, reconcile),
+      deps.rpgChatOps.resolveRpgRoster(chatId).then(buildRosterRefIndex),
+    ]);
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, refs, base: baseState, roster, parsed: extraction, delta });
+    return delta;
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 // RESYNC — the HOST deep-rebuild model call (crunchy-cluster §1.3). The ONE non-inherited rpg model call.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // UNLIKE the in-turn rounds (which ride the character turn's already-resolved connection + inherited consent,
@@ -750,6 +827,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveTrackersReadOnly: buildResolveTrackersReadOnly(deps),
     runExtraction: buildRunExtraction(deps),
     runToolRound: buildRunToolRound(deps),
+    // R1 (`folded` mode) — the two halves of the ONE-CALL exchange: the gather's tool mount + the flush's fold.
+    // Neither makes a model call; the character turn already paid for both.
+    buildFoldedTurn: buildFoldedTurnBuilder(deps),
+    foldTurnToolCalls: buildFoldTurnToolCalls(deps),
     // The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
     // chat op (chat owns canon reads; rpg reads no chat table), shares the engine's transcript projection.
     resolveCanonWindow: deps.rpgChatOps.resolveCanonWindow,
@@ -763,6 +844,17 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // OBSERVABILITY: the flush write-boundary DROP hook (the F1 backstop refusing a contract-invalid state).
     // A state round fired, produced applicable output, and the write contract rejected it — surface WHICH
     // field/why so a dark panel is root-causable from the provider trail (never a silent vanish).
+    // OBSERVABILITY (R1): which state-round PATH each flush resolved to. A `folded` game that quietly fell back
+    // to the post-commit round still writes correct state — and silently pays the second call the fold exists
+    // to delete. `warn` on a fallback (something to look at), `debug` when the knob got what it asked for.
+    onStateRoundPath: (info) => {
+      const line = { event: "rpg.extraction.path", chatId: info.chatId, gameId: info.gameId, mode: info.mode, path: info.path };
+      if (info.fallbackReason !== null) {
+        logger.warn({ ...line, fallbackReason: info.fallbackReason }, "rpg folded turn could not mount its tools — fell back to the post-commit state round");
+        return;
+      }
+      logger.debug(line, "rpg state round resolved");
+    },
     onFlushDropped: (info) => {
       logger.warn(
         { event: "rpg.flush.dropped", chatId: info.chatId, gameId: info.gameId, variantId: info.variantId, reason: info.reason },

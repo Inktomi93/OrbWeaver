@@ -1421,3 +1421,112 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "beta prose\n[card: Terminal]" }]);
   });
 });
+
+// ── R1: TERMINAL tools (the folded state extraction) ──────────────────────────────────────────────
+// The whole point of the seam: these tools reach the wire, the model may call them, and NOTHING executes,
+// recurses, or is recorded. The calls come back on `terminalToolCalls` and go to the rpg flush instead of a
+// second model call. The `null` vs `[]` distinction is TOTAL and load-bearing — `null` tells the consumer
+// "the fold did not happen, run your own round", `[]` tells it "the fold happened and the beat was quiet".
+
+const RPG_TERMINAL_TOOLS = [
+  { name: "update_scene", description: "the scene", parameters: { type: "object" as const } },
+  { name: "no_changes", description: "nothing changed", parameters: { type: "object" as const } },
+];
+
+describe("runTurnPipeline — terminal tools (R1 fold)", () => {
+  test("attaches the tools with tool_choice auto, executes NOTHING, and returns the co-emitted calls", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      // Tool-use IS wired and would happily execute — proving the terminal path bypasses it BY SHAPE, not by
+      // the ops being absent.
+      tools: fakeToolOps(executed),
+      attachedToolNames: [],
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths(
+        [[toolFinal("She draws her blade and steps into the rain.", [{ id: "c1", name: "update_scene", args: '{"weather":"rain"}' }])]],
+        requests,
+      ),
+    });
+    const result = await runTurnPipeline(args);
+
+    // ONE model call — the recurse loop never pivoted, so no second call was paid (the entire R1 win).
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
+    // `auto`, NEVER `required` — required measurably kills the prose (0/6 narratives in the spike).
+    expect(requests[0]?.toolChoice).toEqual({ mode: "auto" });
+    // The narrative survived intact alongside the state call.
+    expect(result.content).toBe("She draws her blade and steps into the rain.");
+    // Nothing executed, nothing recorded — the tool traffic stays server-internal, exactly as the separate
+    // round's did (it must never reach a member-visible payload via the variant's toolCalls).
+    expect(executed).toEqual([]);
+    expect(result.toolRecords).toEqual([]);
+    expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
+    expect(result.terminalToolCalls?.[0]?.arguments).toBe('{"weather":"rain"}');
+  });
+
+  test("a turn that calls no terminal tool yields an EMPTY array (a quiet beat), never null", async () => {
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[doneFinal("Nothing much happens.")]], []),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.terminalToolCalls).toEqual([]);
+    expect(result.content).toBe("Nothing much happens.");
+  });
+
+  test("no terminal tools requested ⇒ a byte-identical tool-less request and a NULL channel", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({ connection: TOOL_CONNECTION, runChatTurn: scriptedDepths([[doneFinal("hi")]], requests) });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]?.tools).toBeUndefined();
+    expect(requests[0]?.toolChoice).toBeUndefined();
+    expect(result.terminalToolCalls).toBeNull();
+  });
+
+  test("a model with no tools capability drops them and reports a NULL channel (the consumer falls back)", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      // CONNECTION's capability has no `tools` key at all.
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[doneFinal("hi")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]?.tools).toBeUndefined();
+    expect(result.terminalToolCalls).toBeNull();
+  });
+
+  test("the STATEFUL agent-sdk wire cannot carry terminal tools — dropped, NULL channel (no MCP mount)", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      connection: { ...TOOL_CONNECTION, api: "agent-sdk" },
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[doneFinal("hi")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]?.tools).toBeUndefined();
+    expect(requests[0]?.agentToolServer).toBeUndefined();
+    expect(result.terminalToolCalls).toBeNull();
+  });
+
+  test("terminal tools ride ALONGSIDE registry tools without stealing their loop", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      terminalTools: RPG_TERMINAL_TOOLS,
+      runChatTurn: scriptedDepths([[toolFinal("tick... ", [{ id: "c1", name: "tick_clock", args: "{}" }])], [doneFinal("done.")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    // Both sets reached the wire; the REGISTRY tool still executed + recursed exactly as before.
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock", "update_scene", "no_changes"]);
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
+    // The terminal channel reports the LAST depth's calls (the completion that ended the turn).
+    expect(result.terminalToolCalls).toEqual([]);
+  });
+});

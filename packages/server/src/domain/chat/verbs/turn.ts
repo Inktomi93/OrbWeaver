@@ -19,6 +19,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog } from "#foundation/observability";
+import type { WireTool } from "#infra/providers";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
@@ -287,6 +288,9 @@ interface BuiltTurnContext {
    *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
    *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
   readonly attachedToolNames: readonly string[];
+  /** The TERMINAL wire tools a game turn's GATHER contributed (R1 — the folded state extraction), threaded
+   *  onto the PERSISTING lifecycle's prep only. `undefined` for a non-game / non-folded turn (byte-identical). */
+  readonly terminalTools: readonly WireTool[] | undefined;
   /** rpg-design/05 §6 slot-adjacency (threaded onto `TurnPrep` → the engine marks the turn dice-eligible after
    *  minting `turnId`). False for a non-game / ineligible turn (byte-identical). */
   readonly respondsToLatestUserTurn: boolean;
@@ -516,6 +520,7 @@ async function buildTurnContext(
     memoryRecall: sink.memoryRecall ?? null,
     chatBehavior: foreign.chatBehavior ?? DEFAULT_CHAT_BEHAVIOR,
     attachedToolNames: rpg?.tools ?? [],
+    terminalTools: rpg?.terminalTools,
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
     cardKeepLastX: rpg?.cardKeepLastX ?? 0,
     ...userMacroFields(userMacros),
@@ -1236,6 +1241,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       memoryRecall,
       chatBehavior,
       attachedToolNames,
+      terminalTools,
       respondsToLatestUserTurn,
       macroRegistry,
       userMacroDraws,
@@ -1271,6 +1277,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
@@ -1338,7 +1345,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
     const group = asPerSpeaker(membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG);
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, cardKeepLastX } = await buildTurnContext(ctx, deps, {
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, cardKeepLastX } = await buildTurnContext(ctx, deps, {
       chatId,
       runAsUserId: identity.runAsUserId,
       model: connection.model,
@@ -1366,6 +1373,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
@@ -1421,6 +1429,9 @@ interface TurnBase {
   /** A game turn's gather-contributed tool names (rpg-design/05 §1) — threaded onto each auxiliary prep's
    *  `attachedToolNames`. Empty for a non-game turn / until the rpg registry lands (byte-identical). */
   readonly attachedToolNames: readonly string[];
+  /** A game turn's gather-contributed TERMINAL tools (R1) — threaded onto each PERSISTING auxiliary prep
+   *  (swipe/continue/generate); `undefined` for a non-game / non-folded turn. */
+  readonly terminalTools: readonly WireTool[] | undefined;
   /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. 0 for a non-game turn. */
   readonly cardKeepLastX: number;
   /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
@@ -1471,6 +1482,7 @@ async function resolveTurnBase(
     memoryRecall,
     chatBehavior,
     attachedToolNames,
+    terminalTools,
     respondsToLatestUserTurn,
     macroRegistry,
     freezeMacroRegistry,
@@ -1502,6 +1514,7 @@ async function resolveTurnBase(
     memoryRecall,
     chatBehavior,
     attachedToolNames,
+    terminalTools,
     respondsToLatestUserTurn,
     macroRegistry,
     freezeMacroRegistry,
@@ -1569,6 +1582,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       memoryRecall,
       chatBehavior,
       attachedToolNames,
+      terminalTools,
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
@@ -1596,6 +1610,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,
@@ -1628,6 +1643,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       memoryRecall,
       chatBehavior,
       attachedToolNames,
+      terminalTools,
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
@@ -1654,6 +1670,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
@@ -1807,6 +1824,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       memoryRecall,
       chatBehavior,
       attachedToolNames,
+      terminalTools,
       macroRegistry,
       userMacroDraws,
       cardKeepLastX,
@@ -1852,6 +1870,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       ...prepMacroFields(macroRegistry, userMacroDraws),
@@ -1953,10 +1972,8 @@ async function runDeferredRound(
     chatId: row.chatId,
   });
   const group = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn, cardKeepLastX } = await buildTurnContext(
-    ctx,
-    deps,
-    {
+  const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, respondsToLatestUserTurn, cardKeepLastX } =
+    await buildTurnContext(ctx, deps, {
       chatId: row.chatId,
       runAsUserId: row.runAsUserId,
       model: connection.model,
@@ -1973,8 +1990,7 @@ async function runDeferredRound(
       respondsToLatestUserTurn: true,
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
-    },
-  );
+    });
   const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const base: RoundBase = {
     chatId: row.chatId,
@@ -1988,6 +2004,7 @@ async function runDeferredRound(
     memoryConfig,
     ...(memoryRecall !== null ? { memoryRecall } : {}),
     attachedToolNames,
+    terminalTools,
     cardKeepLastX,
     ...recursePatch(chat.metadata.toolRecurseLimit),
     respondsToLatestUserTurn,
@@ -2149,10 +2166,8 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
     const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
     const group = speakerCharacterId !== undefined ? asPerSpeaker(baseGroup) : baseGroup;
-    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, respondsToLatestUserTurn, cardKeepLastX } = await buildTurnContext(
-      ctx,
-      deps,
-      {
+    const { assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, terminalTools, respondsToLatestUserTurn, cardKeepLastX } =
+      await buildTurnContext(ctx, deps, {
         chatId,
         runAsUserId: identity.runAsUserId,
         model: connection.model,
@@ -2167,8 +2182,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         ...(guided !== undefined ? { guided } : {}),
         // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
         castCharForHostRow: joinedCastName(room.castNames),
-      },
-    );
+      });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
@@ -2186,6 +2200,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       memoryConfig,
       ...(memoryRecall !== null ? { memoryRecall } : {}),
       attachedToolNames,
+      terminalTools,
       cardKeepLastX,
       ...recursePatch(chat.metadata.toolRecurseLimit),
       respondsToLatestUserTurn,

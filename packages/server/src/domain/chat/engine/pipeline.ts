@@ -24,7 +24,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ToolCallInput } from "#infra/providers";
+import type { ToolCallInput, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
 import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
 import {
@@ -71,6 +71,12 @@ interface RunTurnPipelineArgs {
   readonly tools: ChatToolOps | null;
   /** Empty means no tools ride. */
   readonly attachedToolNames: readonly string[];
+  /** TERMINAL wire tools for this turn (the R1 folded-extraction seam) — attached with `tool_choice:"auto"`
+   *  and NEVER resolved/executed/recursed on. Their co-emitted calls come back on
+   *  {@link TurnPipelineResult.terminalToolCalls}. Absent/empty ⇒ byte-identical to today (every turn but a
+   *  folded-mode game's character turn). Mutually exclusive with `attachedToolNames` by construction: a game
+   *  turn's gather contributes one or the other, never both. */
+  readonly terminalTools?: readonly WireTool[] | undefined;
   /** A structured-output request for this turn (D79). Absent on every turn today — the chat loop sets `tools`,
    *  never `responseFormat` (mutually exclusive by construction, 04 §8); a future structured chat consumer
    *  (crew CW2) sets it, and the gate below drops+warns when the model can't honor it. */
@@ -115,6 +121,12 @@ interface TurnPipelineResult {
   readonly imageDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
   readonly toolRecords: readonly ToolCallRecord[];
+  /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when terminal tools did not ride
+   *  (none requested, or the connection can't carry wire `tools[]`). An EMPTY array is the honest "they rode
+   *  and the model called nothing" — a quiet beat, distinct from `null`'s "the fold never happened". These
+   *  are deliberately NOT folded into `toolRecords`: they were never executed, so a record would be a lie,
+   *  and they must never reach a member-visible payload. */
+  readonly terminalToolCalls: readonly ToolCallInput[] | null;
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
   /** True when a `responseFormat` was requested but the model's `capability.output.structured` isn't true →
@@ -404,7 +416,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
   const attach = await attachTools(args, baseRequest);
-  const structured = attachResponseFormat(args, attach.request);
+  const terminal = attachTerminalTools(args, attach.request);
+  const structured = attachResponseFormat(args, terminal.request);
   const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args);
@@ -422,6 +435,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // Array-wire records come from the recurse loop; stateful (agent-sdk) records from the MCP onRecord
     // side-channel — mutually exclusive by construction, concatenated so persistence is arm-agnostic.
     toolRecords: [...loop.records, ...attach.mcpRecords],
+    terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics),
     toolsUnsupported: attach.unsupported,
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
@@ -470,6 +484,39 @@ async function attachTools(
     unsupported: false,
     mcpRecords: [],
   };
+}
+
+/** The TERMINAL-tools request-builder gate (R1 — the folded state extraction). Structurally a sibling of
+ *  {@link attachTools}, and deliberately NOT a mode of it: these tools are attached to the wire and then
+ *  DELIBERATELY ABANDONED — no `ChatToolSet` is resolved, so {@link pivotCalls} returns null, the recurse loop
+ *  breaks at depth 0, nothing is executed, no second model call is paid, and no `ToolCallRecord` is minted.
+ *  The model's calls are read off the ONE completion instead ({@link terminalCallsOf}).
+ *
+ *  `tool_choice` is ALWAYS `"auto"` — never `"required"`, which measurably kills the prose (the spike's
+ *  required arm returned narrative on 0/6 turns). The turn's narrative is the product; the state is the
+ *  passenger, and a passenger may never crash the vehicle.
+ *
+ *  ELIGIBILITY (the honest degrade — the contributor is told by the `null` on the way back out):
+ *   • the model must declare `capability.tools` (same gate `attachTools` gives registry tools);
+ *   • the wire must carry `tools[]` on a chat turn — the STATEFUL agent-sdk arm does not (it mounts an
+ *     in-process MCP server whose tools the SDK executes, which is precisely the loop a terminal tool must
+ *     not enter).
+ *  Ineligible ⇒ the request is byte-identical to a tool-less one and `attached:false` flows back, so the
+ *  contributor runs its own fallback instead of silently losing state. */
+function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; attached: boolean } {
+  const wanted = args.terminalTools ?? [];
+  const eligible = args.connection.capability.tools !== undefined && args.connection.api !== "agent-sdk";
+  if (wanted.length === 0 || !eligible) {
+    return { request: baseRequest, attached: false };
+  }
+  return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true };
+}
+
+/** The terminal channel's total read: `null` = the fold never rode this turn; `[]` = it rode and the model
+ *  called nothing (a quiet beat); otherwise the completion's calls. Extracted so the pipeline body stays under
+ *  the cognitive-complexity cap. */
+function terminalCallsOf(attached: boolean, economics: TurnEconomics | null): readonly ToolCallInput[] | null {
+  return attached ? (economics?.toolCalls ?? []) : null;
 }
 
 // The structured-output request-builder gate (D79, mirror of attachTools): a requested responseFormat rides

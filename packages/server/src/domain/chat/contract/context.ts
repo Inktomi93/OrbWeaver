@@ -445,6 +445,15 @@ export interface ChatRpgGatherResult {
    *  `runTurnPipeline.cardKeepLastX` (0 = every history card collapses to its stub). STRUCTURAL: chat
    *  learns a wire-projection scalar, never an rpg type. */
   readonly cardKeepLastX: number;
+  /** TERMINAL tools the contributor mounts on THIS turn (the R1 folded-extraction seam). STRUCTURAL — these
+   *  are plain {@link WireTool}s; chat never learns what they mean. They differ from `tools` (registry names)
+   *  in exactly one way, and it is the whole point: chat attaches them with `tool_choice:"auto"`, NEVER
+   *  RESOLVES, EXECUTES, OR RECURSES on them, and never persists their calls as `ToolCallRecord`s — the
+   *  co-emitted `tool_calls` are handed straight back to the contributor on
+   *  {@link RpgTurnContext.terminalToolCalls}. So the model answers in prose AND emits structured state in ONE
+   *  completion, and the tool traffic stays server-internal exactly as the separate round's did.
+   *  Absent/empty ⇒ byte-identical to a tool-less turn (every non-folded turn). */
+  readonly terminalTools?: readonly WireTool[] | undefined;
 }
 
 /** The generic injection set the chat-crew's director GATHER contributes (chat-crew-design/04 §1). STRUCTURAL —
@@ -507,6 +516,14 @@ export interface RpgTurnContext {
    *  loaded canon; the CONSUMER slices to its window (the knob is rpg config, not chat's business). Projected by
    *  the ENGINE (`fireRpgTurnCompleted`) from `canonAll ∪ {the committed reply}`. */
   readonly transcript: readonly RpgTurnTranscriptMessage[];
+  /** The TERMINAL tool calls this turn's completion co-emitted alongside its prose (the R1 fold), or `null`
+   *  when terminal tools did NOT ride this turn — because the contributor mounted none, or because the
+   *  connection could not carry wire `tools[]` (the stateful agent-sdk wire / a tools-incapable model). The
+   *  distinction is load-bearing and must stay TOTAL: `null` means "the fold did not happen — run your own
+   *  post-commit round", while an EMPTY ARRAY means "the fold ran and the model chose to record nothing"
+   *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are
+   *  NOT on the committed variant's `toolCalls` — they exist only here. */
+  readonly terminalToolCalls: readonly ToolCallInput[] | null;
 }
 
 export interface ChatRpgOps {

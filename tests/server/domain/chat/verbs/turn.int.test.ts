@@ -7,6 +7,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
+import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
@@ -55,6 +56,7 @@ import {
   seedPendingTurn,
   seedUser,
   stubRunCompaction,
+  TEST_CAPABILITY,
   testConnection,
 } from "../_support";
 
@@ -147,6 +149,12 @@ function harness(
     /** The `smart` policy's side-LLM turn director (default = the throwing `notStubbed` — every non-smart
      *  room must never reach it). The smart-policy pins script it (a pick, or an outage). */
     summarize?: ChatContext["summarize"];
+    /** The injected rpg turn ops (default null = not wired, byte-identical). The R1 folded-extraction pin
+     *  wires a stub whose gather contributes TERMINAL tools, to prove the whole gather→prep→wire→flush thread. */
+    rpg?: ChatContext["rpg"];
+    /** Override the resolved connection wholesale (the R1 pin needs a TOOLS-capable capability, which
+     *  `testConnection`'s minimal descriptor deliberately lacks). */
+    connection?: ResolvedConnection;
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -182,6 +190,7 @@ function harness(
     },
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
+    ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
@@ -206,7 +215,7 @@ function harness(
     emit,
     prng: over.prng ?? seededPrng(),
     delay: () => Promise.resolve(),
-    resolveConnection: () => Promise.resolve(testConnection(over.connectionSource ?? "vllm")),
+    resolveConnection: () => Promise.resolve(over.connection ?? testConnection(over.connectionSource ?? "vllm")),
     resolveForeignInputs: (args) => {
       over.onForeignInputs?.(args);
       return Promise.resolve({
@@ -2410,4 +2419,127 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     // The continued variant re-stamps the identical record (never nulled by the in-place continue write).
     expect((await loadSlotTarget(db, chatId, replyId))?.macroDraws).toEqual({ mood: { tone: drawn } });
   });
+});
+
+// ── R1: the FOLDED state extraction, END TO END through the real verb + engine ────────────────────
+// Everything between the gather and the flush is plumbing I could break silently: a game turn's terminal tools
+// travel gather → BuiltTurnContext → RoundBase → TurnPrep → runTurnPipeline → the wire, and the completion's
+// calls travel back economics → TurnPipelineResult → RpgTurnContext → onTurnCompleted. A typecheck proves it
+// compiles; only a real `send` proves the VALUE survives every hop. These drive exactly that.
+
+const RPG_TOOLS = [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }];
+
+/** A TOOLS-capable connection — `testConnection`'s minimal descriptor has no `tools` axis, and the pipeline's
+ *  terminal-tool gate keys on its presence (an incapable model gets a byte-identical tool-less request). */
+const TOOLS_CONNECTION: ResolvedConnection = {
+  ...testConnection("vllm"),
+  capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as ModelCapability,
+};
+
+/** A minimal `ctx.rpg` whose GATHER contributes terminal tools (a `folded` game), recording what the FLUSH
+ *  was handed back. FABRICATION-OK: the turn path reaches only these ops. */
+function foldedRpg(): { flushes: (readonly { name: string; arguments: string }[] | null)[]; rpg: NonNullable<ChatContext["rpg"]> } {
+  const flushes: (readonly { name: string; arguments: string }[] | null)[] = [];
+  const rpg = {
+    resolvePresetOverride: () => Promise.resolve(null),
+    gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0, terminalTools: RPG_TOOLS }),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    // Variadic (not 5 named params): the injected contract is POSITIONAL and this stub only needs the 5th.
+    onTurnCompleted: (...args: unknown[]) => {
+      const turn = args[4] as { terminalToolCalls: readonly { name: string; arguments: string }[] | null };
+      flushes.push(turn.terminalToolCalls);
+      return Promise.resolve();
+    },
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+  return { flushes, rpg };
+}
+
+/** A scripted turn that co-emits prose AND tool calls off ONE completion (what a folded character turn does). */
+function coEmittingTurn(sink: unknown[], calls: readonly { name: string; args: string }[]): ChatContext["runChatTurn"] {
+  return (request) => {
+    sink.push(request);
+    return (async function* (): AsyncGenerator<TurnStreamChunk> {
+      await Promise.resolve();
+      yield { kind: "text", text: "She fords the river." };
+      yield {
+        kind: "final",
+        economics: {
+          content: "She fords the river.",
+          tokensIn: 5,
+          tokensOut: 4,
+          finishReason: "tool",
+          toolCalls: calls.map((c, i) => ({ toolCallId: `call_${i}`, name: c.name, arguments: c.args })),
+        },
+      };
+    })();
+  };
+}
+
+test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and hands the co-emitted calls to the rpg flush", async () => {
+  const host = await seedUser(db, "r1host");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "r1_fold");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+
+  const requests: unknown[] = [];
+  const { flushes, rpg } = foldedRpg();
+  const h = harness(
+    db,
+    { [charA]: "Aria" },
+    {
+      rpg,
+      connection: TOOLS_CONNECTION,
+      runChatTurn: coEmittingTurn(requests, [{ name: "update_scene", args: '{"location":"the ford"}' }]),
+    },
+  );
+
+  const out = await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+
+  // The gather's tools reached the WIRE — `auto`, so the prose is never at risk.
+  const req = requests[0] as { tools?: { name: string }[]; toolChoice?: unknown };
+  expect(req.tools?.map((t) => t.name)).toEqual(["update_scene"]);
+  expect(req.toolChoice).toEqual({ mode: "auto" });
+  // The NARRATIVE committed exactly as always — the state channel changed nothing about the reply.
+  expect(out.messages.at(-1)?.content).toBe("She fords the river.");
+  // …and the calls arrived at the rpg flush (the fold's input), with nothing executed on the way.
+  expect(flushes).toHaveLength(1);
+  expect(flushes[0]?.map((c) => c.name)).toEqual(["update_scene"]);
+  expect(flushes[0]?.[0]?.arguments).toBe('{"location":"the ford"}');
+  // The variant persisted NO toolCalls — the terminal traffic stays server-internal (never executed ⇒ never a
+  // `ToolCallRecord`), so it can never reach a member-visible payload the way an executed chat tool does.
+  const view = await loadMessageView(db, castId<MessageId>(out.messages.at(-1)?.id ?? ""));
+  expect(view?.toolCalls).toEqual([]);
+});
+
+test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a NULL channel (fall back to a round)", async () => {
+  const host = await seedUser(db, "r1host2");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "r1_nofold");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+
+  const requests: unknown[] = [];
+  const { flushes, rpg } = foldedRpg();
+  // A NON-folded game: same rpg ops, but the gather contributes no terminal tools.
+  const plainRpg = { ...rpg, gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0 }) };
+  const h = harness(
+    db,
+    { [charA]: "Aria" },
+    {
+      rpg: plainRpg as NonNullable<ChatContext["rpg"]>,
+      connection: TOOLS_CONNECTION,
+      runChatTurn: coEmittingTurn(requests, []),
+    },
+  );
+
+  await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+
+  expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
+  // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
+  expect(flushes).toEqual([null]);
 });

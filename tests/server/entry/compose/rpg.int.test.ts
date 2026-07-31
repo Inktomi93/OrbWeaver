@@ -12,18 +12,25 @@
 //     returning a CANNED structured extraction (NEVER a live model — memory: never-run-engine-launcher-live):
 //     the real `runExtraction` impl parses it, folds it to a delta, stages + flushes it. State lands through the
 //     real fold + accumulator + flush path.
+//   • FOLDED turn (R1) — the real `buildFoldedTurn` + `foldTurnToolCalls` over the same graph, driven with the
+//     calls a character turn co-emitted. Its defining assertion is a NEGATIVE one: the executor spy stays EMPTY,
+//     so the second model call is provably gone. The degrade matrix (malformed arg · ghost actor · zero calls)
+//     lands here too — each with the narrative already committed, so none of them may fail or block anything.
 
 import type { ChatApi } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
+import { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import { messageVariants } from "@orb/db";
 import type { ChatId, ChatTurnId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { ChatResult } from "@orb/server/infra/providers";
+import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
@@ -51,6 +58,9 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     // Default: an empty transcript (the round fires with an empty beat; the canned fakes ignore prompt
     // content). The §1.3 window/beat tests below pass a real name-stamped transcript.
     transcript: [],
+    // R1: `null` = the folded tools did NOT ride this turn (the post-commit round runs); a fold test overrides
+    // it with the calls the character turn co-emitted.
+    terminalToolCalls: null,
     ...over,
   };
 }
@@ -200,7 +210,10 @@ function buildReliableRpgWithText(args: {
           makeResolvedConnection({
             api,
             model: castId<ModelId>("fake-chat-model"),
-            capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }),
+            // Structured AND tools: the READ-side `trackersReadOnly` pill resolves this connection, and a
+            // `folded` game keys on `capability.tools` (the fold's vehicle) — a structured-only fake would make
+            // every folded test readonly and silently prove nothing.
+            capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
           }),
         ),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
@@ -728,4 +741,166 @@ test("FIX 1: an UNEXPECTED resolveChat failure still PROPAGATES — the catch ne
   const rpgCompose = buildRpgWithThrowingResolveChat(app, db, boom);
 
   await expect(rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId })).rejects.toBe(boom);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// R1 — the FOLDED delivery mode, COMPOSED-REAL: the real `buildFoldedTurn` + `foldTurnToolCalls` over the
+// real db + the real chat ops. The one thing a fake can never prove and this must: **no model call fires**.
+// Every test below asserts the executor spy is EMPTY — the calls came off the character turn, so the second
+// request R1 exists to delete is gone. Degrade is the risky half: a malformed arg, a ghost actor, and zero
+// calls each land here with the narrative already committed and must never fail or block anything.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A folded character turn's co-emitted calls (the shape the engine reads off the completion). */
+function foldedTurn(calls: readonly { name: string; args: unknown }[]): RpgTurnContext {
+  return tc("chat-completions", {
+    terminalToolCalls: calls.map((c, i) => ({ toolCallId: `call_${i}`, name: c.name, arguments: JSON.stringify(c.args) })),
+  });
+}
+
+test("R1 composed-real: the character turn's own tool calls land state — and NO model call fires", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-fold");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river as the rain starts." });
+
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([
+      { name: "update_scene", args: { location: "the ford", weather: "rain", recentEvent: "forded the river" } },
+      { name: "add_journal_entry", args: { type: "location", title: "The Ford", content: "They crossed at the ford in the rain." } },
+    ]),
+  );
+
+  // THE R1 ASSERTION: zero requests on either executor arm. The state came from the narrative call.
+  expect(spy.summarizeModels).toEqual([]);
+  expect(spy.chatTurns).toEqual([]);
+  // The state landed through the SAME fold + accumulator + flush the dedicated round uses.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the ford");
+  expect(view.recentBeats).toContain("forded the river");
+  const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
+  expect(journal.map((j) => j.title)).toContain("The Ford");
+});
+
+test("R1 composed-real: the same calls, folded vs a tool ROUND, produce the SAME state", async ({ app, db }) => {
+  // The shared-plane proof for the new vehicle: change only the DELIVERY and the durable outcome is identical.
+  const calls = [{ name: "update_scene", args: { location: "the obsidian tower", recentEvent: "arrived at the tower" } }];
+
+  const folded = await seedHostGameChat(db, "r1-parity-fold");
+  const foldCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await foldCompose.service.createGame({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId, mode: "lite" });
+  await foldCompose.service.updateConfig({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId, extractionMode: "folded" });
+  const foldSlot = await seedMessage(db, folded.chatId, 1, { role: "assistant", content: "They arrive." });
+  await foldCompose.chatOps.onTurnCompleted(folded.chatId, foldSlot.messageId, foldSlot.variantId, TURN, foldedTurn(calls));
+
+  // The RELIABLE arm over the same planes (its canned extraction writes the identical scene).
+  const round = await seedHostGameChat(db, "r1-parity-round");
+  const roundCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await roundCompose.service.createGame({ principal: hostPrincipal(round.hostId), chatId: round.chatId, mode: "lite" });
+  const roundSlot = await seedMessage(db, round.chatId, 1, { role: "assistant", content: "They arrive." });
+  await roundCompose.chatOps.onTurnCompleted(round.chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
+
+  const foldView = await foldCompose.service.getTrackerView({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId });
+  const roundView = await roundCompose.service.getTrackerView({ principal: hostPrincipal(round.hostId), chatId: round.chatId });
+  expect(foldView.ambient?.location).toBe(roundView.ambient?.location);
+  expect(foldView.recentBeats).toEqual(roundView.recentBeats);
+});
+
+test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn's state still lands", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-malformed");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The prose is fine." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, {
+    ...tc("chat-completions"),
+    terminalToolCalls: [
+      // Not JSON at all — the class that would throw if the fold parsed naively.
+      { toolCallId: "c1", name: "update_party", arguments: "{oops" },
+      // Valid JSON, invalid against its own arg schema.
+      { toolCallId: "c2", name: "upsert_quest", arguments: JSON.stringify({ name: 42 }) },
+      { toolCallId: "c3", name: "update_scene", arguments: JSON.stringify({ location: "the ford" }) },
+    ],
+  });
+
+  // The turn did not fail (we are here), no model call was made to recover, and the GOOD call still applied.
+  expect(spy.summarizeModels).toEqual([]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the ford");
+  // The narrative is untouched — the flush never edits the committed variant, only the snapshot beside it.
+  const rows = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
+  expect(rows[0]?.content).toBe("The prose is fine.");
+  // The loss is NAMED (D109-7 totality) — both bad calls, by tool name.
+  const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
+  expect((line?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["update_party", "upsert_quest"]);
+});
+
+test("R1 degrade: ZERO tool calls is a QUIET beat, not an error — its own log line, no snapshot, no model call", async ({ app, db }) => {
+  const infoSpy = vi.spyOn(logger, "info");
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-quiet");
+  const spy = emptySpy();
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They talk about the weather." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, foldedTurn([]));
+
+  expect(spy.summarizeModels).toEqual([]); // a quiet beat NEVER triggers a rescue round
+  // Its OWN event — never `unparseable` (a parse failure) and never `empty` (a mis-target signal).
+  expect(infoSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.folded.quiet")).toBe(true);
+  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
+  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(false);
+});
+
+test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + logged, like the round's", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-ghost");
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
+
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([{ name: "update_party", args: { targetRef: "Zzyzx the Unknown", status: "cursed" } }]),
+  );
+
+  const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
+  expect((line?.[0] as { phantomTargets?: string[] }).phantomTargets).toContain("Zzyzx the Unknown");
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.actors.some((a) => a.actorRef.kind === "cast")).toBe(false);
+});
+
+test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the fold changes delivery, not schema)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-tools");
+  const rpgCompose = buildReliableRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  const built = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  // Reliable (the default) mounts none — the fold is opt-in per game.
+  expect(built?.terminalTools).toBeUndefined();
+
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const folded = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  // The SAME 7 tools the dedicated round sends, in the same order, incl. the `no_changes` escape.
+  expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES]);
+  // …carrying the live per-call ref enums (`constrainExtractionSchema`), so R5/R5a's hardening rides the fold.
+  const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as { properties?: { targetRef?: { enum?: string[] } } };
+  expect(Array.isArray(party.properties?.targetRef?.enum)).toBe(true);
+  // The registry channel stays empty — nothing here is executed or recursed on.
+  expect(folded?.tools).toEqual([]);
 });
