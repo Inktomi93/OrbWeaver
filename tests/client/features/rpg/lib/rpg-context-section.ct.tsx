@@ -545,6 +545,64 @@ test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue;
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
+// RV-2 — the P4 card ARCHIVE in Scene: the section IS the Scene home for immersive cards. It projects the
+// SAME `chat.listMessages` cache the transcript reads (no second round-trip), opens a card in the archive
+// lightbox, and — with cards enabled but none written yet — says so instead of vanishing (an invisible
+// section reads as an absent feature, which is exactly how the owner read it).
+function cardsGame(): unknown {
+  const base = gameView(false) as { publicConfig: Record<string, unknown> };
+  return { ...(base as Record<string, unknown>), publicConfig: { ...base.publicConfig, immersiveHtml: true } };
+}
+
+const CARD_MESSAGES = {
+  messages: [
+    {
+      id: "message_ct_card1",
+      role: "assistant",
+      content: 'The courier hands it over.\n\n:::card title="Zandik\'s letter"\n<div>secret page</div>\n:::',
+      createdAt: 1000,
+    },
+  ],
+};
+
+test("RV-2: the Scene CARD ARCHIVE lists the transcript's cards and opens one in the sandboxed lightbox", async ({ mount, page }) => {
+  await stubTakeover(page, { game: cardsGame(), messages: CARD_MESSAGES });
+  const component = await mount(<RpgTakeoverStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const archive = component.locator('[data-slot="rpg-card-archive"]');
+  await expect(archive).toContainText("Cards — 1");
+  await archive.getByRole("button", { name: "Zandik's letter" }).click();
+
+  // The archive lightbox renders the card through the SAME chrome (title + null-origin sandboxed iframe);
+  // the card's HTML never lands in the main DOM.
+  const dialog = page.locator('[data-slot="dialog-popup"]');
+  await expect(dialog).toBeVisible();
+  const frame = dialog.locator('iframe[data-slot="sandbox-frame"]');
+  await expect(frame).toHaveCount(1);
+  const sandbox = await frame.getAttribute("sandbox");
+  expect(sandbox).not.toBeNull();
+  expect(sandbox).not.toContain("allow-scripts");
+  expect(sandbox).not.toContain("allow-same-origin");
+  await expect(page.locator("div", { hasText: "secret page" })).toHaveCount(0);
+});
+
+test("RV-2: cards ON with none written renders the honest empty archive; cards OFF omits the section entirely", async ({ mount, page }) => {
+  await stubTakeover(page, { game: cardsGame() });
+  const withCardsOn = await mount(<RpgTakeoverStory />);
+  await withCardsOn.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await expect(withCardsOn.locator('[data-slot="rpg-card-archive"]')).toContainText("No cards yet");
+});
+
+test("RV-2: a game with immersiveHtml OFF has no card section at all (applicability, not a disabled twin)", async ({ mount, page }) => {
+  // The default stub's game carries `immersiveHtml: false`.
+  await stubTakeover(page, { messages: CARD_MESSAGES });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await expect(component.locator('[data-slot="rpg-card-archive"]')).toHaveCount(0);
+});
+
 test("the band's host-only VEILED count (P3) renders off rpg.revealHidden — crown-gold cue, absent at zero", async ({ mount, page }) => {
   await stubTakeover(page, {
     reveal: revealView([
