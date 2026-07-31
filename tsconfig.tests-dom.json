@@ -43,6 +43,7 @@
     "tests/client/forms/create-form-handle-bridge.test.ts",
     "tests/client/forms/entity-form-base.test.ts",
     "tests/client/state/create-entity-draft-store.test.ts",
+    "tests/support/ct/drop-files.ts",
     "tests/ui/charts/meter/waystone-treatment.test.ts",
     "tests/e2e/**/*.ts"
   ]
