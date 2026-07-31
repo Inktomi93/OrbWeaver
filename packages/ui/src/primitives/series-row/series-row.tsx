@@ -23,10 +23,12 @@ export interface SeriesRowProps extends Omit<ComponentProps<"span">, "children" 
   label: string;
   /** Pre-formatted trailing value ("1,208", "42%"). A string: ui does no Intl/number formatting. */
   value: string;
-  /** Optional secondary line under the label (the contributors, the shape — "41 turns · 3 dropped"). */
-  detail?: string;
+  /** Optional secondary line under the label (the contributors, the shape — "41 turns · 3 dropped").
+   *  `| undefined` is explicit so a caller may pass a computed `string | undefined` under
+   *  `exactOptionalPropertyTypes` without a conditional-spread dance. */
+  detail?: string | undefined;
   /** The swatch's ramp step. Omit ⇒ no swatch (a row that isn't keyed to a segment). */
-  color?: SeriesColor;
+  color?: SeriesColor | undefined;
 }
 
 /** The 6-step ramp as literal BACKGROUND utilities — Tailwind must see each class whole, so a runtime index
@@ -40,8 +42,8 @@ const SWATCH_FILL: Record<SeriesColor, string> = {
   6: "bg-track-6",
 };
 
-export function SeriesRow({ label, value, detail, color, density, className, ...rest }: SeriesRowProps): ReactElement {
-  const slots = seriesRowVariants({ density });
+export function SeriesRow({ label, value, detail, color, divider, className, ...rest }: SeriesRowProps): ReactElement {
+  const slots = seriesRowVariants({ divider });
   return (
     <span {...rest} className={cn(slots.root(), className)} data-slot="series-row">
       {color === undefined ? null : <span aria-hidden={true} className={cn(slots.swatch(), SWATCH_FILL[color])} data-slot="series-row-swatch" />}
