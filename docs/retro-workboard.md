@@ -266,6 +266,36 @@ journal type healed-to-note + strict-projection re-require · quest objectives m
 NEW QUEUED ITEM: **agent-sdk terminal tools** (the fold is unreachable on OR×auto×Claude — the everyday wire;
 until built, those rooms run the loud fallback every turn; raises EFF-3 urgency).
 
+**REMINDER READ-PATH FIXED** (`64953bd6` merged): carried-but-unstored trackers now render (carriage =
+the datum), tracker vocabulary taught once per turn (`trackerVocabulary` beside `trackerGloss`), quest
+descriptions ride, zero-values honest both halves, locked = write-filter-only PINNED (D113 (4b) minted
+in-lane). Byte-for-byte reproduced the owner's pasted reminder pre-fix. **NEW FINDINGS QUEUED:**
+(a) **RV-11 SHARPENED — `presentCharacters.appearance/outfit/thoughts` are a DEAD WRITE PLANE**: the
+extraction prompt demands them EVERY TURN, the DB holds them richly filled, and NOTHING reads them —
+not reminder, panel, macro feed, or CEL. Model pays tokens per turn for zero consumers; `thoughts` is
+high-value steering. Needs owner direction: build the readers (panel + reminder?) or stop demanding
+the writes. (b) `sheet.flavor` dead (writable, no reader, no UI). (c) side-eye item: panel renders
+unset meters as a synthesized `0/max` — panel and reminder now disagree on what "no reading" looks
+like; the panel is the lying surface. (d) `compose/rpg.int.test.ts` = SERIAL_INT candidate (5s-timeout
+flakes under fork contention).
+
+**08-01 AFTERNOON MERGE TRAIN (all check-certified; battery running):** ANCHOR lane (`df8bdb22`+`1810e19d`):
+ghost-slots premise FALSIFIED (resync/edit state-anchors, canon by design — memory minted); 5 raw-tail
+consumers fixed via one-homed `lastVisibleRow`/`lastVisibleAssistant` (@orb/contracts/chat) + 3 aggregate
+consumers via `notStateAnchor()` (@orb/db/kit) — owner's "7 messages" = 8→4 verified on his data; empty
+injection pinned no-op + "Not delivered" badge; 2 discovery fixture lies fixed. POLISH lane
+(`aae9dc5f`+`ed807f76`): inventory grid = datum cards (qty ×N, location, click-to-edit via the LIST's own
+components; deviates from mock's squares — location needs width; side-eye reviews), GM immersive-HTML
+dependent pair built, journal body = expand-in-place editor (blur-autosave per D66, NOT save/cancel).
+VER-1a (`a77ec6f0`): reroll SUPERSEDES (exclusion-at-base `resolveSnapshotBeforeSlot`; snapshots absolute
+per variant ⇒ full swipe-flip state swap shipped), resync idempotent (recentEvents REBUILT; journal
+deliberately UNWRITTEN by resync — owner to sanity-check; host repairs archive via per-entry delete).
+KNOBS-WITHOUT-EDITORS queue (from the polish audit): journalTypeHints (cheapest — HintEditor sibling) ·
+hiddenContentReveal · recentBeatsKeepLast · cardKeepLastX · extraction-depth trio
+(extractionContext/WindowTokens/reconcileEveryBeats) · userMacros = UNWRITABLE (not in patch schema).
+Also queued: composer-guided-cluster.ct whole-file 30s timeout (own small lane) · SERIAL_INT for
+compose/rpg.int.test.ts · staging.ensure residual seam (dormant unless registry tools return).
+
 **BUILD ITEMS QUEUED:** PREV in flight (`aa855bb2e7ac7e9d3` wt) · EFF-3 warnings client surface +
 effective-delivery freshness (D112 gap + ResolvedWarning DOORWAY) · #24 MU-picks pane (server half =
 `chat.setUserMacroValues`, AU-8 #2) · `chat.setChatDocumentVisibility` wire (AU-8 #3, D85) ·
