@@ -20,11 +20,11 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import type { AppFormInstance } from "#forms";
+import type { AppFormInstance, AutosaveSaveState } from "#forms";
 import { useFetchModels } from "../hooks/use-connections-mutations";
 import { useRoleSourceModels } from "../hooks/use-role-source-models";
 import type { RoleSlot, RoutingForm } from "../lib/connections-model";
-import { CHAT_API_LABELS, chatApisForSource, SOURCE_LABELS } from "../lib/connections-model";
+import { CHAT_API_LABELS, chatApisForSource, persistedRoleLabel, ROLE_ROW_SYNC_LABELS, roleRowDrifted, SOURCE_LABELS } from "../lib/connections-model";
 import { ModelPicker } from "./model-picker";
 import { RoleStatusDot } from "./role-status-dot";
 import { StaticModelDisplay } from "./static-model-display";
@@ -45,6 +45,11 @@ const MODEL_COL = "min-w-0 flex-1";
 export interface RoleSlotRowProps {
   readonly slot: RoleSlot;
   readonly form: ConnectionsForm;
+  /** The PERSISTED routing projection — what a turn resolves right now. The row discloses its own drift
+   *  from it, so a draft selection can never be mistaken for the live connection. */
+  readonly persisted: RoutingForm;
+  /** The session's save lifecycle — colours a drifted row's chip (pending / saving / failed). */
+  readonly saveState: AutosaveSaveState;
   /** The viewer's owner status (`sessions.me` — gates the D17 `max-pro-sub` source option). */
   readonly isOwner: boolean;
   /** The active custom_openai credential id, if any (feeds the picker's on-open `/models` probe). */
@@ -74,8 +79,54 @@ function SlotLabel({ slot }: { readonly slot: RoleSlot }): ReactElement {
   );
 }
 
+/** What a DRIFTED row says, by the session's save phase — the one dispatch over `AutosaveSaveState` (a new
+ *  member is a `tsc` error here). Keys derive from the label map, so the states have exactly one home. */
+const DRAFT_STATE_BY_SAVE_STATE: Record<AutosaveSaveState, keyof typeof ROLE_ROW_SYNC_LABELS> = {
+  saved: "pending",
+  saving: "saving",
+  error: "failed",
+};
+
+/** The per-row LIVE-vs-DRAFT disclosure. Renders NOTHING while the row matches the persisted selection —
+ *  the row IS the truth then, and a chip on every row would be noise. The instant it drifts it says so, and
+ *  names what a turn still resolves, so an unsaved edit can never be read as the live connection (the
+ *  2026-08-01 phantom). Not `role="alert"`: a draft is a status, not an error — the failed arm rides the
+ *  pane's `AutosaveStatus` retry. */
+function RowSyncDisclosure({
+  form,
+  persisted,
+  role,
+  saveState,
+}: {
+  readonly form: ConnectionsForm;
+  readonly persisted: RoutingForm;
+  readonly role: EditableRole;
+  readonly saveState: AutosaveSaveState;
+}): ReactElement {
+  return (
+    <form.Subscribe selector={(state): boolean => roleRowDrifted(state.values, persisted, role)}>
+      {(drifted): ReactElement | null => {
+        if (!drifted) {
+          return null; // the row IS the persisted truth — nothing to disclose
+        }
+        const state = DRAFT_STATE_BY_SAVE_STATE[saveState];
+        return (
+          <Row gap="field" align="center" role="status" className="@2xl:ps-(--width-sidebar-sm)" data-slot="role-row-sync">
+            <Badge intent={state === "failed" ? "danger" : "warning"} size="sm">
+              {ROLE_ROW_SYNC_LABELS[state]}
+            </Badge>
+            <Text size="micro" tone="muted">
+              Not applied yet — a turn still uses {persistedRoleLabel(persisted, role)}.
+            </Text>
+          </Row>
+        );
+      }}
+    </form.Subscribe>
+  );
+}
+
 /** One role's compact row — an editable (source · model) pair, or the agent's read-only live mirror. */
-export function RoleSlotRow({ slot, form, isOwner, customCredentialId, onScrollToKeys }: RoleSlotRowProps): ReactElement {
+export function RoleSlotRow({ slot, form, persisted, saveState, isOwner, customCredentialId, onScrollToKeys }: RoleSlotRowProps): ReactElement {
   if (slot.readOnly) {
     return <AgentMirrorRow slot={slot} form={form} />;
   }
@@ -146,6 +197,8 @@ export function RoleSlotRow({ slot, form, isOwner, customCredentialId, onScrollT
       </Row>
 
       {slot.carriesChatKnobs ? <ChatSlotKnobs form={form} /> : null}
+
+      <RowSyncDisclosure form={form} persisted={persisted} role={role} saveState={saveState} />
     </Stack>
   );
 }

@@ -11,9 +11,11 @@ import {
   BoundaryArrayOpsStory,
   BoundaryBrickHealStory,
   BoundaryCleanEchoStory,
+  BoundaryEchoDuringDebounceStory,
   BoundaryIdentitySwitchStory,
   BoundaryReseedStory,
   BoundaryStatusStory,
+  BoundaryUnmountFlushStory,
 } from "./_ct-stories";
 
 // CT-1 — identity switch renders the NEW entity (the F1 P0: the preset editor showed A under B). The
@@ -121,6 +123,42 @@ test("CT-6: a server echo re-baselines a clean form but is kept out of a dirty o
   await page.getByRole("button", { name: "dirty echo" }).click();
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 200)));
   await expect(page.getByLabel("Echo text")).toHaveValue("my local edit");
+});
+
+// CT-9 — a pending debounced save survives a serverValues churn (the 2026-08-01 lost-save incident). The
+// driver's timer used to live in the effect closure, so re-subscribing that effect (its deps carry the
+// server-baseline hash) CLEARED the armed timer and never re-armed it: the edit was dropped silently while
+// the status still read "Saved". Any settings write (busDriven refetch) or two-device echo churns
+// `serverValues` — the form is dirty, so the clean-echo re-baseline correctly does nothing and the ONLY
+// path to persistence is the timer. It must survive.
+test("CT-9: a serverValues churn during the debounce does not drop the pending save", async ({ mount, page }) => {
+  await mount(<BoundaryEchoDuringDebounceStory />);
+
+  await expect(page.getByLabel("Churn text")).toHaveValue("srv-1");
+
+  // Edit, then churn the server snapshot INSIDE the 300ms debounce window.
+  await page.getByLabel("Churn text").fill("my edit");
+  await page.getByRole("button", { name: "churn server snapshot" }).click();
+
+  // The debounced save still fires, carrying the edit. (Pre-fix: the count stayed 0 forever.)
+  await expect(page.getByTestId("echo-drop-log")).toHaveText("echo-drop-entity=my edit");
+  await expect(page.getByTestId("echo-drop-count")).toHaveText("1");
+  // The edit is not double-submitted by the re-subscription either.
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 400)));
+  await expect(page.getByTestId("echo-drop-count")).toHaveText("1");
+});
+
+// CT-10 — unmounting the boundary flushes the pending edit. CT-3 pins the entity-switch trigger; this is
+// the "close the settings modal / leave the pane mid-edit" one. Debounce is 5s, so a spy hit can ONLY be
+// the teardown flush.
+test("CT-10: unmounting the boundary flushes the pending edit instead of dropping it", async ({ mount, page }) => {
+  await mount(<BoundaryUnmountFlushStory />);
+
+  await page.getByLabel("Unmount text").fill("edited then left");
+  await page.getByRole("button", { name: "unmount the pane" }).click();
+
+  await expect(page.getByTestId("unmount-log")).toHaveText("unmount-entity=edited then left");
+  await expect(page.getByTestId("unmount-count")).toHaveText("1");
 });
 
 // CT-7/CT-8 — the localStorage-brick fix (retro-workboard #11). The store is PRE-SEEDED with a poisoned

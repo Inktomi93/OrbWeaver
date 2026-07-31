@@ -178,6 +178,19 @@ export function createAutosaveEntityForm<TValues extends object>(
     // the teardown cleanup and the driver share ONE definition without re-subscribing.
     const hasUnsavedEdits = useCallback((): boolean => !formValuesEqual(form.state.values, lastSavedRef.current), [form]);
 
+    // THE ARMED DEBOUNCE, session-scoped (NOT effect-scoped). It outlives every re-subscription of the
+    // driver effect below, and is cleared in exactly one place: the teardown effect (which flushes what
+    // the timer was going to save). The 2026-08-01 lost-save incident is precisely what an effect-scoped
+    // timer costs: the driver's deps carry the server-baseline hash, so ANY `serverValues` churn during
+    // the debounce window — a busDriven refetch after some other settings write, a two-device echo — ran
+    // the effect cleanup, cleared the armed timer, and never re-armed it. The edit was dropped in silence
+    // while the status still read "Saved" (a dirty form is correctly skipped by the clean-echo re-baseline,
+    // so the timer was the ONLY path to persistence). Same reason for the breaker + the stop flag: an
+    // oscillation run must be a property of the SESSION, not of whichever effect instance is current.
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const stoppedRef = useRef(false);
+    const breakerRef = useRef<ReturnType<typeof createSaveCircuitBreaker> | undefined>(undefined);
+
     // THE SAVE DRIVER (§3): a subscription on the form STORE, filtered to `state.values` changes. Every
     // mutation path — setFieldValue AND pushFieldValue/removeFieldValue/insertFieldValue/moveFieldValues —
     // routes through the store (array ops call setFieldValue internally), so structural array edits
@@ -191,11 +204,11 @@ export function createAutosaveEntityForm<TValues extends object>(
       // change happened"; a values change the driver itself did NOT cause (the debounce fired, save
       // echoed, the store moved) still arrives here, but every arrival is preceded by a user edit in the
       // healthy case — an oscillation is the case where submits recur with the count never cleared.
-      const breaker = createSaveCircuitBreaker({ ...DEFAULT_SAVE_BREAKER, now: () => performance.timeOrigin + performance.now() });
-      let stopped = false;
+      const breaker = breakerRef.current ?? createSaveCircuitBreaker({ ...DEFAULT_SAVE_BREAKER, now: () => performance.timeOrigin + performance.now() });
+      breakerRef.current = breaker;
       let prevValues = form.store.state.values;
-      let timer: ReturnType<typeof setTimeout> | undefined;
       const attemptSave = (): void => {
+        timerRef.current = undefined;
         if (!(form.state.isValid && hasUnsavedEdits())) {
           return;
         }
@@ -203,7 +216,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           // Edit-free submits are looping — stop the driver and surface `error` (retry lights). This turns
           // a would-be infinite write loop (the localStorage-brick symptom) into a visible, user-
           // recoverable state instead of silently hammering the server.
-          stopped = true;
+          stoppedRef.current = true;
           setSaveState("error");
           return;
         }
@@ -218,13 +231,13 @@ export function createAutosaveEntityForm<TValues extends object>(
           breaker.onEdit();
         }
         mirrorDraft(config.draft, entityId, values, baselineHash);
-        if (stopped) {
+        if (stoppedRef.current) {
           return; // the breaker tripped this session — no further autosaves until reseed/remount
         }
-        if (timer !== undefined) {
-          clearTimeout(timer);
+        if (timerRef.current !== undefined) {
+          clearTimeout(timerRef.current);
         }
-        timer = setTimeout(attemptSave, debounceMs);
+        timerRef.current = setTimeout(attemptSave, debounceMs);
       };
       const subscription = form.store.subscribe(() => {
         const values = form.store.state.values;
@@ -234,12 +247,10 @@ export function createAutosaveEntityForm<TValues extends object>(
         prevValues = values;
         onValuesChange(values);
       });
-      return (): void => {
-        if (timer !== undefined) {
-          clearTimeout(timer);
-        }
-        subscription.unsubscribe();
-      };
+      // NOTE: the armed timer is deliberately NOT cleared here — this cleanup also runs on a plain
+      // re-subscription (a `serverValues` churn moves `baselineHash`), and clearing it there is exactly
+      // the lost-save defect. The ONLY clear is the teardown effect below, which flushes first.
+      return (): void => subscription.unsubscribe();
     }, [form, entityId, hasUnsavedEdits, baselineHash]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
@@ -273,11 +284,17 @@ export function createAutosaveEntityForm<TValues extends object>(
     }, [serverValues, saveState, hasUnsavedEdits, form, entityId, baselineHash]);
 
     // The ONE teardown flush (§4), discard-aware: this cleanup fires exactly on entity switch, reseed(),
-    // and boundary unmount (all remount/unmount this component). Flush the unsaved edit to THIS session's
-    // save — unless the Boundary staged a discard (the reseed path), which means "drop it." Within a
-    // session, nothing flushes on field unmount; at teardown, one flush, correctly targeted.
+    // and boundary unmount (all remount/unmount this component — its deps are all session-stable, so it
+    // never runs on a re-render). Flush the unsaved edit to THIS session's save — unless the Boundary
+    // staged a discard (the reseed path), which means "drop it." Within a session, nothing flushes on
+    // field unmount; at teardown, one flush, correctly targeted. This is ALSO the one place the armed
+    // debounce is disarmed: the flush persists exactly what the timer would have — flush, never drop.
     useEffect(() => {
       return (): void => {
+        if (timerRef.current !== undefined) {
+          clearTimeout(timerRef.current);
+          timerRef.current = undefined;
+        }
         if (takeDiscard()) {
           return; // this teardown was a reseed/discard — skip the flush
         }
@@ -287,6 +304,13 @@ export function createAutosaveEntityForm<TValues extends object>(
       };
     }, [form, hasUnsavedEdits, takeDiscard]);
 
+    // NOT covered here, deliberately (measured, 2026-08-01): a page RELOAD / tab close never unmounts React,
+    // so nothing above runs and an armed debounce dies with the document. A `pagehide` flush was built and
+    // REJECTED as theater — `handleSubmit` awaits validation and the batch link flushes on a later tick, so
+    // the request is never dispatched before teardown (CT-verified: zero writes reached the wire). Closing it
+    // honestly needs a SYNCHRONOUS write path (a `sendBeacon` endpoint), which is a transport decision, not a
+    // forms one. Until then the exposure is the debounce window, and the honest mitigation is the consumer's
+    // own dirty disclosure — a pane must not read "Saved" over an unsaved edit.
     const retrySave = useCallback((): void => {
       // Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver.
       form.handleSubmit().catch(() => undefined);

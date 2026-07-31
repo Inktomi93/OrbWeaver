@@ -233,4 +233,32 @@ describe("updateUserSettingsSection — PD-139a embed-model-change reindex trigg
     expect(view.config.routing.roleDefaults.embed?.model).toBe("qwen3-embed-v2");
     expect(h.onEmbedModelChanged).toHaveBeenCalledTimes(1);
   });
+
+  // The write half of the Connections pane's LIVE-vs-DRAFT honesty (2026-08-01): the pane must be able to
+  // UNSET a role. deepMergePlain treats an omitted key as "don't touch", so the pane's old sparse patch
+  // rendered a cleared row while turns kept resolving the old model. An explicit `null` leaf is the clear.
+  test("an explicit null leaf CLEARS a stored role selection (an omitted key would be a no-op)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_role_clear" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "chat-completions" } } } },
+    });
+
+    const cleared = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { source: null, model: null, api: null } } } },
+    });
+
+    // Read back through the real parse: `source`/`api` heal to unset, `model` to its nullable empty — the
+    // resolver's `rd.chat?.<field> ?? <fallback>` therefore lands on the app default, which is what the
+    // cleared row now claims.
+    const view = await h.svc.getUserSettings({ principal: p });
+    for (const config of [cleared.config, view.config]) {
+      expect(config.routing.roleDefaults.chat?.source).toBeUndefined();
+      expect(config.routing.roleDefaults.chat?.api).toBeUndefined();
+      expect(config.routing.roleDefaults.chat?.model ?? undefined).toBeUndefined();
+    }
+  });
 });
