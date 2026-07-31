@@ -18,7 +18,7 @@
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
-import { makeCharactersSection } from "@orb/client/features/character";
+import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import { commandModal, databankSettingsSection, makeChatsSection, memorySettingsSection, newChatModal } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
@@ -27,8 +27,8 @@ import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import {
-  appearancePane,
   automationPane,
+  makeAppearancePane,
   makeChatBehaviorPane,
   regexPane,
   settingsModal,
@@ -145,9 +145,14 @@ const realWorkloadsSections: ContributorRegistry<SettingsSectionContribution> = 
   [workloadsTuningSection],
 );
 
+const realAppearanceSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>(
+  "appearance-settings-sections",
+  [librarySettingsSection],
+);
+
 const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = {
   personas: personasPane,
-  appearance: appearancePane,
+  appearance: makeAppearancePane(realAppearanceSections),
   automation: automationPane,
   tags: tagsPane,
   workloads: makeWorkloadsPane(realWorkloadsSections),

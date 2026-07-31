@@ -10,5 +10,4 @@ export const APPEARANCE_SUBCATEGORY_IDS = {
   background: "background",
   reading: "reading-typography",
   effects: "effects",
-  library: "library",
 } as const;

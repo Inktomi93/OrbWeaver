@@ -196,6 +196,26 @@ test("fuzzy search jumps to a System subcategory anchor", async ({ mount, page }
   await expect(component.getByRole("button", { name: "System", exact: true })).toBeVisible();
 });
 
+// Search parity for a CONTRIBUTED section (§6c): character's `library` section rides the same index as any
+// pane-owned one — its nav merges into the appearance pane's subcategories, so its leaf setting is
+// searchable and the hit jumps to the contributed section's own anchor.
+test("fuzzy search finds a CONTRIBUTED section's setting and jumps to its anchor", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+
+  // Start elsewhere so the jump has to switch panes back to Appearance.
+  await component.getByRole("button", { name: "Connections" }).click();
+
+  await component.getByRole("combobox", { name: "Search settings" }).fill("rows per page");
+  const result = component.getByRole("option", { name: "Rows per page" }).first();
+  await expect(result).toBeVisible();
+  await result.click();
+
+  // The contributed section's OWN anchor scrolled into view, and its nav row exists like any other.
+  await expect(component.locator("#settings-anchor-appearance-library")).toBeInViewport();
+  await expect(component.getByRole("button", { name: "Library" })).toBeVisible();
+});
+
 test("fuzzy search surfaces a setting result and jumps its pane into view", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);

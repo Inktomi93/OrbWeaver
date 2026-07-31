@@ -2,6 +2,7 @@
 // settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
+import { librarySettingsSection } from "@orb/client/features/character";
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsCategoryId, SettingsSectionContribution } from "@orb/client/state";
@@ -101,6 +102,16 @@ export function ThemePickerStory(): ReactElement {
   );
 }
 
+// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②, library ⑪); the
+// chat-behavior story below pins that pane's native fields, so it mounts with zero contributions (the
+// door's empty case — byte-identical to the pre-seam pane).
+const emptySettingsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-settings-sections", []);
+
+// Mirrors main.tsx's door: the appearance pane hosts the `appearance`-anchored settings-section seam, whose
+// one contribution today is character's library page-size (⑪) — so the isolated pane story renders the
+// contributed section exactly as the shell does.
+const realAppearanceSections = createContributorRegistry<SettingsSectionContribution>("ct-appearance-settings-sections", [librarySettingsSection]);
+
 /** The real appearance settings pane (D44 §12.1 #31) in isolation — `getUserSettings` (read) and
  *  `updateUserSettingsSection` (the autosave write) are stubbed per-test via routeTrpc. A tall scrolling
  *  box: the surface stacks many sections and would clip in a short fixed box. */
@@ -108,16 +119,23 @@ export function AppearanceSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <AppearanceSettingsSurface />
+        <AppearanceSettingsSurface sectionContributors={realAppearanceSections} />
       </div>
     </CtDataProviders>
   );
 }
 
-// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②); this story
-// pins the chat-behavior pane's native fields, so it mounts with zero contributions (the door's empty
-// case — byte-identical to the pre-seam pane).
-const emptySettingsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-settings-sections", []);
+/** The appearance pane with ZERO contributions — the door's empty case, pinning that a contribution-free
+ *  registry renders no extra nodes (the `editor-sections` byte-identical posture). */
+export function AppearanceSettingsNoContributionsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <AppearanceSettingsSurface sectionContributors={emptySettingsSections} />
+      </div>
+    </CtDataProviders>
+  );
+}
 
 /** The real Chat-behavior pane (PD-146) in isolation — `getUserSettings` (read) and
  *  `updateUserSettingsSection("chat")` (the autosave write) are stubbed per-test via routeTrpc. */
@@ -150,7 +168,7 @@ export function AppearanceSettingsNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 300 }}>
-        <AppearanceSettingsSurface />
+        <AppearanceSettingsSurface sectionContributors={realAppearanceSections} />
       </div>
     </CtDataProviders>
   );
