@@ -231,6 +231,15 @@
   overflow: hidden;
   background: var(--color-sidebar);
   color: var(--color-sidebar-foreground);
+  /* QUERY CONTAINER for the panel's chrome BAND (§4b axis-1 @container — never a viewport @media). The
+   * region `<Container>`s (`RegionAnchor`) wrap each panel's BODY only, so `.shell-panel-header` — a
+   * SIBLING of the region, not a descendant — had no container ancestor at all, and every unnamed
+   * `@container` query inside the band (the rpg takeover's Waystone size steps) evaluated against nothing
+   * and silently never matched. The PANEL is the box the band actually gets, so the panel is what the
+   * band's steps interrogate. Costless: the panel's inline size comes from the grid track /
+   * `--panel-context-w`, never from its contents. Body descendants are unaffected — the region container
+   * is nearer, and so is `.ctx-tab-strip`. */
+  container-type: inline-size;
 }
 .shell-panel[data-panel-side="list"] {
   grid-column: 2;
