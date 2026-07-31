@@ -92,7 +92,7 @@ function input(over: Partial<LiteReminderInput> = {}): LiteReminderInput {
 
 test("#9 dateMode: narrated DROPS the day counter (freeform date + time-of-day only); structured keeps it", () => {
   const view = emptyView({
-    ambient: { location: "The Bone Road", calendarDate: "3rd of Frostmoon", clock: { day: 7, hour: 21, minute: 0 }, weather: { type: "rain" } },
+    ambient: { location: "The Bone Road", calendarDate: "3rd of Frostmoon", clock: { day: 7, hour: 21, minute: 0 }, weather: { type: "rain", label: "" } },
   });
   const narrated = buildLiteReminder(input({ view }));
   expect(narrated).toContain("3rd of Frostmoon"); // the freeform date string IS the date datum
@@ -100,6 +100,17 @@ test("#9 dateMode: narrated DROPS the day counter (freeform date + time-of-day o
   expect(narrated).not.toContain("day 7"); // no forced sequential day counter
   const structured = buildLiteReminder(input({ view, dateMode: "structured" }));
   expect(structured).toContain("day 7 · night");
+});
+
+test("the ambient line shows the weather LABEL when the model wrote one, else the canonical type", () => {
+  const labelled = emptyView({
+    ambient: { location: "The Bone Road", calendarDate: null, clock: null, weather: { type: "snow", label: "torrential sleet" } },
+  });
+  const out = buildLiteReminder(input({ view: labelled }));
+  expect(out).toContain("torrential sleet");
+  expect(out).not.toContain("snow"); // the flavor REPLACES the bin name — never both
+  const bare = emptyView({ ambient: { location: "The Bone Road", calendarDate: null, clock: null, weather: { type: "snow", label: "" } } });
+  expect(buildLiteReminder(input({ view: bare }))).toContain("snow");
 });
 
 test("a fresh game reminder is just the license (no phantom empty headers; no-change delta omitted)", () => {
@@ -127,7 +138,7 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
 
 test("the state block reports each plane, label-as-mini-prompt", () => {
   const view = emptyView({
-    ambient: { location: "The Rusty Anchor", calendarDate: null, clock: { day: 2, hour: 21, minute: 0 }, weather: { type: "rain" } },
+    ambient: { location: "The Rusty Anchor", calendarDate: null, clock: { day: 2, hour: 21, minute: 0 }, weather: { type: "rain", label: "" } },
     actors: [
       {
         actorRef: { kind: "cast", castKey: "kael" },

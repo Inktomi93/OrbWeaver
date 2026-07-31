@@ -669,7 +669,7 @@ export interface TrackerView {
     readonly location: string;
     readonly calendarDate: string | null;
     readonly clock: { readonly day: number; readonly hour: number } | null;
-    readonly weather: { readonly type: string; readonly description?: string } | null;
+    readonly weather: { readonly type: string; readonly label: string; readonly description?: string } | null;
   } | null;
   readonly actors: readonly TrackerActor[];
   readonly cast: readonly TrackerCast[];

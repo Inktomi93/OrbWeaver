@@ -16,6 +16,7 @@
 // scene, so these are per-plane. Kept in step with `substrate/reminder.ts` by design (both read the tracker view).
 
 import type { RpgCastField, RpgPresentCharacter, RpgQuestView, RpgSnapshotState, RpgTrackerView } from "@orb/contracts/rpg";
+import { rpgWeatherText } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta";
 import type { RpgMacroFeed } from "../contract/params";
@@ -61,7 +62,7 @@ function ambientLine(ambient: RpgTrackerView["ambient"]): string {
     parts.push(`day ${ambient.clock.day}`);
   }
   if (ambient.weather !== null) {
-    parts.push(ambient.weather.type);
+    parts.push(rpgWeatherText(ambient.weather));
   }
   return parts.length > 0 ? `Scene: ${parts.join(" · ")}` : "";
 }
@@ -165,6 +166,8 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
   return {
     scene: {
       location: ambient !== null ? ambient.location : "",
+      // The CANONICAL type, deliberately NOT the display label: a `{{expr}}` predicate wants the closed
+      // vocabulary (`rpg.scene.weather == "storm"` is now total), where the prose line above wants the flavor.
       weather: ambient?.weather !== null && ambient?.weather !== undefined ? ambient.weather.type : "",
       day: ambient?.clock !== null && ambient?.clock !== undefined ? ambient.clock.day : 0,
     },

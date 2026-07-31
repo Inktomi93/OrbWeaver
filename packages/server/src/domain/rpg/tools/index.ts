@@ -147,7 +147,9 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
         "omitted fields keep), append a recent-events beat, or advance the plot (`plot`: the current act " +
         "number, the story title, or the current act's title/summary). Call when the scene moves or changes — " +
         "and specifically whenever the beat spends time (rest, travel, a cut to later), so `timeOfDay` advances " +
-        "through the day, `weather` turns with the sky, and `day` ticks over when the night passes.",
+        "through the day, `weather` turns with the sky, and `day` ticks over when the night passes. `weather.type` " +
+        "is one of clear/cloudy/rain/storm/snow/fog/wind/ash — pick the closest; put the vivid phrasing in " +
+        '`weather.label` ("torrential sleet"), which is what the reader sees.',
       argsSchema: updateSceneArgsSchema,
       capability: null,
       source: "builtin",

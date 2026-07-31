@@ -19,7 +19,7 @@
 // construction; the fork-strip §3.2 leak vector evaporates). Deception-gated — a non-deception game composes
 // byte-identically to the pre-registry per-plane prose.
 
-import { TIME_OF_DAY } from "./ambient";
+import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient";
 import type { RpgGameConfig } from "./config";
 import { isDeceptionActive } from "./config";
 import type { ExtractionRefs, RpgExtraction } from "./extraction";
@@ -90,7 +90,9 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       );
       lines.push(
         "WEATHER — set scene.weather when the sky turns, when the story steps outdoors, or when the season/place " +
-          "makes it obvious; restate the current weather while it holds, and change it as the storm breaks or clears.",
+          "makes it obvious; restate the current weather while it holds, and change it as the storm breaks or clears. " +
+          `scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")} — pick the CLOSEST one; put the vivid ` +
+          `phrasing in scene.weather.label ("torrential sleet", "a thin grey drizzle"), which is what the reader sees.`,
       );
       // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
       if (ctx.config.dateMode === "structured") {

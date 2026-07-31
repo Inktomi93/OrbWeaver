@@ -13,7 +13,7 @@
 // are D86/CP vocabulary the owner ratified. `upsert_quest`/`add_journal_entry` complete the lite set.
 
 import { z } from "zod";
-import { TIME_OF_DAY } from "./ambient";
+import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient";
 import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums";
 
 /** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
@@ -46,6 +46,18 @@ const customFieldPairSchema = z.object({ name: z.string().min(1), value: z.strin
 const relationshipUpsertSchema = z.object({
   kind: z.enum(RPG_RELATIONSHIP_KINDS),
   label: z.string().optional(),
+});
+
+// The AMBIENT WEATHER write (§2.7) — the SAME closed-enum + free-label shape as `relationship` above. `type`
+// is one of the eight states the panel's Waystone paints (an enum the token-level grammar binds under an
+// enforcing backend, §2.3), so the model can no longer emit "a light drizzle turning to sleet" and have it
+// degrade silently at the render; `label` carries exactly that phrasing as the DISPLAYED text. Authored
+// strict-style within the object (type required, D109-6); `label` optional-omit — omission is plausible when
+// the type already says it ("clear" needs no gloss). The whole `weather` field is optional on the patch
+// (MA-4: omit = keep the current sky).
+const weatherUpsertSchema = z.object({
+  type: z.enum(RPG_WEATHER_TYPES),
+  label: rpgWeatherLabelSchema.optional(),
 });
 
 /** `update_party` — pool deltas, conditions, hp delta, status on any party-side actor OR cast key.
@@ -95,7 +107,7 @@ export const updateSceneArgsSchema = z.object({
   calendarDate: z.string().optional(),
   day: z.number().int().min(1).optional(),
   timeOfDay: z.enum(TIME_OF_DAY).optional(),
-  weather: z.string().optional(),
+  weather: weatherUpsertSchema.optional(),
   presentUpsert: z
     .array(
       z.object({

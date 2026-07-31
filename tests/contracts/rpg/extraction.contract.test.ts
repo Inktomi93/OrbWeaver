@@ -15,6 +15,7 @@ import {
   rpgGameConfigSchema,
   toolCallsToExtraction,
   updatePartyArgsSchema,
+  updateSceneArgsSchema,
 } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
@@ -314,6 +315,25 @@ test("RV-9: the scene fragment teaches WHEN to move time + weather (the panel's 
   expect(teaching).toContain("advance scene.timeOfDay");
   expect(teaching).toContain("never leave it parked");
   expect(teaching).toContain("set scene.weather when the sky turns");
+  // The enum + label split has to reach the PROSE too: a model that knows only "set weather" writes the
+  // flavor into the type field, which the grammar then refuses.
+  expect(teaching).toContain("scene.weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash");
+  expect(teaching).toContain("scene.weather.label");
+});
+
+test("weather.type reaches the WIRE schema as an enum (the grammar binds it); weather.label stays free", () => {
+  // The `timeOfDay` mechanism, applied to weather: the constraint is the zod enum itself, so every backend's
+  // response_format mapping enforces it with zero per-provider code. Read off the PROJECTED schema — the thing
+  // the model is actually handed.
+  const projected = projectJsonSchema(rpgExtractionSchema) as Record<string, unknown>;
+  const scene = (projected["properties"] as Record<string, Record<string, unknown>>)["scene"];
+  const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)["weather"];
+  const weatherProps = weather?.["properties"] as Record<string, Record<string, unknown>>;
+  expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash"]);
+  expect(weatherProps["label"]).toEqual({ type: "string", maxLength: 40 });
+  // And the vocabulary binds at PARSE too (a folded tool round re-validates against the same schema).
+  expect(updateSceneArgsSchema.safeParse({ weather: { type: "overcast" } }).success).toBe(false);
+  expect(updateSceneArgsSchema.safeParse({ weather: { type: "cloudy", label: "low grey overcast" } }).success).toBe(true);
 });
 
 test("RV-9: the structured dateMode teaches WHEN the day counter ticks over (a night passed), not just that it exists", () => {

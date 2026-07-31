@@ -21,7 +21,7 @@
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
 import type { RpgCastField, RpgClockTime, RpgDateMode, RpgRelationship, RpgTrackerView, RpgWeather, TimeOfDay } from "@orb/contracts/rpg";
-import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -105,8 +105,11 @@ function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: 
   return parts.join(" · ");
 }
 
+/** The weather segment — the model's own phrasing when it wrote a `label`, else the canonical type (the ONE
+ *  `rpgWeatherText` home), plus the engine's `description` in parens when present. */
 function weatherLine(weather: RpgWeather): string {
-  return weather.description !== undefined && weather.description !== "" ? `${weather.type} (${weather.description})` : weather.type;
+  const head = rpgWeatherText(weather);
+  return weather.description !== undefined && weather.description !== "" ? `${head} (${weather.description})` : head;
 }
 
 /** One roster actor's line — name, className flavor, attributes, pools value/max, wallet, inventory summary,

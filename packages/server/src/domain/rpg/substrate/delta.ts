@@ -24,7 +24,7 @@
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
 import type { RpgCastField, RpgClockTime, RpgSnapshotState, TimeOfDay } from "@orb/contracts/rpg";
-import { TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { rpgWeatherText, TIME_OF_DAY, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
@@ -256,8 +256,11 @@ const ambientRenderer: PlaneDiffRenderer<AmbientSlice> = {
       out.push(`date → ${cur.calendarDate}`);
     }
     out.push(...timeLines(prev, cur));
-    if ((cur.weather?.type ?? null) !== (prev.weather?.type ?? null) && cur.weather !== null) {
-      out.push(`weather → ${cur.weather.type}`);
+    // Diffed on the DISPLAYED text (`label` when the model wrote one, else the type): a re-labelled sky
+    // ("a thin drizzle" → "torrential rain") is a real weather beat even when both bin to `rain`.
+    const curWeather = cur.weather === null ? null : rpgWeatherText(cur.weather);
+    if (curWeather !== (prev.weather === null ? null : rpgWeatherText(prev.weather)) && curWeather !== null) {
+      out.push(`weather → ${curWeather}`);
     }
     return out;
   },

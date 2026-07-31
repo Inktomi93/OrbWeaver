@@ -10,7 +10,7 @@
 // goals ride `upsertQuest`. Beats are a log (read-only by nature).
 
 import type { RpgClockTime, RpgSnapshotState, RpgTrackerView, RpgWidgetView } from "@orb/contracts/rpg";
-import { TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
+import { RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -54,7 +54,11 @@ function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next
     return { calendarDate: next };
   }
   if (field === "weather") {
-    return { weather: { type: next } };
+    // The strip's Weather control is the closed-vocab PICKER, so `next` is already one of the eight types;
+    // an unknown string is a no-op rather than a write the snapshot's write-boundary would reject. The
+    // label is CLEARED: the host just overrode the sky, so the model's old flavor phrasing would now lie.
+    const picked = RPG_WEATHER_TYPES.find((t) => t === next);
+    return picked === undefined ? null : { weather: { type: picked, label: "" } };
   }
   // Honest lookup (no cast): an unknown label reads `undefined` off the record, so the guard is meaningful.
   const hours: Readonly<Record<string, number | undefined>> = TIME_OF_DAY_HOURS;

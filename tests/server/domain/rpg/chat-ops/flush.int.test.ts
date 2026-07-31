@@ -190,7 +190,7 @@ test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delt
     {
       party: [{ targetRef: "player", status: "Bleeding (Critical)" }],
       inventory: [],
-      scene: { location: "cave", weather: "nightfall" },
+      scene: { location: "cave", weather: { type: "fog", label: "nightfall mist" } },
       widgets: [],
       quests: [],
       // TITLE-LESS journal entry (the blocker fix, ruling #10): the 8B drops the nested-required `title`; the
@@ -210,7 +210,8 @@ test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delt
   // The panel READS BACK every plane the extraction wrote (the coordinator's bar: replayed output → tracker view).
   const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
   expect(view.ambient?.location).toBe("cave");
-  expect(view.ambient?.weather?.type).toBe("nightfall");
+  expect(view.ambient?.weather?.type).toBe("fog");
+  expect(view.ambient?.weather?.label).toBe("nightfall mist");
   const you = view.actors.find((a) => a.actorRef.kind === "user");
   expect(you?.volatile?.status).toBe("Bleeding (Critical)");
   // The title-less journal entry LANDED with a DERIVED title (the content head) — not dropped.

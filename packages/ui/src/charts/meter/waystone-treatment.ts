@@ -11,26 +11,32 @@
 //    vocabulary (a `dusk` beside `evening` would just invite the model to dither between near-synonyms). The
 //    labels stay what the band's TEXT says. In narrated mode a lite clock only ever holds a label's
 //    representative hour (`TIME_OF_DAY_HOURS`) — that number is a perfectly good render input.
-//  • WEATHER is DISCRETE — a CLOSED vocabulary a free `weather.type` string resolves onto, owning the air
-//    layers. Unresolvable ⇒ `null` ⇒ the clear recipe (§12.2.1 nullable-honesty; the band TEXT still names the
-//    weather — text is the datum).
+//  • WEATHER is DISCRETE — a CLOSED vocabulary owning the air layers, and it is now closed AT THE WIRE: the
+//    caller hands over an already-canonical `WeatherType` (the model picks one; free phrasing rides the
+//    ambient weather's `label`, which the band TEXT shows — text is the datum). `null` ⇒ the clear recipe
+//    (§12.2.1 nullable-honesty). No binning lives here anymore — there is nothing left to bin.
 //
 // `@orb/ui` may not import `@orb/contracts` (the sealed-ui cake, D54), so the ONE thing this module mirrors
 // from the contract is the label→hour BANDING used to light the dial's arcs (`WAYSTONE_PHASE_SPANS`), pinned
-// by a unit test against the contract's own inversion rule.
+// by a unit test against the contract's own inversion rule. The weather axis needs no mirror: it is homed in
+// `@orb/kit/weather` — reachable by ui AND contracts — and derived by identity below.
 //
 // Every color is a theme token or a `color-mix()` over tokens — INCLUDING the interpolation, which nests a
 // `color-mix` over two token recipes rather than computing RGB in JS (zero raw literals, so any seed theme
 // restyles the stone for free, D71, and the browser does the blending in oklab).
+
+import type { WeatherType } from "@orb/kit/weather";
+import { WEATHER_TYPES } from "@orb/kit/weather";
 
 /** The dial's label bands — one member per `TIME_OF_DAY` label (the ring is the DISCRETE layer: it shows which
  *  named part of the day we are in, matching the band's text, while the sky reads the exact hour). */
 export const WAYSTONE_PHASES = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 
-/** The CLOSED weather vocabulary. A free `weather.type` string resolves onto this (or to `null` = clear). */
-export const WAYSTONE_WEATHERS = ["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash"] as const;
-export type WaystoneWeather = (typeof WAYSTONE_WEATHERS)[number];
+/** The CLOSED weather vocabulary — the `@orb/kit/weather` axis BY IDENTITY (never a re-spell; the contract's
+ *  `RPG_WEATHER_TYPES` is the same tuple object). One recipe per member, `null` = clear. */
+export const WAYSTONE_WEATHERS = WEATHER_TYPES;
+export type WaystoneWeather = WeatherType;
 
 /** The identity of a weather's air-layer stack (`none` = the unveiled sky IS the treatment, not a fallback) —
  *  one member per weather plus `none`, declared as the axis tuple so the union derives rather than re-spells. */
