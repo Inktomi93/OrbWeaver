@@ -57,17 +57,26 @@ const TRACKED_KEYS = [
   // own filter on the roster/group catch-all or a second tab/device in the same room shows stale room
   // behavior forever (staleTime Infinity + refetchOnWindowFocus off ⇒ the bus is the only freshness driver).
   "getGroupConfig",
+  // The Preview tab's two reads (`chat.previewAssembly` + `chat.getShapeTrace`) — the NEXT turn's prompt.
+  // They were in NO map row, so with `staleTime: Infinity` the tab froze at its first fetch forever (the
+  // reported "old persona still in the preview" after a correct server re-pin). They ride the same rows as
+  // `previewContextFit` — the fit is the budget of exactly this assembly.
+  "previewAssembly",
+  "getShapeTrace",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
-// The OPEN chat's DETAIL reads (`chatDetailReads` in invalidation.ts) — NO chat list. The canon-TERMINAL events
+// The OPEN chat's CANON reads (`chatCanonReads` in invalidation.ts) — NO chat list, and NO `getChat`: nothing
+// in `ChatDetail` derives from canon (it is the `chats` ROW + roster), so the events below that only move canon
+// must NOT refetch the room — every row-staling transition fires its own event naming `getChat` explicitly
+// (chatUpdated/personaSwitched/chatOpened/historyTruncated/wi*/chatDeleted). The canon-TERMINAL events
 // (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
 // `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
-const CHAT_DETAIL_READS: readonly TrackedKey[] = ["getChat", "listMessages", "listMessageVariants", "previewContextFit"];
+const CHAT_CANON_READS: readonly TrackedKey[] = ["listMessages", "listMessageVariants", "previewContextFit", "previewAssembly", "getShapeTrace"];
 
-// The full room+list refetch (`chatReads` = detail + `listChats`) — the NON-terminal canon events that fire no
+// The full canon+list refetch (`chatReads` = canon + `listChats`) — the NON-terminal canon events that fire no
 // server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
-const CHAT_READS: readonly TrackedKey[] = [...CHAT_DETAIL_READS, "listChats"];
+const CHAT_READS: readonly TrackedKey[] = [...CHAT_CANON_READS, "listChats"];
 
 // The freshness contract in ONE readable table, EXHAUSTIVE over `ChatBusEvent["type"]`: a new bus member
 // fails `tsc` HERE (the `Record<…>` is total) until it declares what it invalidates — mirroring the
@@ -80,11 +89,11 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   turnStarted: [],
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it
-  // The canon-TERMINAL commits (messageCommitted/turnCompleted) refetch the OPEN chat's DETAIL only — the chat
+  // The canon-TERMINAL commits (messageCommitted/turnCompleted) refetch the OPEN chat's CANON only — the chat
   // LIST (`listChats`) + character library (`characterList`) recency rides the server's `chatsChanged`
   // member-fan on the same moment (one driver per surface, no triple-invalidate). Non-terminal canon mutations
   // (edit/hide/select/delete/reorder/abort) fire no server `chatsChanged`, so they keep the full `chatReads`.
-  messageCommitted: CHAT_DETAIL_READS,
+  messageCommitted: CHAT_CANON_READS,
   messageEdited: CHAT_READS,
   messageHidden: CHAT_READS,
   variantSelected: CHAT_READS,
@@ -92,25 +101,32 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   messagesReordered: CHAT_READS,
   reasoningEdited: CHAT_READS,
   reasoningCleared: CHAT_READS,
-  turnCompleted: CHAT_DETAIL_READS,
+  turnCompleted: CHAT_CANON_READS,
   turnAborted: CHAT_READS,
-  chatDeleted: CHAT_READS,
-  // The roster/group/override/membership catch-all — the full room+list refetch PLUS the Group tab's own
+  // The room is GONE — the canon+list refetch plus the room read itself (the open room's `getChat` must
+  // re-resolve, not sit on a detail for a chat that no longer exists).
+  chatDeleted: [...CHAT_READS, "getChat"],
+  // The roster/group/override/membership/compaction-checkpoint catch-all — the full canon+list refetch PLUS the
+  // room read (this arm is one of the chat-row transitions that DOES stale `ChatDetail`) PLUS the Group tab's own
   // `getGroupConfig` read (the only bus arm that carries it; proven cross-tab by
   // tests/e2e/multi-tab-room-sync.spec.ts).
-  chatUpdated: [...CHAT_READS, "getGroupConfig"],
-  // Room-only.
-  personaSwitched: ["getChat"],
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig"],
+  // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
+  personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
+  // Room-only (an attach/resume signal — the prompt didn't change, the transport did).
   chatOpened: ["getChat"],
   historyTruncated: ["getChat"],
-  // World-info attachment — the WI reads + the room (assembly pool changed).
-  wiBookAttached: ["worldInfo", "getChat"],
-  wiBookDetached: ["worldInfo", "getChat"],
-  wiEntryAttached: ["worldInfo", "getChat"],
-  wiEntryDetached: ["worldInfo", "getChat"],
-  wiEntryScopeChanged: ["worldInfo", "getChat"],
-  // Chat-row lifecycle.
-  chatCreated: ["listChats"],
+  // World-info attachment — the WI reads + the room + the prompt preview (assembly POOL changed).
+  wiBookAttached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
+  wiBookDetached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
+  wiEntryAttached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
+  wiEntryDetached: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
+  wiEntryScopeChanged: ["worldInfo", "getChat", "previewAssembly", "getShapeTrace"],
+  // Chat-row lifecycle — NOTHING: the user-bus `chatsChanged` the same server commit fans (start-chat/fork emit
+  // both back-to-back) is the ONE chat-list driver, and it reaches every member on every device; this arm only
+  // ever reaches the creator via the draft→committed replay seed, so a `listChats` row here was a second wire
+  // fetch of the list that fan had already refetched (the measured startChat burst: listChats 3× in 79ms).
+  chatCreated: [],
 };
 
 // A minimal event of a given `type`. Every `BUS_FILTERS` handler reads ONLY the discriminant `type` (the
@@ -141,6 +157,8 @@ describe("invalidation — the bus half (invalidate)", () => {
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
         characterList: trpc.character.list.queryKey(),
         getGroupConfig: trpc.chat.getGroupConfig.queryKey({ chatId: CHAT_ID }),
+        previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
+        getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry.
       for (const key of Object.values(keys)) {
@@ -181,6 +199,9 @@ const USER_TRACKED_KEYS = [
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
   // effective params drive the fit) — PD-#7.
   "previewContextFit",
+  // The Preview tab's assembled-prompt read — it rides wherever `previewContextFit` does (the fit is that
+  // assembly's budget), so a preset/settings edit repaints the preview instead of freezing it at first fetch.
+  "previewAssembly",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -189,7 +210,7 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   charactersChanged: ["character"],
   personasChanged: ["persona"],
-  presetsChanged: ["preset", "previewContextFit"],
+  presetsChanged: ["preset", "previewContextFit", "previewAssembly"],
   worldInfoChanged: ["worldInfo"],
   tagsChanged: ["tag"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
@@ -197,7 +218,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // `settings.updateUserSettingsSection` (busDriven), so this event is the ONLY freshness driver for the
   // preset params panel's capability gate — the row whose absence kept the editor on its connect-a-model note
   // until a page reload.
-  settingsChanged: ["userSettings", "previewContextFit", "chatCapability"],
+  settingsChanged: ["userSettings", "previewContextFit", "chatCapability", "previewAssembly"],
   credentialsChanged: ["credentials"],
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
@@ -234,6 +255,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         connection: trpc.connection.getCatalog.queryKey(),
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
+        previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
