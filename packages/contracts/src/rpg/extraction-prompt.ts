@@ -140,6 +140,14 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
           "player (kind = lover/friend/ally/neutral/enemy/custom) as it shifts. scene.presentRemove a character " +
           "who leaves.",
       );
+      // The mood-prose steer (owner report): models write a whole sentence into `mood`, which the cast row
+      // renders as a wall of text. Taught in PROSE, never a schema max/pattern — a hard constraint would make
+      // the whole call unemittable on a non-enforcing wire and cost the beat, the exact class EXT-4 is fixing.
+      lines.push(
+        'MOOD IS A SHORT READ — scene.presentUpsert[].mood is 1-3 words, evocative ("wary", "quietly furious", ' +
+          '"giddy"), never a sentence. The reasoning behind it belongs in thoughts; what just happened belongs in ' +
+          "scene.recentEvent.",
+      );
       // §1.6 gap — the portrait-fallback emoji, one clause.
       lines.push("Give a NEW character a fitting single emoji (presentUpsert[].emoji) — the portrait fallback.");
       // §1.6 gap — the plot act rail, gated on plotProgression.
@@ -193,6 +201,11 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
     toolName: "upsert_quest",
     fragment: () =>
       "QUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). " +
+      // EXT-4c — the two objective gestures, in prose (never extra schema): the model has to learn that ticking
+      // one objective off is `completeObjectives`, not a re-listing, or it restates the list on every beat.
+      "To mark an objective DONE, name its text in completeObjectives — do NOT restate the objective list to " +
+      "report progress. Send objectives only to CHANGE the list itself (adding a newly-revealed step); the " +
+      "lines you repeat keep the progress already recorded against them. " +
       "Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.",
   },
   {
@@ -300,8 +313,9 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
         "weather turns; calendarDate/day as days " +
         "pass; advance plot.act/title/actSummary as the story moves. weather.type is one of " +
         `${[...RPG_WEATHER_TYPES].join("/")} — pick the closest; the vivid phrasing goes in weather.label ` +
-        '("torrential sleet"). presentUpsert: for EACH character on screen set mood (every demeanor shift), ' +
-        "appearance + outfit (when described), thoughts (their implied inner state), and relationship {kind,label}. " +
+        '("torrential sleet"). presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 ' +
+        'words, "wary", "quietly furious", NEVER a sentence), appearance + outfit (when described), thoughts ' +
+        "(their implied inner state), and relationship {kind,label}. " +
         "recentEvent: a one-line beat. EXAMPLE — a priest warms to you: `{timeOfDay:'evening', " +
         "presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired', " +
         "outfit:'patched grey habit', thoughts:'weighing whether to trust you', " +
@@ -317,9 +331,12 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
     [
       "upsert_quest",
       "Create/update/complete/fail a quest. Give a description and objectives[] on create; use action " +
-        "'complete'/'fail' when it resolves. EXAMPLE — a new task opens: `{name:'Reach the Vault of Ash', " +
-        "action:'create', description:'Get to the vault before the new moon', objectives:['Find the road north'," +
-        "'Enter the vault']}`.",
+        "'complete'/'fail' when the WHOLE quest resolves. To tick ONE objective off, pass its exact text in " +
+        "completeObjectives — never re-send objectives[] to report progress (send objectives[] only to change " +
+        "the list itself; repeated lines keep the progress already on them). EXAMPLE — a new task opens: " +
+        "`{name:'Reach the Vault of Ash', action:'create', description:'Get to the vault before the new moon', " +
+        "objectives:['Find the road north','Enter the vault']}`. EXAMPLE — the road is found: " +
+        "`{name:'Reach the Vault of Ash', action:'update', completeObjectives:['Find the road north']}`.",
     ],
     [
       "add_journal_entry",

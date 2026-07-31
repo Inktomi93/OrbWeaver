@@ -16,6 +16,7 @@
 
 import { z } from "zod";
 import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient";
+import type { RpgJournalType } from "./enums";
 import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums";
 
 /** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
@@ -171,7 +172,18 @@ export const upsertQuestArgsSchema = z.object({
   name: z.string().min(1),
   action: z.enum(RPG_QUEST_ACTIONS),
   description: z.string().optional(),
+  // The AUTHORING arm — the quest's objective LINES, as text. An `update` carrying this list is a MERGE BY
+  // TEXT at apply (`applyUpsertQuest`), never a re-mint: an objective whose text matches an existing one keeps
+  // its id AND its `completed` flag, so restating the list (which a model does constantly) can no longer wipe
+  // the progress the host and the story already earned. A line the list omits is dropped — the list is the
+  // quest's objectives, absolutely.
   objectives: z.array(z.string().min(1)).optional(),
+  // The COMPLETION arm — mark objectives done by their TEXT, without restating the whole list. Kept as a bare
+  // string array (never a per-objective `{text,completed}` object) because the nested-array required-field
+  // blind spot bites exactly there: a flat enum-free string list is the xgrammar-cheapest shape that expresses
+  // "these are done". A name matching no live objective is DROPPED at apply (errors-as-data — a completion of
+  // a nonexistent objective is a ghost, never a mint).
+  completeObjectives: z.array(z.string().min(1)).optional(),
 });
 export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 
@@ -182,11 +194,20 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED 2026-07-27: an 8B dropped `journal[].title`
  *  in 5/8 reliable extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
  *  dropping the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES; `journalTitleFor`
- *  derives a title from the content head when the model omitted it. `content` stays required (an entry with no
- *  content is genuinely empty); a required `content` an backend also may not enforce, but a content-less entry
- *  is dropped harmlessly at the fold, where a title-less-but-content-full entry is the valuable beat we must keep. */
+ *  derives a title from the content head when the model omitted it.
+ *
+ *  `type` gets the SAME treatment (EXT-4b — it sits in the identical nested-array blind spot): OPTIONAL here +
+ *  HEALED to `note` (`journalTypeFor`), because a beat whose only defect is a missing KIND is fully salvageable
+ *  — `note` is the neutral built-in the panel already renders. Prevention still runs where it works: the
+ *  PROJECTION re-marks `type` required (`constrainExtractionSchema`), so a backend that does enforce nested
+ *  `required` never omits it, and the heal is the fallback for the ones that don't (and is LOGGED —
+ *  `rpg.extraction.healed` — so a silently-healing model is visible, never invisible).
+ *
+ *  `content` stays REQUIRED, deliberately: a content-less entry has nothing to log (the title derives FROM the
+ *  content), so the honest degrade is to drop that one entry as malformed — which every delivery path now does
+ *  per-ENTRY (EXT-4a), so the drop costs the entry and never the turn's other five planes. */
 export const addJournalEntryArgsSchema = z.object({
-  type: z.enum(RPG_JOURNAL_TYPES),
+  type: z.enum(RPG_JOURNAL_TYPES).optional(),
   // R4c — the free gloss for `type:"custom"`, the exact `relationship.label` shape: the enum keeps a model
   // from inventing an off-vocab token under an enforcing grammar, and `custom` + `label` reaches every beat
   // kind the closed seven miss (the plane fires on 79% of turns, in genres that aren't combat). Meaningless
@@ -196,6 +217,17 @@ export const addJournalEntryArgsSchema = z.object({
   content: z.string(),
 });
 export type AddJournalEntryArgs = z.infer<typeof addJournalEntryArgsSchema>;
+
+/** The type a type-less journal entry HEALS to (EXT-4b) — the neutral built-in kind, so a beat whose only
+ *  defect is a missing `type` still lands and still renders. One home: the applier heals through
+ *  {@link journalTypeFor}, the observability counts the same absence, and neither can drift from the other. */
+export const RPG_JOURNAL_TYPE_FALLBACK: RpgJournalType = "note";
+
+/** Resolve a journal entry's type: the model's `type` if it emitted one, else the healed
+ *  {@link RPG_JOURNAL_TYPE_FALLBACK} (the nested-required blind spot — the `journalTitleFor` precedent). */
+export function journalTypeFor(args: { readonly type?: RpgJournalType | undefined }): RpgJournalType {
+  return args.type ?? RPG_JOURNAL_TYPE_FALLBACK;
+}
 
 /** The journal title cap for a derived title (a short head of the content when the model omitted `title`). */
 const DERIVED_TITLE_MAX = 60;
