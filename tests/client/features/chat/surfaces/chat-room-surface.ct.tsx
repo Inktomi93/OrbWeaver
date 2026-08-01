@@ -121,6 +121,36 @@ test("a seeded draft renders the founding greeting as an editable row + the live
   expect(listMessagesCalls).toBe(0);
 });
 
+// A character added via the roster PANEL mid-draft (`addDraftCharacter`, the story's `add-panel-character`
+// probe) must show its greeting row IMMEDIATELY — before commit — not just once the chat is created. The
+// bug: `DraftGreetingThread` built its cast from `draftSeed.characterIds` ONLY, while the commit unions in
+// `addedCharacterIds` (`resolveDraftCommit`) — so a panel-added character was invisible pre-commit and only
+// appeared at commit. The fix threads `resolveDraftCharacterIds` (the commit's own union) through the render.
+test("a panel-added character renders a greeting row pre-commit (same cast the commit will write)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": (input: unknown): unknown =>
+      (input as { readonly characterId: string }).characterId === "char_ct_panel_added"
+        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", greetings: ["Well met, wanderer."] }
+        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] },
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+
+  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
+  // Not yet added — no Bryn row.
+  await expect(component.getByText("Well met, wanderer.")).toHaveCount(0);
+
+  await component.getByTestId("add-panel-character").click();
+
+  // The panel-added character's greeting row renders WITHOUT any commit — the founding character's row
+  // is unaffected.
+  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
+  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
+});
+
 // ── one renderer, both surfaces: a draft greeting is NOT a second rendering home ───────────────────
 // The owner report was "markdown doesn't apply before the chat is committed". The draft greeting already
 // rides the same MessageRow → MessageContent → @orb/ui/markdown path a committed row does (synth-greeting-
@@ -363,7 +393,7 @@ test("the FIRST send on a draft clears the composer for the newly-committed chat
   const trpc = await routeTrpc(page, {
     ...ROSTER_STUB,
     ...DRAFT_IDENTITY_STUB,
-    "chat.startChat": () => ({ chat: { id: CHAT_ID } }),
+    "chat.startChat": () => ({ chat: { id: CHAT_ID }, openingFailure: null }),
     "chat.listMessages": () => makeMessagesPage([]),
     // The founding-card greeting preview the draft reads before commit.
     "character.get": () => ({ id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] }),

@@ -15,11 +15,18 @@
 // on that origin queues forever (measured: the two-tab in-room e2e specs starved from the moment this hook
 // landed). Nothing is lost by gating: `gameChanged` only invalidates `rpg.getGame`/`rpg.getConfigView`,
 // both of which are themselves pointer-gated and unmounted on a chat with no game.
+//
+// The yields are `tracked()` envelopes (the router wraps the generator in `withSubscriptionErrors`), so the
+// event rides `envelope.data` — and a server-side domain error arrives there as the typed terminal frame
+// `{ __subscriptionError: true, code, message }` instead of a spurious 500. That frame is routed to the notify
+// seam, never into `invalidateRpg` (the use-chat-bus posture): the stream is over at that point, and the
+// (re)connect gap-heal closes the data gap when the client re-subscribes.
 
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
+import { notify } from "#lib";
 import { useTRPC } from "../trpc";
 import { useGatedQuery } from "../use-gated-query";
 
@@ -47,7 +54,12 @@ export function useRpgBus(chatId: ChatId | null, deps: RpgBusDeps): void {
   const isGame = (chatQuery.data?.rpg ?? null) !== null;
   useSubscription(
     trpc.rpg.stream.subscriptionOptions(chatId === null || !isGame ? skipToken : { chatId }, {
-      onData: (event) => {
+      onData: (envelope) => {
+        const event = envelope.data;
+        if ("__subscriptionError" in event) {
+          notify.error(event.message);
+          return;
+        }
         deps.invalidateRpg(event);
       },
       onConnectionStateChange: (connection) => {

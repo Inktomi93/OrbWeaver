@@ -289,7 +289,7 @@ test("committed handle: Send fires chat.send; the draft is NOT cleared until the
 
 test("draft handle: Send lazily starts the chat, then commits the typed text as its first send", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }),
+    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }),
     "chat.send": () => ({ ok: true }),
   });
   const component = await mount(<ComposerStory committed={false} />);

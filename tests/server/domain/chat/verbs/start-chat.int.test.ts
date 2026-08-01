@@ -14,7 +14,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
@@ -23,6 +23,7 @@ import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
+import { makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support";
 
@@ -353,6 +354,54 @@ describe("startChat — lazy room creation + opening", () => {
     // committed turn to steer, so the wand's typed guidance rides this founding turn instead.
     const prep = runTurn.mock.calls[0]?.[0];
     expect(prep?.appendUserTurn).toContain("start in the middle of a chase");
+  });
+
+  // START-1 — the `generate` opening is the one step that runs AFTER the atomic creation batch, so it is
+  // DEGRADED-NOT-BROKEN (the forkChat game-clone posture): rejecting the verb orphaned a REAL committed chat
+  // behind the draft UI under a "couldn't start the chat" toast, and the retry minted a second room.
+  test("generate: an engine FAILURE never fails the verb — the room commits and the failure returns as data", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    // The dead-engine shape: a NON-domain throw (a provider fault), whose message is framework text.
+    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000")));
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "ignored")) });
+    const deps = makeDeps({
+      engine: { runTurn },
+      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+    });
+    const { startChat } = createStartChat(ctx, deps);
+
+    const { chat, opening, openingFailure } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "generate",
+    });
+
+    expect(opening).toBeNull();
+    // A non-DomainError message is framework text (and a credential-echo risk) — it never rides back to the
+    // user; the client supplies its own copy for a null reason.
+    expect(openingFailure).toEqual({ reason: null });
+    // The room is REAL and fully rostered — the whole point: the client can navigate into it.
+    const [row] = await db.select({ id: chats.id }).from(chats).where(eq(chats.id, chat.id));
+    expect(row?.id).toBe(chat.id);
+    expect(await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id))).toHaveLength(2);
+    expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
+  });
+
+  test("generate: a DomainError failure rides its CURATED message back as the reason", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new DomainUnavailableError("The model is overloaded — try again.")));
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "ignored")) });
+    const deps = makeDeps({
+      engine: { runTurn },
+      resolveConnection: () => Promise.resolve(makeResolvedConnection()),
+    });
+    const { startChat } = createStartChat(ctx, deps);
+
+    const { openingFailure } = await startChat({ principal: principal(host), characterIds: [aria], opening: "generate" });
+
+    expect(openingFailure).toEqual({ reason: "The model is overloaded — try again." });
   });
 
   test("atomic: the chat row + the full roster commit together", async () => {

@@ -10,11 +10,12 @@ import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { GENERATION_FAILED_DETAIL, IMPERSONATE_AFTER_COMMIT_FAILED_LEAD, IMPERSONATE_FAILED_LEAD, notify } from "#lib";
+import { GENERATION_FAILED_DETAIL } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
 import { resolveDraftCommit } from "../lib/draft-commit";
+import { notifyImpersonateFailure, notifyOpeningFailure } from "../lib/guided-failure-notices";
 import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
 
 interface GuidedSteerInput {
@@ -87,22 +88,6 @@ function steerFor(action: GuidedActionKind, input: string, person?: GuidedImpers
   return person === undefined ? { action, input } : { action, input, person };
 }
 
-/** The guided-IMPERSONATE failure toast. Impersonate is the one fire action that rides a SUBSCRIPTION, so it
- *  has no `meta.errorToast` seam — without this a failed draft was completely silent (the D57 input-restore
- *  only re-types the steer, and does nothing at all when the composer was empty). Stays silent for the ONE
- *  case another surface already owns: a DRAFT whose `startChat` commit failed — that is the mutation's own
- *  rejection and its `errorToast` has already fired. */
-function notifyImpersonateFailure(error: unknown, at: { readonly committedHere: boolean; readonly draft: boolean }): void {
-  if (at.draft && !at.committedHere) {
-    return;
-  }
-  const lead = at.committedHere ? IMPERSONATE_AFTER_COMMIT_FAILED_LEAD : IMPERSONATE_FAILED_LEAD;
-  // `streamImpersonation` only ever rejects with USER copy: the typed terminal frame's curated domain message,
-  // or GENERATION_FAILED_DETAIL for a link fault (whose own message is framework text).
-  const detail = error instanceof Error && error.message !== "" ? error.message : GENERATION_FAILED_DETAIL;
-  notify.error(`${lead} ${detail}`);
-}
-
 interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
@@ -117,6 +102,9 @@ interface GuidedStartChatVars extends DraftCarry {
 
 interface GuidedStartChatResult {
   readonly chat: { readonly id: ChatId };
+  /** START-1 — the room COMMITTED but its `generate` opening failed (the server's degraded-not-broken arm).
+   *  `reason` is the server's curated message when the failure carried one, else null. */
+  readonly openingFailure: { readonly reason: string | null } | null;
 }
 
 const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>({
@@ -220,7 +208,12 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   /** Commit the active draft and hand back the new chatId. `opening` is OMITTED by default (the server's
    *  default policy — greet-all/first-message by roster size — so the card GREETING is preserved, exactly
    *  like a plain draft-send); pass `"generate"` for the server-written-opening path. Clears the consumed
-   *  draft config on success (mirrors the composer Send). */
+   *  draft config on success (mirrors the composer Send).
+   *
+   *  START-1: a `generate` opening that FAILS does NOT fail this call — the room is already committed, so the
+   *  server hands the failure back as `openingFailure` and we enter the room anyway and toast the truth. The
+   *  old rejecting behavior left a REAL chat orphaned behind the draft UI under a "couldn't guide the opening"
+   *  toast, and the user's retry minted a SECOND room. */
   const commitDraft = async (over: { opening?: "generate"; guided?: GuidedSteerInput } = {}): Promise<ChatId> => {
     const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
     const result = await startChat.mutateAsync({
@@ -234,6 +227,9 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     opts.onCommitted?.(result.chat.id);
     if (draftKey !== null) {
       clearDraftConfig(draftKey);
+    }
+    if (result.openingFailure !== null) {
+      notifyOpeningFailure(result.openingFailure.reason);
     }
     return result.chat.id;
   };

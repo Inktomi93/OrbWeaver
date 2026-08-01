@@ -11,7 +11,7 @@ import { bindNotify } from "@orb/client/lib";
 import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals
 import { QueryClientProvider, useMutation } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -50,10 +50,22 @@ function FailingMutationButton(): ReactElement {
 export function NotifyToastStory(): ReactElement {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider toastManager={toastManager}>
+      <CtToastSurface>
         <FailingMutationButton />
-        <Toaster />
-      </ToastProvider>
+      </CtToastSurface>
     </QueryClientProvider>
+  );
+}
+
+/** The bare toast surface — the same manager/bind as above, for any OTHER feature story whose behavior under
+ *  test ends in a `notify.*` call (the toast pixels are its only observable consequence). Homed here, not in a
+ *  new support module, because `bindNotify` sets a MODULE-GLOBAL: a second module binding a second manager
+ *  would race on import order and the loser's toasts would vanish. One manager, one bind, every toast story. */
+export function CtToastSurface({ children }: { readonly children: ReactNode }): ReactElement {
+  return (
+    <ToastProvider toastManager={toastManager}>
+      {children}
+      <Toaster />
+    </ToastProvider>
   );
 }

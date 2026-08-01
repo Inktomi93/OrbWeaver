@@ -346,11 +346,25 @@ export interface DrainReport {
   readonly dropped: number;
 }
 
+/** Why a `generate` opening produced nothing even though the room COMMITTED (START-1). The chat + roster are
+ *  atomic and commit BEFORE any opening turn runs, so an engine/provider failure after that point is
+ *  DEGRADED-NOT-BROKEN — the `forkChat` game-clone posture — and the verb reports it as DATA rather than
+ *  failing a call that already created a real chat.
+ *
+ *  `reason` is the CURATED message of a `DomainError` (safe, user-facing copy the client can show verbatim);
+ *  it is null for every other throw, whose message is framework text — never user copy, and a credential-echo
+ *  risk. A null reason means "the client supplies its own generic detail". */
+export interface OpeningFailure {
+  readonly reason: string | null;
+}
+
 /** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
- *  the policy seeded no greeting. */
+ *  the policy seeded no greeting — OR when a `generate` opening FAILED after the room committed, in which
+ *  case `openingFailure` is non-null (the two are mutually exclusive; see {@link OpeningFailure}). */
 export interface StartChatResult {
   readonly chat: ChatDetail;
   readonly opening: TurnOutcome | null;
+  readonly openingFailure: OpeningFailure | null;
 }
 
 /** `forkChat` — the new deep-copied, membership-scoped fork. */
