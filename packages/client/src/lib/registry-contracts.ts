@@ -175,6 +175,23 @@ export interface CharacterContextState {
   readonly characterId: CharacterId;
 }
 
+/** The Characters LIST-pane PROJECTION view (list-pane-projection §3.2, the O5 published shape) — what the
+ *  CHARACTER section hands the CHAT-owned projection body through the `makeCharactersSection` door param,
+ *  so the pane can render chat-row anatomy over the `chat.listChats` cache without either feature importing
+ *  the other (`client-features-no-cross`). Deliberately minimal: the row-click destination is chat's own
+ *  business (it writes `selectChatFromList` + `setActiveSection` itself), so only the SUBJECT and the
+ *  host-owned primary cross the seam.
+ *
+ *  The D18 rider in one sentence: this is a PROJECTION view — a character-scoped filter over the
+ *  first-class chats read — never a "chats of a character" ownership seam. */
+export interface CharacterChatsProjectionView {
+  readonly characterId: CharacterId;
+  /** Names the pane + its empty state ("No chats with Azarael yet"). */
+  readonly characterName: string;
+  /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. */
+  readonly onNewChat: () => void;
+}
+
 /** The Presets CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
  *  open preset every context tab drills into. */
 export interface PresetContextState {

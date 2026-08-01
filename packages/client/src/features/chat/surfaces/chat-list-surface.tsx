@@ -18,29 +18,19 @@ import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
-import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
-import { ChatListRowMenu } from "../components/chat-list-row-menu";
-import { ChatSummaryRow } from "../components/chat-summary-row";
-import { useStarChat } from "../hooks/use-chat-row-mutations";
-import { chatPortraitHash, deriveChatTitle } from "../lib/chat-summary-row";
+import { ChatListRow } from "../components/chat-list-row";
+import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
+import { chatPortraitHash } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 
 const SKELETON_ROW_COUNT = 5;
-/** The portrait-map read (F7): one page of the character library, wide enough to cover any list a user can
- *  actually scan. A plain `useQuery` — the portraits are decoration, so a slow/failed character read must
- *  never block or error the chats list; those rows simply keep their initials blob. */
-const PORTRAIT_MAP_LIMIT = 200;
-
-type ChatListRows = inferOutput<Trpc["chat"]["listChats"]>;
-type ChatSummaryItem = ChatListRows[number];
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -110,8 +100,7 @@ interface ChatListBodyProps {
 function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
-  const characters = useQuery(trpc.character.list.queryOptions({ limit: PORTRAIT_MAP_LIMIT }));
-  const avatarHashById = new Map((characters.data?.items ?? []).map((character) => [character.id, character.avatarHash] as const));
+  const avatarHashById = useChatPortraitMap();
 
   if (chats.length === 0) {
     return (
@@ -175,47 +164,5 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
         />
       ))}
     </Stack>
-  );
-}
-
-interface ChatListRowProps {
-  readonly chat: ChatSummaryItem;
-  readonly selected: boolean;
-  readonly onSelect: (chatId: ChatId) => void;
-  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
-  /** The row's resolved participant portrait (F7) — null keeps the initials blob. */
-  readonly portraitHash: string | null;
-}
-
-function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraitHash }: ChatListRowProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  // §12.2 — the row's ONE state toggle rides the SAME `useStarChat` mutation the kebab's Star item fires
-  // (mirror parity: the kebab keeps the item, so a keyboard user still has one menu that does everything).
-  const starChat = useStarChat({ trpc, invalidation });
-  return (
-    <ChatSummaryRow
-      chat={chat}
-      onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, star: next })}
-      portraitHash={portraitHash}
-      // `group` roots the row so the kebab's hover/focus-within reveal (P3) fires on row hover (the
-      // character-card precedent); the reveal lives on RowActionsMenu's `reveal`.
-      className="group"
-      // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
-      // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).
-      // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
-      menu={
-        <ChatListRowMenu
-          archived={chat.archived}
-          chatId={chat.id}
-          displayTitle={deriveChatTitle(chat.title, chat.participantNames)}
-          onDeleted={onDeletedChat}
-          starred={chat.star}
-          title={chat.title}
-        />
-      }
-      onSelect={onSelect}
-      selected={selected}
-    />
   );
 }

@@ -23,6 +23,7 @@ import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-s
 import { accountModal } from "#features/auth";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
+  ChatsWithCharacterPane,
   chatOptionsChrome,
   chatSlashCommands,
   commandModal,
@@ -148,7 +149,10 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, toolRenderers),
-  characters: makeCharactersSection(characterDetailContributors),
+  // The characters LIST pane is MODAL (list-pane-projection Arm A): its projection half is chat-owned row
+  // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside
+  // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
+  characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
   presets: presetsSection,

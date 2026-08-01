@@ -19,7 +19,14 @@ import { createTrpcClient, TRPCProvider } from "@orb/client/data";
 import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
-import { commandModal, databankSettingsSection, makeChatsSection, memorySettingsSection, newChatModal } from "@orb/client/features/chat";
+import {
+  ChatsWithCharacterPane,
+  commandModal,
+  databankSettingsSection,
+  makeChatsSection,
+  memorySettingsSection,
+  newChatModal,
+} from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
 import { notificationsChrome } from "@orb/client/features/notifications";
@@ -100,7 +107,7 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 
 const REAL: Record<SectionId, SectionDefinition> = {
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, chatToolRenderers),
-  characters: makeCharactersSection(characterDetailContributors),
+  characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
   presets: presetsSection,
@@ -265,7 +272,7 @@ export function CtCharacterContributorSectionRegistry({
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    characters: makeCharactersSection(detailContributors),
+    characters: makeCharactersSection(detailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   });
   return (
     <SectionRegistryProvider value={registry}>
