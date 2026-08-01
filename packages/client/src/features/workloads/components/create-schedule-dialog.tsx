@@ -121,7 +121,7 @@ function ScheduleFormBody({
 
   return (
     <Stack gap="block">
-      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}</form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
       <form.AppField name="cadence">{(field): ReactElement => <field.SelectField label="Runs" items={CADENCE_ITEMS} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (

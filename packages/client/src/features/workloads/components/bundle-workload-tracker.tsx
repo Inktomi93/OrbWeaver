@@ -33,7 +33,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
       }
       // started/status: no terminal outcome for the import tracker
     },
-    onError: () => onFailed("The import stream ended. Check the Workloads pane for its status."),
+    onError: () => onFailed("The import stream ended. Check the Jobs pane for its status."),
   });
   return null;
 }
