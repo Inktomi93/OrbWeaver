@@ -13,6 +13,7 @@ import {
   CharacterBulkBar,
   CharacterCardTile,
   CharacterEditorSurface,
+  CharacterFacetInspector,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
 } from "@orb/client/features/character";
@@ -182,14 +183,33 @@ export function CharacterAppearanceTabStory(): ReactElement {
 
 // ── Surface story (data layer — trpc stubbed at the network) ───────────────────────────────────────
 
+export interface CharacterLibrarySurfaceStoryProps {
+  /** Pin the LIST panel width (the toolbar's flex row is width-sensitive — F1). Omitted = the mount root's. */
+  readonly width?: number;
+}
+
 /** The library surface wrapped in its anchor + the real data layer (`routeTrpc` stubs the network). */
-export function CharacterLibrarySurfaceStory(): ReactElement {
+export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 480 }}>
+      <div style={width === undefined ? { height: 480 } : { height: 480, width }}>
         <CharacterLibraryAnchor>
           <CharacterLibrarySurface />
         </CharacterLibraryAnchor>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── The CONTEXT Field tab (§6c) — the panel body the shell renders beside the editor ────────────────
+
+/** `<CharacterFacetInspector>` at the docked CONTEXT-panel width, over the real data layer. With no facet
+ *  drilled (the store's resting state) this is the F4 overview card. */
+export function CharacterFacetInspectorStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 480 }}>
+        <CharacterFacetInspector characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
   );

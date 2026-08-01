@@ -102,7 +102,12 @@ export function CharacterHeroBand({
 }
 
 /** The click-to-replace portrait — immediate commit (upload-complete = commit). A confirmation ring
- *  flashes on the portrait (no toast). */
+ *  flashes on the portrait (no toast).
+ *
+ *  The trigger is `size="media"`, never `size="icon"`: media sizes the button from its child, so the
+ *  button box IS the portrait box. Under `size="icon"` the button stayed a 34px control while the 64px
+ *  avatar painted outside it — over the "Name" label — and the real click target was the invisible 34px
+ *  square (stickler 2026-08-01 F2). */
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -136,8 +141,8 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
         <Button
           aria-label="Replace portrait"
           intent="ghost"
-          size="icon"
-          className={confirming ? "relative size-auto shrink-0 rounded-card ring-2 ring-accent" : "relative size-auto shrink-0 rounded-card"}
+          size="media"
+          className={confirming ? "relative shrink-0 rounded-card ring-2 ring-accent" : "relative shrink-0 rounded-card"}
           onClick={open}
         >
           <Avatar hueSeed={detail.id} shape="square" size="hero" {...avatarSrc}>
