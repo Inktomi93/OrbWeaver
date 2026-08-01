@@ -49,16 +49,26 @@ function RpgTakeoverHarness(): ReactElement {
 function RpgTakeoverInner(): ReactElement {
   const registry = useSectionRegistry();
   const definition = registry.get("chats");
-  // Mirror the shell's TWO CONTEXT consumers (app-shell.tsx): the `.shell-panel-header` BAND slot above, the
-  // BODY below. Under the HUD-1 claim the band slot renders NOTHING — the claimant owns the pane's top edge
-  // and paints its own band inside the body — so keeping the slot here is deliberate: the CT proves it stays
-  // empty rather than assuming it was never mounted.
+  // Mirror the REAL CONTEXT panel anatomy (app-shell.tsx + PanelChrome): the `.shell-panel` aside, its
+  // `.shell-panel-header` BAND slot, and the `.shell-panel-body` + `.shell-region-fill` wrappers the host
+  // renders inside. The classes are load-bearing, not decoration — shell.css puts the panel's padding, its
+  // `container-type` (which the band's @container size steps interrogate) and the CLAIMED-pane edge rule on
+  // exactly these boxes, so a bare div harness measures different pixels than prod.
+  // Under the HUD-1 claim the band slot renders NOTHING — the claimant owns the pane's top edge and paints
+  // its own band inside the body — so keeping the slot here is deliberate: the CT proves it stays empty
+  // rather than assuming it was never mounted.
   return (
     <div style={{ height: 640, width: 320, display: "flex", flexDirection: "column" }}>
-      <header className="shell-panel-header">
-        <SectionContextHeader key="chats-header" definition={definition} />
-      </header>
-      <SectionContextHost key="chats" definition={definition} />
+      <aside className="shell-panel" data-panel-mode="docked" data-panel-side="context" style={{ flex: "1 1 auto", minHeight: 0 }}>
+        <header className="shell-panel-header">
+          <SectionContextHeader key="chats-header" definition={definition} />
+        </header>
+        <div className="shell-panel-body">
+          <div className="shell-region-fill">
+            <SectionContextHost key="chats" definition={definition} />
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

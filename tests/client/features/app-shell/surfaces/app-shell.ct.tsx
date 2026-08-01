@@ -522,6 +522,29 @@ test("the topbar toggle OPENS a narrow-auto-overlayed panel (slide-over + scrim)
   expect(after).toEqual(before);
 });
 
+// The DEAD CONTROL (2026-08-01 side-eye, HUD-1 P2-9): a pane whose section default is `collapsed` — chats'
+// CONTEXT pane — took the WIDE persisted-dock arm at ≤64rem, wrote `docked`, and `resolvePanel` immediately
+// re-collapsed it. The click produced no pixel, and only a SECOND click (now on a `docked` default) reached
+// the overlay arm. A visible control that does nothing is house-law banned, so this pins the FIRST click.
+test("the ≤64rem detail-panel toggle opens the pane on the FIRST click — a collapsed-DEFAULT pane is not a dead control", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const scrim = page.locator(".shell-scrim");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  const before = await shellPersistedOverrides(page);
+
+  await shell.getByRole("button", { name: "Show detail panel" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await expect(scrim).toHaveAttribute("data-visible", "true");
+
+  // …and it closes again on the next click, still ephemeral — a narrow-width toggle never rewrites the
+  // user's WIDE dock preference.
+  await shell.getByRole("button", { name: "Hide detail panel" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  expect(await shellPersistedOverrides(page)).toEqual(before);
+});
+
 test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the topbar toggle does", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
   const shell = await mount(<AppShellStory />);

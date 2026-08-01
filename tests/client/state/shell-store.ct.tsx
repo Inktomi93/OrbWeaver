@@ -171,8 +171,13 @@ test("resolvePanelMode — the shared algebra both useListDocked and useShellLay
   // Narrow + docked-default: CLOSED by default, OPEN only when named.
   expect(resolvePanelMode("list", "docked", regime(false, true, null))).toBe("collapsed");
   expect(resolvePanelMode("list", "docked", regime(false, true, "list"))).toBe("overlay");
-  // Narrow + an explicit non-docked override: passes through unchanged (no auto-downgrade to touch).
+  // Narrow + an explicit non-docked override: passes through unchanged (no auto-downgrade to touch)…
   expect(resolvePanelMode("list", "collapsed", regime(false, true, null))).toBe("collapsed");
+  // …UNLESS the panel is the one named open right now. A stored `collapsed` is a WIDE dock preference, and
+  // at this width docking is impossible, so it must not outvote a live open — that precedence bug is what
+  // made the ≤64rem "Show detail panel" toggle read as a dead control (the `chats` CONTEXT pane defaults
+  // `collapsed`, so its FIRST click resolved straight back to collapsed).
+  expect(resolvePanelMode("list", "collapsed", regime(false, true, "list"))).toBe("overlay");
 
   // Mobile takes precedence over narrow — never "docked" regardless of the resolved default.
   expect(resolvePanelMode("list", "docked", regime(true, true, null))).toBe("collapsed");
