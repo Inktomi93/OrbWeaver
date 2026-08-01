@@ -352,8 +352,8 @@ function hasMarker(config: PromptConfig, marker: string): boolean {
 
 /** Frames a system-block injection once (content already macro-resolved); `in_chat` injections stay
  *  unframed since SHAPE's splice frames them. */
-function frameSystemInjection(inj: ChatInjection): ChatInjection {
-  return inj.position === "in_chat" ? inj : { ...inj, content: renderInjection(inj) };
+function frameSystemInjection(inj: ChatInjection, prose: ProseOverrides): ChatInjection {
+  return inj.position === "in_chat" ? inj : { ...inj, content: renderInjection(inj, undefined, prose) };
 }
 
 /** Sets `target[key]` only when `value` is defined (omit, never `undefined`, under exactOptionalPropertyTypes). */
@@ -427,7 +427,10 @@ function buildBaseContext(
 
 /** Routes budget-kept candidates: anchor-bucket WI → before/after parts; everything else → the
  *  injection list (system-block positions framed once, in_chat left unframed for the SHAPE splice). */
-function routeKept(kept: readonly InjectionCandidate[]): {
+function routeKept(
+  kept: readonly InjectionCandidate[],
+  prose: ProseOverrides,
+): {
   chatInjections: ChatInjection[];
   beforeParts: string[];
   afterParts: string[];
@@ -441,7 +444,7 @@ function routeKept(kept: readonly InjectionCandidate[]): {
     } else if (c.bucket === "after") {
       afterParts.push(c.injection.content);
     } else {
-      chatInjections.push(frameSystemInjection(c.injection));
+      chatInjections.push(frameSystemInjection(c.injection, prose));
     }
   }
   return { chatInjections, beforeParts, afterParts };
@@ -763,13 +766,16 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates],
     input.injectionTokenBudget,
   );
-  const { chatInjections, beforeParts, afterParts } = routeKept(kept);
+  const { chatInjections, beforeParts, afterParts } = routeKept(kept, prose);
   // WI-origin candidates that survived the budget pass, by identity (id + keys); worldInfoActivated (engine.ts
   // bus emit + the host preview panel) reads this off wiTrace.
   const activated = kept.flatMap((c) => (c.worldEntryId !== undefined ? [{ id: c.worldEntryId, keys: c.worldEntryKeys ?? [] }] : []));
 
   return {
     ...base,
+    // Carried onto the immutable ctx so the downstream BUILD walk (the merged co-speaker headings) and the
+    // SHAPE splice (the two note frames, the round nudge) resolve the SAME host's frames this build did.
+    prose,
     chatInjections,
     worldInfoBefore: beforeParts.join("\n"),
     worldInfoAfter: afterParts.join("\n"),

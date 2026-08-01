@@ -416,6 +416,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
+    // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
+    prose: ctx.prose,
   });
 
   // FIT — the history-budget tail.

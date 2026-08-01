@@ -1,6 +1,7 @@
 // SHAPE substrate: spliceInChatInjections + frameInjection (chat.md Part II §3 rule 7 — in_chat depth
 // semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user framing).
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import { describe } from "vitest";
 import { frameInjection, spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
 import { expect, test } from "../../../../support/fixtures";
@@ -30,6 +31,26 @@ describe("frameInjection", () => {
 
   test("empty / whitespace content → empty string (caller skips it)", () => {
     expect(frameInjection("user", "   ")).toBe("");
+  });
+
+  test("a host's PROSE override replaces the frame and keeps the content at its {{note}} token", () => {
+    // PROSE-1: the two note frames are `chat.injection.*` slots resolved under the ROOM HOST. The proof that
+    // matters is that the host's bytes — not the shipped frame — reach the wire, with the injection's own
+    // content still spliced in.
+    const prose: ProseOverrides = {
+      "chat.injection.userNote": { text: "((the table says: {{note}}))", baseVersion: 1 },
+      "chat.injection.systemNote": { text: "<<system — {{note}}>>", baseVersion: 1 },
+    };
+    expect(frameInjection("user", "hi", undefined, prose)).toBe("((the table says: hi))");
+    expect(frameInjection("user", "hi", "system", prose)).toBe("<<system — hi>>");
+    // The bare roles never wear a frame at all, so no override can reach them.
+    expect(frameInjection("system", "hi", undefined, prose)).toBe("hi");
+    expect(frameInjection("assistant", "hi", undefined, prose)).toBe("hi");
+  });
+
+  test("an absent / empty override record is byte-identical to the shipped frames", () => {
+    expect(frameInjection("user", "hi", undefined, {})).toBe(frameInjection("user", "hi"));
+    expect(frameInjection("user", "hi", "system", {})).toBe(frameInjection("user", "hi", "system"));
   });
 });
 
@@ -167,5 +188,13 @@ describe("spliceInChatInjections — allowMidConversationSystem (turns.midConver
   test("allowed: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "user", content: "u" })], (c) => c, { allowMidConversationSystem: true });
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]" });
+  });
+
+  test("the host's PROSE frames ride the SPLICE too — a demoted system injection wears the host's wording", () => {
+    // The splice is the other half of the frame's blast radius (the BUILD walk is the first): both funnel
+    // through `frameInjection`, so threading `prose` on the splice opts is what makes the seam ONE home.
+    const prose: ProseOverrides = { "chat.injection.systemNote": { text: "<<system — {{note}}>>", baseVersion: 1 } };
+    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { prose });
+    expect(out.at(-1)).toEqual({ role: "user", content: "<<system — sys>>" });
   });
 });

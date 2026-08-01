@@ -214,6 +214,30 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     expect(historyText(requests[1] as TurnRequest)).toContain("only as Bran");
   });
 
+  test("the host's PROSE override re-words the round nudge, keeping the per-speaker name fence", async () => {
+    // PROSE-1 `chat.group.roundNudge`: the fence is the one line stopping the model voicing the whole cast,
+    // so it is exactly the sentence a host wants to tune. It resolves off the round's ONE immutable ctx.
+    const chatId = await seedChat(db, "nudge-prose");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: {
+        ...base(chatId),
+        assembleContext: { ...ASSEMBLE_CTX, prose: { "chat.group.roundNudge": { text: "[SPEAK AS {{name}}. Nobody else.]", baseVersion: 1 } } },
+      },
+      group: PER_SPEAKER,
+      speakers: [
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
+      ],
+      groupCharacterId: null,
+      castName: "Aria, Bran",
+    });
+    expect(historyText(requests[0] as TurnRequest)).toContain("[SPEAK AS Aria. Nobody else.]");
+    expect(historyText(requests[0] as TurnRequest)).not.toContain("Write the next reply only as");
+    expect(historyText(requests[1] as TurnRequest)).toContain("[SPEAK AS Bran. Nobody else.]");
+  });
+
   test("the per-chat lock is released after the round (a subsequent round runs)", async () => {
     const chatId = await seedChat(db, "rel");
     const requests: TurnRequest[] = [];

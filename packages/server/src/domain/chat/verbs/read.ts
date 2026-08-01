@@ -765,6 +765,7 @@ async function shapeNextTurn(
     roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,
     squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
+    prose: assembleContext.prose,
   });
   return { canon, shaped };
 }

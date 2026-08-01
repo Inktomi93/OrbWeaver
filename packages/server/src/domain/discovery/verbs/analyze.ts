@@ -7,6 +7,7 @@
 // summarize call). Analytics ≠ retrieval — this file calls no search verb.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -33,15 +34,6 @@ export function createAnalyze(ctx: DiscoveryContext, deps: AnalyzeDeps): Pick<Di
   };
 }
 
-const COMPARE_SYSTEM = `You compare two roleplay characters for a user browsing their own library. You are given a precomputed facet diff (genres, tones, shared vs distinct tags). Ground your read in ONLY that diff — do not invent traits.
-
-Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-{"summary":"...","overlap":"...","distinction":"..."}
-
-- summary: ONE sentence — how alike these two are overall.
-- overlap: what they genuinely share (from the shared genre/tone/tags).
-- distinction: what sets them apart (from the distinct tags + differing genre/tone).`;
-
 // The structured-output payload (D79) — the zod schema is BOTH the wire constraint (via the one projection
 // rule) and the runtime validator inside runStructuredTurn.
 const NARRATIVE_PAYLOAD = z.object({ summary: z.string(), overlap: z.string(), distinction: z.string() });
@@ -65,11 +57,11 @@ async function compareCharactersDeep(
     responseFormat: NARRATIVE_RESPONSE_FORMAT,
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId))),
   };
+  // The system prompt is a PROSE-1 slot resolved on the SAME caller rung as the sampling above — the library
+  // being compared is this user's own. No override ⇒ the shipped prompt, byte for byte.
+  const system = resolveProseText("discovery.compare.system", await ctx.resolveUserProse(args.userId));
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize(
-      [{ systemPrompt: COMPARE_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }],
-      sampleOpts,
-    );
+    const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
   };
   let narrative: ComparisonNarrative;
@@ -98,14 +90,6 @@ function buildComparePrompt(cmp: CharacterComparison): string {
   ].join("\n");
 }
 
-const ASK_SYSTEM = `You answer a user's question about ONE of their roleplay characters, using ONLY the recent scenes provided. Do not invent facts not present in the scenes.
-
-Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-{"answer":"...","grounded":true}
-
-- answer: a direct answer to the question, drawn from the scenes.
-- grounded: true if the scenes actually support the answer; false if they don't and you had to guess or the scenes were empty.`;
-
 const ANSWER_PAYLOAD = z.object({ answer: z.string(), grounded: z.boolean() });
 const ANSWER_RESPONSE_FORMAT: ResponseFormat = { name: "card_answer", schema: projectJsonSchema(ANSWER_PAYLOAD) };
 
@@ -123,11 +107,9 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
     responseFormat: ANSWER_RESPONSE_FORMAT,
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId))),
   };
+  const system = resolveProseText("discovery.ask.system", await ctx.resolveUserProse(userId));
   const run = async (correction?: string): Promise<string> => {
-    const result = await ctx.summarize(
-      [{ systemPrompt: ASK_SYSTEM, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }],
-      sampleOpts,
-    );
+    const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
   };
   let answer: string;

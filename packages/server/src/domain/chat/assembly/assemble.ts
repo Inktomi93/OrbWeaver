@@ -16,6 +16,8 @@
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
@@ -159,14 +161,18 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   if (head.trim().length === 0) {
     return "";
   }
-  const parts = [`[Also present — ${member.name}]\n${head}`];
+  // The three headings are PROSE-1 slots (per-USER under the room host) carrying the `{{name}}` pre-
+  // substitution token; the card text beneath each is data, never authorable. Absent overrides ⇒ the
+  // shipped frames.
+  const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });
+  const parts = [`${heading("chat.group.alsoPresent")}\n${head}`];
   const scenario = renderMemberField("scenario", member, ctx, registry);
   const examples = renderMemberField("exampleMessages", member, ctx, registry);
   if (scenario.trim().length > 0) {
-    parts.push(`[${member.name}'s scenario]\n${scenario}`);
+    parts.push(`${heading("chat.group.scenarioHeading")}\n${scenario}`);
   }
   if (examples.trim().length > 0) {
-    parts.push(`[${member.name}'s example dialogue]\n${examples}`);
+    parts.push(`${heading("chat.group.exampleHeading")}\n${examples}`);
   }
   return parts.join("\n\n");
 }
