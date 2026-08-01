@@ -10,6 +10,7 @@ import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import {
   deletePreset,
+  findOwnedForkOf,
   insertPreset,
   listReadable,
   readablePreset,
@@ -74,6 +75,35 @@ describe("listReadable", () => {
     // …and it is not individually readable via the two-armed read, but IS readable as a packaged template.
     expect(await readablePreset(db, a, packagedId)).toBeUndefined();
     expect((await selectPackagedPreset(db, packagedId))?.name).toBe("RPG Game Master");
+  });
+});
+
+describe("findOwnedForkOf (the COW convergence lookup)", () => {
+  test("finds only the CALLER's fork of THAT source; the source row itself is never a match", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, "a");
+    const b = await seedUser(db, "b");
+    await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
+    const packagedId = castId<PresetId>("preset_000000000000000000000rpggm");
+    const aFork = await seedPreset(db, { id: castId<PresetId>("preset_a_fork"), ownerId: a, name: "A fork", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    await seedPreset(db, { id: castId<PresetId>("preset_b_fork"), ownerId: b, name: "B fork", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    await seedPreset(db, { id: castId<PresetId>("preset_a_plain"), ownerId: a, name: "A plain" });
+
+    expect((await findOwnedForkOf(db, a, SYSTEM_DEFAULT_PRESET_ID))?.id).toBe(aFork);
+    expect(await findOwnedForkOf(db, a, packagedId)).toBeUndefined();
+    // b's fork is not a's answer, and an un-forked owned row is nobody's.
+    expect((await findOwnedForkOf(db, b, SYSTEM_DEFAULT_PRESET_ID))?.name).toBe("B fork");
+  });
+
+  test("picks the OLDEST when the residual race already left two (stable across calls)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
+    // Same frozen createdAt — the id tiebreak is what makes the answer deterministic.
+    await seedPreset(db, { id: castId<PresetId>("preset_race_b"), ownerId: owner, name: "B", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    await seedPreset(db, { id: castId<PresetId>("preset_race_a"), ownerId: owner, name: "A", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+
+    expect((await findOwnedForkOf(db, owner, SYSTEM_DEFAULT_PRESET_ID))?.id).toBe(castId<PresetId>("preset_race_a"));
   });
 });
 
@@ -158,6 +188,7 @@ describe("system-default seed/reseed queries", () => {
       kind: "roleplay",
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      forkedFrom: null,
       createdAt: FROZEN_AT,
       updatedAt: FROZEN_AT,
     });

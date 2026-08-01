@@ -1,6 +1,7 @@
 // One preset row in the Presets LIST — a shared `LibraryRow` (§13.2 entity row → RowActionsMenu). Clicking
 // it opens the preset in the editor. The subtitle is the row's scent (`presetRowSubtitle` — the edit stamp
-// plus a meaningful kind), since same-base forks all carry the SAME name. The system-default row is marked
+// plus a meaningful kind plus the fork lineage the surface resolved), since same-base forks all carry the
+// SAME name. The system-default row is marked
 // (editing it COWs into a fork server-side), keeps its "Built-in default" subtitle, and cannot be deleted. The active-for-generation preset carries a passive amber Badge (a
 // status marker, not a make-active affordance — activation is the LIST dropdown only). The Rename/Duplicate/
 // Delete menu + its delete-confirm live in LibraryRow; the delete copy warns when the row is the active preset.
@@ -25,6 +26,9 @@ interface PresetRowItem {
 export interface PresetLibraryRowProps {
   readonly preset: PresetRowItem;
   readonly selected: boolean;
+  /** The row's fork SOURCE name, resolved by the surface from `preset.forkedFrom` across the whole list —
+   *  null when the row is not a fork or its source is not a row the client can see (a packaged template). */
+  readonly forkedFromName: string | null;
   /** The row's action-name DISAMBIGUATOR, resolved by the surface across the whole list (`rowQualifiers`) —
    *  the edit stamp this row shows, escalated where forks collided on it too (side-eye P2c). */
   readonly qualifier: string;
@@ -37,7 +41,17 @@ export interface PresetLibraryRowProps {
 }
 
 /** A single preset library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
-export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect, onDelete, onDuplicate, onRename }: PresetLibraryRowProps): ReactElement {
+export function PresetLibraryRow({
+  preset,
+  selected,
+  active,
+  qualifier,
+  forkedFromName,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onRename,
+}: PresetLibraryRowProps): ReactElement {
   // TITLE-LINE markers, not a leading slot: only some rows are Active/built-in, and a leading badge of a
   // different width per row left the title column ragged across the pane (side-eye P2-6).
   let markers: ReactNode;
@@ -57,8 +71,8 @@ export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect
         ? { subtitle: "Built-in default" }
         : {
             // F5: the row's scent — forks of the same base share a name, so the edit stamp (+ a
-            // meaningful kind) is what tells nine "Default (edited)" rows apart.
-            subtitle: presetRowSubtitle(preset.kind, preset.updatedAt, timeLib.formatRelative),
+            // meaningful kind, + the fork lineage when the source is known) tells the rows apart.
+            subtitle: presetRowSubtitle(preset.kind, preset.updatedAt, timeLib.formatRelative, forkedFromName),
             actions: {
               // §12.2 per-list assignment: presets have no boolean row state, and DUPLICATE is the measured
               // frequent verb (the fork workflow — nine "Default (edited)" rows are its receipt), so it is

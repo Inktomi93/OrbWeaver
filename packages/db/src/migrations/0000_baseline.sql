@@ -723,12 +723,15 @@ CREATE TABLE `presets` (
 	`kind` text NOT NULL,
 	`config` text NOT NULL,
 	`schema_version` integer DEFAULT 4 NOT NULL,
+	`forked_from` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`forked_from`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `presets_owner_idx` ON `presets` (`owner_id`);--> statement-breakpoint
+CREATE INDEX `presets_owner_forked_from_idx` ON `presets` (`owner_id`,`forked_from`);--> statement-breakpoint
 CREATE TABLE `rate_limit_buckets` (
 	`key` text PRIMARY KEY NOT NULL,
 	`count` integer DEFAULT 0 NOT NULL,
@@ -886,7 +889,7 @@ CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoin
 CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 6 NOT NULL,
+	`schema_version` integer DEFAULT 7 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade

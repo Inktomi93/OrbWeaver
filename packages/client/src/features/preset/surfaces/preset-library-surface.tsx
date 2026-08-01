@@ -144,6 +144,10 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         {filtered.map((preset, index) => (
           <PresetLibraryRow
             active={preset.id === activeId}
+            // Lineage is resolved against the UNFILTERED list (a search that hides the source must not hide
+            // the scent) and stays null when the source is not a row we have — packaged templates never are,
+            // and nothing here guesses a name from a name.
+            forkedFromName={presets.find((p) => p.id === preset.forkedFrom)?.name ?? null}
             key={preset.id}
             onDelete={onDelete}
             onDuplicate={onDuplicate}

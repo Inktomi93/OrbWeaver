@@ -12,7 +12,9 @@ import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
 type PresetRow = typeof presets.$inferSelect;
 
 /** A new preset row (the verb mints id + computes timestamps from its injected clock). `ownerId` is null
- *  ONLY for the system-default seed; every owned write passes the resolved `userId`. */
+ *  ONLY for the system-default seed; every owned write passes the resolved `userId`. `forkedFrom` is
+ *  REQUIRED (never optional) so every mint states its lineage — a copy names its source, a born-here row
+ *  passes null; a new mint site cannot silently drop the provenance. */
 interface PresetInsert {
   id: PresetId;
   ownerId: UserId | null;
@@ -20,6 +22,7 @@ interface PresetInsert {
   kind: string;
   config: PromptConfig;
   schemaVersion: number;
+  forkedFrom: PresetId | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -71,6 +74,19 @@ export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
 export async function listOwnedPresetNames(db: Db, userId: UserId): Promise<string[]> {
   const rows = await db.select({ name: presets.name }).from(presets).where(eq(presets.ownerId, userId));
   return rows.map((row) => row.name);
+}
+
+/** The caller's OLDEST owned fork of `sourceId` (`forked_from` lineage), or undefined — the copy-on-write
+ *  convergence lookup (`verbs/update.ts`): a second COW of the same source patches this row instead of
+ *  minting a sibling. Oldest-first so the answer stays stable if a pre-existing race already left two. */
+export async function findOwnedForkOf(db: Db, userId: UserId, sourceId: PresetId): Promise<PresetRow | undefined> {
+  const rows = await db
+    .select()
+    .from(presets)
+    .where(and(eq(presets.ownerId, userId), eq(presets.forkedFrom, sourceId)))
+    .orderBy(asc(presets.createdAt), asc(presets.id))
+    .limit(1);
+  return rows.at(0);
 }
 
 /** The caller's existing owned preset with this exact `name`, or null — the import dedup key. Newest wins
