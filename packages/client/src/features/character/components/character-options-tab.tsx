@@ -5,6 +5,7 @@
 // Trust) and `CharacterHistoryTab` (the snapshots/restore log) verbatim, stacked under headings.
 
 import type { CharacterId } from "@orb/kit/ids";
+import { FieldLayout } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { CharacterAppearanceTab } from "./character-appearance-tab";
@@ -17,8 +18,16 @@ export interface CharacterOptionsTabProps {
 export function CharacterOptionsTab({ characterId }: CharacterOptionsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      {/* The §8.1 per-character theme override + Trust (its own headings live inside). */}
-      <CharacterAppearanceTab characterId={characterId} />
+      {/* The §8.1 per-character theme override + Trust (its own headings live inside). Horizontal is set
+          HERE, not in the appearance tab: this panel is the tab's only mount, and the orientation is a
+          property of the INSTRUMENT-tier context panel (density spec §3.1), not of the theme cluster.
+          Vertical label-over-swatch turned eleven colour rows into a 54px-per-row ladder that exhausted
+          the viewport before Trust/Background/History were reachable; label-left/control-right halves it.
+          Base UI's horizontal Field self-reverts to stacked below the @md container width, so a narrower
+          panel still gets a readable label block. */}
+      <FieldLayout orientation="horizontal">
+        <CharacterAppearanceTab characterId={characterId} />
+      </FieldLayout>
       <Section heading="History">
         <CharacterHistoryTab characterId={characterId} />
       </Section>

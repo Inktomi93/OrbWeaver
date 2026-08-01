@@ -15,6 +15,7 @@ import {
   CharacterEditorSurface,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
+  CharacterOptionsTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
@@ -175,6 +176,19 @@ export function CharacterAppearanceTabStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720 }}>
         <CharacterAppearanceTab characterId={castId<CharacterId>("char_ct_1")} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The CONTEXT Options tab at the real context-panel width — the tab OWNS the field orientation for the
+ *  theme cluster it re-homes, so the density contract is only observable through this mount, never
+ *  through `CharacterAppearanceTabStory`. */
+export function CharacterOptionsTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 463 }}>
+        <CharacterOptionsTab characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
   );
