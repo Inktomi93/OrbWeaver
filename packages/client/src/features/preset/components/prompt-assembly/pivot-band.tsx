@@ -39,9 +39,11 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
 
   return (
     <Stack className="rounded-base border border-input border-dashed bg-muted/40 p-row" gap="tight">
-      <Badge intent="info" size="sm">
-        setup · before the conversation
-      </Badge>
+      <Row>
+        <Badge intent="info" size="sm">
+          setup · before the conversation
+        </Badge>
+      </Row>
       <Row align="center" gap="row">
         <Icon icon={MessagesSquare} size="sm" />
         <Button className="min-w-0 flex-1 justify-start text-left" intent="ghost" onClick={onSelect} size="sm" type="button">
@@ -56,9 +58,11 @@ export function PivotBand({ duplicate, onSelect, onDrill }: PivotBandProps): Rea
           <Icon icon={ChevronRight} size="sm" />
         </Button>
       </Row>
-      <Badge intent="warning" size="sm">
-        post · after your last message
-      </Badge>
+      <Row>
+        <Badge intent="warning" size="sm">
+          post · after your last message
+        </Badge>
+      </Row>
     </Stack>
   );
 }

@@ -7,8 +7,9 @@
 // one component, and every structural array op has to persist through the boundary's store driver (D78 §3)
 // with ZERO call-site flush.
 //
-// The fixture deliberately mixes the three kinds: a LITERAL (full ⋯ set), a templated MARKER (no Delete,
-// no Duplicate), and the PIVOT (no switch at all, no menu).
+// The fixture deliberately mixes all FOUR shapes: a LITERAL (full ⋯ set), a templated MARKER (no Delete,
+// no Duplicate), a plain-marker CARRIER (no inject/trigger in the schema, so no depth/order/triggers
+// fields), and the PIVOT (no switch at all, no menu).
 
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms";
@@ -29,6 +30,7 @@ const SECTIONS: PromptSection[] = [
   { type: "literal", id: "sec_a", name: "Alpha", role: "system", content: "a", enabled: true },
   { type: "literal", id: "sec_del", name: "DeleteMe", role: "system", content: "d", enabled: true },
   { type: "marker", id: "sec_mark", name: "Post-history", marker: "post_history", role: "system", enabled: true },
+  { type: "marker", id: "sec_wi", name: "World info (before)", marker: "world_info_before", role: "system", enabled: true },
   { type: "marker", id: "sec_pivot", name: "Chat history", marker: "chat_history", role: "system", enabled: true },
   { type: "literal", id: "sec_z", name: "Zeta", role: "system", content: "z", enabled: true },
 ];

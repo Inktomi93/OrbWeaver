@@ -41,7 +41,10 @@ export interface DeliveryClusterProps {
   readonly roleLabel: string;
   /** `null` = unset. For a SECTION that means in-flow (no splice); for a TEMPLATE it means the tail. */
   readonly depth: number | null;
-  readonly onDepthChange: (next: number | null) => void;
+  /** ABSENT ⇒ this slot has no depth AT ALL and the half does not render — a plain-marker CARRIER declares
+   *  no `inject` in the schema, so a depth field there would write a shape the contract rejects. The
+   *  absence is the answer; never a disabled control. */
+  readonly onDepthChange?: ((next: number | null) => void) | undefined;
   readonly depthLabel: string;
   /** What an empty depth means, stated in the field (never a value the field silently writes). */
   readonly depthPlaceholder: string;
@@ -86,18 +89,20 @@ export function DeliveryCluster({
             />
           </Field>
         )}
-        <Field hint={depthHint} label={depthLabel} name="delivery-depth">
-          <NumberField
-            aria-label={depthLabel}
-            max={depthMax}
-            min={TAIL_DEPTH}
-            onValueChange={onDepthChange}
-            placeholder={depthPlaceholder}
-            size="inline"
-            step={1}
-            value={depth}
-          />
-        </Field>
+        {onDepthChange === undefined ? null : (
+          <Field hint={depthHint} label={depthLabel} name="delivery-depth">
+            <NumberField
+              aria-label={depthLabel}
+              max={depthMax}
+              min={TAIL_DEPTH}
+              onValueChange={onDepthChange}
+              placeholder={depthPlaceholder}
+              size="inline"
+              step={1}
+              value={depth}
+            />
+          </Field>
+        )}
       </Grid>
       {tailPrefill ? (
         <Text voice="gloss">
