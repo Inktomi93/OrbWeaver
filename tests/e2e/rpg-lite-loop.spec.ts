@@ -246,7 +246,9 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(hero?.sheet.level).toBe(5);
     expect(hero?.sheet.className).toBe("Ranger");
     expect(hero?.volatile?.hp).toEqual({ value: 12, max: 20 });
-    expect(hero?.volatile?.trackerValues["mana"]).toEqual({ value: 3, items: null });
+    // The STORED reading is the full three-field value: `max` is the per-carrier ceiling OVERRIDE (TRK-2 owner
+    // amendment) and is null here — this hero uses the def's default ceiling (10), which the orb row asserts below.
+    expect(hero?.volatile?.trackerValues["mana"]).toEqual({ value: 3, items: null, max: null });
     expect(hero?.volatile?.wallet).toEqual([{ name: "gold", amount: 45 }]);
     expect(hero?.volatile?.inventory.map((i) => [i.name, i.quantity])).toEqual([["Iron Dagger", 2]]);
     expect(hero?.volatile?.conditions.map((c) => c.name)).toEqual(["Chilled"]);
@@ -535,7 +537,7 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     expect(a.ambient?.location).toBe("The Glass Bridge");
     const hero = a.actors.find((x) => x.actorRef.characterId === characterId);
-    expect(hero?.volatile?.trackerValues["focus"]).toEqual({ value: 2, items: null });
+    expect(hero?.volatile?.trackerValues["focus"]).toEqual({ value: 2, items: null, max: null });
   } finally {
     await cleanup();
   }
