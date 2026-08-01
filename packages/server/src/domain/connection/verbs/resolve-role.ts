@@ -1,8 +1,13 @@
 // The ONE resolver for all inference roles: reads the principal's `routing.roleDefaults.<role>`, applies the
 // optional per-agent override, validates `(api, source)` coherence, heals the model id, and returns
 // `{api, model, credential, capability}`. No per-role hard-pin — any role may resolve to any source it supports.
+//
+// The model heal is per-source and never silent: agent-sdk → the curated Claude id, openrouter →
+// `pickOrModel`, and a CONFIG-DERIVED source (vllm/local-light) → its configured model with a WARN when a
+// stored pin from another source would otherwise have ridden to the engine (healConfigDerivedModel).
 
 import type { AgentSdkModel, ChatApi, CredentialSource, ModelCatalogEntry, ResolvedChatCapability, ResolvedConnection } from "@orb/contracts/connection";
+import { isConfigDerivedModelSource } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,6 +21,7 @@ import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../
 import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot";
 import { getCachedAgentSdkModels, warmAgentSdkModelCacheOnce } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
+import { configuredModelForSource } from "../substrate/config-model";
 import { healToChatDefault } from "../substrate/heal-model";
 import { getCachedOrModels, warmOrModelCacheOnce } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
@@ -99,6 +105,34 @@ function applyVllmFallback(role: ResolveRoleParams["role"], selection: RouteSele
     return selection;
   }
   return { ...selection, source: "local-light", model: "" };
+}
+
+/** The read-side heal for a stored model that CANNOT belong to a config-derived source (vllm/local-light
+ *  serve exactly what they were launched with — see `isConfigDerivedModelSource`). Resolve to the
+ *  CONFIGURED model and say so LOUDLY: a foreign pin was the live vllm-source row carrying an
+ *  `anthropic/claude-sonnet-5` model that 404'd every local turn, and the resolver's old blind pass-through
+ *  (`castId(selection.model ?? env.VLLM_GEN_MODEL)`) shipped that id to the engine unexamined.
+ *
+ *  D41 no-silent-degrade: the pin IS an explicit user choice, so it is never dropped quietly — but an
+ *  unserveable choice must not become a 404 loop either, so the honest arm is default + WARN. Only a pin
+ *  that actually DIFFERS from the configured id is healed (re-pinning the engine's own model is a no-op,
+ *  not a degrade). The catalog sources heal elsewhere and keep their own semantics: openrouter through
+ *  `pickOrModel`, agent-sdk through `healToChatDefault`; custom_openai is a BYO endpoint whose model set
+ *  is undecidable here by construction, so its pin rides through untouched. */
+function healConfigDerivedModel(role: ResolveRoleParams["role"], selection: RouteSelection, ctx: ConnectionContext): RouteSelection {
+  if (!isConfigDerivedModelSource(selection.source)) {
+    return selection;
+  }
+  const configured = configuredModelForSource(selection.source, role, ctx.localLightDefaults);
+  const pinned = selection.model ?? "";
+  if (configured === null || pinned === "" || pinned === configured) {
+    return selection;
+  }
+  getLog().warn(
+    { role, source: selection.source, storedModel: pinned, resolvedModel: configured },
+    "connection: the stored model does not belong to this server-configured source — resolving the configured model instead",
+  );
+  return { ...selection, model: configured };
 }
 
 /** Reject an incoherent `(api, source)` selection — the only thrown-error path. */
@@ -269,10 +303,14 @@ function capabilityCaches(ctx: ConnectionContext): {
  *  `resolveChatCapability` use. Reads the acting principal's OWN settings (no caller-supplied user id). */
 async function resolveRoleSelection(ctx: ConnectionContext, params: ResolveRoleParams): Promise<{ selection: RouteSelection; model: ModelId }> {
   const settings = await ctx.loadUserSettings(params.principal.userId);
-  const selection = applyVllmFallback(
+  const selection = healConfigDerivedModel(
     params.role,
-    ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.routeOverride, ctx.isOwner(params.principal)),
-    ctx.vllmAvailable,
+    applyVllmFallback(
+      params.role,
+      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.routeOverride, ctx.isOwner(params.principal)),
+      ctx.vllmAvailable,
+    ),
+    ctx,
   );
   assertCoherent(selection.api, selection.source);
   // Learn THIS selection's real context window before the capability is synthesized (WARM_WINDOW_TRUTH):
