@@ -16,7 +16,8 @@ import { FirstRunPersonaDialog } from "#features/persona";
 import { isCommitted, useActiveChatHandle, useActiveDraftSeed, useActiveSection, useSelectedCharacterId } from "#state";
 
 export function AppRoot(): ReactElement {
-  // Single-user renders none of the three multi-human surfaces (bell, People tab, /join landing);
+  // Single-user renders none of the three multi-human surfaces (bell, the cast bar's humans row —
+  // "People" is the roster's HUMAN SUBSET, not a tab — and the /join landing);
   // `false` until the config lands so chrome never flashes-then-yanks.
   const { data: authConfig } = useAuthConfig();
   const multiHumanCapable = authConfig?.multiHumanCapable === true;
