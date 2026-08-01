@@ -119,7 +119,14 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, sectionJumpTile, buddyDormantTile, automationDormantTile]);
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  chatRecentsTile,
+  chatQuickPicksTile,
+  chatTempChatTile,
+  sectionJumpTile,
+  buddyDormantTile,
+  automationDormantTile,
+]);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),
