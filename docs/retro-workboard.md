@@ -110,11 +110,14 @@ serde verified CLEAN in §4 (import entanglement died in stage D — no serde wo
 its report; run the lane-scoping + poison-visibility probes' receipts past the eyeball; stickler
 the diff after merge (db baseline + engine touch).
 
-**GATES LANE IN FLIGHT (`a96553c78956cf920`, max-effort Fable, the owner's pre-compact ask):**
-three session-earned gates — `ui-size-via-variant` (the 3× tailwind-merge size-override class) ·
-the `pre-merge-commit` hook (merges skipped checks; main went red twice) · `scrubber-home`
-(security: scrubber construction outside the producer stamp = RED). Merge on its report; probe
-receipts required.
+~~GATES LANE~~ **MERGED (`b9db4f92`, post-merge check ok)** — all three gates live + probed:
+`ui-size-via-variant` (structural UNSIZED_BOX exemption; 3 allowlisted w-auto Selects; 2-file
+DEBT_BASELINE ratchet awaiting a Button wrap/multiline variant — SMALL QUEUED) · `pre-merge-commit`
+lefthook sibling (scratch-repo probe: red merge refused, clean merge lands; ACTIVE from now on —
+merges no longer skip checks) · `scrubber-home` (standalone security gate; ed2aafc5 cited;
+scrubStreamReplayForMember exemption recorded). Lesson: lefthook coverage is PER-HOOK-NAME.
+Follow-up small: Button wrap/multiline size variant clears the 2 debt rows. Rendered-clip audit
+(CT/snap lane) proposed, undispatched — owner call.
 
 **ORCHESTRATION GOTCHAS THIS SESSION PAID FOR (obey):** pass `isolation:"worktree"` on EVERY
 concurrent Agent dispatch (never implied) · the snap stage is a GLOBAL port singleton — exactly
