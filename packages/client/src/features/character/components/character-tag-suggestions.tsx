@@ -4,11 +4,14 @@
 // Tags via the shell store's `openSettingsTo` seam (no settings feature import).
 //
 // VOICE (density-pass-spec §3.2 CD3 — one focal element per surface): a suggestion is PENDING metadata, so
-// it is the quietest thing on the editor. The chips are muted `soft` badges — accent FILL is reserved for
-// the accepted tags in CharacterTagsRow, and `info` blue (which this surface uses nowhere else) is banned
-// here: twelve filled blue pills outshouted the character's own name and the one primary CTA (stickler
-// 2026-08-01 F3). The strip also stays SHORT by default — the overflow past `COLLAPSED_LIMIT` hides behind
-// a "+N more" disclosure instead of wrapping four rows of chrome across the band.
+// it is the quietest thing on the editor. The chips are `ghost` badges — no fill, a hairline outline, the
+// muted text tone, the micro type size. Accent FILL is reserved for the ACCEPTED tags in CharacterTagsRow,
+// and `info` blue (which this surface uses nowhere else) is banned here: twelve filled blue pills outshouted
+// the character's own name and the one primary CTA (stickler 2026-08-01 F3).
+//
+// EVERY suggestion renders — no cap, no "+N more" disclosure (owner ruling 2026-08-01, D113 (4b): the read
+// surface shows everything and WEIGHT solves loudness, not count; a disclosure hid pending metadata behind a
+// click and still cost a control's worth of chrome).
 
 import type { TagSuggestionView } from "@orb/contracts/tag";
 import type { CharacterId } from "@orb/kit/ids";
@@ -19,16 +22,12 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { openSettingsTo } from "#state";
 import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations";
 
 const TAGS_SETTINGS_CATEGORY = "tags";
-
-/** How many suggestion chips the strip shows at rest — the rest ride the "+N more" disclosure. */
-const COLLAPSED_LIMIT = 5;
 
 export interface CharacterTagSuggestionsProps {
   readonly characterId: CharacterId;
@@ -43,10 +42,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
   const reject = useRejectSuggestion({ trpc, invalidation });
   const suggest = useSuggestCharacterTags({ trpc, invalidation });
 
-  const [expanded, setExpanded] = useState(false);
   const pending: readonly TagSuggestionView[] = suggestions ?? [];
-  const shown = expanded ? pending : pending.slice(0, COLLAPSED_LIMIT);
-  const hidden = pending.length - shown.length;
   return (
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
       {pending.length > 0 && (
@@ -54,7 +50,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           <Text size="micro" weight="semibold" tone="muted" transform="caps">
             Suggested
           </Text>
-          {shown.map((suggestion) => (
+          {pending.map((suggestion) => (
             <SuggestionChip
               key={suggestion.id}
               name={suggestion.name}
@@ -75,11 +71,6 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
               }
             />
           ))}
-          {hidden > 0 || expanded ? (
-            <Button type="button" size="sm" intent="ghost" onClick={(): void => setExpanded(!expanded)}>
-              {expanded ? "Show fewer" : `+${hidden} more`}
-            </Button>
-          ) : null}
         </Row>
       )}
       <Button type="button" size="sm" intent="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
@@ -94,13 +85,16 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
   );
 }
 
-/** One pending suggestion — a muted `soft` chip (never `info`, never a fill: CD3) carrying the same
- *  accept/dismiss pair the strip has always had. No per-chip sparkle: twelve of them read as decoration,
- *  and the one on "Suggest tags" already names the producer. */
+/** One pending suggestion — a `ghost` chip (no fill at all: CD3 reserves fill for the ACCEPTED tags) at the
+ *  micro type size, carrying the same accept/dismiss pair the strip has always had. The TrackerChip idiom:
+ *  the quiet is carried by the Text voice inside the badge, not by a per-feature skin. No per-chip sparkle:
+ *  a dozen of them read as decoration, and the one on "Suggest tags" already names the producer. */
 function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; readonly onAccept: () => void; readonly onReject: () => void }): ReactElement {
   return (
-    <Badge intent="neutral" tone="soft" size="sm">
-      {name}
+    <Badge intent="neutral" tone="ghost" size="sm">
+      <Text as="span" size="micro" tone="muted">
+        {name}
+      </Text>
       <Button type="button" size="icon" intent="ghost" aria-label={`Accept ${name}`} onClick={onAccept}>
         <Icon icon={Check} size="xs" />
       </Button>
