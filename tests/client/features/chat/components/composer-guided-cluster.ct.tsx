@@ -25,7 +25,7 @@ import {
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   isImpersonateStreamRequest,
   routeImpersonateStream,
@@ -445,24 +445,40 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
 // to decide which steers render; a plot steer fires chat.generate with a trusted-template gameSteer KIND.
 const GAME_CHAT = { participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } };
 
+/**
+ * Wait for a just-opened Base UI menu popup to STOP MOVING before pointing at anything inside it.
+ *
+ * A `MenuPopup` mounts in its `data-starting-style` (`scale-95 opacity-0`, OVERLAY_MOTION.anchoredPopup) and
+ * only then transitions to rest — and Playwright's built-in stability check does NOT cover that: the popup's
+ * box is CONSTANT for the frame(s) it sits in the starting style, so `hover()`/`click()` score it "stable",
+ * park the pointer at the 95%-scale coordinates, and the rows then slide ~14px out from under a synthetic
+ * pointer that never moves again. For an ordinary MenuItem that's harmless (a click re-checks its hit target),
+ * but a `MenuSubmenuTrigger` is HOVER-ONLY — Base UI sets `ignoreMouse` whenever `openOnHover` is on, so the
+ * click is a no-op and the missed hover is unrecoverable: the submenu never opens. `opacity: 1` is the
+ * transition's own end signal, and since scale + opacity ride the SAME transition it also proves the geometry
+ * has settled. (A real pointer is in continuous motion, so a human re-enters the row for free.)
+ */
+async function expectPopupSettled(popup: Locator): Promise<void> {
+  await expect(popup).toHaveCSS("opacity", "1");
+}
+
 test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => GAME_CHAT,
     "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
     "chat.generate": () => ({}),
   });
-  // The nested (two-level) Plot submenu rides the anchored-popup scale/opacity transition on open;
-  // reduced-motion collapses that transition to the ~0 floor (globals.css) so the submenu item's
-  // bounding box is stable the instant it mounts — otherwise Playwright's actionability check can
-  // catch it mid-animation and report "element is not stable / detached from the DOM, retrying".
-  await page.emulateMedia({ reducedMotion: "reduce" });
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
+  await expectPopupSettled(page.getByRole("menu", { name: "Message tools" }));
 
   // The always-present Offer choices sits directly in the Plot group; the six plot steers nest under a Plot
-  // submenu (side-eye P1-B). Open the submenu, then fire one.
+  // submenu (side-eye P1-B). Open the submenu, then fire one. HOVER, not click: Base UI's SubmenuTrigger
+  // wires `ignoreMouse` to `openOnHover`, so a mouse click on it is a deliberate no-op — the pointer landing
+  // on the row (100ms hover intent) is the only mouse-driven open.
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
-  await page.getByRole("menuitem", { name: "Plot" }).click();
+  await page.getByRole("menuitem", { name: "Plot" }).hover();
+  await expectPopupSettled(page.getByRole("menu", { name: "Plot" }));
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
