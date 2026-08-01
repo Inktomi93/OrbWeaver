@@ -22,7 +22,7 @@ import { TagsSettingsSurface } from "../../../../packages/client/src/features/se
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
  *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —
@@ -42,10 +42,12 @@ export function SettingsShellStory(): ReactElement {
 /** The shell with a deep-link target seeded BEFORE first render (the `openSettingsTo` seam). The lazy
  *  useState initializer runs exactly once, synchronously, so `useSettingsTarget()` reads the target on the
  *  first render — reproducing a cold `__orb.nav.openSettings(target)` where the sessions.me probe is still in
- *  flight. Pair with a DELAYED viewer stub in the `.ct.tsx` to exercise the when-gated-pane deep-link race. */
-export function SettingsShellDeepLinkStory({ target }: { readonly target: SettingsCategoryId }): ReactElement {
+ *  flight. Pair with a DELAYED viewer stub in the `.ct.tsx` to exercise the when-gated-pane deep-link race.
+ *  `subId` exercises the SUB-level deep link (SET-SEAMS §10 Q4): the pane resolves in render, the jump to
+ *  `settingsAnchorId(target, subId)` lands once the pane's DOM has the anchor. */
+export function SettingsShellDeepLinkStory({ target, subId }: { readonly target: SettingsCategoryId; readonly subId?: string }): ReactElement {
   useState(() => {
-    openSettingsTo(target);
+    openSettingsTo(target, subId);
     return null;
   });
   return (
@@ -118,9 +120,11 @@ const realAppearanceSections = createContributorRegistry<SettingsSectionContribu
 export function AppearanceSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <AppearanceSettingsSurface sectionContributors={realAppearanceSections} />
-      </div>
+      <CtSettingsSectionRegistry sections={realAppearanceSections}>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <AppearanceSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -130,9 +134,11 @@ export function AppearanceSettingsStory(): ReactElement {
 export function AppearanceSettingsNoContributionsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <AppearanceSettingsSurface sectionContributors={emptySettingsSections} />
-      </div>
+      <CtSettingsSectionRegistry sections={emptySettingsSections}>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <AppearanceSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -142,9 +148,11 @@ export function AppearanceSettingsNoContributionsStory(): ReactElement {
 export function ChatBehaviorSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <ChatBehaviorSettingsSurface sectionContributors={emptySettingsSections} />
-      </div>
+      <CtSettingsSectionRegistry sections={emptySettingsSections}>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <ChatBehaviorSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -167,9 +175,11 @@ export function RegexSettingsStory(): ReactElement {
 export function AppearanceSettingsNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 300 }}>
-        <AppearanceSettingsSurface sectionContributors={realAppearanceSections} />
-      </div>
+      <CtSettingsSectionRegistry sections={realAppearanceSections}>
+        <div style={{ height: 900, overflow: "auto", width: 300 }}>
+          <AppearanceSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }

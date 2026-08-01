@@ -2,6 +2,7 @@
 // manager) and provides them to the tree. Nothing imports this file; everything consumes via
 // providers/hooks.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc +
@@ -44,10 +45,10 @@ import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
-import { automationPane, makeAppearancePane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { makeAdminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
-import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "#features/workloads";
+import { adminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
+import { backupPane, workloadsPane, workloadsTuningSection } from "#features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
   CharacterDetailContribution,
@@ -64,6 +65,7 @@ import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributo
 import type { SettingsSectionContribution } from "#state";
 import {
   assembleChrome,
+  assertSettingsKeyPartition,
   ChromeRegistryProvider,
   MessageToolsRendererRegistryProvider,
   MODAL_SLOT_IDS,
@@ -72,6 +74,7 @@ import {
   SETTINGS_CATEGORY_IDS,
   SectionRegistryProvider,
   SettingsPaneRegistryProvider,
+  SettingsSectionRegistryProvider,
   SlashCommandRegistryProvider,
 } from "#state";
 import { buildAgentNav } from "./agent-nav";
@@ -213,49 +216,49 @@ const chrome = createContributorRegistry(
   }),
 );
 
-// The settings-SECTION contributor seam (§6c / pain-point §7): domains graft ONE anchored section into a
-// host pane WITHOUT growing features/settings. Assembled at the door (G8), threaded into the chat-behavior
-// pane factory. Phase B: memory ① (the master switch) + world-info ② (scanDepth/tokenBudget) — both owned
-// by their features, both landing here as contributions. An empty list ⇒ the pane is byte-identical.
-const chatBehaviorSettingsSections = createContributorRegistry<SettingsSectionContribution>("chat-behavior-settings-sections", [
+// The settings-SECTION contributor seam (§6c / pain-point §7 / SET-SEAMS §5.2): a feature raises ONE
+// anchored section, the settings shell skims it — no growth of features/settings. ONE registry for EVERY
+// anchor (the four per-anchor registries + their `make*Pane(…)` factories retired with SET-SEAMS stage 0),
+// delivered by a context mint: the shell reads it for nav + search, each host pane's surface reads it for
+// render. Adding a section is ONE line here.
+//
+// DOOR ORDER IS RENDER ORDER: within a pane, sections render in the order they appear below.
+const settingsSections = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
+  // chat-behavior ← chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
+  // databank ④ (retrieval), imagery (prompt templates).
   memorySettingsSection,
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
-]);
-
-// The admin-anchored sections (Phase B ③): the AppSettings admin-tier surfaces (memory tuning +
-// summarizer, rate limits) — owned by user-admin (admin-tier config), grafted into the admin pane via the
-// same seam. An empty list ⇒ the admin pane is byte-identical.
-const adminSettingsSections = createContributorRegistry<SettingsSectionContribution>("admin-settings-sections", [
+  // admin ← the AppSettings admin-tier surfaces, owned by user-admin (admin-tier config).
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
+  // workloads ← the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction).
+  workloadsTuningSection,
+  // appearance ← the library-list page size, owned by the feature that READS it (character).
+  librarySettingsSection,
 ]);
 
-// The workloads-anchored sections (Phase B ⑤): the analysis-tuning knobs (dupThreshold/computeThemesK/
-// maxPairs/hubFraction) — owned by features/workloads (its own pane), grafted via the same seam.
-const workloadsSettingsSections = createContributorRegistry<SettingsSectionContribution>("workloads-settings-sections", [workloadsTuningSection]);
-
-// The appearance-anchored sections (⑪): the library-list page size — a display pref whose knob is READ by
-// the character library surface, so the character feature owns it and grafts it in via the same seam
-// instead of it living hardcoded inside features/settings.
-const appearanceSettingsSections = createContributorRegistry<SettingsSectionContribution>("appearance-settings-sections", [librarySettingsSection]);
+// S2 — the key partition (SET-SEAMS §2.3). N sections patching ONE UserSettings namespace is safe only
+// while their claims are DISJOINT (the server merges per key and serializes per user, so disjoint patches
+// commute). THROWS here, at the door, on an overlap or on an uneditable knob inside a claimed namespace.
+assertSettingsKeyPartition(settingsSections, DEFAULT_USER_SETTINGS);
 
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
 // context value so the settings host reads it without importing any pane body directly.
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   personas: personasPane,
-  appearance: makeAppearancePane(appearanceSettingsSections),
+  appearance: appearancePane,
   tags: tagsPane,
-  workloads: makeWorkloadsPane(workloadsSettingsSections),
+  workloads: workloadsPane,
   backup: backupPane,
-  "chat-behavior": makeChatBehaviorPane(chatBehaviorSettingsSections),
+  "chat-behavior": chatBehaviorPane,
   regex: regexPane,
   connections: connectionsPane,
   automation: automationPane,
   system: systemPane,
-  admin: makeAdminPane(adminSettingsSections),
+  admin: adminPane,
 });
 
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
@@ -312,11 +315,13 @@ createRoot(rootEl).render(
               <ModalRegistryProvider value={modals}>
                 <ChromeRegistryProvider value={chrome}>
                   <SettingsPaneRegistryProvider value={settingsPanes}>
-                    <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
-                      <SlashCommandRegistryProvider value={slashCommands}>
-                        <RouterProvider router={router} />
-                      </SlashCommandRegistryProvider>
-                    </MessageToolsRendererRegistryProvider>
+                    <SettingsSectionRegistryProvider value={settingsSections}>
+                      <MessageToolsRendererRegistryProvider value={messageToolsRenderers}>
+                        <SlashCommandRegistryProvider value={slashCommands}>
+                          <RouterProvider router={router} />
+                        </SlashCommandRegistryProvider>
+                      </MessageToolsRendererRegistryProvider>
+                    </SettingsSectionRegistryProvider>
                   </SettingsPaneRegistryProvider>
                 </ChromeRegistryProvider>
               </ModalRegistryProvider>

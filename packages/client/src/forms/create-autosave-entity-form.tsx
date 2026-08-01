@@ -25,15 +25,17 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { EntityDraftStore } from "#state";
+import type { EntityDraftStore, SAVE_LIFECYCLE_STATES } from "#state";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker";
 import type { AppFormInstance, AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
 
-/** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4). */
-const AUTOSAVE_SAVE_STATES = ["saved", "saving", "error"] as const;
-export type AutosaveSaveState = (typeof AUTOSAVE_SAVE_STATES)[number];
+/** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4).
+ *  DERIVED from the state-tier tuple (`SAVE_LIFECYCLE_STATES`) — the settings save-status store carries the
+ *  same lifecycle and lives BELOW forms, so the tuple homes there and this alias derives rather than
+ *  re-spells it (`no-inline-union-redecl`). */
+export type AutosaveSaveState = (typeof SAVE_LIFECYCLE_STATES)[number];
 
 /** The AppForm surface the session hands its body, `reset` type-removed (calling it re-baselines defaults,
  *  which on a live autosave draft is the isDirty loop `no-form-reset-in-autosave` also bans). */

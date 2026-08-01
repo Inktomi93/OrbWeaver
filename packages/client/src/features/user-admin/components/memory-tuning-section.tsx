@@ -23,6 +23,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { useReportSaveStatus } from "#forms";
+import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
 import { anyFieldOverridden, isOverridden } from "../lib/app-override-model";
@@ -68,19 +70,28 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
   return patch as MemoryDefaults;
 }
 
+/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
+ *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
+function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  return isPending ? "saving" : "saved";
+}
+
 /** The section's own suspense/error boundary so it is self-contained. */
-export function MemoryTuningSection(): ReactElement {
+export function MemoryTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading memory tuning…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
     >
-      <MemoryTuningBody />
+      <MemoryTuningBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MemoryTuningBody(): ReactElement {
+function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -95,6 +106,7 @@ function MemoryTuningBody(): ReactElement {
   const patch = diffNumeric(effective, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyDefaultsOverridden = anyFieldOverridden(stored);
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
   // memoryDefaults writes MERGE over the currently-stored overrides so untouched knobs survive; the enum +
   // boolean write immediately, the numeric knobs via Save. Reset clears the whole nested override.

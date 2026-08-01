@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { AutosaveStatus } from "#forms";
+import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model";
@@ -81,18 +81,18 @@ const CARDS: readonly CardDescriptor[] = [
 ];
 
 /** The Image-prompts section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function ImageryTemplatesSection(): ReactElement {
+export function ImageryTemplatesSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading your image-prompt templates…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your image-prompt templates" onRetry={retry} />}
     >
-      <ImageryTemplatesFormBody />
+      <ImageryTemplatesFormBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function ImageryTemplatesFormBody(): ReactElement {
+function ImageryTemplatesFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -102,12 +102,12 @@ function ImageryTemplatesFormBody(): ReactElement {
 
   return (
     <ImageryTemplatesAutosaveForm entityId={IMAGERY_TEMPLATES_ENTITY_ID} serverValues={projectImageryTemplatesForm(data.config.imagery)} save={save}>
-      {(session): ReactElement => <ImageryTemplatesBody session={session} />}
+      {(session): ReactElement => <ImageryTemplatesBody sectionId={sectionId} session={session} />}
     </ImageryTemplatesAutosaveForm>
   );
 }
 
-function ImageryTemplatesBody({ session }: { readonly session: AutosaveSession<ImageryTemplatesForm> }): ReactElement {
+function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<ImageryTemplatesForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
@@ -133,7 +133,7 @@ function ImageryTemplatesBody({ session }: { readonly session: AutosaveSession<I
             </Stack>
           ))}
         </Grid>
-        <AutosaveStatus state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+        <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
       </Stack>
     </Section>
   );

@@ -172,25 +172,45 @@ export { SectionRegistryProvider } from "./section-registry-provider";
 export type {
   ResolvedSettingsSection,
   SettingsGroup,
+  SettingsKeyClaim,
+  SettingsPaneBody,
   SettingsPaneDefinition,
   SettingsSectionContribution,
   SettingsSubcategory,
   SettingsViewerView,
+  UnclaimedSettingsKey,
 } from "./settings-pane-registry";
-export { resolveSettingsSections, SETTINGS_GROUPS, settingsAnchorId, settingsSectionNavs } from "./settings-pane-registry";
+export {
+  assertSettingsKeyPartition,
+  resolveSettingsSections,
+  SETTINGS_GROUPS,
+  settingsAnchorId,
+  settingsSectionNavs,
+  UNCLAIMED_SETTINGS_KEYS,
+} from "./settings-pane-registry";
 export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
 export {
   SettingsPaneRegistryContext,
   useSettingsPaneRegistry,
 } from "./settings-pane-registry-context";
 export { SettingsPaneRegistryProvider } from "./settings-pane-registry-provider";
+export type { SaveLifecycleState } from "./settings-save-status-store";
+export {
+  clearSectionSaveStatus,
+  reportSectionSaveStatus,
+  SAVE_LIFECYCLE_STATES,
+  useAggregateSaveStatus,
+  useErroredSaveSections,
+} from "./settings-save-status-store";
+export type { SettingsSectionRegistry } from "./settings-section-registry-context";
+export { SettingsSectionRegistryContext, useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context";
+export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider";
 export type {
   ModalSlotId,
   PanelMode,
   PanelName,
   SectionId,
   SettingsCategoryId,
-  SettingsSectionAnchor,
 } from "./shell-store";
 export {
   closeModal,
@@ -202,7 +222,6 @@ export {
   revealContextPanel,
   SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
-  SETTINGS_SECTION_ANCHORS,
   setActiveSection,
   setContextTab,
   setMobileViewport,
@@ -216,6 +235,7 @@ export {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  useSettingsSubTarget,
   useSettingsTarget,
 } from "./shell-store";
 export type { SlashCommandRegistry } from "./slash-command-registry-context";

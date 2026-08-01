@@ -15,6 +15,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { useReportSaveStatus } from "#forms";
+import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
 import { isOverridden } from "../lib/app-override-model";
@@ -53,18 +55,28 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 
 /** The section's own suspense/error boundary so it is self-contained (renders inside the admin pane's
  *  boundary in-app, but also stands alone). */
-export function RateLimitsSection(): ReactElement {
+
+/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
+ *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
+function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  return isPending ? "saving" : "saved";
+}
+
+export function RateLimitsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading rate limits…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
     >
-      <RateLimitsBody />
+      <RateLimitsBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function RateLimitsBody(): ReactElement {
+function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -77,6 +89,7 @@ function RateLimitsBody(): ReactElement {
   const patch = diffRateLimits(baseline, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyOverridden = FIELDS.some(({ key }) => isOverridden(stored?.[key]));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
   const onSave = (): void => {
     save.mutateAsync({ partial: { rateLimits: patch } }).catch(() => undefined); // sticky error slot below
