@@ -10,6 +10,20 @@
 //     `useSubscription(input)` per hook is exposed to, and the one that made "why are there two rpg streams?"
 //     a question anyone could ask.
 //
+// AN ATTACH IS DEDUPED, AND A DETACH IS DEFERRED — because a React MOUNT is not one lifecycle edge. Measured
+// on 4/4 cold loads (side-eye, 2026-08-01): the `user` room attached TWICE on every boot, same socket, same
+// ref, and opening a chat produced an attach→detach→attach churn. Two mechanisms, both structural, neither
+// fixable by "make StrictMode stop":
+//   • the DOUBLE EFFECT — dev StrictMode (and any remount: a Suspense retry, a fast route bounce) runs
+//     cleanup then setup, so the last subscriber leaves and re-joins within one commit. Detaching eagerly
+//     there throws the room away and buys it back one round-trip later. So the last leaver schedules the
+//     detach `ROOM_RETIRE_GRACE_MS` out, and a re-join inside that window CANCELS it: the room never left, so
+//     there is nothing to re-announce and — the part that mattered — no re-attach gap-heal wave either.
+//   • the RE-BIND — `useOrbSocket`'s effect is double-invoked too, and `bindTransport` flushes every joined
+//     room. So an announce carries its replay request forward (`entry.announced`) and an announce that would
+//     repeat an identical attach is dropped. A RECONNECT still forces one: there the server may have reaped
+//     the cell, which is the whole reason the re-announce exists.
+//
 // THE TRANSPORT BINDS LATE. `useOrbSocket` mounts once at the composition root, but a room hook can render
 // before it (React commits children first). So joins made before `bindTransport` are recorded and FLUSHED on
 // bind — the client-side twin of the server's order-independent cell.
@@ -108,6 +122,11 @@ export interface RoomRegistry {
 interface RoomEntry {
   readonly ref: StreamRoomRef;
   readonly subscribers: Set<RoomSubscriber>;
+  /** The replay request this room has ALREADY announced to the wire, or `undefined` when it never has. The
+   *  dedupe key: an announce that would repeat an identical attach is a no-op (see the header). */
+  announced: number | null | undefined;
+  /** The pending detach of a room nobody wants right now — cancelled if it is re-joined inside the grace. */
+  retire: ReturnType<typeof setTimeout> | undefined;
 }
 
 /** The announce retry schedule — 3 attempts over ~1s, which covers the realistic failure (a flap that
@@ -120,6 +139,11 @@ const ANNOUNCE_RETRY_BACKOFF_MS = [ANNOUNCE_RETRY_FIRST_MS, ANNOUNCE_RETRY_SECON
 /** What a room whose announce never landed says. The room is genuinely not receiving — the honest thing is
  *  to say so rather than let a live socket look like a quiet chat. */
 const ANNOUNCE_FAILED_MESSAGE = "Live updates could not be started for this room. Reload to try again.";
+
+/** How long a room nobody wants is kept attached before the detach fires. Long enough to swallow a remount
+ *  that spans commits (the StrictMode double-effect, a Suspense retry); short enough that a real "leave the
+ *  chat" gives the room back while the user is still reaching for the next thing. */
+const ROOM_RETIRE_GRACE_MS = 250;
 
 function lowestSinceSeq(entry: RoomEntry): number | null {
   let lowest: number | null = null;
@@ -156,7 +180,13 @@ export function createRoomRegistry(): RoomRegistry {
    * an error, and the leak-free NOT_FOUND for a room the viewer may not have costs three cheap round trips
    * before saying so. Fire-and-forget from the caller's view either way: never an unhandled rejection.
    */
-  function announce(entry: RoomEntry): void {
+  function announce(entry: RoomEntry, force = false): void {
+    // The dedupe: this room is already attached with exactly this replay request, so re-sending it would only
+    // spend a round-trip to tell the server what it already holds. A RECONNECT passes `force` — there the
+    // server's cell may be gone, and an idempotent attach is the thing that brings it back.
+    if (!force && entry.announced !== undefined && entry.announced === lowestSinceSeq(entry)) {
+      return;
+    }
     attemptAnnounce(entry, 0);
   }
 
@@ -165,13 +195,17 @@ export function createRoomRegistry(): RoomRegistry {
   function attemptAnnounce(entry: RoomEntry, attempt: number): void {
     const wire = transport;
     // The socket has not mounted yet (bindTransport flushes every joined room), or this room was left /
-    // replaced mid-retry — either way there is nothing left to announce.
-    if (wire === null || rooms.get(roomKey(entry.ref)) !== entry) {
+    // replaced mid-retry — either way there is nothing left to announce. "Left" is SUBSCRIBER-counted, not
+    // map-counted: a room inside its retire grace is still in the map, and a torn-down surface must not keep
+    // announcing a room it is about to give back.
+    if (wire === null || entry.subscribers.size === 0 || rooms.get(roomKey(entry.ref)) !== entry) {
       return;
     }
     // The replay request is re-read per attempt: the client's high-water mark may have advanced while a
-    // previous attempt was in flight.
-    void wire.attach(entry.ref, lowestSinceSeq(entry)).catch(() => retryAnnounce(entry, attempt));
+    // previous attempt was in flight. What goes on the wire is what the dedupe records.
+    const wanted = lowestSinceSeq(entry);
+    entry.announced = wanted;
+    void wire.attach(entry.ref, wanted).catch(() => retryAnnounce(entry, attempt));
   }
 
   function retryAnnounce(entry: RoomEntry, attempt: number): void {
@@ -207,11 +241,17 @@ export function createRoomRegistry(): RoomRegistry {
 
   function join(ref: StreamRoomRef, subscriber: RoomSubscriber): () => void {
     const key = roomKey(ref);
-    const entry = rooms.get(key) ?? { ref, subscribers: new Set<RoomSubscriber>() };
+    const entry = rooms.get(key) ?? { ref, subscribers: new Set<RoomSubscriber>(), announced: undefined, retire: undefined };
     entry.subscribers.add(subscriber);
-    const isFirst = entry.subscribers.size === 1;
     rooms.set(key, entry);
-    if (isFirst) {
+    // A room inside its retire grace was never given back — this join RECLAIMS it. Nothing to announce (it is
+    // still attached with this request) and nothing to heal (it never went dark): the remount is invisible.
+    const reclaimed = entry.retire !== undefined;
+    if (reclaimed) {
+      clearTimeout(entry.retire);
+      entry.retire = undefined;
+    }
+    if (entry.subscribers.size === 1 && !reclaimed) {
       announce(entry);
       if (socketIsLive) {
         // Joining an ALREADY-live socket: this room is live now, so its own live edge is here, not at the
@@ -221,11 +261,19 @@ export function createRoomRegistry(): RoomRegistry {
     }
     return (): void => {
       entry.subscribers.delete(subscriber);
-      if (entry.subscribers.size > 0) {
+      if (entry.subscribers.size > 0 || entry.retire !== undefined) {
         return;
       }
-      rooms.delete(key);
-      retire(entry);
+      entry.retire = setTimeout(() => {
+        entry.retire = undefined;
+        // A subscriber arriving in the grace window cancels this timer; only a room still wanted by nobody,
+        // and still the one this key holds, is given back.
+        if (entry.subscribers.size > 0 || rooms.get(key) !== entry) {
+          return;
+        }
+        rooms.delete(key);
+        retire(entry);
+      }, ROOM_RETIRE_GRACE_MS);
     };
   }
 
@@ -255,7 +303,8 @@ export function createRoomRegistry(): RoomRegistry {
       socketIsLive = true;
       for (const [key, entry] of rooms) {
         if (reconnected) {
-          announce(entry);
+          // FORCED past the dedupe: the server may have reaped this room's cell while the socket was down.
+          announce(entry, true);
         }
         roomWentLive(key, entry);
       }

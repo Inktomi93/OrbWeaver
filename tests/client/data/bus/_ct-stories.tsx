@@ -15,7 +15,7 @@ import { QueryBoundary, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUs
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
@@ -85,6 +85,42 @@ export function UserBusStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <UserBusProbe />
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** A REMOUNT of the room consumer, on demand — the double lifecycle edge in the shape a CT can drive. Bumping
+ *  the key unmounts and re-mounts the probe in ONE commit, so the registry sees leave-then-join back to back:
+ *  exactly what React's StrictMode does to every effect on a dev boot (`main.tsx`), what a Suspense retry does
+ *  on chat open, and what used to cost the user room a detach + a second attach on the wire.
+ *
+ *  `tag.listTags` + its refetch button are the BARRIER an absence assertion needs: counts only climb, so a
+ *  round trip issued AFTER the remount is what proves the remount's own traffic (if any) has already landed. */
+function RemountableRoomProbe(): ReactElement {
+  const trpc = useTRPC();
+  const tags = useQuery(trpc.tag.listTags.queryOptions());
+  const [generation, setGeneration] = useState(0);
+  return (
+    <>
+      <button type="button" data-testid="remount-room" onClick={(): void => setGeneration((prev) => prev + 1)}>
+        remount
+      </button>
+      <button type="button" data-testid="probe-barrier" onClick={(): void => void tags.refetch()}>
+        barrier
+      </button>
+      <output data-testid="room-generation">{String(generation)}</output>
+      <UserBusProbe key={generation} />
+    </>
+  );
+}
+
+/** The always-on user room, REMOUNTABLE — the double-edge story (see {@link RemountableRoomProbe}). */
+export function UserBusRemountStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <RemountableRoomProbe />
       </SocketHost>
     </CtDataProviders>
   );
