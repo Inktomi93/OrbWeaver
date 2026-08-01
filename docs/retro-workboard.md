@@ -527,8 +527,12 @@ Still open: #16 engine auto-sleep/wake live pass · D22 member-tiers (multi-user
 new scope beyond the databank mandate).** Plumbing is ~complete (terminal tools · stateful tools ·
 session resume w/ seed-frames+divergence · compaction envs · firewall · catalog). Remaining arms:
 (1) knob HONESTY — SDK wire ignores most sampling knobs; EFF-3 applies/ignored rows per preset
-knob · (2) REASONING capture parity — F5's 28× native thinking depth into our reasoning channel +
-strip belts + a thinking-budget knob · (3) usage/context accounting parity (per-turn DELTA
+knob · (2) REASONING visibility parity — OWNER FACT (08-02): the model reasons at native depth on BOTH
+arms; max-pro-sub delivers it as ENCRYPTED deltas (hidden by provider), the OR skin delivers it
+readable. So: OR-skin arm = capture into our reasoning channel + strip belts; sub arm = handle
+encrypted deltas HONESTLY (an explicit "reasoning hidden by provider" surface, never an empty/
+broken pane; preserve blocks only as the SDK's own session needs) + a thinking-budget knob where
+the wire honors one · (3) usage/context accounting parity (per-turn DELTA
 semantics; PREV bars must not lie on SDK chats) · (4) THE LIVE DRIVE — full rpg-lite loop on the
 SDK wire scored (beats, extraction parity vs the reachability surfaces, resume hit-rate,
 multi-call terminal capture) · (5) mixed-mode turns only if a need lands. Order: 2→3→1→4.
