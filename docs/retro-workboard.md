@@ -139,7 +139,23 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). **⚠ LIVE RED (08-02, twice-reproduced — NOT flake): rpg-lite swipe-consistency @live spec**
+S4-ruled rows untouched). ~~swipe red~~ SOLVED (`74cb00e1` — neither race nor product: tests/e2e/support/trpc.ts is a HAND
+MIRROR of contracts and TRK-2's `max` field never reached it; green ×2; lesson banked: sweep the
+e2e mirror on every contract-shape amendment). NEW FLAG from that lane → **HAND-WRITE PLANE LOSS
+investigation IN FLIGHT** (SPEC 1: hero.volatile undefined after multi-editSnapshot hand write;
+mergeKeyedArray/clone-forward seam brief). **B2 MERGED** (`5d71e287`: resolveEffective labels the
+REAL resolveChat [parity-tested w/ live clamp]; TEMPLATE_DEFS registry + GUIDED_ACTION_COPY
+retired; G9/G10 wired end-to-end; importFile via factory injection [verb→verb = depcruise RED];
+wiFormat {{entry}} refusal = write-boundary CARRIER-token law, distinct from requiredMacros
+lint-never-block; settingsChanged freshness row added — model swap re-labels provenance).
+**WAVE-2 V1 IN FLIGHT** (five-view shell + Params deck/KnobRow; V2 rack/actions/readouts/list
+next, serialized). **LIFECYCLE LANE in reconcile** (refused at the merge gate — density S4 moved
+under it; 7 density + knip×2 + fabrication + suppressions×2 + test-presence to fix on merged
+tree; the audit itself: ~everything COMPLETE, single-chat jsonl import BUILT, txt export WIRED,
+bands moved to ruled anatomy, member-strip export CHECKED SAFE [host-gated 404], slugifyHandle
+empty-name bug found+fixed; TABLED owner calls: JSON card export format · absent-character
+transcript policy [refuse vs mint-placeholder]).
+Old red note:
 (tracker plane resolving off a non-current snapshot after swipe, or a live-timing race) —
 INVESTIGATION LANE IN FLIGHT (suspects: macro-parity one-builder merge, cast-volatile era;
 verdict RACE-vs-REAL with proven-to-fail regression required). E2E_LIVE otherwise 51/52 green.
