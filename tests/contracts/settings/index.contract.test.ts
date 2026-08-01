@@ -6,6 +6,7 @@ import {
   appSettingsSchema,
   DEFAULT_ALLOW_NON_OWNER_LOCAL_COMPUTE,
   DEFAULT_ALLOW_NON_OWNER_MAX_PRO_SUB,
+  DEFAULT_BLUR_SURFACES,
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_USER_SETTINGS,
   LOG_LEVELS,
@@ -282,8 +283,10 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.showInChatAvatars).toBe(true);
   expect(parsed.appearance.showTokenCount).toBe(false);
   expect(parsed.appearance.messageActions).toBe("hover");
-  // Effects default OFF (the no-glass seed)
-  expect(parsed.appearance.blurSurfaces).toEqual([]);
+  // Blur ships ON for the three chrome surfaces (owner ruling 2026-08-02); `messages` stays out —
+  // the Reading-Surface rule forbids blur behind long reading text by default. Shadow/motion stay OFF.
+  expect(parsed.appearance.blurSurfaces).toEqual([...DEFAULT_BLUR_SURFACES]);
+  expect(parsed.appearance.blurSurfaces).not.toContain("messages");
   expect(parsed.appearance.shadowEffects).toBe(false);
   expect(parsed.appearance.reducedMotion).toBe(false);
   // An empty blob parses as the pinned CURRENT version (the point here is "current", not the literal).
@@ -304,6 +307,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
         fontScale: 99, // over the max → catch → 1
         showTimestamps: "yes", // not a boolean → catch → true (the default)
         density: "roomy", // not a THEME_DENSITIES member → catch → "comfortable"
+        blurSurfaces: ["fog"], // not a BLUR_SURFACES member → catch → the shipped default set
       },
     },
     USER_SETTINGS_SCHEMA_VERSION,
@@ -315,6 +319,14 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
   expect(parsed.appearance.fontScale).toBe(1);
   expect(parsed.appearance.showTimestamps).toBe(true);
   expect(parsed.appearance.density).toBe("comfortable");
+  expect(parsed.appearance.blurSurfaces).toEqual([...DEFAULT_BLUR_SURFACES]);
+});
+
+// An explicitly-stored OPT-OUT must survive the new ON-by-default: `[]` is a legal parse, not a
+// missing-field that re-defaults (the risk of moving a default off the empty value).
+test("UserSettings.appearance: an explicit empty blurSurfaces is kept, not re-defaulted", () => {
+  const parsed = parseUserSettings({ appearance: { blurSurfaces: [] } }, USER_SETTINGS_SCHEMA_VERSION);
+  expect(parsed.appearance.blurSurfaces).toEqual([]);
 });
 
 test("UserSettings.appearance keeps valid overrides while healing invalid siblings", () => {
