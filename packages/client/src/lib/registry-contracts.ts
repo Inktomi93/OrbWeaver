@@ -1,6 +1,7 @@
 // Tier-4 contract home for the registry primitive (client-architecture-lockdown.md §6b/§6c) — the
 // vocabulary-independent shapes a host feature and its cross-feature contributors both need (the CONTEXT
-// model + a contributor tab def) without either importing the other. May import `@orb/contracts` types +
+// model, a contributor tab def, and a contributor's whole-pane REGION CLAIM) without either importing the
+// other. May import `@orb/contracts` types +
 // the registry primitive; imports zero features. `SectionDefinition` itself lives in `#state` (it binds
 // these shapes to the shell's SectionId/PanelMode vocabulary, which state owns — §5 rule 5).
 //
@@ -18,8 +19,7 @@ import type { ContributorRegistry } from "./registry";
 
 /** Which of the two-strip bracket a CONTEXT tab belongs to (Context-Panel-Program §4.2). `"game"` = the
  *  state row ABOVE the viewport; `"meta"` = the administration row BELOW it. The bracket renders ONLY when
- *  ≥1 resolved tab is `"game"` — a set with all `"meta"` tabs (every standard section today) is the single
- *  top strip, byte-identical to the pre-bracket panel (§4.2 last bullet, the backward-compat floor). */
+ *  ≥1 resolved tab is `"game"`; an all-`"meta"` set (every standard section) is the single top strip. */
 export type ContextTabStrip = "game" | "meta";
 
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
@@ -54,13 +54,10 @@ export interface ContextTabDef<S> {
    *  default (backward-compat). The FIRST resolved tab whose flag is true supplies the default. */
   readonly defaultTab?: (state: S) => boolean;
   /** The CONTEXT-panel BAND identity a CONTRIBUTOR supplies (Context-Panel-Program §4.2/§4.11 #3) — the
-   *  scene-banner + pool-orbs header that must ride the `.shell-panel-header` band ABOVE both strips, NOT
-   *  inside a tab body. A contributor (rpg) can't reach the host's `spec.header`, so it declares its band
-   *  content HERE, gated by this tab's OWN `when` (the same game-ness gate as the tab). At resolve time the
-   *  FIRST `when`-passing contributor tab that carries a `header` supplies `ResolvedContextTabs.header`,
-   *  overriding the host's own header while the takeover is active (a game chat's own chat header is the
-   *  neutral band by CP-1 de-dup, so nothing is lost). Self-contained: the body reads its own domain data,
-   *  exactly like {@link ContextTabDef.body}. Absent ⇒ this tab contributes no band content. */
+   *  scene-banner + pool-orbs header that rides the `.shell-panel-header` band ABOVE both strips, gated by
+   *  this tab's OWN `when`. The FIRST `when`-passing contributor header wins and overrides the host's own
+   *  (a game chat's chat header is the neutral band by CP-1 de-dup, so nothing is lost). Absent ⇒ no band
+   *  content. RETIRES at HUD-1 H1: a claimant owns the band, so a contributor stops reaching for the slot. */
   readonly header?: (state: S) => ReactNode;
 }
 
@@ -80,16 +77,54 @@ export interface ResolvedContextTab {
   readonly defaultTab: boolean;
 }
 
+/** What the shell hands a CLAIMANT (HUD-1 §3.2): everything it would have rendered itself, already resolved
+ *  — so the claimant never re-resolves, never calls `body(state)`, never re-runs `when`, never invents a tab. */
+export interface ContextRegionView {
+  /** ALL resolved tabs — the SAME set `ContextTabsPanel` consumes (own then contributors, `when`-filtered,
+   *  declared order, `S` applied). The claimant splits them by `strip` for its own rails. */
+  readonly tabs: readonly ResolvedContextTab[];
+  /** The resolved selection (stored `contextTab` if still visible, else the `defaultTab` flag, else the
+   *  declared-order first) + the pre-bound writer — the ONE selection seam; never mirror it locally. */
+  readonly activeTab: string | null;
+  readonly selectTab: (id: string) => void;
+  /** The host's strip-trail actions, already state-bound (chat's draft add-member popover today). */
+  readonly actions?: ReactNode;
+}
+
+/** A contributor's CLAIM on the WHOLE CONTEXT pane (HUD-1 §3.1) — the third contributor arm beside
+ *  context-tabs and surface-anchors (§6c). While the claim holds the shell renders NONE of its own pane
+ *  chrome (no band, no `.ctx-tab-strip`): the claimant returns ONE node composing band + strips + viewport
+ *  in its own order, and the shell keeps only the panel MECHANICS it has always owned (D62 untouched — a
+ *  claim is pane CONTENT). `S` stays CONTRAVARIANT-only exactly like `ContextTabDef`, so §6b's erasure
+ *  proof is unchanged: `claims` CONSUMES `S`, `render` consumes the non-generic view. */
+export interface ContextRegionDef<S> {
+  readonly id: string;
+  /** APPLICABILITY — the same class of gate as a tab's `when` (game-ness, read cache-first). */
+  readonly claims: (state: S) => boolean;
+  /** The whole pane. Gets ONLY the shell view — the claimant's domain state comes from its own hooks. */
+  readonly render: (view: ContextRegionView) => ReactNode;
+}
+
+/** THE region mint (HUD-1 §8) — the ONE legal minter of a `ContextRegionDef`, so the shape has a single
+ *  spelled home the gate can count: a hand-rolled literal elsewhere is RED, and at most ONE call site
+ *  may exist project-wide (one pane, one owner). */
+export function defineContextRegion<S>(def: ContextRegionDef<S>): ContextRegionDef<S> {
+  return def;
+}
+
 /** The resolved CONTEXT-panel tab strip — when-filtered, own tabs then contributors, declared order.
- *  `header` is the definition-owned CONTEXT-panel BAND slot (north-star §4 N4, P4): the active entity's
- *  identity, resolved from the SAME `S` the tabs read (a committed chat's avatar + title). It renders in
- *  the `.shell-panel-header` band (a different mount point than `tabs`/`actions`, which fill the body), so
+ *  `header` is the definition-owned BAND slot (north-star §4 N4, P4): the active entity's identity from the
+ *  SAME `S` the tabs read. It mounts in the `.shell-panel-header` band, not the body, so
  *  `SectionContextHeader` consumes `header` while `ContextTabsPanel` consumes `tabs`/`actions` — one
- *  resolve, two band/body consumers. Absent ⇒ the band shows the neutral "Details" default. */
+ *  resolve, two consumers. Absent ⇒ the band shows the neutral "Details" default. */
 export interface ResolvedContextTabs {
   readonly tabs: readonly ResolvedContextTab[];
   readonly actions?: ReactNode;
   readonly header?: ReactNode;
+  /** Present ⇒ a contributor CLAIMED the whole pane (HUD-1 §3.1): the shell renders this instead of its own
+   *  band + strips + viewport, and `SectionContextHeader` renders nothing. Absent ⇒ today's generic panel,
+   *  byte-identical. `tabs`/`actions` are still resolved in FULL — a claim never suppresses resolution. */
+  readonly region?: (view: ContextRegionView) => ReactNode;
 }
 
 /** A section's CONTEXT-panel model — the four legacy wirings (registry-tabs · chat's bespoke Tabs ·
@@ -118,6 +153,9 @@ export interface ContextTabsSpec<S> {
   readonly header?: (state: S) => ReactNode;
   /** §6c — injected at the door (M8); merged after own tabs, same `when` gating. */
   readonly contributors?: ContributorRegistry<ContextTabDef<S>>;
+  /** §6c / HUD-1 §3.2 — the REGION-CLAIM arm, injected at the same door. The FIRST claiming region owns the
+   *  whole pane for that state; zero claimants resolves to today's generic panel, unchanged. */
+  readonly regions?: ContributorRegistry<ContextRegionDef<S>>;
 }
 
 /** The pure resolve step `defineContextTabs` closes over: own tabs → contributors, `when`-filtered, in
@@ -139,7 +177,11 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
   // OVERRIDES it while active (§4.2/§4.11 #3 — the takeover owns the band). First active contributor header
   // wins; the host header shows when none is active (a game chat's own chat header is the neutral band).
   const contributedHeader = active.find((tab) => tab.header !== undefined)?.header?.(state);
-  return { tabs, actions: spec.actions?.(state), header: contributedHeader ?? spec.header?.(state) };
+  // The FIRST claiming region wins the whole pane (HUD-1 §3.2) — declared order decides, so the outcome is
+  // deterministic; the ≤1-claimant gate arm makes a second claimant unbuildable anyway.
+  const region = spec.regions?.list().find((candidate) => candidate.claims(state))?.render;
+  const resolved = { tabs, actions: spec.actions?.(state), header: contributedHeader ?? spec.header?.(state) };
+  return region === undefined ? resolved : { ...resolved, region };
 }
 
 /** THE mint (§6b) — pairs a projection hook with its tabs/contributors, closed over by a named

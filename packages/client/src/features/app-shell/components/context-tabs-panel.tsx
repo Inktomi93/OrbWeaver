@@ -30,7 +30,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ResolvedContextTab } from "#lib";
-import { setContextTab, useContextTab } from "#state";
+import { useContextTabSelection } from "../hooks/use-context-tab-selection";
 
 export interface ContextTabsPanelProps {
   readonly tabs: readonly ResolvedContextTab[];
@@ -39,7 +39,9 @@ export interface ContextTabsPanelProps {
 }
 
 export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelProps): ReactElement | null {
-  const contextTab = useContextTab();
+  // The ONE selection resolver, shared with `ContextRegionHost` (HUD-1 §3.4) — stored → `defaultTab` →
+  // declared-first, so the two pane compositions cannot drift.
+  const { activeTab, selectTab } = useContextTabSelection(entries);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const tabKey = entries.map((entry) => entry.id).join(",");
 
@@ -48,11 +50,11 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   // neighbors clipped when a wide-host label-mode strip does overflow. Runs after Base UI has moved
   // `data-active` onto the selected tab; `nearest` scrolls the minimum (a no-op when fully visible). The
   // query spans the whole Tabs root, so it finds the active tab in EITHER strip of the bracket.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: contextTab + tabKey are the intentional re-run triggers (selection change / tab-set change); the body reads the resolved active tab from the DOM, so neither appears in it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeTab + tabKey are the intentional re-run triggers (selection change / tab-set change); the body reads the resolved active tab from the DOM, so neither appears in it.
   useEffect(() => {
     const activeEl = rootRef.current?.querySelector<HTMLElement>('[data-slot="tabs-tab"][data-active]');
     activeEl?.scrollIntoView({ inline: "nearest", block: "nearest" });
-  }, [contextTab, tabKey]);
+  }, [activeTab, tabKey]);
 
   if (entries.length === 0) {
     return null;
@@ -61,18 +63,15 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
   const metaTabs = entries.filter((entry) => entry.strip === "meta");
   const hasBracket = gameTabs.length > 0;
 
-  const visible = new Set(entries.map((entry) => entry.id));
-  // Fallback default (Context-Panel-Program §4.1): a tab that flags `defaultTab` (rpg.status for a game
-  // chat) wins the empty/foreign-selection landing over the declared-order first — so a game chat lands on
-  // Status, not the roster's Members. A stored, still-visible `contextTab` always wins first (continuity).
-  const first = (entries.find((entry) => entry.defaultTab) ?? entries[0])?.id ?? null;
-  const activeTab = contextTab !== null && visible.has(contextTab) ? contextTab : first;
-
   return (
     <Tabs
       ref={rootRef}
       value={activeTab}
-      onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
+      onValueChange={(value): void => {
+        if (typeof value === "string") {
+          selectTab(value);
+        }
+      }}
       className="flex h-full min-h-0 flex-col gap-row"
     >
       {/* No bracket ⇒ the single top strip carries every (meta) tab, aria-label "Detail" — byte-identical
