@@ -192,7 +192,25 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
-**RULED mid-review (owner 08-02): HP JOINS THE UNIFIED TRACKERS** — demote the native
+**★ RESHAPE APPROVED (owner, 08-02: "approved to make the change") — the ACTOR-STATE PROGRAM
+(report: docs/reviews/stickler/2026-08-02-actor-state-model.md, on main `44c21cae`):**
+- R1 (M): op-shaped hand door — `rpg.patchActor` (per-field ops, server read-modify-write) +
+  `rpg.dismissActor` (the missing removal gesture); volatile-patch.ts + 4 call sites die; the
+  stale-image clobber class dies; member-own-volatile unblocks safely.
+- R2 (L, one lane with R3): THE NPC BECOMES AN ACTOR; presence becomes a presence plane;
+  castVolatile/castTrackers/castCarrier DIE; one RpgActorView for everyone; departure retains,
+  return re-surfaces, slug keys (find 6), carrier-class drift (find 4) unrepresentable. Model
+  wire UNCHANGED (presentUpsert/Remove shapes keep; appliers re-target).
+- HP DEMOTION rides R2's baseline squash (find 5's coupled sites incl. the dual-max incoherence;
+  accepted delta: tracker-delta-on-unset starts at 0 vs old refusal).
+- R4 doorway: NPC→roster promotion (mint card → stamp characterId → re-key); rpg_npcs stays the
+  cross-game graduation door.
+- Q3/Q2 closed no-action (lock split retired by R1; omissionRemoves stays for the model path).
+SEQUENCING: R1 dispatches AFTER the SE lanes + V1 merge + the batch check (file collision +
+load 60 throttle); R2+R3+hp serially after R1. VOCAB RIDER (owner): NO "GM" in lite — the person
+is the HOST (solo = just the user); sweep lite-facing copy/names (rpg-gm-scalars, GM-tab naming)
+during R2.
+Old ruling note: **RULED mid-review (owner 08-02): HP JOINS THE UNIFIED TRACKERS** — demote the native
 rpgActorVolatileSchema.hp to a d20-profile-SEEDED pool def, one addressing rule; the review
 delivers the HOW (migration sites: hpDelta wire → tracker-delta vocab · reminder seg · panel
 orb · schema removal + NO-LEGACY squash · e2e mirrors · reachability leaves). NORTH STAR
