@@ -149,6 +149,16 @@ test("selected reads via a 2px left ember bar (rides --color-primary) + aria-cur
   await expect(row).toHaveCSS("border-left-color", TOKENS["color.primary"].value);
 });
 
+// `expanded` is the DISCLOSURE arm — a parent row that owns child rows. It never implies aria-current: the
+// "you are here" marker belongs to the leaf, and a parent+child both carrying it announces two current
+// items for one location (the settings-nav defect, side-eye 2026-08-01).
+test("expanded exposes aria-expanded and never aria-current", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} expanded={true} title="Appearance" />);
+  const row = page.getByRole("button", { name: "Appearance" });
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  await expect(row).not.toHaveAttribute("aria-current", "true");
+});
+
 test("disabled removes the row from tab order and marks aria-disabled", async ({ mount, page }) => {
   const clicks: string[] = [];
   await mount(
