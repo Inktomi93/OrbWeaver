@@ -313,7 +313,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    exempt list down to chat.impersonateStream + ledger D-entry. WATCH: check-gates.int "unfired"
    flaked ONCE (217s run) then passed ×2 — recurs ⇒ chase.**
    Spec `docs/design/sse-multiplex-spec.md`, §14 fully ruled.
-3. **HUD-HOME** (owner-ruled 2026-08-01, from the stickler visual audit F6,
+3. **~~HUD-HOME~~ COMPLETE + CLOSED (08-02, D119 MINTED)** — H0-H4 all merged; gate live with
+   8 probe-receipted arms; spec stamped BUILT; two better-than-spec deviations recorded in D119.
+   Residue: the combined side-eye re-pass still owed (stage singleton) · registry-contracts.ts
+   sits AT the 450-line cap (next doc line forces a split) · owner ratifications: locked-Map
+   one-story + ContextTabDef.crown (both spec-amended in place, D119 records them). Original: (owner-ruled 2026-08-01, from the stickler visual audit F6,
    `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): **the pre-HUD chrome seams in the
    CONTEXT panel get YEETED — the context panel (where the rpg game lives in lite mode) IS the
    HUD's home** (owner lean refined same evening: the panel wholesale IS the HUD when a game is
