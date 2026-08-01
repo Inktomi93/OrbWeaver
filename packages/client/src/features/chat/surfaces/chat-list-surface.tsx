@@ -113,11 +113,16 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
   // so a face you haven't opened in a week is still identifiable without hovering it. The kicker is the
   // mock's group label (side-eye P2b) — without it the row of portraits reads as decoration, and a cold user
   // never learns that tapping one scopes the list below.
+  //
+  // It names the VERB, not the contents (home side-eye): a clickable character face LAUNCHES a chat
+  // everywhere else in the app — on home, one rail click away — so a bare "Faces" left the same picture
+  // carrying opposite verbs. "Filter by face" is the line that disambiguates before the click, and the
+  // selected face's accent caption + the "Filtered: X" chip below confirm it after.
   return (
     <FaceStrip
       caption={true}
       items={faces}
-      kicker="Faces"
+      kicker="Filter by face"
       label="Recent characters"
       onSelect={scopeToFace}
       selectedId={characterFilter?.id ?? null}
