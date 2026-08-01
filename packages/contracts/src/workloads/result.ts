@@ -1,42 +1,48 @@
-// domain/workloads/contract/workload-result — per-kind result vocabulary: workload-owned projections, not
-// re-exports of the wrapped verb's return (the runner translates the wrapped op's stats into these shapes,
-// so the contract stays stable as wrapped verbs evolve). ResultByKind is the exhaustive map — a kind
-// without a result entry fails tsc at Runner<K>'s return.
+// `@orb/contracts/workloads` — per-kind RESULT vocabulary: the terminal projection a contribution returns,
+// stored verbatim in the `workloads.result` JSON column and read back by the client.
 //
-// `IngestRunResult` (databank-ingest/reindex) is the one exception: it is a cross-boundary shape owned by
-// `@orb/contracts/databank` (the workload row carries it as its result JSON the client reads), so the two
-// databank kinds reference it directly rather than re-spelling a workload-local twin (one home, D34).
+// A result is a domain↔domain wire shape, so it homes in `contracts` beside its params (the
+// `IngestRunResult` precedent — databank's ingest result always lived in `@orb/contracts/databank` and the
+// workloads contract referenced it rather than re-spelling a twin; that exception is now the rule). Kinds
+// whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
+// still awaiting their owner + assembles the exhaustive map.
 
-import type { IngestRunResult } from "@orb/contracts/databank";
+import type { IngestRunResult } from "#databank";
 
+/** An embed pass's counts (`index`). */
 export interface EmbedPassResult {
   readonly embedded: number;
   readonly skipped: number;
 }
 
+/** A discovery analytics pass's counts. */
 export interface AnalyticsResult {
   readonly scanned: number;
   readonly written: number;
 }
 
-interface MaintenanceResult {
+/** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
+export interface MaintenanceResult {
   readonly scanned: number;
   readonly changed: number;
   readonly dryRun: boolean;
 }
 
+/** A portability bundle import's per-entity tallies. */
 export interface BundleImportWorkloadResult {
   readonly imported: number;
   readonly skipped: number;
   readonly failed: number;
 }
 
+/** The asset-store integrity report (`assets-fsck`) — the three fault counts ARE the product of the run. */
 export interface FsckReport {
   readonly danglingRows: number;
   readonly corruptBlobs: number;
   readonly orphanBlobs: number;
 }
 
+/** The stats rollup rebuild's counts. */
 export interface ReconcileStatsWorkloadResult {
   readonly owners: number;
   readonly characters: number;
@@ -49,11 +55,12 @@ export interface CatalogRefreshResult {
   readonly agentSdkModels: number | null;
 }
 
-/** deferred:true distinguishes an inert P5/v2-stub run from a real zero-work pass. */
-interface DeferredResult {
+/** `deferred:true` distinguishes an inert v2-stub run from a real zero-work pass. */
+export interface DeferredResult {
   readonly deferred: true;
 }
 
+/** A backfill sweep's scan/change counts. */
 export interface BackfillPassResult {
   readonly scanned: number;
   readonly changed: number;
@@ -68,7 +75,11 @@ export interface MemoryBackfillResult {
   readonly failed: number;
 }
 
-export interface ResultByKind {
+/**
+ * kind → its terminal result TYPE. A kind missing an entry here is a tsc error at `WorkloadContributions`
+ * (the mapped-type registry indexes this map for every member).
+ */
+export interface WorkloadResultByKind {
   index: EmbedPassResult;
   "distill-characters": AnalyticsResult;
   "compute-themes": AnalyticsResult;

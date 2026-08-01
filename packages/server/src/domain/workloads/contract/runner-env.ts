@@ -4,9 +4,6 @@
 // never a sideways import; each sub-interface is the minimal op subset that feature's runners use.
 
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
-
-import type { DocumentId, UserId } from "@orb/kit/ids";
-import type { Cas } from "#infra/storage";
 import type {
   AnalyticsResult,
   BackfillPassResult,
@@ -16,7 +13,9 @@ import type {
   FsckReport,
   MemoryBackfillResult,
   ReconcileStatsWorkloadResult,
-} from "./workload-result";
+} from "@orb/contracts/workloads";
+import type { DocumentId, UserId } from "@orb/kit/ids";
+import type { Cas } from "#infra/storage";
 
 /** Counts a maintenance/backfill op returns BEFORE the runner adds the `dryRun` echo (→ MaintenanceResult). */
 interface MaintenancePassCounts {

@@ -23,7 +23,10 @@ import {
 } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { seedUser, seedWorkloadRow, T0 } from "../_support.ts";
+import { fakeContributions, seedUser, seedWorkloadRow, T0 } from "../_support.ts";
+
+// The params VALIDATOR the read path narrows rows with (every kind's schema, keyed by kind).
+const CONTRIBUTIONS = fakeContributions();
 
 describe("markStarted (idempotent claim)", () => {
   test("claims a queued row once; the second caller (loser) gets false", async () => {
@@ -46,7 +49,7 @@ describe("markTerminal (status-guarded, linear)", () => {
       now: T0 + 5,
     });
     expect(moved).toBe(true);
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     expect(row?.status).toBe("succeeded");
     expect(row?.result).toEqual({ owners: 1, characters: 4 });
   });
@@ -120,7 +123,7 @@ describe("heartbeat", () => {
     const db = await freshDb();
     const id = await seedWorkloadRow(db, { status: "running", updatedAt: T0 });
     await heartbeat(db, id, T0 + 999);
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     expect(row?.updatedAt).toBe(T0 + 999);
   });
 });
@@ -142,12 +145,12 @@ describe("listWorkloads (filters, newest-first, poison-tolerant)", () => {
       ownerId: owner,
       createdAt: T0 + 10,
     });
-    const all = await listWorkloads(db, {});
+    const all = await listWorkloads(db, CONTRIBUTIONS, {});
     expect(all.map((r) => r.id)).toEqual(["w2", "w1"]);
-    expect((await listWorkloads(db, { kind: "compute-themes" })).map((r) => r.id)).toEqual(["w2"]);
-    expect((await listWorkloads(db, { status: "succeeded" })).map((r) => r.id)).toEqual(["w1"]);
-    expect((await listWorkloads(db, { ownerId: owner })).map((r) => r.id)).toEqual(["w2"]);
-    expect((await listWorkloads(db, { since: T0 + 5 })).map((r) => r.id)).toEqual(["w2"]);
+    expect((await listWorkloads(db, CONTRIBUTIONS, { kind: "compute-themes" })).map((r) => r.id)).toEqual(["w2"]);
+    expect((await listWorkloads(db, CONTRIBUTIONS, { status: "succeeded" })).map((r) => r.id)).toEqual(["w1"]);
+    expect((await listWorkloads(db, CONTRIBUTIONS, { ownerId: owner })).map((r) => r.id)).toEqual(["w2"]);
+    expect((await listWorkloads(db, CONTRIBUTIONS, { since: T0 + 5 })).map((r) => r.id)).toEqual(["w2"]);
   });
 
   test("filters out a params-poison row (never throws)", async () => {
@@ -160,7 +163,7 @@ describe("listWorkloads (filters, newest-first, poison-tolerant)", () => {
       status: "queued",
       params: { k: -5 },
     });
-    expect((await listWorkloads(db, {})).map((r) => r.id)).toEqual(["good"]);
+    expect((await listWorkloads(db, CONTRIBUTIONS, {})).map((r) => r.id)).toEqual(["good"]);
   });
 });
 
@@ -169,7 +172,7 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "newer", kind: "compute-themes", scheduledAt: T0 + 100 });
     await seedWorkloadRow(db, { id: "older", kind: "reconcile-stats", scheduledAt: T0 });
-    expect((await nextRunnableWorkload(db, T0))?.id).toBe("older");
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0))?.id).toBe("older");
   });
 
   test("fails a poison head row in place and returns the next valid one", async () => {
@@ -181,7 +184,7 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
       scheduledAt: T0,
     });
     await seedWorkloadRow(db, { id: "valid", kind: "reconcile-stats", scheduledAt: T0 + 1 });
-    const next = await nextRunnableWorkload(db, T0 + 50);
+    const next = await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 50);
     expect(next?.id).toBe("valid");
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("poison"))).toBe("failed");
   });
@@ -194,7 +197,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
   test("an empty dependsOn dispatches immediately (unchanged)", async () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "solo", kind: "reconcile-stats", dependsOn: null });
-    expect((await nextRunnableWorkload(db, T0))?.id).toBe("solo");
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0))?.id).toBe("solo");
   });
 
   test("waits (not dispatched, not failed) while a dependency is still active", async () => {
@@ -206,7 +209,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0)).toBeNull();
     // still queued — the gate leaves it un-dispatched, it did NOT fail.
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
   });
@@ -220,7 +223,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect((await nextRunnableWorkload(db, T0))?.id).toBe("dependent");
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0))?.id).toBe("dependent");
   });
 
   test("a FAILED dependency fails the dependent with dependency_failed (it never runs)", async () => {
@@ -232,8 +235,8 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, T0 + 9)).toBeNull();
-    const dependent = await loadWorkload(db, castId<WorkloadId>("dependent"));
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 9)).toBeNull();
+    const dependent = await loadWorkload(db, CONTRIBUTIONS, castId<WorkloadId>("dependent"));
     expect(dependent?.status).toBe("failed");
     expect(dependent?.error).toContain("did not succeed");
   });
@@ -247,7 +250,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0)).toBeNull();
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
   });
 
@@ -259,7 +262,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [castId<WorkloadId>("never_existed")],
     });
-    expect(await nextRunnableWorkload(db, T0)).toBeNull();
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0)).toBeNull();
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
   });
 
@@ -278,20 +281,20 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     test("waits while one of two deps is still active", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "succeeded", "running");
-      expect(await nextRunnableWorkload(db, T0)).toBeNull();
+      expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0)).toBeNull();
       expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
     });
 
     test("dispatches only when BOTH deps succeeded", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "succeeded", "succeeded");
-      expect((await nextRunnableWorkload(db, T0))?.id).toBe("dependent");
+      expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0))?.id).toBe("dependent");
     });
 
     test("fails fast when one dep failed even if the other is still active", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "running", "failed");
-      expect(await nextRunnableWorkload(db, T0)).toBeNull();
+      expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0)).toBeNull();
       expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
     });
   });
@@ -312,7 +315,7 @@ describe("findStaleInFlight (reaper input)", () => {
       status: "running",
       updatedAt: T0 + 100_000,
     });
-    const stale = await findStaleInFlight(db, T0 + 50_000);
+    const stale = await findStaleInFlight(db, CONTRIBUTIONS, T0 + 50_000);
     expect(stale.map((r) => r.id)).toEqual(["stale"]);
   });
 });
@@ -332,8 +335,8 @@ describe("toView (poison tolerance)", () => {
       createdAt: T0,
       updatedAt: T0,
       // a deliberately invalid/removed kind for the poison test — through `unknown` since it can't overlap.
-    } as unknown as Parameters<typeof toView>[0];
-    expect(toView(raw)).toBeNull();
+    } as unknown as Parameters<typeof toView>[1];
+    expect(toView(CONTRIBUTIONS, raw)).toBeNull();
   });
 
   test("insert → load round-trips the typed row", async () => {
@@ -349,7 +352,7 @@ describe("toView (poison tolerance)", () => {
       scheduledAt: T0,
       createdAt: T0,
     });
-    const row = await loadWorkload(db, castId<WorkloadId>("workload_rt"));
+    const row = await loadWorkload(db, CONTRIBUTIONS, castId<WorkloadId>("workload_rt"));
     expect(row?.kind).toBe("compute-themes");
     expect(row?.params).toEqual({ k: 7 });
     expect(row?.status).toBe("queued");

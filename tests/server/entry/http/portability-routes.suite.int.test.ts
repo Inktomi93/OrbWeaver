@@ -160,12 +160,12 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       const res = await importHandler(makeCtx(target, { raw: req }));
       expect(res.status).toBe(202);
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
-      const row = await loadWorkload(db, workloadId);
+      const row = await loadWorkload(db, app.workloadContributions, workloadId);
       if (row === null) {
         throw new Error("import-bundle workload row missing after start");
       }
-      await runWorkload(makeRunnerDeps(db, app.runnerEnv), row, new AbortController().signal);
-      const done = await loadWorkload(db, workloadId);
+      await runWorkload(makeRunnerDeps(db, app.workloadContributions), row, new AbortController().signal);
+      const done = await loadWorkload(db, app.workloadContributions, workloadId);
       expect(done?.status).toBe("succeeded");
       return done?.result as { imported: number; skipped: number; failed: number };
     };

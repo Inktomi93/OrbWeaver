@@ -3,11 +3,11 @@
 // is a benign skip (still advances); other domain errors log + advance (a poison schedule can't wedge the
 // tick); a non-domain throw propagates to the driver's per-tick guard (no advance, retried next tick).
 
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainError } from "@orb/kit/errors";
 import { getLog } from "#foundation/observability";
 import type { ScheduleTickDeps, WorkloadScheduleRow } from "../contract/schedule";
-import type { StartWorkloadInput } from "../contract/workload-params";
 import { advanceSchedule, findDueSchedules } from "../persistence/schedule-queries";
 
 const LOG_COMPONENT = "workload-schedule-tick";

@@ -11,7 +11,10 @@ import { runWorkload } from "../../../../../packages/server/src/domain/workloads
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { fakeEnv, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
+import { fakeContributions, fakeEnv, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
+
+// The row read path narrows params against the contribution registry.
+const CONTRIBUTIONS = fakeContributions();
 
 const sig = (): AbortSignal => new AbortController().signal;
 
@@ -24,14 +27,14 @@ describe("runWorkload", () => {
       kind: "reconcile-stats",
       status: "queued",
     });
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");
     }
-    await runWorkload(makeRunnerDeps(db, env), row, sig());
+    await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("succeeded");
     expect(env.stats.reconcileStats).toHaveBeenCalledTimes(1);
-    expect((await loadWorkload(db, id))?.result).toEqual({ owners: 1, characters: 4 });
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.result).toEqual({ owners: 1, characters: 4 });
     const types = getRecentWorkloadEvents(id).map((e) => e.type);
     expect(types).toContain("started");
     expect(types).toContain("succeeded");
@@ -52,13 +55,13 @@ describe("runWorkload", () => {
       kind: "reconcile-stats",
       status: "queued",
     });
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");
     }
-    await runWorkload(makeRunnerDeps(db, env, { audit }), row, sig());
+    await runWorkload(makeRunnerDeps(db, fakeContributions(env), { audit }), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("failed");
-    expect((await loadWorkload(db, id))?.error).toContain("boom");
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.error).toContain("boom");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).toContain("failed");
     // PD-113: the terminal runtime failure lands exactly ONE audit through the injected op.
     expect(audit).toHaveBeenCalledExactlyOnceWith(
@@ -81,11 +84,11 @@ describe("runWorkload", () => {
       kind: "reconcile-stats",
       status: "running",
     });
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");
     }
-    await runWorkload(makeRunnerDeps(db, env), row, sig());
+    await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, sig());
     expect(env.stats.reconcileStats).not.toHaveBeenCalled();
     expect(await loadWorkloadStatus(db, id)).toBe("running");
     expect(getRecentWorkloadEvents(id)).toHaveLength(0);
@@ -99,13 +102,13 @@ describe("runWorkload", () => {
       kind: "reconcile-stats",
       status: "queued",
     });
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");
     }
     const ac = new AbortController();
     ac.abort();
-    await runWorkload(makeRunnerDeps(db, env), row, ac.signal);
+    await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, ac.signal);
     expect(await loadWorkloadStatus(db, id)).toBe("cancelled");
     const types = getRecentWorkloadEvents(id).map((e) => e.type);
     expect(types).toContain("cancelled");
@@ -130,11 +133,11 @@ describe("runWorkload", () => {
         }),
       },
     };
-    const row = await loadWorkload(db, id);
+    const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");
     }
-    await runWorkload(makeRunnerDeps(db, env), row, sig());
+    await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("worker_died");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).not.toContain("succeeded");
   });

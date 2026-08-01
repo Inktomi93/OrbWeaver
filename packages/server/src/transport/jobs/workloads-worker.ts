@@ -22,7 +22,7 @@
 
 import type { Db } from "@orb/db";
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadRowAnyKind, WorkloadRunnerDeps } from "#domain/workloads";
+import type { WorkloadContributions, WorkloadRowAnyKind, WorkloadRunnerDeps } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "workloads-worker";
@@ -40,13 +40,13 @@ const DEFAULT_REAP_INTERVAL_MS = 60_000;
 //    aliases. ───────────────────────────────────────────────────────────────────────────────────────────
 
 // `nextRunnableWorkload` — the queue-head poll (front door).
-type NextRunnableOp = (db: Db, now: number) => Promise<WorkloadRowAnyKind | null>;
+type NextRunnableOp = (db: Db, contributions: WorkloadContributions, now: number) => Promise<WorkloadRowAnyKind | null>;
 // `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
 type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, signal: AbortSignal) => Promise<void>;
 // `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door).
-type ReapOp = (args: { db: Db; now: number; staleThresholdMs?: number }) => Promise<number>;
+type ReapOp = (args: { db: Db; contributions: WorkloadContributions; now: number; staleThresholdMs?: number }) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
-type LoadWorkloadOp = (db: Db, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
+type LoadWorkloadOp = (db: Db, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
 // Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
 // driver never imports the bus directly.
 type SubscribeWakeOp = (listener: () => void) => () => void;
@@ -87,12 +87,12 @@ export interface WorkerTickOutcome {
  * `queued` after dispatch signals a back-off.
  */
 export async function claimAndRunNext(deps: WorkloadsWorkerDeps): Promise<WorkerTickOutcome> {
-  const { db, now } = deps.runnerDeps;
+  const { db, contributions, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
 
   let row: WorkloadRowAnyKind | null;
   try {
-    row = await deps.nextRunnable(db, now());
+    row = await deps.nextRunnable(db, contributions, now());
   } catch (err) {
     log.error({ err }, "workloads-worker: poll query failed (backing off)");
     return { ran: false, backOff: true };
@@ -117,7 +117,7 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps): Promise<Worker
   // the same row and hot-loop on the busy cadence — back off to the full idle period instead.
   if (!deps.signal.aborted) {
     try {
-      const after = await deps.load(db, id);
+      const after = await deps.load(db, contributions, id);
       if (after?.status === "queued") {
         log.warn({ workloadId: id, kind: row.kind }, "workloads-worker: row still 'queued' after dispatch — backing off a full poll period");
         return { ran: true, backOff: true };
@@ -133,10 +133,10 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps): Promise<Worker
 /** ONE reap step: sweep orphaned in-flight rows. The testable core for the periodic reap tick + the boot
  *  reap. Errors are logged + swallowed (the reaper must never take the loop down). */
 export async function reapOnce(deps: WorkloadsWorkerDeps): Promise<number> {
-  const { db, now } = deps.runnerDeps;
+  const { db, contributions, now } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {
-    const reaped = await deps.reap({ db, now: now() });
+    const reaped = await deps.reap({ db, contributions, now: now() });
     if (reaped > 0) {
       log.info({ reaped }, "workloads-worker: reaped orphans");
     }
