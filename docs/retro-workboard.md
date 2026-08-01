@@ -132,8 +132,17 @@ GUIDED_ACTION_COPY retires into it G11) · KIND badges census-derived (steer/voi
 nudge; registry kind = badge vocab; info hue ≠ state chips) · fires-on INFORMATIONAL on templates,
 Triggers editable ONLY in sections · KnobRow ghost grammar · resolveEffective · per-view CONTEXT +
 D8 chat-binding · lifecycle over the portability seam · freshness contract · form-factory mandate ·
-fork-choice landed · forkedFrom lineage. BUILD LANES DISPATCHABLE (P0 = 3 variant rows per §14;
-prose-straggler small rides the PROSE ladder). (was: (worktree
+fork-choice landed · forkedFrom lineage. **PRESET-1 BUILD PROGRAM LAUNCHED (owner approved 08-02 — "prompt revamp is approved, launch").**
+WAVE 1 IN FLIGHT (3 lanes): B1 ui P0 (Slider tone=ghost [tone axis minted] · NumberField
+size=inline · HighlightedText skin=code; default arms byte-identical) · B2 server seams
+(resolveEffective w/ funnel-parity probe + freshness classification · the TemplateDef REGISTRY
+w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
+without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
+B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
+S4-ruled rows untouched). WAVE 2 (after B1+B2 merge, serialized on preset feature files): the
+VIEWS — Params deck + KnobRow · Prompt rack · Actions+drill-ins · per-view readouts + D8 binding ·
+list projection; THEN the program side-eye (fix-all law) + freshness/live drive. Entry-wrapper
+placement RATIFIED (carrier panel, ST-parity field, reset affordance). (was: (worktree
 cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file receipt requirement + TWO owner corrections
 riding it: assistant-role ≠ PREFILL (prefill = TAIL-positioned assistant continuation — position
 property; fix the labeling) · the per-template field table re-derives from the LOCAL ST SOURCE
