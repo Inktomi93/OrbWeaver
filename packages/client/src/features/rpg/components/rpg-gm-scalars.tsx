@@ -1,13 +1,26 @@
 // The GM console's SCALAR autosave form (extracted from rpg-game-tab.tsx for the component-size cap):
 // Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Immersive
-// cards (the P4 teaching gate + its interactivity sub-toggle) → Hidden channels → Steering note →
+// cards (the P4 teaching gate + its interactivity sub-toggle + the M2 keep-last-X wire knob) → Hidden
+// channels (the two teaching gates + the M4 host reveal-eye offer) → Prompt budget (the reminder's
+// recent-beats slice) → Steering note →
 // Delivery model (the mock's SEGMENTED mode toggle with its honest consequence line — never a resting
-// dropdown, DESIGN §12.4.1). Everything autosaves (D66 A4). The
+// dropdown, DESIGN §12.4.1) → Extraction depth (the §1.3 evidence trio). Everything autosaves (D66 A4). The
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
-import type { RpgConfigView, RpgDateMode, RpgExtractionMode } from "@orb/contracts/rpg";
-import { RPG_EXTRACTION_MODES, RPG_STEERING_NOTE_MAX } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgDateMode, RpgExtractionContext, RpgExtractionMode } from "@orb/contracts/rpg";
+import {
+  RPG_CARD_KEEP_LAST_DEFAULT,
+  RPG_EXTRACTION_CONTEXTS,
+  RPG_EXTRACTION_MODES,
+  RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
+  RPG_EXTRACTION_WINDOW_TOKENS_MAX,
+  RPG_EXTRACTION_WINDOW_TOKENS_MIN,
+  RPG_RECENT_BEATS_KEEP_DEFAULT,
+  RPG_RECONCILE_EVERY_BEATS_DEFAULT,
+  RPG_RECONCILE_EVERY_BEATS_MAX,
+  RPG_STEERING_NOTE_MAX,
+} from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -42,6 +55,23 @@ const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBeha
   compose: "a pick drops into the composer — edit before sending",
   send: "a pick sends immediately as your turn",
 };
+
+/** The extraction-CONTEXT consequence per arm (§1.3) — how much of the turn's own story the state round reads
+ *  as evidence. Keyed over the closed axis, so a new context arm cannot ship without its honest cost line. */
+const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContext, string>> = {
+  beat: "only the latest beat — the cheapest read, and the one most likely to miss what set the scene up",
+  window: "the recent arc, up to the budget below — relationships and quests evolve instead of resetting",
+  full: "the whole thread — the most inference, and the largest prompt every single beat",
+};
+
+/** The context axis in order, derived from the closed tuple (the delivery-picker precedent — a new arm cannot
+ *  be silently missing from the segmented control). */
+const EXTRACTION_CONTEXT_OPTIONS: readonly RpgExtractionContext[] = RPG_EXTRACTION_CONTEXTS;
+
+/** The segmented toggle hands back raw strings; narrow to the closed axis before writing the field. */
+function asExtractionContext(value: string | undefined): RpgExtractionContext | null {
+  return EXTRACTION_CONTEXT_OPTIONS.find((context) => context === value) ?? null;
+}
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
 const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
@@ -172,6 +202,25 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                 </form.AppField>
               )}
             </form.AppField>
+            {/* M2 — the card WIRE knob (§3.5), applicability-shown with its teaching parent: how many of the
+                newest cards ride the prompt in full before older ones collapse to their `[card: title]` stub.
+                The RENDER is untouched either way — this is prompt budget, not visibility. */}
+            <form.AppField name="immersiveHtml">
+              {(htmlField): ReactElement | null =>
+                htmlField.state.value ? (
+                  <form.AppField name="cardKeepLastX">
+                    {(field): ReactElement => (
+                      <field.NumberField
+                        label="Cards kept whole in the prompt"
+                        description={`How many of the newest cards ride the prompt in full; older ones collapse to a one-line stub. ${RPG_CARD_KEEP_LAST_DEFAULT} = collapse them all immediately — the cheapest and most cache-stable. Each kept card costs its full length on every turn.`}
+                        placeholder={`${RPG_CARD_KEEP_LAST_DEFAULT} (default)`}
+                        min={0}
+                      />
+                    )}
+                  </form.AppField>
+                ) : null
+              }
+            </form.AppField>
           </Stack>
 
           <Stack gap="field">
@@ -184,6 +233,33 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
             <form.AppField name="omniscience">
               {(field): ReactElement => (
                 <field.SwitchField label="Omniscience" hint="Teach the <ofilter> channel — the model can note events the party can't perceive." />
+              )}
+            </form.AppField>
+            {/* M4 — the host's own REVEAL EYE. Stored + read by `revealHidden` since P3 with no way to reach it
+                (the D107 dead-switch class). It governs ONLY the host's peek: a member never reads hidden bytes
+                either way, and the model always remembers what it hid — so the copy must not imply otherwise. */}
+            <form.AppField name="hiddenContentReveal">
+              {(field): ReactElement => (
+                <field.SwitchField
+                  label="Let me reveal hidden content"
+                  hint="Off = you play blind too: no reveal eye, no standing-lies ledger, for you either. It changes nothing for members (they never see hidden content) and nothing for the model (it always remembers what it hid)."
+                />
+              )}
+            </form.AppField>
+          </Stack>
+
+          {/* PROMPT BUDGET — the reminder's own slice knob (P3 fold). The durable log is untouched by it: the
+              journal keeps every beat, this only bounds what the steering injection re-states each turn. */}
+          <Stack gap="field">
+            <Kicker>Prompt budget</Kicker>
+            <form.AppField name="recentBeatsKeepLast">
+              {(field): ReactElement => (
+                <field.NumberField
+                  label="Recent beats in the reminder"
+                  description={`How many recent beats the game reminder re-states to the model each turn. 0 drops the block entirely. Nothing is deleted — the journal keeps the full record; this is only what rides the prompt. Default ${RPG_RECENT_BEATS_KEEP_DEFAULT}.`}
+                  placeholder={`${RPG_RECENT_BEATS_KEEP_DEFAULT} (default)`}
+                  min={0}
+                />
               )}
             </form.AppField>
           </Stack>
@@ -228,6 +304,86 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                     {EXTRACTION_CONSEQUENCE[field.state.value]}
                   </Text>
                 </Row>
+              )}
+            </form.AppField>
+            {/* RECOMMEND, NEVER FORCE ([[gen-settings-are-preset-owned]]): generation params belong to the
+                preset, so the console STATES what the fold wants and leaves the lever where it lives. Shown on
+                the folded arm only — a recommendation about a mode you aren't running is noise. */}
+            <form.AppField name="extractionMode">
+              {(field): ReactElement | null =>
+                field.state.value === "folded" ? (
+                  <Text size="micro" tone="muted">
+                    Recommended with thinking turned OFF: the reply has to carry its own state calls, and a long reasoning pass tends to spend the turn thinking
+                    instead of recording. That switch lives in your preset — this console never changes generation settings for you.
+                  </Text>
+                ) : null
+              }
+            </form.AppField>
+          </Stack>
+
+          {/* EXTRACTION DEPTH (§1.3) — the three knobs that decide how much EVIDENCE the state round reads.
+              Grouped under one kicker because they only make sense together: the context arm picks the shape,
+              the token budget bounds the `window` arm (applicability-shown), and the cadence decides how often
+              a beat re-states everything instead of just what changed. */}
+          <Stack gap="field">
+            <Kicker>Extraction depth</Kicker>
+            <Text size="micro" tone="muted">
+              How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the cost is
+              prompt size, not model calls.
+            </Text>
+            <form.AppField name="extractionContext">
+              {(field): ReactElement => (
+                <Row gap="block" align="center">
+                  <ToggleGroup
+                    aria-label="Extraction context"
+                    value={[field.state.value]}
+                    onValueChange={(next): void => {
+                      const picked = asExtractionContext(next[0]);
+                      if (picked !== null) {
+                        field.handleChange(picked);
+                      }
+                    }}
+                  >
+                    {EXTRACTION_CONTEXT_OPTIONS.map((context) => (
+                      <Toggle key={context} value={context}>
+                        {context}
+                      </Toggle>
+                    ))}
+                  </ToggleGroup>
+                  <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                    {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
+                  </Text>
+                </Row>
+              )}
+            </form.AppField>
+            {/* The window budget is the `window` arm's own knob — APPLICABILITY-shown, never a disabled twin. */}
+            <form.AppField name="extractionContext">
+              {(contextField): ReactElement | null =>
+                contextField.state.value === "window" ? (
+                  <form.AppField name="extractionWindowTokens">
+                    {(field): ReactElement => (
+                      <field.NumberField
+                        label="Window budget (tokens)"
+                        description={`How far back the recent arc reaches, sliced on whole messages. ${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} ≈ 10–16 typical beats. Range ${RPG_EXTRACTION_WINDOW_TOKENS_MIN}–${RPG_EXTRACTION_WINDOW_TOKENS_MAX}; raise it on a hosted model, keep it low on a small local one.`}
+                        placeholder={`${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} (default)`}
+                        min={RPG_EXTRACTION_WINDOW_TOKENS_MIN}
+                        max={RPG_EXTRACTION_WINDOW_TOKENS_MAX}
+                        step={512}
+                      />
+                    )}
+                  </form.AppField>
+                ) : null
+              }
+            </form.AppField>
+            <form.AppField name="reconcileEveryBeats">
+              {(field): ReactElement => (
+                <field.NumberField
+                  label="Re-state everything every N beats"
+                  description={`Every Nth beat, the pass re-emits the whole scene and present cast instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
+                  placeholder={`${RPG_RECONCILE_EVERY_BEATS_DEFAULT} (default)`}
+                  min={0}
+                  max={RPG_RECONCILE_EVERY_BEATS_MAX}
+                />
               )}
             </form.AppField>
           </Stack>
