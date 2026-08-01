@@ -20,6 +20,15 @@ test("renders a labelled brand SVG at the requested size", async ({ mount }) => 
   await expect(glyph).toHaveAttribute("height", "48");
 });
 
+test("decorative drops the glyph out of the a11y tree — for a glyph inside an already-named control", async ({ mount }) => {
+  // The rail brand button carries the name ("Home"); a nested role="img" named "Orbweaver" would give one
+  // control two competing names.
+  const glyph = await mount(<WeaveGlyph decorative={true} />);
+  await expect(glyph).toHaveAttribute("aria-hidden", "true");
+  await expect(glyph).not.toHaveAttribute("role", "img");
+  await expect(glyph).not.toHaveAttribute("aria-label", "Orbweaver");
+});
+
 test("anim toggles the silk-shimmer class; default is static", async ({ mount }) => {
   const still = await mount(<WeaveGlyph />);
   await expect(still).not.toHaveClass(SHIMMER_CLASS);
