@@ -14,15 +14,20 @@
 // section.
 
 import { Button } from "@orb/ui/button";
-import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
+import { NumberField } from "@orb/ui/number-field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { SettingRow } from "@orb/ui/setting-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
+
+/** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
+ *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
+ *  grouping as the control above it. */
+const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat();
 
 /** The muted "Overridden / Using the default" line beneath every override control. */
 function floorDescription(overridden: boolean, floorLabel: string): string {
@@ -37,24 +42,36 @@ export interface AdminOverrideFieldProps {
   readonly onChange: (next: string) => void;
   /** `true` when a stored override is active for this field (vs the deployment floor governing). */
   readonly overridden: boolean;
-  /** The floor value shown beneath the control ("Default: N") — the value an absent override falls to. */
-  readonly floorLabel: string;
+  /** The floor NUMBER shown beneath the control ("Default: N") — the value an absent override falls to. A
+   *  number, not a label: it is formatted here exactly as the NumberField formats the value above it, so
+   *  the row can't read "1,024" over "Default: 1024." (two different-looking numbers for one value). */
+  readonly floorValue: number;
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
   readonly disabled?: boolean;
 }
 
-/** One numeric AppSettings-override row, with the floor named beneath so the admin always sees the default. */
-export function AdminOverrideField({ label, hint, value, onChange, overridden, floorLabel, min, max, step, disabled }: AdminOverrideFieldProps): ReactElement {
+/** One numeric AppSettings-override row, with the floor named beneath so the admin always sees the default.
+ *
+ *  The row's public draft stays a STRING (the sections diff + clamp it before the write, and a blank draft
+ *  means "nothing typed", not 0) while the control is the `NumberField` primitive, whose value is
+ *  `number | null` — this component owns that bridge so no section has to. Base UI clamps a typed
+ *  out-of-range value to `min`/`max` on blur; the section's own clamp still runs (it also rounds the
+ *  integer-only knobs), so the write path is unchanged. */
+export function AdminOverrideField({ label, hint, value, onChange, overridden, floorValue, min, max, step, disabled }: AdminOverrideFieldProps): ReactElement {
   const id = useId();
   return (
-    <SettingRow id={id} label={label} description={floorDescription(overridden, floorLabel)} {...(hint === undefined ? {} : { hint })}>
-      <Input
+    <SettingRow
+      id={id}
+      label={label}
+      description={floorDescription(overridden, NUMERIC_FLOOR_FORMAT.format(floorValue))}
+      {...(hint === undefined ? {} : { hint })}
+    >
+      <NumberField
         id={id}
-        type="number"
-        value={value}
-        onChange={(e: ChangeEvent<HTMLInputElement>): void => onChange(e.target.value)}
+        value={value === "" ? null : Number(value)}
+        onValueChange={(next): void => onChange(next === null ? "" : String(next))}
         {...(min === undefined ? {} : { min })}
         {...(max === undefined ? {} : { max })}
         {...(step === undefined ? {} : { step })}

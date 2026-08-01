@@ -9,12 +9,12 @@
 // containment + focus (the world-info-settings-section precedent; client-structure + surface-a11y-focus do
 // not apply). Reads getUserSettings cache-first — the host pane already loaded it, so no extra round-trip.
 
-import { Input } from "@orb/ui/input";
 import { Section } from "@orb/ui/layout";
+import { NumberField } from "@orb/ui/number-field";
 import { SettingRow } from "@orb/ui/setting-row";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
@@ -65,16 +65,15 @@ function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): Reac
   const update = useUpdateLibrary({ trpc, invalidation });
   const id = useId();
   useReportSaveStatus(sectionId, saveStateOf(update.isPending, update.error !== null));
-  const onChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const n = Number(e.target.value);
-    if (Number.isInteger(n) && n >= LIBRARY_PAGE_SIZE_MIN && n <= LIBRARY_PAGE_SIZE_MAX) {
-      update.mutate({ section: "library", patch: { pageSize: n } });
+  const onValueChange = (next: number | null): void => {
+    if (next !== null && Number.isInteger(next) && next >= LIBRARY_PAGE_SIZE_MIN && next <= LIBRARY_PAGE_SIZE_MAX) {
+      update.mutate({ section: "library", patch: { pageSize: next } });
     }
   };
   return (
     <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
       <SettingRow id={id} label="Rows per page" description="How many entries the library lists load per page as you scroll.">
-        <Input id={id} type="number" min={LIBRARY_PAGE_SIZE_MIN} max={LIBRARY_PAGE_SIZE_MAX} value={String(data.config.library.pageSize)} onChange={onChange} />
+        <NumberField id={id} min={LIBRARY_PAGE_SIZE_MIN} max={LIBRARY_PAGE_SIZE_MAX} value={data.config.library.pageSize} onValueChange={onValueChange} />
       </SettingRow>
     </Section>
   );

@@ -116,7 +116,7 @@ function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactEle
             value={draft[key]}
             onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
             overridden={isOverridden(stored?.[key])}
-            floorLabel={String(baseline[key])}
+            floorValue={baseline[key]}
             min={RATE_LIMIT_CAP_MIN}
             step={RATE_LIMIT_STEP}
           />

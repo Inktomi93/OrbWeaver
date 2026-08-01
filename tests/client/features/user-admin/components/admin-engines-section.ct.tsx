@@ -8,12 +8,21 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { setNumber } from "../../../../support/ct/set-number";
 import { AdminEnginesSectionStory } from "../_ct-stories";
 
 const ENGINES = {
   embed: { status: "owned", detail: "ok", updatedAt: 1_700_000_000_000, port: 8701, storePath: "/srv/orb/store/models" },
   rerank: { status: "failed", detail: "exited 137", updatedAt: 1_700_000_000_000, port: 8702, storePath: "/srv/orb/store/models" },
 };
+
+// The numeric launch knobs are `@orb/ui` NumberFields — a Base UI TEXTBOX named by its `<Field label>`, not a
+// spinbutton and not a `data-testid` (the Root spread would park a testid on the wrapper div, where
+// `toHaveValue` reads nothing). Locate them by accessible name; the model-id fields stay plain Inputs.
+const GEN_WINDOW = "Gen context window (tokens)";
+const GEN_GPU_UTIL_MULTI = "Gen GPU-util (multi-GPU)";
+const GEN_REPETITION_PENALTY = "Gen repetition penalty";
+const EMBED_GPU_UTIL = "Embed GPU-util";
 
 const ENGINE_DETAIL_RE = /exited 137/u;
 // The read-only DEPLOYMENT facts folded into each engine's status subtitle (#14: displayed, never edited).
@@ -82,11 +91,11 @@ test("launch config: renders the resolved per-engine flags off getAppSettings", 
   const config = component.getByTestId("engine-launch-config");
   await expect(config).toBeVisible();
   // The gen window + a gpu-util fraction render as the current values (not a bare literal — the resolved config).
-  await expect(config.getByTestId("engine-launch-genMaxModelLen")).toHaveValue("32768");
-  await expect(config.getByTestId("engine-launch-genGpuUtilMulti")).toHaveValue("0.28");
+  await expect(config.getByRole("textbox", { name: GEN_WINDOW })).toHaveValue("32,768");
+  await expect(config.getByRole("textbox", { name: GEN_GPU_UTIL_MULTI })).toHaveValue("0.28");
   await expect(config.getByTestId("engine-launch-genModel")).toHaveValue("Qwen/Qwen3-VL-8B-Instruct");
   // #23: the gen repetition_penalty launch knob renders the resolved 1.05 loop-fix default.
-  await expect(config.getByTestId("engine-launch-genRepetitionPenalty")).toHaveValue("1.05");
+  await expect(config.getByRole("textbox", { name: GEN_REPETITION_PENALTY })).toHaveValue("1.05");
 });
 
 test("launch config: editing the gen repetition penalty fires updateAppSettings with only that field, then arms restart (#23)", async ({ mount, page }) => {
@@ -94,7 +103,7 @@ test("launch config: editing the gen repetition penalty fires updateAppSettings 
   const component = await mount(<AdminEnginesSectionStory />);
 
   const config = component.getByTestId("engine-launch-config");
-  await config.getByTestId("engine-launch-genRepetitionPenalty").fill("1.1");
+  await setNumber(config.getByRole("textbox", { name: GEN_REPETITION_PENALTY }), "1.1");
   await config.getByTestId("engine-launch-save").click();
 
   await expect
@@ -112,7 +121,7 @@ test("launch config: Save fires updateAppSettings with ONLY the moved field, the
   // Save is disabled until a field actually moves (no accidental empty override).
   await expect(save).toBeDisabled();
 
-  await config.getByTestId("engine-launch-genMaxModelLen").fill("65536");
+  await setNumber(config.getByRole("textbox", { name: GEN_WINDOW }), "65536");
   await expect(save).toBeEnabled();
   await save.click();
 
@@ -130,7 +139,7 @@ test("launch config: a delegated admin can view + save (admin-gated, not owner-g
   const component = await mount(<AdminEnginesSectionStory />);
 
   const config = component.getByTestId("engine-launch-config");
-  await config.getByTestId("engine-launch-embedGpuUtil").fill("0.2");
+  await setNumber(config.getByRole("textbox", { name: EMBED_GPU_UTIL }), "0.2");
   await config.getByTestId("engine-launch-save").click();
   await expect
     .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })

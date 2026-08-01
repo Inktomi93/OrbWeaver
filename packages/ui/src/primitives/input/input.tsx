@@ -4,8 +4,24 @@ import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { inputVariants } from "./variants";
 
-export interface InputProps extends BaseInputProps {
+export interface InputProps extends Omit<BaseInputProps, "type"> {
   className?: string;
+  /**
+   * The native input mode — TEXT-SHAPED values only.
+   *
+   * `"number"` is deliberately absent: numeric entry is the `NumberField` primitive everywhere (owner
+   * ruling 2026-08-02), so `<Input type="number">` is a compile error and the tsc failure is the pointer.
+   * A native number input carries a spinbutton role, browser-inconsistent spinners, and no clamp/format
+   * story — `NumberField` owns all three plus the derived bounds description.
+   *
+   * The union is spelled out rather than `Exclude<HTMLInputTypeAttribute, "number">`: React's type
+   * includes a `(string & {})` arm that swallows any literal, so an `Exclude` would narrow NOTHING. The
+   * non-text families are covered by their own primitives (Checkbox, RadioGroup, Switch, Slider,
+   * ColorField, FileTrigger/FileDropzone, Button).
+   *
+   * @defaultValue "text"
+   */
+  type?: "text" | "password" | "email" | "url" | "search" | "tel" | "date" | "datetime-local" | "month" | "time" | "week" | undefined;
 }
 
 /**
