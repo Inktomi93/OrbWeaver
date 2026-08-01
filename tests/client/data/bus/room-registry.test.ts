@@ -244,4 +244,33 @@ describe("routing and failure", () => {
 
     expect(requested).toEqual([12, 0]);
   });
+
+  test("a THUNK replay request is re-read at every announce — the reconnect heal's whole mechanism", () => {
+    // A durable room's resume point moves as the client applies rows, so the re-announce must carry TODAY's
+    // request (the chat bus passes its seq-guard high-water mark), not the one it joined with. A join-time
+    // snapshot would re-attach a reconnecting room at a stale seq: either re-replaying the whole log every
+    // time, or — after a shed/in-flight loss — asking for a cursor the client has already passed.
+    const registry = createRoomRegistry();
+    const requested: (number | null)[] = [];
+    registry.bindTransport({
+      attach: (_ref, sinceSeq): Promise<void> => {
+        requested.push(sinceSeq);
+        return Promise.resolve();
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+
+    let applied: number | null = null;
+    registry.join(USER_ROOM, { onEvent: () => undefined, sinceSeq: () => applied });
+    registry.socketLive(); // first live edge — no re-announce
+    applied = 41; // the client applies durable rows…
+    registry.socketDown();
+    registry.socketLive(); // …and the reconnect asks to resume from exactly there
+    applied = 77;
+    registry.socketDown();
+    registry.socketLive();
+
+    // The JOIN announced `null` (nothing applied yet), then each reconnect announced the CURRENT mark.
+    expect(requested).toEqual([null, 41, 77]);
+  });
 });

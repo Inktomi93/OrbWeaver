@@ -40,8 +40,10 @@ function routeFrame(payload: SocketPayload): void {
     return;
   }
   if (payload.type === "roomLagged") {
-    // The socket shed this room's tail. For a live-only room that IS the gap-heal edge; for a durable room
-    // the heal refetches, and the server's cursor still points at the last delivered row.
+    // The socket shed this room's tail. The DELIVERY gap is already being healed server-side (the shed
+    // restarts that room's pump from its last-DELIVERED cursor, so a durable room's replay refills exactly
+    // what was dropped); this edge only fans the room's own gap-heal, which is what a LIVE-ONLY room needs
+    // to refresh reads it has no replay for.
     roomRegistry.lagged(payload.ref);
   }
   // `attached` / `detached` are acks — the registry already holds the desired state; nothing to do but let

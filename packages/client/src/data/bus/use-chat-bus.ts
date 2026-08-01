@@ -17,14 +17,17 @@
 // exactly-once (full rationale + the chatOpened/historyTruncated EXEMPTION-BY-TYPE in
 // `chat-event-seq-guard.ts`). A real gap-fill (a seq beyond the mark) is unaffected.
 //
-// NO `onSocketLive` GAP-HEAL, DELIBERATELY — this room's heal is SERVER-side and always was. Every (re)start
-// of the room's pump re-runs the attach synthesis, so a reconnect delivers `chatOpened` again, and
-// `chatOpened` IS the invalidate that refetches a chat's canon (`data/invalidation.ts`; staleTime is
-// Infinity). On a reconnect the socket cell survives, so the pump ALSO replays the durable log from the
-// room's stored cursor (what `lastEventId` did before the fold); on a re-attach onto a REAPED cell the cursor
-// is gone and the room is live-only — the `chatOpened` refetch is what closes that window, exactly as it does
-// for a chat that was closed and reopened. Adding a second heal here would double every reopen's refetch
-// (BOOT-4X).
+// NO `onSocketLive` GAP-HEAL, DELIBERATELY — this room's heal rides its REPLAY, and every path that can lose
+// a row restarts the pump. Every (re)start re-runs the attach synthesis, so it delivers `chatOpened` (the
+// invalidate that refetches a chat's canon — `data/invalidation.ts`; staleTime is Infinity) AND replays the
+// durable log from the room's cursor. The three loss paths and what restarts the pump:
+//   • a SHED (`lag` overflow) — the socket restarts the room from its last-delivered cursor, server-side
+//     (`stream/socket.ts::onShed`); no client cooperation, so it cannot be missed;
+//   • a RECONNECT — the re-announce below carries this client's high-water mark, which is lower than the
+//     server's delivered cursor exactly when frames died in flight, so the server restarts the pump there;
+//   • a REAPED cell (>60s dark) — same re-announce, now creating the room at the mark instead of live-only.
+// Adding a second, blanket heal here would double every reopen's refetch (BOOT-4X) and heal nothing the
+// replay does not already carry.
 
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
@@ -45,12 +48,9 @@ const seqGuard = createChatEventSeqGuard();
 // server replays this chat's durable events from baseline. Bounded to this one chat — an existing chat
 // opened directly is never seeded.
 //
-// The seed is a STANDING request for as long as this mount lives, so the registry's reconnect re-announce
-// re-sends `sinceSeq: 0` and the server honours it (a LOWER cursor is a replay request, §5.4) — i.e. a
-// reconnect during the seeded mount re-replays from zero instead of from the room's cursor. That is the
-// pre-fold behaviour for this exact case (any subscription churn re-replayed from the `lastEventId:"0"`
-// seed) and the seq guard below is what makes it exactly-once; the alternative — the client tracking a live
-// cursor — is the composite-cursor design §3.3 rejected.
+// The seed is only the FLOOR: it applies until this client has applied a durable row, after which the
+// re-announce carries the high-water mark instead (see the `sinceSeq` thunk), so a reconnect mid-seeded-mount
+// resumes from what was actually received rather than re-replaying the whole log.
 
 /** Attach the room's live event stream and reduce it into client state. Mount once per open chat;
  *  `null` detaches. */
@@ -89,6 +89,12 @@ export function useChatBus(chatId: ChatId | null, deps: ChatBusDeps): void {
     onError: (message) => {
       notify.error(message);
     },
-    sinceSeq: seededForThisChat ? 0 : null,
+    // THE REPLAY REQUEST, RE-READ AT EVERY (RE)ANNOUNCE. Once this client has applied any durable row for
+    // this chat, its own high-water mark IS the resume truth — strictly what it received, where the server's
+    // room cursor is what it DELIVERED (a frame yielded into a dying socket counts for the server and not
+    // for us). So a reconnect re-attaches at the mark, the server restarts the pump there, and the durable
+    // replay refills exactly the gap — the recovery `Last-Event-ID` used to give us for free. Before the
+    // first durable row it falls back to the draft-promotion seed (or live-only).
+    sinceSeq: (): number | null => (chatId === null ? null : (seqGuard.highWater(chatId) ?? (seededForThisChat ? 0 : null))),
   });
 }

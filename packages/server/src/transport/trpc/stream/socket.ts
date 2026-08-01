@@ -16,13 +16,31 @@
 // under one socket would be a total freshness blackout. `withSubscriptionErrors` still wraps THIS generator,
 // for a genuine socket-level fault.
 //
+// THE ROOM CURSOR COUNTS DELIVERED FRAMES, NEVER ENQUEUED ONES. It advances in the DRAIN loop, as each
+// frame is yielded — not in the pump that produced it. An enqueued-but-undelivered frame (shed by a `lag`
+// overflow, or still queued when the socket dies) must stay AHEAD of the cursor: rows behind it are never
+// re-offered by any replay, so counting them at enqueue would lose them permanently — including a turn
+// TERMINAL, which strands the client's slot forever (the stuck-"Stop generating" class). Pre-fold this was
+// free: the resume cursor was the tRPC client's own `Last-Event-ID`, i.e. exactly what it had received.
+//
+// A SHED PAUSES THE ROOM, AND DELIVERING THE NOTICE RESUMES IT. `lag` overflow drops a room's pending tail,
+// and the shedding pump's own high-water mark has already passed those rows — nothing would ever re-offer
+// them. So the queue calls back (`onShed`) and the socket PAUSES that room's pump; when the `roomLagged`
+// frame is actually DELIVERED — proof the consumer is draining again — the room restarts from its
+// last-delivered cursor, re-running the room source's attach synthesis + durable replay, which refills the
+// gap with the identical per-viewer verdict. Restarting at shed time instead would just re-flood a queue
+// nobody is draining and shed again (silently, since a repeat notice collapses), losing the whole middle of
+// the log; pausing is the backpressure, and the notice's delivery is the only honest resume signal. The
+// client needs no cooperation for any of it, which is what makes it reliable — a client re-attach at the
+// announced cursor would be a no-op under the idempotent-attach rule.
+//
 // THE TRACKED ID IS AN ORDINAL (§3.3): a per-socket counter, never a cursor. It exists only because
 // `withSubscriptionErrors` requires uniform tracked envelopes (a mix breaks the client's discriminant
 // narrowing). `Last-Event-ID` on connect is deliberately IGNORED — one SSE stream has one resume id and this
 // socket carries N independent cursors; the resume truth is the per-room cursor in the cell.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { StreamDataFrame, StreamErrorCode, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
+import type { StreamErrorCode, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
@@ -62,20 +80,22 @@ export interface RunSocketArgs {
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
   const { registry, cell, principal, services, signal } = args;
   const socketId: SocketId = cell.socketId;
-  const queue = createFrameQueue({ cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null });
+  const queue = createFrameQueue({
+    cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,
+    // A `lag` shed heals HERE, server-side (see the header): the shed PAUSES the room; delivering the
+    // `roomLagged` frame restarts it from the last-DELIVERED cursor, so the durable replay refills exactly
+    // what was shed. Nothing else can — the shedding pump's high-water mark has already passed those rows.
+    onShed: (ref) => pausePump(ref),
+  });
   const pumps = new Map<string, AbortController>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
-    const key = roomKey(ref);
     try {
       const source = roomSourceFor(ref);
       for await (const frame of source.run({ ref, principal, services, cursor, signal: control.signal })) {
         if (control.signal.aborted) {
           return;
         }
-        // The cursor advances ONLY on a frame that actually carried a durable seq — a withheld/clamped row
-        // yields nothing, so the gap is re-derived from CURRENT membership on the next replay (§5.3/§5.5).
-        advanceCursor(key, frame);
         queue.push(ref, frame);
       }
     } catch (err) {
@@ -89,13 +109,40 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     }
   }
 
-  function advanceCursor(key: string, frame: StreamDataFrame): void {
-    if (!("seq" in frame)) {
+  /**
+   * The room cursor advances at DELIVERY — when the frame is actually yielded to the subscriber — never at
+   * enqueue. The distinction is the whole resume contract: a frame that is enqueued and then SHED (a `lag`
+   * overflow) or left queued when the socket dies must stay AHEAD of the cursor, or the reconnect/heal
+   * replay resumes past it and the row is lost for good (rows behind the cursor are never re-offered). Pre-
+   * fold this was free — the resume cursor WAS the client's `Last-Event-ID`, i.e. what it had received.
+   * A control frame carries no room cursor; a live-only room's frames carry no `seq`.
+   */
+  function advanceCursorOnDelivery(frame: StreamFrame): void {
+    if (frame.channel === "control" || !("seq" in frame)) {
       return;
     }
-    const room = cell.rooms.get(key);
+    const room = cell.rooms.get(roomKey(frame));
     if (room !== undefined) {
       room.cursor = frame.seq;
+    }
+  }
+
+  /** Stop producing into a saturated queue — the shed's backpressure. No `detached` frame: the room is
+   *  still attached and its desired state is untouched; only its pump is parked until the notice lands. */
+  function pausePump(ref: StreamRoomRef): void {
+    const key = roomKey(ref);
+    pumps.get(key)?.abort();
+    pumps.delete(key);
+  }
+
+  /** Re-run a paused room's pump from its last-DELIVERED cursor — fired when the `roomLagged` frame is
+   *  actually delivered. A no-op for a room that is no longer attached (a detach/fault raced the shed) or
+   *  one whose pump is already running (a re-attach beat the notice out). */
+  function resumeAfterLag(ref: StreamRoomRef): void {
+    const key = roomKey(ref);
+    const room = cell.rooms.get(key);
+    if (room !== undefined && !pumps.has(key)) {
+      startPump(room.ref, room.cursor);
     }
   }
 
@@ -133,6 +180,14 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   let ordinal = 0;
   try {
     for await (const frame of queue.drain()) {
+      // DELIVERY, not enqueue (see `advanceCursorOnDelivery`) — and BEFORE the yield, because the yield is
+      // where this generator parks: a cursor written after it would not exist for a frame the consumer
+      // pulled and then dropped the socket on.
+      advanceCursorOnDelivery(frame);
+      if (frame.channel === "control" && frame.type === "roomLagged") {
+        // The consumer is draining again — resume the room the shed parked, from what it has now received.
+        resumeAfterLag(frame.ref);
+      }
       ordinal += 1;
       yield tracked(String(ordinal), frame);
     }

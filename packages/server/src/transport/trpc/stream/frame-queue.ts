@@ -5,9 +5,11 @@
 //
 // OVERFLOW IS NEVER A SILENT DROP. Each channel's policy is derived from that channel's EXISTING healing
 // story, and both policies ANNOUNCE:
-//   • `lag`      — drop the room's pending live tail, emit `roomLagged{cursor}`, KEEP the room attached.
-//                  Legal only for a DURABLE room: the client re-attaches at `cursor` and the durable replay
-//                  refills the gap with the identical per-viewer verdict.
+//   • `lag`      — drop the room's pending live tail, emit `roomLagged{cursor}`, KEEP the room attached, and
+//                  tell the socket to RESTART that room's pump from the shed room's last-delivered cursor
+//                  (`onShed`). Legal only for a DURABLE room, and the restart is what makes it legal: the
+//                  pump's own high-water mark has already passed the shed rows, so nothing but a replay from
+//                  the delivered cursor can refill them — with the identical per-viewer verdict.
 //   • `collapse` — keep at most ONE pending frame per (room, event type), newest payload wins, FIFO position
 //                  preserved. Legal only for a channel whose client handler is a pure INVALIDATION trigger
 //                  (N identical `chatsChanged` invalidate exactly like 1). A channel that carries CONTENT
@@ -54,6 +56,21 @@ interface QueuedFrame {
   readonly frame: StreamFrame;
 }
 
+export interface FrameQueueOptions {
+  /** The room's last DELIVERED durable seq (`null` for a live-only room) — what a `roomLagged` carries. */
+  readonly cursorFor: (key: string) => number | null;
+  /**
+   * A room just SHED frames (a `lag` overflow). The socket heals by restarting that room's pump from the
+   * room's (last-delivered) cursor, so the durable replay refills exactly what was shed — without this the
+   * shed rows are gone for good: the pump's own high-water mark has already passed them, and nothing else
+   * ever re-offers them. Fired once per emitted lag NOTICE, and a notice collapses while one is still
+   * pending, so the restart rate is bounded by the drain rate (a permanently-stalled consumer cannot
+   * thrash it).
+   */
+  readonly onShed?: ((ref: StreamRoomRef) => void) | undefined;
+  readonly capacity?: number;
+}
+
 export interface FrameQueue {
   /** Enqueue one room DATA frame under its channel's overflow policy. */
   readonly push: (ref: StreamRoomRef, frame: StreamDataFrame) => void;
@@ -83,7 +100,7 @@ function isPendingLagFor(item: QueuedFrame, key: string): boolean {
  * live-only room) — it is what a `roomLagged` frame carries so the client resumes at the right place; the
  * queue never reads a frame's payload beyond the routing fields (the byte-blind rule, §4.3).
  */
-export function createFrameQueue(opts: { readonly cursorFor: (key: string) => number | null; readonly capacity?: number }): FrameQueue {
+export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
   const capacity = opts.capacity ?? FRAME_QUEUE_CAPACITY;
   const items: QueuedFrame[] = [];
   let wake: (() => void) | null = null;
@@ -109,8 +126,15 @@ export function createFrameQueue(opts: { readonly cursorFor: (key: string) => nu
     bump();
   }
 
+  /** Announce the shed AND ask the socket to heal it. The notice carries the room's last DELIVERED cursor,
+   *  which is also where the healing pump restarts — one number, one meaning. `pushControl` collapses a
+   *  repeat notice while one is pending, so a burst heals once. */
   function announceLag(ref: StreamRoomRef, key: string): void {
+    const before = items.length;
     pushControl({ channel: "control", type: "roomLagged", ref, cursor: opts.cursorFor(key) });
+    if (items.length > before) {
+      opts.onShed?.(ref);
+    }
   }
 
   /** `collapse`: at most ONE pending frame per (room, type). Newest payload wins, FIFO position kept. */
