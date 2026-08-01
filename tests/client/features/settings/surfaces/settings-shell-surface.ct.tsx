@@ -9,8 +9,9 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
-import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellStory } from "../_ct-stories";
+import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellFitsStory, SettingsShellNarrowStory, SettingsShellStory } from "../_ct-stories";
 
 /** The getUserSettings read-model the Appearance pane suspends on — defaults are enough to render it. */
 const USER_SETTINGS_VIEW = {
@@ -74,13 +75,34 @@ test("renders the USER + APP group headings and the category rows", async ({ mou
   await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
 });
 
-test("the nav is a navigation landmark and the active category carries aria-current", async ({ mount, page }) => {
+// ONE "you are here" per location (side-eye 2026-08-01): a category row that OWNS sections is a disclosure
+// GROUP — it carries aria-expanded, never aria-current, because its active child already is the current
+// item. Both carrying aria-current announced two current items for one place.
+test("the nav is a navigation landmark; a section-owning category is a GROUP and only its leaf is aria-current", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
 
   await expect(component.getByRole("navigation", { name: "Settings sections" })).toBeVisible();
-  // Appearance is the default active category → its row is aria-current.
-  await expect(component.getByRole("button", { name: "Appearance" })).toHaveAttribute("aria-current", "true");
+  const appearance = component.getByRole("button", { name: "Appearance" });
+  await expect(appearance).toHaveAttribute("aria-expanded", "true");
+  await expect(appearance).not.toHaveAttribute("aria-current", "true");
+  // Exactly one nav row is current, and it is a LEAF (a subcategory) — the pane's first section, since the
+  // pane opens at its top.
+  const nav = component.getByRole("navigation", { name: "Settings sections" });
+  await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+});
+
+// A category with NO sections has no leaf to hand the marker to — it IS the leaf, so it keeps aria-current
+// and has no aria-expanded (there is nothing to disclose).
+test("a section-less category stays the aria-current leaf", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+
+  const automation = component.getByRole("button", { name: "Automation" });
+  await automation.click();
+  await expect(automation).toHaveAttribute("aria-current", "true");
+  await expect(automation).not.toHaveAttribute("aria-expanded", "true");
 });
 
 test("the active category expands into indented subcategory rows (Discord grammar)", async ({ mount, page }) => {
@@ -257,7 +279,9 @@ test("fuzzy search jumps to the merged Operations section's admin anchor", async
 
   // The jump switched into the Admin pane and scrolled its Operations section into view.
   await expect(component.getByRole("heading", { name: "Operations" })).toBeInViewport();
-  await expect(component.getByRole("button", { name: "Admin" })).toHaveAttribute("aria-current", "true");
+  // Admin owns sections, so the jump expands it as a GROUP and the current marker lands on the leaf.
+  await expect(component.getByRole("button", { name: "Admin" })).toHaveAttribute("aria-expanded", "true");
+  await expect(component.getByRole("button", { name: "Operations" })).toHaveAttribute("aria-current", "true");
 });
 
 // Search parity for a CONTRIBUTED section (§6c): character's `library` section rides the same index as any
@@ -369,8 +393,9 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
       return;
     }
     const record = (): void => {
-      // Every element that is aria-current at this mutation (the active CATEGORY row is always current
-      // AND a subcategory row) — collect all so an intermediate subcategory flicker can't hide.
+      // Every element that is aria-current at this mutation — collect all so an intermediate subcategory
+      // flicker can't hide. Since the group ruling only a LEAF is ever current, so the sample is the set of
+      // subcategories that lit up during the jump.
       for (const el of nav.querySelectorAll('[aria-current="true"]')) {
         const label = el.textContent?.trim();
         if (label !== undefined && label !== "" && !w.__seen.includes(label)) {
@@ -406,9 +431,9 @@ test("a distant subcategory click lands on the target, never an intermediate (sp
   });
 
   const seen = await page.evaluate(() => (globalThis as unknown as { __seen: string[] }).__seen);
-  // The only rows that ever held aria-current during the jump are the target subcategory (Effects) and
-  // its parent category (Appearance, always current) — no INTERMEDIATE section flickered through.
-  expect(seen.filter((label) => label !== "Effects" && label !== "Appearance")).toEqual([]);
+  // The only row that ever held aria-current during the jump is the target subcategory — no INTERMEDIATE
+  // section flickered through, and no parent category shared the marker.
+  expect(seen).toEqual(["Effects"]);
 });
 
 // Flash geometry (owner P3): after a jump the flashed SECTION carries the inset-ring highlight, its box
@@ -487,4 +512,104 @@ test("the modal header divider spans the full content width and the columns shar
   expect(Math.abs((geo?.headerWidth ?? 0) - (geo?.contentWidth ?? -1))).toBeLessThanOrEqual(2);
   // "User" (nav) and the first section (pane) start at the same baseline.
   expect(Math.abs((geo?.userTop ?? 0) - (geo?.sectionTop ?? -1))).toBeLessThanOrEqual(2);
+});
+
+// SCROLL-SPY, the no-scroll arm: a pane that FITS its column is at its top AND its bottom at once. The
+// bottom arm used to win and light the LAST section while the reader is looking at the FIRST — a nav that
+// lies about where you are. No scroll ⇒ the first section is current.
+test("a pane that fits (no scroll) resolves the FIRST section, never the last", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellFitsStory />);
+  await component.getByRole("heading", { name: "Message style" }).waitFor();
+
+  // The premise: the pane region genuinely does not scroll in this box.
+  const overflow = await page.evaluate(() => {
+    const region = document.querySelector('[role="region"]') as HTMLElement | null;
+    return region === null ? -1 : region.scrollHeight - region.clientHeight;
+  });
+  expect(overflow).toBeLessThanOrEqual(2);
+
+  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
+});
+
+// The 220px (`--width-sidebar-sm`) nav cannot fit every section name — "Message details & actions" is the
+// longest and clips. A clipped row must still be READABLE on demand: the row's title carries the full
+// string as a native `title` tooltip (ListRow's contract), so the ellipsis is a recoverable abbreviation
+// and not a lost datum. Pinned because a future ListRow change that drops the attribute would make the
+// label unreadable with no other tell.
+test("a nav label too long for the 220px column keeps its full text as a title tooltip", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+  await component.getByRole("heading", { name: "Message style" }).waitFor();
+
+  const label = component
+    .getByRole("navigation", { name: "Settings sections" })
+    .locator('[data-slot="list-row-title"]', { hasText: "Message details & actions" });
+  await expect(label).toHaveAttribute("title", "Message details & actions");
+  // It really is clipped at this column width — the tooltip is load-bearing, not decoration.
+  const clipped = await label.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth);
+  expect(clipped).toBe(true);
+});
+
+// ── The NARROW arm (side-eye P0): push-detail, at the receipt's own 430×740 device ───────────────────
+test.describe("narrow (430×740)", () => {
+  test.use({ viewport: { width: 430, height: 740 } });
+
+  test("the nav list owns the whole pane, and selecting a section PUSHES the pane over it", async ({ mount, page }) => {
+    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    const component = await mount(<SettingsShellNarrowStory />);
+    await expect(component.getByRole("button", { name: "Appearance" })).toBeVisible();
+
+    // The LIST view: the nav fills the row, the pane column is not painted at all (the stacked arm gave it
+    // a 60px window instead).
+    const list = await readSettingsShellColumns(page);
+    expect(list.navPainted).toBe(true);
+    expect(list.contentPainted).toBe(false);
+    expect(list.navWidth).toBe(list.rowWidth);
+
+    // Selecting a section pushes the DETAIL over the list, with a back row.
+    await component.getByRole("button", { name: "Avatars" }).click();
+    const detail = await readSettingsShellColumns(page);
+    expect(detail.navPainted).toBe(false);
+    expect(detail.contentPainted).toBe(true);
+    expect(detail.contentWidth).toBe(detail.rowWidth);
+    await expect(component.getByRole("button", { name: "Back to settings sections" })).toBeVisible();
+
+    // …and back returns to the list.
+    await component.getByRole("button", { name: "Back to settings sections" }).click();
+    const back = await readSettingsShellColumns(page);
+    expect(back.navPainted).toBe(true);
+    expect(back.contentPainted).toBe(false);
+    await expect(component.getByRole("button", { name: "Back to settings sections" })).toBeHidden();
+  });
+
+  // The P0 receipt itself: the pushed pane's FIRST CONTROL was off-screen at y=754 in a 740px viewport.
+  test("the pushed pane's first control is on-screen", async ({ mount, page }) => {
+    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    const component = await mount(<SettingsShellNarrowStory />);
+    await component.getByRole("button", { name: "Appearance" }).click();
+
+    const region = component.getByRole("region", { name: "Appearance settings" });
+    const firstControl = region.locator("button, input, select, textarea").first();
+    await expect(firstControl).toBeInViewport();
+    const box = await firstControl.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box?.y ?? Number.POSITIVE_INFINITY).toBeLessThan(740);
+  });
+
+  // A search jump has to land in the DETAIL view too — it names a destination, so it pushes.
+  test("a search jump pushes the detail into view", async ({ mount, page }) => {
+    await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+    const component = await mount(<SettingsShellNarrowStory />);
+    await expect(component.getByRole("button", { name: "Appearance" })).toBeVisible();
+
+    await component.getByRole("combobox", { name: "Search settings" }).fill("avatar size");
+    await component.getByRole("option", { name: "Avatar size" }).first().click();
+
+    await expect(component.getByRole("heading", { name: "Avatars" })).toBeInViewport();
+    const columns = await readSettingsShellColumns(page);
+    expect(columns.navPainted).toBe(false);
+    expect(columns.contentPainted).toBe(true);
+  });
 });

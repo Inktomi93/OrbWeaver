@@ -19,9 +19,18 @@
 // SEARCH (each pane's own `subcategories` ⊕ the navs contributed at its anchor — the retired `make*Pane`
 // factories used to merge this); the pane's own surface renders them at the position IT owns. §3: the host
 // is also the ONE aggregate save-status footer for the sections that report into it.
+//
+// NARROW ARM = PUSH-DETAIL (side-eye 2026-08-01, P0). Below the `@md` container step the two columns do NOT
+// stack: the nav list takes the whole pane, selecting a section PUSHES the pane over it with a back row, and
+// back returns to the list — the house mobile master/detail flow. The stacked arm it replaces gave the
+// content a 60px window (nav scrollHeight 1042 + content scrollHeight 4415 inside a 740px viewport), with
+// the pane's first control off-screen at y=754. This is CONTAINER-queried, not viewport-queried: a feature
+// is never viewport-aware (`no-raw-matchmedia`; the shell owns the one @media), and the columns are already
+// sized off this container. The wide split is untouched.
 
+import { Button } from "@orb/ui/button";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
-import { Icon } from "@orb/ui/icons";
+import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
@@ -46,6 +55,7 @@ import {
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
 import { SettingsSaveFooter } from "../components/settings-save-footer";
 import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
+import { afterPaint, computeActiveSub, flashAnchor } from "../lib/settings-scroll-spy";
 import type { SettingsSearchEntry } from "../lib/settings-search";
 import { buildSettingsSearchEntries } from "../lib/settings-search";
 
@@ -85,6 +95,11 @@ export function SettingsShell(): ReactElement {
     [sectionRegistry, viewer],
   );
 
+  // Landing at the TOP of a pane IS landing on its first section, so the nav says so immediately instead of
+  // waiting for the scroll-spy: a category-level select suppresses the spy for the duration of its
+  // programmatic scroll, which left the whole nav with no current row for up to `SPY_REARM_FALLBACK_MS`.
+  const firstSubIdOf = useCallback((id: SettingsCategoryId): string | null => subcategoriesFor(registry.get(id))[0]?.id ?? null, [registry, subcategoriesFor]);
+
   // The failing sections' nav rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
   // carried by a marker on the section's own nav row (and its own inline retry at its anchor).
   const erroredSectionIds = useErroredSaveSections();
@@ -98,7 +113,8 @@ export function SettingsShell(): ReactElement {
   const targetCategory = useSettingsTarget();
   const targetSub = useSettingsSubTarget();
   const targetSatisfiable = isCategoryId(targetCategory) && visibleIds.has(targetCategory);
-  const [active, setActive] = useState<SettingsCategoryId>(() => (targetSatisfiable ? targetCategory : "appearance"));
+  const initialCategory: SettingsCategoryId = targetSatisfiable ? targetCategory : DEFAULT_CATEGORY;
+  const [active, setActive] = useState<SettingsCategoryId>(initialCategory);
   // Adjust state during render (never a setState-in-effect cascade) when the deep-link target changes OR when
   // an as-yet-UNSATISFIED target becomes satisfiable — the latter is the deep-link-to-when-gated-pane race:
   // a cold `openSettings('admin')` resolves `active` while the non-suspense sessions.me probe is in flight
@@ -110,7 +126,12 @@ export function SettingsShell(): ReactElement {
     satisfiable: targetSatisfiable,
     sub: targetSub,
   });
-  const [activeSub, setActiveSub] = useState<string | null>(targetSatisfiable ? targetSub : null);
+  const [activeSub, setActiveSub] = useState<string | null>((targetSatisfiable ? targetSub : null) ?? firstSubIdOf(initialCategory));
+  // The narrow arm's PUSH state — `true` = the detail (pane) is over the nav list. Meaningless at/above the
+  // `@md` container step, where both columns paint regardless, so it needs no reset on resize: a user who
+  // widens the window sees the split they always saw, and one who narrows it lands on the pane they last
+  // opened (with the back row that gets them out). A deep link opens PUSHED — it named a destination.
+  const [pushed, setPushed] = useState(targetSatisfiable);
   // A SUB-level deep link (`openSettingsTo(category, subId)`, §10 Q4) rides the SAME latch: the pane and the
   // selected sub resolve here, in render; only the SCROLL is deferred (the anchor exists after the pane has
   // mounted — the effect below waits for it), so no state is ever set from an effect.
@@ -118,7 +139,8 @@ export function SettingsShell(): ReactElement {
     setSeen({ target: targetCategory, satisfiable: targetSatisfiable, sub: targetSub });
     if (targetSatisfiable) {
       setActive(targetCategory);
-      setActiveSub(targetSub);
+      setActiveSub(targetSub ?? firstSubIdOf(targetCategory));
+      setPushed(true);
     }
   }
   const [query, setQuery] = useState("");
@@ -158,7 +180,7 @@ export function SettingsShell(): ReactElement {
       const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
       const existing = find();
       if (existing !== null) {
-        flashAnchor(existing);
+        afterPaint((): void => flashAnchor(existing));
         return;
       }
       let done = false;
@@ -170,7 +192,7 @@ export function SettingsShell(): ReactElement {
         observer.disconnect();
         globalThis.clearTimeout(timer);
         if (target !== null) {
-          flashAnchor(target);
+          afterPaint((): void => flashAnchor(target));
         }
       };
       const observer = new MutationObserver((): void => {
@@ -195,16 +217,26 @@ export function SettingsShell(): ReactElement {
     scrollToAnchor(targetCategory, targetSub);
   }, [targetCategory, targetSub, targetSatisfiable, scrollToAnchor]);
 
+  /** Scroll the pane column back to its top — deferred a frame like every other programmatic scroll here
+   *  (see {@link afterPaint}). */
+  const scrollContentToTop = (): void => {
+    beginProgrammaticScroll();
+    afterPaint((): void => contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() }));
+  };
+
   const selectCategory = (id: SettingsCategoryId): void => {
     setActive(id);
-    setActiveSub(null);
-    beginProgrammaticScroll();
-    contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() });
+    // Landing at the top of the pane IS landing on its first section — say so, instead of leaving the nav
+    // with no current row until the suppressed spy re-arms.
+    setActiveSub(firstSubIdOf(id));
+    setPushed(true);
+    scrollContentToTop();
   };
 
   const selectSub = (id: SettingsCategoryId, subId: string): void => {
     setActive(id);
     setActiveSub(subId);
+    setPushed(true);
     scrollToAnchor(id, subId);
   };
 
@@ -219,14 +251,15 @@ export function SettingsShell(): ReactElement {
   };
 
   const jumpToEntry = (entry: SettingsSearchEntry): void => {
-    setActive(entry.categoryId as SettingsCategoryId);
-    setActiveSub(entry.subId);
+    const categoryId = entry.categoryId as SettingsCategoryId;
+    setActive(categoryId);
+    setActiveSub(entry.subId ?? firstSubIdOf(categoryId));
     setQuery("");
+    setPushed(true);
     if (entry.subId === null) {
-      beginProgrammaticScroll();
-      contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() });
+      scrollContentToTop();
     } else {
-      scrollToAnchor(entry.categoryId as SettingsCategoryId, entry.subId);
+      scrollToAnchor(categoryId, entry.subId);
     }
   };
 
@@ -296,11 +329,14 @@ export function SettingsShell(): ReactElement {
             </Command>
           </Stack>
 
-          <Row align="stretch" className="min-h-0 flex-1 @max-md:flex-col" gap="section">
+          {/* PUSH-DETAIL, not a stack: below `@md` exactly ONE of the two columns paints, so each gets the
+              whole pane instead of splitting a phone's height into two unusable windows. Above it both
+              paint and the `@max-md:` arms are inert — the wide split is unchanged. */}
+          <Row align="stretch" className="min-h-0 flex-1" gap="section">
             <Stack
               role="navigation"
               aria-label="Settings sections"
-              className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:max-h-(--container-cq-sm) @max-md:w-full"
+              className={`w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:w-full ${pushed ? "@max-md:hidden" : ""}`}
               gap="section"
             >
               {SETTINGS_GROUPS.map((group) => (
@@ -311,12 +347,16 @@ export function SettingsShell(): ReactElement {
                     const subs = subcategoriesFor(pane);
                     return (
                       <Stack key={pane.id} gap="field">
+                        {/* A pane WITH sections is a disclosure GROUP, not a nav leaf: it expands
+                            (`aria-expanded`) and its children carry the one "you are here" marker. A pane
+                            with no sections IS the leaf, so it keeps `aria-current` itself. Two
+                            `aria-current` rows for one location was the side-eye a11y defect. */}
                         <ListRow
                           clickable={true}
                           leading={<Icon icon={pane.icon} size="sm" />}
                           onClick={(): void => selectCategory(pane.id)}
-                          selected={isActive}
                           title={pane.label}
+                          {...(subs.length > 0 ? { expanded: isActive } : { selected: isActive })}
                         />
                         {isActive && subs.length > 0 ? (
                           <Stack className="ps-(--spacing-section)" gap="field">
@@ -339,7 +379,16 @@ export function SettingsShell(): ReactElement {
               ))}
             </Stack>
 
-            <Stack className="min-h-0 flex-1" gap="row">
+            <Stack className={`min-h-0 flex-1 ${pushed ? "" : "@max-md:hidden"}`} gap="row">
+              {/* The pushed detail's way out. Narrow-only (`@md:hidden`), and it names the pane it is
+                  leaving so the back row doubles as the detail's title — at this width the nav that
+                  otherwise carries that fact is off-screen. */}
+              <Row className="@md:hidden" gap="field">
+                <Button aria-label="Back to settings sections" intent="ghost" onClick={(): void => setPushed(false)} size="icon" type="button">
+                  <Icon icon={ChevronLeft} size="sm" />
+                </Button>
+                <Text voice="kicker">{activePane.label}</Text>
+              </Row>
               <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="min-h-0 flex-1 overflow-y-auto">
                 <SaveStatusHostContext value={true}>
                   <SettingsPane pane={activePane} />
@@ -354,55 +403,17 @@ export function SettingsShell(): ReactElement {
   );
 }
 
-// The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; applied
-// via a class toggle (not inline style) so the token radius/transition still apply.
 // The nav-row marker for a section whose save FAILED (§3) — a short string so it rides ListRow's `meta`
 // slot (inside the row's aria-describedby), never a bare icon a screen reader can't read.
 const SAVE_FAILED_MARKER = "Save failed";
-const FLASH_MS = 1200;
-const FLASH_BASE_CLASS = "settings-flash-anchor";
-const FLASH_LIT_CLASS = "settings-flash-anchor--lit";
+/** The pane the shell opens on with no deep-link target. */
+const DEFAULT_CATEGORY = "appearance";
 const MAX_ANCHOR_POLL_FRAMES = 20;
 // Wall-clock bound for the anchor-appearance observer (a suspending pane can outlast any frame count
 // under contention; frames are not time). Generous — the observer fires the instant the anchor mounts,
 // so the bound only matters when the pane never resolves at all.
 const ANCHOR_WAIT_MS = 5000;
-const SPY_LINE_RATIO = 0.3;
 const SPY_REARM_FALLBACK_MS = 700;
-const SPY_BOTTOM_EPS = 2;
-
-/** The subcategory id currently "active" under scroll-spy — the last section past the spy line, or the last section at the very bottom. */
-function computeActiveSub(container: HTMLElement, prefix: string): string | null {
-  const sections = [...container.querySelectorAll<HTMLElement>(`[id^="${prefix}"]`)];
-  if (sections.length === 0) {
-    return null;
-  }
-  const last = sections.at(-1);
-  const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - SPY_BOTTOM_EPS;
-  if (atBottom && last !== undefined) {
-    return last.id.slice(prefix.length);
-  }
-  const line = container.getBoundingClientRect().top + container.clientHeight * SPY_LINE_RATIO;
-  let current = sections[0];
-  for (const section of sections) {
-    if (section.getBoundingClientRect().top <= line) {
-      current = section;
-    } else {
-      break;
-    }
-  }
-  return current === undefined ? null : current.id.slice(prefix.length);
-}
-function flashAnchor(el: HTMLElement): void {
-  el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
-  el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
-  globalThis.setTimeout(() => {
-    el.classList.remove(FLASH_LIT_CLASS);
-    el.addEventListener("transitionend", () => el.classList.remove(FLASH_BASE_CLASS), {
-      once: true,
-    });
-  }, FLASH_MS);
-}
 
 /** The active pane — reads the registry blind over the §5.3 body union: a feature-owned `surface` (which
  *  renders its own anchored sections), a pure `sections` SKIMMER (the host renders the anchor's sections

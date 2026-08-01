@@ -62,3 +62,34 @@ export function findSettingsColumnViolation(geometry: SettingsPaneGeometry, minS
   }
   return null;
 }
+
+/** Which of the shell's two columns is PAINTED, and how wide, at the current container width. Below the
+ *  `@md` step exactly one may paint (push-detail); above it, both. `width` is 0 for an unpainted column. */
+export interface SettingsShellColumns {
+  readonly navPainted: boolean;
+  readonly navWidth: number;
+  readonly contentPainted: boolean;
+  readonly contentWidth: number;
+  /** The row both columns live in — the width a full-pane column has to fill. */
+  readonly rowWidth: number;
+}
+
+export function readSettingsShellColumns(page: Page): Promise<SettingsShellColumns> {
+  return page.evaluate((): SettingsShellColumns => {
+    const nav = document.querySelector<HTMLElement>('[role="navigation"]');
+    const region = document.querySelector<HTMLElement>('[role="region"]');
+    // The pane COLUMN (the scroll region's parent) is what the push-detail arm shows/hides — the region
+    // itself is only its scroller.
+    const content = region?.parentElement ?? null;
+    // `display:none` boxes have no client rects at all — the honest "is it painted" test.
+    const painted = (el: Element | null): boolean => el !== null && el.getClientRects().length > 0;
+    const width = (el: Element | null): number => Math.round(el?.getBoundingClientRect().width ?? 0);
+    return {
+      navPainted: painted(nav),
+      navWidth: width(nav),
+      contentPainted: painted(content),
+      contentWidth: width(content),
+      rowWidth: Math.round(nav?.parentElement?.getBoundingClientRect().width ?? -1),
+    };
+  });
+}
