@@ -728,7 +728,7 @@ interface VariableDeltaRow {
 
 /** The chat's standalone (out-of-turn) runtime-variable delta batches (`chats.standalone_variable_deltas`,
  *  03 §1.1), seq-ordered as stored. Parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
-export async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
+async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
   const rows = await db.select({ standaloneVariableDeltas: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   const parsed = standaloneVariableDeltasSchema.safeParse(rows.at(0)?.standaloneVariableDeltas);
   return parsed.success ? parsed.data : [];
