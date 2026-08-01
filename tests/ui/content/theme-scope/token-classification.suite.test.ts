@@ -65,7 +65,15 @@ const SEED_COVERED = new Set<string>(["color.scrim"]);
 //     rendered lighter than noon, and --color-foreground stars turned to dirt). The stone's CHROME (ring,
 //     bezel, horizon line, text) stays fully theme-reactive via the EMITTED class; only the depicted sky
 //     inside it is fixed, so a custom theme still recolours everything a palette legitimately owns.
+//   • sheen: the POLARITY-FIXED gloss highlight at the FOOT of the gradient-border glows (CTA ring,
+//     active tab, active rail button) — the same species as sky-*: a depiction (a light source glancing
+//     off a raised edge), not a palette role, so it is white on every seed while the glow's HEAD stays
+//     fully theme-reactive (--color-primary). Base-only by design: a theme MAY re-bind it (a light theme
+//     wanting a dark gloss), none is required to, and no seed value-set carries it (the seed sets are
+//     restricted to the ThemeScope-emitted class + scrim). It replaced three bare `oklch(1 0 0 / 0.0N)`
+//     literals, so the token's job is making that choice visible and overridable, not palette-tracking.
 const STATIC_RATIONALE = new Set<string>([
+  "color.sheen",
   "color.destructive",
   "color.destructive-foreground",
   "color.success",

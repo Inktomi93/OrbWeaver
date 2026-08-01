@@ -9,17 +9,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueVar } from "@orb/ui/avatar";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import type { CSSProperties } from "react";
-import { cn } from "#lib";
+import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution";
 import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing";
 
 type ChatStyle = (typeof THEME_SCOPE_CHAT_STYLES)[number];
-
-const BUBBLE_TOKENS: Record<MessageRole, string> = {
-  user: "bg-user-bubble text-user-bubble-foreground",
-  assistant: "bg-ai-bubble text-ai-bubble-foreground",
-  system: "bg-system-bubble text-system-bubble-foreground",
-};
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -72,13 +66,11 @@ export interface RowSkin {
 function bubbleOuter(role: MessageRole): string {
   return cx("mx-auto w-full max-w-(--width-shell-content)", alignFor(role));
 }
-function bubbleInner(role: MessageRole): string {
-  // `w-fit` (D66 N3) so a short reply hugs its text instead of stretching the whole reading column;
-  // `max-w-prose` still caps the long-form line length. Inherited by exactly the five bubble-family
-  // skins whose `inner: bubbleInner` (bubble/echo/whisper/ripple/tide) — flat/document/hush own their
-  // own full-width inner and are untouched.
-  return cx("w-fit max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]);
-}
+// The bubble box itself is single-homed in `#lib/messageBubbleClass` — the theme editor's live preview
+// paints from the same builder, so the preview and the transcript can never drift apart (side-eye P2,
+// 2026-08-01). Inherited by exactly the five bubble-family skins whose `inner: bubbleInner`
+// (bubble/echo/whisper/ripple/tide) — flat/document/hush own their own full-width inner and are untouched.
+const bubbleInner = messageBubbleClass;
 function flatOuter(): string {
   return "w-full items-stretch";
 }

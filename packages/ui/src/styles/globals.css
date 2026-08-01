@@ -73,7 +73,10 @@
 
 /* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
  * background-clip: transparent padding-box fill + gradient border-box) so it composes over the
- * element's own fill instead of clobbering it. Chrome/CTA/cells only, never message prose. */
+ * element's own fill instead of clobbering it. Chrome/CTA/cells only, never message prose.
+ * The gradient's FOOT is --color-sheen: a polarity-fixed sheen highlight — a deliberate white gloss
+ * unless a theme overrides the token. The per-site alpha (the tuned ring weight) stays here; only the
+ * colour is the token's call. Same pairing in the active-tab ring below and .shell-rail-button. */
 [data-slot="button"][data-cta]::after,
 [data-slot="media-grid-cell"][data-selected]::after {
   content: "";
@@ -85,14 +88,15 @@
   border-radius: inherit;
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(1 0 0 / 0.04)) border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(from var(--color-sheen) l c h / 0.04)) border-box;
 }
 /* Positioning context for the ring above — Base UI's button isn't positioned by default. */
 [data-slot="button"][data-cta] {
   position: relative;
 }
 
-/* Active-tab accent gradient border, same recipe as the CTA ring above, lower alpha. */
+/* Active-tab accent gradient border, same recipe as the CTA ring above (primary head, --color-sheen
+ * foot), lower alpha. */
 [data-slot="tabs-tab"][data-active]::after {
   content: "";
   position: absolute;
@@ -103,7 +107,7 @@
   border-radius: var(--radius-control);
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(1 0 0 / 0.02)) border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.3), oklch(from var(--color-sheen) l c h / 0.02)) border-box;
 }
 
 /* Gradient-fade dividers: long separators dissolve at their ends via a mask gradient instead of a

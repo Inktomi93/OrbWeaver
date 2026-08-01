@@ -1,4 +1,4 @@
-import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_INSET, tv } from "#lib";
 
 // The tabs skin (D62 UIP-307) — an UNDERLINE strip, not a segmented pill: the list is a plain row
 // with a hairline `--color-border` track along its bottom edge; the active marker is a 2px `--primary`
@@ -34,7 +34,13 @@ export const tabsVariants = tv({
       "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-0.5 w-(--active-tab-width) rounded-full bg-primary",
       "transition-all duration-(--motion-base) ease-out-expo",
     ],
-    panel: "w-full text-body leading-body text-foreground",
+    // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by
+    // Tab), so it needs a real focus ring: the UA's default outline measured 1.10:1 against the panel
+    // background — under the 3:1 non-text-contrast law (2026-08-01 side-eye P1). It takes the INSET ring,
+    // not the offset FOCUS_RING every control wears: a panel fills its container edge-to-edge (context
+    // panels, the rpg HUD), so an outward `ring-offset-2` halo paints into — and is clipped by — the
+    // scroll parent, i.e. the ring would be invisible exactly where the panel is used. Inset always paints.
+    panel: ["w-full text-body leading-body text-foreground", "outline-none", FOCUS_RING_INSET],
   },
   variants: {
     // THE TAB CELL'S ARRANGEMENT — and, with it, its height rule. `inline` is the strip tab: one row, the

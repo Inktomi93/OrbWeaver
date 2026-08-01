@@ -71,12 +71,12 @@ function AmbientVocabPicker({
       <Button
         type="button"
         intent="ghost"
-        size="sm"
+        size="inline"
         data-slot="tracker-value-rest"
         aria-label={`${fieldLabel} value`}
         title="Click to edit"
         onClick={(): void => setOpen(true)}
-        className="!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal"
+        className="gap-0 border border-transparent px-field text-left"
       >
         <Text as="span" size="label" tone={empty ? "muted" : "default"}>
           {restText}
@@ -102,8 +102,8 @@ function AmbientVocabPicker({
           key={label}
           type="button"
           intent={label === value ? "secondary" : "ghost"}
-          size="sm"
-          className="!h-auto min-h-0 !px-field !py-0 font-normal"
+          size="inline"
+          className="px-field"
           onClick={(): void => {
             if (label !== value) {
               onPick(label);

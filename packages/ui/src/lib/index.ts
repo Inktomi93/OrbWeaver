@@ -9,7 +9,7 @@ export { ACCENT_HOVER } from "./accent-hover";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap";
 export { CONTROL_SIZE } from "./control-size";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state";
-export { FIELD_CONTROL } from "./field-control";
+export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control";
 export {
   FOCUS_RING,
   FOCUS_RING_BARE,

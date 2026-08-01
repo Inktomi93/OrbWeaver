@@ -1,13 +1,16 @@
-// CharacterFacetRow — one row in the CONTENT facet master list. A domain composition of Row + Badge + a
-// ghost Button (not ListRow — glyph badge, two-line button). Anatomy left→right: glyph badge · button that
-// drills into the facet (line 1 = label; line 2 = a content preview when filled, else the subtitle) · a
-// muted "Add…" invite on EMPTY rows only. ZERO ember: no primary action badge (P5/ember ration); the
-// selected facet reads as a 2px left ember bar + a 10% primary tint (the chats-lane selection pattern),
-// never a full accent border/fill.
+// CharacterFacetRow — one row in the CONTENT facet master list. A domain composition of Row + a ghost
+// Button (not ListRow — two-line button). Anatomy left→right: button that drills into the facet (line 1 =
+// label; line 2 = a content preview when filled, else the subtitle) · a muted "Add…" invite on EMPTY rows
+// only. ZERO ember: no primary action badge (P5/ember ration); the selected facet reads as a 2px left ember
+// bar + a 10% primary tint (the chats-lane selection pattern), never a full accent border/fill.
+//
+// NO ICON TILE (2026-08-01 side-eye P2): the row used to lead with a filled `Badge` holding the facet
+// glyph, `intent="info"` once filled — a stack of saturated cold-blue squares down the Voice/Extras/
+// Advanced groups, in a hue this surface uses nowhere else, carrying no datum the label doesn't already
+// say. The label + its gloss + "Add…" ARE the row's content; the glyph survives where it identifies a
+// single thing, on the facet drill-in header (character-facet-editor.tsx).
 
-import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -41,10 +44,6 @@ export function CharacterFacetRow({ facet, selected, filled, preview, focusOnMou
     : "rounded-card border border-border border-l-2 border-l-transparent";
   return (
     <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-filled={filled ? "" : undefined} className={rowClass}>
-      <Badge intent={filled ? "info" : "neutral"} size="sm">
-        <Icon icon={facet.glyph} size="sm" />
-      </Badge>
-
       <Button ref={buttonRef} intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(facet.id)}>
         {/* The LABEL keeps its full width (shrink-0); only the preview/subtitle truncates — a filled
             row must never ellipsize "Personality" down to "P…" to fit its own preview. */}

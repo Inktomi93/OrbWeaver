@@ -43,11 +43,11 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
     <Button
       type="button"
       intent="ghost"
-      size="sm"
+      size="inline"
       data-slot="rpg-veiled-cue"
       title={`${count} veiled ${count === 1 ? "truth" : "truths"} in play — host only. Opens Status → Veiled.`}
       onClick={(): void => revealContextPanel("rpg.status")}
-      className="!h-auto min-h-0 gap-field !px-field !py-0 text-highlight hover:text-highlight"
+      className="px-field font-medium text-highlight hover:text-highlight"
     >
       <Icon icon={EyeOff} size="xs" />
       {/* text-inherit so the button's crown-gold wins — `kicker` carries its own muted colour, and a muted

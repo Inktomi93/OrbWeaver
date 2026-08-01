@@ -167,11 +167,11 @@ function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): React
         <Row gap="field" align="center" className="min-w-0">
           <Button
             intent="ghost"
-            size="sm"
+            size="inline"
             onClick={onOpen}
             aria-label={`Open ${actor.name}`}
             title={`Open ${actor.name}'s sheet`}
-            className="!h-auto min-h-0 min-w-0 justify-start gap-field !px-field !py-0"
+            className="min-w-0 px-field font-medium"
           >
             <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: actor.avatar })}>
               {actor.name.slice(0, 1).toUpperCase()}

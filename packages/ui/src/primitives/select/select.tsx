@@ -3,6 +3,7 @@ import type { SelectPositionerProps, SelectRootProps } from "@base-ui/react/sele
 import { Select as BaseSelect } from "@base-ui/react/select";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
+import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
@@ -86,6 +87,11 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   /** Applied to the trigger (the in-flow element). */
   className?: string;
   /**
+   * The trigger's SCALE: `field` (default) is the form control; `inline` is the identity-line trigger —
+   * text-height, content-width, chrome-free (the name IS the affordance). @defaultValue "field"
+   */
+  layout?: VariantProps<typeof selectVariants>["layout"];
+  /**
    * A visible accessible label rendered above the trigger. Omit when the Select composes inside a
    * `<Field>` or when `aria-label` suffices. Base UI's `Select.Label` doesn't reach the Trigger's
    * `aria-labelledby` standalone (outside `<Field>`), so we wire it ourselves via a locally-`useId()`'d
@@ -124,6 +130,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
     items,
     placeholder,
     className,
+    layout,
     label,
     renderValue,
     scrollArrows = false,
@@ -174,7 +181,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
-            className={cn(slots.trigger(), className)}
+            className={cn(slots.trigger({ layout }), className)}
             data-slot="select-trigger"
             id={id}
           >

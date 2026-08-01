@@ -28,6 +28,41 @@ test.describe("coarse pointer — the touch floor", () => {
   });
 });
 
+// `layout="inline"` is the CLICK-TO-EDIT box (tracker values, ambient strip): the revealed input must
+// occupy the same slot the display did, so it is text-height with the datum's inset — where the default
+// `field` arm is a control. It replaces a call-site `!h-auto min-h-0 !px-field` bang string, so the receipt
+// is the PAINTED difference between the two arms, read computed, not the class list.
+test("layout=inline is a text-height box with the datum's inset, not the field control", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 240 }}>
+      <Input aria-label="field arm" />
+      <Input aria-label="inline arm" layout="inline" />
+    </div>,
+  );
+  const read = (name: string): Promise<{ height: number; paddingInline: number; fontSize: number }> =>
+    page.getByLabel(name).evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { height: el.getBoundingClientRect().height, paddingInline: Number.parseFloat(s.paddingLeft), fontSize: Number.parseFloat(s.fontSize) };
+    });
+  const [field, inline] = await Promise.all([read("field arm"), read("inline arm")]);
+  // RELATIONAL (survives a token retune): the inline box is shorter, tighter and typed one step down …
+  expect(inline.height).toBeLessThan(field.height);
+  expect(inline.paddingInline).toBeLessThan(field.paddingInline);
+  expect(inline.fontSize).toBeLessThan(field.fontSize);
+  // … and against the resolved token, its inset IS --spacing-field (never a hardcoded px).
+  const fieldToken = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-field)";
+    document.body.append(probe);
+    const width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width;
+  });
+  expect(inline.paddingInline).toBeCloseTo(fieldToken, 1);
+  // It keeps the editable chrome — this is still an input, not a label.
+  await expect(page.getByLabel("inline arm")).toHaveCSS("background-color", TOKENS["color.input"].value);
+});
+
 test("typing updates the value and fires onValueChange", async ({ mount }) => {
   const seen: string[] = [];
   const input = await mount(

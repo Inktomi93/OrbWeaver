@@ -151,7 +151,7 @@ function BeatBodyEditor({
           <CollapsibleTrigger
             chevron={false}
             render={
-              <Button intent="ghost" size="sm" className="!h-auto min-h-0 min-w-0 max-w-full whitespace-normal !px-field !py-0 text-left font-normal">
+              <Button intent="ghost" size="inline" className="min-w-0 max-w-full whitespace-normal px-field text-left">
                 <Text as="span" voice="label" className="min-w-0 break-words">
                   {restText}
                 </Text>

@@ -48,7 +48,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
     <Popover>
       <PopoverTrigger
         render={
-          <Button intent="ghost" size="sm" className="!h-auto !p-0" aria-label={`${item.name} icon`} title="Pick an icon">
+          <Button intent="ghost" size="inline" aria-label={`${item.name} icon`} title="Pick an icon">
             {glyph}
           </Button>
         }
@@ -77,7 +77,7 @@ function tileTitle(item: RpgInventoryItem): string {
 // pixel-identical at rest (PERMISSION differs in what a CLICK does, never in what the pack looks like).
 // A left-aligned card, not the old empty square: the grid track (layout/variants `cols="cell"`) gives it
 // the width the item's own words need, and the card is only as tall as those words.
-const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card !px-row !py-field text-left";
+const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card px-row py-field text-left";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · where it's kept. Shared by both arms. */
 function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElement {
@@ -137,10 +137,11 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
         render={
           <Button
             intent="ghost"
-            size="sm"
-            // The Button skin is a control (fixed height, nowrap, centered) — the tile is a card: drop the
-            // control height, start-align it, and let the item's words wrap inside it.
-            className={`!h-auto justify-start whitespace-normal font-normal ${TILE_CLASS}`}
+            // The Button skin is a control (fixed height, nowrap, centered) — the tile is a card, so it takes
+            // the `inline` arm (no control height, start-aligned, regular weight) and lets the item's words
+            // wrap inside the tile's own padding.
+            size="inline"
+            className={`whitespace-normal ${TILE_CLASS}`}
             aria-label={`Edit ${item.name}`}
             data-slot="rpg-pack-cell"
             title={tileTitle(item)}

@@ -31,6 +31,41 @@ test("opens on click, selects an option, and closes", async ({ mount, page }) =>
   await expect(trigger).toContainText("Beta");
 });
 
+// `layout="inline"` is the IDENTITY-LINE trigger (the rpg subject switcher): the NAME is the affordance,
+// so the trigger drops the field box entirely — content width, text-height, transparent. It replaces a
+// call-site `!h-auto !w-auto !px-field` bang string, so the receipt is the two arms' PAINTED difference.
+test("layout=inline drops the field box: content width, text-height, transparent", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 320 }}>
+      <Select aria-label="field arm" items={ITEMS} layout="field" value="alpha" />
+      <Select aria-label="inline arm" items={ITEMS} layout="inline" value="alpha" />
+    </div>,
+  );
+  const read = (name: string): Promise<{ width: number; height: number; background: string; borderColor: string; clear: string }> =>
+    page.getByRole("combobox", { name }).evaluate((el) => {
+      const s = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      // The browser's own serialization of `transparent`, read off a probe rather than spelled here — a
+      // literal colour in a CT is both a gate violation and an assertion about our authoring, not the pixels.
+      const probe = document.createElement("div");
+      probe.style.backgroundColor = "transparent";
+      el.ownerDocument.body.append(probe);
+      const clear = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { width: box.width, height: box.height, background: s.backgroundColor, borderColor: s.borderTopColor, clear };
+    });
+  const [field, inline] = await Promise.all([read("field arm"), read("inline arm")]);
+  // The field arm fills its container and stands at the control height; the inline arm hugs its own text.
+  expect(field.width).toBeCloseTo(320, 0);
+  expect(inline.width).toBeLessThan(field.width);
+  expect(inline.height).toBeLessThan(field.height);
+  // Chrome-free: no input fill, no visible border — both resolve to the same colour as `transparent`.
+  expect(inline.background).not.toBe(field.background);
+  expect(inline.background).toBe(inline.clear);
+  expect(inline.borderColor).toBe(inline.clear);
+  await expect(page.getByRole("combobox", { name: "field arm" })).toHaveCSS("background-color", TOKENS["color.input"].value);
+});
+
 test("popup wears the popover token and the popover z-index", async ({ mount, page }) => {
   await mount(<Select items={ITEMS} placeholder="Pick one" />);
   await page.getByRole("combobox").click();
