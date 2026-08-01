@@ -41,46 +41,32 @@ test("DEFAULT_GROUP_CONFIG is per-speaker × merged, auto-mode off", () => {
   expect(DEFAULT_GROUP_CONFIG.autoMode).toBe(false);
 });
 
-// ═══ roomOverrides — exactly the four-field allowlist (.strict) ══════════════════
+// ═══ roomOverrides — exactly the three-field allowlist (.strict) ══════════════════
 
-test("roomOverridesSchema round-trips the four allowlisted fields and rejects any other", () => {
+test("roomOverridesSchema round-trips the three allowlisted fields and rejects any other", () => {
   const overrides = {
     scenario: "a quiet tavern",
     mainPrompt: "be terse",
     postHistory: "stay in character",
-    // task #22: authorsNote is now the `{prompt, depth?, role?}` injection directive.
-    authorsNote: { prompt: "it is raining", depth: 3, role: "user" as const },
   };
   expect(roomOverridesSchema.parse(overrides)).toEqual(overrides);
-  expect(Object.keys(roomOverridesSchema.shape).sort()).toEqual(["authorsNote", "mainPrompt", "postHistory", "scenario"].sort());
+  expect(Object.keys(roomOverridesSchema.shape).sort()).toEqual(["mainPrompt", "postHistory", "scenario"].sort());
   // A stray field (e.g. a member trying to inject a room-wide persona) is rejected, not carried.
   expect(roomOverridesSchema.safeParse({ persona: "evil twin" }).success).toBe(false);
   expect(DEFAULT_ROOM_OVERRIDES).toEqual({});
 });
 
-// task #22 MIGRATION: a legacy pre-#22 note is a BARE STRING inside chatMetadata. The `roomAuthorsNoteSchema`
-// preprocess coerces string → `{prompt}` so an old stored blob round-trips losslessly through the SAME
-// `roomOverridesSchema.safeParse` read seam the metadata parser uses (no data migration, no lost notes).
-test("roomOverridesSchema coerces a LEGACY bare-string authorsNote → {prompt} (lossless migration)", () => {
-  const parsed = roomOverridesSchema.parse({ authorsNote: "Keep it tense." });
-  expect(parsed.authorsNote).toEqual({ prompt: "Keep it tense." });
-  // An empty legacy string coerces too (the assembler treats an empty prompt as "no note").
-  expect(roomOverridesSchema.parse({ authorsNote: "" }).authorsNote).toEqual({ prompt: "" });
-});
-
-test("roomOverridesSchema accepts a directive with just a prompt (depth/role left to the assembler)", () => {
-  const parsed = roomOverridesSchema.parse({ authorsNote: { prompt: "just text" } });
-  expect(parsed.authorsNote).toEqual({ prompt: "just text" });
-});
-
-// D66-B (W5, ruling A): the assistant@depth-0 WRITE-reject is REMOVED — authored prefill is persistable;
-// SHAPE normalizes the trailing assistant at delivery on a `assistantPrefill:false` model. Shape
-// validation stays.
-test("roomOverridesSchema ACCEPTS an assistant@depth-0 authorsNote (normalized at SHAPE delivery, D66-B)", () => {
-  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "assistant" } }).success).toBe(true);
-  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 1, role: "assistant" } }).success).toBe(true);
-  // system/user at depth 0 stay valid.
-  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "x", depth: 0, role: "system" } }).success).toBe(true);
+// RETIRED KEY (owner ruling 2026-08-01): the room author's note was a second home for what
+// `chat_injections` owns — both landed as the same `in_chat` at-depth splice. The key is GONE from the
+// allowlist, so `.strict()` refuses it in every shape it was ever stored/wired in (the widened directive,
+// the pre-#22 bare string). Pre-launch: stored values are debris, not migrated — the read seam's
+// `.catch(undefined)` heals a carrying blob to "no room overrides" (see the domain metadata contract test).
+test("roomOverridesSchema REJECTS the retired authorsNote key in every legacy shape", () => {
+  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "it is raining", depth: 3, role: "user" } }).success).toBe(false);
+  expect(roomOverridesSchema.safeParse({ authorsNote: { prompt: "just text" } }).success).toBe(false);
+  expect(roomOverridesSchema.safeParse({ authorsNote: "Keep it tense." }).success).toBe(false);
+  // …and it does not sneak through beside a still-live field.
+  expect(roomOverridesSchema.safeParse({ scenario: "a quiet tavern", authorsNote: "Keep it tense." }).success).toBe(false);
 });
 
 test("openingPolicySchema round-trips its members", () => {

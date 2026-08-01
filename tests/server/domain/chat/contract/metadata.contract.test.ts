@@ -62,21 +62,19 @@ describe("parseChatMetadata", () => {
     expect(parsed.roomOverrides).toBeUndefined();
   });
 
-  // task #22 MIGRATION at the REAL read seam: a legacy pre-#22 chat stored `authorsNote` as a BARE STRING.
-  // The widened `roomAuthorsNoteSchema` preprocess coerces it → `{prompt}` here, so an old chat's note still
-  // parses (and injects) with zero data migration; a widened directive round-trips its depth/role.
-  test("a LEGACY bare-string authorsNote coerces to {prompt}; a widened directive round-trips", () => {
-    const legacy = parseChatMetadata({ roomOverrides: { authorsNote: "Keep it tense." } });
-    expect(legacy.roomOverrides?.authorsNote).toEqual({ prompt: "Keep it tense." });
-
-    const widened = parseChatMetadata({
-      roomOverrides: { authorsNote: { prompt: "Whisper it.", depth: 1, role: "user" } },
+  // RETIRED KEY at the REAL read seam (owner ruling 2026-08-01): `authorsNote` left the allowlist — the
+  // per-chat author's note is a `chat_injections` row. A blob still CARRYING one is debris (pre-launch, no
+  // migration): the strict sub-blob rejects it and `.catch(undefined)` heals the whole roomOverrides slot to
+  // absent — field-scoped to that sub-blob, so its metadata SIBLINGS (opening, background, …) survive.
+  test("a stored authorsNote is debris: the roomOverrides sub-blob heals to absent, siblings survive", () => {
+    const parsed = parseChatMetadata({
+      roomOverrides: { scenario: "a quiet tavern", authorsNote: { prompt: "Whisper it.", depth: 1, role: "user" } },
+      opening: "greet-all",
     });
-    expect(widened.roomOverrides?.authorsNote).toEqual({
-      prompt: "Whisper it.",
-      depth: 1,
-      role: "user",
-    });
+    expect(parsed.roomOverrides).toBeUndefined();
+    expect(parsed.opening).toBe("greet-all");
+    // The pre-#22 bare-string shape is debris too.
+    expect(parseChatMetadata({ roomOverrides: { authorsNote: "Keep it tense." } }).roomOverrides).toBeUndefined();
   });
 
   test("a corrupt providerRouting sub-blob heals to absent (never throws)", () => {

@@ -1,14 +1,14 @@
 // Mirror int-test for domain/chat/persistence/createBulkImportChats (Option B; PD-77) — the chat-OWNED bulk
 // import WRITE over a real db: chats→messages→variants (D26) + founding roster + branch resolution, dup-skip
-// by importHash, the ST author's-note → typed room-override round-trip, and the ownership precondition. The
+// by importHash, the ST author's-note → chat_injections landing, and the ownership precondition. The
 // input is the canonical `BulkImportChatInput` (`@orb/contracts/chat`); the ST→canonical mapping is import's
 // job (tested there), so these fixtures are chat-native.
 
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, ChatId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { AssetId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -40,6 +40,7 @@ function importCtx(db: Db): ChatImportContext {
     newMessageVariantId: (): MessageVariantId => castId<MessageVariantId>(`message_variant_${counter()}`),
     newMessageAssetId: (): MessageAssetId => castId<MessageAssetId>(`message_asset_${counter()}`),
     newParticipantId: (): ChatParticipantId => castId<ChatParticipantId>(`chat_participant_${counter()}`),
+    newChatInjectionId: (): ChatInjectionId => castId<ChatInjectionId>(`chat_injection_${counter()}`),
     // #67 — default "nothing exists" (these tests seed no attachments); the P-8 round-trip covers the
     // asset-existing path end-to-end.
     filterExistingAssetIds: (): Promise<readonly AssetId[]> => Promise.resolve([]),
@@ -105,7 +106,7 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
-  test("writes chats→messages→variants + founding roster; author's-note round-trips", async () => {
+  test("writes chats→messages→variants + founding roster; the ST author's-note lands as an injection", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
@@ -124,9 +125,18 @@ describe("createBulkImportChats", () => {
     const chatRows = await db.select().from(chats);
     expect(chatRows).toHaveLength(1);
     expect(chatRows[0]?.updatedAt).toBe(CHAT_UPDATED);
-    // SUPERSET round-trip — the author's note lands in the typed room-override home export reads back.
-    expect(chatRows[0]?.metadata?.roomOverrides?.authorsNote).toEqual({
-      prompt: "stay in character",
+    // The ST note lands in the ONE per-chat prose door — a `chat_injections` row at the house author's-note
+    // register (system @ depth 4). The `roomOverrides.authorsNote` twin was retired (owner ruling
+    // 2026-08-01), so `metadata` carries nothing.
+    expect(chatRows[0]?.metadata).toBeNull();
+    const injectionRows = await db.select().from(chatInjections);
+    expect(injectionRows).toHaveLength(1);
+    expect(injectionRows[0]).toMatchObject({
+      chatId: chatRows[0]?.id,
+      position: "in_chat",
+      depth: 4,
+      role: "system",
+      content: "stay in character",
     });
 
     const roster = await db
