@@ -1361,10 +1361,11 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
     expect(replayed.map((e) => e.seq)).toEqual([1, 2, 3]);
     expect(replayed.map((e) => e.event.type)).toEqual(["turnStarted", "delta", "delta"]);
     // The token-carrying payload survives the JSON round-trip through the durable column, byte-for-byte —
-    // including the `slotSeq` clamp anchor (a lost anchor would silently re-blind every clamped member).
+    // including the `slotSeq` clamp anchor (a lost anchor would silently re-blind every clamped member) and
+    // the §3.6 `memberText` stamp (`null` = "identical to `delta.text`", this caller being the HOST anyway).
     expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event : null))).toEqual([
-      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "Hello " } },
-      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "world" } },
+      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "Hello " }, memberText: null },
+      { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "world" }, memberText: null },
     ]);
   });
 });
@@ -1710,6 +1711,46 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(hostBytes).toContain("crypt");
     expect(hostReplay.some((e) => e.event.type === "delta" && e.event.delta.kind === "reasoning")).toBe(true);
     expect(hostReplay.some((e) => e.event.type === "reasoningStreamDone")).toBe(true);
+  });
+
+  // The MID-SPAN RESUME CURSOR. A `<lie …/>` open spans many ticks, and the cursor advances past it for
+  // ordinary reasons: the chunk that opened it also carried deliverable prose, or a lifecycle event / another
+  // slot's tokens landed in between. The replay then starts INSIDE the tag. When the scrub state was rebuilt
+  // per-call, that fresh scrubber found no `<` in `1234"/> …`, called the whole tail safe, and handed the
+  // member the secret's last bytes — while the SAME log read from seq 0 came back clean, which is why an
+  // afterSeq:0 test could never see it. The bytes are now decided once at emit, so every cursor agrees.
+  test("replayChatEvents: a resume cursor landing INSIDE an open <lie …/> still withholds the tail (no cold start)", async () => {
+    const host = await seedUser(db, "midspan_host");
+    const member = await seedUser(db, "midspan_member");
+    const chatId = await seedRoom("midspan", host);
+    await seedParticipant(db, { chatId, key: "midspan_m", userId: member, role: "member" });
+
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const text = (t: string): Parameters<typeof bus.emit>[0] => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: t } });
+    // ONE chunk carrying prose AND the opener (the ordinary provider chunking shape) — its safe prefix is
+    // delivered, so the member's cursor sits at that row, mid-tag. Then the closer, then more prose.
+    await bus.emit(text('The vault is <lie character="Vex" truth="the vault code is '));
+    await bus.emit(text('1234"/> empty.'));
+    await bus.emit(text(" Vex smiles."));
+
+    const { replayChatEvents } = createRead(ctx, makeDeps());
+    // Resume from EVERY cursor position, including the two that land inside the open span.
+    const byCursor = await Promise.all([0, 1, 2, 3].map((afterSeq) => replayChatEvents({ principal: principal(member), chatId, afterSeq })));
+    for (const replayed of byCursor) {
+      const bytes = JSON.stringify(replayed);
+      expect(bytes).not.toContain("1234");
+      expect(bytes).not.toContain("vault code");
+      expect(bytes).not.toContain("<lie");
+      expect(bytes).not.toContain('"/>');
+    }
+    // …and the delivered prose is still whole: resuming at the cursor BEFORE the opener replays exactly the
+    // stripped body, so the member's ghost reads correctly rather than merely safely.
+    const fromStart = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    const assembled = fromStart.map((e) => (e.event.type === "delta" && e.event.delta.kind === "text" ? e.event.delta.text : "")).join("");
+    expect(assembled).toBe("The vault is  empty. Vex smiles.");
+    // The HOST reads the same log verbatim from a mid-span cursor — the strip is the MEMBER's, not a mangle.
+    expect(JSON.stringify(await replayChatEvents({ principal: principal(host), chatId, afterSeq: 1 }))).toContain("1234");
   });
 });
 

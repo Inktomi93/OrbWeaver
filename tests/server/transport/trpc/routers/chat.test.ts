@@ -353,12 +353,16 @@ describe("chat.streamMessages — the D16 join-history clamp on the LIVE fan-out
   });
 
   /** A live token chunk anchored to the canon slot it fills (`slotSeq` — what the engine's emit site stamps
-   *  from the target it resolved). `text` names the slot so a leak is unmistakable in the assertion. */
+   *  from the target it resolved). `text` names the slot so a leak is unmistakable in the assertion.
+   *  `memberText: null` is the §3.6 producer stamp for a tick with no hidden span ("identical to
+   *  `delta.text`") — the shape `domain/chat/bus` writes to the log and fans. An UNSTAMPED delta is withheld
+   *  from members by design (fail-closed), so a fixture that omits it would prove nothing about the clamp. */
   const deltaInto = (slotSeq: number, text: string): ChatBusEvent => ({
     type: "delta",
     chatId: LiveChat,
     slotSeq,
     delta: { chatId: LiveChat, kind: "text", text },
+    memberText: null,
   });
 
   test("a clamped member DOES stream a POST-join turn's live deltas — the restoration `from-join` had lost", async () => {
