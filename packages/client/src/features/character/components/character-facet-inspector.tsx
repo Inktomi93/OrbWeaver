@@ -2,13 +2,15 @@
 // form bridge and the drilled facet id off the character-selection store. Big multi-line text never
 // authors here — this tab holds only the small detail of the selected facet (Depth/Role knobs,
 // creator/version pair, or a char/token count); the body authors in CONTENT.
+//
+// With NO facet drilled the tab is not empty: it shows `CharacterOverviewCard`, the instrument-tier
+// resting readout of the card being edited (stickler 2026-08-01 F4).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { EmptyState } from "@orb/ui/empty-state";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
@@ -18,6 +20,7 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
 import { facetById } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { resolveCharacterForm, useCharacterForm } from "../lib/character-editor-bridge";
+import { CharacterOverviewCard } from "./character-overview-card";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
 
@@ -38,7 +41,7 @@ export function CharacterFacetInspector({ characterId }: CharacterFacetInspector
 
   const resolved = resolveCharacterForm(handle, selectedCharacterId);
   if (resolved === null || selectedFacetId === null) {
-    return <SelectFacet characterId={characterId} />;
+    return <CharacterOverviewCard characterId={characterId} />;
   }
   return (
     <QueryBoundary
@@ -70,33 +73,6 @@ function InspectorLoader({
     refinery: data.refinery,
   };
   return <InspectorBody form={form} facetId={facetId} readOnly={readOnly} />;
-}
-
-/** The empty state, naming the character being edited (P4 — empty states name the entity). Reads the name
- *  from the cached `character.get` (the editor surface already fetched it); before it resolves, falls back
- *  to a generic prompt. */
-function SelectFacet({ characterId }: { readonly characterId: CharacterId }): ReactElement {
-  const trpc = useTRPC();
-  const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
-  const name = data?.name ?? "";
-  return (
-    <EmptyState
-      title="Open a field to inspect it"
-      description={
-        name === "" ? (
-          "Pick a field from the list to inspect it here."
-        ) : (
-          <>
-            Pick a field on{" "}
-            <Text as="span" weight="semibold">
-              {name}
-            </Text>{" "}
-            to inspect it here.
-          </>
-        )
-      }
-    />
-  );
 }
 
 /** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT. */

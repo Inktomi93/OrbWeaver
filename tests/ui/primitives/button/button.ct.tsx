@@ -46,6 +46,24 @@ test.describe("coarse pointer — the touch floor", () => {
   });
 });
 
+// `media` is the CONTENT-SIZED arm: the child (a portrait/media element) defines the box, so the visible
+// thing and the hit target are the same rectangle. Every other size pins a control height, which is how a
+// 64px avatar came to paint outside its own 34px trigger on the character hero (stickler 2026-08-01 F2).
+const MEDIA_CHILD_PX = 64;
+
+test("media size takes its child's box exactly, with no padding of its own", async ({ mount }) => {
+  const button = await mount(
+    <Button aria-label="Replace portrait" size="media">
+      <span data-testid="media-child" style={{ display: "block", height: MEDIA_CHILD_PX, width: MEDIA_CHILD_PX }} />
+    </Button>,
+  );
+  const box = await button.boundingBox();
+  expect(box?.width).toBeCloseTo(MEDIA_CHILD_PX, 0);
+  expect(box?.height).toBeCloseTo(MEDIA_CHILD_PX, 0);
+  await expect(button).toHaveCSS("padding-left", "0px");
+  await expect(button).toHaveCSS("padding-top", "0px");
+});
+
 test("loading sets aria-busy and disables the button", async ({ mount }) => {
   const button = await mount(<Button loading={true}>Save</Button>);
   await expect(button).toHaveAttribute("aria-busy", "true");
