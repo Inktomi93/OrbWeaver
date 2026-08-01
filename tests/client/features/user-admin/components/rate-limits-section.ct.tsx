@@ -7,6 +7,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { setNumber } from "../../../../support/ct/set-number";
 import { RateLimitsSectionStory } from "../_ct-stories";
 
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved). Only `rateLimits` is read
@@ -34,15 +35,15 @@ function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
 test("mounts with the resolved floors and shows the default beneath each field", async ({ mount, page }) => {
   await stub(page);
   await mount(<RateLimitsSectionStory />);
-  await expect(page.getByRole("spinbutton", { name: "Anonymous requests / min / IP" })).toHaveValue("60");
-  await expect(page.getByRole("spinbutton", { name: "Login attempts / min / IP" })).toHaveValue("10");
+  await expect(page.getByRole("textbox", { name: "Anonymous requests / min / IP" })).toHaveValue("60");
+  await expect(page.getByRole("textbox", { name: "Login attempts / min / IP" })).toHaveValue("10");
   await expect(page.getByText("Using the deployment default: 10.")).toBeVisible();
 });
 
 test("editing login + Save fires updateAppSettings with ONLY the moved field", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<RateLimitsSectionStory />);
-  await page.getByRole("spinbutton", { name: "Login attempts / min / IP" }).fill("25");
+  await setNumber(page.getByRole("textbox", { name: "Login attempts / min / IP" }), "25");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => (lastPartial(trpc)?.["rateLimits"] as Record<string, unknown> | undefined)?.["login"], { intervals: [20, 50, 100] }).toBe(25);
   // Untouched fields are NOT pinned into the override.
@@ -54,7 +55,7 @@ test("a below-min cap is CLAMPED to the floor, never sent raw (no silent-wipe)",
   await mount(<RateLimitsSectionStory />);
   // Caps are bounded ≥5; typing 1 must clamp to 5 (a raw 1 would fail `.min(5)` → the whole rateLimits
   // `.catch(undefined)` would silently wipe every cap override).
-  await page.getByRole("spinbutton", { name: "Login attempts / min / IP" }).fill("1");
+  await setNumber(page.getByRole("textbox", { name: "Login attempts / min / IP" }), "1");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => (lastPartial(trpc)?.["rateLimits"] as Record<string, unknown> | undefined)?.["login"], { intervals: [20, 50, 100] }).toBe(5);
 });
@@ -62,7 +63,10 @@ test("a below-min cap is CLAMPED to the floor, never sent raw (no silent-wipe)",
 test("an active override shows 'Overridden' and Reset clears the whole rateLimits override to the floor", async ({ mount, page }) => {
   const trpc = await stub(page, { rateLimits: { login: 25 } });
   await mount(<RateLimitsSectionStory />);
-  await expect(page.getByText("Overridden. Default: 10.")).toBeVisible();
+  // An env-layered floor is NOT nameable once an override is stored: the real `getAppSettingsWithOverrides`
+  // returns floor ⊕ override, so "Default: 10." would be the override describing itself (SET-SEAMS §4). The
+  // row points at Reset instead — which is also the affordance that recovers the floor.
+  await expect(page.getByText("Overridden. Reset to fall back to this deployment's default.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc)?.["rateLimits"], { intervals: [20, 50, 100] }).toBeNull();
 });

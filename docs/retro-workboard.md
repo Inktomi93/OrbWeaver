@@ -96,8 +96,37 @@ FLIGHT** (workloads fold — event union homes in contracts first; ratchet close
 chat.impersonateStream only; close-out D-entry stays with the orchestrator) · **FLAKE-CHASE LANE
 IN FLIGHT**: check-gates "unfired" flaked in TWO sessions (217s contended run; Lockfile gate) —
 suspect shared reports/ contention across concurrent worktree checks; reproduce → structural fix
-or ruled-out writeup · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
-side-eye at the combined window AFTER merge) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
+or ruled-out writeup · ~~HUD H2+H3~~ MERGED (`bda7ae4b` + baseline regen 174/1076: admin-rail kicker voice; two-way
+selection echo; host-only crown [NEEDS RATIFICATION: additive ContextTabDef.crown field — shaped
+like strip, decision-5 argument]; waystone compact DERIVED from clock===null [no compact prop —
+gate-RED; meter unset variant instead, strictly stronger]; band 54.9% of chrome vs F6's 68%,
+chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET REDESIGN DELIVERED** (spec docs/design/preset-surface-redesign.md + 3 mocks in
+docs/design/mocks/preset-redesign/ — landed; lane forgot to commit, orchestrator copied+committed).
+DIAGNOSIS: ST-crunchy = slider+editable-number-twin, zero nav depth, token counts, WYSIWYS; ours =
+2-level tabs (5 acts to temperature), unset knobs HIDE the datum, the quality→knobs→clamp funnel
+resolves server-side UNSHOWN, SIX schema knobs have NO editor anywhere (stop, topA, maxBudgetUsd,
+providerContextCompression, compaction.verbatimTail, responseNudge) + preset.export has zero
+client consumers. REDESIGN: 5 flat views · KnobRow grammar (label·slider·mono-number·reset;
+unset = GHOSTED effective value with provenance) · ONE new read preset.resolveEffective ·
+CONTEXT becomes the assembly readout (per-section token bars) · list = ratified projection +
+inline activate RowToggleAction · zero new primitives (2 variant rows + 1 local composite).
+ROUND-2 DELIVERED + MERGED (`29ff1ac8`): §7 = per-view CONTEXT table (6 states, each element
+names its decision; CONTEXT reads SAVED truth, zero mutation affordances, one writer per echo
+pair) · §16 = the 29-row one-home audit (sanctioned echoes justified: create/activate/add-section/
+reorder/select; audit caught+fixed 2 defects in its own v1 mocks). NEW mock context-readouts
+claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + actions REPUBLISHED
+same URLs. Owner's two bars met — D1-D7 rulings now unblocked. [round-1 note: (a) PER-VIEW
+CONTEXT definition (static Assembly readout insufficient — each of the 5 views + list-only state
+gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) one-home audit — both delivered above.] OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
+ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
+GATE FOLLOW-UP flagged: knob-wire-coverage should grow a preset-editor reader arm (the F8
+minted-but-editor-less class). Mocks PUBLISHED: params-deck
+claude.ai/code/artifact/c1060b9e-9ced-4aef-906a-20607335bed8 · actions+sections
+…/263280d7-9548-4943-b1e6-bc3df44a06f0 · list-pane …/b8ec601f-033f-4338-86be-5c5616b4ca3e.
+VOCAB CORRECTION (owner): "crunchy" = OURS (bad/clunky), not ST's virtue — he'd pick ST over our
+current pane; diagnosis direction unchanged. **~~PRESET REDESIGN STICKLER DISPATCHED~~** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
+spec draft + HTML mocks + primitives inventory; composes-with-config-rail-riff stated, not
+decided; mockup-first loop) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
 0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
 [foreign data-slot RED born-sealed; unmapped tiers.css slot RED]; found+fixed the A2 paired-tag
 self-match defect [every paired box was its own ancestor — baseline was inflated]; 176/1080.
@@ -112,8 +141,14 @@ ChatContext.resolveChatProse op; rows 76/79 ride to S4 [label-only rows — rule
 yields slots for its substitution-free clauses]; "prose" NOT yet in USER_SETTINGS_SECTIONS —
 CORRECT per D107 arm B: the section tuple is the EDITOR's door, register it in the same commit
 as the S2 Prose settings section; integrator fixed the flagged pre-existing lifecycle healthz
-red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · NumberField =
-embrace textbox, bounds via derived description — SEAL+SWEEP LANE IN FLIGHT. Merge each on
+red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · ~~NumberField~~ MERGED (`210aef87`: seal derives locale-formatted bounds description [sr-only,
+composes with Field ids for free]; two Root-spread footguns fixed [aria-label/describedby parked
+on the wrapper div — touch-target CT had been labeling the void]; inputMode NOT set — lib already
+narrows per-platform [iOS negative-entry]; sweep premise FALSE: all 5 CTs were green against
+REAL native spinbuttons — TWO numeric-control families coexist [@orb/ui/number-field=textbox vs
+Input type=number=spinbutton]; only the 2 absence-assertions re-keyed). OWNER DESIGN CALL
+boarded: 4 feature sites render raw Input type=number [admin-override-field, engine-launch-config,
+tool-recurse-control] — no steppers/scrub/seal; migrate to NumberField or keep native? Merge each on
 report; check after each merge.
 
 ~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
@@ -220,7 +255,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    non-atomic: a dead-engine opening orphans a real committed chat behind the draft + a lying toast +
    duplicate-chat risk (server returns chat id + opening-failure outcome; fork's degraded-not-broken
    catch is the model pattern).
-2. **SSE MULTIPLEX — S0+S1 LANDED + LIVE-VERIFIED (08-01 overnight)**: merged at `accaf133`;
+2. **~~SSE MULTIPLEX~~ — COMPLETE + CLOSED (08-02, D118 MINTED)**: S0-S5 all merged (S5 `d01b6c7e`
+   + reconcile `b17b88bd`: workloads room, union homed in contracts, ratchet closed to
+   chat.impersonateStream only). One socket/tab measured; five legacy procs deleted. Close-out
+   residue: 3 files cite the retired "[workloads.subscribe cross-feature]" precedent LABEL
+   (rpg-choice-echo, use-rpg-mutations:101, chat-options-menu:37) — rename the label on next
+   docs sweep. LIVE re-verify of socket counts rides the next stage window. Original stage notes: merged at `accaf133`;
    one socket/tab measured on the wire (1 plain · 1 with a GAME open — rpg adds ZERO · 2 across
    two tabs · 0 after close, reap working) via `/api/_debug/stream/sockets`. The rpg gate leak's
    mechanism found+fixed (`use-rpg-bus` re-spelled isRpgEngaged as a null-check — disengaged
@@ -287,7 +327,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
      launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
      per-section baselines.
-   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
+   - [ ] S4 BUILT (`7813dbed`) — RECONCILE ROUND IN FLIGHT (semantic conflict vs numeric-
+     unification's AdminOverrideField NumberField+floorValue rework; union = floorValue:number|null
+     [null=env-unknowable arm]; lane merging main into its branch). S4 content: System pane DELETED
+     (12 admin contributions, footnote dead); Engines hold RESOLVED via LEAF-AWARE app claims
+     (AppSettingsClaimPath + a nesting arm in assertSettingsKeyPartition — structurally catches
+     parent-null-wipes-co-owner; claim derives from the editor's field tuples). FOLLOW-UPS: fold
+     the leaf-claim mechanism into spec §2.3 (spec-text delta, orchestrator) · lesson: a floor is
+     UNKNOWABLE once its override is stored (getAppSettingsWithOverrides returns floor⊕override) —
+     rows degrade to "reset to fall back", never name a fake default.
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
      OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.

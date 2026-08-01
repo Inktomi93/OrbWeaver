@@ -11,7 +11,7 @@
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
-import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -21,7 +21,6 @@ import { and, asc, desc, eq, gte, inArray, isNull, lt, lte } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution";
 import type { CancelWorkloadResult } from "../contract/params";
-import type { WorkloadError } from "../contract/workload-error";
 import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).

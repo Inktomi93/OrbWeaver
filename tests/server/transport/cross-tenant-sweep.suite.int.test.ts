@@ -793,10 +793,14 @@ const PROBES: readonly Probe[] = [
   //    The `automation` room (S4) is the OTHER posture and is probed too: it REFUSES at attach
   //    (`resolveStreamAuthority` throws AutomationChatNotFound for a non-present member → the same leak-free
   //    NOT_FOUND), which is deliberate — an automation room, unlike a chat/rpg one, is never legitimately
-  //    attachable before you are seated. The socketId here is the STRANGER's own — a foreign one is refused
+  //    attachable before you are seated. The `workloads` room (S5) is that same refusing posture on an
+  //    OWNER-scoped row: its `authorizeAttach` IS the `workloads.get` verb, so a stranger passing owner A's
+  //    workloadId gets the identical leak-free NOT_FOUND — which is why the deleted `workloads.subscribe`
+  //    exemption is a real probe now. The socketId here is the STRANGER's own — a foreign one is refused
   //    before any room is recorded (stream/socket-registry.test.ts). ──
   { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
   { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "automation", chatId: i.chatId } }) },
+  { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "workloads", workloadId: i.workloadId } }) },
   { path: "stream.detach", call: (c, i) => c.stream.detach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
 
   { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
@@ -999,8 +1003,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
   "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
   "workloads.list": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
-  "workloads.subscribe":
-    "subscription: the existence check is the OWNER-scoped `get` (throws NOT_FOUND on first pull, not on call) — the gate is probed via workloads.get + the F3 authz int tests",
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",

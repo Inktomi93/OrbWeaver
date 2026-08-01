@@ -18,7 +18,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
 
@@ -105,7 +105,10 @@ function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactEle
             value={draft[key]}
             onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
             overridden={isOverridden(stored?.[key])}
-            floorLabel={String(baseline[key])}
+            // `baseline` is floor ⊕ override, so it is the FLOOR only while no override is stored — once one
+            // is, the env floor is gone from this read and the row must not echo the override back as its
+            // own default (SET-SEAMS §4).
+            floorValue={envFloor(isOverridden(stored?.[key]), baseline[key])}
             min={RATE_LIMIT_CAP_MIN}
             step={RATE_LIMIT_STEP}
           />

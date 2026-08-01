@@ -163,7 +163,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
               value={draft[key] ?? ""}
               onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
               overridden={isOverridden(stored?.[key])}
-              floorLabel={String(DEFAULT_MEMORY_DEFAULTS[key])}
+              floorValue={DEFAULT_MEMORY_DEFAULTS[key]}
               min={MEMORY_DEFAULTS_BOUNDS[key].min}
               {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
               step={step}
@@ -189,7 +189,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
             value={summarizerDraft}
             onChange={setSummarizerDraft}
             overridden={summarizerOverridden}
-            floorLabel={String(DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS)}
+            floorValue={DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS}
             min={1}
             step={64}
           />

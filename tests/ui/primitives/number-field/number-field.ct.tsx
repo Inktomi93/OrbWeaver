@@ -7,6 +7,8 @@ import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
+const HELP_ID = "rounds-help";
+const HELP_TEXT = "Higher allows deeper multi-step work.";
 
 test("steppers increment and decrement the value", async ({ mount, page }) => {
   await mount(<NumberField defaultValue={5} />);
@@ -137,4 +139,73 @@ test("inside a <Field>, the input associates and aria-describedby wires the desc
   const control = page.getByLabel("Weight");
   await expect(control).toBeVisible();
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
+
+// Base UI 1.6 renders an editable TEXTBOX — no role="spinbutton", so no aria-valuemin/max carries the
+// range. Owner ruling 2026-08-02: embrace the textbox (spinbutton semantics fight typed editing in screen
+// readers) and convey the bounds as a DESCRIPTION, derived by the seal so no call site can drift.
+test("min/max become the accessible description — no spinbutton role is stamped", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Tool rounds" defaultValue={5} max={20} min={1} />);
+  const input = page.getByRole("textbox", { name: "Tool rounds" });
+  await expect(input).toHaveAccessibleDescription("Between 1 and 20");
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  // Base UI already supplies the numeric soft keyboard (and narrows it per-platform) — the seal must not
+  // override it; assert the shipped behavior so a regression in either direction is loud.
+  await expect(input).toHaveAttribute("inputmode", "numeric");
+});
+
+test("a one-sided bound reads as a floor/ceiling", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Floor only" min={1} />);
+  await expect(page.getByRole("textbox", { name: "Floor only" })).toHaveAccessibleDescription("Minimum 1");
+});
+
+// done ≠ rendered: the description is SR-only, so it must cost the control zero visible height — the seal
+// ships into every bounded field on the settings surfaces, where a stray text line would be obvious.
+test("the bounds description costs no layout — the root is exactly the stepper group", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Tool rounds" defaultValue={5} max={20} min={1} />);
+  const [root, group] = await Promise.all([
+    page.locator('[data-slot="number-field-root"]').boundingBox(),
+    page.locator('[data-slot="number-field-group"]').boundingBox(),
+  ]);
+  expect(root?.height).toBe(group?.height);
+  const bounds = await page.locator('[data-slot="number-field-bounds"]').boundingBox();
+  expect(bounds?.width).toBeLessThanOrEqual(1);
+  expect(bounds?.height).toBeLessThanOrEqual(1);
+});
+
+test("bounds are formatted like the input's own value (grouping), not raw digits", async ({ mount, page }) => {
+  // Base UI formats the visible value through Intl ("1,024"); an unformatted "1024" bound would read as a
+  // different number to a screen-reader user hearing both.
+  await mount(<NumberField aria-label="Max tokens" defaultValue={1024} max={8192} min={1} />);
+  const input = page.getByRole("textbox", { name: "Max tokens" });
+  await expect(input).toHaveValue("1,024");
+  await expect(input).toHaveAccessibleDescription("Between 1 and 8,192");
+});
+
+test("an unbounded field gets no derived description", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Unbounded" defaultValue={5} />);
+  await expect(page.getByRole("textbox", { name: "Unbounded" })).toHaveAccessibleDescription("");
+});
+
+test("a call site's own description COMPOSES with the derived bounds, never clobbers it", async ({ mount, page }) => {
+  await mount(
+    <Field description="In pounds" label="Weight">
+      <NumberField defaultValue={5} max={300} min={0} />
+    </Field>,
+  );
+  // Exact, so a regression that DROPS either half (or reorders them into nonsense) reds.
+  await expect(page.getByLabel("Weight")).toHaveAccessibleDescription("Between 0 and 300 In pounds");
+});
+
+test("an explicit aria-describedby reaches the INPUT and composes with the bounds", async ({ mount, page }) => {
+  await mount(
+    <>
+      <p id={HELP_ID}>{HELP_TEXT}</p>
+      <NumberField aria-describedby={HELP_ID} aria-label="Tool rounds" defaultValue={5} max={20} min={1} />
+    </>,
+  );
+  const input = page.getByRole("textbox", { name: "Tool rounds" });
+  await expect(input).toHaveAccessibleDescription(`${HELP_TEXT} Between 1 and 20`);
+  // Routed to the input, not parked on the wrapper div (the `placeholder` footgun's twin).
+  await expect(page.locator('[data-slot="number-field-root"]')).not.toHaveAttribute("aria-describedby");
 });

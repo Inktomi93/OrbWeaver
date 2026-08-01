@@ -10,11 +10,17 @@
 // have to re-learn. This is the ratchet that turns that discipline into physics — and that keeps the
 // staged fold from silently un-folding.
 //
-// THE EXEMPT MAP IS THE FOLD LEDGER. Each entry is `<router>.<proc>` → why it is still a standalone
-// subscription. `chat.impersonateStream` is PERMANENT (owner ruling, spec §14 decision 2: request-scoped,
-// user-gesture-initiated, at most one at a time, and its abort semantics ARE the socket teardown). The rest
-// are STAGED — each one is deleted from this map by the commit that folds its room, so re-introducing a
-// folded proc goes RED with no way to "just add it back to the list" without reverting a shipped stage.
+// THE EXEMPT MAP IS THE FOLD LEDGER, AND THE STAGED HALF OF IT IS NOW EMPTY (S5). Each entry is
+// `<router>.<proc>` → why it is still a standalone subscription. Six rows lived here while the fold ran
+// (`sessions.streamUserEvents` + `rpg.stream` at S1, `chat.streamMessages` at S2,
+// `notifications.notifications` at S3, `automation.stream` at S4, `workloads.subscribe` at S5); each was
+// deleted by the commit that folded its room, so re-introducing any folded proc goes RED with no way to
+// "just add it back to the list" without reverting a shipped stage.
+//
+// ONE entry remains and it is PERMANENT, not pending: `chat.impersonateStream` (owner ruling, spec §14
+// decision 2 — request-scoped, user-gesture-initiated, at most one at a time, and its abort semantics ARE the
+// socket teardown; folding it would mean modelling "detach = cancel generation"). A NEW row in this map is
+// therefore a spec amendment, never a build step.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
@@ -24,13 +30,9 @@ const ROUTER_NAME_RE = /\/routers\/(?<router>[^/]+)\.ts$/u;
 
 /** `<router>.<proc>` → the cited reason it is not (yet) a room on the ONE socket. */
 const EXEMPT: Readonly<Record<string, string>> = {
-  // PERMANENT (spec §14 decision 2).
+  // PERMANENT (spec §14 decision 2) — and, since S5, the ONLY exemption. Every STAGED row is gone with the
+  // room it named, so re-adding any of the six folded procs goes RED.
   "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
-  // STAGED — deleted by the commit that folds each room (spec §13 build sequence). `sessions.streamUserEvents`
-  // and `rpg.stream` (S1), `chat.streamMessages` (S2), `notifications.notifications` (S3) and
-  // `automation.stream` (S4) were here until their rooms folded; their absence is now ENFORCED — re-adding
-  // any of them goes RED. One STAGED row is left, and it is the last:
-  "workloads.subscribe": "folds at S5 (its event union needs a contracts home first — spec §14 decision 3)",
 };
 
 const MESSAGE =

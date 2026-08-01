@@ -16,7 +16,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloorLabel, isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { COMPUTE_SUBCATEGORY } from "../lib/system-config-nav";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
 
@@ -98,7 +98,7 @@ function ComputeBody({ sectionId }: { readonly sectionId: string }): ReactElemen
             value={draft[key]}
             onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
             overridden={isOverridden(stored?.[key])}
-            floorLabel={envFloorLabel(isOverridden(stored?.[key]), baseline[key])}
+            floorValue={envFloor(isOverridden(stored?.[key]), resolved[key])}
             min={CONCURRENCY_MIN}
             step={CONCURRENCY_STEP}
           />

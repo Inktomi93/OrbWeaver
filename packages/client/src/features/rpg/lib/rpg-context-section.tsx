@@ -141,6 +141,9 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       label: "Game",
       icon: Crown,
       strip: "meta",
+      // HOST-ONLY (HUD-1 §4) — the crown-gold glyph at rest in the admin rail. `when` is the real gate
+      // (PERMISSION-omit); this is only how the HUD paints it.
+      crown: true,
       when: isHostCommitted,
       body: (s): ReactNode => {
         if (isHostGameChat(s)) {

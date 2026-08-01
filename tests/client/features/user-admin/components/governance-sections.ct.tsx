@@ -9,6 +9,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { clearNumber, setNumber } from "../../../../support/ct/set-number";
 import { GovernanceSectionsStory } from "../_ct-stories";
 
 const UPDATE_PROC = "settings.updateAppSettings";
@@ -52,7 +53,7 @@ test("a delegated admin sees every owner-gated control disabled, in BOTH section
 
   await expect(page.getByRole("switch", { name: "Members may use shared local compute" })).toBeDisabled();
   await expect(page.getByRole("switch", { name: "Members may use the hosted subscription" })).toBeDisabled();
-  await expect(page.getByRole("spinbutton", { name: "Per-member local-compute budget" })).toBeDisabled();
+  await expect(page.getByRole("textbox", { name: "Per-member local-compute budget" })).toBeDisabled();
   await expect(page.getByRole("switch", { name: "Allow multiple humans (local mode)" })).toBeDisabled();
   // The admin-writable neighbour is NOT gated — the predicate is per-KEY, not per-section.
   await expect(page.getByRole("switch", { name: "Discreet login" })).toBeEnabled();
@@ -72,13 +73,13 @@ test("the per-member budget saves alone; a blank draft with an override CLEARS i
   const trpc = await stub(page, OWNER, { nonOwnerLocalComputeBudget: 50 });
   await mount(<GovernanceSectionsStory />);
 
-  await page.getByRole("spinbutton", { name: "Per-member local-compute budget" }).fill("25");
+  await setNumber(page.getByRole("textbox", { name: "Per-member local-compute budget" }), "25");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ nonOwnerLocalComputeBudget: 25 });
 
   // Blanking the field is the one per-field clear this section has (its whole-section Reset would also drop
   // the two switches) — an explicit `null` back to the unbounded domain floor.
-  await page.getByRole("spinbutton", { name: "Per-member local-compute budget" }).fill("");
+  await clearNumber(page.getByRole("textbox", { name: "Per-member local-compute budget" }));
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ nonOwnerLocalComputeBudget: null });
 });

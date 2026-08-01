@@ -17,10 +17,11 @@
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
-import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
+import type { ChatId, SocketId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { publishRpgEvent } from "@orb/server/domain/rpg";
+import type { WorkloadRowAnyKind } from "@orb/server/domain/workloads";
 import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
@@ -30,6 +31,7 @@ import { caller, makeContext, principal } from "../_support.ts";
 const MEMBER = castId<UserId>("user_member");
 const STRANGER = castId<UserId>("user_stranger");
 const CHAT = castId<ChatId>("chat_stream_1");
+const WORKLOAD = castId<WorkloadId>("workload_stream_1");
 
 /** A fresh socketId per test. The registry is per-Context (isolated), but the buses are process-local, so a
  *  distinct id keeps a stray publish from a prior test out of this one's frames. */
@@ -206,17 +208,25 @@ describe("the staged fold leaves no dual transport", () => {
     { channel: "chat", chatId: CHAT },
     { channel: "rpg", chatId: CHAT },
     { channel: "automation", chatId: CHAT },
+    { channel: "workloads", workloadId: WORKLOAD },
   ];
 
-  test("EVERY channel is a real room now — S4 closed the fold, and no placeholder refusal is left", async () => {
+  test("EVERY channel is a real room now — S5 closed the fold, and no placeholder refusal is left", async () => {
     const socketId = nextSocket();
     // An authorized caller for each room's own gate: a seated chat member (chat/rpg), a multi-human
-    // deployment (notifications), a present automation member. Each room's REFUSAL posture is pinned in its
-    // own source test; what this pins is that none of them refuses merely because it has not folded.
+    // deployment (notifications), a present automation member, the OWNER of the workload row. Each room's
+    // REFUSAL posture is pinned in its own source test; what this pins is that none of them refuses merely
+    // because it has not folded.
     const call = caller(
       makeContext({
         auth: principal("user", { userId: MEMBER }),
-        services: { chat: { chatEventBounds: seated }, automation: { resolveStreamAuthority: () => Promise.resolve("member") } },
+        services: {
+          chat: { chatEventBounds: seated },
+          automation: { resolveStreamAuthority: () => Promise.resolve("member") },
+          // The workloads room's gate is the throw-or-not verdict of `get`; no field of the row is ever read
+          // (sources/workloads.test.ts). FABRICATION-OK: an id-only `WorkloadRowAnyKind` double.
+          workloads: { get: ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind) },
+        },
       }),
     );
 

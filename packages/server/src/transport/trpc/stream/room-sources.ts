@@ -7,12 +7,16 @@
 // its ONE contained two-cast bridge (`roomSourceFor`) where the static per-channel guarantee meets a
 // runtime-union ref.
 //
-// THE STAGED FOLD IS COMPLETE (S4). The vocabulary was complete from S0 (the wire union is the thing that
-// must not churn) and the rooms folded ONE STAGE AT A TIME, each stage DELETING the per-proc subscription it
-// replaced — no dual transport, ever. Every channel below is now a MOVED generator body, so the
-// `refusedUntilFolded` placeholder (a room that refused at attach because its procedure still existed) is
-// gone with the last of them; what keeps a folded proc from coming back is the `single-stream-transport`
-// gate, not a row here.
+// THE STAGED FOLD IS COMPLETE (S5 — `workloads` was the last room). The rooms folded ONE STAGE AT A TIME,
+// each stage DELETING the per-proc subscription it replaced — no dual transport, ever. Every channel below is
+// a MOVED generator body, so the `refusedUntilFolded` placeholder (a room that refused at attach because its
+// procedure still existed) is gone with the last of them; what keeps a folded proc from coming back is the
+// `single-stream-transport` gate, whose STAGED exempt rows are now all gone too (`chat.impersonateStream` is
+// the one permanent exemption, owner-ruled).
+//
+// The vocabulary was NOT complete from S0 after all: `workloads` joined it at S5, because its event union had
+// to move into `@orb/contracts` first (spec §14 decision 3 named that as the stage's precondition) — a room
+// cannot exist for events the wire contract cannot spell.
 
 import type { StreamChannel, StreamRoomRef } from "@orb/contracts/stream";
 import type { RoomSourceDef } from "./room-source";
@@ -21,6 +25,7 @@ import { chatRoomSource } from "./sources/chat";
 import { notificationsRoomSource } from "./sources/notifications";
 import { rpgRoomSource } from "./sources/rpg";
 import { userRoomSource } from "./sources/user";
+import { workloadsRoomSource } from "./sources/workloads";
 
 export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,
@@ -28,6 +33,7 @@ export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   chat: chatRoomSource,
   notifications: notificationsRoomSource,
   automation: automationRoomSource,
+  workloads: workloadsRoomSource,
 };
 
 /**

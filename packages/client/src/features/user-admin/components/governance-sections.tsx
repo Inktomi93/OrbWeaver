@@ -23,15 +23,17 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloorLabel, isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { MULTI_USER_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "../lib/system-config-nav";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field";
 
 /** Positive-int per-member budget; below this the schema drops the value (the floor would govern silently). */
 const LOCAL_COMPUTE_BUDGET_MIN = 1;
 const LOCAL_COMPUTE_BUDGET_STEP = 1;
-/** What an ABSENT per-member budget means — the domain floor, i.e. no per-member cap at all. */
-const BUDGET_UNBOUNDED_LABEL = "unbounded";
+// An ABSENT per-member budget means the domain floor: no per-member cap at all. That floor has no NUMBER to
+// print beneath the control (the row's `floorValue` is a number since `f88954f8`, so it reads in the same
+// Intl grouping as the field above it), so it rides the `null` arm — "Using the deployment default." — and
+// the hint spells out what that default IS.
 
 /** The ONE box-owner predicate the two governance sections share (see the header). Suspense-read, so the
  *  controls are never briefly enabled for a delegated admin while a probe resolves. */
@@ -108,17 +110,17 @@ function SharedAccessBody({ sectionId }: { readonly sectionId: string }): ReactE
           hint="Let non-owner members drive your shared local compute (vLLM + in-process models). Local is shared-by-design."
           value={resolved.allowNonOwnerLocalCompute}
           overridden={localOverridden}
-          floorLabel={envFloorLabel(localOverridden, resolved.allowNonOwnerLocalCompute ? "on" : "off")}
+          floorLabel={envFloor(localOverridden, resolved.allowNonOwnerLocalCompute ? "on" : "off")}
           onSet={(next): void => write({ allowNonOwnerLocalCompute: next })}
           disabled={!isOwner}
         />
         <AdminOverrideField
           label="Per-member local-compute budget"
-          hint="Per-member turn/request budget for shared local compute, over the window set in System tuning. Empty = the domain floor (unbounded)."
+          hint="Per-member turn/request budget for shared local compute, over the window set in System tuning. Empty = the domain floor: unbounded, no per-member cap."
           value={budgetDraft}
           onChange={setBudgetDraft}
           overridden={budgetOverridden}
-          floorLabel={envFloorLabel(budgetOverridden, budget === null ? BUDGET_UNBOUNDED_LABEL : String(budget))}
+          floorValue={envFloor(budgetOverridden, budget)}
           min={LOCAL_COMPUTE_BUDGET_MIN}
           step={LOCAL_COMPUTE_BUDGET_STEP}
           disabled={!isOwner}
@@ -128,7 +130,7 @@ function SharedAccessBody({ sectionId }: { readonly sectionId: string }): ReactE
           hint="Let non-owner members drive your hosted max/pro subscription (ban-prone + real money). Off by default."
           value={resolved.allowNonOwnerMaxProSub}
           overridden={proSubOverridden}
-          floorLabel={envFloorLabel(proSubOverridden, resolved.allowNonOwnerMaxProSub ? "on" : "off")}
+          floorLabel={envFloor(proSubOverridden, resolved.allowNonOwnerMaxProSub ? "on" : "off")}
           onSet={(next): void => write({ allowNonOwnerMaxProSub: next })}
           disabled={!isOwner}
         />
@@ -192,7 +194,7 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
           hint="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human. No effect outside local mode. Owner-only."
           value={resolved.localMultiUser}
           overridden={multiUserOverridden}
-          floorLabel={envFloorLabel(multiUserOverridden, resolved.localMultiUser ? "on" : "off")}
+          floorLabel={envFloor(multiUserOverridden, resolved.localMultiUser ? "on" : "off")}
           onSet={(next): void => write({ localMultiUser: next })}
           disabled={!isOwner}
         />
@@ -201,7 +203,7 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
           hint="Show a blank sign-in form — no handle pre-fill on the login page (no account enumeration)."
           value={resolved.discreetLogin}
           overridden={discreetOverridden}
-          floorLabel={envFloorLabel(discreetOverridden, resolved.discreetLogin ? "on" : "off")}
+          floorLabel={envFloor(discreetOverridden, resolved.discreetLogin ? "on" : "off")}
           onSet={(next): void => write({ discreetLogin: next })}
         />
         <AdminOverrideResetRow anyOverridden={anyOverridden} saving={save.isPending} errored={save.error !== null} onReset={(): void => write(clearable)} />

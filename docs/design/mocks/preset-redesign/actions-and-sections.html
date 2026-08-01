@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preset redesign — the Actions view (templates + nudges) + the consolidated section editor</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-warning: oklch(0.8 0.12 85);
+  --color-success: oklch(0.72 0.13 150);
+  --color-info: oklch(0.7 0.1 232);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 64px}
+.muted{color:var(--color-muted-foreground)}
+.mono{font-family:var(--font-mono)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:980px}
+.stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:340px;margin:9px 0 0;line-height:1.55}
+.note b{color:var(--color-foreground);font-weight:650}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+
+.panel{width:720px;background:var(--color-background);border:1px solid var(--color-sidebar-border);
+  border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.ehead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--color-border)}
+.ehead .nm{font-size:14px;font-weight:650}
+.chip{font-size:9px;font-weight:650;padding:2px 7px;border-radius:var(--radius-full)}
+.c-active{color:var(--color-primary);background:var(--ember-tint)}
+.ehead .grow{flex:1}
+.autosave{font-size:10px;color:var(--color-muted-foreground)}
+.tabs{display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid var(--color-border)}
+.tabs button{border:none;background:none;color:var(--color-muted-foreground);cursor:pointer;font-family:inherit;
+  font-size:12px;font-weight:600;padding:7px 12px 9px;position:relative}
+.tabs button[aria-selected="true"]{color:var(--color-foreground)}
+.tabs button[aria-selected="true"]::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;
+  background:var(--color-primary);border-radius:2px}
+.body{padding:14px 18px 22px;display:flex;flex-direction:column;gap:16px}
+
+.kicker{display:flex;align-items:center;gap:10px;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  font-weight:650;color:var(--color-muted-foreground)}
+.kicker::after{content:"";flex:1;height:1px;background:var(--color-border)}
+.teach{font-size:10.5px;color:var(--color-muted-foreground)}
+.teach code{font-family:var(--font-mono);font-size:10px;background:color-mix(in oklab,var(--color-foreground) 6%,transparent);
+  padding:1px 5px;border-radius:4px}
+.xlink{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:650;color:var(--color-info);
+  background:color-mix(in oklab,var(--color-info) 12%,transparent);padding:2px 8px;border-radius:var(--radius-full);cursor:pointer}
+
+/* ————— action rows (instrument list — the rack grammar reused) ————— */
+.arow{display:grid;grid-template-columns:110px 1fr auto auto 150px 14px;align-items:center;gap:10px;
+  min-height:34px;padding:4px 8px;border-radius:var(--radius-control);cursor:pointer}
+.arow:hover{background:color-mix(in oklab,var(--color-foreground) 4%,transparent)}
+.arow + .arow{border-top:1px solid color-mix(in oklab,var(--color-foreground) 3.5%,transparent)}
+.arow .k{font-size:12px;font-weight:600}
+.arow .fires{font-size:10px;color:var(--color-muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rolebadge{font-size:9px;font-weight:650;padding:1px 6px;border-radius:var(--radius-full);
+  color:var(--color-info);background:color-mix(in oklab,var(--color-info) 13%,transparent)}
+.state{font-size:9px;font-weight:650;padding:1px 7px;border-radius:var(--radius-full);white-space:nowrap}
+.s-default{color:var(--color-muted-foreground);background:color-mix(in oklab,var(--color-foreground) 7%,transparent)}
+.s-custom{color:var(--color-success);background:color-mix(in oklab,var(--color-success) 14%,transparent)}
+.prevw{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;text-align:right}
+.arow .chev{color:var(--color-muted-foreground)}
+.arow svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.arow.open{background:var(--ember-tint)}
+
+/* the expanded editor under the open row */
+.aedit{margin:2px 0 8px;padding:12px 12px 14px;border-left:2px solid var(--color-primary);display:flex;flex-direction:column;gap:10px;
+  background:color-mix(in oklab,var(--color-foreground) 2.5%,transparent);border-radius:0 var(--radius-base) var(--radius-base) 0}
+.frow{display:flex;align-items:center;gap:10px}
+.frow .lbl{font-size:11px;font-weight:600;width:96px}
+.selectbox{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--color-input);border-radius:var(--radius-control);
+  padding:4px 9px;font-size:11.5px;background:color-mix(in oklab,var(--color-foreground) 3%,transparent)}
+.selectbox svg{width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none}
+.pill{font-size:9px;font-weight:650;padding:1px 7px;border-radius:var(--radius-full);
+  color:var(--color-info);background:color-mix(in oklab,var(--color-info) 13%,transparent);font-family:var(--font-mono)}
+textarea{width:100%;min-height:86px;background:color-mix(in oklab,var(--color-foreground) 3%,transparent);
+  border:1px solid var(--color-input);border-radius:var(--radius-base);color:var(--color-foreground);
+  font-family:var(--font-mono);font-size:11px;line-height:1.6;padding:9px 10px;resize:vertical}
+textarea::placeholder{color:color-mix(in oklab,var(--color-muted-foreground) 70%,transparent)}
+.hintline{font-size:9.5px;color:var(--color-muted-foreground)}
+
+/* ————— section editor panel ————— */
+.backrow{display:flex;align-items:center;gap:6px;color:var(--color-muted-foreground);font-size:11px;font-weight:650;cursor:pointer}
+.backrow svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+.shead .t{font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
+.shead .t svg{width:14px;height:14px;stroke:var(--color-warning);stroke-width:2;fill:none}
+.shead .g{font-size:10.5px;color:var(--color-muted-foreground);margin-top:2px}
+.tri{display:flex;gap:3px;padding:2px;border-radius:var(--radius-control);background:color-mix(in oklab,var(--color-foreground) 5%,transparent);align-self:flex-start}
+.tri button{border:none;background:none;color:var(--color-muted-foreground);cursor:pointer;font-family:inherit;
+  font-size:11px;font-weight:650;padding:4px 12px;border-radius:calc(var(--radius-control) - 1px)}
+.tri button[aria-pressed="true"]{background:var(--color-card);color:var(--color-foreground)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.fld .l{font-size:10px;font-weight:650;color:var(--color-muted-foreground);margin-bottom:3px}
+.fld input{width:100%;background:color-mix(in oklab,var(--color-foreground) 3%,transparent);border:1px solid var(--color-input);
+  border-radius:var(--radius-control);color:var(--color-foreground);font-size:11.5px;padding:5px 9px}
+.fld input.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.togglerow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11.5px;padding:3px 0}
+.sw{width:30px;height:17px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--color-foreground) 14%,transparent);position:relative;flex:none}
+.sw.on{background:var(--color-primary)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--color-foreground)}
+.sw.on::after{left:auto;right:2px;background:var(--color-primary-foreground)}
+.trigchips{display:flex;gap:4px;flex-wrap:wrap}
+.trig{font-size:10px;font-weight:600;padding:3px 10px;border-radius:var(--radius-full);cursor:pointer;
+  border:1px solid var(--color-input);color:var(--color-muted-foreground)}
+.trig.on{color:var(--color-warning);border-color:color-mix(in oklab,var(--color-warning) 40%,transparent);
+  background:color-mix(in oklab,var(--color-warning) 10%,transparent)}
+</style></head><body>
+
+<h1>Preset redesign — Actions view + the consolidated section editor</h1>
+<p class="lede">Left: the <b>Actions</b> view — the 8 guided templates + the 3 nudges as ONE instrument
+list (the rack drill grammar reused), replacing eight boxed cards inside a closed disclosure. Right: a
+rack row's drill-in now edits the WHOLE section — body, delivery, placement, triggers, locks — one
+object, one place (the CONTEXT inspector is deleted).</p>
+
+<div class="stage">
+
+  <!-- ═══════════ the Actions view ═══════════ -->
+  <div>
+    <p class="plabel">Content pane — Actions view</p>
+    <div class="panel">
+      <div class="ehead">
+        <span class="nm">Default (edited)</span><span class="chip c-active">ACTIVE</span>
+        <span class="grow"></span><span class="autosave">Saved</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button aria-selected="false">Params</button>
+        <button aria-selected="false">Prompt</button>
+        <button aria-selected="true">Actions</button>
+        <button aria-selected="false">Data</button>
+        <button aria-selected="false">Transforms</button>
+      </div>
+      <div class="body">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span class="teach">When you steer a generation, the matching template wraps your text — <code>{{input}}</code> is where the steer lands.</span>
+          <span class="xlink">Delivers via Guided instruction ↗</span>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:4px">Templates</div>
+
+          <div class="arow">
+            <span class="k">Response</span><span class="fires">steers your next reply</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">{{input}}</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Swipe</span><span class="fires">steers a re-roll of the last reply</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">{{input}}</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <!-- open row + its editor -->
+          <div class="arow open">
+            <span class="k">Impersonate</span><span class="fires">writes as you for one turn</span>
+            <span class="rolebadge">user</span><span class="state s-custom">Customized</span>
+            <span class="prevw">Write {{user}}'s next message from a {{person}}-person…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+          </div>
+          <div class="aedit">
+            <div class="frow">
+              <span class="lbl">Delivered as</span>
+              <span class="selectbox">user <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+              <span class="pill">{{person}}</span>
+              <span class="hintline">first · second · third</span>
+            </div>
+            <div>
+              <textarea aria-label="Template">Write {{user}}'s next message from a {{person}}-person perspective. {{input}}</textarea>
+              <div class="hintline" style="margin-top:4px">Ghosts the built-in default when empty · a non-empty template without <span class="mono">{{input}}</span> lints</div>
+            </div>
+          </div>
+
+          <div class="arow">
+            <span class="k">Rewrite</span><span class="fires">rewrites the last reply out of character</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">Rewrite the last reply: {{input}}</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Opening</span><span class="fires">a new chat's first message</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">Begin the roleplay…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Continue</span><span class="fires">steers a continuation of the last reply</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">Continue from where…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Greeting rewrite</span><span class="fires">rewrites a greeting in the character studio</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">{{base}} …</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">New greeting</span><span class="fires">generates a fresh greeting in the studio</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">Write a fresh opening…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:4px">Nudges</div>
+          <div class="arow">
+            <span class="k">Continue nudge</span><span class="fires">steers every continuation</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">Continue the last response…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Impersonate nudge</span><span class="fires">the measured voice-lock — edits iterate against the IMP-1 probe</span>
+            <span></span><span class="state s-custom">Customized</span>
+            <span class="prevw">Write only as {{user}}…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+          <div class="arow">
+            <span class="k">Response nudge</span><span class="fires">fires when a Response lands on an assistant tail</span>
+            <span></span><span class="state s-default">Default</span>
+            <span class="prevw">…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <p class="note"><b>One grammar, two lists:</b> rows drill exactly like the rack. State chip
+    (Default/Customized) + role badge only when non-system + a mono one-line preview = the scent that was
+    invisible inside the old collapsed grid. The nudges (incl. the previously editor-less
+    <b>responseNudge</b>) live beside their kin. Defaults' bytes stay PROSE-1 slots — when S2 lands
+    host-edited defaults, the ghosts follow automatically. While this view is active, CONTEXT shows the
+    DELIVERY PATH + the selected row's resolved preview (context-readouts.html, spec §7).</p>
+  </div>
+
+  <!-- ═══════════ the consolidated section editor ═══════════ -->
+  <div>
+    <p class="plabel">Content pane — Prompt view, a section drilled in</p>
+    <div class="panel">
+      <div class="ehead">
+        <span class="nm">Default (edited)</span><span class="chip c-active">ACTIVE</span>
+        <span class="grow"></span><span class="autosave">Saved</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button aria-selected="false">Params</button>
+        <button aria-selected="true">Prompt</button>
+        <button aria-selected="false">Actions</button>
+        <button aria-selected="false">Data</button>
+        <button aria-selected="false">Transforms</button>
+      </div>
+      <div class="body">
+
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="backrow"><svg viewBox="0 0 24 24"><path d="M19 12H5m7-7-7 7 7 7"/></svg> Back to rack</div>
+          <button class="ghostbtn" title="Section actions — Duplicate · Move below · Delete" style="background:none;border:none;color:var(--color-muted-foreground);cursor:pointer;padding:3px;border-radius:var(--radius-control)"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
+        </div>
+
+        <div class="shead">
+          <div class="t"><svg viewBox="0 0 24 24"><path d="m12 3 1.9 5.8H20l-4.9 3.6 1.9 5.8-5-3.6-5 3.6 1.9-5.8L4 8.8h6.1z"/></svg> Post-history</div>
+          <div class="g">The last word before the model replies — the strongest position in the prompt.</div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Body</div>
+          <div class="tri">
+            <button aria-pressed="false">Default</button>
+            <button aria-pressed="true">Custom</button>
+            <button aria-pressed="false">Silent</button>
+          </div>
+          <textarea style="margin-top:8px" aria-label="Template">[Stay in character. Write {{char}}'s next reply only — vivid, grounded, no OOC.]</textarea>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Delivery</div>
+          <div class="grid2">
+            <div class="fld"><div class="l">NAME</div><input value="Post-history"></div>
+            <div class="fld"><div class="l">SPOKEN AS</div><span class="selectbox" style="width:100%;justify-content:space-between">system <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Placement</div>
+          <div class="grid2">
+            <div class="fld"><div class="l">ZONE</div><span class="selectbox" style="width:100%;justify-content:space-between">Post — after your message <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
+            <div class="fld"><div class="l">INJECT AT DEPTH · ORDER</div><input class="mono" value="@0 · 100"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Triggers</div>
+          <div class="trigchips">
+            <span class="trig on">Normal</span><span class="trig on">Continue</span><span class="trig">Impersonate</span>
+            <span class="trig">Swipe</span><span class="trig">Regenerate</span><span class="trig">Quiet</span>
+          </div>
+          <div class="hintline" style="margin-top:4px">none selected = fires on every generation</div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Overrides</div>
+          <div class="togglerow"><span>Block the character card's override</span><div class="sw on"></div></div>
+          <div class="togglerow"><span>Block the room's override</span><div class="sw"></div></div>
+        </div>
+
+      </div>
+    </div>
+    <p class="note"><b>One object, one place:</b> body (the landed tri-state), delivery, placement,
+    triggers and override locks all live in the drill-in; the ⋯ menu is the ONE home for Duplicate ·
+    Move-to-zone · Delete (audit §16). The CONTEXT "Section" inspector and its form bridge are deleted —
+    CONTEXT becomes the per-view readout (context-readouts.html). The rack itself is unchanged
+    functionally; its rows conform to the instrument list skin.</p>
+  </div>
+
+</div>
+</body></html>

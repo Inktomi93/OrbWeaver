@@ -12,7 +12,7 @@ import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { RpgTakeoverStory } from "../_ct-stories";
+import { RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
 
@@ -1559,12 +1559,23 @@ test("HUD-1: the ACTIVE cell's caption takes the cell's ember state colour (the 
 
   const activeCaption = rail.getByRole("tab", { name: "Scene" }).getByText("Scene");
   const restingCaption = rail.getByRole("tab", { name: "Quests" }).getByText("Quests");
-  const [active, resting, primary] = await Promise.all([
+  // Caption and cell are read in ONE evaluate and POLLED: the cell carries a colour transition, so two
+  // separate reads land at two different instants of the same interpolation and disagree by a hair even
+  // when the wiring is right (H2 widened that transition and this test caught itself on it).
+  await expect
+    .poll(
+      () =>
+        activeCaption.evaluate((el) => {
+          const cell = el.closest('[data-slot="tabs-tab"]') as Element;
+          return getComputedStyle(el).color === getComputedStyle(cell).color;
+        }),
+      { intervals: [20, 50, 100, 200] },
+    )
+    .toBe(true);
+  const [active, resting] = await Promise.all([
     activeCaption.evaluate((el) => getComputedStyle(el).color),
     restingCaption.evaluate((el) => getComputedStyle(el).color),
-    activeCaption.evaluate((el) => getComputedStyle(el.closest('[data-slot="tabs-tab"]') as Element).color),
   ]);
-  expect(active).toBe(primary);
   expect(active).not.toBe(resting);
 });
 
@@ -1657,4 +1668,210 @@ test("HUD-1 §5.2: the ember binding edge paints FLUSH at the pane's top edge, f
   expect(bandBox.x - paneBox.x).toBeLessThanOrEqual(1);
   expect(paneBox.x + paneBox.width - (bandBox.x + bandBox.width)).toBeLessThanOrEqual(1);
   expect(width).toBe(2);
+});
+
+// ── HUD-1 H2, THE VOICE PASS (F6 defects 1 + 3) ─────────────────────────────────────────────────────
+// Everything below is a COMPUTED read. The whole class of defect H2 fixes is invisible to a class-string
+// assertion: "the meta strip reads as an action bar" and "the selection is invisible across the split" are
+// statements about resolved colour, resolved text-transform and resolved geometry, and every one of them
+// stayed green through the rendered defects the 2026-08-01 audit photographed.
+
+/** The colour the browser resolves for one of OUR tokens — via a probe element, so the assertion compares
+ *  two BROWSER-RESOLVED colours rather than a token string against a serialised `oklch()` (those never match
+ *  textually, and a test comparing strings is asserting our authoring, not the pixels). */
+function resolvedToken(page: Page, token: string): Promise<string> {
+  return page.evaluate((name) => {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${name})`;
+    document.body.append(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved;
+  }, token);
+}
+
+test("HUD-1 §4: the admin rail is a TAB GROUP — its own name on screen, in the kicker voice, as the rail's edge", async ({ mount, page }) => {
+  // F6 defect 3: the meta strip read as an action bar because nothing said it was a second set of TABS of
+  // the same panel. The fix is the rail's own NAME, visible — and its hairline rule IS the rail's top edge,
+  // so naming the group costs one line and not a second divider.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const kicker = component.locator('[data-slot="rpg-hud-rail-kicker"]');
+  await expect(kicker).toBeVisible();
+  await expect(kicker).toContainText("Chat");
+
+  const caption = kicker.locator('[data-slot="text"]');
+  const [transform, size, micro] = await Promise.all([
+    caption.evaluate((el) => getComputedStyle(el).textTransform),
+    caption.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)),
+    page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-micro")) * 16),
+  ]);
+  // The kicker VOICE, resolved: micro-caps off the type scale — not a size picked at this call site.
+  expect(transform).toBe("uppercase");
+  expect(size).toBeCloseTo(micro, 0);
+
+  // The kicker's rule replaces the rail's own track: one line at the rail's top edge, never two.
+  const adminList = component.getByRole("tablist", { name: "Chat" });
+  const gameList = component.getByRole("tablist", { name: "Game state" });
+  await expect.poll(() => adminList.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe("0px");
+  await expect.poll(() => gameList.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderBottomWidth))).toBeGreaterThan(0);
+  // …and the rule the kicker draws instead is really painted (a Separator that failed to lay out would
+  // leave an unbounded word floating over the rail with every other assertion green).
+  const ruleWidth = (await kicker.locator('[data-slot="separator"]').boundingBox())?.width ?? 0;
+  expect(ruleWidth).toBeGreaterThan(0);
+});
+
+test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at rest", async ({ mount, page }) => {
+  // "Host-only reads without a label" (panel-redesign §6 P3). The flag is DECLARED by each tab's owner
+  // (`ContextTabDef.crown`), so this also proves the resolve carried a chat-owned flag and an rpg-owned one
+  // through the same seam to one renderer.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const rail = component.getByRole("tablist", { name: "Chat" });
+  const highlight = await resolvedToken(page, "--color-highlight");
+
+  const glyphColor = async (tabName: string): Promise<string> =>
+    rail
+      .getByRole("tab", { name: tabName })
+      .locator("svg")
+      .first()
+      .evaluate((el) => getComputedStyle(el).color);
+
+  expect(await glyphColor("Preview")).toBe(highlight);
+  expect(await glyphColor("Game")).toBe(highlight);
+  // A non-host cell in the SAME rail is untouched — the gold marks a class of cell, not the rail.
+  expect(await glyphColor("This chat")).not.toBe(highlight);
+
+  // ACTIVE beats crowned: once the cell is the answer to "where am I", the ember state colour owns it —
+  // a gold glyph inside an ember cell argues with the one treatment that means "selected".
+  await rail.getByRole("tab", { name: "Preview" }).click();
+  await expect(rail.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+  expect(await glyphColor("Preview")).not.toBe(highlight);
+});
+
+test("HUD-1 §4: the NON-OWNING rail recedes and the owning one lifts — the selection is legible across the split", async ({ mount, page }) => {
+  // F6 defect 1, structurally: ONE component knows both rails' state, so the rail holding the selection can
+  // carry a resting surface fill and foreground captions while the other has neither. Measured as resolved
+  // colour on both rails, in both directions — a one-directional check would pass on a stuck rail.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const gameList = component.getByRole("tablist", { name: "Game state" });
+  const adminList = component.getByRole("tablist", { name: "Chat" });
+  const fill = (list: ReturnType<typeof component.getByRole>): Promise<string> => list.evaluate((el) => getComputedStyle(el).backgroundColor);
+  const captionColor = (list: ReturnType<typeof component.getByRole>, tabName: string, word: string): Promise<string> =>
+    list
+      .getByRole("tab", { name: tabName })
+      .getByText(word)
+      .evaluate((el) => getComputedStyle(el).color);
+
+  // The landing is `rpg.status` (the game rail's `defaultTab`), so the GAME rail owns.
+  const transparent = "rgba(0, 0, 0, 0)";
+  expect(await fill(gameList)).not.toBe(transparent);
+  expect(await fill(adminList)).toBe(transparent);
+  const owningCaption = await captionColor(gameList, "Quests", "Quests");
+  const recededCaption = await captionColor(adminList, "This chat", "This chat");
+  expect(owningCaption).not.toBe(recededCaption);
+
+  // Cross the split — and BOTH rails answer. (The caption compared on each side belongs to a tab that is
+  // NOT the selected one, so this is the rail's voice changing, never the active cell's own treatment.)
+  // POLLED, not read once: the cells carry a colour TRANSITION, so a synchronous read lands mid-interpolation
+  // on a value that is neither state (the first run of this test caught itself at oklab L=0.919, between
+  // muted-foreground's 0.74 and foreground's 0.955) — the settled colour is the assertion.
+  await adminList.getByRole("tab", { name: "This chat" }).click();
+  await expect(adminList.getByRole("tab", { name: "This chat" })).toHaveAttribute("aria-selected", "true");
+  expect(await fill(adminList)).not.toBe(transparent);
+  expect(await fill(gameList)).toBe(transparent);
+  await expect.poll(() => captionColor(adminList, "Preview", "Preview"), { intervals: [20, 50, 100, 200] }).toBe(owningCaption);
+  await expect.poll(() => captionColor(gameList, "Quests", "Quests"), { intervals: [20, 50, 100, 200] }).toBe(recededCaption);
+});
+
+test("HUD-1 §7.3: the band's LAST line ECHOES the selection — named rail, named tab, announced by neither", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const echo = component.locator('[data-slot="rpg-hud-echo"]');
+  const band = component.locator('[data-slot="rpg-hud-band"]');
+
+  await expect(echo).toHaveText("Game state · Status");
+  // It reads as the mock's kicker (caps) and it is the band's LAST line — the echo sits below the composite
+  // it annotates, never floating above it.
+  await expect.poll(() => echo.evaluate((el) => getComputedStyle(el).textTransform)).toBe("uppercase");
+  const [echoBox, headerBox] = await Promise.all([echo.boundingBox(), band.locator('[data-slot="rpg-takeover-header"]').boundingBox()]);
+  if (echoBox === null || headerBox === null) {
+    throw new Error("expected the band's composite and its echo to be laid out");
+  }
+  expect(echoBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height);
+
+  // It is a VISUAL aid, not a second announcement: the rails already tell AT what is selected.
+  await expect(echo).toHaveAttribute("aria-hidden", "true");
+
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "This chat" }).click();
+  await expect(echo).toHaveText("Chat · This chat");
+});
+
+// ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────
+
+/** The tracker read of a game whose story has set NO scene — the exact state F6 measured burning ~140px of
+ *  band on a dial and the words "No ambient set". Everything else about the game is unchanged. */
+function ambientLessTrackerView(): unknown {
+  return { ...(trackerView(false) as Record<string, unknown>), ambient: null };
+}
+
+test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smaller stone with the cues beside it", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: ambientLessTrackerView() });
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const header = component.locator('[data-slot="rpg-takeover-header"]');
+  await expect(header).toHaveAttribute("data-compact", "true");
+
+  const stone = component.locator('[data-slot="waystone"]');
+  const [stoneBox, headerBox] = await Promise.all([stone.boundingBox(), header.boundingBox()]);
+  if (stoneBox === null || headerBox === null) {
+    throw new Error("expected the compressed band and its stone to be laid out");
+  }
+  // ONE STEP DOWN, resolved: at this 30rem pane the mapping's full step is 120px and the compact step 96px
+  // (packages/ui/src/charts/meter/variants.ts — the one sizing home; the step RELATION itself is pinned in
+  // tests/ui/charts/meter/waystone.ct.tsx).
+  expect(Math.round(stoneBox.width)).toBe(96);
+  // ONE ROW, and a cheap one: the WHOLE compressed band now occupies less height than the full form's stone
+  // alone (120px at this width) — against the 138px F6 measured for this exact state. It can only be that
+  // short because the copy, the cues and the satellites sit BESIDE the stone instead of stacked under it.
+  const fullStoneStep = 120;
+  expect(headerBox.height).toBeLessThan(fullStoneStep);
+  // …and the satellites really are in that row: past the stone's right edge, level with it.
+  const orbBox = await component.locator('[data-slot="rpg-takeover-header"] [data-slot="ring-gauge"]').first().boundingBox();
+  if (orbBox === null) {
+    throw new Error("expected the band's pool orbs to be laid out");
+  }
+  expect(orbBox.x).toBeGreaterThan(stoneBox.x + stoneBox.width);
+  expect(orbBox.y).toBeLessThan(stoneBox.y + stoneBox.height);
+  expect(orbBox.y + orbBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
+});
+
+test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30rem × 900px reference", async ({ mount, page }) => {
+  // THE MOTIVATING MEASUREMENT (F6 defect 4): on an ambient-less game the band alone was 138px — 68% of the
+  // pane's chrome — while a ~400px dead zone sat under a short body. The budget is a RATIO against the pane,
+  // never a px count, and it is asserted at the geometry §7.1 names: a 30rem docked panel, 900px tall.
+  await stubTakeover(page, { tracker: ambientLessTrackerView() });
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const region = component.locator("[data-context-region]");
+  await expect(region).toBeVisible();
+  await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
+
+  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  // Both rails are really there — a budget met by a rail that failed to render is not a budget met.
+  expect(rails).toHaveLength(2);
+  const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
+  if (regionBox === null || bandBox === null) {
+    throw new Error("expected the region and the band to be laid out");
+  }
+  const railBoxes = await Promise.all(rails.map((rail) => rail.boundingBox()));
+  const railHeight = railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
+  expect(regionBox.height).toBeCloseTo(900, -1);
+
+  // MEASURED 2026-08-01 at this reference: region 900 · band 141.75 · rails 116.375 · chrome 258.125 —
+  // 28.7% of the pane, and the band is 54.9% of the chrome (it was 68%).
+  const chrome = bandBox.height + railHeight;
+  expect(chrome / regionBox.height).toBeLessThanOrEqual(0.3);
+  // …and the band is no longer the chrome's dominant tenant: the state it was WORST at (nothing set) is now
+  // its cheapest form, so the 68% F6 measured is a line it may not cross back over.
+  expect(bandBox.height / chrome).toBeLessThan(0.65);
 });
