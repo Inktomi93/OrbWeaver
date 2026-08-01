@@ -21,6 +21,8 @@ export type {
   ImportFsPort,
   ImportPersonaInput,
 } from "./contract/views";
+export type { ImportWorkloadDeps } from "./contract/workloads";
 export { collectBundlesFromDir } from "./loader/collect";
 export { createImportService } from "./service";
 export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card";
+export { createImportWorkloadContributions } from "./workload-contributions";
