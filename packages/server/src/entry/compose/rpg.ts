@@ -41,14 +41,18 @@ import {
   buildRpgToolDescriptions,
   buildTrackerWriteGroups,
   composePlaneTeaching,
+  composePopulateTeaching,
   constrainExtractionSchema,
+  constrainPopulateSchema,
   gameTrackerWriteKeys,
   healedJournalTypes,
   malformedToolCalls,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
   rpgGameConfigSchema,
+  rpgPopulateSchema,
   salvageExtraction,
+  salvagePopulate,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -57,7 +61,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
-import type { RpgTurnTranscriptMessage } from "#domain/chat";
+import type { RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
@@ -919,6 +923,126 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
   };
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// POPULATE — the HOST BORN-STATE model call (owner ruling 2026-08-01). The resync's sibling, over the CARD.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// Same host-principal seam as the resync (a host-INITIATED interactive action: resolve the ROOM connection AS
+// THE HOST fresh at the verb, consent is the host's OWN, `input.hostUserId` is the room host by ROLE — never a
+// caller-supplied id), same structured-writer gate, same errors-as-data empty-delta degrade. Two differences,
+// both deliberate:
+//   • the CORPUS is the character CARD + the room's OPENING line, not the story window — a born-state round
+//     establishes what the character walked in with, and re-deriving from play is the resync's job.
+//   • the SCHEMA is `rpgPopulateSchema`, which ADDS the hand-only identity sheet and REMOVES every live-play
+//     plane. The removal is structural (absent from the schema AND rebuilt empty by `salvagePopulate`), so this
+//     round cannot write scene/party/trackers/journal even on a wire that ignores the grammar.
+// The state half still folds through the SAME `extractionToStateDelta` the turn vehicles use (locks/heal/ghost
+// guard all hold verbatim) — the populate round is not a second write path, only a second READER.
+
+/** The populate system prompt HEADER. Names the two evidence blocks + the ONE-SHOT framing (this runs once, at
+ *  a host's click, on a character who has not played yet), and hands the invent-nothing doctrine to the shared
+ *  teaching composer (`composePopulateTeaching`, the §1.6 registry's populate arm). */
+const POPULATE_SYSTEM_HEADER =
+  "You are reading a role-play character's CARD and the story's OPENING scene to fill in what that character " +
+  "starts the game with. This runs ONCE, before the character has played: you are establishing their sheet and " +
+  "the gear, coin, and goals they walked in with — not reacting to any beat. Output ONE JSON object.";
+
+/** The populate user-turn body: the two evidence blocks + the target the writes must name. The CURRENT state is
+ *  deliberately NOT sent — a born-state round has nothing to reconcile against, and showing it invites the
+ *  model to restate what is already there instead of reading the card. */
+function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string): string {
+  const blocks = [`CHARACTER CARD — ${corpus.name}:\n${corpus.card === "" ? "(the card carries no written description)" : corpus.card}`];
+  if (corpus.opening !== "") {
+    blocks.push(`OPENING SCENE (how the story begins):\n${corpus.opening}`);
+  }
+  blocks.push(`Write everything for targetRef "${targetRef}" — this round fills exactly this one character.`);
+  return blocks.join("\n\n");
+}
+
+/** Resolve the ROOM connection AS THE HOST for the populate round, gated on the STRUCTURED writer that round
+ *  drives. `null` = do not run (an unresolvable/incoherent backend, or a wire with no structured writer) —
+ *  both are LOGGED, never silent. Hoisted out of the round so it stays under the complexity ceiling. */
+async function resolveHostRoundConnection(deps: RpgComposeDeps, chatId: ChatId, hostUserId: UserId): Promise<ResolvedConnection | null> {
+  const host = await deps.resolveHostPrincipal(hostUserId);
+  const routableChat = await readRoutableChat(deps.db, chatId);
+  let conn: ResolvedConnection;
+  try {
+    conn = await deps.connection.resolveChat({ principal: host, routableChat });
+  } catch (err) {
+    if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
+      logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: room connection did not resolve — no round");
+      return null;
+    }
+    throw err;
+  }
+  if (!hasStructuredWriter(conn.capability)) {
+    logger.warn({ event: "rpg.populate.readonly", chatId, model: conn.model, api: conn.api }, "rpg populate: connection has no structured writer — no round");
+    return null;
+  }
+  return conn;
+}
+
+/** The populate round's REF surface: the ONE target actor and nothing else. Every other axis is empty because
+ *  the populate schema has no plane that reads it (no party/tracker/scene arms), and `establishScene` is all
+ *  false for the same reason — there is no scene to establish from a card. */
+function populateRefs(targetRef: string): ExtractionRefs {
+  return {
+    actorRefs: [targetRef],
+    trackerWriteGroups: [],
+    gameTrackerKeys: { deltaKeys: [], setKeys: [] },
+    conditionNames: [],
+    establishScene: { location: false, timeOfDay: false, presentCast: false },
+  };
+}
+
+/** Build the host `populateFromCharacter` model call. Resolves the room connection AS THE HOST + gates on the
+ *  structured writer (either failing ⇒ an empty no-op delta), runs ONE constrained round over the card +
+ *  opening, and folds the two state planes through the SAME `extractionToStateDelta` path a turn round uses. */
+function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopulateExtraction"] {
+  return async ({ chatId, hostUserId, targetRef, baseState, corpus }) => {
+    const empty = { statePatch: {}, sheet: {} };
+    const conn = await resolveHostRoundConnection(deps, chatId, hostUserId);
+    if (conn === null) {
+      return empty;
+    }
+    // The teaching reads the game's own config (the deception clause + the two plane fragments), with the ONE
+    // target as the whole ref surface.
+    const game = await findGameByChat(deps.db, chatId);
+    const refs = populateRefs(targetRef);
+    const ctx: ExtractCtx = {
+      conn,
+      // The host funds + authorizes this call (the consenting human clicked the button) — the resync's posture.
+      ownerConsented: true,
+      systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs })}`,
+      userPrompt: populateUserPrompt(corpus, targetRef),
+      schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
+    };
+    let text: string;
+    try {
+      text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+    } catch (err) {
+      logger.warn({ event: "rpg.populate.failed", chatId, model: conn.model, api: conn.api, err }, "rpg populate round failed");
+      return empty;
+    }
+    // EXT-4a salvage, per plane / per entry — a malformed item costs that item, never the quests beside it.
+    const { sheet, extraction, dropped } = salvagePopulate(safeJson(text));
+    if (dropped.length > 0) {
+      logger.warn(
+        { event: "rpg.populate.unparseable", chatId, model: conn.model, api: conn.api, dropped },
+        "rpg populate: plane(s)/entry(ies) did not conform — DROPPED (the rest of the round still applies)",
+      );
+    }
+    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+    // The wire says `title`; the sheet stores `className` (the takeover has rendered it as the title since the
+    // tracked-field unification). ONE mapping, here at the parse seam — the domain never learns two names.
+    return {
+      statePatch: delta.statePatch,
+      sheet: { ...(sheet?.title === undefined ? {} : { className: sheet.title }), ...(sheet?.level === undefined ? {} : { level: sheet.level }) },
+    };
+  };
+}
+
 export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   const ctx: RpgContext = {
     db: deps.db,
@@ -950,6 +1074,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // The host resync model call (§1.3) — resolves the room connection AS THE HOST fresh at the verb (the ONE
     // non-inherited rpg model call, gated host-only inside the verb).
     runResyncExtraction: buildRunResyncExtraction(deps),
+    // The BORN-STATE corpus read (the injected chat op — rpg reads no chat/character table) + the host populate
+    // model call it feeds (owner ruling 2026-08-01 — the ONE sanctioned doorway for the hand-only sheet fields).
+    resolveCardCorpus: deps.rpgChatOps.resolveCardCorpus,
+    runPopulateExtraction: buildRunPopulateExtraction(deps),
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.
     emitBus: publishRpgEvent,
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).
@@ -1023,7 +1151,7 @@ async function readRoutableChat(db: Db, chatId: ChatId): Promise<RouteChatAssign
  *  This mirrors the flush's F2 gate so the pill and the actual round-eligibility agree. */
 function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
-  const closed = { trackersReadOnly: true, foldGuarded: true };
+  const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false };
   return async (chatId) => {
     const game = await findGameByChat(deps.db, chatId);
     if (game === undefined) {
@@ -1053,6 +1181,7 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
     return {
       trackersReadOnly: deriveTrackersReadOnly(game.config.extractionMode, conn.capability),
       foldGuarded: !coEmitsProseWithTools(conn.capability),
+      canPopulate: hasStructuredWriter(conn.capability),
     };
   };
 }

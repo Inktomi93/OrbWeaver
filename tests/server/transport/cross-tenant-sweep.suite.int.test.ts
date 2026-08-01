@@ -793,6 +793,14 @@ const PROBES: readonly Probe[] = [
   // a stranger can never fund/trigger a rebuild against A's game (the consent-seam boundary). The post-sweep
   // chat/game integrity re-read proves A's snapshot/pointer untouched.
   { path: "rpg.resyncFromStory", call: (c, i) => c.rpg.resyncFromStory({ chatId: i.chatId }) },
+  // populateFromCharacter — the SECOND host-gated model-call verb (the born-state doorway, owner ruling
+  // 2026-08-01). Same boundary as the resync AND one more: the probe passes A's REAL characterId, so a dropped
+  // membership predicate would read A's card into a stranger-funded model call. `resolveHost` misses first, so
+  // the collapse is leak-free NOT_FOUND before any card read or model call.
+  {
+    path: "rpg.populateFromCharacter",
+    call: (c, i) => c.rpg.populateFromCharacter({ chatId: i.chatId, actorRef: { kind: "character", characterId: i.characterId } }),
+  },
   { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
   { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
   { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },

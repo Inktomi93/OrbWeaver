@@ -106,10 +106,20 @@ export const rpgPatchSheetInputSchema = z.object({
     trackerRevokes: z.array(z.string().min(1)).optional(),
     maxHp: z.number().int().nullable().optional(),
     flavor: z.string().optional(),
-    // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). It is NOT a
-    // model-writable field (absent from the extraction schema + tool args) — patchSheet is its ONLY write door.
+    // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). No TURN can
+    // write it (absent from the extraction schema + tool args); the only other door is the host born-state
+    // round (`populateFromCharacter`), which fills it once, from the card, while it is still null.
     level: z.number().int().min(0).nullable().optional(),
   }),
+});
+
+/** `populateFromCharacter` — the HOST born-state round over ONE character's card + the room's opening (owner
+ *  ruling 2026-08-01). Chat-scoped + actor-scoped; the verb resolves the HOST floor (a member can never trigger
+ *  the host-principal model call) and refuses an actor with no card. No corpus/window args: the round reads the
+ *  card + the opening message, both server-resolved — a caller cannot feed it prose. */
+export const rpgPopulateFromCharacterInputSchema = z.object({
+  chatId: chatIdField,
+  actorRef: rpgActorRefSchema,
 });
 
 /** `editSnapshot` — the hand-edit door (host any; a member their own actor's volatile). `patch` is a partial
