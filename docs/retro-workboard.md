@@ -116,8 +116,20 @@ disclosure is its home) · member-own-volatile doorway noted in patch-actor.ts h
 rpg-lite-loop pass owed next stack window (SPEC 1 now drives patchActor). Lesson banked:
 [[op-shaped-hand-door-write-seam]]. **R2+R3 LANE DISPATCHED** (NPC becomes actor + presence
 plane + hp demotion + GM→HOST sweep; stickler pass before merge). ·
-V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
-w/ D8+list projection; snap --isolated receipts required) · ~~smalls#2~~ **MERGED (`165cd85e`,
+~~V2~~ **MERGED (`c4112f85`, hooked 12/12; merge-side knip cleanup [dead zone-summary-strip +
+2 de-exports] + density-baseline shrink 326→321).** P3 + Actions LANDED: rack select≠drill
+(name=select/echo, chevron=drill; pivot's enable Switch DELETED; Add auto-drills; carriers ~—) ·
+section drill-in owns the whole object — **bridge + inspector + controls DELETED** (compile-time
+receipt) · tri-state DEAD w/ G8 lift (`template:""` → {undefined, enabled:false}; db baseline
+re-squashed for DEFAULT 4→5 — dev db re-mints next boot) · CONTEXT = per-view readout
+(kind:"single" — no-selection arm is first-class; zero new reads = zero freshness rows) · Actions
+DERIVED from TEMPLATE_DEFS (G5 responseNudge + G9 newChatMarker got editors with NO code naming
+them; caps → exhaustive Record dispatch) · RENDERING CAUGHT A CONTRACT BUG gates couldn't: drill-in
+offered inject/trigger on plain markers (invalid section on write) — supportsArrangement() derives
+from the schema branch, fields ABSENT not disabled (`628a3666`). 51 preset CT + 128 unit/contract.
+**V2 DEFERRED → P4 LANE DISPATCHED** (LIST projection: RowToggleAction activate + Select death +
+kebab Export G6 + header chip G7 — §14 says independent) · D8 binding + Actions resolved preview
+stay post-P5 per §7.1 sequencing. CT lessons banked (hub #24). · ~~smalls#2~~ **MERGED (`165cd85e`,
 HOOKED — the 12/12 check on this merge CERTIFIED the whole unhooked pile incl. mirror-pin; batch
 debt CLEARED).** All six landed: Jobs = the one user noun (pane copy swept, filtered-tab CTAs
 dropped, 44 CT green) · `rpg.toolround.usage` economics record (§10.1a true, 42 int green) ·
@@ -136,9 +148,18 @@ re-derive blind spots before trusting a terminal zero. ~~mirror-pin~~ MERGED (`a
 on the exact TRK-2 regression; found+fixed FOUR more live drifts on landing [poolDefs debris,
 missing flavor/grants, phantom namesBehavior, weather |undefined]; envelope-sourced shapes
 listed as honest scope). Remaining in flight: R1 / V2. **WAVE-2 ADDS (owner word "dispatch any
-other needed waves", 08-02): PROSE-1 S2 lane** (the Prose settings section — host-editable slot
-defaults; D107 arm B same-commit registration; SET-SEAMS grammar; preset/** + rpg/** are
-NO-TOUCH collision boundaries) · **smalls#3 lane** (ChatSummary game-marker+snippet fields [one
+other needed waves", 08-02): ~~PROSE-1 S2~~ MERGED (`ec78ea20`, hooked 12/12; worktree down).**
+The Prose section is LIVE in Chat behavior: `prose` joined USER_SETTINGS_SECTIONS same-commit
+(D107 arm B); editable cohort DERIVED (`USER_PROSE_SLOT_IDS` = home:"user" minus the 6
+imagery-adapted ids — a new user-home slot reaches the editor with ZERO client edits); ghost
+defaults + Reset + missing-token lint-never-block; 5 CT + 122 unit/int + rendered proof.
+RECEIPTED DEVIATION (correct): section homed in features/CHAT not settings/** — spec §8 predates
+D114/D120 (section homes with its READER; chat reads 12/18 slots) — spec-text delta owed on the
+next docs sweep. TRAP PINNED: dotted slot ids × partition nesting arm would throw at BOOT; a
+contract test REDs the day one id nests inside another. OPEN REMAINDER: the preset-cohort prose
+rows (49, 53-73 + responseNudge) are NOT slots yet — they need the preset-side migration; folds
+into the preset program after V2. Stale affordance ("Keep mine" rung) unexercisable until the
+first default revision — pinned at the model boundary, lights up then. · **smalls#3 lane** (ChatSummary game-marker+snippet fields [one
 migration, both markers] · ChoiceBlock picks tRPC pair into the MU pane · DRAFT-CAST union fix ·
 QUOTE-1 greeting-preview tint · VER-1c custom-byo isError [verify-first] · ember/workload copy
 strays). Four lanes total; load 8.8 at dispatch; lanes are scoped-verification-only per §L.
@@ -150,12 +171,24 @@ isError `9e58c49d` — audit-lists-are-snapshots bit at BATCH granularity; queue
 below). **MERGED (hooked, 12/12 green; worktree torn down)** — the parked test-presence-client
 red was cleared by the warm lane (`97f06b32`: mirror CT at tests/client/data/, four real arms
 incl. missing-key→true [pins the !== false spelling] and failed-read→degrade-to-default).
-**+ ZOD LEVERAGE AUDIT (stickler, read-only — owner-ordered 08-02 "use zod to its fullest, not
-lazily"):** we're on zod 4.4.3; snapshot found 562 z.object vs 2 strictObject (v4 strips unknown
-keys — trust-boundary posture question), 0 codecs vs hand-written seam mappers, 0 templateLiteral
-vs hand-parsed `cast:<name>` keys, 1 .meta vs 16 toJSONSchema sites, 0 stringbool vs ==="1" env
-checks. 11-axis audit brief incl. the toJSONSchema-throws-on-brand/transform constraint; report →
-docs/reviews/stickler/2026-08-02-zod-leverage-audit.md; build program runs past owner after.
+**+ ~~ZOD LEVERAGE AUDIT~~ DELIVERED** (report rescued to
+docs/reviews/stickler/2026-08-02-zod-leverage-audit.md, 412 lines; worktree down). **VERDICT: NOT
+lazy** — settings prefault/catch self-heal, per-boundary strict/loose posture, and the
+conservative-or-refuse JSON-Schema lift are v4-fluent and deliberate; every headline absence
+(codec/fromJSONSchema/brand/templateLiteral/xor) is CORRECTLY absent with receipts. REAL findings
+= THREE STALE TRUTH CLAIMS baked into comments/law: **F1 MED-HIGH** kit/json-schema:3-5 says extra
+model keys "fail our parse" — FALSE, v4 z.object strips them silently (and the D112 folded wire
+sends tools WITHOUT strict, so an invented key vanishes with a SUCCESS record — quiet hole in the
+no-silent-fork doctrine; strip-observability = OWNER CALL) · **F2 MED** the .strict()-over-
+strictObject rationale in contracts/preset:201 is a fixed upstream issue (tsgo probe w/ planted-
+error control) · **F3 MED** the branded-transform law's MECHANISM was half-stale — .transform()
+still throws in toJSONSchema, .brand() no longer does on 4.4.3 (memory CORRECTED) · F4 hand-
+flattened ZodError drops the PATH on preset-import/automation errors (z.prettifyError, 0 uses) ·
+F5 env booleans → stringbool ONLY with pinned {truthy,falsy,case} params · F11 plugin NET_HOST_RE
+accepts junk where z.hostname() is a real validator (SSRF-allowlist adjacent — probe first) ·
+F6/F7/F16 small respellings. BUILD PROGRAM staged in report: A truth-repair comments → B
+prettifyError → C respellings → D OWNER-GATED (stringbool · hostname · strip-observability).
+AWAITS OWNER READ before any build dispatch.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
