@@ -949,7 +949,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "notifications.list": "self-scoped by principal.userId (multi-human belt)",
   "notifications.markAllRead": "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
-  "notifications.notifications": "subscription: self-scoped per-user channel",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
   // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a
