@@ -31,7 +31,8 @@ export interface Invalidation {
   readonly invalidateRpg: (event: RpgBusEvent) => void;
   /** Gap-heal — on rpg-bus (re)connect for an open game, blanket-invalidate every read that game covers. */
   readonly gapHealRpg: (chatId: ChatId) => void;
-  /** Gap-heal — on user-bus (re)connect, blanket-invalidate every filter the user map covers. */
+  /** Gap-heal — on user-bus RE-connect, blanket-invalidate every filter the user map covers. Never on the
+   *  first connect of a page load: that mount's own reads ARE the fresh state (`use-user-bus.ts`). */
   readonly invalidateAllUserRoots: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
   readonly invalidateFilters: (filters: readonly InvalidateFilter[]) => void;
