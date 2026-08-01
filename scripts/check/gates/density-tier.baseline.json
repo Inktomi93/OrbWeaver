@@ -132,7 +132,7 @@
   "packages/client/src/features/rpg/components/rpg-quests-tab.tsx": 14,
   "packages/client/src/features/rpg/components/rpg-stat-profile-editor.tsx": 6,
   "packages/client/src/features/rpg/components/rpg-status-tab.tsx": 7,
-  "packages/client/src/features/rpg/components/rpg-takeover-header.tsx": 8,
+  "packages/client/src/features/rpg/components/rpg-takeover-header.tsx": 6,
   "packages/client/src/features/rpg/components/rpg-turn-ref.tsx": 2,
   "packages/client/src/features/rpg/components/rpg-veiled-section.tsx": 8,
   "packages/client/src/features/rpg/lib/rpg-context-section.tsx": 2,
