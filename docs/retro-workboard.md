@@ -379,7 +379,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   SOLE box owner; debt baseline terminal {}; rendered-proofed; NEW SMALL from its sweep: 10 call
   sites use `!h-auto min-h-0 !py-0` — deliberate sub-touch-target inline buttons, deterministic
   via !important, NOT the hazard class — candidate "inline" Button arm ticket, needs side-eye) ·
-  join-history #8/F6 = LANE STILL IN FLIGHT (fork variables synthetic baseline, floor-respecting) ·
+  ~~join-history #8/F6~~ MERGED (`e6e4a2e2` — floored fork folds the FULL chain through the floor
+  into one absolute-set baseline batch stamped AT the floor [inclusive — clobber-safe vs the floor
+  row's own delta]; throughSeq-below-floor = empty; proven-to-fail both halves. RECEIPTED
+  DEVIATION: ruling #8's literal fold-at-fork-point + replay recipe double-counts non-idempotent
+  inc/add — the lane followed the ruling's own INVARIANT [floor-fold] instead; D79 text needs no
+  amendment) ·
   stats.reconcile single-flight guard = LANE IN FLIGHT (owner ruled: no second start while one
   runs; wait, no cancel).
   join-history detail: SEVERITY NARROWED (owner + code, 08-02): fork is gated
