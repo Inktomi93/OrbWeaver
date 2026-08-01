@@ -2,8 +2,18 @@
 // derivation every pane surface shares, and the settings-SECTION contribution seam's resolve step (the
 // pain-point §7 cure: a domain contributes an anchored section without growing features/settings).
 
+import { appearanceBackgroundSection, appearanceEffectsSection, appearanceReadingSection, appearanceSizingSection } from "@orb/client/features/app-shell";
 import { librarySettingsSection } from "@orb/client/features/character";
-import { databankSettingsSection, imageryTemplatesSection, memorySettingsSection } from "@orb/client/features/chat";
+import {
+  appearanceAvatarsSection,
+  appearanceMessageDetailsSection,
+  appearanceMessageStyleSection,
+  chatMessageHandlingSection,
+  chatStreamingSection,
+  databankSettingsSection,
+  imageryTemplatesSection,
+  memorySettingsSection,
+} from "@orb/client/features/chat";
 import { memoryTuningSection, rateLimitsSection, systemTuningSection } from "@orb/client/features/user-admin";
 import { workloadsTuningSection } from "@orb/client/features/workloads";
 import { worldInfoSettingsSection } from "@orb/client/features/world-info";
@@ -180,6 +190,8 @@ describe("assertSettingsKeyPartition", () => {
 // that crash, and it fails HERE (with the offending key named) instead of in the browser.
 test("the real door's settings-section claims partition cleanly against DEFAULT_USER_SETTINGS", () => {
   const registry = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
+    chatMessageHandlingSection,
+    chatStreamingSection,
     memorySettingsSection,
     worldInfoSettingsSection,
     databankSettingsSection,
@@ -188,6 +200,13 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
     rateLimitsSection,
     systemTuningSection,
     workloadsTuningSection,
+    appearanceMessageStyleSection,
+    appearanceAvatarsSection,
+    appearanceSizingSection,
+    appearanceMessageDetailsSection,
+    appearanceBackgroundSection,
+    appearanceReadingSection,
+    appearanceEffectsSection,
     librarySettingsSection,
   ]);
   expect(() => assertSettingsKeyPartition(registry, DEFAULT_USER_SETTINGS)).not.toThrow();
