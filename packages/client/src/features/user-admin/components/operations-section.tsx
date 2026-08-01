@@ -19,7 +19,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloorLabel, isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
 import { OPERATIONS_SUBCATEGORY } from "../lib/system-config-nav";
 import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field";
@@ -62,7 +62,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
           hint="Keep the library's embedding index up to date in the background as content changes."
           value={resolved.corpusAutoindex}
           overridden={autoindexOverridden}
-          floorLabel={envFloorLabel(autoindexOverridden, resolved.corpusAutoindex ? "on" : "off")}
+          floorLabel={envFloor(autoindexOverridden, resolved.corpusAutoindex ? "on" : "off")}
           onSet={(next): void => write({ corpusAutoindex: next })}
         />
         <AdminOverrideSelect
@@ -71,7 +71,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
           value={resolved.logLevel}
           items={LOG_LEVEL_ITEMS}
           overridden={logLevelOverridden}
-          floorLabel={envFloorLabel(logLevelOverridden, resolved.logLevel)}
+          floorLabel={envFloor(logLevelOverridden, resolved.logLevel)}
           onSet={(next): void => write({ logLevel: next as LogLevel })}
         />
         <AdminOverrideResetRow

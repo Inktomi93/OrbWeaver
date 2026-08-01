@@ -92,7 +92,21 @@ export interface RpgTakeoverHeaderProps {
   readonly veiledCue?: ReactNode;
 }
 
-/** The waystone band — the signature composite + the text lines that carry its data. */
+/** The waystone band — the signature composite + the text lines that carry its data.
+ *
+ *  TWO ARRANGEMENTS, ONE ANATOMY (HUD-1 §7.3, F6 defect 4's second half). With an ambient set, this is the
+ *  panel's signature composite and it is not the problem: stone + location + when-line + cues, then the
+ *  satellite row beneath. With NO ambient set — no location, no clock, no date, no weather, the exact state
+ *  F6 measured at 138px, 68% of the pane's chrome — every one of those lines is a blank, and the band was
+ *  spending the pane's vertical budget on the word "No". The COMPRESSED form is one slim row: the unset copy
+ *  on a single line and the cues + satellites inline beside the stone instead of stacked below it. The stone
+ *  drops a size step on its OWN — an unset stone has no layers to carry, so `variants.ts` derives that from
+ *  `clock === null` rather than taking a flag from here. (§7.3 sketched a `compact` prop; the
+ *  no-layout-context-props gate / D42-D43 bans exactly that shape, and deriving it is what that flag was
+ *  reaching for anyway.)
+ *
+ *  The cues and the satellites are built ONCE and placed by the arm, so the two forms cannot drift into two
+ *  different bands — only the arrangement forks, which is the same discipline the HUD applies to the pane. */
 export function RpgTakeoverHeader({
   ambient,
   actors,
@@ -108,63 +122,101 @@ export function RpgTakeoverHeader({
   const when = ambient === null ? "" : whenLine(ambient, dateMode);
   const location = ambient?.location ?? "";
   const wallet = primaryWallet(actors, viewerUserId);
+  // THE COMPRESSED ARM'S CONDITION (§7.3): nothing to read. `when` already folds date + clock + weather into
+  // one string, so an empty location AND an empty when-line is exactly "no ambient set" — the same absence
+  // the copy below states, derived from the rendered text rather than re-walking the ambient shape.
+  const ambientUnset = location === "" && when === "";
+
+  const cues = (
+    <>
+      <RpgFreshnessIndicator delivery={delivery} pending={freshnessPending} />
+      {veiledCue}
+      {trackersReadOnly ? (
+        <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
+          <Icon icon={Lock} size="xs" />
+          <Text as="span" size="micro" weight="medium">
+            Read-only
+          </Text>
+        </Badge>
+      ) : null}
+    </>
+  );
+
+  const satellites =
+    trackerOrbs.length === 0 && wallet === null ? null : (
+      <>
+        {trackerOrbs.map((orb, i) => (
+          <RingGauge
+            key={orb.key}
+            value={orb.value}
+            max={orb.max ?? orb.value}
+            {...trackColorProps(resolveTrackerColor(orb.color, i))}
+            label={orb.label}
+            showCaption={true}
+            captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
+          />
+        ))}
+        {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
+      </>
+    );
+
+  const stone = (
+    <Waystone
+      // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
+      // the `timeOfDayAtHour` label above is the TEXT half of the same datum, never a second source of truth.
+      clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
+      // Already canonical: `weather.type` IS the Waystone's closed vocabulary (one axis, homed in
+      // `@orb/kit/weather`) — there is no binning step left to get wrong.
+      weather={ambient?.weather?.type ?? null}
+      className="shrink-0"
+    />
+  );
+
+  if (ambientUnset) {
+    return (
+      <Row gap="block" align="center" data-slot="rpg-takeover-header" data-compact={true}>
+        {stone}
+        <Stack gap="field" className="min-w-0 flex-1">
+          {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
+              exactly where a 13px "No" was buying nothing (§7.4's four-voice grammar). */}
+          <Text as="span" voice="gloss" className="truncate">
+            No ambient set — the story fills it.
+          </Text>
+          {/* Cues and satellites share one wrapping row BESIDE the stone: with nothing to read above them
+              they fit in the stone's own height, which is what makes the band a single row. */}
+          <Row gap="row" align="center" className="flex-wrap">
+            {cues}
+            {satellites}
+          </Row>
+        </Stack>
+      </Row>
+    );
+  }
 
   return (
-    <Stack gap="block" data-slot="rpg-takeover-header">
+    <Stack gap="block" data-slot="rpg-takeover-header" data-compact={false}>
       <Row gap="block" align="center">
-        <Waystone
-          // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
-          // the `timeOfDayAtHour` label above is the TEXT half of the same datum, never a second source of truth.
-          clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
-          // Already canonical: `weather.type` IS the Waystone's closed vocabulary (one axis, homed in
-          // `@orb/kit/weather`) — there is no binning step left to get wrong.
-          weather={ambient?.weather?.type ?? null}
-          className="shrink-0"
-        />
+        {stone}
         <Stack gap="field" className="min-w-0 flex-1">
-          {location === "" ? (
-            <Text as="span" size="label" tone="muted" className="truncate">
-              No ambient set — the story fills it.
-            </Text>
-          ) : (
-            <Text as="span" size="label" weight="semibold" className="truncate">
-              {location}
-            </Text>
-          )}
+          {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
+              COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. */}
+          <Text as="span" size="label" weight="semibold" className="truncate">
+            {location || "No location set"}
+          </Text>
           {when === "" ? null : (
             <Text as="span" size="micro" tone="muted" className="truncate tabular-nums">
               {when}
             </Text>
           )}
           <Row gap="field" align="center" className="flex-wrap">
-            <RpgFreshnessIndicator delivery={delivery} pending={freshnessPending} />
-            {veiledCue}
-            {trackersReadOnly ? (
-              <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
-                <Icon icon={Lock} size="xs" />
-                <Text as="span" size="micro" weight="medium">
-                  Read-only
-                </Text>
-              </Badge>
-            ) : null}
+            {cues}
           </Row>
         </Stack>
       </Row>
 
-      {trackerOrbs.length === 0 && wallet === null ? null : (
+      {satellites === null ? null : (
         <Row gap="block" align="start" className="flex-wrap">
-          {trackerOrbs.map((orb, i) => (
-            <RingGauge
-              key={orb.key}
-              value={orb.value}
-              max={orb.max ?? orb.value}
-              {...trackColorProps(resolveTrackerColor(orb.color, i))}
-              label={orb.label}
-              showCaption={true}
-              captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
-            />
-          ))}
-          {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
+          {satellites}
         </Row>
       )}
     </Stack>

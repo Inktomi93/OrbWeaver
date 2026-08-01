@@ -12,6 +12,7 @@ import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
+import { NumberField } from "@orb/ui/number-field";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ChangeEvent, ReactElement } from "react";
@@ -78,6 +79,13 @@ export function EngineLaunchConfig(): ReactElement {
     (key: keyof ResolvedEngineLaunch) =>
     (e: ChangeEvent<HTMLInputElement>): void =>
       setDraft((d) => ({ ...d, [key]: e.target.value }));
+  // The numeric knobs ride the NumberField primitive (`number | null`); the draft stays STRING-keyed
+  // because the model-id fields share it and `diffLaunch` coerces. An emptied field parks "" — a
+  // non-finite value `diffLaunch` drops, so a blank knob never becomes an override.
+  const setNumeric =
+    (key: keyof ResolvedEngineLaunch) =>
+    (next: number | null): void =>
+      setDraft((d) => ({ ...d, [key]: next === null ? "" : String(next) }));
 
   return (
     <Stack gap="row" data-testid={testId("engineLaunchConfig")}>
@@ -99,7 +107,7 @@ export function EngineLaunchConfig(): ReactElement {
         ))}
         {NUMERIC_FIELDS.map((f) => (
           <Field key={f.key} label={f.label} orientation="horizontal" {...("hint" in f ? { hint: f.hint } : {})}>
-            <Input type="number" step={f.step} value={draft[f.key]} onChange={set(f.key)} data-testid={`engine-launch-${f.key}`} />
+            <NumberField step={f.step} value={draft[f.key] === "" ? null : Number(draft[f.key])} onValueChange={setNumeric(f.key)} />
           </Field>
         ))}
       </Stack>

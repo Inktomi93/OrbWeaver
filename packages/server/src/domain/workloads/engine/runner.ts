@@ -7,13 +7,12 @@
 // the lease cadence — so a run reporting per document costs the same db traffic as one that never reports,
 // and a client that reconnects after the 60s replay ring expired still reads the last known progress.
 
-import type { ReportProgress, WorkloadKind, WorkloadParamsByKind, WorkloadProgress, WorkloadRunContext } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadError, WorkloadKind, WorkloadParamsByKind, WorkloadProgress, WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution";
 import type { WorkloadRunnerDeps } from "../contract/service";
-import type { WorkloadError } from "../contract/workload-error";
 import type { WorkloadRunnableRow } from "../contract/workload-row";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries";
 import { emitWorkloadEvent } from "./progress-bus";

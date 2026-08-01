@@ -33,10 +33,26 @@
 // the only form" defect dies here), the active treatment and the PHASE-locked treatment are arrangement, and
 // arrangement is exactly what forked. The resolution, selection, `when`-gating, badge and disabled VALUES all
 // stay shared — they arrive already resolved.
+//
+// THE VOICE PASS (H2 — F6 defects 1 + 3) is what one owner of both rails buys, and it is the whole reason the
+// fold in §4 is worth its duplication:
+//   · SELECTION ECHOES ACROSS THE SPLIT (defect 1). The rail holding the selection is the OWNING rail: it
+//     wears the resting surface fill and its captions step up to the foreground; the other RECEDES to muted
+//     glyphs over bare ground. The band then names the winner in one kicker line ("Game · Status" /
+//     "Chat · This chat"). No renderer could do either before — neither strip knew the other's state, and the
+//     band belonged to a third party 870px away.
+//   · THE ADMIN RAIL IS A TAB GROUP, NOT AN ACTION BAR (defect 3). It gets a KICKER — its own name, on
+//     screen, in the same micro-caps voice every rpg section header uses — and that kicker's hairline rule IS
+//     the rail's top edge, so naming the group costs one line and no extra divider. Only the ADMIN rail
+//     carries one: the game rail sits directly under the band it belongs to, the echo already names it, and
+//     a second kicker row spends vertical budget §7.1 caps at 30%.
+// The grammar is the four VOICES + the tier map (§7.4, density S1): every text here passes `voice`, never a
+// size/weight/tone triple, so the pane's hierarchy is declared rather than negotiated per call site.
 
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row, Stack, Surface } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -57,35 +73,66 @@ function cellDomId(tabId: string): string {
   return `rpg-hud-cell-${tabId}`;
 }
 
+/** The band's SELECTION ECHO (§7.3 — the band's last line): which rail owns the selection, and what it
+ *  landed on. `null` when nothing is selected (there is no answer to echo). The `kicker` voice upper-cases
+ *  it, so the labels stay in their declared casing here and read "GAME · STATUS" on screen. */
+function selectionEcho(tabs: readonly ResolvedContextTab[], activeTab: string | null): string | null {
+  const active = tabs.find((tab) => tab.id === activeTab);
+  return active === undefined ? null : `${active.strip === "game" ? RAIL_NAME.game : RAIL_NAME.meta} · ${active.label}`;
+}
+
+/** The two rails' own names — ONE home, so the echo, the kicker and the a11y group label cannot drift.
+ *  `game` reads "Game state", not "Game": the crown GM console in the ADMIN rail is a TAB named "Game", and
+ *  two sibling groups where one's name is the other's member collide for anyone navigating by name. */
+const RAIL_NAME: Readonly<Record<ResolvedContextTab["strip"], string>> = { game: "Game state", meta: "Chat" };
+
 export function RpgHud({ view }: RpgHudProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
   const adminTabs = view.tabs.filter((tab) => tab.strip === "meta");
+  // WHICH RAIL OWNS THE SELECTION — the one fact neither strip's renderer could know before (F6 defect 1).
+  const activeStrip = view.tabs.find((tab) => tab.id === view.activeTab)?.strip ?? null;
   return (
-    <Tabs
-      value={view.activeTab}
-      onValueChange={(value): void => {
-        if (typeof value === "string") {
-          view.selectTab(value);
-        }
-      }}
-      className="flex h-full min-h-0 flex-col gap-0"
-    >
-      <RpgHudBand />
-      {/* "Game state", not "Game": the crown GM console in the ADMIN rail is a TAB named "Game", and two
-          sibling groups where one's name is the other's member collide for anyone navigating by name. */}
-      {gameTabs.length > 0 ? <RpgHudRail ariaLabel="Game state" tabs={gameTabs} activeTab={view.activeTab} edge="top" /> : null}
-      {/* One viewport, ALL tabs — an admin body opens in the same scroll region as a state body (owner
-          decision 4); nothing about a body changes when the HUD draws the frame around it. The padding is
-          the HUD's own now (the shell's panel-body padding is dropped under a claim), so a body keeps its
-          breathing room while the chrome around it reaches the pane's edges. */}
-      {view.tabs.map((tab) => (
-        <TabsPanel key={tab.id} value={tab.id} aria-labelledby={cellDomId(tab.id)} className="min-h-0 flex-initial overflow-y-auto px-row py-row">
-          {tab.node}
-        </TabsPanel>
-      ))}
-      <RpgHudGround />
-      {adminTabs.length > 0 ? <RpgHudRail ariaLabel="Chat" tabs={adminTabs} activeTab={view.activeTab} actions={view.actions} edge="bottom" /> : null}
-    </Tabs>
+    // THE PANE IS INSTRUMENT TIER (§7.4; density-pass-spec §3.1 names this exact surface) — read-mostly,
+    // glanceable, many data per cm². Declaring it is what makes every island inside the pane resolve the
+    // dense steps instead of each body picking padding by taste; `<Surface>` is `display: contents`, so it
+    // states the tier without adding a box to the flex column the vertical budget depends on.
+    <Surface tier="instrument">
+      <Tabs
+        value={view.activeTab}
+        onValueChange={(value): void => {
+          if (typeof value === "string") {
+            view.selectTab(value);
+          }
+        }}
+        className="flex h-full min-h-0 flex-col gap-0"
+      >
+        <RpgHudBand echo={selectionEcho(view.tabs, view.activeTab)} />
+        {gameTabs.length > 0 ? (
+          <RpgHudRail ariaLabel={RAIL_NAME.game} tabs={gameTabs} activeTab={view.activeTab} edge="top" owns={activeStrip === "game"} />
+        ) : null}
+        {/* One viewport, ALL tabs — an admin body opens in the same scroll region as a state body (owner
+            decision 4); nothing about a body changes when the HUD draws the frame around it. The padding is
+            the HUD's own now (the shell's panel-body padding is dropped under a claim), so a body keeps its
+            breathing room while the chrome around it reaches the pane's edges. */}
+        {view.tabs.map((tab) => (
+          <TabsPanel key={tab.id} value={tab.id} aria-labelledby={cellDomId(tab.id)} className="min-h-0 flex-initial overflow-y-auto px-row py-row">
+            {tab.node}
+          </TabsPanel>
+        ))}
+        <RpgHudGround />
+        {adminTabs.length > 0 ? (
+          <RpgHudRail
+            ariaLabel={RAIL_NAME.meta}
+            tabs={adminTabs}
+            activeTab={view.activeTab}
+            actions={view.actions}
+            edge="bottom"
+            owns={activeStrip === "meta"}
+            kicker={RAIL_NAME.meta}
+          />
+        ) : null}
+      </Tabs>
+    </Surface>
   );
 }
 
@@ -98,8 +145,14 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
  *
  *  The band is DECORATION over the same reads the tab bodies own: on error it collapses to nothing (its own
  *  boundary, `renderError → null`) so a failed read is the ONE announced surface in the body, never a second
- *  generic error block above it. */
-function RpgHudBand(): ReactElement | null {
+ *  generic error block above it.
+ *
+ *  ITS LAST LINE IS THE SELECTION ECHO (§7.3 / F6 defect 1): the rail that owns the selection, then the tab.
+ *  `aria-hidden` deliberately — the rails already announce their own selection, and a second announcement of
+ *  the same fact is noise; this is the VISUAL half, for a reader whose eye is 870px from the strip that
+ *  changed. It sits OUTSIDE the band's query boundary because it is the HUD's own chrome, not a game read:
+ *  a failed tracker fetch collapses the waystone, and the pane still says what you are looking at. */
+function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | null {
   const chatId = useActiveChatId();
   if (chatId === null) {
     return null;
@@ -109,6 +162,11 @@ function RpgHudBand(): ReactElement | null {
       <QueryBoundary fallback={null} renderError={(): null => null}>
         <RpgHeaderBand chatId={chatId} />
       </QueryBoundary>
+      {echo === null ? null : (
+        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className="truncate">
+          {echo}
+        </Text>
+      )}
     </Stack>
   );
 }
@@ -135,34 +193,73 @@ const CELL_EDGE_CLASSES: Readonly<Record<"top" | "bottom", string>> = {
   bottom: "border-t-2 border-transparent data-active:border-primary",
 };
 
+/** THE OWNERSHIP TREATMENT (§4's last two rows — half of the F6 defect-1 fix). The rail holding the
+ *  selection carries a resting surface fill and lifts its captions to the foreground; the other has no
+ *  resting fill at all and stays at the primitive's muted step. The contrast is what makes a selection
+ *  visible across a split neither strip could see across before — and it is stated as ONE map so the two
+ *  states can never be tuned apart. */
+const RAIL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
+  owning: "bg-sidebar-accent/40",
+  receded: "",
+};
+const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
+  owning: "text-foreground",
+  receded: "",
+};
+
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a
- *  solid frame rather than bitsy buttons bunched left (the 2026-07-28 owner ruling, carried over). */
+ *  solid frame rather than bitsy buttons bunched left (the 2026-07-28 owner ruling, carried over).
+ *
+ *  THE KICKER (§4, F6 defect 3) names the group ON SCREEN, and its hairline rule doubles as the rail's own
+ *  edge — which is why a kicker'd rail drops the track border it would otherwise draw: one line, not two.
+ *  It is `aria-hidden` because the `TabsList` already carries the same word as the group's accessible name;
+ *  announcing "Chat" twice is the noise, not the fix. The anatomy (micro-caps + rule to the edge) is the
+ *  rpg `Kicker`'s, spelled here in the `voice` grammar §7.4 asks the HUD to speak — that component predates
+ *  the voices and is a section header inside tab BODIES, while this is the pane's own chrome. */
 function RpgHudRail({
   ariaLabel,
   tabs,
   activeTab,
   actions,
   edge,
+  owns,
+  kicker,
 }: {
   readonly ariaLabel: string;
   readonly tabs: readonly ResolvedContextTab[];
   readonly activeTab: string | null;
   readonly actions?: ContextRegionView["actions"];
   readonly edge: "top" | "bottom";
+  readonly owns: boolean;
+  readonly kicker?: string;
 }): ReactElement {
+  const ownership = owns ? "owning" : "receded";
+  const track = kicker === undefined ? RAIL_EDGE_CLASSES[edge] : "border-y-0";
   return (
-    <Row align="center" gap="row" className="min-w-0 shrink-0">
-      <TabsList aria-label={ariaLabel} className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${RAIL_EDGE_CLASSES[edge]}`}>
-        {tabs.map((tab) => (
-          <RpgHudCell key={tab.id} tab={tab} isActive={tab.id === activeTab} edge={edge} />
-        ))}
-      </TabsList>
-      {actions !== undefined ? (
-        <Row align="center" className="shrink-0">
-          {actions}
+    <Stack data-slot="rpg-hud-rail" data-owns={owns} gap="tight" className="min-w-0 shrink-0">
+      {/* The kicker is INSET to the band's inline rhythm while the rail itself stays full-bleed — the rail
+          is the pane's floor and reaches its edges (§5.2), a word floating against them does not. */}
+      {kicker === undefined ? null : (
+        <Row gap="field" align="center" aria-hidden={true} data-slot="rpg-hud-rail-kicker" className="px-block">
+          <Text as="span" voice="kicker">
+            {kicker}
+          </Text>
+          <Separator className="flex-1" />
         </Row>
-      ) : null}
-    </Row>
+      )}
+      <Row align="center" gap="row" className="min-w-0">
+        <TabsList aria-label={ariaLabel} className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${track} ${RAIL_OWNERSHIP_CLASSES[ownership]}`}>
+          {tabs.map((tab) => (
+            <RpgHudCell key={tab.id} tab={tab} isActive={tab.id === activeTab} edge={edge} ownership={ownership} />
+          ))}
+        </TabsList>
+        {actions !== undefined ? (
+          <Row align="center" className="shrink-0">
+            {actions}
+          </Row>
+        ) : null}
+      </Row>
+    </Stack>
   );
 }
 
@@ -179,19 +276,34 @@ function RpgHudRail({
  *  locked tab OPENS onto a body that states when the feature arrives (RV-7, built on owner review), and a
  *  control announcing "unavailable" while Enter opens it is two stories. One story: a real tab wearing a
  *  lock, where mouse, keyboard and AT all get the same answer. */
-function RpgHudCell({ tab, isActive, edge }: { readonly tab: ResolvedContextTab; readonly isActive: boolean; readonly edge: "top" | "bottom" }): ReactElement {
+function RpgHudCell({
+  tab,
+  isActive,
+  edge,
+  ownership,
+}: {
+  readonly tab: ResolvedContextTab;
+  readonly isActive: boolean;
+  readonly edge: "top" | "bottom";
+  readonly ownership: "owning" | "receded";
+}): ReactElement {
   const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
+  // CROWN GOLD AT REST (§4): the host-only cells (`preview`, the crown GM console) read as host-only
+  // without spending a word on it. AT REST only — once the cell is active the ember state colour is the
+  // answer to "where am I", and a gold glyph inside an ember cell would argue with it.
+  const crowned = tab.crown && !isActive;
   return (
     <TabsTab
       layout="stacked"
       value={tab.id}
       id={cellDomId(tab.id)}
       aria-label={tab.label}
-      className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]}`}
+      data-crown={tab.crown}
+      className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
-      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" /> : null}
+      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? "text-highlight" : ""} /> : null}
       {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active ember) wins. */}
       <Text as="span" voice="gloss" className="max-w-full truncate text-inherit">
         {tab.label}

@@ -1,6 +1,6 @@
 // use-library-import — the Backup & Restore import-upload driver. A surface-local state machine over two
 // seams: a `.zip` goes through the workload-backed bundle route (progress streams over
-// workloads.subscribe); a bare character card goes through the synchronous card route. On finish it
+// the workloads room's live tail); a bare character card goes through the synchronous card route. On finish it
 // blanket-invalidates the user's cache, surfaces the normalized summary, and toasts a tally that matches
 // the real outcome (never a fabricated success on a failed import).
 //

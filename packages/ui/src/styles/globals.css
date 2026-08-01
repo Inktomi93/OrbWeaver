@@ -536,6 +536,16 @@
   }
 }
 
+/* The UNSET stone (HUD-1 §7.3 — the compressed band's stone) is one step smaller at every container step,
+ * so its gate is one step WIDER: at a 20-24rem container it is already the 76px stone the rule above exists
+ * for, and below 20rem it is 60px. Same threshold-follows-the-step contract as the block above — together
+ * the two arms keep the gate bound to the stone's RESOLVED size, never to the container alone. */
+@container (max-width: 24rem) {
+  [data-slot="waystone"][data-phase="unset"] [data-slot="waystone-cardinal-noon"] line {
+    display: none;
+  }
+}
+
 /* Hidden tab ⇒ nothing composites (the layers are decorative; nobody is looking). */
 [data-slot="waystone"][data-paused="true"] * {
   animation-play-state: paused;

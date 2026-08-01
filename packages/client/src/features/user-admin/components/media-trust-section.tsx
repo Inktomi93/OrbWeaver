@@ -22,7 +22,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloorLabel, isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field";
 
@@ -105,7 +105,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
           hint="Stop rendered chat content from loading http/https media URLs — a privacy/SSRF guard (the load itself is the tracking-pixel). Enforced by the page's Content-Security-Policy as well as the renderer, so it is a deployment CEILING and a change only reaches an open tab on RELOAD."
           value={resolved.forbidExternalMedia}
           overridden={forbidOverridden}
-          floorLabel={envFloorLabel(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
+          floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
           onSet={(next): void => write({ forbidExternalMedia: next })}
         />
         <AdminOverrideSwitch
@@ -113,7 +113,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
           hint="Render rich HTML cards + Mermaid diagrams as trusted by default across the deployment. Off keeps the untrusted-by-default posture; a per-character override still layers on top."
           value={resolved.trustHtml}
           overridden={trustOverridden}
-          floorLabel={envFloorLabel(trustOverridden, resolved.trustHtml ? "on" : "off")}
+          floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
           onSet={(next): void => write({ trustHtml: next })}
         />
         <AdminOverrideField
@@ -122,7 +122,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
           value={maxImageDraft}
           onChange={setMaxImageDraft}
           overridden={capOverridden}
-          floorLabel={envFloorLabel(capOverridden, toMbDraft(resolved.maxImageBytes))}
+          floorValue={envFloor(capOverridden, resolved.maxImageBytes / BYTES_PER_MB)}
           min={MAX_IMAGE_MB_MIN}
           max={MAX_IMAGE_MB_MAX}
           step={MAX_IMAGE_MB_STEP}

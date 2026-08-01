@@ -12,6 +12,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { setNumber } from "../../../../support/ct/set-number";
 import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
@@ -142,13 +143,13 @@ test("⑦ host: the Tool-use section renders the cap control seeded from getChat
   await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toBeVisible();
-  await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveValue("7"); // CHAT_DETAIL.toolRecurseLimit
+  await expect(component.getByRole("textbox", { name: "Tool rounds per turn" })).toHaveValue("7"); // CHAT_DETAIL.toolRecurseLimit
 });
 
 test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limit", async ({ mount, page }) => {
   const trpc = await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
-  await component.getByRole("spinbutton", { name: "Tool rounds per turn" }).fill("10");
+  await setNumber(component.getByRole("textbox", { name: "Tool rounds per turn" }), "10");
   await expect.poll(() => (trpc.lastInput(UPDATE_TOOL_LIMIT) as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(10);
 });
 
@@ -156,7 +157,9 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
-  await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveCount(0);
+  // Role-agnostic on purpose: an ABSENCE assertion keyed to `spinbutton` would go blind the day the control
+  // becomes an @orb/ui NumberField (Base UI renders those as a TEXTBOX, never a spinbutton).
+  await expect(component.getByLabel("Tool rounds per turn")).toHaveCount(0);
 });
 
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set

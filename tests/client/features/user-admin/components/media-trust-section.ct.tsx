@@ -8,6 +8,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { setNumber } from "../../../../support/ct/set-number";
 import { MediaTrustSectionStory } from "../_ct-stories";
 
 const UPDATE_PROC = "settings.updateAppSettings";
@@ -38,7 +39,7 @@ test("mounts on the resolved values and stamps its own admin anchor", async ({ m
 
   await expect(page.getByRole("switch", { name: "Block external media" })).toBeChecked();
   await expect(page.getByRole("switch", { name: "Render rich HTML as trusted" })).not.toBeChecked();
-  await expect(page.getByRole("spinbutton", { name: "Max generated-image download (MB)" })).toHaveValue("5");
+  await expect(page.getByRole("textbox", { name: "Max generated-image download (MB)" })).toHaveValue("5");
   await expect(page.locator("#settings-anchor-admin-media-trust")).toBeVisible();
 });
 
@@ -56,7 +57,7 @@ test("the MB field saves BYTES, alone", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<MediaTrustSectionStory />);
 
-  await page.getByRole("spinbutton", { name: "Max generated-image download (MB)" }).fill("6");
+  await setNumber(page.getByRole("textbox", { name: "Max generated-image download (MB)" }), "6");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ maxImageBytes: 6 * BYTES_PER_MB });
 });

@@ -22,7 +22,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { isOverridden, saveStateOf } from "../lib/app-override-model";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
 
@@ -207,7 +207,10 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
             value={draft[knob.id] ?? ""}
             onChange={(next): void => setDraft((d) => ({ ...d, [knob.id]: next }))}
             overridden={knob.overridden(overrides)}
-            floorLabel={String(knob.read(resolved))}
+            // `resolved` is floor ⊕ override — the FLOOR only while this knob has no stored override. Once it
+            // has one the floor is unrecoverable from this read, so the row points at Reset instead of naming
+            // the override as its own default (SET-SEAMS §4).
+            floorValue={envFloor(knob.overridden(overrides), knob.read(resolved))}
             min={knob.min}
             {...(knob.max === undefined ? {} : { max: knob.max })}
             step={knob.step}
