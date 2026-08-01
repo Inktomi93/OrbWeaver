@@ -67,7 +67,7 @@ async function seedVariantSnapshot(
 
 /** The gather's reminder text (the depth-0 system injection content) — the delta block lands inside it. */
 async function reminderText(h: RpgHarness, chatId: ChatId): Promise<string> {
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   return out?.injections[0]?.content ?? "";
 }
 
@@ -75,7 +75,7 @@ test("a NON-game chat gathers null (byte-identical no-op)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "plain");
   const { chatOps } = (await seedLiteGame(db)).h; // build a harness, but gather a DIFFERENT (non-game) chat
-  const out = await chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out).toBeNull();
 });
 
@@ -83,16 +83,16 @@ test("#40 a DISENGAGED game gathers null (byte-identical no-op — reminder/stee
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: false } });
-  expect(await h.chatOps.gatherTurnContext(chatId, undefined, false)).toBeNull();
+  expect(await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false })).toBeNull();
   // Reversible: re-engage and the gather contributes again (the game rows were never touched).
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: true } });
-  expect(await h.chatOps.gatherTurnContext(chatId, undefined, false)).not.toBeNull();
+  expect(await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false })).not.toBeNull();
 });
 
 test("a game contributes ONE depth-0 system reminder injection + the rpg macro/CEL feed (parity-plus §12)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out).not.toBeNull();
   // An empty seeded game stages the lite-relevant macro KEYS (all empty-string here) — the full-mode keys
   // (rpgMap/rpgMorale/…) stay ABSENT ⇒ they resolve "". A READ mirror, never a write.
@@ -121,7 +121,12 @@ test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's thre
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "{{user}} keeps running into {{char}} at the konbini." } });
 
   // chat's threaded binding: {{user}} = the active persona, {{char}} = the SOLO single cast name (Ruling B).
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko" });
+  const out = await h.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    steerIdentity: { user: "Nate", char: "Niko" },
+  });
   const reminder = out?.injections[0]?.content ?? "";
 
   expect(reminder).toContain("Nate keeps running into Niko at the konbini.");
@@ -138,7 +143,12 @@ test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINE
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
 
   // Chat threads the Ruling-B joined cast (`joinedCastName(room.castNames)` — roster order): "Niko, Aria".
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko, Aria" });
+  const out = await h.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    steerIdentity: { user: "Nate", char: "Niko, Aria" },
+  });
   const reminder = out?.injections[0]?.content ?? "";
 
   expect(reminder).toContain("Keep Niko, Aria distinct in voice.");
@@ -152,7 +162,12 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "As {{user}}: {{random::a::b}}{{setvar::x::1}}" } });
 
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false, { user: "Nate", char: "Niko" });
+  const out = await h.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    steerIdentity: { user: "Nate", char: "Niko" },
+  });
   const reminder = out?.injections[0]?.content ?? "";
 
   expect(reminder).toContain("As Nate:"); // {{user}} resolved
@@ -163,7 +178,7 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
 test("a BORN game's char turn carries no registry tools + no write guidance (the state round writes, not the reminder)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db); // born folded — its write surface is the terminal channel, never `tools`
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.tools).toEqual([]);
   expect(out?.injections[0]?.content).not.toContain("update_party");
 });
@@ -172,7 +187,7 @@ test("cheap mode: the char turn is ALSO tool-less (owner ruling — the dedicate
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // The char turn NEVER mounts tools — cheap captures state in the dedicated tool round, not on the narration.
   expect(out?.tools).toEqual([]);
   expect(out?.injections[0]?.content).not.toContain("update_party");
@@ -185,7 +200,7 @@ test("readonly (manual-steering): tool-less char turn + the reminder still steer
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.tools).toEqual([]);
   expect(out?.injections[0]?.content).not.toContain("update_party");
 });
@@ -268,7 +283,7 @@ test("the gather populates rpgSceneState/rpgCast/rpgQuests from the tracker view
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
   await seedScene(db, { chatId, gameId, seq: 2 });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.macros["rpgSceneState"]).toContain("Village of Dunmoor");
   expect(out?.macros["rpgSceneState"]).toContain("Mari");
   expect(out?.macros["rpgSceneState"]).toContain("enemy");
@@ -281,7 +296,7 @@ test("the gather stages the `rpg` CEL tree so {{expr::rpg.…}} reads scene/cast
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
   await seedScene(db, { chatId, gameId, seq: 2 });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // The `rpg` binding is a data-only CelValue tree — its documented read-set (scene.location, cast[].relationship,
   // quests[].status) carries the tracker view, so an `{{expr}}` predicate on the turn evaluates against real state.
   const rpg = (out?.celBindings as { rpg: { scene: { location: string }; cast: { relationship: string }[]; quests: { status: string }[] } }).rpg;
@@ -299,7 +314,7 @@ test("R1 folded: the gather mounts the terminal tools — registry `tools` stays
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   expect(out?.tools).toEqual([]); // never the registry — a registry tool would execute + recurse
   expect(out?.terminalTools?.map((t) => t.name)).toEqual(["update_scene"]); // the harness fake's set
@@ -314,10 +329,10 @@ test("R1: the CHEAP opt-out contributes NO terminal tools (byte-identical to bef
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   // A FRESH game is BORN folded (owner ruling 2026-08-01), so the fold is what a new room gets with no config.
-  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeDefined();
+  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeDefined();
   // …and the two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(1); // consulted for the born-folded gather ONLY
 });
 
@@ -325,7 +340,7 @@ test("R1 folded + readonly: NO terminal tools — a manual-steering game never m
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });
@@ -338,7 +353,7 @@ test("R1 folded + foldGuarded: the mount is WITHHELD — the local engine's turn
   // `content:null` on 36/36 turns. The fold's premise is false here, so the character turn must not mount.
   const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   expect(out?.terminalTools).toBeUndefined();
   // Withheld PRE-COMMIT: the mount's db reads never even ran (the guard is a decision, not a discarded build).
@@ -354,7 +369,7 @@ test("the fold guard governs ONLY folded — an explicit cheap game on the same 
   // The opt-out mounted no terminal tools before the guard existed and does not now; its post-commit round is
   // the host's deliberate lever and the guard never re-routes it.
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });
 
@@ -364,7 +379,7 @@ test("R1 folded: a RECONCILE beat appends the write-surface note to the reminder
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
   // One prior beat ⇒ this beat's ordinal is 2 ⇒ 2 % 2 === 0 ⇒ RECONCILE.
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   expect(h.fakes.foldedToolBuilds).toEqual([{ chatId, reconcile: true }]);
   // The note rides the SAME depth-0 injection (one injection, not a second one) — the harness fake returns
@@ -381,7 +396,7 @@ test("R1 folded: a mount that THROWS never fails the turn — the gather degrade
   const { chatId, h } = await seedLiteGame(db, { foldedToolsThrow: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
 
-  const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   // The gather still produced a complete, byte-identically tool-less contribution — the turn assembles + commits.
   expect(out).not.toBeNull();

@@ -573,6 +573,7 @@ export interface ChatRpgOps {
    *  callers — the alternative was two homes for one fact. */
   readonly resolveUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
   /** GATHER (after the WI pool): a game turn's contribution, or `null` for a non-game chat (byte-identical).
+   *  Args shape: {@link GatherTurnContextArgs}.
    *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (rpg-design/05 §6): is THIS turn (re)generating
    *  the assistant slot that DIRECTLY responds to the latest user message? It drives the `playerRolledDice`
    *  reminder flag (and, paired with {@link markDicePreRollEligible}, the dice feed) so a stale die never
@@ -589,13 +590,7 @@ export interface ChatRpgOps {
    *  as of before that slot, so a reroll is never told the abandoned variant's beats (VER-1b; without it the
    *  reminder describes the very prose the model is being asked to rewrite). Absent for a fresh turn AND for
    *  `continue` — a continuation's context INCLUDES the slot, so its state genuinely is the head. */
-  readonly gatherTurnContext: (
-    chatId: ChatId,
-    pendingUserText: string | undefined,
-    respondsToLatestUserTurn: boolean,
-    steerIdentity?: { readonly user: string | undefined; readonly char: string },
-    regenSlotMessageId?: MessageId,
-  ) => Promise<ChatRpgGatherResult | null>;
+  readonly gatherTurnContext: (args: GatherTurnContextArgs) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
    *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
    *  (later GM/auto/director round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
@@ -639,6 +634,24 @@ export interface ChatRpgOps {
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
    *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
   readonly forkGame: (args: ForkGameArgs) => Promise<ForkGameResult>;
+}
+
+/** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same
+ *  front-door type-import precedent as {@link ForkGameArgs}). `pendingUserText`/`respondsToLatestUserTurn`
+ *  are full's dice-feed inputs — lite's gather ignores both (ratified: lite has no d20 checks); required
+ *  here anyway because every caller (turn build, preview) already resolves them for chat's own use, and an
+ *  optional pair a mode silently ignores is exactly the shape the honest-degrade doctrine (§4.6) warns against
+ *  for a KNOWN, not a hypothetical, ignorer — the doc on `gatherTurnContext` above names lite as the ignorer
+ *  and why. `steerIdentity`/`regenSlotMessageId` stay optional (a caller-side absence, not a callee-side
+ *  ignore): the preview path never regenerates a slot, and identity binding is threaded only when resolved. */
+export interface GatherTurnContextArgs {
+  readonly chatId: ChatId;
+  /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
+  readonly pendingUserText: string | undefined;
+  /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
+  readonly respondsToLatestUserTurn: boolean;
+  readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;
+  readonly regenSlotMessageId?: MessageId | undefined;
 }
 
 /** The `forkChat`→rpg clone call args (§3.2). Chat OWNS this shape (rpg satisfies it, the one-directional-flow
