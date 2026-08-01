@@ -16,6 +16,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { GreetingStudio } from "#components";
+import { useColorQuotedSpeech } from "#data";
 import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
@@ -126,6 +127,9 @@ function GreetingBody({
   readonly index: number;
   readonly editing: boolean;
 }): ReactElement {
+  // QUOTE-1: the preview bubble is the greeting AS THE CHAT WILL SHOW IT — same `--color-dialogue` tint
+  // (the character's own `dialogueColor` override wins through the `ThemeScope` below, as in a chat row).
+  const colorQuotes = useColorQuotedSpeech();
   if (editing) {
     return (
       <Stack gap="field">
@@ -153,7 +157,7 @@ function GreetingBody({
             {active.trim() === "" ? (
               <Text tone="muted">No first message yet.</Text>
             ) : (
-              <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static">
+              <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
                 {active}
               </Markdown>
             )}

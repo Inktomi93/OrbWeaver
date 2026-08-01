@@ -5,7 +5,7 @@
 // other two zoom levels of the same number. Grid = `cols="cell"` (§5 — container-driven: 2-up at the 320px
 // mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (#37 — the host-picked `item.icon`
 // seal name wins, else the §12.5 keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
-// read, and the item LOCATION (#37a — the data was already stored), and quest-bound = the ember dot. There
+// read, and the item LOCATION (#37a — the data was already stored), and quest-bound = the accent dot. There
 // is NO ghost socket and no fake 28-slot pack (side-eye 08-01 killed the dashed one: an empty box with no
 // word and no click is not an affordance); the host's `AddRow` below the grid is the one growth home. No
 // encumbrance UI — not modeled.
