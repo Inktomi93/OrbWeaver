@@ -15,6 +15,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 const AZARAEL = { id: "char_azarael", name: "Azarael", avatarHash: null };
 const SERA = { id: "char_sera", name: "Sera of the Long Winter Court", avatarHash: null };
 const AVATAR_MD_PX = Number.parseFloat(TOKENS["spacing.avatar-md"].value) * 16;
+/** WCAG 2.5.5's target floor — the law's coarse-pointer bar (D62 P1 / touch-target-floor.suite.ct.tsx). */
+const WCAG_FLOOR = 44;
 
 test("each face is a named button; the selected one announces aria-current", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AZARAEL, SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={AZARAEL.id} />);
@@ -74,8 +76,39 @@ test("an empty set renders NOTHING — never an empty shell", async ({ mount, pa
 
 test("the face's hit box is the avatar token square — content-sized, not a collapsed control", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
-  const box = await component.getByRole("button", { name: "Open Azarael", exact: true }).boundingBox();
+  const button = component.getByRole("button", { name: "Open Azarael", exact: true });
+  const box = await button.boundingBox();
   // `size="media"` is content-sized, so the button IS its avatar child — never smaller than it (the F2 defect).
   expect(box?.width).toBeGreaterThanOrEqual(AVATAR_MD_PX);
   expect(box?.height).toBeGreaterThanOrEqual(AVATAR_MD_PX);
+  // …and the MIN box is the control token, not the portrait: the face is a control, so it rides the same
+  // per-pointer floor as its sibling icon buttons (side-eye P1-3), with the 32px avatar centered inside it.
+  const controlMd = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  expect(box?.width).toBeGreaterThanOrEqual(controlMd);
+  expect(box?.height).toBeGreaterThanOrEqual(controlMd);
+});
+
+// The floor the law actually governs is the COARSE one (D62 P1): a 32px portrait was a 32px tap target on
+// every touch device — under WCAG's 44px and under this app's own 48px coarse control box.
+test.describe("coarse pointer — the face meets the touch floor", () => {
+  test.use({ hasTouch: true });
+
+  test("a face is at least the 44px WCAG floor, and in practice the 48px coarse control box", async ({ mount, page }) => {
+    // ONESHOT-OK: a media-query match on a context flag set BEFORE the page opened — nothing async can
+    // change it (the touch-target-floor suite's own R6 probe reads it the same way).
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+    const button = component.getByRole("button", { name: "Open Azarael", exact: true });
+    const shortSide = async (): Promise<number> => {
+      const box = await button.boundingBox();
+      return Math.min(box?.width ?? 0, box?.height ?? 0);
+    };
+    await expect.poll(shortSide, { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(WCAG_FLOOR);
+    // The box is the resolved TOKEN (48px at coarse), never hand math — and the avatar inside it is untouched.
+    const controlMd = await button.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+    await expect.poll(shortSide, { intervals: [20, 50, 100] }).toBe(controlMd);
+    await expect
+      .poll(() => component.locator('[data-slot="avatar-root"]').evaluate((el) => el.getBoundingClientRect().width), { intervals: [20, 50, 100] })
+      .toBe(AVATAR_MD_PX);
+  });
 });

@@ -142,6 +142,31 @@ test("back deselects AND restores focus to her row in the library (§3.7 — nev
   await expect(component.getByRole("button", { name: "Azarael", exact: true })).toBeFocused();
 });
 
+// §3.7's forward half — the mirror of the back-focus test above. Entering the projection is a pane SWAP,
+// and the click that triggers it UNMOUNTS the row the user pressed, so `document.activeElement` is already
+// `<body>` by the time the new pane mounts: a guarded "only steal focus if something was focused" hook
+// reads that as a cold page load and silently skips (side-eye P1-1). Behavioural, not a class check.
+test("selecting a character moves focus INTO the projection (§3.7 — never left on <body>)", async ({ mount, page }) => {
+  await routeAll(page, CHATS);
+  const component = await mount(<CharactersListPaneStory />);
+
+  await component.getByRole("button", { name: "Azarael", exact: true }).click();
+  await expect(component.getByText("Winter court")).toBeVisible();
+
+  // Polled: focus lands in a mount effect, so a single snapshot samples the transition and flakes.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const active = document.activeElement;
+          const pane = document.querySelector('[data-slot="character-chats-projection"]');
+          return { onBody: active === document.body, inside: pane !== null && active !== null && pane.contains(active) };
+        }),
+      { intervals: [20, 50, 100] },
+    )
+    .toEqual({ onBody: false, inside: true });
+});
+
 test("a character with no chats gets an empty state that teaches AND acts", async ({ mount, page }) => {
   await routeAll(page, [NOT_HERS]);
   const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);

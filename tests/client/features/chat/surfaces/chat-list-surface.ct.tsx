@@ -75,6 +75,13 @@ const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC
 const ADVENTURE_ROW = "A grand adventure";
 const UNTITLED_ROW = "Untitled chat";
 
+// ACTION names carry the row's own recency stamp after the title (side-eye P3a — N rows titled "Azarael"
+// in the character projection produced N identical menu names). The stamp is clock-relative, so the CTs pin
+// the SHAPE (a prefix) and the DISTINCTNESS, never the literal elapsed text.
+const ADVENTURE_MENU = /^Chat actions for "A grand adventure" · /u;
+const ADVENTURE_STAR = /^Star "A grand adventure" · /u;
+const PINNED_UNSTAR = /^Unstar "A pinned thread" · /u;
+
 test("renders each chat row (title + participant names), with a fallback title/subtitle", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED] });
 
@@ -136,9 +143,11 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
 
   const component = await mount(<ChatListSurfaceStory />);
-  // Finding #4: the kebab is named after the row ("Chat actions for <title>"), not a bare, indistinguishable
-  // "Chat actions" repeated N times — so N chat rows expose N distinct menu-trigger names.
-  await component.getByRole("button", { name: "Chat actions for A grand adventure", exact: true }).click();
+  // Finding #4: the kebab is named after the row ("Chat actions for <title> · <stamp>"), not a bare,
+  // indistinguishable "Chat actions" repeated N times — so N chat rows expose N distinct menu-trigger names.
+  // The cluster rests hidden + inert (P3b), so reach it the way a user does: hover the row first.
+  await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
+  await component.getByRole("button", { name: ADVENTURE_MENU }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
@@ -200,13 +209,14 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
   await expect(component.getByText("A pinned thread")).toBeVisible();
 
   // One element, marker + affordance: the starred row announces pressed under the un-set name.
-  const starred = component.getByRole("button", { name: "Unstar A pinned thread", exact: true });
+  const starred = component.getByRole("button", { name: PINNED_UNSTAR });
   await expect(starred).toHaveAttribute("aria-pressed", "true");
-  const unstarred = component.getByRole("button", { name: "Star A grand adventure", exact: true });
+  const unstarred = component.getByRole("button", { name: ADVENTURE_STAR });
   await expect(unstarred).toHaveAttribute("aria-pressed", "false");
 
   // Assert the MUTATION fired (not a UI reaction — the row is bus-driven, so the optimistic repaint is
   // not the thing under test): the click hits `chat.star` with THIS row's id and the flipped value.
+  await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
   await unstarred.click();
   await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
   // ONESHOT-OK: settled — the recorded input above proves the request already landed, so the COUNT for that
@@ -218,9 +228,11 @@ test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror par
   await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
 
   const component = await mount(<ChatListSurfaceStory />);
-  await expect(component.getByRole("button", { name: "Star A grand adventure", exact: true })).toBeVisible();
+  const row = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
+  await row.hover();
+  await expect(component.getByRole("button", { name: ADVENTURE_STAR })).toBeVisible();
 
-  await component.getByRole("button", { name: "Chat actions for A grand adventure", exact: true }).click();
+  await component.getByRole("button", { name: ADVENTURE_MENU }).click();
   // Inline is a SHORTCUT, never the only path — everything stays reachable from one menu.
   await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
 });
@@ -290,6 +302,36 @@ test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the
   await expect(component.getByText("Aria Nightshade", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Untitled chat")).toHaveCount(0);
   await expect(face).toHaveAttribute("aria-current", "true");
+});
+
+// Mock order (side-eye P2b/P2a): the faces are the shortcut you arrive for, so the strip is the FIRST thing
+// in the pane — above the scope chip and the search box — and each face is CAPTIONED, because a portrait
+// alone is not a name.
+test("Arm B: the strip is the pane's FIRST element (above chip + search) and its faces are captioned", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
+  await expect(face).toBeVisible();
+  // The caption is real text under the portrait, not just the accessible name.
+  await expect(face.getByText("Aria Nightshade", { exact: true })).toBeVisible();
+
+  // DOM order is the reading order: strip → (chip) → search. Compare positions, not classes.
+  await face.click();
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const all = [...document.querySelectorAll("*")];
+          const at = (el: Element | null | undefined): number => (el === null || el === undefined ? -1 : all.indexOf(el));
+          const strip = at(document.querySelector('[aria-label="Recent characters"]'));
+          const chip = at(all.find((el) => el.textContent === "Filtered:"));
+          const search = at(document.querySelector('input[aria-label="Search chats"]'));
+          return { stripBeforeChip: strip >= 0 && chip > strip, stripBeforeSearch: strip >= 0 && search > strip };
+        }),
+      { intervals: [20, 50, 100] },
+    )
+    .toEqual({ stripBeforeChip: true, stripBeforeSearch: true });
 });
 
 test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-current announces)", async ({ mount, page }) => {
