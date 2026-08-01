@@ -63,6 +63,21 @@ export function findSettingsColumnViolation(geometry: SettingsPaneGeometry, minS
   return null;
 }
 
+/** Every settings-nav row label CLIPPED at the current column width, in DOM order (duplicates kept — the
+ *  caller sweeps category by category and dedupes). `scrollWidth > clientWidth` on the title span is the
+ *  honest truncation test: the row's `text-overflow: ellipsis` leaves the element's box unchanged, so
+ *  nothing else in the DOM says the label is abbreviated. */
+export function readClippedNavLabels(page: Page): Promise<readonly string[]> {
+  return page.evaluate((): readonly string[] => {
+    const nav = document.querySelector('[role="navigation"]');
+    return nav === null
+      ? []
+      : [...nav.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')]
+          .filter((el) => el.scrollWidth > el.clientWidth)
+          .map((el) => el.textContent ?? "");
+  });
+}
+
 /** Which of the shell's two columns is PAINTED, and how wide, at the current container width. Below the
  *  `@md` step exactly one may paint (push-detail); above it, both. `width` is 0 for an unpainted column. */
 export interface SettingsShellColumns {
