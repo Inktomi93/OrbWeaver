@@ -36,13 +36,23 @@ import type { ModalSlotId } from "../../../../packages/client/src/state/shell-st
 import { openModal, setActiveSection, useActiveSection } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
 import {
-  CtChatContributorSectionRegistry,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "../../../support/ct/ct-data-providers";
+
+/** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
+ *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —
+ *  so they say which section they mean instead of leaning on whatever the default happens to be. The
+ *  default-lands-on-home fact has its own assertions (shell-store.ct.tsx + app-root.ct.tsx). */
+function LandOn({ section }: { readonly section: SectionId }): null {
+  useEffect(() => {
+    setActiveSection(section);
+  }, [section]);
+  return null;
+}
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
@@ -61,24 +71,11 @@ export function AppShellStory(): ReactElement {
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
       >
+        <LandOn section="chats" />
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
         <AppShell />
       </CtFakeSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The REAL shell + the REAL `chats` section (`ChatContent`, landing by default) — end-to-end proof that
- *  `useListDocked` (chat-content.tsx) agrees with `resolvePanel`'s auto-overlay derivation at every width
- *  (the M10-correction verifier gap): mounting through the real `useShellLayout` viewport-publish effect,
- *  not a hand-fed store write. */
-export function AppShellRealChatsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtChatContributorSectionRegistry>
-        <AppShell />
-      </CtChatContributorSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -101,6 +98,7 @@ export function AppShellWidthProbeStory(): ReactElement {
           },
         }}
       >
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -119,6 +117,7 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
+        <LandOn section="chats" />
         {/* A fake modal registry injects a deliberately-tall body for every id (the inner provider wins
             over CtFakeSectionRegistry's real one), so the scroll invariant is exercised per placement.
             `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to fit
@@ -152,6 +151,7 @@ export function AppShellDropGuardStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <DropZonePane /> } }}>
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -190,6 +190,7 @@ export function RailBrandNavStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
       <CtStandInChromeRegistry>
+        <LandOn section="chats" />
         <RailWithStore />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>

@@ -12,15 +12,19 @@ import { resolvePanelMode } from "@orb/client/state";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ShellStoreProbe } from "./_ct-stories";
 
+// The BORN default is `home` (owner decision H1 = D-1) — a fresh install lands on the section that HAS a
+// launcher, not on "nothing selected".
 const DEFAULT_STATE =
-  "section=chats list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false";
+  "section=home list=none context=none modal=none docked=true settingsTarget=none contextTab=none openOverlayPanel=none narrowViewport=false";
 
 test("panel overrides are PER-SECTION: set on one section, remembered, not leaked to another", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");
-  // Fresh page → default (chats active, no overrides set).
+  // Fresh page → default (home active, no overrides set).
   await expect(state).toHaveText(DEFAULT_STATE);
 
+  // Land on chats first — home is the born default now, and this test is about PER-SECTION memory.
+  await probe.getByRole("button", { name: "go chats" }).click();
   // Set the chats list override.
   await probe.getByRole("button", { name: "collapse list" }).click();
   await expect(state).toContainText("section=chats list=collapsed");

@@ -25,6 +25,8 @@ import { characterSlashCommands, librarySettingsSection, makeCharactersSection }
 import {
   ChatsWithCharacterPane,
   chatOptionsChrome,
+  chatQuickPicksTile,
+  chatRecentsTile,
   chatSlashCommands,
   commandModal,
   databankSettingsSection,
@@ -152,7 +154,7 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
 // `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, the dormant
 // doorways at 80/90). Home consumes the registry BLIND through `makeHomeSection`.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [sectionJumpTile]);
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, sectionJumpTile]);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
