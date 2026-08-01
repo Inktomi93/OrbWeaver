@@ -40,7 +40,7 @@ const DEFERRED: Record<string, string> = {
   // B: a USER_SETTINGS_SECTIONS member with no reachable section-patch write path — its schema defaults are
   // pinned for every user (the memory.enabled class: a master switch nobody can flip). memory + worldInfo
   // WIRED 2026-07-25 (Phase B ①/②, the settings-section contribution seam: features/chat's
-  // memory-settings-section writes section:"memory"; features/world-info's world-info-settings-surface
+  // memory-settings-section writes section:"memory"; features/world-info's world-info-settings-section
   // writes section:"worldInfo") — entries pruned. workloads WIRED 2026-07-26 (Phase B ⑤: features/workloads'
   // workloads-tuning-section writes section:"workloads" — dupThreshold/computeThemesK/maxPairs/hubFraction).
   "B:profile":

@@ -3,11 +3,22 @@
 // this adds: (1) CO-LOCATION — a `SettingsPaneDefinition` lives only in `features/*/lib/*-pane.{ts,tsx}`;
 // (2) DUPLICATE ID — two co-located defs declaring the same `id` (a shadow def rots green while edits
 //     land in the dead twin; the door assembly silently picks one name);
-// (3) the PLACEHOLDER-honesty discipline — a real function `body` that renders the teaching placeholder
+// (3) the PLACEHOLDER-honesty discipline — a `surface` body whose `render` mounts the teaching placeholder
 //     component is dishonest (mirrors `modal-body-not-placeholder`'s `<SectionPlaceholder>` check; the
 //     settings twin uses the fixed `placeholder: true` flag, no reason string);
 // (4) the HOST-IMPORTS-NO-PANE-BODY arm — the settings host (`settings-shell-surface.tsx`) importing any
-//     `*-settings-surface` body directly instead of reading it off the registry.
+//     `*-settings-surface` body directly instead of reading it off the registry;
+// (5) the SKIMMER-PURITY arm (SET-SEAMS §5.3, sealed at stage 6) — a `{ kind: "sections" }` pane that also
+//     declares its own `subcategories`. A skimmer has no nav of its own: nav DERIVES from the sections
+//     contributed at its anchor, so a surviving subcategory list is the old map left beside the new — it
+//     paints nav rows for sections nothing renders (a jump that scrolls to nothing) and it is exactly the
+//     half-migration the seal bans.
+//
+// Arms 3 and 5 both key on the §5.3 `body` UNION (`{kind:"sections"} | {kind:"surface",render} |
+// {placeholder:true}`). Before SET-SEAMS stage 0, `body` was a bare render function and arm 3 keyed on an
+// arrow/function initializer — a shape that stopped type-checking the day the union landed, so the arm was
+// matching nothing until this reconciliation (the `gate-scanroot-vs-getfilepath` class, on a type instead
+// of a path).
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue } from "../ast-read.ts";
@@ -53,15 +64,35 @@ function rendersPlaceholder(node: Node): boolean {
   return false;
 }
 
-/** A real function `body` (not the `{ placeholder: true }` arm) whose render tree mounts the teaching
- *  placeholder — the dishonest inverse: a category flagged as real that actually renders the generic
- *  empty-state copy. */
-function functionBodyRendersPlaceholder(pane: ObjectLiteralExpression): boolean {
+/** The `body` object literal of a pane def (the §5.3 union), or undefined when it isn't one. */
+function bodyLiteral(pane: ObjectLiteralExpression): ObjectLiteralExpression | undefined {
   const body = objProp(pane, "body");
-  if (body === undefined || !(Node.isArrowFunction(body) || Node.isFunctionExpression(body))) {
+  return body !== undefined && Node.isObjectLiteralExpression(body) ? body : undefined;
+}
+
+/** The `body`'s discriminant (`"sections"` / `"surface"`), or undefined for the `{placeholder:true}` arm. */
+function bodyKind(pane: ObjectLiteralExpression): string | undefined {
+  const body = bodyLiteral(pane);
+  const kind = body === undefined ? undefined : objProp(body, "kind");
+  return kind === undefined ? undefined : readStringValue(kind);
+}
+
+/** A `surface` body whose `render` mounts the teaching placeholder — the dishonest inverse: a category
+ *  flagged as real that actually renders the generic empty-state copy. */
+function surfaceBodyRendersPlaceholder(pane: ObjectLiteralExpression): boolean {
+  const body = bodyLiteral(pane);
+  const render = body === undefined ? undefined : objProp(body, "render");
+  return render !== undefined && rendersPlaceholder(render);
+}
+
+/** A `sections` SKIMMER that still declares its own non-empty `subcategories` — the old nav map left beside
+ *  the contributed one (SET-SEAMS §5.3). An absent or empty list is the honest skimmer shape. */
+function skimmerKeepsOwnSubcategories(pane: ObjectLiteralExpression): boolean {
+  if (bodyKind(pane) !== "sections") {
     return false;
   }
-  return rendersPlaceholder(body);
+  const subs = objProp(pane, "subcategories");
+  return subs !== undefined && Node.isArrayLiteralExpression(subs) && subs.getElements().length > 0;
 }
 
 type Seen = { readonly name: string; readonly file: string };
@@ -93,11 +124,18 @@ function checkPaneDef(def: PaneDef, out: Violation[], seenIds: Map<string, Seen>
       message: `SettingsPaneDefinition "${def.name}" declares id "${id}", already claimed by "${idOwner.name}" (${idOwner.file}) — two definitions for one id is a shadow def that rots green — client-architecture-lockdown.md §16 G4.`,
     });
   }
-  if (functionBodyRendersPlaceholder(def.init)) {
+  if (surfaceBodyRendersPlaceholder(def.init)) {
     out.push({
       file: rel(def.path),
       line: def.line,
-      message: `SettingsPaneDefinition "${def.name}" has a real function \`body\` that renders the teaching placeholder — flag it \`body: { placeholder: true }\` instead of a silent placeholder fall-through — client-architecture-lockdown.md §8.`,
+      message: `SettingsPaneDefinition "${def.name}" has a \`surface\` body whose \`render\` mounts the teaching placeholder — flag it \`body: { placeholder: true }\` instead of a silent placeholder fall-through — client-architecture-lockdown.md §8.`,
+    });
+  }
+  if (skimmerKeepsOwnSubcategories(def.init)) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `SettingsPaneDefinition "${def.name}" is a \`{ kind: "sections" }\` skimmer that still declares its own \`subcategories\` — a skimmer's nav DERIVES from the sections contributed at its anchor, so the list is the old map left beside the new and paints rows nothing renders. Delete it and move each entry to its section's \`nav\` — docs/design/set-seams-spec.md §5.3 (stage 6).`,
     });
   }
 }
@@ -149,8 +187,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a settings pane is dishonest: a SettingsPaneDefinition not co-located in a feature pane file, a duplicate id, a real body silently rendering the placeholder, or the settings host importing a pane body directly instead of reading the registry — client-architecture-lockdown.md §8.",
-  fix: "co-locate the definition under features/*/lib/*-pane.{ts,tsx}; flag an unbuilt pane `body: { placeholder: true }` rather than rendering the teaching copy from a real body; read `useSettingsPaneRegistry().get(active).body()` in the host instead of importing a surface.",
+    "a settings pane is dishonest: a SettingsPaneDefinition not co-located in a feature pane file, a duplicate id, a `surface` body silently rendering the placeholder, a `sections` skimmer keeping its own subcategories, or the settings host importing a pane body directly instead of reading the registry — client-architecture-lockdown.md §8 / SET-SEAMS §5.3.",
+  fix: "co-locate the definition under features/*/lib/*-pane.{ts,tsx}; flag an unbuilt pane `body: { placeholder: true }` rather than rendering the teaching copy from a `surface` render; delete a skimmer's own `subcategories` (its nav derives from the sections contributed at its anchor); read the pane body off `useSettingsPaneRegistry()` in the host instead of importing a surface.",
   run: (ctx) => {
     const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
@@ -192,10 +230,17 @@ export const gate: GateDescriptor = {
       why: "duplicate ids written `'dup' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED before hardening",
     },
     {
-      files: 'export const xPane: SettingsPaneDefinition = { id: \'x\', body: () => <SettingsPanePlaceholder title="X" description="d" /> };\n',
+      files:
+        'export const xPane: SettingsPaneDefinition = { id: \'x\', body: { kind: "surface", render: () => <SettingsPanePlaceholder title="X" description="d" /> } };\n',
       at: "packages/client/src/features/x/lib/x-pane.tsx",
       expect: { messageIncludes: "teaching placeholder" },
-      why: "a real function `body` silently rendering the generic placeholder instead of `{ placeholder: true }` — the placeholder-honesty arm",
+      why: "a `surface` body silently rendering the generic placeholder instead of `{ placeholder: true }` — the placeholder-honesty arm, on the §5.3 union shape (the pre-stage-0 function `body` it used to key on no longer type-checks)",
+    },
+    {
+      files: 'export const xPane: SettingsPaneDefinition = { id: \'x\', subcategories: [{ id: "a", label: "A" }], body: { kind: "sections" } };\n',
+      at: "packages/client/src/features/x/lib/x-pane.tsx",
+      expect: { messageIncludes: "old map left beside the new" },
+      why: "a `sections` skimmer that kept its own subcategory list — the SET-SEAMS stage-6 skimmer-purity arm",
     },
     {
       files: 'import { XSettingsSurface } from "./x-settings-surface";\nexport const G = XSettingsSurface;\n',
@@ -206,14 +251,20 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
-      files: "export const themePane: SettingsPaneDefinition = { id: 'theme', group: \"user\", body: () => <ThemeSurface /> };\n",
-      at: "packages/client/src/features/x/lib/theme-pane.tsx",
-      why: "a FULL co-located pane (function body) — passes",
+      files:
+        'export const tagsPane: SettingsPaneDefinition = { id: \'tags\', group: "user", subcategories: [{ id: "tags", label: "Tags" }], body: { kind: "surface", render: () => <TagsSettingsSurface /> } };\n',
+      at: "packages/client/src/features/x/lib/tags-pane.tsx",
+      why: "a co-located `surface` pane rendering its own surface, with its OWN subcategories — the subcategory ban is the SKIMMER's, not the surface's (a surface pane owns the nav for what it renders itself) — passes",
+    },
+    {
+      files: "export const skimmerPane: SettingsPaneDefinition = { id: 'appearance', body: { kind: \"sections\" } };\n",
+      at: "packages/client/src/features/x/lib/appearance-pane.tsx",
+      why: "a pure SKIMMER — no own body, no own subcategories; its nav derives from the contributions at its anchor — passes",
     },
     {
       files: "export const draftPane: SettingsPaneDefinition = { id: 'draft', body: { placeholder: true } };\n",
       at: "packages/client/src/features/x/lib/draft-pane.tsx",
-      why: "a DECLARED-PLACEHOLDER pane — flagged honestly, no function body — passes",
+      why: "a DECLARED-PLACEHOLDER pane — flagged honestly, no render — passes",
     },
   ],
 };

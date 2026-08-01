@@ -89,7 +89,8 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     const entry = await h.svc.addExternalBackground({ principal: p, url: "https://cdn.example/wallpaper.png" });
 
     // 2. The client appends the entry to its appearance object and picks the `asset` kind, then autosaves
-    //    the WHOLE appearance — exactly the appearance-settings-surface save payload.
+    //    the WHOLE appearance. That was the pre-SET-SEAMS pane payload; the live client now sends the
+    //    background SECTION's key-minimal patch, so this stands as the WIDEST-echo stress case.
     const clientAppearance = {
       ...DEFAULT_APPEARANCE_SETTINGS,
       backgroundImageKind: "asset" as const,

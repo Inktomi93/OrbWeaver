@@ -1,6 +1,7 @@
 // The Backup & Restore settings pane (client-architecture-lockdown.md §8) — co-located
-// SettingsPaneDefinition wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the
-// workloads+portability-owned move is M6.2, per O3 — "backup has no feature").
+// SettingsPaneDefinition wrapping the feature's own surface. Owned by features/workloads — the M6.2
+// de-god move LANDED (O3 as ratified: import/export is the workloads engine's, "backup has no feature" of
+// its own); `surface` mode because this pane is an import/export screen, not a knob stack.
 
 import { Archive } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
