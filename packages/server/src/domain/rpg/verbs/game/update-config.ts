@@ -96,10 +96,11 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     dateMode: patch?.dateMode ?? current.dateMode,
     // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
     features: mergeFeatures(patch, current.features),
-    // Not a write-door field, but carried through verbatim so a config write never resets game macros to
-    // the schema default `[]` (the same silent-reset trap the features merge guards — MU landed userMacros
-    // but no write door names them, so `parse` would drop them without this).
-    userMacros: current.userMacros,
+    // The GAME's authored user macros (MU §12A.5 / owner ruling #20's game half) — whole-list replace on a
+    // passed array, keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]: without the
+    // keep, an unrelated config edit would reset them to the schema default `[]`). The turn registers these
+    // beside the preset's, the game winning a name clash.
+    userMacros: patch?.userMacros !== undefined ? [...patch.userMacros] : current.userMacros,
   };
 }
 

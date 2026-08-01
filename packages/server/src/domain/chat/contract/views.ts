@@ -29,7 +29,7 @@ import type { ChoiceBlockSpec, UserMacroValues } from "@orb/contracts/preset";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
-import type { UserMacroInputDef } from "@orb/kit/macro";
+import type { MacroSourceRef, UserMacroInputDef } from "@orb/kit/macro";
 
 export type {
   AssembledPrompt,
@@ -226,6 +226,12 @@ interface UserMacroPickDef {
   readonly name: string;
   readonly description: string;
   readonly inputs: readonly UserMacroInputDef[];
+  /** WHICH authoring home declared it (owner ruling #20's two homes) — `preset` = the chat's active preset,
+   *  `game` = this chat's rpg game config. Derived from kit's own `MacroSourceRef.kind` (never a re-spelled
+   *  union). The pane glosses a `game` macro so a picker can tell why a knob appeared with the game and will
+   *  vanish with it; on a name clash the GAME def is the one projected (it is the one the turn resolves —
+   *  `shadowPresetUserMacros`). */
+  readonly source: MacroSourceRef["kind"];
 }
 
 /** The MU picks pane read (`getUserMacroPicks`, #24) — the chat's pickable user-macro declarations (the

@@ -899,8 +899,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     );
     // The same minimal-stub precedent as the deception-replay test below (which fabricates only
     // `resolveReasoningHostOnly`).
-    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path calls ONLY `gatherTurnContext`.
-    const rpg = { gatherTurnContext } as unknown as NonNullable<ChatContext["rpg"]>;
+    // The preview path calls ONLY `gatherTurnContext` + the game-macro declaration read
+    // (`resolveUserMacros`, WAVE MU's second definition home).
+    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only these two ops.
+    const rpg = { gatherTurnContext, resolveUserMacros: () => Promise.resolve([]) } as unknown as NonNullable<ChatContext["rpg"]>;
     const ctx = makeChatContext(db, { rpg });
 
     const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });

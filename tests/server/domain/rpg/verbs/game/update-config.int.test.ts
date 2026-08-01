@@ -1,6 +1,7 @@
 // verbs/game/update-config — updateConfig (rpg-design/05 §4.4, §6.2). The knob defaults + the profile
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
 
+import { userMacroSchema } from "@orb/contracts/preset";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
@@ -41,6 +42,30 @@ describe("updateConfig — knobs + profile mutability", () => {
     // so an unrelated `steeringNote` write that dropped `trackers` would silently delete every def.
     await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "x" } });
     expect((await findGameByChat(db, chatId))?.config.trackers).toHaveLength(2);
+  });
+
+  test("WAVE MU: the GAME's user macros write through this door, whole-list replace + keep-on-omit", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual([]); // born empty (the schema default)
+
+    const userMacros = [
+      userMacroSchema.parse({
+        name: "mood",
+        description: "the game's scene tone",
+        body: "The tone is {{tone}}.",
+        inputs: [{ kind: "single-select", name: "tone", label: "Tone", options: [{ label: "Doomed", value: "doomed" }], defaultValue: "doomed" }],
+      }),
+    ];
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { userMacros } });
+    expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual(userMacros);
+
+    // Keep-on-omit — the [versioned-config-lift-drops-overrides] trap: an unrelated edit must not wipe them.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "z" } });
+    expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual(userMacros);
+
+    // A passed array REPLACES the whole set (the `trackers` semantics) — including back to none.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { userMacros: [] } });
+    expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual([]);
   });
 
   test("R4c: the custom-journal-type hints are keep-on-omit like every sibling knob", async () => {

@@ -11,7 +11,7 @@
 import type { AssembleContext, ChatBusEvent, ChatInjection, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { GenerationType, GuidedImpersonatePerson, UserMacroValues } from "@orb/contracts/preset";
+import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
@@ -330,17 +330,39 @@ const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
  *  Arm A (owner ruling): user-macro input VALUES live in a per-chat SIBLING typed column
  *  (`chats.user_macro_values`, read via `loadStoredUserMacroValues`) — NOT the flat `chats.variableValues`
  *  (which can't hold the nested-typed `UserMacroValues`). Absent picks ⇒ `{}` ⇒ the defaults posture
- *  (unpicked inputs → per-kind defaults; random-pick pool → ALL options). */
+ *  (unpicked inputs → per-kind defaults; random-pick pool → ALL options).
+ *
+ *  TWO DEF HOMES: the resolved preset's macros AND the game's (`ChatRpgOps.resolveUserMacros` — the injected
+ *  op, never a sideways rpg import). The game shadows the preset on a name clash; the builder owns that
+ *  ruled policy (see `assembly/user-macros.ts`). */
+/** The turn's user-macro INPUT sides, both reads in one place (kept out of `buildTurnContext`'s
+ *  cognitive-complexity budget): the GAME's declared defs (the second definition home — the injected rpg op,
+ *  `[]` for a non-game/unwired chat) and the per-chat picks bag. The picks read is SKIPPED entirely when
+ *  neither home declares a macro — no wasted row read on the overwhelming majority of turns. */
+async function loadTurnUserMacroInputs(
+  ctx: ChatContext,
+  chatId: ChatId,
+  presetDefs: readonly UserMacroSpec[],
+): Promise<{ readonly gameDefs: readonly UserMacroSpec[]; readonly values: UserMacroValues }> {
+  const gameDefs = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
+  if (presetDefs.length === 0 && gameDefs.length === 0) {
+    return { gameDefs, values: {} };
+  }
+  return { gameDefs, values: await loadStoredUserMacroValues(ctx.db, chatId) };
+}
+
 function buildTurnUserMacrosForTurn(args: {
   readonly chatId: ChatId;
   readonly foreign: ForeignInputs;
   readonly prng: () => number;
   readonly values: UserMacroValues;
+  readonly gameDefs: readonly UserMacroSpec[];
   readonly frozenUserMacroDraws: UserMacroDraws | undefined;
 }): TurnUserMacros | null {
   const userMacros = buildTurnUserMacros({
-    defs: args.foreign.promptConfig.userMacros,
-    sourceId: args.foreign.presetId ?? "default",
+    preset: { id: args.foreign.presetId ?? "default", defs: args.foreign.promptConfig.userMacros },
+    // The game group's `MacroSourceRef.id` is the game's CHAT id (kit stays below the branded-id homes).
+    ...(args.gameDefs.length > 0 ? { game: { id: args.chatId, defs: args.gameDefs } } : {}),
     values: args.values,
     ...(args.frozenUserMacroDraws !== undefined ? { frozenDraws: args.frozenUserMacroDraws } : {}),
     prng: args.prng,
@@ -490,12 +512,13 @@ async function buildTurnContext(
   // seam falls back to the process singletons (byte-identical); the registries ride `TurnPrep` (closures),
   // NEVER the serializable `assembleContext`. The INPUT picks come from the per-chat sibling store
   // (`chats.user_macro_values`); read ONLY when macros are authored (no wasted read on a non-user-macro turn).
-  const userMacroValues = foreign.promptConfig.userMacros.length > 0 ? await loadStoredUserMacroValues(ctx.db, args.chatId) : {};
+  const userMacroInputs = await loadTurnUserMacroInputs(ctx, args.chatId, foreign.promptConfig.userMacros);
   const userMacros = buildTurnUserMacrosForTurn({
     chatId: args.chatId,
     foreign,
     prng: deps.prng,
-    values: userMacroValues,
+    values: userMacroInputs.values,
+    gameDefs: userMacroInputs.gameDefs,
     frozenUserMacroDraws: args.frozenUserMacroDraws,
   });
   // The gather sink: the caller's SEND sink when present (so `sendUserText` still surfaces), else a private
