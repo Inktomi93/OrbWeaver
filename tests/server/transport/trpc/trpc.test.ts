@@ -158,8 +158,14 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
   };
 }
 
-// The full multi-human surface list at transport today — the notifications CRUD trio + the notifications
-// subscription + the invites/membership router (FINAL-Auth-Modes §7 P1 — the PD-106 burn-down).
+// The full multi-human surface list at transport today — the notifications CRUD trio + the
+// invites/membership router (FINAL-Auth-Modes §7 P1 — the PD-106 burn-down).
+//
+// The inbox STREAM is no longer on this list, and its belt did not weaken: at SSE-1 S3 it folded into the
+// multiplexed socket, so the belt moved off `multiHumanProcedure` onto the `notifications` room's
+// `authorizeAttach` (the socket itself must stay `authedProcedure` — a single-user deployment still needs its
+// user/chat/rpg rooms). Both arms of the same refusal are pinned where the verdict now lives:
+// tests/server/transport/trpc/stream/sources/notifications.test.ts.
 const beltSurfaces: readonly BeltSurface[] = [
   inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} })),
   inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" })),
@@ -186,18 +192,6 @@ const beltSurfaces: readonly BeltSurface[] = [
       return { services: { notifications: { dismiss } }, presence: inertPresence, probe: dismiss };
     },
     drive: (ctx) => caller(ctx).notifications.dismiss({ notificationId }),
-  },
-  {
-    path: "notifications.notifications (subscription)",
-    make: () => {
-      const connect = vi.fn<PresenceRegistry["connect"]>();
-      return { services: {}, presence: { connect, read: inertPresence.read }, probe: connect };
-    },
-    drive: async (ctx) => {
-      // A first subscribe (no lastEventId) attaches straight to the live bus; tear it down immediately.
-      const sub = await caller(ctx).notifications.notifications({});
-      await sub[Symbol.asyncIterator]().return?.(undefined);
-    },
   },
 ];
 
