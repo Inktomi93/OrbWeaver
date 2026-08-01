@@ -1,10 +1,11 @@
 // domain/workloads/persistence/queries — all `workloads`-table access. Claim is idempotent (status-guarded
 // UPDATE; a race loser updates 0 rows). The state machine is linear (terminal transitions are status-guarded
 // and report whether they moved the row — no terminal→terminal). `nextRunnableWorkload` is LANE-SCOPED (one
-// poll loop per execution lane, so a long sweep never head-blocks an interactive row), tolerates poison rows
-// (unrecognized kind OR unparseable params → failed in place, never starves the queue) and enforces DAG
-// dependsOn ordering (a dep still active → skip; any non-success terminal or absent dep → fail with
-// `dependency_failed`).
+// poll loop per execution lane, so a long sweep never head-blocks an interactive row), enforces the
+// `scheduledAt` DEFERRAL gate (a future-dated "Run at" row is not even in the head window until its instant),
+// tolerates poison rows (unrecognized kind OR unparseable params → failed in place, never starves the queue)
+// and enforces DAG dependsOn ordering (a dep still active → skip; any non-success terminal or absent dep →
+// fail with `dependency_failed`).
 //
 // The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `toView` surfaces an
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
@@ -16,7 +17,7 @@ import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, lte } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution";
 import type { CancelWorkloadResult } from "../contract/params";
@@ -288,16 +289,21 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   });
 }
 
-/** The next runnable row IN ONE LANE, or `null`. Windows that lane's queue head and returns the first
+/** The next runnable row IN ONE LANE, or `null`. Windows that lane's DUE queue head and returns the first
  *  dispatchable row: a poison row (unknown kind, or params that no longer parse — it has nothing runnable to
  *  run) is failed in place (never thrown, to avoid starving the queue on the same head row); a row whose
  *  `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. The lane predicate is what keeps a
- *  20-minute sweep from head-blocking an interactive row — each lane's loop sees only its own queue. */
+ *  20-minute sweep from head-blocking an interactive row — each lane's loop sees only its own queue.
+ *
+ *  `scheduledAt <= now` is the DEFERRAL gate — the "Run at" affordance the client ships, enforced at the one
+ *  dispatch door. It is a WHERE, not a skip, so a deferred row never occupies a slot of the head window:
+ *  a row scheduled for tomorrow cannot starve a row queued (and due) a minute from now. The column is NOT
+ *  NULL (it defaults to the enqueue instant), so "no deferral" is `scheduledAt === createdAt`, never null. */
 export async function nextRunnableWorkload(db: Db, contributions: WorkloadContributions, now: number, lane: WorkloadLane): Promise<WorkloadRunnableRow | null> {
   const head = await db
     .select()
     .from(workloads)
-    .where(and(eq(workloads.status, "queued"), eq(workloads.lane, lane)))
+    .where(and(eq(workloads.status, "queued"), eq(workloads.lane, lane), lte(workloads.scheduledAt, now)))
     .orderBy(asc(workloads.scheduledAt), asc(workloads.createdAt))
     .limit(QUEUE_HEAD_WINDOW);
   for (const row of head) {
