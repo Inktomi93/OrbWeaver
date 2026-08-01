@@ -1,7 +1,6 @@
 // One game-tab body wrapper (Context-Panel-Program §4.4) — resolves the takeover panel state (suspending on
-// the rpg reads) and renders the tab's content. The scene banner + orbs are NOT here (W3c): they ride the
-// `.shell-panel-header` BAND slot above both strips via the header-contributor seam (`RpgHeaderBand`), so a
-// game tab body carries ONLY its own content. Homed as its own component module because it calls a hook
+// the rpg reads) and renders the tab's content. The scene banner + orbs are NOT here: they ride the HUD's
+// OWN band above the rails (`rpg-hud.tsx` → `RpgHeaderBand`), so a game tab body carries ONLY its content. Homed as its own component module because it calls a hook
 // (`useRpgContextState`) and must therefore BE a component (rules-of-hooks) — the contribution `lib/` module
 // stays a components-free data file (useComponentExportOnlyModules). Takes the active chat id (the
 // contributor's `when` already gated game-ness cache-first); the hook re-reads getChat + the rpg views

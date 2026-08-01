@@ -7,12 +7,17 @@
 // resolved `tabs` + `actions`); `SectionContextHeader` renders the `.shell-panel-header` BAND identity
 // (the resolved `header` slot — north-star §4 N4 / P4). They mount in different shell regions (band vs
 // body), so each calls `useResolved` for its own slice.
+//
+// A CLAIMED pane (HUD-1 §3.1) routes the body to `ContextRegionHost` and the band to NOTHING — one
+// contributor owns the whole pane. Both halves read the SAME `resolved.region`, so the two mount points
+// cannot disagree about whether a claim is active.
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
+import { ContextRegionHost } from "./context-region-host";
 import { ContextTabsPanel } from "./context-tabs-panel";
 import { SectionPlaceholder } from "./section-placeholder";
 
@@ -68,11 +73,22 @@ function ResolvedTabsHost({ useResolved }: ResolvedTabsHostProps): ReactElement 
   if (resolved === null || resolved.tabs.length === 0) {
     return CONTEXT_PLACEHOLDER;
   }
+  // A CLAIMED pane (HUD-1 §3.1): the claimant composes the whole thing from the same resolved tabs +
+  // selection the generic panel would have rendered. Unclaimed ⇒ the generic panel, byte-identical.
+  if (resolved.region !== undefined) {
+    return <ContextRegionHost region={resolved.region} tabs={resolved.tabs} actions={resolved.actions} />;
+  }
   return <ContextTabsPanel tabs={resolved.tabs} actions={resolved.actions} />;
 }
 
 function ResolvedHeaderHost({ useResolved }: ResolvedTabsHostProps): ReactNode {
   const resolved = useResolved();
+  // A claimed pane owns its own top edge — the band renders NOTHING (the claimant paints the 2px ember
+  // content↔context binding itself). Rendering null here is what makes `.shell-panel-header` empty, which
+  // shell.css collapses; the LIST band and an UNCLAIMED context band keep the D66 A1 shared horizon.
+  if (resolved !== null && resolved.region !== undefined) {
+    return null;
+  }
   if (resolved === null || resolved.header === undefined || resolved.header === null) {
     return CONTEXT_HEADER_DEFAULT;
   }
