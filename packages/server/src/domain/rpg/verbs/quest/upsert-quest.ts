@@ -4,6 +4,7 @@
 // lock path `quests.<id>`. Host-gated (shared plane).
 
 import type { RpgQuest } from "@orb/contracts/rpg";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { UpsertQuestParams } from "../../contract/params";
 import type { RpgContext, RpgService } from "../../contract/service";
@@ -32,7 +33,13 @@ export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQues
     };
     const quests = existing ? state.quests.map((q) => (q.id === questId ? next : q)) : [...state.quests, next];
 
-    const snapshotId = await applyHandEdit(ctx, game, { quests }, { lock: [`quests.${questId}`] });
+    const written = await applyHandEdit(ctx, game, { quests }, { lock: [`quests.${questId}`] });
+    if (!written.ok) {
+      // The F1 write-boundary backstop refused. This verb's own patch is schema-shaped, so the only route here
+      // is a base snapshot that is already contract-invalid — surface it (no-swallow), never a silent no-op.
+      throw new DomainOperationError("rpg_snapshot_state_invalid", written.reason);
+    }
+    const snapshotId = written.snapshotId;
 
     // The quest plane rides the snapshot, so a hand quest write is a snapshot write: the whole panel re-resolves
     // (`snapshotPatched`) AND the quests-only surface scopes (`questChanged`) — the two distinct signals (§4.9).

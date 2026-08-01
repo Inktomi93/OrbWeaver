@@ -69,7 +69,7 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params";
-import type { CreateGameResult, RollDiceResult } from "./results";
+import type { CreateGameResult, EditSnapshotResult, RollDiceResult } from "./results";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;
@@ -540,6 +540,14 @@ export interface HandEditLocks {
   readonly clear?: readonly string[];
 }
 
+/** The outcome of a hand edit (`applyHandEdit`), carrying the SAME F1 write-boundary backstop the model write
+ *  path carries ({@link WriteStagedSnapshotResult}): the merged state is validated against
+ *  `rpgSnapshotStateSchema` BEFORE any durable write, so a hand patch can no more poison canon than an applier
+ *  bug can (`{location: null}` — a clear on a NON-nullable leaf — is the reachable case). `ok:false` carries the
+ *  schema failure so the refusal is legible to the human who typed it; nothing is written and no slot is minted
+ *  (the validation precedes `postNarratorMessage`, or a refused edit would leave a blank anchor behind). */
+export type HandEditResult = { readonly ok: true; readonly snapshotId: RpgSnapshotId } | { readonly ok: false; readonly reason: string };
+
 // ── the verb surface (§4.4) ─────────────────────────────────────────────────────────────────────────────
 
 /** The rpg service — the lite verb surface (§4.4). Authority resolves through `ctx.getMembership`: host-gated
@@ -557,8 +565,10 @@ export interface RpgService {
   /** Host any; a member their own `user` ref. MA-4 sheet patch (attribute keys validated ∈ profile + range). */
   readonly patchSheet: (params: PatchSheetParams) => Promise<void>;
   /** Host any field; a member their own actor's volatile. Writes volatile state on the current resolved
-   *  snapshot (clone-forward), auto-locking touched fields. */
-  readonly editSnapshot: (params: EditSnapshotParams) => Promise<void>;
+   *  snapshot (clone-forward), auto-locking touched fields. Returns the ERRORS-AS-DATA verdict: an unknown
+   *  plane or a value the write-boundary parse refuses comes back as `{ok:false, reason}` — never a silent
+   *  no-op, never a wire reject (`contracts/rpg/inputs.ts`). */
+  readonly editSnapshot: (params: EditSnapshotParams) => Promise<EditSnapshotResult>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
   readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;

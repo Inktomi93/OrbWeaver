@@ -805,8 +805,15 @@ export function patchSheet(
  *  the delta shows the GM tweak next turn (§2.7). The spec drives every plane through here: ambient
  *  (location/date/clock/weather), presentCharacters (cast + mood + relationship), actorState
  *  (hp/trackerValues/wallet/inventory/conditions/status), recentEvents, trackerValues, plot. */
-export function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
-  return trpcMutation("rpg.editSnapshot", { chatId, patch });
+export async function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
+  const result = await trpcMutation("rpg.editSnapshot", { chatId, patch });
+  // The verb answers with an ERRORS-AS-DATA verdict (an unknown plane / a value the write boundary refuses),
+  // never a wire reject — so a spec that only awaited the call would drive a whole scene onto writes that
+  // never landed. The live lane fails LOUD instead.
+  if (typeof result === "object" && result !== null && "ok" in result && result.ok === false) {
+    throw new Error(`rpg.editSnapshot refused: ${"reason" in result ? String(result.reason) : "no reason given"}`);
+  }
+  return result;
 }
 
 /** Upsert a quest (`rpg.upsertQuest` — HOST-only). `questId` absent ⇒ create. The quest-plane HAND door. */
