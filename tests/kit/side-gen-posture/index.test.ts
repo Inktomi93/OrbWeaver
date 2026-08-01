@@ -1,6 +1,7 @@
-// @orb/kit/side-gen-posture — the pure side-gen sampling resolver. Pins the ladder fold: right-to-left
-// (floor ← preset params ← per-action override), absent-skips at every rung, and the empty-floor honesty
-// (an all-absent result is `{}`, never `undefined`-valued keys — the backend default stands).
+// @orb/kit/side-gen-posture — the pure side-gen sampling resolver. Pins the TWO-rung ladder fold:
+// right-to-left (floor ← preset params — the per-template override rung was deleted, owner ruling
+// 2026-08-01), absent-skips at both rungs, and the empty-floor honesty (an all-absent result is `{}`,
+// never `undefined`-valued keys — the backend default stands).
 
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { expect, test } from "../../support/fixtures";
@@ -15,15 +16,16 @@ test("preset params override the floor per-knob; an absent preset knob defers to
   expect(out).toEqual({ temperature: 0.9, maxOutputTokens: 24 });
 });
 
-test("per-action override is the TOP rung — it beats both the preset params and the floor", () => {
-  const out = resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 }, { temperature: 0.9, maxOutputTokens: 100 }, { temperature: 1.5 });
-  // temperature from the action override (1.5); maxOutputTokens from the preset (100, no action override for it).
-  expect(out).toEqual({ temperature: 1.5, maxOutputTokens: 100 });
+test("the preset params are the TOP rung — nothing outranks them (no per-template override exists)", () => {
+  const out = resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 }, { temperature: 0.9, maxOutputTokens: 100 });
+  expect(out).toEqual({ temperature: 0.9, maxOutputTokens: 100 });
+  // The signature carries exactly two rungs — a third argument no longer exists to smuggle an override in.
+  expect(resolveSideGenSampling).toHaveLength(2);
 });
 
-test("topP folds the same way and is carried through when present at any rung", () => {
+test("topP folds the same way and is carried through when present at either rung", () => {
   expect(resolveSideGenSampling({}, { topP: 0.8 })).toEqual({ topP: 0.8 });
-  expect(resolveSideGenSampling({ topP: 0.5 }, undefined, { topP: 0.95 })).toEqual({ topP: 0.95 });
+  expect(resolveSideGenSampling({ topP: 0.5 }, undefined)).toEqual({ topP: 0.5 });
 });
 
 test("empty floor + no rungs ⇒ {} (the caption case — the backend default stands, never undefined-valued keys)", () => {
@@ -37,7 +39,7 @@ test("empty floor + preset params reaches the call (the caption ladder — user 
 });
 
 test("a knob absent at EVERY rung is OMITTED from the result (never emitted as undefined)", () => {
-  const out = resolveSideGenSampling({ temperature: 0.3 }, {}, {});
+  const out = resolveSideGenSampling({ temperature: 0.3 }, {});
   expect(out).toEqual({ temperature: 0.3 });
   expect("maxOutputTokens" in out).toBe(false);
   expect("topP" in out).toBe(false);
