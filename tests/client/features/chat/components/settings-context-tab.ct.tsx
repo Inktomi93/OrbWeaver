@@ -156,7 +156,9 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
-  await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveCount(0);
+  // Role-agnostic on purpose: an ABSENCE assertion keyed to `spinbutton` would go blind the day the control
+  // becomes an @orb/ui NumberField (Base UI renders those as a TEXTBOX, never a spinbutton).
+  await expect(component.getByLabel("Tool rounds per turn")).toHaveCount(0);
 });
 
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
