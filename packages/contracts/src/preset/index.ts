@@ -315,8 +315,14 @@ export const guidedActionConfigSchema = z.object({
   /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone. */
   prompt: z.string(),
   /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
-   *  prompt, `user`/`assistant` push as an in-chat depth-0 injection. */
+   *  prompt, `user`/`assistant` push as an in-chat injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
+  /** In-chat delivery DEPTH for a `user`/`assistant` role: 0 = the tail (with `assistant` that IS the
+   *  prefill-shaped position — prefill is a POSITION, not a role), N = N turns back. ABSENT (never
+   *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
+   *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
+   *  role: that steer rides the `guided_instruction` marker inside the system block, which has no depth. */
+  depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
 export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
 
@@ -655,7 +661,208 @@ export const DEFAULT_FORMAT_STRINGS = {
   impersonateNudge: PRESET_PROSE_SLOTS["preset.format.impersonateNudge"].text,
   responseNudge: PRESET_PROSE_SLOTS["preset.format.responseNudge"].text,
   wiFormat: PRESET_PROSE_SLOTS["preset.format.wiFormat"].text,
+  /** The history-START boundary (ST `new_chat_prompt`/`new_group_chat_prompt` — ONE key covers both; we have
+   *  no chat/group split). BLANK by design, which is exactly today's behavior: the assembler emits nothing
+   *  until a preset sets it (`assembly/context.ts` newChatMarkerCandidate). Spelled here rather than read
+   *  from a PROSE-1 slot precisely BECAUSE it is blank — a slot is authored bytes (no slot may ship empty
+   *  text), and "no boundary marker" is a product behavior, not a sentence someone wrote. */
+  newChatMarker: "",
 } as const;
+
+/** The editable/importable format-string vocabulary, DERIVED from the one literal above (never re-spelled —
+ *  the `knob-wire-coverage` arm-E reader and the ST import mapper both key off that literal). */
+export type FormatStringKey = keyof typeof DEFAULT_FORMAT_STRINGS;
+
+/** One format string whose token IS its payload slot. */
+interface FormatCarrierToken {
+  readonly key: FormatStringKey;
+  /** The macro the value MUST keep: it is where the wrapped content lands. */
+  readonly token: string;
+}
+
+/** CARRIER tokens — the write-boundary guard's whole enumeration (owner ruling 2026-08-02: "format strings
+ *  must not silently break"). A carrier format string WRAPS content, so a non-empty value that drops its
+ *  token renders the wrapper with the content GONE (`wrapWiFormat` skips the wrap entirely and the author's
+ *  framing silently never ships). That write is REFUSED with a message naming the token — never accepted and
+ *  quietly ignored. Blank/absent stays legal: blank means "the shipped default rides", the storage semantic
+ *  everywhere in this schema.
+ *
+ *  DELIBERATELY DISTINCT from PROSE-1's `requiredMacros` (`contracts/prose-slot`: "a lint in the editor —
+ *  never a block"). Those are voice guidance whose absence weakens prose (the identity macros in the
+ *  impersonate nudge); these are carriers whose absence DELETES content. Same reason the guided templates'
+ *  missing-`{{input}}` check stays a display lint (`guidedFooterState`) and is not enumerated here — an
+ *  empty steer template legitimately means "the steer lands on its own, unwrapped".
+ *
+ *  A new carrier = one row here; the refine below reads nothing else. */
+const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] as const satisfies readonly FormatCarrierToken[];
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE TEMPLATE DEFINITION REGISTRY (preset-surface-redesign §6.6) — the Actions view's ONE data source.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Registry-as-data (the REWRITE_TOGGLES / GREETING_TRANSFORMS precedent — contracts owns the shape+data both
+// the client rows and any server consumer need). The Actions view DERIVES groups, rows, kind badges and
+// drill-in FIELDS from this table: a new template is one enum member + one row here (the D117
+// registration-cost shape), never a new editor. The client's old `GUIDED_ACTION_COPY` map is retired INTO
+// `label`/`fires` (G11) — one home for the copy.
+//
+// SCOPE (§6.6, deliberate): the ACTIONS-VIEW set only — `guidedActions` ∪ the ACTION-shaped `formatStrings`.
+// `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (§6.5
+// census), so a row would mint the second home the census exists to prevent. Marker templates
+// (scenario/personality/…) likewise keep their section home.
+//
+// `label`/`fires` are the ROW's copy (per-kind: `response` and `swipe` are two rows), distinct from the
+// PROSE-1 slot's `title`/`fires` (per-SLOT copy — those two kinds SHARE one slot, so slot copy cannot name a
+// row). `defaultSlot` is the one pointer between them: the ghost/placeholder bytes always come from PROSE-1.
+
+export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge"] as const satisfies readonly string[];
+export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
+
+/** One declared capability of a template — the EXTENSIBLE axis. A template needing a genuinely new field
+ *  class is a NEW MEMBER here plus its renderer row in the editor's exhaustive `Record`, never a fork of the
+ *  editor ([[lock-the-extensible-shape]]). A def declaring NO capabilities renders text-only BY DERIVATION
+ *  (that is why the nudges need no branch on their name). */
+export type TemplateCapability =
+  | { readonly kind: "role" }
+  | { readonly kind: "depth" }
+  /** The substitution vocabulary the editor offers as chips + lints. Membership here is EDITOR vocabulary,
+   *  never a write refusal: a missing `{{input}}` is a lint (empty legitimately means "the steer lands on its
+   *  own"). The refusal set is `FORMAT_STRING_CARRIER_TOKENS`, above. */
+  | { readonly kind: "tokens"; readonly tokens: readonly string[] };
+
+/** WHICH slot a def edits: a guided-action kind (`guidedActions.<kind>`) or a format-string key
+ *  (`formatStrings.<key>`). Both vocabularies are derived, never re-spelled. */
+export type TemplateDefId = GuidedActionKind | FormatStringKey;
+
+export interface TemplateDef {
+  readonly id: TemplateDefId;
+  /** The GROUP header AND the row badge — one vocabulary, two renderings. */
+  readonly kind: TemplateKind;
+  readonly label: string;
+  /** The fires-on gloss. DESCRIPTIVE ONLY — never a control: a template's firing condition is the user's
+   *  click, and the editable trigger vocabulary lives exclusively in the section drill-in (§5.0). */
+  readonly fires: string;
+  readonly caps: readonly TemplateCapability[];
+  /** The ghost's byte source — the PROSE-1 one-home for every default (`./prose`). `undefined` ⇒ this slot
+   *  ships NO default bytes (`newChatMarker`: blank means the feature is off until the host writes it), so
+   *  its editor ghosts nothing. A prose slot is authored bytes; an empty one is not a slot. Spelled
+   *  `| undefined` (and written explicitly on that one row) so the property exists on EVERY def — a reader
+   *  walking the table never has to narrow before asking for it. */
+  readonly defaultSlot?: keyof typeof PRESET_PROSE_SLOTS | undefined;
+}
+
+/** Every guided template delivers in-chat, so each carries role + depth; the token list is the editor's chip
+ *  vocabulary for that template. */
+const STEER_CAPS: readonly TemplateCapability[] = [{ kind: "role" }, { kind: "depth" }, { kind: "tokens", tokens: ["{{input}}"] }];
+
+export const TEMPLATE_DEFS = [
+  {
+    id: "response",
+    kind: "steer",
+    label: "Response",
+    fires: "You steer your next reply from the composer",
+    caps: STEER_CAPS,
+    defaultSlot: "preset.guided.response",
+  },
+  { id: "swipe", kind: "steer", label: "Swipe", fires: "You steer a re-roll of the last reply", caps: STEER_CAPS, defaultSlot: "preset.guided.response" },
+  {
+    id: "rewrite",
+    kind: "steer",
+    label: "Rewrite",
+    fires: "You rewrite the last reply out of character",
+    caps: STEER_CAPS,
+    defaultSlot: "preset.guided.rewrite",
+  },
+  { id: "opening", kind: "steer", label: "Opening", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
+  {
+    id: "continue",
+    kind: "steer",
+    label: "Continue",
+    fires: "You steer a continuation of the last reply",
+    caps: STEER_CAPS,
+    defaultSlot: "preset.guided.continue",
+  },
+  {
+    id: "impersonate",
+    kind: "voice",
+    label: "Impersonate",
+    fires: "The model writes as you for one turn",
+    caps: [{ kind: "role" }, { kind: "depth" }, { kind: "tokens", tokens: ["{{input}}", "{{person}}"] }],
+    defaultSlot: "preset.guided.impersonate",
+  },
+  {
+    id: "greeting_rewrite",
+    kind: "studio",
+    label: "Greeting rewrite",
+    fires: "You rewrite an existing greeting in the character studio",
+    caps: [{ kind: "role" }, { kind: "depth" }, { kind: "tokens", tokens: ["{{input}}", "{{base}}"] }],
+    defaultSlot: "preset.guided.greetingRewrite",
+  },
+  {
+    id: "greeting_new",
+    kind: "studio",
+    label: "New greeting",
+    fires: "You generate a fresh greeting in the character studio",
+    caps: STEER_CAPS,
+    defaultSlot: "preset.guided.greetingNew",
+  },
+  // A `formatStrings` slot is a plain string: no role, no depth (nothing to deliver it as — the assembler
+  // owns where each one lands), so its drill-in renders text-only by declaring no such capability.
+  {
+    id: "continueNudge",
+    kind: "nudge",
+    label: "Continue nudge",
+    fires: "A Continue fired with no steering text",
+    caps: [],
+    defaultSlot: "preset.format.continueNudge",
+  },
+  {
+    id: "impersonateNudge",
+    kind: "nudge",
+    label: "Impersonate nudge",
+    fires: "An Impersonate fired with no steering text — the measured voice-lock",
+    caps: [{ kind: "tokens", tokens: ["{{person}}", "{{user}}", "{{char}}"] }],
+    defaultSlot: "preset.format.impersonateNudge",
+  },
+  {
+    id: "responseNudge",
+    kind: "nudge",
+    label: "Response nudge",
+    fires: "A Response fired on an assistant tail — a reply with nothing to reply to",
+    caps: [],
+    defaultSlot: "preset.format.responseNudge",
+  },
+  {
+    id: "newChatMarker",
+    kind: "format",
+    label: "New-chat marker",
+    fires: "Marks where the conversation starts, at the top of the history",
+    caps: [],
+    // No prose slot: blank by design — nothing is emitted until the host writes a marker, and a PROSE-1
+    // slot is authored bytes (no slot may ship empty text).
+    defaultSlot: undefined,
+  },
+] as const satisfies readonly TemplateDef[];
+
+/** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
+ *  excluded by the §6.6 scope boundary (it lives in the WI section editor). */
+type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
+/** tsc-forced exhaustiveness: a new guided kind or format string with no `TEMPLATE_DEFS` row surfaces HERE
+ *  as the missing id, not as a silently absent row in the Actions view. */
+type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)[number]["id"]>;
+const _templateDefsAreExhaustive: [UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId = true;
+void _templateDefsAreExhaustive;
+
+/** By-id lookup for the surfaces that render ONE template (a drill-in, a per-kind row) rather than walking
+ *  the ordered table. TOTAL over `RegistryTemplateId` by construction — the guard above proves every id has
+ *  a row, which is why the fold's assertion carries no runtime fallback (there is no missing case to handle). */
+export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> = ((): { [K in RegistryTemplateId]: TemplateDef } => {
+  const out: Partial<Record<RegistryTemplateId, TemplateDef>> = {};
+  for (const def of TEMPLATE_DEFS) {
+    out[def.id] = def;
+  }
+  return out as Record<RegistryTemplateId, TemplateDef>;
+})();
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). */
 export const DEFAULT_COMPACT_INSTRUCTIONS =
@@ -805,6 +1012,18 @@ const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 
+/** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
+ *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
+ *  DEFAULT_PROMPT_CONFIG), so refusing on read would nuke an entire stored preset over one bad wrapper. The
+ *  guard rides `promptConfigWriteSchema` below. */
+export const formatStringsSchema = z.object({
+  continueNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+  impersonateNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+  responseNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+  wiFormat: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+  newChatMarker: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+});
+
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
   sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
@@ -819,14 +1038,7 @@ export const promptConfigSchema = z.object({
   customParameters: customParametersSchema.optional(),
   namesBehavior: z.enum(NAMES_BEHAVIOR).optional(),
   continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
-  formatStrings: z
-    .object({
-      continueNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-      impersonateNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-      responseNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-      wiFormat: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-    })
-    .optional(),
+  formatStrings: formatStringsSchema.optional(),
   guidedActions: guidedActionsSchema.optional(),
   postProcess: z
     .object({
@@ -847,6 +1059,30 @@ export const promptConfigSchema = z.object({
     .optional(),
 });
 export type PromptConfig = z.infer<typeof promptConfigSchema>;
+
+/** THE WRITE BOUNDARY (the `injectionDirectiveSchema` → wire-guard layering precedent, `@orb/kit/injection`):
+ *  `promptConfigSchema` plus the guards that may REFUSE an author's edit. The transport create/update procs
+ *  parse through THIS; every read path (`parsePromptConfig`, `parsePresetFile`, the assembler) keeps the
+ *  plain schema, so a preset already carrying a broken wrapper still LOADS (and the editor can show it) —
+ *  a refusal on read would degrade the whole preset to default over one field.
+ *
+ *  Today's one guard: the carrier-token refusal (`FORMAT_STRING_CARRIER_TOKENS`). */
+export const promptConfigWriteSchema = promptConfigSchema.superRefine((config, ctx): void => {
+  const formatStrings = config.formatStrings;
+  if (formatStrings === undefined) {
+    return;
+  }
+  for (const { key, token } of FORMAT_STRING_CARRIER_TOKENS) {
+    const text = formatStrings[key];
+    if (text !== undefined && text.trim().length > 0 && !text.includes(token)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["formatStrings", key],
+        message: `${key} must contain ${token} — that is where the wrapped content lands, so without it the content is dropped. Leave it blank to use the default.`,
+      });
+    }
+  }
+});
 
 // ── The lift chain (maps a blob at version N → N+1; the versioned-config primitive walks it) ───────
 type RawSection = Record<string, unknown>;

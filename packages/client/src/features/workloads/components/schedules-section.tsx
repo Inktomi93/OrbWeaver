@@ -78,7 +78,7 @@ function SchedulesBody(): ReactElement {
     >
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
-          <Text tone="muted" size="label">
+          <Text voice="label" className="text-muted-foreground">
             Run a job automatically on a recurring cadence.
           </Text>
           <Button intent="primary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>

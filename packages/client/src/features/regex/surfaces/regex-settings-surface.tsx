@@ -58,7 +58,7 @@ export function RegexSettingsSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} className="outline-none" tabIndex={-1}>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your regex scripts…</Text>}
+        fallback={<Text voice="gloss">Loading your regex scripts…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
       >
         <Container>

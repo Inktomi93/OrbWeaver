@@ -179,7 +179,7 @@ export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, o
         ) : null}
       </Row>
       {errored ? (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Couldn't save — administrators only.
         </Text>
       ) : null}

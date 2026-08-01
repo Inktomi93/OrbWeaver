@@ -48,9 +48,7 @@ function MapBody(): ReactElement {
 
   return (
     <Stack gap="block" className="min-h-0 flex-1">
-      <Text size="micro" tone="muted">
-        {points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.
-      </Text>
+      <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
       <Stack className="aspect-square w-full">
         <Scatter className="h-full w-full" label="Corpus semantic map" onPointClick={(id): void => selectCorpusCharacter(id as CharacterId)} series={series} />
       </Stack>

@@ -26,7 +26,7 @@ export function ImportLibrarySection(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text tone="muted" size="body">
+      <Text className="text-muted-foreground">
         Restore a backup, or bring your SillyTavern library over. Drop a full .zip export (characters, chats, personas, lorebooks — everything) or a single
         character card — or pick an unzipped backup / SillyTavern profile folder.
       </Text>
@@ -57,9 +57,7 @@ export function ImportLibrarySection(): ReactElement {
         >
           Import a folder…
         </FolderPicker>
-        <Text tone="muted" size="micro">
-          An unzipped Orbweaver backup or a SillyTavern profile folder
-        </Text>
+        <Text voice="gloss">An unzipped Orbweaver backup or a SillyTavern profile folder</Text>
       </Row>
       {state.status === "running" ? (
         <>
@@ -68,7 +66,7 @@ export function ImportLibrarySection(): ReactElement {
         </>
       ) : null}
       {state.status === "error" ? (
-        <Text tone="destructive" size="body" role="alert">
+        <Text role="alert" className="text-destructive">
           {state.message}
         </Text>
       ) : null}

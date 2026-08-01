@@ -495,7 +495,11 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
  *  a force-stamped consent), reads the beat, drives ONE structured-output call ROUTED BY API (agent-sdk → the
  *  chat structured-output path; every other api → the `structured` dispatcher), and folds the parsed extraction
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
- *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture). */
+ *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture).
+ *
+ *  State-round economics: this is a real billed call that lands NO `ToolCallRecord` and NO stats delta (deliberate — the char turn is
+ *  tool-less, so persisting the round's calls on the variant would lie to the transcript reader). The per-item provider log is the v1
+ *  record (`provider.structured-item`; the agent-sdk arm's `provider.turn`) — see spec §10.1a. */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
   return async ({ chatId, baseState, turnConnection, reconcile }) => {
     const empty = { statePatch: {}, journal: [] };
@@ -722,7 +726,11 @@ function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): {
  *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
  *  `required`. On an agent-sdk host (no wire tools) it degrades to the structured extraction (identical delta,
  *  shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data — never corrupts
- *  canon). */
+ *  canon).
+ *
+ *  State-round economics: same posture as `runExtraction` (no `ToolCallRecord`, no stats delta — see spec §10.1a), but note this vehicle
+ *  rides the CHAT role: a non-agent-sdk backend emits no per-item usage log and the result's `usage` is dropped here, so the wire capture
+ *  is what the round leaves behind. The degraded agent-sdk arm rides `runExtraction`'s per-item record. */
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {

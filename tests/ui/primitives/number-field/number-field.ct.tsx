@@ -2,7 +2,9 @@
 // and the increment/decrement buttons meet the 44px touch floor.
 import { Field } from "@orb/ui/field";
 import { NumberField } from "@orb/ui/number-field";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
@@ -195,6 +197,92 @@ test("a call site's own description COMPOSES with the derived bounds, never clob
   );
   // Exact, so a regression that DROPS either half (or reorders them into nonsense) reds.
   await expect(page.getByLabel("Weight")).toHaveAccessibleDescription("Between 0 and 300 In pounds");
+});
+
+// ── size="inline" — the slider's number twin (preset-surface-redesign.md §4.1/§13) ────────────────────
+// The pointer-conditional control tokens are read back FROM THE LIVE DOCUMENT (never TOKENS' static coarse
+// literal, never a hardcoded px): the whole point of the inline height is that it follows the pointer.
+function resolveSpacing(page: Page, cssVar: string): Promise<string> {
+  return page.evaluate((token: string) => {
+    const probe = document.createElement("div");
+    probe.style.height = `var(${token})`;
+    document.body.append(probe);
+    const resolved = getComputedStyle(probe).height;
+    probe.remove();
+    return resolved;
+  }, cssVar);
+}
+
+const INLINE_WIDTH_PX = `${Number.parseFloat(TOKENS["width.number-inline"].value) * 16}px`;
+
+test("size=inline omits the steppers but keeps the textbox, keyboard stepping and the bounds description", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Temperature" defaultValue={5} max={20} min={1} size="inline" step={1} />);
+  // The sanctioned R2 omission: no stepper parts at all (not merely hidden ones — a display:none button is
+  // still DOM the a11y tree has to be trusted to skip).
+  await expect(page.getByLabel("Increase")).toHaveCount(0);
+  await expect(page.getByLabel("Decrease")).toHaveCount(0);
+  await expect(page.locator('[data-slot="number-field-increment"]')).toHaveCount(0);
+
+  // The landed Base UI reality the CTs locate by (§13): a textbox, never a spinbutton.
+  const input = page.getByRole("textbox", { name: "Temperature" });
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  await expect(input).toHaveAccessibleDescription("Between 1 and 20");
+
+  // Stepping survives the missing buttons — the keyboard is the fine control, the slider beside it is the coarse one.
+  await input.focus();
+  await input.press("ArrowUp");
+  await expect(input).toHaveValue("6");
+  await input.press("ArrowDown");
+  await input.press("ArrowDown");
+  await expect(input).toHaveValue("4");
+});
+
+test("size=inline is the mono right-aligned token box; md keeps the centered full-width form skin", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 400 }}>
+      <NumberField aria-label="Inline" defaultValue={131_072} size="inline" />
+      <NumberField aria-label="Form" defaultValue={5} />
+    </div>,
+  );
+  const inlineRoot = page.locator('[data-slot="number-field-root"]').nth(0);
+  const formRoot = page.locator('[data-slot="number-field-root"]').nth(1);
+  const inlineInput = page.getByRole("textbox", { name: "Inline" });
+  const formInput = page.getByRole("textbox", { name: "Form" });
+
+  // The BOX comes from the size axis: a fixed token width beside a slider vs the form field's full column.
+  await expect(inlineRoot).toHaveCSS("width", INLINE_WIDTH_PX);
+  const formBox = await formRoot.boundingBox();
+  expect(formBox?.width).toBe(400);
+
+  // Heights ride the pointer-conditional control tokens, resolved live.
+  const [controlSm, touchTarget] = await Promise.all([
+    resolveSpacing(page, TOKENS["spacing.control-sm"].cssVar),
+    resolveSpacing(page, TOKENS["spacing.touch-target"].cssVar),
+  ]);
+  await expect(inlineInput).toHaveCSS("height", controlSm);
+  await expect(formInput).toHaveCSS("height", touchTarget);
+
+  // The datum treatment: mono, tabular, right-aligned — so a column of knob values reads down one edge.
+  await expect(inlineInput).toHaveCSS("text-align", "right");
+  await expect(formInput).toHaveCSS("text-align", "center");
+  const inlineFont = await inlineInput.evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(inlineFont).toContain("Geist Mono");
+  const formFont = await formInput.evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(formFont).not.toContain("Geist Mono");
+  await expect(inlineInput).toHaveCSS("font-variant-numeric", "tabular-nums");
+
+  // The widest datum the deck feeds it fits without clipping (the token's sizing premise).
+  await expect(inlineInput).toHaveValue("131,072");
+  const overflow = await inlineInput.evaluate((el: HTMLInputElement) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("size=inline keeps the scrub area and the blank-means-default placeholder", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Max output tokens" placeholder="2048 (default)" scrubLabel="Drag" size="inline" />);
+  await expect(page.getByText("Drag")).toBeVisible();
+  const input = page.getByRole("textbox", { name: "Max output tokens" });
+  await expect(input).toHaveValue("");
+  await expect(input).toHaveAttribute("placeholder", "2048 (default)");
 });
 
 test("an explicit aria-describedby reaches the INPUT and composes with the bounds", async ({ mount, page }) => {

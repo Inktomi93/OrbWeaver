@@ -61,7 +61,7 @@ function AdminUsersBody(): ReactElement {
     <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_USERS_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminUsersSection")}>
         <Row align="center" justify="between">
-          <Text size="label" tone="muted">
+          <Text voice="label" className="text-muted-foreground">
             {users.length} {users.length === 1 ? "account" : "accounts"}
           </Text>
           <Button size="sm" data-testid={testId("adminCreateUserButton")} onClick={(): void => setCreateOpen(true)}>

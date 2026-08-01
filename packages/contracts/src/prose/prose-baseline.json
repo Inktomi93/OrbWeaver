@@ -96,6 +96,30 @@
       "version": 1,
       "sha256": "64425d23e7c682b6979f1a9932ec27299484581f97d906ccf969e5643d011dc1"
     },
+    "chat.group.alsoPresent": {
+      "version": 1,
+      "sha256": "16648e7e6eac3c2df2b7aa48bb7f743a6b0f470fa617129692fab71e315464a5"
+    },
+    "chat.group.scenarioHeading": {
+      "version": 1,
+      "sha256": "46f1e9f7e0869ef9198f675d967712a26ff5baf989e1fee1936aa0d59ba9627d"
+    },
+    "chat.group.exampleHeading": {
+      "version": 1,
+      "sha256": "aa9edad9145c64b583b894adf1e65a5490abb05968a6cee6d05ae0ec5f5c75de"
+    },
+    "chat.group.roundNudge": {
+      "version": 1,
+      "sha256": "23e59dcf5cb4f59f1021bbb87edfe82dbc8bde3813ea21510ac83ddfed76912b"
+    },
+    "chat.injection.systemNote": {
+      "version": 1,
+      "sha256": "5b879eb6f3c681a60e109c7b1f3f40588926e4e33c8949f29acf0839088ce5f8"
+    },
+    "chat.injection.userNote": {
+      "version": 1,
+      "sha256": "fc7e041da8fd731f7d935a701b7b727db26b72a9ad4264f41c0acd17d35055aa"
+    },
     "automation.autobg.task": {
       "version": 1,
       "sha256": "81ef44c82af57107b320e37c8ff9183c10e1195b7a0b353f3fd22c1877f3be4a"
@@ -103,6 +127,18 @@
     "automation.autobg.reply": {
       "version": 1,
       "sha256": "63eee380890b3d3e41d9ccb806b7a51d2587536f1d34a6cc9667ec27d06a27f8"
+    },
+    "discovery.compare.system": {
+      "version": 1,
+      "sha256": "64c6697200e6b1cb6ea718876c18b89d4c2ee8aba68f85b9ba176c6f79567905"
+    },
+    "discovery.ask.system": {
+      "version": 1,
+      "sha256": "b2a9f500813258bb7b2fa366a306d4e44837245947e69689370921adeacaa6d9"
+    },
+    "discovery.distill.system": {
+      "version": 1,
+      "sha256": "a94274f42c496bab9d39977350a37e4eb72269e09559f656016472c3d0490280"
     }
   }
 }

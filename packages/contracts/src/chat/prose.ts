@@ -13,6 +13,14 @@
 // TRANSCRIPT, not a character context — there is no `{{char}}` binding at these seams, so a `{{…}}` in an
 // override ships verbatim rather than silently rendering empty.
 //
+// The `chat.group.*` / `chat.injection.*` rows carry ONE caller-supplied PRE-SUBSTITUTION token each
+// (`{{name}}` = the roster member / speaker this frame is about; `{{note}}` = the injection's own content).
+// Still `macros:"none"`: the token is spliced by `resolveProseText`'s `tokens` argument as a plain string
+// replace — the `{{person}}`/`{{base}}` guided precedent — never through the macro engine, because these
+// frames are composed AROUND already-macro-resolved text and re-running the engine would resolve it twice.
+// The token is listed in `requiredMacros` so the editor warns a host who deletes it (dropping `{{name}}`
+// makes every co-speaker heading read the same; dropping `{{note}}` drops the injection's whole payload).
+//
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
 
@@ -118,5 +126,79 @@ export const CHAT_PROSE_SLOTS = {
     requiredTokens: [],
     title: "Memory consolidation lead-in",
     fires: "Heads the consolidation user prompt, above the numbered child digests.",
+  },
+  "chat.group.alsoPresent": {
+    id: "chat.group.alsoPresent",
+    home: "user",
+    version: 1,
+    // The co-speaker card block's opening frame. The member's rendered description/personality follows on
+    // the next line — that half is card data, never authorable here.
+    text: "[Also present — {{name}}]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Merged co-speaker heading",
+    fires: 'A `cardScope:"merged"` group turn, once per other present roster member.',
+  },
+  "chat.group.scenarioHeading": {
+    id: "chat.group.scenarioHeading",
+    home: "user",
+    version: 1,
+    text: "[{{name}}'s scenario]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Merged co-speaker scenario heading",
+    fires: "A merged group turn, for each present member whose card carries a scenario.",
+  },
+  "chat.group.exampleHeading": {
+    id: "chat.group.exampleHeading",
+    home: "user",
+    version: 1,
+    text: "[{{name}}'s example dialogue]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Merged co-speaker example-dialogue heading",
+    fires: "A merged group turn, for each present member whose card carries example dialogue.",
+  },
+  "chat.group.roundNudge": {
+    id: "chat.group.roundNudge",
+    home: "user",
+    version: 1,
+    // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing the whole
+    // cast in one reply. Delivered as the round's trailing user row.
+    text: "[Write the next reply only as {{name}}.]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Group round speaker nudge",
+    fires: "Every speaker of a MULTI-speaker group round (a solo/one-speaker round sends no nudge).",
+  },
+  "chat.injection.systemNote": {
+    id: "chat.injection.systemNote",
+    home: "user",
+    version: 1,
+    // A system-authority injection the resolved model cannot take as a real system row demotes to a USER
+    // row wearing this frame — the framing IS the demotion's honesty (the reader sees it is a system note).
+    text: "[Note from system: {{note}}]",
+    macros: "none",
+    requiredMacros: ["{{note}}"],
+    requiredTokens: [],
+    title: "Demoted system-note frame",
+    fires: "Any system-role injection the model can't deliver as a real system row (the TURNS_FLOOR default).",
+  },
+  "chat.injection.userNote": {
+    id: "chat.injection.userNote",
+    home: "user",
+    version: 1,
+    // A user-role injection is the OPERATOR speaking through the user channel, not an in-character turn —
+    // the frame is what keeps the model from reading it as dialogue.
+    text: "[Note from user: {{note}}]",
+    macros: "none",
+    requiredMacros: ["{{note}}"],
+    requiredTokens: [],
+    title: "User-note frame",
+    fires: "Every user-role injection — author's note, host steering, a prefix-adjacent re-framed injection.",
   },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;

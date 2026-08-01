@@ -647,6 +647,13 @@ function writeFixtures(): void {
     "packages/server/src/transport/__g_scrubhome.ts",
     'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
   );
+  // macro-resolution-home: a client FORM component importing + calling the display pipeline's macro
+  // resolver — the writable-field corruption class (the editor round-trips resolved text over the stored
+  // template). Both arms fire on this one file.
+  fx(
+    "packages/client/src/features/__g_macrores/components/__g_macrores.tsx",
+    'import { renderMessageForDisplay } from "#lib";\nexport const V = renderMessageForDisplay();\n',
+  );
   // ct-no-oneshot-live-read-assert: a non-retrying `expect(await <locator>.boundingBox()).not.toBe(...)` in a
   // *.ct.tsx — the exact DEF-14 layout-rect shape the HARD (zero-baseline) gate flags on sight. Unescaped +
   // a plain value matcher → RED.

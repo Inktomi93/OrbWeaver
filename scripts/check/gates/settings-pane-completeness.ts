@@ -135,7 +135,7 @@ function checkPaneDef(def: PaneDef, out: Violation[], seenIds: Map<string, Seen>
     out.push({
       file: rel(def.path),
       line: def.line,
-      message: `SettingsPaneDefinition "${def.name}" is a \`{ kind: "sections" }\` skimmer that still declares its own \`subcategories\` — a skimmer's nav DERIVES from the sections contributed at its anchor, so the list is the old map left beside the new and paints rows nothing renders. Delete it and move each entry to its section's \`nav\` — docs/design/set-seams-spec.md §5.3 (stage 6).`,
+      message: `SettingsPaneDefinition "${def.name}" is a \`{ kind: "sections" }\` skimmer that still declares its own \`subcategories\` — a skimmer's nav DERIVES from the sections contributed at its anchor, so the list is the old map left beside the new and paints rows nothing renders. Delete it and move each entry to its section's \`nav\` — docs/history/design/set-seams-spec.md §5.3 (stage 6).`,
     });
   }
 }

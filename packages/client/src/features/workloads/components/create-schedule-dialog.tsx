@@ -141,7 +141,7 @@ function ScheduleFormBody({
         </form.Subscribe>
       ) : null}
       {hasError ? (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           {isEdit ? "Couldn't update the schedule. Try again." : "Couldn't create the schedule. Try again."}
         </Text>
       ) : null}

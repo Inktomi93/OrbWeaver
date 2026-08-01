@@ -75,6 +75,10 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
   /** ON ⇒ subscribe the indexer to the bus (embed-on-write); OFF ⇒ built-but-not-subscribed. */
   readonly corpusAutoindex: boolean;
+  /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
+   *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
+   *  plain dep, not a forward-ref. */
+  readonly resolveChatCapability: PresetContext["resolveChatCapability"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: () => WorkloadContributions;
@@ -206,6 +210,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newPresetId: minter(ID_PREFIX.preset),
     audit,
     emitUserEvent: publishUserEvent,
+    resolveChatCapability: deps.resolveChatCapability,
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
   const preset = createPresetService(presetCtx);
@@ -225,6 +230,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     summarizerModel: roleClients.summarizerModel,
     attachCardTagByName: deps.attachCardTagByName,
     resolveUserPresetParams: deps.resolveUserPresetParams,
+    // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the
+    // same caller scoping imagery's template resolvers use: a library analysis is one human's request about
+    // their own cards, not a room-level side generation). No override ⇒ the shipped prompts.
+    resolveUserProse: async (userId) => (await deps.settings.loadUserSettings(userId)).prose,
     writeHubScores: embeddings.writeHubScores,
     // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,

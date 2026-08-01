@@ -93,7 +93,7 @@ export function CredentialKeyRow({ credential, trpc, invalidation }: CredentialK
       actions={
         <Row gap="field" align="center">
           {testResult !== null ? (
-            <Text size="micro" tone={testResultTone(testResult)}>
+            <Text voice="gloss" className={testResultToneClass(testResult)}>
               {formatTestResult(testResult, isCustom)}
             </Text>
           ) : null}
@@ -184,12 +184,14 @@ function formatHealth(health: CredentialHealth, isCustom: boolean): string {
   return `${health.status} — ${health.reason}`;
 }
 
-function testResultTone(result: TestResult): "success" | "warning" | "destructive" {
+// The result's colour as a TOKEN CLASS, not a `tone` prop: a voice carries its own colour, so the outcome
+// tint rides className and wins over `gloss`'s muted default (density-pass-spec.md §2.3).
+function testResultToneClass(result: TestResult): string {
   if (result.kind === "custom") {
-    return result.modelCount === null ? "warning" : "success";
+    return result.modelCount === null ? "text-warning" : "text-success";
   }
   if (result.health.status === "ok") {
-    return "success";
+    return "text-success";
   }
-  return result.health.status === "revoked" ? "destructive" : "warning";
+  return result.health.status === "revoked" ? "text-destructive" : "text-warning";
 }

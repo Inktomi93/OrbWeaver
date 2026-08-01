@@ -2,14 +2,13 @@ import type { NumberFieldRootProps } from "@base-ui/react/number-field";
 import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { numberFieldVariants } from "./variants";
 
 const DECREMENT_LABEL = "Decrease";
 const INCREMENT_LABEL = "Increase";
-
-const slots = numberFieldVariants();
 
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
@@ -43,7 +42,7 @@ function boundsDescription(
   return null;
 }
 
-export interface NumberFieldProps extends NumberFieldRootProps {
+export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typeof numberFieldVariants> {
   className?: string;
   /** Renders a drag-to-scrub label above the steppers — click-drag to change the value. Omit to hide. */
   scrubLabel?: ReactNode;
@@ -73,9 +72,18 @@ export interface NumberFieldProps extends NumberFieldRootProps {
  * sites opt in. The input's `inputMode` is deliberately NOT set here: Base UI already defaults it to
  * `numeric` and narrows it per-platform (iOS drops to `text` when `min` allows negatives, whose soft
  * keyboard has no minus key), so an override would break negative entry on iOS.
+ *
+ * `size="inline"` is the slider's number twin (preset-surface-redesign.md §4.1): a compact mono cell that
+ * OMITS the Increment/Decrement parts (R2's sanctioned omission — a knob row's coarse steps are the slider
+ * beside it, and two stepper buttons per row would triple a seven-row deck's control count). Nothing is
+ * lost: ArrowUp/ArrowDown on the input still step, `scrubLabel` still drags, and the derived bounds
+ * description is unchanged. The read-only LOCK glyph rides the steppers, so an inline read-only field
+ * signals through the input's own `readonly` semantics alone.
  */
 export function NumberField(props: NumberFieldProps): ReactElement {
-  const { className, scrubLabel, scrubDirection = "horizontal", placeholder, "aria-describedby": describedBy, "aria-label": ariaLabel, ...rest } = props;
+  const { className, scrubLabel, scrubDirection = "horizontal", placeholder, "aria-describedby": describedBy, "aria-label": ariaLabel, size, ...rest } = props;
+  const slots = numberFieldVariants({ size });
+  const hasSteppers = size !== "inline";
   const hasScrub = scrubLabel !== undefined && scrubLabel !== null;
   const boundsId = useId();
   const bounds = boundsDescription(rest.min, rest.max, rest.locale, rest.format);
@@ -91,10 +99,12 @@ export function NumberField(props: NumberFieldProps): ReactElement {
         </BaseNumberField.ScrubArea>
       ) : null}
       <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
-        <BaseNumberField.Decrement aria-label={DECREMENT_LABEL} className={slots.decrement()} data-slot="number-field-decrement">
-          <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
-          <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
-        </BaseNumberField.Decrement>
+        {hasSteppers ? (
+          <BaseNumberField.Decrement aria-label={DECREMENT_LABEL} className={slots.decrement()} data-slot="number-field-decrement">
+            <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
+            <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
+          </BaseNumberField.Decrement>
+        ) : null}
         <BaseNumberField.Input
           aria-describedby={inputDescribedBy === "" ? undefined : inputDescribedBy}
           aria-label={ariaLabel}
@@ -102,10 +112,12 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           data-slot="number-field-input"
           placeholder={placeholder}
         />
-        <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()} data-slot="number-field-increment">
-          <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
-          <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
-        </BaseNumberField.Increment>
+        {hasSteppers ? (
+          <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()} data-slot="number-field-increment">
+            <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
+            <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
+          </BaseNumberField.Increment>
+        ) : null}
       </BaseNumberField.Group>
       {bounds === null ? null : (
         <span className={slots.boundsDescription()} data-slot="number-field-bounds" id={boundsId}>

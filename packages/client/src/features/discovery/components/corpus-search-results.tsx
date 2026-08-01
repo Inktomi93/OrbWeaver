@@ -139,7 +139,7 @@ function NoMatches({ label, query }: { readonly label: string; readonly query: s
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
-      <Text tone="muted">
+      <Text>
         Nothing in your {label.toLowerCase()} matched “{query}”.
       </Text>
     </Stack>
@@ -199,7 +199,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
       </>
     );
   }
-  return <Text tone="muted">This search target is not shown in the corpus navigator.</Text>;
+  return <Text>This search target is not shown in the corpus navigator.</Text>;
 }
 
 /** A distilled character card hit — click selects it into the dossier CONTENT. */
@@ -251,11 +251,9 @@ function DiscoverHitRow({ hit }: { readonly hit: DiscoverHit }): ReactElement {
       <Stack className="pl-gutter" gap="field" data-testid={testId("corpusDiscoverEvidence")}>
         {groups.map(([chatId, segments]) => (
           <Stack key={chatId} gap="field">
-            <Text size="micro" tone="muted" transform="caps">
-              Chat {chatId.slice(-CHAT_REF_LEN)}
-            </Text>
+            <Text voice="kicker">Chat {chatId.slice(-CHAT_REF_LEN)}</Text>
             {segments.map((segment) => (
-              <Text key={`${chatId}-${segment.blockIdx}`} size="micro" tone="muted">
+              <Text key={`${chatId}-${segment.blockIdx}`} voice="gloss">
                 “{segment.snippet}”
               </Text>
             ))}
@@ -295,7 +293,7 @@ function ImageHitRow({ caption, score }: { readonly caption: string | null; read
 // matching the similarity-tab PairRow score and the N3 message-metadata treatment.
 function ScoreBadge({ score }: { readonly score: number }): ReactElement {
   return (
-    <Text className="shrink-0 font-mono" size="micro" tone="muted">
+    <Text voice="gloss" className="shrink-0 font-mono">
       {score.toFixed(SCORE_PRECISION)}
     </Text>
   );

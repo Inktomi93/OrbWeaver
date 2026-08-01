@@ -4,6 +4,7 @@
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -90,6 +91,13 @@ export type Summarize = RoleClients["summarize"];
  *  the preset domain); the runtime resolver is wired at compose. */
 type ResolveUserPresetParams = (userId: UserId) => Promise<SideGenSampling>;
 
+/** The card owner's model-facing PROSE overrides (PROSE-1 §4.3) — `UserSettings.prose`, resolved at the entry
+ *  root off the SAME `loadUserSettings` seam the sampling rung reads. CALLER-scoped, not room-host-scoped
+ *  (the imagery `resolvePromptTemplate` precedent): a distill / compare / ask is one human's request about
+ *  their OWN library, never a room-level side generation. Bound type-only here (discovery never reads the
+ *  settings domain); an empty record ⇒ every slot falls to its shipped default, byte-identical. */
+type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
+
 /** The tag-staging seam — tag's `attachCardTagByName` verb, bound at the entry root; distill's only tag write. */
 type AttachCardTagByName = TagService["attachCardTagByName"];
 
@@ -163,6 +171,9 @@ export interface DistillCharactersDeps {
   /** The card owner's default-preset params (the side-gen sampling ladder's middle rung). The whole-library
    *  batch has no single owner ⇒ the floor stands; the on-demand single-card pass folds `opts.ownerId`'s. */
   readonly resolveUserPresetParams: ResolveUserPresetParams;
+  /** The card owner's prose overrides — the distill system prompt. Same ownerless-batch rule as the params
+   *  rung: a mixed-owner run resolves nothing and ships the default prompt. */
+  readonly resolveUserProse: ResolveUserProse;
 }
 
 // ── the DI bundle (the full context the service factory closes over) ──────────
@@ -177,6 +188,8 @@ export interface DiscoveryContext {
   readonly attachCardTagByName: AttachCardTagByName;
   /** The side-gen sampling ladder's middle rung — the card owner's default-preset params (distill + analyze). */
   readonly resolveUserPresetParams: ResolveUserPresetParams;
+  /** The card owner's PROSE-1 overrides — the compare / ask / distill system prompts (distill + analyze). */
+  readonly resolveUserProse: ResolveUserProse;
   readonly writeHubScores: WriteHubScores;
   readonly characterEconomics: CharacterEconomicsOp;
   readonly characterModelEconomics: CharacterModelEconomicsOp;
