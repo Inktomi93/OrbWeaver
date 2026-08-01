@@ -16,14 +16,26 @@ export interface RenderMacrosOptions {
   readonly registry?: MacroRegistry | undefined;
 }
 
-/** The inputs to `buildTurnUserMacros` — the per-turn user-macro registry build (WAVE MU delivery). */
-export interface BuildTurnUserMacrosArgs {
-  /** The active preset/game's authored macro defs (`foreign.promptConfig.userMacros`). */
+/** ONE authoring home's macro defs + the id its source attribution carries (`MacroSourceRef.id` — the
+ *  resolved preset id for the preset group, the game's chat id for the game group). */
+export interface UserMacroDefGroup {
+  readonly id: string;
   readonly defs: readonly UserMacroDef[];
-  /** Source attribution stamped onto each macro's browser metadata — the resolved preset id (`MacroSourceRef`). */
-  readonly sourceId: string;
-  /** The per-chat/per-user input picks bag — macro name → input name → pick. `{}` is fully functional
-   *  (unpicked inputs resolve their per-kind defaults; a random-pick pool falls back to ALL options). */
+}
+
+/** The inputs to `buildTurnUserMacros` — the per-turn user-macro registry build (WAVE MU delivery). The two
+ *  authoring homes (owner ruling #20) ride SEPARATE groups rather than one pre-merged list: the collision
+ *  policy is law, not a caller's choice, so `buildTurnUserMacros` owns it (see its header). */
+export interface BuildTurnUserMacrosArgs {
+  /** The active preset's authored macro defs (`foreign.promptConfig.userMacros`) + the resolved preset id. */
+  readonly preset: UserMacroDefGroup;
+  /** The GAME's authored macro defs (`rpg_games.config.userMacros`, via `ChatRpgOps.resolveUserMacros`) +
+   *  the game's chat id. Absent ⇒ a non-game chat (byte-identical to preset-only). */
+  readonly game?: UserMacroDefGroup | undefined;
+  /** The per-chat input picks bag — macro NAME → input name → pick. `{}` is fully functional (unpicked
+   *  inputs resolve their per-kind defaults; a random-pick pool falls back to ALL options). Keyed by NAME,
+   *  never by source: a pick made while the PRESET owned `{{mood}}` keeps applying when a game def shadows
+   *  it (same name, same input name ⇒ the same answer — the pane asks one question per name). */
   readonly values: UserMacroValues;
   /** The slot's persisted draw record on a swipe/continue turn (`loadSlotTarget.macroDraws`) — replayed
    *  byte-exact so a re-generation resolves the identical draw. Absent ⇒ a fresh-draw turn. */

@@ -10,7 +10,7 @@ import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
-import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -2421,6 +2421,128 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
   });
 });
 
+// ═══ The GAME's user macros (owner ruling #20's second definition home) reach the SAME turn resolution, ═══
+// ═══ and shadow the preset's on a name clash (the 2026-08-01 collision ruling). Through the REAL path. ════
+
+/** The game's own `{{mood}}` — a SINGLE-SELECT (never draws), so which def the turn resolved is readable off
+ *  both the rendered prompt and the persisted draw record. */
+function gameMoodDef(): UserMacroSpec {
+  return {
+    name: "mood",
+    description: "the game's scene tone",
+    args: [],
+    body: "{{tone}}",
+    strict: false,
+    inputs: [
+      {
+        kind: "single-select",
+        name: "tone",
+        label: "Tone",
+        options: [
+          { label: "Doomed", value: "doomed" },
+          { label: "Hopeful", value: "hopeful" },
+        ],
+        separator: ", ",
+        onValue: "",
+        offValue: "",
+        defaultValue: "doomed",
+      },
+    ],
+  };
+}
+
+/** A minimal `ctx.rpg` that declares game user macros and nothing else (gather stays `null` — a non-game
+ *  turn everywhere BUT the macro-declaration op, which is exactly the seam under test).
+ *  FABRICATION-OK: the turn path reaches only these ops. */
+function macroDeclaringRpg(defs: readonly UserMacroSpec[]): NonNullable<ChatContext["rpg"]> {
+  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent).
+  return {
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve(defs),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: () => Promise.resolve(),
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+}
+
+/** The MU prompt config with the preset's own macros REMOVED — the section still references `{{mood}}`, so a
+ *  render can only come from the GAME's def. */
+function gameOnlyPromptConfig(): PromptConfig {
+  return { ...userMacroPromptConfig(), userMacros: [] };
+}
+
+describe("WAVE MU — the GAME's user macros (the second definition home) through the real turn", () => {
+  test("a GAME-declared macro resolves into the turn's prompt (the preset declares none)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: gameOnlyPromptConfig(),
+      rpg: macroDeclaringRpg([gameMoodDef()]),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    expect(drawnToneFrom(requests.at(-1))).toBe("doomed"); // the game's def rendered, via its declared default
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    // A single-select never draws → the committed record is empty (nothing to replay on a swipe).
+    expect(replyId !== undefined ? (await loadSlotTarget(db, chatId, replyId))?.macroDraws : undefined).toEqual({});
+  });
+
+  test("SHADOW: the game's def wins the name — the preset's random-pick never renders and never draws", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      // The preset declares the random-pick `{{mood}}`; the game declares its own. Game wins.
+      promptConfig: userMacroPromptConfig(),
+      rpg: macroDeclaringRpg([gameMoodDef()]),
+      onChatRequest: (r) => requests.push(r),
+      prng: () => 0, // would draw "grim" from the preset's pool if the preset's def had survived
+    });
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    expect(drawnToneFrom(requests.at(-1))).toBe("doomed");
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    expect(replyId !== undefined ? (await loadSlotTarget(db, chatId, replyId))?.macroDraws : undefined).toEqual({});
+  });
+
+  test("PICKS SURVIVE THE SHADOW: the stored `mood.tone` pick binds to the GAME's input of that name", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    await db
+      .update(chats)
+      .set({ userMacroValues: { mood: { tone: "hopeful" } } })
+      .where(eq(chats.id, chatId));
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: userMacroPromptConfig(),
+      rpg: macroDeclaringRpg([gameMoodDef()]),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    expect(drawnToneFrom(requests.at(-1))).toBe("hopeful"); // the pick keyed by NAME, not by source
+  });
+
+  test("a wired rpg that declares NO game macros leaves the preset's delivery untouched", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, {
+      promptConfig: userMacroPromptConfig(),
+      rpg: macroDeclaringRpg([]),
+      onChatRequest: (r) => requests.push(r),
+    });
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const drawn = drawnToneFrom(requests.at(-1));
+    expect(MOOD_POOL).toContain(drawn);
+    const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
+    expect(replyId !== undefined ? (await loadSlotTarget(db, chatId, replyId))?.macroDraws : undefined).toEqual({ mood: { tone: drawn } });
+  });
+});
+
 // ── R1: the FOLDED state extraction, END TO END through the real verb + engine ────────────────────
 // Everything between the gather and the flush is plumbing I could break silently: a game turn's terminal tools
 // travel gather → BuiltTurnContext → RoundBase → TurnPrep → runTurnPipeline → the wire, and the completion's
@@ -2442,6 +2564,7 @@ function foldedRpg(): { flushes: (readonly { name: string; arguments: string }[]
   const flushes: (readonly { name: string; arguments: string }[] | null)[] = [];
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
     gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0, terminalTools: RPG_TOOLS }),
     markDicePreRollEligible: () => undefined,
     onUserCommit: () => Promise.resolve(),
@@ -2555,6 +2678,7 @@ function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<Ch
   // FABRICATION-OK: the turn path reaches only these ops (the `foldedRpg` stub above's precedent).
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
     // Variadic (not 5 named params): the injected contract is POSITIONAL and this stub only needs the 5th.
     gatherTurnContext: (...args: unknown[]) => {
       slots.push(args[4] as MessageId | undefined);

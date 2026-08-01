@@ -338,9 +338,6 @@ export interface DeleteChatInjectionParams extends ChatScopedParams {
 /** `getVariables` — the effective ChoiceBlock variables computed for the next turn. */
 export interface GetVariablesParams extends ChatScopedParams {}
 
-/** `getStoredVariables` — the persisted chats.variableValues flush. */
-export interface GetStoredVariablesParams extends ChatScopedParams {}
-
 /** `getVariablePicks` — the picks pane's ChoiceBlock read: the chat's declared variables + the persisted
  *  picks `setVariables` writes (the `getUserMacroPicks` sibling — the pane's two knob families). */
 export interface GetVariablePicksParams extends ChatScopedParams {}

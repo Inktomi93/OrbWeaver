@@ -398,7 +398,7 @@ export interface ReapResult {
   readonly reaped: number;
 }
 
-/** `getVariables`/`getStoredVariables` — the ChoiceBlock variable map. */
+/** `getVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
 
 /** `createInvite` — the persisted invite plus the raw token returned once for the share link. The token is

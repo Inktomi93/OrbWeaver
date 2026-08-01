@@ -34,7 +34,7 @@ import type {
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -174,6 +174,8 @@ type ChatRowView = Awaited<ReturnType<typeof listMemberChats>>[number];
 /** The resolved preview substrate: the host, the resolved cast/personas, the connection `model`, and the
  *  cross-domain assemble inputs. The previews + `getActivePresetConfig` share this resolution. */
 interface PreviewInputs {
+  /** The previewed chat — carried so the registry build can stamp the GAME group's `MacroSourceRef.id`. */
+  readonly chatId: ChatId;
   readonly hostUserId: UserId;
   readonly model: string;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
@@ -185,6 +187,10 @@ interface PreviewInputs {
   readonly castCharacterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   readonly foreign: ForeignInputs;
+  /** The GAME's authored user macros (the second definition home, owner ruling #20) — resolved with the
+   *  other cross-domain preview inputs so the preview registry sees the SAME effective def set a real turn
+   *  builds (game shadows preset). Empty for a non-game / disengaged chat. */
+  readonly gameUserMacros: readonly UserMacroSpec[];
 }
 
 /** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
@@ -320,7 +326,18 @@ async function resolvePreviewInputs(
     personaIds,
     triggerPersonaId: hostPersonaId,
   });
-  return { hostUserId, model: connection.model, capability: connection.capability, api: connection.api, castCharacterIds, personaIds, foreign };
+  const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
+  return {
+    chatId,
+    hostUserId,
+    model: connection.model,
+    capability: connection.capability,
+    api: connection.api,
+    castCharacterIds,
+    personaIds,
+    foreign,
+    gameUserMacros,
+  };
 }
 
 /** The per-preview user-macro RENDER registry (WAVE MU) — resolves the preset's user macros with a STABLE
@@ -329,8 +346,10 @@ async function resolvePreviewInputs(
  *  discarded (a preview persists nothing). `null` ⇒ no user macros ⇒ the process singleton (byte-identical). */
 function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   const built = buildTurnUserMacros({
-    defs: inputs.foreign.promptConfig.userMacros,
-    sourceId: inputs.foreign.presetId ?? "default",
+    preset: { id: inputs.foreign.presetId ?? "default", defs: inputs.foreign.promptConfig.userMacros },
+    // The GAME's defs (shadowing the preset's on a name clash) — a preview of a game chat must render the
+    // macro the TURN would render, not the one the game overrode.
+    ...(inputs.gameUserMacros.length > 0 ? { game: { id: inputs.chatId, defs: inputs.gameUserMacros } } : {}),
     values: {},
     prng: () => 0,
   });
