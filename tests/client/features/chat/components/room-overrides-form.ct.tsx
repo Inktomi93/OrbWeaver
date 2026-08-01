@@ -35,6 +35,21 @@ test("SWITCH pin — switching chats reseeds the form on the new chat, never the
   await expect(component.locator(SAVED)).not.toContainText("A-prompt");
 });
 
+// RETIRED FIELD (owner ruling 2026-08-01): the author's note was a second home for what `chat_injections`
+// owns (the identical at-depth splice), so the section is THREE text overrides and nothing else — no note
+// textarea, and none of the at-depth controls (depth / role) its expanded editor used to carry.
+test("no author's-note field — the section is exactly the three text overrides", async ({ mount }) => {
+  const component = await mount(<RoomOverridesSwitchStory />);
+
+  await expect(component.getByRole("button", { name: "Main prompt" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Post-history" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Scenario" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Author's note" })).toHaveCount(0);
+  await expect(component.getByRole("textbox", { name: "Author's note" })).toHaveCount(0);
+  await expect(component.getByRole("spinbutton", { name: "Depth" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "Role" })).toHaveCount(0);
+});
+
 // Full-row tap target (side-eye P2, WCAG 2.5.8): the block padding lives on the CollapsibleTrigger, not the
 // Card, so the WHOLE row is the click/tap surface — previously the trigger was a ~23px band with dead Card
 // padding above/below. Probe an UNSET field (Post-history — no snippet, so the card IS just the trigger row):

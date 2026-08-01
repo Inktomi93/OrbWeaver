@@ -49,11 +49,11 @@ function HeadingWithCount({ label, count, unit }: { readonly label: string; read
   );
 }
 
-// Count the SET override fields (exactly the four `RoomOverrides` slots) — a stored field is only ever
+// Count the SET override fields (exactly the three `RoomOverrides` slots) — a stored field is only ever
 // present when non-empty (empty omits on save, `fromRoomOverridesForm`), so truthiness IS "overridden".
 function countSetOverrides(overrides: RoomOverrides): number {
   const set = (value: string | undefined): number => (value !== undefined && value !== "" ? 1 : 0);
-  return set(overrides.mainPrompt) + set(overrides.postHistory) + set(overrides.scenario) + set(overrides.authorsNote?.prompt);
+  return set(overrides.mainPrompt) + set(overrides.postHistory) + set(overrides.scenario);
 }
 
 // The Injections heading's count reads the SAME `listChatInjections` query the section body suspends on, but

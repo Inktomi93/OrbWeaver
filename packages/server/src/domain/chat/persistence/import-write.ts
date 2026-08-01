@@ -8,7 +8,7 @@
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
+import { characters, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
@@ -227,7 +227,14 @@ interface OneChatArgs {
   readonly existingAssetIds: readonly AssetId[];
 }
 
-/** The chat row + founding roster inserts for one imported chat. */
+/** The imported ST `note_prompt`'s landing placement — the house author's-note register: "near enough to
+ *  steer, far enough not to dominate" (chat-crew-design/04), delivered as a system note. */
+const IMPORTED_NOTE_DEPTH = 4;
+const IMPORTED_NOTE_ROLE = "system";
+
+/** The chat row + founding roster inserts for one imported chat. The ST `note_prompt` rides in as a
+ *  `chat_injections` row — the ONE per-chat prose door (owner ruling 2026-08-01 retired the
+ *  `roomOverrides.authorsNote` twin: both landed as the SAME at-depth splice). */
 function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs): BatchStmt[] {
   const { db } = ctx;
   return [
@@ -238,11 +245,26 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         anchorPersonaId: ci.anchorPersonaId,
         importedFrom: ci.importedFrom,
         importHash: ci.importHash,
-        metadata: ci.authorsNote !== null ? { roomOverrides: { authorsNote: { prompt: ci.authorsNote } } } : null,
+        metadata: null,
         createdAt: ci.createdAt,
         updatedAt: ci.updatedAt,
       }),
     ),
+    ...(ci.authorsNote === null
+      ? []
+      : [
+          batchStmt(
+            db.insert(chatInjections).values({
+              id: ctx.newChatInjectionId(),
+              chatId,
+              position: "in_chat",
+              depth: IMPORTED_NOTE_DEPTH,
+              role: IMPORTED_NOTE_ROLE,
+              content: ci.authorsNote,
+              createdAt: ci.createdAt,
+            }),
+          ),
+        ]),
     ...rosterRows({
       ctx,
       chatId,

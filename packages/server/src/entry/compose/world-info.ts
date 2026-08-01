@@ -84,6 +84,8 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     newMessageVariantId: minter(ID_PREFIX.messageVariant),
     newMessageAssetId: minter(ID_PREFIX.messageAsset),
     newParticipantId: minter(ID_PREFIX.chatParticipant),
+    // The ST `note_prompt` lands as a chat injection (the retired room author's-note twin's surviving door).
+    newChatInjectionId: minter(ID_PREFIX.chatInjection),
     // The bundle's assets entity imports first, so a bundled inline attachment exists by the time chats
     // import; this filters an imported message's asset refs to the ones that landed.
     filterExistingAssetIds: async (ownerId, assetIds) => (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),

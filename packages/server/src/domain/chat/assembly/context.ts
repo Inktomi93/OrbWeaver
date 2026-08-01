@@ -4,23 +4,13 @@
 // persisted user row are the same post-regex text.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type {
-  AssembleCharacter,
-  AssembleContext,
-  AssemblePersona,
-  AssembleWorldEntry,
-  ChatInjection,
-  RoomAuthorsNote,
-  RoomOverrides,
-  SpeakerRef,
-} from "@orb/contracts/chat";
-import { AUTHORS_NOTE_DEFAULT_DEPTH, AUTHORS_NOTE_DEFAULT_ROLE, speakerKey } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssemblePersona, AssembleWorldEntry, ChatInjection, RoomOverrides, SpeakerRef } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
-import { resolveInjectionPlacement } from "@orb/kit/injection";
 import type { MacroContext, MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
@@ -636,32 +626,10 @@ function depthNoteSource(contributorNames: readonly string[]): string {
   return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present cast)";
 }
 
-/** The chat's room author's note → an in_chat depth-note candidate on the same injection machinery the
- *  member notes ride. `{{user}}` routes to the active persona; `{{char}}` to the base primary since the
- *  note is chat-scoped, not bound to any one cast member. Null when the rendered note is empty. */
-function roomAuthorsNoteCandidate(ctx: AssembleContext, note: RoomAuthorsNote, registry: MacroRegistry): InjectionCandidate | null {
-  const content = renderMacros(note.prompt, ctx, ctx.activePersona, { registry });
-  if (content.trim().length === 0) {
-    return null;
-  }
-  const { depth, role } = resolveInjectionPlacement(note, {
-    depth: AUTHORS_NOTE_DEFAULT_DEPTH,
-    role: AUTHORS_NOTE_DEFAULT_ROLE,
-  });
-  return {
-    injection: { position: "in_chat", depth, role, content, origin: "authors-note" },
-    tokens: estimateTokens(content),
-    ignoreBudget: true,
-    priority: OPERATOR_PRIORITY,
-    entryId: "authors-note-room",
-    bucket: null,
-  };
-}
-
-/** The author's-note depth injection for this turn, one home, no doubling: a non-empty room authorsNote
- *  overrides and suppresses the per-member card depthPrompt notes; unset/whitespace-only falls through to
- *  the member notes. Suppression keys on the stored note being non-empty, so a note that renders empty
- *  still suppresses (it just contributes no candidate). */
+/** The author's-note depth injections for this turn — the seated cast's card notes, and ONLY those. The
+ *  per-chat author's note is NOT a second producer here (owner ruling 2026-08-01): a room-level note is a
+ *  `chat_injections` row, which reaches this same list through `userInjections` on the identical at-depth
+ *  splice. `authorsNoteSource` therefore names card contributors or is absent. */
 function authorsNoteCandidates(
   ctx: AssembleContext,
   registry: MacroRegistry,
@@ -669,14 +637,6 @@ function authorsNoteCandidates(
   candidates: InjectionCandidate[];
   authorsNoteSource?: string;
 } {
-  const roomNote = ctx.roomOverrides?.authorsNote;
-  if (roomNote !== undefined && roomNote.prompt.trim().length > 0) {
-    const candidate = roomAuthorsNoteCandidate(ctx, roomNote, registry);
-    return {
-      candidates: candidate !== null ? [candidate] : [],
-      authorsNoteSource: "room override",
-    };
-  }
   const member = characterDepthNoteCandidates(ctx, registry);
   return member.contributorNames.length > 0
     ? { candidates: member.candidates, authorsNoteSource: depthNoteSource(member.contributorNames) }
