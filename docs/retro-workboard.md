@@ -26,9 +26,9 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ ▶▶▶ CURRENT STATE — 2026-08-02 DAWN (the overnight run; read first) ═══
 
 **Tree:** green — check 12/12 + battery certified through the whole night (final integration
-fixes `83a03778`; last full battery 8760/8786 with the 3 reds fixed+committed after). **Origin**
-still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + overnight, ~65
-commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
+fixes `83a03778`; last full battery 8760/8786 with the 3 reds fixed+committed after). **Origin: PUSHED
+08-02 (owner word given) — `32539eda` + tail; verify:push 12-stage battery green in the hook
+(621s). The ~315-commit local era is REMOTE.** **Stack:** dev on :5173 serves the
 fully-polished tree; engines adopt-only.
 
 **⚠ SECURITY LANDING (08-02): the COLD-SCRUBBER LEAK fixed on main** (`ed2aafc5` merged, check
