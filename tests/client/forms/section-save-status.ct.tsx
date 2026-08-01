@@ -25,10 +25,14 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
   await page.getByRole("button", { name: "Chat behavior" }).click();
   await page.getByRole("heading", { name: "World info" }).waitFor();
 
-  await page.getByRole("textbox", { name: "Scan depth" }).focus();
-  await page.getByRole("button", { name: "Increase" }).first().click();
+  // SCOPED to the world-info anchor: an unscoped `Increase.first()` resolves to whichever stepper is highest
+  // in the PANE, and the message-handling section above renders a deliberately DISABLED one
+  // (`autoContinueRounds` while auto-continue is off, `663b956b`), which can never be clicked.
+  const worldInfo = page.locator("#settings-anchor-chat-behavior-world-info");
+  await worldInfo.getByRole("textbox", { name: "Scan depth" }).focus();
+  await worldInfo.getByRole("button", { name: "Increase" }).first().click();
 
-  const inline = page.locator('#settings-anchor-chat-behavior-world-info [data-slot="autosave-status"]');
+  const inline = worldInfo.locator('[data-slot="autosave-status"]');
   await expect(inline).toContainText("Save failed");
   const retry = inline.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();

@@ -24,10 +24,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { anyFieldOverridden, isOverridden } from "../lib/app-override-model";
+import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field";
 
@@ -68,15 +67,6 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
     }
   }
   return patch as MemoryDefaults;
-}
-
-/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
- *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
-function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
-  if (errored) {
-    return "error";
-  }
-  return isPending ? "saving" : "saved";
 }
 
 /** The section's own suspense/error boundary so it is self-contained. */

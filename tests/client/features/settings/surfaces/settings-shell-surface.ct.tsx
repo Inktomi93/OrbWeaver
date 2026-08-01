@@ -20,7 +20,8 @@ const USER_SETTINGS_VIEW = {
   updatedAt: 0,
 };
 
-/** A resolved EffectiveAppConfig + owner viewer — the System pane suspends on these (Task #37). */
+/** A resolved EffectiveAppConfig + owner viewer — every `admin`-anchored AppSettings section suspends on
+ *  these (eight of them since SET-SEAMS stage 4 merged the System pane in). */
 const APP_CONFIG = {
   corpusAutoindex: false,
   importSkipCharacters: [],
@@ -31,10 +32,35 @@ const APP_CONFIG = {
   memorySummarizer: {},
   rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
   vllmConcurrency: { embed: 4, summarize: 2 },
+  agentSdkConcurrency: { summarize: 4 },
+  engineLaunch: {
+    embedModel: "Qwen/Qwen3-VL-Embedding-2B",
+    rerankModel: "Qwen/Qwen3-VL-Reranker-2B",
+    genModel: "Qwen/Qwen3-VL-8B-Instruct",
+    embedMaxModelLen: 8192,
+    rerankMaxModelLen: 8192,
+    genMaxModelLen: 32_768,
+    embedGpuUtil: 0.14,
+    rerankGpuUtilMulti: 0.16,
+    rerankGpuUtilSingle: 0.22,
+    genGpuUtilMulti: 0.28,
+    genGpuUtilSingle: 0.5,
+    poolingMaxPixels: 1_843_200,
+    genMaxPixels: 4_194_304,
+    genRepetitionPenalty: 1.05,
+    genPresencePenalty: 1.5,
+  },
   allowNonOwnerLocalCompute: true,
   nonOwnerLocalComputeBudget: null,
+  nonOwnerLocalComputeBudgetWindowMs: 86_400_000,
   allowNonOwnerMaxProSub: false,
+  localMultiUser: false,
+  discreetLogin: false,
   maxImageBytes: 5_000_000,
+  maxDatabankBytes: 20_971_520,
+  promptTransformDeadlineMs: 250,
+  catalogRefreshIntervalMs: 86_400_000,
+  imageVariantQuality: 80,
 };
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
 
@@ -94,14 +120,18 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
   await expect(component.getByText("Scheduled and triggered actions across your library.")).toBeVisible();
 });
 
-// Task #37 — System and Connections are now REAL panes (the placeholder is GONE for both), while the
-// last unbuilt APP category (Automation) STAYS a teaching placeholder; Admin is a REAL pane too (its own
-// gate tests below + admin-settings-surface.ct.tsx).
-test("System + Connections are real panes; Automation stays a teaching placeholder", async ({ mount, page }) => {
+// Task #37 — Connections is a REAL pane (the placeholder is GONE), while the last unbuilt APP category
+// (Automation) STAYS a teaching placeholder; Admin is a REAL pane too (its own gate tests below +
+// admin-pane.ct.tsx). SET-SEAMS stage 4 (§10 Q2) retired the `system` category entirely — its former first
+// section, "Media & trust", is reachable through ADMIN now, and no System nav row exists.
+test("Admin absorbed the System sections; Connections is real; Automation stays a teaching placeholder", async ({ mount, page }) => {
   await routeTrpc(page, {
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
+    "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
     "sessions.me": () => OWNER_VIEWER,
+    "admin.listUsers": () => [],
+    "admin.vllmEngines": () => ({}),
     "credentials.list": () => [],
     // The Connections pane's role rows ALSO read the server's own chat resolution. Unstubbed it answered
     // `{data:null}` and the surface threw (`Cannot read properties of null`) into its QueryErrorState —
@@ -110,10 +140,12 @@ test("System + Connections are real panes; Automation stays a teaching placehold
   });
   const component = await mount(<SettingsShellStory />);
 
-  // System → the real form surface (a "Media & trust" SECTION heading), NOT the teaching copy.
-  await component.getByRole("button", { name: "System", exact: true }).click();
+  // No System category anywhere in the nav …
+  await expect(component.getByRole("button", { name: "System", exact: true })).toHaveCount(0);
+  // … and its first section renders inside ADMIN, at an `admin`-keyed anchor.
+  await component.getByRole("button", { name: "Admin" }).click();
   await expect(component.getByRole("heading", { name: "Media & trust" })).toBeVisible();
-  await expect(component.getByText("Deployment-wide media safety, compute, shared access, and operations.")).toHaveCount(0);
+  await expect(component.locator("#settings-anchor-admin-media-trust")).toBeVisible();
 
   // Connections → the real role-slot + key-library surface (its "Model roles" SECTION heading), NOT the
   // old teaching copy.
@@ -204,24 +236,28 @@ test("a category-only deep link still lands at the TOP of the pane (no phantom j
   await expect(component.locator("#settings-anchor-chat-behavior-message-handling")).toBeInViewport();
 });
 
-// Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.
-test("fuzzy search jumps to a System subcategory anchor", async ({ mount, page }) => {
+// Task #37 — the deployment knobs are fuzzy-searchable like everything else; a hit jumps to its pane +
+// anchor. Since SET-SEAMS stage 4 that pane is ADMIN (§10 Q2), and the leaf is a CONTRIBUTED section's.
+test("fuzzy search jumps to the merged Operations section's admin anchor", async ({ mount, page }) => {
   await routeTrpc(page, {
     "settings.getUserSettings": () => USER_SETTINGS_VIEW,
     "settings.getAppSettings": () => APP_CONFIG,
+    "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
     "sessions.me": () => OWNER_VIEWER,
+    "admin.listUsers": () => [],
+    "admin.vllmEngines": () => ({}),
   });
   const component = await mount(<SettingsShellStory />);
 
-  // "log level" matches the System › Operations › Log level setting (fuzzy over label + keywords).
+  // "log level" matches the Admin › Operations › Log level setting (fuzzy over label + keywords).
   await component.getByRole("combobox", { name: "Search settings" }).fill("log level");
   const result = component.getByRole("option", { name: "Log level" }).first();
   await expect(result).toBeVisible();
   await result.click();
 
-  // The jump switched into the System pane and scrolled its Operations section into view.
+  // The jump switched into the Admin pane and scrolled its Operations section into view.
   await expect(component.getByRole("heading", { name: "Operations" })).toBeInViewport();
-  await expect(component.getByRole("button", { name: "System", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Admin" })).toHaveAttribute("aria-current", "true");
 });
 
 // Search parity for a CONTRIBUTED section (§6c): character's `library` section rides the same index as any

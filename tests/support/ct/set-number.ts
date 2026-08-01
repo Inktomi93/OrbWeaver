@@ -19,3 +19,12 @@ export async function setNumber(field: Locator, digits: string): Promise<void> {
   await field.pressSequentially(digits);
   await field.blur();
 }
+
+/** EMPTY a NumberField and commit it — the "nothing typed" state a nullable knob reads as its floor. Not
+ *  `setNumber(field, "")`: `pressSequentially("")` types nothing, so the select-all would just sit there and
+ *  the old value would survive the blur (a green test that drove no change at all). */
+export async function clearNumber(field: Locator): Promise<void> {
+  await field.press("ControlOrMeta+a");
+  await field.press("Backspace");
+  await field.blur();
+}

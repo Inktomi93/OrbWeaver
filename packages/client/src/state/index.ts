@@ -170,6 +170,7 @@ export type { SectionRegistry } from "./section-registry-context";
 export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";
 export type {
+  AppSettingsClaimPath,
   ResolvedSettingsSection,
   SettingsGroup,
   SettingsKeyClaim,

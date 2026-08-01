@@ -2,13 +2,15 @@
 // effective value, whether it is an active override or the deployment floor, and names the floor. Numeric
 // rows are draft-edited (the parent batches a Save delta); the enum + boolean rows write immediately.
 //
-// CLEAR is SECTION-level, not per-field: these are all NESTED AppSettings objects (memoryDefaults /
-// memorySummarizer / rateLimits), and the deep-merge write path clears only a TOP-LEVEL key. A nested
+// CLEAR is SECTION-level, not per-field, for the NESTED AppSettings objects (memoryDefaults /
+// memorySummarizer / rateLimits): the deep-merge write path clears only a TOP-LEVEL key, and a nested
 // `null` fails the inner schema and trips that SECTION field's `.catch(undefined)` — silently dropping the
 // section's entire override set (every sibling knob), though OTHER sections' overrides survive
-// (empirically verified 2026-07-26). Per-leaf null-clear is therefore genuinely broken, so
-// `AdminOverrideResetRow` resets the whole nested override to the floor (`{ <section>: null }`) — honest
-// and safe. Per-field overridden indicators still show which knobs are off-floor.
+// (empirically verified 2026-07-26; the one exception is a leaf explicitly `.nullable()` in the schema,
+// which is how `engineLaunch.genPresencePenalty` clears alone). Per-leaf null-clear is therefore generally
+// broken, so `AdminOverrideResetRow` resets a section's OWN claimed keys — the whole nested override for a
+// nested section (`{ <section>: null }`), the flat keys for a section of top-level scalars (SET-SEAMS stage
+// 4). Per-field overridden indicators still show which knobs are off-floor.
 //
 // A components/ leaf (no CSS, tokens/variants only via @orb/ui primitives) shared by every admin override
 // section.
@@ -26,12 +28,20 @@ import { useId } from "react";
 
 /** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
  *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
- *  grouping as the control above it. */
+ *  grouping as the control above it ("1,024" can never sit over "Default: 1024."). */
 const NUMERIC_FLOOR_FORMAT = new Intl.NumberFormat();
 
-/** The muted "Overridden / Using the default" line beneath every override control. */
-function floorDescription(overridden: boolean, floorLabel: string): string {
-  return overridden ? `Overridden. Default: ${floorLabel}.` : `Using the deployment default: ${floorLabel}.`;
+/** The muted "Overridden / Using the default" line beneath every override control. A `null` floor means the
+ *  caller CANNOT name it: `getAppSettingsWithOverrides` returns floor ⊕ override, so once an override is
+ *  stored the deployment floor is not recoverable client-side (see `envFloor`). Say that, instead of
+ *  printing the stored override as if it were its own default. */
+function floorDescription(overridden: boolean, floorLabel: string | null): string {
+  if (!overridden) {
+    // A null floor here is a value with no name to print (an unbounded budget) — the row's hint carries what
+    // "the default" means; inventing a noun for it would be the same fabrication the overridden arm avoids.
+    return floorLabel === null ? "Using the deployment default." : `Using the deployment default: ${floorLabel}.`;
+  }
+  return floorLabel === null ? "Overridden. Reset to fall back to this deployment's default." : `Overridden. Default: ${floorLabel}.`;
 }
 
 export interface AdminOverrideFieldProps {
@@ -44,8 +54,10 @@ export interface AdminOverrideFieldProps {
   readonly overridden: boolean;
   /** The floor NUMBER shown beneath the control ("Default: N") — the value an absent override falls to. A
    *  number, not a label: it is formatted here exactly as the NumberField formats the value above it, so
-   *  the row can't read "1,024" over "Default: 1024." (two different-looking numbers for one value). */
-  readonly floorValue: number;
+   *  the row can't read "1,024" over "Default: 1024." (two different-looking numbers for one value).
+   *  `null` = the floor is UNNAMEABLE (an env-layered key whose stored override hides it): the row then
+   *  points at Reset rather than naming a default it would be inventing. */
+  readonly floorValue: number | null;
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
@@ -65,7 +77,7 @@ export function AdminOverrideField({ label, hint, value, onChange, overridden, f
     <SettingRow
       id={id}
       label={label}
-      description={floorDescription(overridden, NUMERIC_FLOOR_FORMAT.format(floorValue))}
+      description={floorDescription(overridden, floorValue === null ? null : NUMERIC_FLOOR_FORMAT.format(floorValue))}
       {...(hint === undefined ? {} : { hint })}
     >
       <NumberField
@@ -87,7 +99,7 @@ export interface AdminOverrideSwitchProps {
   /** The EFFECTIVE value (floor ⊕ override) — what the control shows. */
   readonly value: boolean;
   readonly overridden: boolean;
-  readonly floorLabel: string;
+  readonly floorLabel: string | null;
   /** Set an override to `next` (immediate — a toggle IS the override). */
   readonly onSet: (next: boolean) => void;
   readonly disabled?: boolean;
@@ -109,7 +121,7 @@ export interface AdminOverrideSelectProps {
   readonly value: string;
   readonly items: SelectItems<string>;
   readonly overridden: boolean;
-  readonly floorLabel: string;
+  readonly floorLabel: string | null;
   readonly onSet: (next: string) => void;
   readonly disabled?: boolean;
 }
@@ -136,26 +148,30 @@ export function AdminOverrideSelect({ label, hint, value, items, overridden, flo
 }
 
 export interface AdminOverrideResetRowProps {
-  /** Enable Save — the draft carries a not-yet-saved change. */
-  readonly dirty: boolean;
+  /** Enable Save — the draft carries a not-yet-saved change. Omit WITH `onSave` for a section whose
+   *  controls all write immediately (a switch/select stack has no draft, so a permanently-disabled Save
+   *  button would be dead chrome). */
+  readonly dirty?: boolean;
   /** Any field in this nested section is an active override (shows "Reset to defaults"). */
   readonly anyOverridden: boolean;
   readonly saving: boolean;
   readonly errored: boolean;
-  readonly onSave: () => void;
-  /** Clear the WHOLE nested override to the floor (`{ <section>: null }`). */
+  readonly onSave?: () => void;
+  /** Clear this section's OWN override keys to the floor. */
   readonly onReset: () => void;
 }
 
-/** The Save + Reset-to-defaults row shared by the admin override sections. Reset appears only when the
- *  section has an active override; it clears the entire nested override (the merge-safe clear). */
+/** The Save + Reset-to-defaults row shared by the admin override sections. Save renders only for a section
+ *  that HAS a draft; Reset appears only when the section has an active override. */
 export function AdminOverrideResetRow({ dirty, anyOverridden, saving, errored, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
   return (
     <Stack gap="field">
       <Row gap="field" align="center">
-        <Button intent="primary" size="sm" disabled={!dirty || saving} onClick={onSave}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
+        {onSave === undefined ? null : (
+          <Button intent="primary" size="sm" disabled={dirty !== true || saving} onClick={onSave}>
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        )}
         {anyOverridden ? (
           <Button intent="secondary" size="sm" disabled={saving} onClick={onReset}>
             Reset to defaults

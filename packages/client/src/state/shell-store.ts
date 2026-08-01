@@ -20,7 +20,13 @@ export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 /** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at
  *  the door). MOVED here from features/settings/lib/settings-nav-model.ts (M6.1 ruling, §5 rule 5):
  *  `settingsCategory`/`openSettingsTo` already navigated by category as a bare string, i.e. this was
- *  always shell vocabulary, just untyped. */
+ *  always shell vocabulary, just untyped.
+ *
+ *  `system` RETIRED with SET-SEAMS stage 4 (§10 Q2, owner-ruled): it and `admin` were both APP-group,
+ *  both admin-gated, and after the decomposition both held admin-tier knob sections owned by the same
+ *  feature — two panes meant hunting for which admin knob lived where. System's five sections are the
+ *  admin pane's FIRST group now; a deep link to `system` no longer type-checks (`openSettingsTo("admin")`
+ *  is the replacement) and `agent-nav` rejects it against this tuple. */
 export const SETTINGS_CATEGORY_IDS = [
   "personas",
   "appearance",
@@ -31,7 +37,6 @@ export const SETTINGS_CATEGORY_IDS = [
   "regex",
   "connections",
   "automation",
-  "system",
   "admin",
 ] as const;
 export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];

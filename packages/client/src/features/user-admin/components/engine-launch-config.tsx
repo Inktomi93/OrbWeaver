@@ -20,41 +20,12 @@ import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useUpdateAppSettings } from "../hooks/use-admin-mutations";
+import { ENGINE_LAUNCH_NUMERIC_FIELDS, ENGINE_LAUNCH_TEXT_FIELDS } from "../lib/engine-launch-fields";
 
-// The numeric launch knobs the editor exposes (a subset kept focused; the rest ride the env floor). Each
-// maps 1:1 to a ResolvedEngineLaunch field. Model ids are edited as text below.
-const NUMERIC_FIELDS = [
-  {
-    key: "genMaxModelLen",
-    label: "Gen context window (tokens)",
-    step: 1024,
-    hint: "The gen engine's --max-model-len. The engine's own /v1/models report still wins for capability math.",
-  },
-  { key: "embedMaxModelLen", label: "Embed window (tokens)", step: 512 },
-  { key: "rerankMaxModelLen", label: "Rerank window (tokens)", step: 512 },
-  {
-    key: "genGpuUtilMulti",
-    label: "Gen GPU-util (multi-GPU)",
-    step: 0.01,
-    hint: "0<u≤1 fraction of each card's VRAM. Leave headroom for a co-tenant image-gen process.",
-  },
-  { key: "genGpuUtilSingle", label: "Gen GPU-util (single-GPU)", step: 0.01 },
-  { key: "embedGpuUtil", label: "Embed GPU-util", step: 0.01 },
-  { key: "genMaxPixels", label: "Gen vision max_pixels", step: 65_536 },
-  { key: "poolingMaxPixels", label: "Embed/rerank vision max_pixels", step: 65_536 },
-  {
-    key: "genRepetitionPenalty",
-    label: "Gen repetition penalty",
-    step: 0.01,
-    hint: "vLLM --override-generation-config repetition_penalty. Qwen3-VL ships 1.0 (no penalty → the agent-sdk wire can loop to the output cap); 1.05 stops it. 1 = off.",
-  },
-] as const satisfies readonly { key: keyof ResolvedEngineLaunch; label: string; step: number; hint?: string }[];
-
-const TEXT_FIELDS = [
-  { key: "genModel", label: "Gen model id" },
-  { key: "embedModel", label: "Embed model id" },
-  { key: "rerankModel", label: "Rerank model id" },
-] as const satisfies readonly { key: keyof ResolvedEngineLaunch; label: string }[];
+// The field set lives in lib/ (engine-launch-fields.ts) — the Engines contribution def derives its `owns`
+// claim from the same tuples, so the editor and the partition claim can never drift apart.
+const NUMERIC_FIELDS = ENGINE_LAUNCH_NUMERIC_FIELDS;
+const TEXT_FIELDS = ENGINE_LAUNCH_TEXT_FIELDS;
 
 type Draft = Record<keyof ResolvedEngineLaunch, string>;
 

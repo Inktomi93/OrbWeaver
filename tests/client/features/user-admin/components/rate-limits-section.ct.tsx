@@ -63,7 +63,10 @@ test("a below-min cap is CLAMPED to the floor, never sent raw (no silent-wipe)",
 test("an active override shows 'Overridden' and Reset clears the whole rateLimits override to the floor", async ({ mount, page }) => {
   const trpc = await stub(page, { rateLimits: { login: 25 } });
   await mount(<RateLimitsSectionStory />);
-  await expect(page.getByText("Overridden. Default: 10.")).toBeVisible();
+  // An env-layered floor is NOT nameable once an override is stored: the real `getAppSettingsWithOverrides`
+  // returns floor ⊕ override, so "Default: 10." would be the override describing itself (SET-SEAMS §4). The
+  // row points at Reset instead — which is also the affordance that recovers the floor.
+  await expect(page.getByText("Overridden. Reset to fall back to this deployment's default.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc)?.["rateLimits"], { intervals: [20, 50, 100] }).toBeNull();
 });

@@ -1,7 +1,6 @@
-// The log-level Select options for the System-settings surface. Split out of `system-settings-model` so
-// that model stays DOM-free (node-testable): the `@orb/ui/select` type surface drags the Select
-// component's browser TSX into the dom-less typecheck:graph, and this presentation list is the only thing
-// in the model that referenced it.
+// The log-level Select options for the Operations admin section. Moved here with the section (SET-SEAMS
+// stage 4 — the System pane decomposed into user-admin contributions); it stays split from the section body
+// so the label map has one home and the list DERIVES from the `LOG_LEVELS` tuple rather than mirroring it.
 
 import type { LogLevel } from "@orb/contracts/settings";
 import { LOG_LEVELS } from "@orb/contracts/settings";

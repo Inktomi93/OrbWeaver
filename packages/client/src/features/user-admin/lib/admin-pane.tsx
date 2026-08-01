@@ -5,6 +5,11 @@
 // the AppSettings admin-tier sections that were already contributions (memory tuning, rate limits, system
 // tuning). The settings host renders the `admin`-anchored contributions and DERIVES the pane's nav from them.
 //
+// SET-SEAMS stage 4 (§10 Q2) merged the former SYSTEM pane in: its five sections (media & trust · compute ·
+// shared access · multi-user · operations) are contributions at this anchor, FIRST in door order, and
+// `system` is gone from `SETTINGS_CATEGORY_IDS`. Two APP-group admin-gated panes meant hunting for which
+// admin knob lived where; there is one now.
+//
 // `when` stays HERE and only here: it is the ONE viewer gate for everything at this anchor (nav, search,
 // render), so no contributed admin section re-declares it.
 
@@ -17,7 +22,7 @@ export const adminPane: SettingsPaneDefinition = {
   group: "app",
   label: "Admin",
   icon: Lock,
-  description: "Accounts, sessions, and the local inference engines on this deployment.",
+  description: "Deployment-wide media safety, compute, shared access, operations, accounts, sessions, and the local inference engines.",
   when: (viewer) => viewer.isAdmin,
   body: { kind: "sections" },
 };

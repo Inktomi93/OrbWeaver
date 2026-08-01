@@ -72,8 +72,10 @@ test("an active override shows 'Overridden' and Reset clears every ⑩ override 
   // precedent — the section flags the field as overridden off `overrides`, shows the floor off `resolved`).
   const trpc = await stub(page, { imageVariantQuality: 60 });
   await mount(<SystemTuningSectionStory />);
-  // Overridden ⇒ the "Overridden. Default: <floor>." copy (floor = the resolved floor, 80 in the stub).
-  await expect(page.getByText("Overridden. Default: 80.")).toBeVisible();
+  // Overridden ⇒ the row stops naming a default: `resolved` is floor ⊕ override on the real read, so the
+  // stub's floor-shaped 80 is exactly the number a live pane could NOT recover (SET-SEAMS §4). It points at
+  // Reset, the affordance that puts the knob back on the floor.
+  await expect(page.getByText("Overridden. Reset to fall back to this deployment's default.")).toBeVisible();
   await page.getByRole("button", { name: "Reset to defaults" }).click();
   // The reset clears each ⑩ key: flat keys via top-level null, and the NESTED genPresencePenalty via a LEAF
   // null (a nested `undefined` would be stripped by tRPC's plain-JSON wire → the override would survive its

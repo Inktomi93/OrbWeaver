@@ -8,4 +8,5 @@ export { adminPane } from "./lib/admin-pane";
 export { adminUsersSection } from "./lib/admin-users-section";
 export { memoryTuningSection } from "./lib/memory-tuning-section";
 export { rateLimitsSection } from "./lib/rate-limits-section";
+export { computeSection, mediaTrustSection, multiUserSection, operationsSection, sharedAccessSection } from "./lib/system-config-sections";
 export { systemTuningSection } from "./lib/system-tuning-section";
