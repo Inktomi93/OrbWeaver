@@ -89,6 +89,10 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
+**DOCS-ARCHIVE LANE IN FLIGHT** (owner-ordered 08-02): sweep docs outside core/proposed + stickler
+reports — read in full, fully-done programs move to docs/history/ with inbound refs fixed; open
+ladders stay. Merge on its table-of-verdicts report.
+
 **SET-SEAMS S1 LANE IN FLIGHT** (executor, worktree): the appearance 8-way split, AppearanceForm
 deleted, save pins per §9; live drive deferred to the combined side-eye. S2-S4 SERIALIZE after it
 (main.tsx contention). S2 STICKLER PASS-3 VERDICT: MERGE-WITH-FIXES — P3F1 HIGH (dual-generator
