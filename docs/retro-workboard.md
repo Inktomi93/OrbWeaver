@@ -113,8 +113,11 @@ inline activate RowToggleAction · zero new primitives (2 variant rows + 1 local
 OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
 ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
 GATE FOLLOW-UP flagged: knob-wire-coverage should grow a preset-editor reader arm (the F8
-minted-but-editor-less class). Mocks NOT yet artifact-published (context-critical session tail)
-— publish on request. **~~PRESET REDESIGN STICKLER DISPATCHED~~** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
+minted-but-editor-less class). Mocks PUBLISHED: params-deck
+claude.ai/code/artifact/c1060b9e-9ced-4aef-906a-20607335bed8 · actions+sections
+…/263280d7-9548-4943-b1e6-bc3df44a06f0 · list-pane …/b8ec601f-033f-4338-86be-5c5616b4ca3e.
+VOCAB CORRECTION (owner): "crunchy" = OURS (bad/clunky), not ST's virtue — he'd pick ST over our
+current pane; diagnosis direction unchanged. **~~PRESET REDESIGN STICKLER DISPATCHED~~** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
 spec draft + HTML mocks + primitives inventory; composes-with-config-rail-riff stated, not
 decided; mockup-first loop) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
 0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
