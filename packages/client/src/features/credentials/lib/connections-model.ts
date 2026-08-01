@@ -2,7 +2,7 @@
 // embedding-dimension mismatch warning. Consumed by connections-settings-surface.tsx.
 
 import type { ChatApi, RoutingRoleKey } from "@orb/contracts/connection";
-import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
+import { isConfigDerivedModelSource, ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
 import type { CredentialProvider, CredentialSource } from "@orb/contracts/credentials";
 import type { UserSettings } from "@orb/contracts/settings";
 import { INFERENCE_SOURCES, SUMMARIZE_SOURCES } from "@orb/contracts/settings";
@@ -209,6 +209,15 @@ function orUndefined(value: string): string | undefined {
 }
 
 function toRoleConfig(slot: RoleSlotForm): { source: string | null; model: string | null } {
+  const source = orUndefined(slot.source) ?? null;
+  // A CONFIG-DERIVED source (vllm/local-light) serves the model it was launched with, so this pane persists
+  // NO model for it — the resolver re-derives the configured id live. The server refuses such a pin outright
+  // (`incoherent_role_model`); dropping it here is the client mirror of that rule, and it also HEALS a row
+  // written before the guard existed (the live `{source:"vllm", model:"anthropic/claude-sonnet-5"}` 404) on
+  // this pane's next save, instead of bouncing every unrelated edit off the server's rejection.
+  if (source !== null && isConfigDerivedModelSource(source)) {
+    return { source, model: null };
+  }
   return {
     // EVERY leaf is written EXPLICITLY, `null` for an emptied field — never an omitted key. The write
     // path is `deepMergePlain(stored, patch)`, where an omitted key is a NO-OP: omitting the emptied
@@ -216,7 +225,7 @@ function toRoleConfig(slot: RoleSlotForm): { source: string | null; model: strin
     // "Clear" (and a provider switch, which resets the model) silently did nothing to what a turn
     // resolves. `null` is the clear signal the lenient parser heals — `source` is `.catch(undefined)` (a
     // null lands as unset) and `model` is `.nullable()` (a null IS the stored empty).
-    source: orUndefined(slot.source) ?? null,
+    source,
     model: orUndefined(slot.model) ?? null,
   };
 }

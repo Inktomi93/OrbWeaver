@@ -21,6 +21,22 @@ export const chatApiSchema = z.enum(CHAT_APIS);
 /** Verbatim re-export of {@link CredentialSource} — not a second tuple (D31). */
 export type { CredentialSource } from "#credentials";
 
+// The sources whose MODEL is server-config truth rather than a user selection: the local vLLM engine
+// serves exactly the model it was LAUNCHED with (`VLLM_*_MODEL`), and local-light serves its built-in
+// trio. Neither offers a choice, so `roleDefaults.<role>.model` for them is `""` — the resolver re-derives
+// the configured id live, and a server-config change is never frozen into a user's settings blob (the
+// contract `getModelsForSource`'s header states: the client displays `defaultModelId` but persists "").
+// A NON-empty model against one of these sources is therefore an incoherent pair by construction — the
+// exact `{source:"vllm", model:"anthropic/claude-sonnet-5"}` shape that 404s every local turn.
+const CONFIG_DERIVED_MODEL_SOURCES: ReadonlySet<CredentialSource> = new Set<CredentialSource>(["vllm", "local-light"]);
+
+/** `true` when this source's model comes from server config, so a stored per-role model is meaningless
+ *  (see {@link CONFIG_DERIVED_MODEL_SOURCES}). Takes a plain string: callers hold unvalidated form/patch
+ *  values as often as a parsed {@link CredentialSource}. */
+export function isConfigDerivedModelSource(source: string): boolean {
+  return CONFIG_DERIVED_MODEL_SOURCES.has(source as CredentialSource);
+}
+
 /** OpenRouter "provider routing" preferences — the request's `provider` object. OpenRouter owns and
  *  evolves this wire shape, so the model is lenient: known knobs are typed+optional, `.loose()` keeps
  *  any not-yet-modelled field. Snake_case fields are OpenRouter's own wire names. */
