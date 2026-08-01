@@ -287,7 +287,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
      launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
      per-section baselines.
-   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
+   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled; LANE IN FLIGHT carrying the Engines claim-split hold)
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
      OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.
