@@ -3,7 +3,7 @@ import type { GateDescriptor } from "../contract.ts";
 
 // The side-gen sampling ladder seal (side-gen-posture program): a side-generation call site MUST resolve its
 // sampling posture through the ONE ladder (`@orb/kit/side-gen-posture` folding `SIDE_GEN_POSTURES` ← the
-// caller's preset params ← a per-action override), NEVER a hardcoded constant. A buried `temperature: 0.3` /
+// caller's preset params), NEVER a hardcoded constant. A buried `temperature: 0.3` /
 // `maxTokens: 24` at a call site is exactly the rot this program burned down — the user's own generation
 // params can never override a literal. The floor values live ONCE, as DATA, in the `SIDE_GEN_POSTURES` catalog
 // (`@orb/contracts/preset`); server code reads them through the resolver.
@@ -37,7 +37,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "incremental-safe",
   message:
     "hardcoded side-gen sampling literal — a side-generation call must resolve its posture through the ladder (resolveSideGenSampling + SIDE_GEN_POSTURES from @orb/contracts/preset), never a buried constant (the user's preset params could never override it).",
-  fix: "Read the floor from SIDE_GEN_POSTURES.<kind> and fold it through resolveSideGenSampling(floor, presetParams, actionSampling); map to the seam with toSummarizeOptions where the seam takes `maxTokens`.",
+  fix: "Read the floor from SIDE_GEN_POSTURES.<kind> and fold it through resolveSideGenSampling(floor, presetParams); map to the seam with toSummarizeOptions where the seam takes `maxTokens`.",
   scanRoot: (p) => {
     if (TEST_RE.test(`/${p}`)) {
       return false;

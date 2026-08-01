@@ -83,9 +83,9 @@ function buildCompactionPrompt(args: { readonly priorSummary: string | null; rea
   return parts.join("\n\n");
 }
 
-/** The compaction call's per-pass sampling override (a summary is not creative writing) — the side-gen ladder's
- *  TOP rung, sourced from the ONE catalog (`SIDE_GEN_POSTURES.compaction`), never a local const. quiet-generate
- *  folds it OVER the chat's preset params + the `quiet_generate` floor: the low temp is deliberately pinned here,
+/** The compaction call's per-pass sampling intent (a summary is not creative writing) — an INTERNAL pin,
+ *  sourced from the ONE catalog (`SIDE_GEN_POSTURES.compaction`), never a local const. quiet-generate merges
+ *  it OVER the chat's preset params, above the `quiet_generate` floor: the low temp is deliberately pinned here,
  *  while the output length is left to the chat's preset params / the quiet floor (the user's maxOutputTokens now
  *  reaches it). Spread into a mutable `UserIntent` (the catalog entry is `readonly`). */
 const COMPACTION_INTENT: UserIntent = { ...SIDE_GEN_POSTURES.compaction };
