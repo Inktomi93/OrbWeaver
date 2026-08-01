@@ -446,6 +446,56 @@ test("RV-11: the Scene cast card shows the standing guides, omits the unwritten 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
+// The cast NPC's whole volatile row, as `getTrackerView` projects it (`castVolatile`, keyed by cast key) —
+// hp, a pack, a purse and a status the story wrote onto her `cast:sera` plane.
+const SERA_VOLATILE = {
+  actorRef: { kind: "cast", castKey: "sera" },
+  hp: { value: 9, max: 14 },
+  trackerValues: { trust: { value: 3, items: null } },
+  conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: 2 }],
+  inventory: [{ id: "item_ct_key", name: "bone key", description: "", quantity: 1, location: "", type: "" }],
+  wallet: [{ name: "gold", amount: 40 }],
+  status: "guarding the stair",
+};
+const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npcs", max: 10, sort: 0, pinned: false };
+
+// The plane-loss defect: the Scene cast edit built its `actorState` overlay from the ROSTER half of the view
+// only, so a `cast:` target was never "found" and an EMPTY volatile got minted — authoring `hp: null`,
+// `inventory: []`, `wallet: []`, `status: ""` over the NPC's real row. Those are AUTHORED values, so the
+// server's additive keyed-plane policy (b962df48) cannot save them: it preserves rows a write OMITS, never
+// fields it NAMES. The receipt is the WIRE payload, not a UI reaction.
+test("editing a cast NPC's tracker sends her EXISTING hp/inventory/wallet/status on the wire (no empty-row mint)", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, {
+    tracker: {
+      ...(trackerView(false) as Record<string, unknown>),
+      castTrackers: { sera: [{ def: TRUST_METER, value: { value: 3, items: null } }] },
+      castVolatile: { sera: SERA_VOLATILE },
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  // The cast card's meter is editable display-at-rest (§12.4.1) — reveal, retype, commit on blur.
+  const card = component.locator('[data-slot="cast-card"]');
+  await card.getByRole("button", { name: "Trust value" }).click();
+  const trust = component.getByRole("textbox", { name: "Trust value" });
+  await trust.fill("5");
+  await trust.blur();
+
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const input = trpc.lastInput("rpg.editSnapshot") as { readonly patch: { readonly actorState: readonly Record<string, unknown>[] } };
+  const sera = input.patch.actorState.find((a) => (a["actorRef"] as { castKey?: string } | undefined)?.castKey === "sera");
+
+  // The edited reading landed…
+  expect(sera?.["trackerValues"]).toMatchObject({ trust: { value: 5 } });
+  // …and every sibling plane the empty mint used to clear rode along with it.
+  expect(sera?.["hp"]).toEqual({ value: 9, max: 14 });
+  expect(sera?.["inventory"]).toEqual(SERA_VOLATILE.inventory);
+  expect(sera?.["wallet"]).toEqual([{ name: "gold", amount: 40 }]);
+  expect(sera?.["status"]).toBe("guarding the stair");
+  expect(sera?.["conditions"]).toEqual(SERA_VOLATILE.conditions);
+});
+
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
