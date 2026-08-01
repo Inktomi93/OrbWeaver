@@ -4,6 +4,14 @@
 // DURABLE-FIRST: `emit` awaits the `chat_events` INSERT before pushing to the in-process ring — so a late
 // subscriber always ramps up from the durable log even if the process dies between the write and the push.
 //
+// THE §3.6 MEMBER STAMP: `emit` is also where a `delta`'s member-visible bytes are computed
+// (`substrate/member-visibility::createMemberDeltaStamper` → `ChatBusEvent.memberText`). It belongs HERE, not
+// at a read seam, because the hidden-span scrub is stateful across a slot's whole delta stream: a subscriber
+// that attaches or reconnects mid-`<lie …/>` has no way to reconstruct that state and used to forward the
+// secret's tail verbatim. One stamper per process, warm from each slot's first token, applied BEFORE the
+// durable append so the stored row and the live fan carry identical bytes — which is why `emit` returns the
+// STAMPED event, not just its seq: the composition root must fan exactly what was logged.
+//
 // FLAG[bus-not-on-ctx]: the chat bus is chat's own in-process collaborator, not a cross-feature injected op,
 // so it is deliberately NOT on `ChatContext`. service.ts builds ONE bus via `createChatBus(ctx)` and hands
 // `bus.emit` to the verb factories that emit.
@@ -25,10 +33,18 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context";
 import { appendChatEvent } from "./persistence/events";
 import { loadChatRow } from "./persistence/queries";
+import { createMemberDeltaStamper } from "./substrate/member-visibility";
 
-/** Returns the durable per-chat `seq` so the composition root can fan the same cursor-stamped event onto the
- *  transport live bus — or `null` when the append was dropped (see FLAG[emit-is-total]). */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<number | null>;
+/** What was durably logged: the assigned per-chat `seq` (the replay cursor) plus the event AS STORED — the
+ *  §3.6-stamped copy, so the composition root fans the exact bytes the log holds. */
+interface ChatEmitted {
+  readonly seq: number;
+  readonly event: ChatBusEvent;
+}
+
+/** Returns what was logged so the composition root can fan the same cursor-stamped event onto the transport
+ *  live bus — or `null` when the append was dropped (see FLAG[emit-is-total]). */
+type EmitChatEvent = (event: ChatBusEvent) => Promise<ChatEmitted | null>;
 
 interface ChatRingEntry {
   readonly seq: number;
@@ -67,9 +83,15 @@ async function reportDroppedAppend(db: Db, event: ChatBusEvent, err: unknown): P
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
 export function createChatBus(deps: ChatBusDeps): ChatBus {
   const rings = new Map<ChatId, ChatRingEntry[]>();
+  // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
+  // token stream regardless of who is (or is not) subscribed at any moment.
+  const stamper = createMemberDeltaStamper();
 
-  const emit: EmitChatEvent = async (event) => {
-    const chatId = event.chatId;
+  const emit: EmitChatEvent = async (raw) => {
+    const chatId = raw.chatId;
+    // Stamped BEFORE the durable write and used for every downstream copy: the log row, the ring, and the
+    // composition root's live fan must all carry the identical member projection.
+    const event = stamper.stamp(raw);
     // Durable-first: commit the INSERT before the in-memory push so a crash can never leave a
     // delivered-but-unlogged event.
     let seq: number;
@@ -93,7 +115,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
       ring.splice(0, ring.length - RING_CAPACITY);
     }
     rings.set(chatId, ring);
-    return seq;
+    return { seq, event };
   };
 
   const readRing = (chatId: ChatId, afterSeq?: number): ChatRingEntry[] => {
