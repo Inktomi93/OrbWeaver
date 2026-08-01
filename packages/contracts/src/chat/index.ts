@@ -168,6 +168,7 @@ export type {
   PreviewInviteInput,
   RedeemInviteInput,
   RenderPolicy,
+  RenderPolicyOverride,
   RosterMemberSpec,
   SeatKnobs,
 } from "./roster";
@@ -183,6 +184,7 @@ export {
   participantRoleSchema,
   previewInviteSchema,
   redeemInviteSchema,
+  resolveRenderPolicy,
   rosterMemberSpecSchema,
   seatKnobsSchema,
   soleTrueSoloCharacter,

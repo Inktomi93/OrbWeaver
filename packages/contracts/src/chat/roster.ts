@@ -93,9 +93,9 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
 export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
-/** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3) — `override ?? global`. The chat
- *  domain resolves each character's tri-state overrides against the deployment effective config at
- *  roster-build time (the ONE resolution home — never re-resolved client-side); the client READS these to
+/** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
+ *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
+ *  resolution home — {@link resolveRenderPolicy}, never re-resolved client-side); the client READS these to
  *  pick the markdown render trust tier + gate external media for content THIS participant authored. Both
  *  fields are non-null (already resolved). */
 export interface RenderPolicy {
@@ -105,6 +105,37 @@ export interface RenderPolicy {
   /** `true` = external (http/https) media in this participant's content is gated behind click-to-load
    *  (the load itself is the tracking-pixel/exfil — D44 §12.3). */
   readonly forbidExternalMedia: boolean;
+}
+
+/** A LOWER-tier render-policy override as the resolver takes it — the tri-state `characters` columns
+ *  (`null` = inherit the deployment tier, `true`/`false` = this card's own answer). Structural, so a
+ *  `CharacterDetail` (or any future per-chat carrier of the same two columns) passes as-is. */
+export interface RenderPolicyOverride {
+  readonly trustHtml: boolean | null;
+  readonly forbidExternalMedia: boolean | null;
+}
+
+/**
+ * THE render-policy resolver — the ONE place the deployment tier and a lower tier (per-character today)
+ * combine. Every producer of a {@link RenderPolicy} calls this; nobody re-spells the `??`/`||` inline.
+ *
+ * The two axes combine DIFFERENTLY, on purpose (owner ruling 2026-08-01):
+ *  • `forbidExternalMedia` is TIGHTEN-ONLY. The deployment "Block external media" AppSetting is an
+ *    ABSOLUTE ceiling — a lower tier may only restrict FURTHER, never widen. So it is an OR (deployment
+ *    forbids ∨ this tier forbids), never `override ?? deployment`: a card carrying `false` (allow) on a
+ *    blocking deployment must NOT re-open external media. The app-document CSP enforces the same ceiling
+ *    at the browser (`entry/http/security-headers.ts` — it reads the DEPLOYMENT value only), so an
+ *    `override ?? deployment` here produced a control that rendered the element and then ate a CSP block:
+ *    a dead opt-in that looked live. Belt and suspenders now agree.
+ *  • `trustHtml` stays `override ?? deployment`. Its deployment value is a DEFAULT, not a block: the floor
+ *    is the strict end (`false`), and the per-character opt-in IS the designed escalation path (D44 §12.0).
+ *    An admin-global `true` likewise stays overridable DOWN by a card. Nothing widens past a strict floor.
+ */
+export function resolveRenderPolicy(deployment: RenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
+  return {
+    trustHtml: override?.trustHtml ?? deployment.trustHtml,
+    forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
+  };
 }
 
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` (∈ PARTICIPANT_KINDS)

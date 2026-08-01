@@ -18,7 +18,11 @@
 //     app itself is commonly served over plain-http LAN (no HSTS, see below), so an `http:` allowance
 //     would be an unauthenticated cleartext exfil channel with no upgrade path.
 // Both layers stay on when the setting FORBIDS (belt AND suspenders): the CSP blocks the fetch and the
-// app-tier gate never renders the element.
+// app-tier gate never renders the element. The two layers CANNOT disagree, because the app-tier gate's
+// resolver is tighten-only (`@orb/contracts/chat::resolveRenderPolicy`, owner ruling 2026-08-01): a
+// per-character "allow" can no longer resolve to allowed under a blocking deployment and then eat a CSP
+// block. This header stays DEPLOYMENT-ONLY on purpose — it is a per-document header, and a document
+// carries messages from many characters, so it can only ever express the ceiling.
 //
 // The read is a THUNK (`allowExternalMedia`), per-request, off `settings.getEffectiveConfig()` — the
 // module-scope resolved-config cache that `reloadEffectiveConfig` rebuilds after every admin write. So a

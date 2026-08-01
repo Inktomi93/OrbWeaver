@@ -49,11 +49,15 @@ export const characters = sqliteTable(
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
     // The `synthetic=true` hidden per-room group-memory identity (filtered from every user-facing query).
     synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false),
-    // Tri-state: null = inherit the deployment default, true = forbid, false = allow.
+    // Tri-state: null = inherit the deployment default, true = forbid, false = allow — but the combine is
+    // TIGHTEN-ONLY (`contracts/chat::resolveRenderPolicy`, owner ruling 2026-08-01): the deployment "Block
+    // external media" setting is an ABSOLUTE ceiling, so a stored `false` only takes effect while the
+    // deployment itself allows external media. It is a restriction knob, never an escalation.
     forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
     // D44 §12.0 render-trust OPT-IN (untrusted by default). Tri-state: null = inherit the deployment
     // default, true = this character's card/message HTML is TRUSTED (rich HTML + Mermaid render), false =
-    // force untrusted. Mirrors `forbidExternalMedia` (a per-character override of a global media policy).
+    // force untrusted. Same tri-state SHAPE as `forbidExternalMedia`, but it resolves `override ?? global`
+    // (a card-level escalation IS the design here — the deployment value is a default, not a ceiling).
     trustHtml: integer("trust_html", { mode: "boolean" }),
     // D44 §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a

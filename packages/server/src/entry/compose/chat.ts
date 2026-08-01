@@ -6,6 +6,7 @@
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent } from "@orb/contracts/preset";
@@ -257,7 +258,7 @@ export interface ChatComposeResult {
     readonly setRpgPointer: SetRpgPointer;
     /** The roster projection (rpg-design/05 §4.3) — the tracker view's roster ∪ sheets source. */
     readonly resolveRpgRoster: ResolveRpgRoster;
-    /** The chat's PRESENT host userId (role='host', D19) — the human the reliable extraction resolves its
+    /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
      *  connection/creds under + the capability verdict keys on. Resolved by ROLE, never join order (a handoff
      *  swaps roles in place — the first-joined human is NOT the host). `null` = a hostless/stale room. */
     readonly resolveHostUserId: (chatId: ChatId) => Promise<UserId | null>;
@@ -653,6 +654,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // the raw theme + background override columns, and the card name/avatar). A human/agent seat, no host,
     // or an unreadable card resolves to the bare global floor + a null card (fail-closed, never a throw into
     // roster assembly). Collapses what were four separate reads of the same `characters` row per participant.
+    // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
+    // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
+    // deployment (which the app-document CSP enforces independently).
     resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
       const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
@@ -662,10 +666,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return {
-          renderPolicy: {
-            trustHtml: detail.trustHtml ?? floor.trustHtml,
-            forbidExternalMedia: detail.forbidExternalMedia ?? floor.forbidExternalMedia,
-          },
+          renderPolicy: resolveRenderPolicy(floor, detail),
           themeOverride: detail.themeOverride,
           backgroundOverride: detail.backgroundOverride,
           card: { name: detail.name, avatarAssetId: detail.avatarAssetId },

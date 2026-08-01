@@ -266,6 +266,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     multiHumanCapable,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
+    // The SAME live read the CSP is built from (see securityHeaders above) — one deployment ceiling, two consumers.
+    forbidExternalMedia: () => deps.services.settings.getEffectiveConfig().forbidExternalMedia,
   });
   registerJoin(plain, { multiHumanCapable });
 
