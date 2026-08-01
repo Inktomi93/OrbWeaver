@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
 import type { ActiveTurns } from "../../../../../packages/server/src/domain/chat/contract/active-turns";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
@@ -417,8 +418,24 @@ describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
   };
   const inputlessMacro: UserMacroSpec = { name: "sig", description: "", args: [], body: "— the house", inputs: [], strict: false };
 
-  function lifeWithMacros(defs: readonly UserMacroSpec[]): ReturnType<typeof createChatLifecycle> {
-    return createChatLifecycle(makeChatContext(db, { resolvePromptUserMacros: () => Promise.resolve(defs) }), lifecycleDeps());
+  /** The GAME's own `{{mood}}` (a DIFFERENT input set) — the second definition home, delivered by the
+   *  injected `ChatRpgOps.resolveUserMacros`. Its distinct `inputs` make "which def the pane projected"
+   *  observable. */
+  const gameMoodMacro: UserMacroSpec = {
+    ...pickableMacro,
+    description: "The game's own scene weather.",
+    inputs: [{ ...(pickableMacro.inputs[0] as UserMacroSpec["inputs"][number]), options: [{ label: "Doomed", value: "doomed" }], defaultValue: "doomed" }],
+  };
+
+  function lifeWithMacros(defs: readonly UserMacroSpec[], gameDefs?: readonly UserMacroSpec[]): ReturnType<typeof createChatLifecycle> {
+    return createChatLifecycle(
+      makeChatContext(db, {
+        resolvePromptUserMacros: () => Promise.resolve(defs),
+        // A minimal rpg op set: the pane read reaches ONLY the declaration op (FABRICATION-OK).
+        ...(gameDefs === undefined ? {} : { rpg: { resolveUserMacros: () => Promise.resolve(gameDefs) } as unknown as NonNullable<ChatContext["rpg"]> }),
+      }),
+      lifecycleDeps(),
+    );
   }
 
   test("a member reads the PICKABLE declarations + the stored picks; an input-less macro is omitted", async () => {
@@ -437,8 +454,26 @@ describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
     const { member, chatId } = await seedRoom();
     const view = await lifeWithMacros([pickableMacro]).getUserMacroPicks({ principal: principal(member), chatId });
 
-    // The body is prompt content (host-gated everywhere else) — the projection is identity + inputs only.
-    expect(Object.keys(view.macros[0] ?? {}).sort()).toEqual(["description", "inputs", "name"]);
+    // The body is prompt content (host-gated everywhere else) — the projection is identity + inputs + the
+    // authoring home only.
+    expect(Object.keys(view.macros[0] ?? {}).sort()).toEqual(["description", "inputs", "name", "source"]);
+    expect(view.macros[0]?.source).toBe("preset");
+  });
+
+  test("a GAME-declared macro appears in the pane, source-labelled `game` (the second definition home)", async () => {
+    const { member, chatId } = await seedRoom();
+    const view = await lifeWithMacros([], [gameMoodMacro]).getUserMacroPicks({ principal: principal(member), chatId });
+
+    expect(view.macros.map((m) => [m.name, m.source])).toEqual([["mood", "game"]]);
+  });
+
+  test("SHADOW: on a name clash the pane asks the GAME's question (the def the turn resolves), exactly once", async () => {
+    const { member, chatId } = await seedRoom();
+    const view = await lifeWithMacros([pickableMacro], [gameMoodMacro]).getUserMacroPicks({ principal: principal(member), chatId });
+
+    expect(view.macros).toHaveLength(1);
+    expect(view.macros[0]?.source).toBe("game");
+    expect(view.macros[0]?.inputs).toEqual(gameMoodMacro.inputs);
   });
 
   test("no picks stored yet ⇒ an empty bag (every input renders UNSET), not a throw", async () => {

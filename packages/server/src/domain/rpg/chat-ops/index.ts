@@ -105,6 +105,11 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
       await mintLiteGame(ctx, { chatId, profile: params.profile });
     },
     resolvePresetOverride,
+    // The GAME-authored user macros (MU §12A.5 / owner ruling #20's game half): `config.userMacros`, handed
+    // to chat as declarations for BOTH the per-turn macro registry and the picks-pane read. KNOB-DRIVEN and
+    // mode-blind like `resolvePresetOverride` — a plain config read, no game logic. A non-game chat or a
+    // DISENGAGED game (#40) yields `[]`: the turn resolves preset macros only, byte-identical to no game.
+    resolveUserMacros: async (chatId): ReturnType<ChatRpgOps["resolveUserMacros"]> => (await findEngagedGame(chatId))?.config.userMacros ?? [],
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
     // (readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
     // has no checks, so the gather ignores them. `steerIdentity` is chat's authoritative `{{user}}`/`{{char}}`

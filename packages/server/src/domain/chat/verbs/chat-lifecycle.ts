@@ -13,9 +13,11 @@
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
+import type { MacroSourceRef } from "@orb/kit/macro";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
@@ -44,6 +46,7 @@ import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from ".
 import { requireHost, requireParticipant } from "../guard";
 import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { shadowPresetUserMacros } from "../substrate/user-macros";
 import { resolveChoiceVariables } from "../substrate/variables";
 
 /** The emit op the lifecycle verbs close over. */
@@ -261,18 +264,44 @@ function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent): ChatSe
   };
 }
 
-/** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the active preset's PICKABLE user macros
- *  (those declaring ≥1 typed input — a macro with none has nothing to pick) projected to identity + inputs,
- *  plus the persisted per-chat picks. The projection is deliberate least-privilege: the macro BODY is prompt
- *  content (host-gated everywhere else), the picker only needs the questions. An absent macro/input entry in
- *  `values` is UNSET — the turn resolves its per-kind default, which is what the pane renders. */
+/** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the chat's PICKABLE user macros (those
+ *  declaring ≥1 typed input — a macro with none has nothing to pick) projected to identity + inputs + the
+ *  authoring home, plus the persisted per-chat picks. The projection is deliberate least-privilege: the
+ *  macro BODY is prompt content (host-gated everywhere else), the picker only needs the questions. An absent
+ *  macro/input entry in `values` is UNSET — the turn resolves its per-kind default, which is what the pane
+ *  renders.
+ *
+ *  BOTH definition homes (owner ruling #20): the active preset's macros AND the game's (the injected
+ *  `ChatRpgOps.resolveUserMacros`), merged under the SAME ruled policy the turn build applies — the game
+ *  shadows the preset by name (`shadowPresetUserMacros`, the one home for that rule). Without the merge the
+ *  pane would ask about a def the turn no longer resolves (or hide a game knob entirely). */
 function createGetUserMacroPicks(ctx: ChatContext): ChatService["getUserMacroPicks"] {
   return async ({ principal, chatId }: GetUserMacroPicksParams): Promise<UserMacroPicksView> => {
     await requireParticipant(ctx, principal, chatId);
-    const [values, defs] = await Promise.all([loadStoredUserMacroValues(ctx.db, chatId), ctx.resolvePromptUserMacros(chatId)]);
-    const macros = defs.filter((def) => def.inputs.length > 0).map((def) => ({ name: def.name, description: def.description, inputs: def.inputs }));
+    const [values, presetDefs, gameDefs] = await Promise.all([
+      loadStoredUserMacroValues(ctx.db, chatId),
+      ctx.resolvePromptUserMacros(chatId),
+      ctx.rpg === null ? Promise.resolve<readonly UserMacroSpec[]>([]) : ctx.rpg.resolveUserMacros(chatId),
+    ]);
+    const macros = [
+      ...gameDefs.filter(pickable).map((def) => toPickDef(def, "game")),
+      ...shadowPresetUserMacros(presetDefs, gameDefs)
+        .filter(pickable)
+        .map((def) => toPickDef(def, "preset")),
+    ];
     return { macros, values };
   };
+}
+
+/** A macro with no typed inputs has nothing to pick — it never reaches the picks pane. */
+function pickable(def: UserMacroSpec): boolean {
+  return def.inputs.length > 0;
+}
+
+/** The picks pane's least-privilege projection of one def (identity + inputs + its authoring home) — the
+ *  BODY and the declared `args` are prompt content and are deliberately withheld ({@link UserMacroPicksView}). */
+function toPickDef(def: UserMacroSpec, source: MacroSourceRef["kind"]): UserMacroPicksView["macros"][number] {
+  return { name: def.name, description: def.description, inputs: def.inputs, source };
 }
 
 /** `getVariablePicks` — member. The picks pane's ChoiceBlock half (the `getUserMacroPicks` sibling — one

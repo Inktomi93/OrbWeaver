@@ -561,6 +561,17 @@ export interface ChatRpgOps {
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: (chatId: ChatId) => Promise<PresetId | null>;
+  /** The GAME's authored user macros (`rpg_games.config.userMacros`) — the game half of the two-home
+   *  definition rule (owner ruling #20; the preset half is {@link ResolvePromptUserMacrosOp}). Empty for a
+   *  non-game / DISENGAGED chat (#40 ⇒ byte-identical to a non-game turn). Chat learns no rpg type: the
+   *  return is contracts' own `UserMacroSpec`, the SAME shape the preset half returns, and chat merges the
+   *  two under the ruled collision policy (`shadowPresetUserMacros` — the game shadows the preset).
+   *
+   *  Its own op rather than a {@link ChatRpgGatherResult} field because the DECLARATIONS have two consumers
+   *  with different shapes of work: the turn build (which runs the gather anyway) and the picks-pane read
+   *  `getUserMacroPicks` (a cheap member read that must NOT drive a whole turn gather). One op, both
+   *  callers — the alternative was two homes for one fact. */
+  readonly resolveUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
   /** GATHER (after the WI pool): a game turn's contribution, or `null` for a non-game chat (byte-identical).
    *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (rpg-design/05 §6): is THIS turn (re)generating
    *  the assistant slot that DIRECTLY responds to the latest user message? It drives the `playerRolledDice`

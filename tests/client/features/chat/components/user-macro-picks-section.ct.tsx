@@ -10,7 +10,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { UserMacroPicksSectionStory } from "../_ct-stories";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
-// inputs, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type
+// inputs + the authoring home, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type
 // (packages/server/src/domain/chat/contract/views.ts), not importable from the client across the cake.
 const TONE_INPUT = {
   kind: "single-select",
@@ -40,7 +40,11 @@ const WEATHER_INPUT = {
   defaultValue: "",
 };
 
-const MOOD_MACRO = { name: "mood", description: "The scene's emotional weather.", inputs: [TONE_INPUT, WEATHER_INPUT] };
+const MOOD_MACRO = { name: "mood", description: "The scene's emotional weather.", inputs: [TONE_INPUT, WEATHER_INPUT], source: "preset" };
+
+/** The GAME's own declaration (the second definition home) — same wire shape, `source: "game"`, which the
+ *  pane glosses so a picker can tell the knob came with the game (a preset macro stays unmarked). */
+const OMEN_MACRO = { name: "omen", description: "The night's omen.", inputs: [TONE_INPUT], source: "game" };
 
 // The wire shape `chat.getVariablePicks` returns — the pane's OTHER knob family (ChoiceBlock variables,
 // projected WHOLE: a ChoiceBlock has no body class to withhold). Spelled locally for the same reason.
@@ -91,6 +95,20 @@ test("renders the declared macro + one control per typed input, and an UNSET inp
   await expect(component.getByText("Use default (draws from all 2 options each reply)")).toBeVisible();
   // Unset ⇒ no un-set affordance to offer.
   await expect(component.getByRole("button", { name: "Use default" })).toHaveCount(0);
+});
+
+test("a GAME-declared macro carries a quiet 'from game' gloss; a preset one is unmarked", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [OMEN_MACRO, MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+  });
+
+  const component = await mount(<UserMacroPicksSectionStory />);
+
+  await expect(component.getByText("{{omen}}")).toBeVisible();
+  // Exactly ONE gloss — the game's. The preset half is the unmarked default (labelling every row would be
+  // noise, not provenance).
+  await expect(component.getByText("from game")).toHaveCount(1);
 });
 
 test("a stored pick renders as the picked option (not the default)", async ({ mount, page }) => {

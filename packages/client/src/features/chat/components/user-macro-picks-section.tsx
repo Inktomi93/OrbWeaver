@@ -332,7 +332,17 @@ export function UserMacroPicksSection({ chatId }: UserMacroPicksSectionProps): R
       ) : null}
       {data.macros.map((macro) => (
         <Stack gap="field" key={macro.name}>
-          <Heading level={4} size="body">{`{{${macro.name}}}`}</Heading>
+          <Row gap="field" align="baseline">
+            <Heading level={4} size="body">{`{{${macro.name}}}`}</Heading>
+            {/* Provenance, quietly: a macro declared by the GAME appears with the game and leaves with it (and
+                on a name clash it is the def the turn resolves). The preset half is the unmarked default — the
+                pane would be noisier, not clearer, for saying "from preset" on every row. */}
+            {macro.source === "game" ? (
+              <Text size="micro" tone="muted">
+                from game
+              </Text>
+            ) : null}
+          </Row>
           {macro.description.length > 0 ? (
             <Text size="micro" tone="muted">
               {macro.description}
