@@ -89,8 +89,14 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
-**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · SSE S4
-(automation fold, ephemeral room) · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
+**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · ~~SSE S4~~ MERGED (`d2597146`: automation = ephemeral room, resumable:false per §7; proc DELETED;
+NO client consumer existed [§14 sanctioned-dormant doorway — none invented]; last placeholder
+machinery deleted [refusedUntilFolded + NO_FRAMES]; Tier-4 doc row updated) → **SSE S5 LANE IN
+FLIGHT** (workloads fold — event union homes in contracts first; ratchet closes to
+chat.impersonateStream only; close-out D-entry stays with the orchestrator) · **FLAKE-CHASE LANE
+IN FLIGHT**: check-gates "unfired" flaked in TWO sessions (217s contended run; Lockfile gate) —
+suspect shared reports/ contention across concurrent worktree checks; reproduce → structural fix
+or ruled-out writeup · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
 side-eye at the combined window AFTER merge) · density S2 (@orb/ui slot conformance + gate arm) ·
 PROSE-1 S1 (app-tier cohort; #8=room host; tool descriptions wait for S5). Merge each on report;
 check after each merge.
