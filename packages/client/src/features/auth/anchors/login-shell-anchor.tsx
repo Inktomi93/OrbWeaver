@@ -16,7 +16,9 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
   return (
     <Stack align="center" justify="center" padding="section" className="min-h-dvh bg-background text-foreground" data-testid={testId("loginPage")}>
       <Container name="login" className="w-full max-w-sm">
-        <Card>{children}</Card>
+        {/* ELEVATED: the login card is a floating island on an otherwise empty page — the one class
+            `--radius-card` + a shadow still belong to after D6 demoted them to elevated-only. */}
+        <Card elevated={true}>{children}</Card>
       </Container>
     </Stack>
   );

@@ -14,5 +14,7 @@ export type { SectionProps } from "./section";
 export { Section } from "./section";
 export type { StackProps } from "./stack";
 export { Stack } from "./stack";
+export type { SurfaceProps, SurfaceTier } from "./surface";
+export { Surface } from "./surface";
 export type { ToolbarButtonProps, ToolbarProps, ToolbarSeparatorProps } from "./toolbar";
 export { Toolbar, ToolbarButton, ToolbarSeparator } from "./toolbar";

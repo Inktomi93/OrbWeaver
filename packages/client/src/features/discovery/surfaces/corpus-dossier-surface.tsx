@@ -294,7 +294,7 @@ function AskAnswer({
     );
   }
   return (
-    <Card padding="block">
+    <Card>
       <Stack gap="field">
         <Row align="center" gap="field">
           <Badge intent={data.grounded ? "success" : "warning"} size="sm">
