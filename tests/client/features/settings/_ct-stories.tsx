@@ -29,6 +29,37 @@ export function SettingsShellStory(): ReactElement {
   );
 }
 
+/** The shell filling a PHONE viewport (pair with `test.use({ viewport: { width: 430, height: 740 } })` — the
+ *  side-eye P0 receipt's device). Below the `@md` container step the shell is a push-detail flow: the nav
+ *  list owns the whole pane until a section is selected. `position:fixed; inset:0` so the box IS the
+ *  viewport (the harness body's 8px margin would otherwise push the pane off-screen and fake the defect). */
+export function SettingsShellNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ position: "fixed", inset: 0 }}>
+          <SettingsShell />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The shell in a box TALLER than the appearance pane's content, so the pane region does not scroll at all.
+ *  A non-scrolling pane is simultaneously at its top and its bottom — the scroll-spy's bottom arm used to
+ *  resolve it to the LAST section while the reader is looking at the first. */
+export function SettingsShellFitsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 4000, width: 1160 }}>
+          <SettingsShell />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The shell with a deep-link target seeded BEFORE first render (the `openSettingsTo` seam). The lazy
  *  useState initializer runs exactly once, synchronously, so `useSettingsTarget()` reads the target on the
  *  first render — reproducing a cold `__orb.nav.openSettings(target)` where the sessions.me probe is still in

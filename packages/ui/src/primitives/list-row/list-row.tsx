@@ -68,6 +68,14 @@ export interface ListRowProps {
   clickable?: boolean;
   /** Marks the row as the current selection (`data-selected` skin + `aria-current`). */
   selected?: boolean;
+  /**
+   * Marks a clickable row as a DISCLOSURE header (`aria-expanded`) — the row owns a group of child rows
+   * that render below it while open. Use it INSTEAD OF `selected` on a parent whose children carry the
+   * "you are here" marker: `aria-current` on both a parent and its child announces two current items for
+   * one location (side-eye 2026-08-01, the settings nav). Ignored on a non-clickable row (a static div
+   * has nothing to expand).
+   */
+  expanded?: boolean;
   /** Disables the click affordance: removed from tab order, `aria-disabled`, dimmed. */
   disabled?: boolean;
   /** `compact` tightens the row to the sm control height for dense surfaces. */
@@ -167,6 +175,7 @@ function ListRowBody({
   slots,
   clickable,
   selected,
+  expanded,
   disabled,
   onClick,
   ariaLabel,
@@ -176,6 +185,7 @@ function ListRowBody({
   slots: Slots;
   clickable: boolean;
   selected: boolean;
+  expanded: boolean | undefined;
   disabled: boolean;
   onClick: MouseEventHandler<HTMLButtonElement> | undefined;
   /** The row's accessible name — the `title` alone (set only on the clickable button body). */
@@ -203,6 +213,7 @@ function ListRowBody({
       aria-current={ariaCurrent}
       aria-describedby={ariaDescribedBy}
       aria-disabled={disabled ? true : undefined}
+      aria-expanded={expanded}
       aria-label={ariaLabel}
       className={slots.body()}
       data-disabled={disabled ? "" : undefined}
@@ -250,6 +261,7 @@ export function ListRow({
   actionsFloat = false,
   clickable = false,
   selected = false,
+  expanded,
   disabled = false,
   density = "default",
   onClick,
@@ -272,6 +284,7 @@ export function ListRow({
         ariaLabel={title}
         clickable={clickable}
         disabled={disabled}
+        expanded={expanded}
         onClick={onClick}
         selected={selected}
         slots={slots}
