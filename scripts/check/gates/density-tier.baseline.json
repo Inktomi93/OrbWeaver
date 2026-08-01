@@ -52,7 +52,6 @@
   "packages/client/src/features/persona/components/persona-panel-row.tsx": 4,
   "packages/client/src/features/persona/components/persona-this-chat-section.tsx": 3,
   "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": 8,
-  "packages/client/src/features/preset/components/guided-actions-section.tsx": 17,
   "packages/client/src/features/preset/components/macro-browser.tsx": 8,
   "packages/client/src/features/preset/components/message-handling-section.tsx": 5,
   "packages/client/src/features/preset/components/preset-import-dialog.tsx": 9,
