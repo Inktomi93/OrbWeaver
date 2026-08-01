@@ -57,8 +57,13 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
       </Row>
       <Row align="center" gap="field">
         <Input aria-label="Search characters" className="flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
+        {/* `w-auto` beats the trigger's own `w-full` (FIELD_CONTROL): as a flex sibling of a `flex-1` Input a
+            100%-wide trigger claims the whole row and crushes the search box to its ~26px minimum (stickler
+            2026-08-01 F1 — measured 298.5px trigger vs a 26px input). Content-sized, the sort takes only its
+            selected label and the search — the row's PRIMARY control — grows into everything left. */}
         <Select
           aria-label="Sort characters"
+          className="w-auto"
           items={SORT_ITEMS}
           onValueChange={(value): void => {
             if (value !== null) {

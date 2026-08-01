@@ -199,6 +199,26 @@ test("D1 a favorites-chip empty over the loaded window offers Load more, reachin
   await expect(component.getByText("Zephyr")).toBeVisible();
 });
 
+// F1 (stickler 2026-08-01) — the toolbar's second row is a flex race: the sort `Select`'s trigger carries
+// FIELD_CONTROL's `w-full`, so at rest it claimed the whole row and left the `flex-1` search Input at its
+// ~26px minimum (measured: trigger 298.5px, input 26px — an invisible search box). This asserts the
+// RENDERED geometry at the docked LIST width, never the class string: a class-level assertion is exactly
+// what would have passed while the pixels were broken.
+const SEARCH_MIN_USABLE_PX = 140;
+
+test("F1 the sort Select cannot crush the search box — search keeps the row's width", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={360} />);
+  await expect(component.getByText("Bolt")).toBeVisible();
+
+  const searchBox = await component.getByRole("textbox", { name: "Search characters" }).boundingBox();
+  const sortBox = await component.getByRole("combobox", { name: "Sort characters" }).boundingBox();
+
+  expect(searchBox?.width ?? 0).toBeGreaterThanOrEqual(SEARCH_MIN_USABLE_PX);
+  // Search is the row's PRIMARY control; the sort is secondary and takes only its own label.
+  expect(searchBox?.width ?? 0).toBeGreaterThan(sortBox?.width ?? 0);
+});
+
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),

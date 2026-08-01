@@ -13,8 +13,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharacterDetailContributorStory, CharacterEditorSurfaceStory } from "../_ct-stories";
+import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories";
 import { makeCharacterDetail, makeTagFixture } from "../fixtures";
 
 const TOKEN_SPLIT_RE = /\d+ total · \d+ permanent/;
@@ -237,4 +238,139 @@ test("a fake editor-sections contribution's `when:false` renders NO sections reg
   await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
   await expect(component.getByTestId("ct-fake-detail-section")).toHaveCount(0);
   await expect(page.locator('[data-slot="character-editor-sections"]')).toHaveCount(0);
+});
+
+// ── The stickler 2026-08-01 visual findings (F2 · F3 · F4) ─────────────────────────────────────────
+// Folded into this file rather than new mirrors: all three are the character EDITOR experience (the hero
+// band, its suggestion strip, and the CONTEXT tab that stands beside it), and each is a RENDERED defect —
+// so every assertion below reads computed geometry or computed color, never a class string (a gate can be
+// green while the pixels are wrong).
+
+test("F2 the portrait trigger's box IS the portrait — no overflow past its own button", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const trigger = component.getByRole("button", { name: "Replace portrait" });
+  const triggerBox = await trigger.boundingBox();
+  const avatarBox = await trigger.locator('[data-slot="avatar-root"]').boundingBox();
+
+  // Under `size="icon"` the button stayed 34×34 while the avatar painted 64×64 over the Name label: the
+  // image escaped its own click target by ~15px on every side, and the real hit area was the invisible box.
+  expect(triggerBox?.width).toBeCloseTo(avatarBox?.width ?? 0, 0);
+  expect(triggerBox?.height).toBeCloseTo(avatarBox?.height ?? 0, 0);
+  expect(triggerBox?.x).toBeCloseTo(avatarBox?.x ?? 0, 0);
+  expect(triggerBox?.y).toBeCloseTo(avatarBox?.y ?? 0, 0);
+});
+
+// F3 — twelve `intent="info"` pills were the loudest thing on the editor (density-pass-spec §3.2 CD3:
+// one focal element per surface). The strip is now muted `soft` chips, capped at five with a disclosure.
+const SUGGESTION_NAMES = ["noir", "detective", "mystery", "urban", "gritty", "1920s", "rain", "jazz", "smoke", "crime", "femme", "whiskey"];
+const FIRST_SUGGESTION = "noir";
+const COLLAPSED_CHIPS = 5;
+const ACCEPT_BUTTON_RE = /^Accept /;
+const TOKEN_TOTAL_RE = /\d+ total/;
+const TOKEN_PERMANENT_RE = /permanent — sent every turn/;
+const INSPECT_HINT_RE = /to inspect it here/;
+
+/** Twelve pending suggestions on this character (`TagSuggestionView` = a TagView + its characterId). */
+function suggestionFixtures(): readonly unknown[] {
+  return SUGGESTION_NAMES.map((name, index) => ({ ...makeTagFixture({ id: `tag_sug_${index}`, name }), characterId: "char_ct_1" }));
+}
+
+async function routeSuggestions(page: Page): Promise<void> {
+  await routeTrpc(page, {
+    "character.get": () => CARD,
+    "chat.listChats": () => [],
+    "tag.listPendingSuggestions": () => suggestionFixtures(),
+  });
+}
+
+test("F3 suggestions render as quiet muted chips — never info blue", async ({ mount, page }) => {
+  await routeSuggestions(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const chip = component.locator('[data-slot="character-tag-suggestions"] [data-slot="badge"]').first();
+  await expect(chip).toBeVisible();
+  // The muted `soft` voice: the intent's own text color, NOT the info pair the surface uses nowhere else.
+  await expect(chip).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
+  const background = await chip.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor);
+  expect(background).not.toBe(resolvedTokenColor("color.info"));
+});
+
+test("F3 the strip caps at five chips with a '+N more' disclosure that expands", async ({ mount, page }) => {
+  await routeSuggestions(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const accepts = component.getByRole("button", { name: ACCEPT_BUTTON_RE });
+  await expect(accepts).toHaveCount(COLLAPSED_CHIPS);
+
+  // The overflow is reachable, never dropped — accept/dismiss survive the demotion.
+  await component.getByRole("button", { name: `+${SUGGESTION_NAMES.length - COLLAPSED_CHIPS} more` }).click();
+  await expect(accepts).toHaveCount(SUGGESTION_NAMES.length);
+  await expect(component.getByRole("button", { name: `Dismiss ${FIRST_SUGGESTION}` })).toBeVisible();
+});
+
+// F4 — the CONTEXT Field tab used to open to 480×1000px of "Open a field to inspect it" beside a data-rich
+// editor. It now rests on the overview instrument card, with the pick-a-field hint as its FOOTER.
+const OVERVIEW_CARD = makeCharacterDetail({
+  name: "Aria Nightshade",
+  handle: "aria",
+  greetings: [{ text: GREETING_0 }, { text: "A second hello." }],
+  importedFrom: "chub",
+  tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" }), makeTagFixture({ id: "tag_noir", name: "noir" })],
+});
+
+/** One chat with this character + one with somebody else (the count must scope to the open character). */
+const OVERVIEW_CHATS = [
+  {
+    id: "chat_ct_1",
+    title: "A rainy night",
+    star: false,
+    archived: false,
+    parentChatId: null,
+    lastMessageAt: 1_750_000_100_000,
+    messageCount: 4,
+    participantNames: ["Aria Nightshade"],
+    participantCharacterIds: ["char_ct_1"],
+    viewerRole: "host",
+    createdAt: 1_750_000_000_000,
+    updatedAt: 1_750_000_100_000,
+  },
+  {
+    id: "chat_ct_2",
+    title: "Elsewhere",
+    star: false,
+    archived: false,
+    parentChatId: null,
+    lastMessageAt: 1_750_000_200_000,
+    messageCount: 2,
+    participantNames: ["Someone else"],
+    participantCharacterIds: ["char_other"],
+    viewerRole: "host",
+    createdAt: 1_750_000_000_000,
+    updatedAt: 1_750_000_200_000,
+  },
+];
+
+test("F4 the Field tab rests on the overview card, not a full-height empty state", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => OVERVIEW_CARD,
+    "chat.listChats": () => OVERVIEW_CHATS,
+  });
+  const component = await mount(<CharacterFacetInspectorStory />);
+
+  const overview = component.locator('[data-slot="character-overview"]');
+  await expect(overview).toBeVisible();
+  // The instrument datums: the token split, the openings count, the tag summary, and this character's OWN
+  // chats (the second chat belongs to another character and must not be counted).
+  await expect(overview.getByText(TOKEN_TOTAL_RE)).toBeVisible();
+  await expect(overview.getByText(TOKEN_PERMANENT_RE)).toBeVisible();
+  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Openings" })).toContainText("2");
+  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Chats" })).toContainText("1");
+  await expect(overview.getByText("rpg · noir")).toBeVisible();
+  await expect(overview.getByText("chub")).toBeVisible();
+
+  // The old resting state is gone; the instruction survives as the footer gloss.
+  await expect(component.getByText("Open a field to inspect it")).toHaveCount(0);
+  await expect(overview.getByText(INSPECT_HINT_RE)).toBeVisible();
 });
