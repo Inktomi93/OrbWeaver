@@ -367,28 +367,30 @@ describe("assemblePrompt — per-turn user-macro registry (WAVE MU)", () => {
   test("a threaded registry renders a user macro in a literal section (default registry passes it through verbatim)", () => {
     const config = configOf([literal("Mood: {{mood}}"), marker({ marker: "chat_history" })]);
     const turn = buildTurnUserMacros({
-      defs: [
-        {
-          name: "mood",
-          description: "tone",
-          args: [],
-          body: "{{tone}}",
-          strict: false,
-          inputs: [
-            {
-              kind: "single-select",
-              name: "tone",
-              label: "Tone",
-              options: [{ label: "Grim", value: "grim" }],
-              separator: "",
-              onValue: "",
-              offValue: "",
-              defaultValue: "grim",
-            },
-          ],
-        },
-      ],
-      sourceId: "preset-1",
+      preset: {
+        id: "preset-1",
+        defs: [
+          {
+            name: "mood",
+            description: "tone",
+            args: [],
+            body: "{{tone}}",
+            strict: false,
+            inputs: [
+              {
+                kind: "single-select",
+                name: "tone",
+                label: "Tone",
+                options: [{ label: "Grim", value: "grim" }],
+                separator: "",
+                onValue: "",
+                offValue: "",
+                defaultValue: "grim",
+              },
+            ],
+          },
+        ],
+      },
       values: {},
       prng: () => 0,
     });
@@ -403,31 +405,33 @@ describe("assemblePrompt — per-turn user-macro registry (WAVE MU)", () => {
   test("a volatile (random-pick) user macro in a STATIC section lands in staticCacheBusters (the WeakMap scan)", () => {
     const config = configOf([literal("Draw: {{luck}}"), marker({ marker: "chat_history" })]);
     const turn = buildTurnUserMacros({
-      defs: [
-        {
-          name: "luck",
-          description: "a random draw",
-          args: [],
-          body: "{{roll}}",
-          strict: false,
-          inputs: [
-            {
-              kind: "random-pick",
-              name: "roll",
-              label: "Roll",
-              options: [
-                { label: "A", value: "a" },
-                { label: "B", value: "b" },
-              ],
-              separator: "",
-              onValue: "",
-              offValue: "",
-              defaultValue: "",
-            },
-          ],
-        },
-      ],
-      sourceId: "preset-1",
+      preset: {
+        id: "preset-1",
+        defs: [
+          {
+            name: "luck",
+            description: "a random draw",
+            args: [],
+            body: "{{roll}}",
+            strict: false,
+            inputs: [
+              {
+                kind: "random-pick",
+                name: "roll",
+                label: "Roll",
+                options: [
+                  { label: "A", value: "a" },
+                  { label: "B", value: "b" },
+                ],
+                separator: "",
+                onValue: "",
+                offValue: "",
+                defaultValue: "",
+              },
+            ],
+          },
+        ],
+      },
       values: {},
       prng: () => 0,
     });

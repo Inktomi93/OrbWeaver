@@ -22,9 +22,9 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
 import { InjectionsManager } from "./injections-manager";
+import { MacroPicksSection } from "./macro-picks-section";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
 import { ToolRecurseControl } from "./tool-recurse-control";
-import { UserMacroPicksSection } from "./user-macro-picks-section";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
@@ -100,7 +100,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
         >
-          <UserMacroPicksSection chatId={chatId} />
+          <MacroPicksSection chatId={chatId} />
         </QueryBoundary>
       </Section>
       {isHost ? (

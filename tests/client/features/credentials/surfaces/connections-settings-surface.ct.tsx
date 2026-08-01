@@ -44,6 +44,17 @@ const OR_MODELS = {
   allowsFreeText: false,
 };
 
+/** The vLLM facade: the engine serves exactly the model it was LAUNCHED with, so the arm carries ONE
+ *  config-origin entry and that id is the row's `defaultModelId` (get-models-for-source's vllm arm). */
+const VLLM_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
+const VLLM_MODELS = {
+  state: "ok",
+  models: [{ id: VLLM_MODEL, label: VLLM_MODEL, origin: "config" }],
+  fetchedAt: null,
+  defaultModelId: VLLM_MODEL,
+  allowsFreeText: false,
+};
+
 /** The settings stub's handle: the recorder plus a FOREIGN-write hook (another device/tab moving the stored
  *  row under a live pane — the case that decides whether the disclosure names the CURRENT persisted pair). */
 interface SettingsStub {
@@ -69,7 +80,8 @@ async function stubSettings(page: Page, roleDefaults: Record<string, unknown>, o
     "settings.getUserSettings": () => view(),
     "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
     "credentials.list": () => [],
-    "connection.getModelsForSource": () => OR_MODELS,
+    // Per-SOURCE, like the real verb — a vllm row must not be handed the OpenRouter catalog's default.
+    "connection.getModelsForSource": (input: unknown): unknown => ((input as { readonly source: string }).source === "vllm" ? VLLM_MODELS : OR_MODELS),
     "connection.resolveChatCapability": () => (opts.resolveFails === true ? trpcError({ message: "no chat connection configured" }) : RESOLVED_CHAT),
     "settings.updateUserSettingsSection": (input: unknown): unknown => {
       stored = (input as { readonly patch: { readonly roleDefaults: Record<string, unknown> } }).patch.roleDefaults;
@@ -236,6 +248,34 @@ test("an incoherent stored pair is displayed, not healed away — the picker nev
   await expect(protocol).toContainText("not supported by this provider");
   // No draft chip: nothing was edited — the pane is faithfully showing what the server holds.
   await expect(page.locator(SYNC_CHIP)).toHaveCount(0);
+});
+
+// THE MODEL-PAIR TURN-BREAKER (the owner's live row, 2026-07-31). `{source:"vllm",
+// model:"anthropic/claude-sonnet-5"}` 404s every local turn — and the pane showed nothing wrong: the static
+// vllm cell rendered the STORED id under a "server config" chip, so a foreign pin read as the engine's own
+// configuration. The cell now renders what a turn actually SENDS (the configured model, which is what the
+// resolver heals to) and calls the ignored pin out by name, so the store is on screen either way.
+test("a stored model a server-configured source cannot serve is NOT rendered as the server config", async ({ mount, page }) => {
+  await stubSettings(page, { chat: { source: "vllm", model: LIVE_MODEL, api: "chat-completions" } });
+  await mount(<ConnectionsSettingsStory />);
+
+  const chatRow = page.locator('[data-slot="role-slot-row"]').first();
+  // What a turn sends — the engine's launch model, never the pin.
+  await expect(chatRow).toContainText(VLLM_MODEL);
+  // The pin is disclosed, not silently displayed-as-truth.
+  const pinAlert = chatRow.locator('[data-slot="ignored-model-pin"]');
+  await expect(pinAlert).toBeVisible();
+  await expect(pinAlert).toContainText(LIVE_MODEL);
+  await expect(pinAlert).toContainText("only serves its configured model");
+});
+
+test("a config-derived row with NO stored pin shows the configured model plainly — no false alarm", async ({ mount, page }) => {
+  await stubSettings(page, { chat: { source: "vllm", model: "", api: "chat-completions" } });
+  await mount(<ConnectionsSettingsStory />);
+
+  const chatRow = page.locator('[data-slot="role-slot-row"]').first();
+  await expect(chatRow).toContainText(VLLM_MODEL);
+  await expect(chatRow.locator('[data-slot="ignored-model-pin"]')).toHaveCount(0);
 });
 
 test("a NEVER-SAVED pane does not read as configured — the rows name the app default, not a selection", async ({ mount, page }) => {

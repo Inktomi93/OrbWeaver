@@ -3,6 +3,7 @@
 // serializer makes the read-merge-write atomic w.r.t. other same-user writes — without it last-write-wins
 // would silently drop one). Plus: a section patch deep-merges (doesn't clobber sibling sections/keys).
 
+import { DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -260,5 +261,130 @@ describe("updateUserSettingsSection — PD-139a embed-model-change reindex trigg
       expect(config.routing.roleDefaults.chat?.api).toBeUndefined();
       expect(config.routing.roleDefaults.chat?.model ?? undefined).toBeUndefined();
     }
+  });
+});
+
+// `(source, model)` is ONE selection, and `deepMergePlain` merges per KEY — so a patch naming half of it
+// left the other half pinned from the PREVIOUS selection. That is how the live dev row became
+// `{api:"chat-completions", source:"vllm", model:"anthropic/claude-sonnet-5"}`: the e2e seed patches
+// `roleDefaults.chat = {api, source}` with no model, and the owner's earlier OpenRouter model survived the
+// merge into a pair the local engine 404s on. The guard is at the WRITE boundary because the pane is only
+// one doorway (substrate/routing-coherence.ts).
+describe("updateUserSettingsSection — routing (source, model) coherence", () => {
+  test("a patch naming a role's SOURCE without its MODEL clears the stale model (the vllm × sonnet 404)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_flip" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: {
+        section: "routing",
+        patch: { roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "chat-completions" } } },
+      },
+    });
+
+    // The exact e2e-seed patch shape: source + api, no model key.
+    const flipped = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { api: "chat-completions", source: "vllm" } } } },
+    });
+
+    const view = await h.svc.getUserSettings({ principal: p });
+    for (const config of [flipped.config, view.config]) {
+      expect(config.routing.roleDefaults.chat?.source).toBe("vllm");
+      // Cleared, not carried over — the resolver re-derives the engine's configured model live.
+      expect(config.routing.roleDefaults.chat?.model ?? "").toBe("");
+    }
+  });
+
+  test("a source flip to a CATALOG source also drops the previous source's model", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_flip_or" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { summarize: { source: "vllm" } } } },
+    });
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { summarize: { source: "openrouter", model: "anthropic/claude-haiku-4-5" } } } },
+    });
+
+    const flipped = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { summarize: { source: "max-pro-sub" } } } },
+    });
+
+    expect(flipped.config.routing.roleDefaults.summarize?.source).toBe("max-pro-sub");
+    expect(flipped.config.routing.roleDefaults.summarize?.model ?? "").toBe("");
+  });
+
+  test("a patch naming BOTH leaves keeps the submitted model (the pane's own shape)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_both" }), "user");
+    const saved = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "chat-completions" } } } },
+    });
+    expect(saved.config.routing.roleDefaults.chat?.model).toBe("anthropic/claude-sonnet-5");
+  });
+
+  test("pinning a model on a SERVER-CONFIGURED source is REJECTED (vllm serves what it was launched with)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_reject" }), "user");
+
+    const err = await h.svc
+      .updateUserSettingsSection({
+        principal: p,
+        input: { section: "routing", patch: { roleDefaults: { chat: { source: "vllm", model: "anthropic/claude-sonnet-5" } } } },
+      })
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("incoherent_role_model");
+    // And nothing landed — the rejection is at the boundary, before the merge/write.
+    expect((await h.svc.getUserSettings({ principal: p })).config.routing.roleDefaults.chat?.source).toBeUndefined();
+  });
+
+  test("the reject arm also covers a model-only patch against a STORED config-derived source", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_reject_stored" }), "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { embed: { source: "local-light" } } } },
+    });
+
+    const err = await h.svc
+      .updateUserSettingsSection({
+        principal: p,
+        input: { section: "routing", patch: { roleDefaults: { embed: { model: "text-embedding-3-large" } } } },
+      })
+      .catch((e: unknown) => e);
+
+    expect((err as DomainOperationError).code).toBe("incoherent_role_model");
+  });
+
+  test("a pre-existing incoherent row does NOT block an unrelated role's patch (only what the patch asserts is judged)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const p = principal(await seedUser(db, { id: "user_legacy_row" }), "user");
+    // Plant the legacy shape the guard now prevents, the only way it can still be written: a catalog-source
+    // model plus a source-only flip is healed, so write the model first and flip with an explicit re-pin…
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { chat: { source: "openrouter", model: "anthropic/claude-sonnet-5" } } } },
+    });
+
+    // …then touch a DIFFERENT role. The stale chat pair is untouched data, not this patch's assertion.
+    const after = await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "routing", patch: { roleDefaults: { rerank: { source: "openrouter", model: "rerank-v3.5" } } } },
+    });
+
+    expect(after.config.routing.roleDefaults.rerank?.model).toBe("rerank-v3.5");
+    expect(after.config.routing.roleDefaults.chat?.model).toBe("anthropic/claude-sonnet-5");
   });
 });

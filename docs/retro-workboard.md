@@ -141,10 +141,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   (`rpg-game-tab.tsx:42-44` documents the gap). The "keep explicit-list-only" NPC-grants ruling
   DEPENDS on hosts being able to edit the list — without this editor the ruling is a dead letter.
   Home: the takeover/sheet view beside the other per-actor editing (TRK stage-2 primitives).
-- **KNOB EDITORS batch** — `journalTypeHints` (cheapest — HintEditor sibling) · `hiddenContentReveal`
-  · `recentBeatsKeepLast` · `cardKeepLastX` · extraction-depth trio (`extractionContext` /
-  `extractionWindowTokens` / `reconcileEveryBeats`) · `config.userMacros` is UNWRITABLE (not in the
-  patch schema at all — needs the write arm first). Plus the extraction-mode picker copy refresh.
+- ~~KNOB EDITORS batch~~ **BUILT + merged 08-01 late** (`a2c2a730` — six editors incl. the shared
+  hint-map editor; EFF-3 effective-delivery honesty landed with it; side-eye flag: fallback WHY is
+  hover-title-only, visibility is a copy/layout call). **`config.userMacros`: OWNER RULED (08-01
+  late) — WIRE THE READ END** (own chat-domain lane: game-config macros register into the turn
+  beside the preset's; collision policy game-shadows-preset; editor after). QUEUED behind the
+  ChoiceBlock lane (shared domain/chat contract files). EFF-3 residual (documented in headers):
+  the runtime no-terminal-channel arm is post-turn-only — such a room still reads "Live".
+  Same-ruling closures: card-note mute stays DEAD (no replacement knob until missed in play) ·
+  ST export stays ONE-WAY (no note_prompt heuristic) · snippet search LANDED (`86f172e0`).
 - **PROSE-1** — model-facing prose → host-editable data with VERSIONED shipped defaults (owner:
   "prose shouldn't live in the code"). Inventory: card/cyoa teaches · steering license · delta
   headings · impersonate/continue/response nudges · R2 template shells · FOLDED_RECONCILE_NOTE.
@@ -166,7 +171,10 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   them; needs a "what render policy would this card get" server seam (architecture call).
 - **DRAFT-CAST** — DraftGreetingThread uses seed.characterIds only; commit unions
   addedCharacterIds — a panel-added character shows no greeting row pre-commit (cheap union fix).
-- **#24 MU-picks pane** (server half `chat.setUserMacroValues` exists) ·
+- ~~#24 MU-picks pane~~ **BUILT + merged 08-01 late** (`24e4f38d` — incl. the missing READ,
+  `chat.getUserMacroPicks`, least-privilege: members get identity+inputs, never macro bodies).
+  FOLLOW-ON small: the ChoiceBlock picks sibling (getVariables/setVariables) still has zero tRPC
+  procs — wiring it into the same Section makes the spec's "one pane, two knob families" true. ·
   **DATABANK CLIENT SURFACE** (re-classified from "setChatDocumentVisibility wire" — verified
   2026-08-01: ZERO client callers of the whole databank router; the settings pane is retrieval
   knobs only; legacy-main's DBK-E context tab was never ported. This is a BUILD-SURFACE feature
@@ -197,12 +205,21 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 - Chat-row rpg/game marker SKIPPED by Lane B (correctly): `ChatSummary` carries no rpg pointer and
   rpgRouter has no list-games query — needs a contract field; fold into the ChatSummary
   last-message-snippet field work (one migration, both markers).
-- BUS-FLAP: chat open does subscribe→unsubscribe→subscribe on the chat bus (live-observed).
-- BOOT-4X: user-bus connect gap-heal double-fetches 4 roots on every page load ("by design" — evaluate).
-- VERIFY-BURST: re-drive the invalidation lane's 3 recorded snap commands against merged code,
-  confirm ≤2/≤2 fetches live (its "after" numbers were map arithmetic).
-- ✨-PERSPECTIVE: a snap drive of Impersonate → "1st person" produced no stream traffic — selector
-  miss or dead menu item; verify (zombie-lane toasts may have changed the picture).
+- ~~BUS-FLAP~~ CLOSED (dev-only StrictMode double-invoke of the devlog MIRROR effect; the wire
+  opens ONE socket — server-log receipt; causal StrictMode probe). · ~~BOOT-4X~~ FIXED
+  (`46d75eaf` — heal starts from the SECOND connection; 4 wasted round-trips/load gone; both CTs
+  proven-to-fail against old code). · ~~VERIFY-BURST~~ CLOSED (claims held live: 2/2/0 across all
+  three drives, zero tripwires). · ~~✨-PERSPECTIVE~~ CLOSED (works end-to-end; the old "zero
+  traffic" was a blind instrument — subscriptions bypass loggerLink by design).
+- **rpg.stream SOCKET-GATE LEAK** (found by the stage drive, unchased): rpg.stream opens on a
+  plain HOME route with no chat + doubles after one chat open — the use-rpg-bus header's law
+  ("non-game chat holds no socket") is NOT holding. ROUTED to the SSE S1 lane as must-cover
+  (find the mechanism while swapping the body + the missing zero-attach CT).
+- **⚠ LIVE DEV DB — broken routing pairing (OWNER MORNING FLAG):** `routing.roleDefaults.chat`
+  = `{source:"vllm", model:"anthropic/claude-sonnet-5"}` — any live vllm chat turn 404s ("model
+  does not exist"). NOT auto-fixed (owner data — [[dev-stack-fights-host-automation]]); fix in
+  Connections: pick a real local model for the vllm chat slot (stage copies were patched to
+  Qwen3-VL-8B for the drives).
 - WAKE-STATUS: the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
 - Freshness-gate DEFERRED debt: 12 `stats.*` keys (driver-vs-dashboard-cost tradeoff) +
   `assets.listOwned` (the raw multipart upload seam invalidates nothing).

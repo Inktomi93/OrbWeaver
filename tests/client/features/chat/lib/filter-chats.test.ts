@@ -4,9 +4,9 @@
 import { filterChats } from "../../../../../packages/client/src/features/chat/lib/filter-chats";
 import { expect, test } from "../../../../support/fixtures";
 
-const ADVENTURE = { title: "A grand adventure", participantNames: ["Aria Nightshade"] };
-const BLANK = { title: null, participantNames: ["Bolt"] };
-const SOLO = { title: "Solo musings", participantNames: [] };
+const ADVENTURE = { title: "A grand adventure", participantNames: ["Aria Nightshade"], lastMessagePreview: "The court remembers what she did." };
+const BLANK = { title: null, participantNames: ["Bolt"], lastMessagePreview: null };
+const SOLO = { title: "Solo musings", participantNames: [], lastMessagePreview: "quiet rain on the window" };
 
 test("an empty query returns every item, unfiltered", () => {
   expect(filterChats([ADVENTURE, BLANK, SOLO], "")).toEqual([ADVENTURE, BLANK, SOLO]);
@@ -31,4 +31,13 @@ test("a null-title row can still match on its participants, never on the title",
 
 test("no match returns an empty array", () => {
   expect(filterChats([ADVENTURE, BLANK, SOLO], "nonexistent")).toEqual([]);
+});
+
+test("matches a case-insensitive substring of the last-message preview (owner ruling 2026-08-01)", () => {
+  expect(filterChats([ADVENTURE, BLANK, SOLO], "COURT REMEMBERS")).toEqual([ADVENTURE]);
+});
+
+test("a null preview never matches on the preview arm (only title/participants can)", () => {
+  // "null" appears nowhere in BLANK's title/participants; the null preview must not match anything.
+  expect(filterChats([BLANK], "rain")).toEqual([]);
 });

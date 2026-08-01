@@ -89,8 +89,10 @@ test("a GAME chat attaches exactly ONE rpg room, and its frames drive the invali
 
   await expect.poll(() => socket.attachedChannels()).toEqual([`rpg:${GAME_CHAT}`]);
   await expect(page.getByTestId("rpg-events")).toHaveText("gameChanged");
-  // The socket's live edge fired the gap-heal exactly as the per-proc stream's `pending` transition did.
-  await expect.poll(async () => Number(await page.getByTestId("rpg-heals").textContent())).toBeGreaterThan(0);
+  // …and NO gap-heal on the room's first live edge (BOOT-4X). The frame above is the barrier: it is
+  // delivered strictly after the room went live, so a heal would already be counted here if one had fired.
+  // ONESHOT-OK: settled by the frame-delivery assertion above.
+  expect(await page.getByTestId("rpg-heals").textContent()).toBe("0");
 });
 
 test("the always-on user room attaches unconditionally and receives its own frames", async ({ mount, page }) => {

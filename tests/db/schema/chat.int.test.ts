@@ -116,7 +116,7 @@ test("chats.metadata JSON round-trips through the @orb/db/kit read seam", async 
 test("chats variableValues (read-seam map) + import provenance round-trip", async () => {
   const db = await freshDb();
   const chatId = castId<ChatId>("chat_vars");
-  // The per-chat ChoiceBlock variable flush (setVariables writes it; getStoredVariables reads it).
+  // The per-chat ChoiceBlock variable flush (setVariables writes it; getVariablePicks reads it).
   const variableValues = { a: "1" };
   // The D46 DERIVED runtime cache — distinct column from the config-plane `variableValues` store.
   const runtimeVariables = { mood: "happy", turns: "3" };
