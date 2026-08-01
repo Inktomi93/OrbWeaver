@@ -327,7 +327,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
      launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
      per-section baselines.
-   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled; LANE IN FLIGHT carrying the Engines claim-split hold)
+   - [ ] S4 BUILT (`7813dbed`) — RECONCILE ROUND IN FLIGHT (semantic conflict vs numeric-
+     unification's AdminOverrideField NumberField+floorValue rework; union = floorValue:number|null
+     [null=env-unknowable arm]; lane merging main into its branch). S4 content: System pane DELETED
+     (12 admin contributions, footnote dead); Engines hold RESOLVED via LEAF-AWARE app claims
+     (AppSettingsClaimPath + a nesting arm in assertSettingsKeyPartition — structurally catches
+     parent-null-wipes-co-owner; claim derives from the editor's field tuples). FOLLOW-UPS: fold
+     the leaf-claim mechanism into spec §2.3 (spec-text delta, orchestrator) · lesson: a floor is
+     UNKNOWABLE once its override is stored (getAppSettingsWithOverrides returns floor⊕override) —
+     rows degrade to "reset to fall back", never name a fake default.
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
      OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.
