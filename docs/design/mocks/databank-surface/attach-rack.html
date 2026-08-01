@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Databank surface — the per-chat Documents rack (This-chat tab, host vs member)</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-destructive: oklch(0.65 0.19 25);
+  --color-warning: oklch(0.8 0.12 85);
+  --color-success: oklch(0.72 0.13 150);
+  --color-info: oklch(0.7 0.1 232);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-ring: oklch(0.72 0.175 52);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 64px}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+h2{font-size:.95rem;margin:34px 0 12px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:980px}
+.stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px;border-radius:var(--radius-control)}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:330px;margin:9px 0 0;line-height:1.55}
+.note b{color:var(--color-foreground);font-weight:650}
+
+/* the CONTEXT panel shell */
+.panel{width:330px;background:var(--color-sidebar);border:1px solid var(--color-sidebar-border);
+  border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.band{height:48px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--color-sidebar-border)}
+.band .caps{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.band .grow{flex:1}
+
+/* the tab strip — Members · This chat · Preview (the consolidated three) */
+.tabs{display:flex;gap:2px;padding:6px 7px 0;border-bottom:1px solid var(--color-sidebar-border)}
+.tabs button{border:none;background:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:650;
+  color:var(--color-muted-foreground);padding:6px 9px 8px;border-bottom:2px solid transparent;display:flex;align-items:center;gap:5px}
+.tabs button[aria-selected="true"]{color:var(--color-foreground);border-bottom-color:var(--color-primary)}
+.tabs svg{width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* the tab body — instrument surface, form islands (density §3 blesses the nesting) */
+.body{padding:11px 10px 16px;display:flex;flex-direction:column;gap:15px;max-height:640px;overflow:auto;
+  scrollbar-width:thin;scrollbar-color:color-mix(in oklab,var(--color-foreground) 15%,transparent) transparent}
+.sec > h3{margin:0 0 7px;font-size:11px;font-weight:650;display:flex;align-items:center;gap:6px}
+.sec > .gloss{font-size:11px;color:var(--color-muted-foreground);margin:0 0 8px;line-height:1.5}
+.collapsed{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 9px;
+  border-radius:var(--radius-control);background:color-mix(in oklab,var(--color-foreground) 3.5%,transparent);
+  font-size:11.5px;color:var(--color-muted-foreground);cursor:pointer}
+.chev{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+
+.badge{font-size:9px;font-weight:650;padding:2px 7px;border-radius:var(--radius-full);white-space:nowrap;letter-spacing:.02em}
+.b-work{color:var(--color-warning);background:color-mix(in oklab,var(--color-warning) 15%,transparent)}
+.b-neutral{color:var(--color-muted-foreground);background:color-mix(in oklab,var(--color-foreground) 8%,transparent)}
+.b-info{color:var(--color-info);background:color-mix(in oklab,var(--color-info) 15%,transparent)}
+.b-count{background:color-mix(in oklab,var(--color-foreground) 9%,transparent);color:var(--color-muted-foreground)}
+
+/* the rack rows — ONE list (the union), not legacy's two */
+.rows{display:flex;flex-direction:column;gap:2px}
+.row{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius-control);position:relative}
+.row:hover{background:color-mix(in oklab,var(--color-foreground) 4%,transparent)}
+.row .main{min-width:0;flex:1}
+.row .t{font-size:12px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .sub{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground);margin-top:2px;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.row .acts{display:flex;align-items:center;gap:1px;flex:none}
+.row.hidden-doc .t{opacity:.5}
+.row.hidden-doc .sub{opacity:.55}
+.row.hidden-doc .sub .badge{opacity:1}
+
+.toggle{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;
+  border:none;background:none;color:var(--color-muted-foreground);cursor:pointer;border-radius:var(--radius-control)}
+.toggle svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* the D85 visibility toggle rests ALWAYS visible — retrieval state is what the eye scans for */
+.toggle[aria-pressed="true"]{color:var(--color-primary)}
+.toggle[aria-pressed="false"]{color:var(--color-muted-foreground);opacity:.7}
+.kebab{background:none;border:none;color:var(--color-muted-foreground);cursor:pointer;flex:none;padding:3px;
+  border-radius:var(--radius-control);opacity:0}
+.row:hover .kebab{opacity:1}
+.kebab svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.8;fill:none}
+
+.addbtn{display:inline-flex;align-items:center;gap:5px;height:27px;padding:0 9px;margin-top:8px;
+  border:1px dashed var(--color-input);border-radius:var(--radius-control);cursor:pointer;
+  font-family:inherit;font-size:11px;font-weight:650;background:none;color:var(--color-muted-foreground)}
+.addbtn svg{width:12px;height:12px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round}
+
+.emptyline{font-size:11.5px;color:var(--color-muted-foreground);line-height:1.5;padding:4px 2px}
+
+/* the picker dialog */
+.dialog{width:400px;background:var(--color-popover);border:1px solid var(--color-border);border-radius:var(--radius-card);
+  box-shadow:0 24px 70px rgb(0 0 0 / .5);overflow:hidden}
+.dialog .dhead{padding:14px 16px 10px;border-bottom:1px solid var(--color-border)}
+.dialog .dt{font-size:14px;font-weight:650}
+.dialog .dd{font-size:11.5px;color:var(--color-muted-foreground);margin-top:3px;line-height:1.5}
+.dialog .dbody{padding:9px 8px 12px;display:flex;flex-direction:column;gap:2px;max-height:280px;overflow:auto}
+.dialog .dfoot{padding:10px 14px;border-top:1px solid var(--color-border);display:flex;justify-content:flex-end;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;border-radius:var(--radius-control);
+  cursor:pointer;font-family:inherit;font-size:11px;font-weight:650;border:1px solid var(--color-input);
+  background:color-mix(in oklab,var(--color-foreground) 5%,transparent);color:var(--color-foreground)}
+.btn.ghost{border-color:transparent;background:none;color:var(--color-muted-foreground)}
+.btn.pri{background:var(--color-primary);color:var(--color-primary-foreground);border-color:transparent}
+</style></head>
+<body>
+
+<h1>Databank surface — the per-chat Documents rack</h1>
+<p class="lede">Drawing for <code>docs/design/databank-surface-spec.md</code> §3.2 / §3.3 / §6.3. The rack is a
+<b>SECTION inside the consolidated "This chat" tab</b> — not a fourth tab (the panel-redesign lane merged the meta-tabs
+deliberately). <b>One list</b>, the D85 membership-widened union, with a <b>source chip</b> saying why each document is
+active. Legacy's two-list / read-only-switch shape is rejected (spec §2.2). Same component, two payloads: the host's
+carries hidden rows + the toggle; the member's does not. <b>A drawing is never law.</b></p>
+
+<h2>The "This chat" tab — HOST</h2>
+<div class="stage">
+
+  <div>
+    <p class="plabel">CONTEXT — This chat (host of a 3-human room)</p>
+    <div class="panel">
+      <div class="band"><span class="caps">The Crimson Court</span><span class="grow"></span></div>
+      <div class="tabs">
+        <button><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Members</button>
+        <button aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/></svg>This chat</button>
+        <button><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
+      </div>
+      <div class="body">
+
+        <div class="sec">
+          <h3>Field overrides <span class="badge b-count">1 set</span></h3>
+          <div class="collapsed"><span>Main prompt · Post-history · Scenario</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+
+        <div class="sec">
+          <h3>Injections <span class="badge b-count">3</span></h3>
+          <div class="collapsed"><span>3 manual injections</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+
+        <!-- ═══ the new section ═══ -->
+        <div class="sec">
+          <h3>Documents <span class="badge b-count">5</span></h3>
+          <p class="gloss">What feeds this room's prompts — everyone's shared documents and the cast's.</p>
+          <div class="rows">
+
+            <div class="row">
+              <div class="main">
+                <div class="t">The Crimson Court — Houses &amp; Bloodlines.pdf</div>
+                <div class="sub"><span class="badge b-info">Everywhere</span>4.2 MB</div>
+              </div>
+              <div class="acts">
+                <button class="toggle" aria-pressed="true" title="Feeding this chat's retrieval">
+                  <svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="main">
+                <div class="t">Ashfall Rebellion — timeline.md</div>
+                <div class="sub"><span class="badge b-neutral">This chat</span>18.1 KB</div>
+              </div>
+              <div class="acts">
+                <button class="toggle" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button class="kebab" style="opacity:1" title="Detach from this chat"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="main">
+                <div class="t">Sanguine Compact — full text</div>
+                <div class="sub"><span class="badge b-neutral">via Azarael</span>62.4 KB</div>
+              </div>
+              <div class="acts">
+                <button class="toggle" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+              </div>
+            </div>
+
+            <!-- HOST-HIDDEN: only the host ever sees this row -->
+            <div class="row hidden-doc">
+              <div class="main">
+                <div class="t">Vasska's Sermons — captions, ep. 1–9</div>
+                <div class="sub"><span class="badge b-neutral">Hidden</span><span class="badge b-info">Everywhere</span>Mira's</div>
+              </div>
+              <div class="acts">
+                <button class="toggle" aria-pressed="false" title="Hidden from this chat's retrieval — click to show">
+                  <svg viewBox="0 0 24 24"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.1-5.9"/><path d="M9.9 4.2A10 10 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2"/><path d="M1 1l22 22"/></svg>
+                </button>
+                <button class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="main">
+                <div class="t">Duskwater Barony — house wiki</div>
+                <div class="sub"><span class="badge b-work">Indexing</span><span class="badge b-neutral">This chat</span>22/39</div>
+              </div>
+              <div class="acts">
+                <button class="toggle" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button class="kebab"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+              </div>
+            </div>
+
+          </div>
+          <button class="addbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add from your bank</button>
+        </div>
+
+        <div class="sec">
+          <h3>Macro picks</h3>
+          <div class="collapsed"><span>2 inputs · 1 choice</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+
+        <div class="sec">
+          <h3>Background</h3>
+          <div class="collapsed"><span>Duskwater at dusk</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+
+      </div>
+    </div>
+    <p class="note">Placement is <b>after Injections</b> (D-4): the same family — extra content entering this room's
+      prompt — and unlike Background/Group/Tool-use it is member-<b>readable</b>, so it sits above the host-only band.
+      The eye/eye-off toggle is the D85 write (<code>chat.setChatDocumentVisibility</code>, set-semantics: the client
+      sends the WHOLE excluded list). It rests <b>always visible</b>, because retrieval state is what the eye scans for.</p>
+  </div>
+
+  <div>
+    <p class="plabel">The kebab (host, source = This chat)</p>
+    <div class="dialog" style="width:230px">
+      <div class="dbody" style="max-height:none;padding:6px">
+        <div style="padding:7px 9px;font-size:12px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-control)">
+          <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none" viewBox="0 0 24 24"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-6.5 0-10-7-10-7a18 18 0 0 1 5.1-5.9"/><path d="M1 1l22 22"/></svg>
+          Hide from this chat
+        </div>
+        <div style="padding:7px 9px;font-size:12px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-control);color:var(--color-destructive)">
+          <svg style="width:13px;height:13px;stroke:currentColor;stroke-width:1.9;fill:none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          Detach from this chat
+        </div>
+      </div>
+    </div>
+    <p class="note">Kebab keeps <b>mirror parity</b> (§12.2 N3): the inline visibility toggle is repeated as a menu item.
+      <b>Detach</b> appears ONLY when the source chip reads <code>This chat</code> — that is the only junction the host
+      owns here. A member's <code>Everywhere</code> document can be <i>hidden</i>, never detached; saying "remove" would
+      be a lie, which is exactly why legacy's read-only switch was wrong.</p>
+
+    <p class="plabel" style="margin-top:26px">"Add from your bank" — the picker</p>
+    <div class="dialog">
+      <div class="dhead">
+        <div class="dt">Add a document to this chat</div>
+        <div class="dd">Your documents that aren't already feeding this room. Attaching one puts its passages in every
+          member's prompts.</div>
+      </div>
+      <div class="dbody">
+        <div class="row" style="cursor:pointer">
+          <div class="main"><div class="t">Court etiquette — quick notes</div><div class="sub">Text · 3.4 KB · 2 chunks</div></div>
+          <div class="acts"><button class="btn" style="height:24px;font-size:10.5px">Attach</button></div>
+        </div>
+        <div class="row" style="cursor:pointer">
+          <div class="main"><div class="t">Heraldry plates (scanned)</div><div class="sub"><span class="badge b-neutral">Empty</span>Upload · 11.8 MB</div></div>
+          <div class="acts"><button class="btn" style="height:24px;font-size:10.5px">Attach</button></div>
+        </div>
+      </div>
+      <div class="dfoot"><button class="btn ghost">Close</button></div>
+    </div>
+    <p class="note">The list is <code>databank.list</code> MINUS the ids already in the active set — derived from the
+      list the rack already fetched. <b>No second read, no per-row query.</b> Legacy mounted a permanent mirror of the
+      whole bank underneath the active list and issued one <code>listAttachments</code> per row (spec §2.2).</p>
+  </div>
+
+</div>
+
+<h2>The same section — MEMBER (permission-OMIT, one surface)</h2>
+<div class="stage">
+  <div>
+    <p class="plabel">CONTEXT — This chat (a member, not the host)</p>
+    <div class="panel">
+      <div class="band"><span class="caps">The Crimson Court</span><span class="grow"></span></div>
+      <div class="tabs">
+        <button><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Members</button>
+        <button aria-selected="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="7" cy="18" r="2" fill="currentColor" stroke="none"/></svg>This chat</button>
+      </div>
+      <div class="body">
+        <div class="sec">
+          <h3>Field overrides</h3>
+          <div class="collapsed"><span>Read-only — the host sets these</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+        <div class="sec">
+          <h3>Injections <span class="badge b-count">3</span></h3>
+          <div class="collapsed"><span>3 manual injections</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+        <div class="sec">
+          <h3>Documents <span class="badge b-count">4</span></h3>
+          <p class="gloss">What feeds this room's prompts — everyone's shared documents and the cast's.</p>
+          <div class="rows">
+            <div class="row">
+              <div class="main"><div class="t">The Crimson Court — Houses &amp; Bloodlines.pdf</div>
+                <div class="sub"><span class="badge b-info">Everywhere</span>4.2 MB</div></div>
+            </div>
+            <div class="row">
+              <div class="main"><div class="t">Ashfall Rebellion — timeline.md</div>
+                <div class="sub"><span class="badge b-neutral">This chat</span>18.1 KB</div></div>
+            </div>
+            <div class="row">
+              <div class="main"><div class="t">Sanguine Compact — full text</div>
+                <div class="sub"><span class="badge b-neutral">via Azarael</span>62.4 KB</div></div>
+            </div>
+            <div class="row">
+              <div class="main"><div class="t">Duskwater Barony — house wiki</div>
+                <div class="sub"><span class="badge b-work">Indexing</span><span class="badge b-neutral">This chat</span>22/39</div></div>
+            </div>
+          </div>
+          <p class="emptyline" style="margin-top:8px">Anything you make <b style="color:var(--color-foreground)">Everywhere</b>
+            in your own library joins this list while you're in the room.</p>
+        </div>
+        <div class="sec">
+          <h3>Macro picks</h3>
+          <div class="collapsed"><span>2 inputs · 1 choice</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Four rows, not five — <b>the host-hidden document is absent from the payload entirely</b>
+      (<code>list-active-for-chat.ts</code> filters a member's set). No toggle, no kebab, no Add: the controls do not
+      render at all (permission-OMIT — one surface, not a reduced mode). The UI never implies "there are more you
+      can't see"; that would leak the count.</p>
+  </div>
+
+  <div>
+    <p class="plabel">Empty — nothing feeds this room yet</p>
+    <div class="panel" style="min-height:220px">
+      <div class="band"><span class="caps">The Crimson Court</span><span class="grow"></span></div>
+      <div class="body">
+        <div class="sec">
+          <h3>Documents</h3>
+          <p class="emptyline">No documents feed this chat yet. Attach one from your bank, or switch a document to
+            <b style="color:var(--color-foreground)">Everywhere</b> in your library and it joins every room you're in.</p>
+          <button class="addbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add from your bank</button>
+        </div>
+      </div>
+    </div>
+    <p class="note">The empty state teaches BOTH paths (per-chat attach and Everywhere) — the two ways a document
+      reaches a room. A member gets the same copy without the button.</p>
+  </div>
+</div>
+
+</body></html>
