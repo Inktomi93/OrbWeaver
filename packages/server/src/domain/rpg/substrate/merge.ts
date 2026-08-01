@@ -24,6 +24,9 @@
 // `<field>.<id>` addresses one element. A keyed merge correlates base↔patch elements by that key and:
 //   • a WHOLE-element lock (`<field>.<id>`) pins the base element over the patch (survives a MODIFY);
 //   • a base element with ANY lock at/under its element path survives a tool REMOVAL (re-inserted);
+//   • a plane may be ADDITIVE (`omissionRemoves: false` — `actorState` alone), where an element the patch
+//     never names survives unconditionally: nothing removes an actor by omission, and both the hand door
+//     (locks off, roster-only client view) and the tool appliers author less than the whole array;
 //   • a correlated pair with neither DEEP-MERGES per field (the same `mergeAt` walk, path-prefixed
 //     `<field>.<id>`), so a SUB-FIELD lock (`actorState.user:u1.status`, `actorState.user:u1.pools.Mana`)
 //     bites on exactly that value while unlocked sibling fields take the patch — the per-field pin (#10);
@@ -57,23 +60,44 @@ function actorStateKey(element: unknown): string | undefined {
   return parsed.success ? actorRefKey(parsed.data) : undefined;
 }
 
+/** One keyed plane's merge policy: how an element is addressed, and what OMITTING one from the patch means. */
+interface KeyedPlane {
+  readonly keyOf: ElementKeyResolver;
+  /** Does a base element the patch never names mean REMOVE it?
+   *  • `true` — the authored array IS the plane. Every plane with a real remove-by-omission gesture
+   *    (`deleteQuest`, the pack's item removal, the tool's `presentRemove` / `removeCondition`) needs this,
+   *    and only the element-lock defense below rescues a pinned element from it.
+   *  • `false` — ADDITIVE: an unnamed element is IGNORANCE, not intent, so the base element survives. */
+  readonly omissionRemoves: boolean;
+}
+
 /** The keyed snapshot arrays, matched by the path's FINAL SEGMENT: `quests`/`inventory` (key `id`),
  *  `presentCharacters` (`key`), `actorState` (the computed `actorRefKey` — the #10 per-field-lock wire),
  *  and the per-actor nested planes `wallet`/`conditions` (`name` — the name-addressed vocabulary, D86).
  *  Segment-matching (over full-path keys) is what lets the nested planes key under ANY actor prefix
  *  (`actorState.<key>.wallet`) without a per-actor registry re-spell.
  *
+ *  `actorState` is the ONE ADDITIVE plane, because NOTHING removes an actor by omission and two writers
+ *  routinely author less than the whole array:
+ *    • the tool/extraction appliers only ever map-or-append over the base (`withActor`, tools/apply.ts);
+ *    • the HAND door writes with `fieldLocks: null` (hand-always-wins) — which also disables the element-lock
+ *      removal defense — and its client builds the overlay from the tracker view's `actors`, which carries the
+ *      ROSTER half of the plane only (a `cast:` NPC's volatile row lives under `castVolatile`).
+ *  So a host editing one party member's HP used to DELETE every scene NPC's tracked state, and two
+ *  back-to-back per-actor hand edits erased the first (the e2e-caught hand-plane loss). An actor is an
+ *  identity, not list content: it leaves the plane by a real gesture, never by going unmentioned.
+ *
  *  TRACKER VALUES ARE NOT HERE, and that is the point of the unification: `trackerValues` is a RECORD keyed
  *  by tracker `key`, not an array, so the plain object walk already gives it per-tracker lock paths
  *  (`actorState.<actor>.trackerValues.<key>`, `trackerValues.<key>`) for free — the keyed-array machinery
  *  existed precisely because the old name-addressed `pools[]` array could not express one. */
-const KEYED_ARRAYS: Readonly<Record<string, ElementKeyResolver>> = {
-  quests: propKey("id"),
-  inventory: propKey("id"),
-  presentCharacters: propKey("key"),
-  actorState: actorStateKey,
-  wallet: propKey("name"),
-  conditions: propKey("name"),
+const KEYED_ARRAYS: Readonly<Record<string, KeyedPlane>> = {
+  quests: { keyOf: propKey("id"), omissionRemoves: true },
+  inventory: { keyOf: propKey("id"), omissionRemoves: true },
+  presentCharacters: { keyOf: propKey("key"), omissionRemoves: true },
+  actorState: { keyOf: actorStateKey, omissionRemoves: false },
+  wallet: { keyOf: propKey("name"), omissionRemoves: true },
+  conditions: { keyOf: propKey("name"), omissionRemoves: true },
 };
 
 /** The final dotted segment of a lock path (`actorState.user:u1.pools` → `pools`). */
@@ -121,16 +145,18 @@ function hasLockAtOrBelow(path: string, locks: RpgFieldLocks | null): boolean {
 
 /** Merge a keyed array under the `<field>.<id>` lock grammar (the header's four-rule contract): a
  *  whole-element lock pins the base element; a correlated pair deep-merges per field (nested locks bite —
- *  the #10 per-field pin); a base element with any lock at/under its path survives removal (appended at
- *  the tail, deterministically); an unkeyed/uncorrelated patch element lands as-is. */
+ *  the #10 per-field pin); an unnamed base element survives when the plane is ADDITIVE or when it carries
+ *  any lock at/under its path (appended at the tail, deterministically); an unkeyed/uncorrelated patch
+ *  element lands as-is. */
 function mergeKeyedArray(args: {
   baseArr: readonly unknown[];
   patchArr: readonly unknown[];
-  keyOf: ElementKeyResolver;
+  plane: KeyedPlane;
   locks: RpgFieldLocks | null;
   fieldPath: string;
 }): unknown[] {
-  const { baseArr, patchArr, keyOf, locks, fieldPath } = args;
+  const { baseArr, patchArr, plane, locks, fieldPath } = args;
+  const keyOf = plane.keyOf;
   const baseById = new Map<string, unknown>();
   for (const el of baseArr) {
     const id = keyOf(el);
@@ -150,8 +176,11 @@ function mergeKeyedArray(args: {
     out.push(resolveKeyedElement(baseById.get(id), el, locks, `${fieldPath}.${id}`));
   }
   for (const [id, el] of baseById) {
-    if (!seen.has(id) && hasLockAtOrBelow(`${fieldPath}.${id}`, locks)) {
-      out.push(el); // the tool dropped a locked element — re-insert it (removal defeated)
+    if (seen.has(id)) {
+      continue;
+    }
+    if (!plane.omissionRemoves || hasLockAtOrBelow(`${fieldPath}.${id}`, locks)) {
+      out.push(el); // additive plane, or the patch dropped a locked element — keep it (removal defeated)
     }
   }
   return out;
@@ -179,9 +208,9 @@ function resolveValue(baseValue: unknown, value: unknown, locks: RpgFieldLocks |
     return null; // explicit null = leaf clear
   }
   if (Array.isArray(value)) {
-    const keyOf = KEYED_ARRAYS[lastSegment(path)];
-    if (keyOf !== undefined && Array.isArray(baseValue)) {
-      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, keyOf, locks, fieldPath: path }); // keyed: element-lock grammar
+    const plane = KEYED_ARRAYS[lastSegment(path)];
+    if (plane !== undefined && Array.isArray(baseValue)) {
+      return mergeKeyedArray({ baseArr: baseValue, patchArr: value, plane, locks, fieldPath: path }); // keyed: element-lock grammar
     }
     return value; // unkeyed array = wholesale replace
   }
