@@ -1157,6 +1157,22 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       genStartedAt,
       genFinishedAt,
     });
+    // BEFORE the client-visible `turnCompleted` emit (w4-my-lane S1, option 1): the rpg register is
+    // SYNCHRONOUS (`onTurnCompleted` enters the flush barrier before its first await), so firing it
+    // first-thing-after-commit leaves no awaited work between the commit and the barrier entry — a scripted
+    // re-send riding the bus can no longer gather in a window where the barrier is still empty.
+    // §1.3 — thread the turn's OWN canon transcript (the story the state round reasons from) alongside the
+    // resolved route + consent verdict. Projected from the canon already in scope (`canonAll` + this reply):
+    // zero extra reads. The rpg consumer slices it to its configured window.
+    // R1 — `terminalToolCalls` is the FOLD's channel: `null` = the folded tools never rode this turn (so the
+    // consumer runs its own post-commit round), `[]` = they rode and the model recorded nothing (a quiet beat).
+    // They are handed ONLY here — never persisted on the variant, never streamed, never member-visible.
+    fireRpgTurnCompleted(ctx, view, turnId, {
+      connection,
+      ownerConsented,
+      transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
+      terminalToolCalls: result.terminalToolCalls,
+    });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     // Fans chatsChanged to every present human member's live channel (chat-list recency); fired once here for
     // the whole turn, not also on messageCommitted above (would triple-invalidate list keys).
@@ -1229,18 +1245,6 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     fireManagedCompaction(deps, prep, { result, canonAll });
 
     fireExpressionClassify(ctx, view);
-    // §1.3 — thread the turn's OWN canon transcript (the story the state round reasons from) alongside the
-    // resolved route + consent verdict. Projected from the canon already in scope (`canonAll` + this reply):
-    // zero extra reads. The rpg consumer slices it to its configured window.
-    // R1 — `terminalToolCalls` is the FOLD's channel: `null` = the folded tools never rode this turn (so the
-    // consumer runs its own post-commit round), `[]` = they rode and the model recorded nothing (a quiet beat).
-    // They are handed ONLY here — never persisted on the variant, never streamed, never member-visible.
-    fireRpgTurnCompleted(ctx, view, turnId, {
-      connection,
-      ownerConsented,
-      transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
-      terminalToolCalls: result.terminalToolCalls,
-    });
 
     return committedOutcome([view]);
   } catch (err) {
