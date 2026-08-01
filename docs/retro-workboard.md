@@ -772,6 +772,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+- **THEME-PURITY SCOUT: CLEAN (08-02)** — zero strays across every gate-blind shape (palette
+  classes, inline styles, svg attrs, css literals); the defense was already layered
+  (no-color-literals + no-off-token-inline-style + no-off-token-radius-shadow gates). ONE GRAY
+  for owner: the low-alpha WHITE SHEEN literals in gradient glows (globals.css:88,106,148 +
+  shell.css:241 — `oklch(1 0 0 / 0.0N)`) — deliberate polarity-fixed gloss or should it mint a
+  `--color-sheen` token? REC: mint the token (intent explicit, theme-overridable, one-line).
 - **VOCAB: "ember" is a THEME, not a design constant (owner 08-02)** — the default theme's value
   for the accent tokens. Design/spec/CT language says ACCENT/PRIMARY; sweep the strays (a HUD CT
   named "ember state colour"; any spec prose) in the next docs/test-touching lane. Code already
