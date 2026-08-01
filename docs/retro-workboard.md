@@ -115,7 +115,10 @@ names its decision; CONTEXT reads SAVED truth, zero mutation affordances, one wr
 pair) · §16 = the 29-row one-home audit (sanctioned echoes justified: create/activate/add-section/
 reorder/select; audit caught+fixed 2 defects in its own v1 mocks). NEW mock context-readouts
 claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + actions REPUBLISHED
-same URLs. Owner's two bars met — D1-D7 rulings now unblocked. [round-1 note: (a) PER-VIEW
+same URLs. Owner's two bars met. MOCK FEEDBACK RULED (08-02, round 3 in flight): output+context tokens =
+KnobRow SLIDERS (typeable, ghost arm, capability-fed ranges) · section editor's fused depth·order
+SPLITS — DEPTH moves to DELIVERY beside SPOKEN-AS ("depth goes near whatever role it goes in as"),
+ORDER stays in Placement. D1-D7 rulings still open. [round-1 note: (a) PER-VIEW
 CONTEXT definition (static Assembly readout insufficient — each of the 5 views + list-only state
 gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) one-home audit — both delivered above.] OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
 ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
