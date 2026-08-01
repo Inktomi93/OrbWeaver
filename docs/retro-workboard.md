@@ -371,8 +371,9 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   needs floored member → becomes sole human → forks. Kept because fork's own §3.6 strip already
   covers content+reasoning on exactly this path; VARIABLES are the one missed plane, + the
   no-baseline divergence half is floor-independent. Small consistency fix, low priority. ·
-  contracts-audit F6 — `DEFAULT_BLUR_SURFACES` (3 members, zero consumers) vs schema default `[]`
-  (two-line fix; closing it archives that whole audit) · Button wrap/multiline size variant
+  ~~contracts-audit F6~~ CLOSED 08-02 (owner ruling: the schema DEFAULTS to `DEFAULT_BLUR_SURFACES`,
+  blur ships ON for panels/composer/modals; audit archived to `docs/history/reviews/stickler/`) ·
+  Button wrap/multiline size variant
   (clears ui-size-via-variant's 2 debt rows).
 
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
