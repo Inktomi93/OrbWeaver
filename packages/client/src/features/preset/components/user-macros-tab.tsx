@@ -2,24 +2,25 @@
 // list + editor Dialog on the direct-bind form; the autosave BOUNDARY's store driver persists structural
 // array ops, D78 §3 — no manual flush) + the Macro browser (the ONE-metadata-table consumer) in a
 // closed-by-default disclosure underneath.
+//
+// The editor Dialog itself is client-shared (`#components/user-macro-editor-dialog`): owner ruling #20 gave
+// user macros a SECOND authoring home (a game's `config.userMacros`, edited on the rpg GM console), and both
+// homes write the same `UserMacroSpec` — one anatomy, two mounts.
 
 import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
+import { userMacroSchema } from "@orb/contracts/preset";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { EntryListEditor } from "#components";
+import type { UserMacrosFormValues } from "#components";
+import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
+import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
 import { MacroBrowser } from "./macro-browser";
-import { UserMacroEditorDialog } from "./user-macro-editor-dialog";
 
 type AppForm = AppFormInstance<PromptConfig>;
-
-/** A fresh user macro seeded with the schema defaults. */
-function makeUserMacro(): UserMacroSpec {
-  return { name: "new_macro", description: "", args: [], body: "", inputs: [], strict: false };
-}
 
 export interface UserMacrosTabProps {
   readonly form: AppForm;
@@ -35,7 +36,8 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
   const onAdd = (): void => {
     // Capture the PRE-push length (pushFieldValue applies synchronously — the Variables-tab off-by-one).
     const newIndex = form.state.values.userMacros.length;
-    form.pushFieldValue("userMacros", makeUserMacro());
+    // The fresh macro is minted THROUGH the schema — every other field is a schema default, never re-spelled.
+    form.pushFieldValue("userMacros", userMacroSchema.parse({ name: "new_macro", body: "" }));
     setEditIndex(newIndex);
   };
 
@@ -57,7 +59,18 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
             onRemove={(index): void => {
               void form.removeFieldValue("userMacros", index);
             }}
-            renderEditor={(index): ReactElement => <UserMacroEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} />}
+            renderEditor={(index): ReactElement => (
+              // The shared dialog binds only `userMacros[*]`, which PromptConfig carries; TanStack form
+              // instances are invariant in their value type, so narrowing this PromptConfig form to the
+              // dialog's minimal `UserMacrosFormValues` shape needs one cast (the RegexEditorDialog
+              // precedent — a library-invariance escape, never an Id launder; the field paths exist).
+              <UserMacroEditorDialog
+                form={form as unknown as AppFormInstance<UserMacrosFormValues>}
+                index={index}
+                onClose={(): void => setEditIndex(null)}
+                suggestions={PROMPT_MACRO_SUGGESTIONS}
+              />
+            )}
           />
           <Collapsible>
             <CollapsibleTrigger>

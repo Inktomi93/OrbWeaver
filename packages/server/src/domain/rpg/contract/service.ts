@@ -14,6 +14,7 @@
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import type {
   ChatRpgPointer,
   EmitRpgEvent,
@@ -205,6 +206,12 @@ export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promis
  *  forker's own turns the moment they play the copy (the [[injected-op-caller-gate]] class). rpg cannot read
  *  presets — the impl is wired at compose off the preset front door (the `resolveHostPrincipal` precedent). */
 export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Promise<boolean>;
+
+/** The chat's ACTIVE-preset user macros (WAVE MU) — the injected CHAT op behind the GM console's shadow gloss.
+ *  A game macro sharing a name with a preset macro SHADOWS it at turn time (`shadowPresetUserMacros`, chat's
+ *  one home for the rule), so the host editor has to know which names are taken. rpg reads no preset/settings
+ *  table: this is chat's own resolution (the picks pane reads the SAME op), wired at compose. */
+type RpgResolvePresetUserMacros = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
 
 /** The honest-arms capability verdict (§4.6 — the delivery-model amendment; extended by the D112 fold guard).
  *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
@@ -411,6 +418,8 @@ export interface RpgContext {
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
+  /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
+  readonly resolvePresetUserMacros: RpgResolvePresetUserMacros;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the

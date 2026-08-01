@@ -270,6 +270,10 @@ export interface ChatComposeResult {
     /** The BORN-STATE corpus read (the host `populateFromCharacter` round): one roster character's card prose
      *  + the room's opening line (chat owns the card + canon reads; rpg reads no table). */
     readonly resolveCardCorpus: ResolveRpgCardCorpus;
+    /** The chat's ACTIVE-preset user macros (WAVE MU) — the same resolution the picks pane reads, so the GM
+     *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
+     *  a chat; rpg re-deriving it would be a second home for the rule). */
+    readonly resolvePromptUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
   };
   /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
    *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -1041,6 +1045,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
+      resolvePromptUserMacros,
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),

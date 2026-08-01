@@ -4,6 +4,7 @@
 // `castId`-minted with stable keys so timestamp/id assertions pin.
 
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RpgActorVolatile, RpgBusEvent, RpgExtractionMode, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
@@ -203,6 +204,9 @@ export interface RpgFakes {
   /** The preset-ownership fake (§3.2 fork). `${presetId}:${userId}` keys the presets a user may READ (owned or
    *  the shared default); `resolvePresetOwned` returns membership. Empty (default) ⇒ every preset is foreign. */
   ownedPresets: Set<string>;
+  /** The ACTIVE-preset user macros the injected `resolvePresetUserMacros` fake returns (WAVE MU — the GM
+   *  console's shadow gloss). Default: none declared. */
+  presetUserMacros: UserMacroSpec[];
   /** Recorders — the tests assert these fired. */
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
@@ -268,6 +272,7 @@ export function makeRpgService(
       | "resyncDelta"
       | "canonWindow"
       | "populateDelta"
+      | "presetUserMacros"
     >
   > = {},
 ): RpgHarness {
@@ -286,6 +291,7 @@ export function makeRpgService(
     cardCorpus: { name: "Mara", card: "DESCRIPTION:\nA warden of a fallen house.", opening: "You meet at the ford." },
     populateDelta: over.populateDelta ?? { statePatch: {}, sheet: {} },
     ownedPresets: new Set(),
+    presetUserMacros: over.presetUserMacros ?? [],
     pointers: [],
     detaches: [],
     narratorPosts: [],
@@ -365,6 +371,7 @@ export function makeRpgService(
     resolveRoster,
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
+    resolvePresetUserMacros: () => Promise.resolve(fakes.presetUserMacros),
     resolveStateDelivery: () =>
       Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded, canPopulate: !fakes.trackersReadOnly }),
     runToolRound,
@@ -437,6 +444,7 @@ export async function seedLiteGame(
       | "resyncDelta"
       | "canonWindow"
       | "populateDelta"
+      | "presetUserMacros"
     >
   > = {},
   key = "a",
