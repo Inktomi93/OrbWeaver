@@ -523,6 +523,16 @@ Still open: #16 engine auto-sleep/wake live pass · D22 member-tiers (multi-user
 
 ### DISCUSSION PILE (owner, no build)
 
+☰ **AGENT-1 — agent-sdk FIRST-CLASS for rpg-lite (owner interest 08-02; scoped, NOT dispatched —
+new scope beyond the databank mandate).** Plumbing is ~complete (terminal tools · stateful tools ·
+session resume w/ seed-frames+divergence · compaction envs · firewall · catalog). Remaining arms:
+(1) knob HONESTY — SDK wire ignores most sampling knobs; EFF-3 applies/ignored rows per preset
+knob · (2) REASONING capture parity — F5's 28× native thinking depth into our reasoning channel +
+strip belts + a thinking-budget knob · (3) usage/context accounting parity (per-turn DELTA
+semantics; PREV bars must not lie on SDK chats) · (4) THE LIVE DRIVE — full rpg-lite loop on the
+SDK wire scored (beats, extraction parity vs the reachability surfaces, resume hit-rate,
+multi-call terminal capture) · (5) mixed-mode turns only if a need lands. Order: 2→3→1→4.
+
 ☰ **UNSENT-DRAFT RELOAD PERSISTENCE** (from the home side-eye's "temp draft data loss" — NOT a
 bug: nav round-trips keep everything, proven by a composed CT; only a PAGE RELOAD loses an unsent
 draft because the active-chat handle + composer text are deliberately unpersisted while
