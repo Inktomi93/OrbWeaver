@@ -43,7 +43,7 @@ import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { makeRpgContextTabs } from "#features/rpg";
+import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
 import { automationPane, makeAppearancePane, makeChatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
@@ -53,6 +53,7 @@ import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatSurfaceContribution,
+  ContextRegionDef,
   ContextTabDef,
   HomeTileContribution,
   MessageToolsRenderer,
@@ -123,6 +124,13 @@ const chatContextContributors = createContributorRegistry<ContextTabDef<ChatCont
   makeRpgContextTabs({ trpc: trpcProxy, queryClient }),
 );
 
+// The chat-context REGION-CLAIM seam (§6c / HUD-1 §3.2): the rpg HUD claims the WHOLE CONTEXT pane on an
+// engaged game chat — same door, same injected read channel, same one-directional flow as the tabs above.
+// Every other chat (and every other section) has no claimant and renders the generic panel.
+const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [
+  makeRpgHudRegion({ trpc: trpcProxy, queryClient }),
+]);
+
 // The chat-surface contributor seam (§6c/M8): EMPTY but typed — the door → factory → 3 anchors path is
 // compiled and exercised with zero contributions; rpg/crew append array members later.
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
@@ -168,7 +176,7 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
   home: makeHomeSection(homeTiles),
-  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, toolRenderers),
+  chats: makeChatsSection(chatContextContributors, chatContextRegions, chatSurfaceContributors, toolRenderers),
   // The characters LIST pane is MODAL (list-pane-projection Arm A): its projection half is chat-owned row
   // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
