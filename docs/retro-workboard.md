@@ -364,6 +364,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+- **ORPHAN-FIX LANES IN FLIGHT (08-02, owner: "handle all found open items"; BLUR RULED = schema
+  defaults to DEFAULT_BLUR_SURFACES, ON for the 3 surfaces):** lane 1 = blur default + archive
+  contracts audit + w4 emit-order patch · lane 2 = fork variables synthetic baseline (floor-
+  respecting, §3.6 pattern, resolveHistoryFloorSeq authority) · lane 3 = Button wrap variant +
+  empty the gate debt baseline. Merge each on report.
 - **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** w4-my-lane S1 — `fireRpgTurnCompleted`
   still AFTER the turnCompleted emit (`engine.ts:1238`; report carries the exact patch, option 1) ·
   join-history ruling #8/F6 — floored fork's variable carry (`fork.ts:383`). SEVERITY NARROWED
