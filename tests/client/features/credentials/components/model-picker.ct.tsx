@@ -89,10 +89,34 @@ test("the curated cold-cache fallback announces itself", async ({ mount, page })
   await page.getByRole("button", { name: "Chat model" }).click();
 
   await expect(page.getByTestId("model-picker-curated-notice")).toContainText("curated shortlist — full catalog not loaded");
+  // …and the FOOTER's provenance line agrees: these ids came from our shortlist, not from any config
+  // (the exact-text match excludes the notice line above, which merely starts with the same words).
+  await expect(page.getByText("curated shortlist", { exact: true })).toBeVisible();
+  await expect(page.getByText("from config")).toHaveCount(0);
   // The fallback is a NOTICE, not a behavior change — the rows still select.
   await expect(page.locator(HEADING)).toHaveText(["Anthropic"]);
   await page.locator(ITEM).filter({ hasText: "Claude Sonnet" }).click();
   await expect(page.getByTestId("model-picker-value")).toHaveText("sonnet");
+});
+
+test("a genuinely config-owned pool (vllm's one env entry) still reads 'from config'", async ({ mount, page }) => {
+  await mount(
+    <ModelPickerStory
+      source="vllm"
+      result={{
+        state: "ok",
+        models: [{ id: "Qwen3-32B", label: "Qwen3-32B", origin: "config" }],
+        fetchedAt: null,
+        defaultModelId: "Qwen3-32B",
+        allowsFreeText: false,
+      }}
+    />,
+  );
+  await page.getByRole("button", { name: "Chat model" }).click();
+
+  await expect(page.getByText("from config")).toBeVisible();
+  await expect(page.getByText("curated shortlist", { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("model-picker-curated-notice")).toHaveCount(0);
 });
 
 test("a live catalog shows NO fallback notice", async ({ mount, page }) => {

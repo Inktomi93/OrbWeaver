@@ -73,11 +73,16 @@ test("filterByChips: vision alone keeps image-input entries", () => {
 });
 
 test("footerSyncedLabel: null fetchedAt → the static provenance note per source", () => {
-  expect(footerSyncedLabel(null, true)).toBe("endpoint /models");
-  expect(footerSyncedLabel(null, false)).toBe("from config");
+  expect(footerSyncedLabel(null, true, false)).toBe("endpoint /models");
+  expect(footerSyncedLabel(null, false, false)).toBe("from config");
+});
+test("footerSyncedLabel: the CURATED cold-cache pool is named as such, never 'from config'", () => {
+  expect(footerSyncedLabel(null, false, true)).toBe("curated shortlist");
 });
 test("footerSyncedLabel: a fetchedAt renders a synced relative line", ({ clock }) => {
-  expect(footerSyncedLabel(clock.now(), false)).toMatch(SYNCED_RE);
+  expect(footerSyncedLabel(clock.now(), false, false)).toMatch(SYNCED_RE);
+  // A warm snapshot always wins the line — the curated flag can't be true with a real fetchedAt.
+  expect(footerSyncedLabel(clock.now(), false, true)).toMatch(SYNCED_RE);
 });
 
 test("MODEL_PICKER_RENDER_CAP is the named cap (no magic number leaked)", () => {
