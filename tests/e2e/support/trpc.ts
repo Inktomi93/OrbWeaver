@@ -630,10 +630,14 @@ interface TrackerDef {
   readonly locked: boolean;
 }
 
-/** ONE tracker's stored reading (no `max` — the ceiling is the def's, the one home). */
+/** ONE tracker's stored reading. `max` is the PER-CARRIER CEILING OVERRIDE (TRK-2 owner amendment
+ *  2026-07-31): `null` = this carrier uses the def's default ceiling, a number = this carrier tops out
+ *  elsewhere (the d20 max-HP reality). The wire ALWAYS carries the key — the contract schema defaults it —
+ *  so a spec's `toEqual` on a stored reading must spell all three fields. */
 interface TrackerValue {
   readonly value: number | string | null;
   readonly items: readonly string[] | null;
+  readonly max: number | null;
 }
 
 /** A tracker paired with its reading — the shape every tracker surface renders (actor row, cast row, band). */
