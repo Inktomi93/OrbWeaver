@@ -1,7 +1,8 @@
 // The room-overrides editor (task #28 — the CONTEXT panel's "This chat" tab, Field-overrides section).
 // The per-chat THREE-field host allowlist (`RoomOverrides`: mainPrompt · postHistory · scenario) as an
-// autosave form (§13.4 — "flip it and it saves"), the same wiring shape as
-// `appearance-settings-surface.tsx`.
+// autosave form (§13.4 — "flip it and it saves"), the same wiring shape as a settings SECTION
+// (`appearance-message-style-section.tsx` and its siblings; SET-SEAMS decomposed the appearance surface
+// this used to cite into those).
 //
 // NO author's-note field (owner ruling 2026-08-01): it was a SECOND home for the concept the Injections
 // section beside this one already owns — both landed as the identical `in_chat` at-depth splice, so a

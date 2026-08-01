@@ -18,9 +18,13 @@ updated: 2026-07-22
 > (58→30 files, 8 owner-domain `workload-contributions.ts` factories assembled at
 > `entry/compose/workload-contributions.ts`; the 13 `Workload<X>Env` bundles died with it). §7's
 > import/export split partially followed it (databank + import re-homed in stage D).
-> **§7 settings god-feature → IN PROGRESS**, not answered: the settings-SECTION contribution seam
-> landed and the SET-SEAMS program (`docs/design/set-seams-spec.md`) owns the rest — S1-S6 are still
-> open on the board, so the pain stands until its S6 seal.
+> **§7 settings god-feature → ANSWERED by SET-SEAMS** (`docs/design/set-seams-spec.md`, S0-S6 all
+> landed; ledger entry pending with the S6 seal) — the god-feature is gone. Every knob pane
+> DECOMPOSED into self-owned settings-SECTION contributions raised by the feature that READS the
+> knobs, and `features/settings` is now the SHELL plus the theme: 18 files, whose only surfaces are
+> `settings-shell-surface.tsx` (nav · fuzzy search · scroll-spy · deep link · the aggregate save
+> footer) and `theme-picker-surface.tsx`. Adding a domain's settings is a section in that domain plus
+> ONE line at the door — it cannot grow this feature.
 > Everything else (§1-§6, §8, §9) is unaudited by that pass — treat as stated.
 
 ---
@@ -193,6 +197,18 @@ updated: 2026-07-22
   `regex-settings`, `theme-picker`, `expressions-settings`, `appearance-settings`, `system-settings`
   - matching `use-*-form` / `use-*-mutations`). Adding a domain's settings adds a surface + form + hook
   - mutation to this one feature.
+
+- **RESOLVED 2026-08-01 by SET-SEAMS** (the bullet above; `docs/design/set-seams-spec.md` §8, receipts
+  per stage): S0 mechanism `30f43f69` (ONE section registry + `anchor: SettingsCategoryId` +
+  `owns`/partition + the save-status seam) · S1 appearance → chat/app-shell/character `9d4646d4` ·
+  S2 chat-behavior → chat `65f0865c` · S3 workloads + admin → their own features `1eaa962c` ·
+  S4 system → user-admin, pane merged into admin `7813dbed` · S5 tags + regex →
+  `features/tag`/`features/regex` `0072e598` · S6 seal (this commit). Every surface named above is
+  DELETED or re-homed: no `tags-settings`, `chat-behavior-settings`, `regex-settings`,
+  `appearance-settings` or `system-settings` under `features/settings` — the only
+  `use-*-form`/`use-*-mutations` pair left is the theme's, which is settings-domain. The pain-point's
+  own predicted cost is inverted: a domain's settings now costs a section IN THAT DOMAIN plus one
+  door line.
 
 - **\[CODE]** **The right pattern already exists in-tree but is applied inconsistently.** The registry
   shape (thin core + per-thing descriptor) is present in the portability core, the `character-detail`

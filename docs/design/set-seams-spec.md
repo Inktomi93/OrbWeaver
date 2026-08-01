@@ -1,6 +1,10 @@
 # SET-SEAMS — every settings section is self-owned
 
-**Status:** DESIGN SPEC — **APPROVED TO BUILD (owner, 2026-08-01; §10 fully ruled, O3 amendment = D114)**. Nothing built. Owner-directed 2026-08-01 (the settings-registry migration lane's
+**Status:** **BUILT (2026-08-01) — S0-S6 all landed and merged; the program is CLOSED.** Per-stage shas
+are stamped in the §8 table; the settings shell is a pure skimmer and `features/settings` is the shell +
+theme only (§6's "what settings keeps"). Read as the record of WHY the seams are shaped this way; the live
+law is the code + `state/settings-pane-registry.ts`'s headers, and the `settings-pane-completeness` /
+`settings-section-anchored` gates. Owner-directed 2026-08-01 (the settings-registry migration lane's
 two principled stops, superseded): *every settings section becomes SELF-OWNED, the autosave-welded panes
 DECOMPOSE with designed per-section saves, features host their own sections at anchors, the settings shell
 becomes a pure skimmer.* Includes the **O3 amendment** (client-architecture-lockdown §8 — tags/regex
@@ -356,15 +360,15 @@ Every stage ends green on: scoped `pnpm vitest`/CT for the touched files, the ge
 save pins (§9), and a live drive of the pane. Stages are ordered so the mechanism lands before any section
 moves — the opposite order is how you ship N racing patches.
 
-| Stage | Scope | Ships |
-| - | - | - |
-| **0 — mechanism** | ONE settings-section registry + context mint; `anchor: SettingsCategoryId`; `when` on contributions; `owns` + `assertSettingsKeyPartition`; the `body` union; the save-status seam (§3); the `settings-section-anchored` scanRoot fix | zero sections move; every existing pane byte-identical; the 9 built sections adopt the status seam + declare `owns` |
-| **1 — appearance** | the 8-way split of §6; each section key-minimal; `AppearanceForm` deleted | the biggest weld gone; proves S1+S2+S3 on the hardest pane |
-| **2 — chat-behavior** | own two sections → `chat`; pane becomes `{kind:"sections"}` | settings stops owning chat knobs |
-| **3 — workloads + admin** | admin's own sections (users/engines/ops) become contributions; both panes → `sections` mode | small, mostly moves |
-| **4 — system (AppSettings)** | §4: per-section baselines, `getAppSettingsWithOverrides` + `AdminOverrideField` everywhere, owner-gated set kept whole | the footnote dies; resolve §10 Q2 first |
-| **5 — O3 amendment** | `features/tag`, `features/regex` mint + pane move (after the owner ruling + D-entry) | settings stops owning foreign domains |
-| **6 — seal** | delete `SETTINGS_SECTION_ANCHORS`, the `make*Pane` factories, the emptied `*-settings-surface.tsx` shells, `OWN_SUBCATEGORIES` consts; gates updated | the shell is a pure skimmer; no half-migration left (banned: "leave the old map beside the new") |
+| Stage | Scope | Ships | LANDED |
+| - | - | - | - |
+| **0 — mechanism** | ONE settings-section registry + context mint; `anchor: SettingsCategoryId`; `when` on contributions; `owns` + `assertSettingsKeyPartition`; the `body` union; the save-status seam (§3); the `settings-section-anchored` scanRoot fix | zero sections move; every existing pane byte-identical; the 9 built sections adopt the status seam + declare `owns` | `30f43f69` — also retired `SETTINGS_SECTION_ANCHORS` + all four `make*Pane` factories here, ahead of the stage-6 row |
+| **1 — appearance** | the 8-way split of §6; each section key-minimal; `AppearanceForm` deleted | the biggest weld gone; proves S1+S2+S3 on the hardest pane | `9d4646d4` — `appearance-settings-surface.tsx` deleted with it |
+| **2 — chat-behavior** | own two sections → `chat`; pane becomes `{kind:"sections"}` | settings stops owning chat knobs | `65f0865c` — `chat-behavior-settings-surface.tsx` deleted with it |
+| **3 — workloads + admin** | admin's own sections (users/engines/ops) become contributions; both panes → `sections` mode | small, mostly moves | `1eaa962c` — `admin-`/`workloads-settings-surface.tsx` + the `OWN_SUBCATEGORIES` consts deleted with it |
+| **4 — system (AppSettings)** | §4: per-section baselines, `getAppSettingsWithOverrides` + `AdminOverrideField` everywhere, owner-gated set kept whole | the footnote dies; resolve §10 Q2 first | `7813dbed` — `system-settings-surface.tsx` deleted, `system` gone from `SETTINGS_CATEGORY_IDS` (§10 Q2 merge), §2.3.1 leaf-claim amendment |
+| **5 — O3 amendment** | `features/tag`, `features/regex` mint + pane move (after the owner ruling + D-entry) | settings stops owning foreign domains | `0072e598` (D114) |
+| **6 — seal** | delete `SETTINGS_SECTION_ANCHORS`, the `make*Pane` factories, the emptied `*-settings-surface.tsx` shells, `OWN_SUBCATEGORIES` consts; gates updated | the shell is a pure skimmer; no half-migration left (banned: "leave the old map beside the new") | this commit — every named deletion had ALREADY landed with the stage that emptied it (see the shas at left: no shell outlived its stage, and the five surviving `*-settings-surface.tsx` are real `surface`-mode CRUD panes, not shells). The seal's own work is therefore the GATE reconciliation + the prose: `settings-pane-completeness`'s placeholder arm re-keyed onto the §5.3 `body` union (it had keyed on the function `body` S0 deleted, so it was matching nothing) plus a new SKIMMER-PURITY arm — a `{kind:"sections"}` pane declaring its own `subcategories` is RED, which is what makes "no old map beside the new" structural instead of merely absent |
 
 **Serialization posture:** stages 1–4 all touch `main.tsx` and `state/settings-pane-registry.ts`. Run them
 SERIALLY on main, or worktree-isolate (\[\[concurrent-main-lanes-gate-thrash]],

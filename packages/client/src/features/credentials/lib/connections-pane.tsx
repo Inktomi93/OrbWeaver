@@ -1,5 +1,6 @@
 // The Connections settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
-// wrapping the existing surface. TEMPORARY home (M6.1: panes stay put; the credentials-owned move is M6.2).
+// wrapping the feature's own surface. Owned by features/credentials — the M6.2 de-god move LANDED (§8/O3);
+// `surface` mode because this pane is a credential/role CRUD screen, not a knob stack.
 
 import { ExternalLink } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
