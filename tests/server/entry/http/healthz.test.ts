@@ -1,18 +1,22 @@
-// entry/http/healthz — the liveness registrar. Pins: live → 200 ok; shutdown drain → 503 shutting_down;
-// boot decrypt-probe failure → 503 credentials_key_mismatch; shutdown wins over the key signal. Hono isn't
-// test-resolvable, so the registrar runs over a captured mock app + context.
+// entry/http/healthz — the liveness registrar. Pins: live → 200 ok + the e2e-harness stamp; shutdown drain →
+// 503 shutting_down; boot decrypt-probe failure → 503 credentials_key_mismatch; shutdown wins over the key
+// signal. Hono isn't test-resolvable, so the registrar runs over a captured mock app + context.
 
 import type { HealthzDeps } from "@orb/server/entry/http";
 import { registerHealthz } from "@orb/server/entry/http";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
+interface MockBody {
+  readonly status: string;
+  readonly harness?: boolean;
+}
 interface MockResult {
-  readonly body: { readonly status: string };
+  readonly body: MockBody;
   readonly status: number;
 }
 interface MockCtx {
-  readonly json: (body: { status: string }, status?: number) => MockResult;
+  readonly json: (body: MockBody, status?: number) => MockResult;
 }
 type Handler = (c: MockCtx) => MockResult;
 
@@ -36,28 +40,46 @@ function healthzHandler(deps: HealthzDeps): Handler {
 
 function run(deps: HealthzDeps): MockResult {
   const ctx: MockCtx = {
-    json: (body: { status: string }, status = OK): MockResult => ({ body, status }),
+    json: (body: MockBody, status = OK): MockResult => ({ body, status }),
   };
   return healthzHandler(deps)(ctx);
 }
 
 describe("registerHealthz", () => {
-  test("live → 200 ok", () => {
-    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => true })).toEqual({ body: { status: "ok" }, status: 200 });
+  test("live → 200 ok, harness stamp absent on a normal (dev/prod) stack", () => {
+    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => true, isHarnessStack: (): boolean => false })).toEqual({
+      body: { status: "ok", harness: false },
+      status: 200,
+    });
+  });
+
+  // The e2e globalSetup refuses to seed an origin whose /healthz does not report `harness:true`
+  // (tests/e2e/support/target-guard.ts) — this is the producing end of that stamp.
+  test("live on an E2E_HARNESS stack → 200 ok with harness:true", () => {
+    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => true, isHarnessStack: (): boolean => true })).toEqual({
+      body: { status: "ok", harness: true },
+      status: 200,
+    });
   });
 
   test("shutdown drain → 503 shutting_down", () => {
-    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => true })).toEqual({ body: { status: "shutting_down" }, status: 503 });
+    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => true, isHarnessStack: (): boolean => true })).toEqual({
+      body: { status: "shutting_down" },
+      status: 503,
+    });
   });
 
   test("boot decrypt-probe failure → 503 credentials_key_mismatch", () => {
-    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => false })).toEqual({
+    expect(run({ isShuttingDown: (): boolean => false, credentialsKeyOk: (): boolean => false, isHarnessStack: (): boolean => true })).toEqual({
       body: { status: "credentials_key_mismatch" },
       status: 503,
     });
   });
 
   test("shutdown wins over the key signal", () => {
-    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => false })).toEqual({ body: { status: "shutting_down" }, status: 503 });
+    expect(run({ isShuttingDown: (): boolean => true, credentialsKeyOk: (): boolean => false, isHarnessStack: (): boolean => false })).toEqual({
+      body: { status: "shutting_down" },
+      status: 503,
+    });
   });
 });

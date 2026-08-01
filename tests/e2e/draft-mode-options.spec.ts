@@ -34,7 +34,7 @@
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openChatOptions, openOrCreateChat, openUtilityMenu, waitForAppReady } from "./support/chat-room";
+import { charactersRailButton, openChatOptions, openOrCreateChat, openUtilityMenu, waitForAppReady } from "./support/chat-room";
 import { mintFreshCharacter, removeCharacter } from "./support/trpc";
 
 // The spec-owned draft character — minted per-test via the API, removed in a finally. Its Chat CTA opens
@@ -55,7 +55,7 @@ const NEEDS_A_REPLY = /needs a reply/u;
 async function openFreshDraft(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
-  await page.getByRole("button", { name: "Characters", exact: true }).click();
+  await charactersRailButton(page).click();
   // The CTA rests hidden AND inert (an invisible control is not hit-testable) — hover its row first.
   const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }) });
   await chatRow.hover();
