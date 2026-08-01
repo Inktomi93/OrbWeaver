@@ -89,7 +89,24 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
-**WAVE (08-02 late) — SEVEN IN FLIGHT:** preset round 3 (sliders+depth-split+primitives table+
+**WAVE RESULTS (all merged; check green):** HUD H4 → **D119 MINTED, HUD-HOME CLOSED** ·
+density S3 conformance: baseline 174/1076 → 128/779 (45 files zeroed; empty-states stayed
+readable-prose not gloss [no body+muted voice — plain Text]; voice-in-Badge needs text-inherit
+[3 pre-existing colour bugs FIXED]; S3 not closed until its side-eye; SCOPE CALL owed: corpus/
+preset/analytics context tabs mapped to S4/S5, are the bulk of remaining 779) · forkedFrom
+MERGED (`1138025f`: self-FK set-null; COW converges on oldest — ⚠ OWNER SANITY-CHECK: at most
+ONE COW fork of built-in now, re-edit overwrites it [last-write-wins], numbered-fork behavior
+replaced, second variant = Duplicate; read-then-write residual pinned honestly; regen fixed a
+PRE-EXISTING baseline drift: PROSE-1 bumped SCHEMA_VERSION 7 without baseline regen — lesson:
+schema-version bump = baseline-regen trigger) · smalls MERGED (`e8e7d825`: 3 labels · google_vertex
+arm DELETED · submenu retry idiom 125/125×5 · VER-1c was ALREADY BUILT [stale board row] · §2.3.1
+appended) · engine pass + preset r3 merged earlier. **PRESET DESIGN: OWNER ESCALATION in flight —
+the templates-vs-prompt-sections CONFLATION sort + the FULL RACK redesign mock (toggles/drag-
+reorder/create+name) + field-vocabulary audit (section-only fields OUT of template drill-ins) +
+all queued amendments (tri-state dead, carrier bodies, no-delete, inspect discussion) — the
+make-it-right round.**
+
+**OLD WAVE NOTE:** preset round 3 (sliders+depth-split+primitives table+
 tooltip debulk) · S4 reconcile (floorValue union) · HUD H4 close-out (gate arms + §5.2 amendments;
 D-entry stays orchestrator's) · density S3 conformance sweep (rpg context + the 5 tone= settings
 sections; zero layout movement — computed CTs are law) · smalls batch (stale labels ×3 · F7
@@ -374,7 +391,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      union (Switch/Select keep string floors — receipted); rate-limits/system-tuning honesty bug
      FIXED (override no longer echoes as default); unbounded-floor arm; clearNumber helper; all 3
      save-status CTs green on main.
-   - [ ] S5 tag/regex mint — LANE IN FLIGHT (O3/D114; full new-feature checklist in prompt)
+   - [x] S5 MERGED (`0072e598`): features/tag + features/regex minted (git mv, zero owns —
+     surface-mode panes; regex = cited RESERVED in client-structure [UI-only slice, scripts
+     persist via UserSettings.regex]; anchors byte-identical; 6-coupled-sites lesson banked).
+   - [ ] S6 SEAL — READY TO DISPATCH (S5 merged): delete SETTINGS_SECTION_ANCHORS + make*Pane
+     factories + emptied shells + OWN_SUBCATEGORIES; gates updated; ALSO sweep the stale prose S4/
+     S5 left (pain-points:192 two panes out of date; spec §8 stage-table stamps).
    - (superseded build row below)
    - [ ] S4-old-row (`7813dbed`) — RECONCILE ROUND IN FLIGHT (semantic conflict vs numeric-
      unification's AdminOverrideField NumberField+floorValue rework; union = floorValue:number|null
