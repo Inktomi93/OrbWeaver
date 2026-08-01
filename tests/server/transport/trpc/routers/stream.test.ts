@@ -11,10 +11,11 @@
 //   • that typed failure is now a per-ROOM `roomFailed` control frame — the socket and every OTHER room
 //     survive it, where before the whole stream ended;
 //   • two rooms genuinely multiplex over ONE connection;
-//   • a room whose per-proc subscription has not folded yet is REFUSED at attach, so there is never a
-//     moment where the same room is reachable by two transports.
+//   • EVERY channel in the wire vocabulary is a real room (S4 closed the fold), so there is no longer any
+//     room reachable by two transports — nor a placeholder that refuses because its procedure still exists.
 
-import type { StreamFrame } from "@orb/contracts/stream";
+import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
+import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -197,16 +198,32 @@ describe("per-room fault isolation (the property that did not exist before)", ()
 });
 
 describe("the staged fold leaves no dual transport", () => {
-  test("a room whose per-proc subscription has not folded yet is refused at attach", async () => {
-    const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+  /** One ref per ROOM channel — the list is asserted total against `STREAM_CHANNELS` below, so a new channel
+   *  cannot quietly skip this pin. */
+  const allRooms: readonly StreamRoomRef[] = [
+    { channel: "user" },
+    { channel: "notifications" },
+    { channel: "chat", chatId: CHAT },
+    { channel: "rpg", chatId: CHAT },
+    { channel: "automation", chatId: CHAT },
+  ];
 
-    // `chat` folded at S2 and `notifications` at S3, so both now ATTACH (each with its own posture, pinned in
-    // stream/sources/{chat,notifications}.test.ts); `automation` is still its own procedure, so its room
-    // refuses — there is never a moment where one room is reachable by two transports.
-    await expect(call.stream.attach({ socketId, ref: { channel: "chat", chatId: CHAT } })).resolves.toBeUndefined();
-    await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).resolves.toBeUndefined();
-    await expect(call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  test("EVERY channel is a real room now — S4 closed the fold, and no placeholder refusal is left", async () => {
+    const socketId = nextSocket();
+    // An authorized caller for each room's own gate: a seated chat member (chat/rpg), a multi-human
+    // deployment (notifications), a present automation member. Each room's REFUSAL posture is pinned in its
+    // own source test; what this pins is that none of them refuses merely because it has not folded.
+    const call = caller(
+      makeContext({
+        auth: principal("user", { userId: MEMBER }),
+        services: { chat: { chatEventBounds: seated }, automation: { resolveStreamAuthority: () => Promise.resolve("member") } },
+      }),
+    );
+
+    expect(new Set(allRooms.map((ref) => ref.channel))).toEqual(new Set(STREAM_CHANNELS));
+    const attached = await Promise.all(allRooms.map((ref) => call.stream.attach({ socketId, ref })));
+
+    expect(attached).toEqual(allRooms.map(() => undefined));
   });
 
   test("detach is idempotent — tearing down a room the server already dropped is not an error", async () => {
