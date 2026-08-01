@@ -1,12 +1,12 @@
-// @orb/contracts/rpg/extraction — the RELIABLE-mode structured-output schema (rpg-design/05 §4.6 + the
-// delivery-model amendment §4.9 change-log). ONE `z.object` the reliable extraction turn passes as
+// @orb/contracts/rpg/extraction — the STRUCTURED-OUTPUT extraction schema (rpg-design/05 §4.6 + the
+// delivery-model amendment §4.9 change-log). ONE `z.object` the structured extraction turn passes as
 // `output_config.format`; the model fills the WHOLE state delta at once (no user-facing prose, so structured
 // output is the natural fit — never the §4.6 prose-parser fork).
 //
 // THE SHARED-PLANE PROOF (the amendment's "the 7 plane shapes authored ONCE, exposed two ways"): this schema
 // is DERIVED from the SAME per-tool arg schemas the cheap-mode D48 tools use (`./tools`) — it does NOT re-spell
-// the plane shapes. Each field is an ARRAY of the corresponding tool's args (reliable emits many actor/quest/
-// journal writes in one object where cheap-mode fires one tool call each). A reliable extraction is therefore
+// the plane shapes. Each field is an ARRAY of the corresponding tool's args (a structured extraction emits many
+// actor/quest/journal writes in one object where cheap-mode fires one tool call each). It is therefore
 // exactly "a batch of the tool calls the model would otherwise have made", and the W1c-b `runExtraction` impl
 // converts a parsed `RpgExtraction` into the `RpgStateDelta` (statePatch + journal) the accumulator flushes —
 // the SAME two planes cheap-mode tools stage during the turn. `roll_dice` is absent: it is zero-state (the
@@ -28,7 +28,7 @@ import {
 } from "./tools";
 import type { RpgTrackerWriteGroup } from "./tracker";
 
-/** The reliable-mode extraction delta the model emits in ONE structured-output object (§4.6). Every field is
+/** The extraction delta the model emits in ONE structured-output object (§4.6). Every field is
  *  OPTIONAL and defaults empty — a "nothing changed this turn" extraction is the empty object, which the
  *  W1c-b impl maps to an empty `RpgStateDelta` (no snapshot write — the byte-identical non-writing turn,
  *  `chat-ops/flush.ts`). Each field derives from the matching cheap-mode tool's args (the shared-plane proof):
@@ -326,7 +326,7 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
 // hermes/Qwen3 + OpenRouter both emit 2-3 parallel calls on a change beat and a single `no_changes` on a
 // quiet one under `required`). The parsed calls fold to an `RpgExtraction` — the shared-plane proof made
 // literal: a tool round IS "the batch of tool calls the model would otherwise have made", so it reuses the
-// SAME `extractionToStateDelta` fold cheap+reliable share. Symmetric with reliable (schema vs tools; same
+// SAME `extractionToStateDelta` fold the structured arm uses. Symmetric with it (tools vs schema; same
 // delta). `roll_dice` is EXCLUDED (zero-state — the ToolCallRecord is the canon stamp, never a snapshot).
 
 /** The escape tool a tool round always offers: the model calls it (and NOTHING else) when the latest beat
@@ -354,7 +354,7 @@ export interface RpgToolCall {
 }
 
 // Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
-// canon, mirroring the reliable path's non-conforming-drop; never a throw into the flush).
+// canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
 function parseArgs(raw: string): unknown {
   try {
     return JSON.parse(raw);
@@ -380,7 +380,7 @@ const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, { readonly schema: z.ZodType; r
  * its own arg schema (a malformed/unknown call is DROPPED, errors-as-data), and same-plane calls accumulate
  * (several `update_party` calls in one round → several `party` entries, exactly like the model firing them
  * sequentially). `no_changes` (and any unknown name) contributes nothing. `scene` is single (last `update_scene`
- * wins — one scene per turn). The result feeds the SAME `extractionToStateDelta` fold reliable uses.
+ * wins — one scene per turn). The result feeds the SAME `extractionToStateDelta` fold the structured arm uses.
  */
 export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtraction {
   const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
@@ -412,12 +412,12 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// EQUAL DROP SEMANTICS (EXT-4a) — the RELIABLE arm salvages PER PLANE / PER ENTRY, like the tool arms.
+// EQUAL DROP SEMANTICS (EXT-4a) — the STRUCTURED arm salvages PER PLANE / PER ENTRY, like the tool arms.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The defect this kills: reliable used to validate the WHOLE extraction object with one `safeParse`, so ONE
-// malformed nested field (the measured case: a journal entry missing `type`, in the nested-array required
+// The defect this kills: the structured arm used to validate the WHOLE extraction object with one `safeParse`,
+// so ONE malformed nested field (the measured case: a journal entry missing `type`, in the nested-array required
 // blind spot) discarded ALL SIX planes for the turn — while cheap/folded, validating per CALL, lost only the
-// bad call. The "reliable" path was the most fragile of the three. The invariant now: **an equivalent payload
+// bad call. It was the most fragile of the three vehicles. The invariant now: **an equivalent payload
 // delivered on any of the three vehicles leaves IDENTICAL surviving state** — a bad journal entry drops that
 // entry, never the party/inventory/scene/tracker/quest writes beside it.
 //
@@ -444,12 +444,12 @@ export interface RpgExtractionSalvage {
 }
 
 // The ARRAY planes' field → arg-schema pairing, DERIVED from the tool-round arm map (never re-spelled: the
-// shared-plane proof means the reliable plane and its tool validate through the identical schema).
+// shared-plane proof means the structured plane and its tool validate through the identical schema).
 const EXTRACTION_ARRAY_PLANES: ReadonlyMap<keyof RpgExtraction, z.ZodType> = new Map(
   [...TOOL_ROUND_ARRAY_ARMS.values()].map((arm) => [arm.field, arm.schema] as const),
 );
 
-// A zod error's issues as `path: message` lines (the log-ready shape the reliable arm already emitted).
+// A zod error's issues as `path: message` lines (the log-ready shape the structured arm already emitted).
 function issueLines(error: z.ZodError): string[] {
   return error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 }
@@ -528,7 +528,7 @@ export function healedJournalTypes(extraction: RpgExtraction): readonly number[]
  * applied. An UNKNOWN tool name (incl. the `no_changes` escape) is NOT malformed — it is a legitimate no-op and
  * is excluded here; a caller that wants "the model called nothing applicable" reads the empty extraction.
  *
- * D109-7 (observability is TOTAL): a state write may fail only VISIBLY. The reliable arm already logs its
+ * D109-7 (observability is TOTAL): a state write may fail only VISIBLY. The structured arm already logs its
  * `unparseable` class off the zod issues; this is the tool-vehicle's equivalent, and it is what lets the R1
  * folded turn tell a MALFORMED beat apart from a legitimately QUIET one.
  */

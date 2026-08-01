@@ -24,9 +24,8 @@ import { Kicker } from "./rpg-kicker";
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
  *  band cue renders), keyed over the closed mode axis. */
 const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
-  reliable: "a second pass extracts state after the turn — two model calls, most accurate",
-  cheap: "a second pass records state with tools after the turn — two model calls, cheaper",
-  folded: "the reply records its own state — ONE model call, fastest and cheapest",
+  folded: "the reply records its own state — ONE model call, fastest and cheapest (recommended)",
+  cheap: "a second pass records state with tools after the turn — two model calls; recommended for local models",
 };
 
 /** The mode axis, rendered in order — derived from the closed tuple so a new delivery mode cannot be silently

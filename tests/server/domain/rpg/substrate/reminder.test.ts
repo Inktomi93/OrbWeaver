@@ -6,7 +6,7 @@
 import type { RpgGameFeatures, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
 import {
@@ -148,7 +148,7 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
       {
         actorRef: { kind: "cast", castKey: "k" },
         name: "K",
-        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -169,7 +169,7 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
-        sheet: { className: "Rogue", attributes: { dex: 16 }, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "Rogue", attributes: { dex: 16 }, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
         trackers: [FOCUS],
         volatile: {
           actorRef: { kind: "cast", castKey: "kael" },
@@ -216,7 +216,7 @@ test("an actor with NO volatile row still lists the trackers it carries", () => 
       {
         actorRef: { kind: "user", userId: castId<UserId>("user_host") },
         name: "You",
-        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [bond],
       },
@@ -291,7 +291,7 @@ test("attribute LABELS + HINTS reach the model: the vocabulary is taught once, v
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
-        sheet: { className: "", attributes: { str: 14, wis: 9 }, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "", attributes: { str: 14, wis: 9 }, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -314,7 +314,7 @@ test("a FREEFORM profile teaches no attribute vocabulary (no empty header, no ph
       {
         actorRef: { kind: "cast", castKey: "kael" },
         name: "Kael",
-        sheet: { className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -347,6 +347,95 @@ test("an EMPTY tracker hint glosses nothing (no empty parens)", () => {
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("- Wren — Wits 7/10");
   expect(out).not.toContain("()");
+});
+
+// RV-11's sheet half — `sheet.flavor` is host-authored prose written through `patchSheet` that reached the
+// model NOWHERE, so the party line taught a character's numbers and nothing about who they are.
+test("an actor's host-written sheet FLAVOR rides a continuation line under its party line", () => {
+  const view = emptyView({
+    actors: [
+      {
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
+        name: "Mara",
+        sheet: {
+          className: "Warden",
+          attributes: {},
+          maxHp: null,
+          flavor: "Sworn to a house that no longer exists.",
+          level: 3,
+          trackerGrants: [],
+          trackerRevokes: [],
+        },
+        volatile: null,
+        trackers: [],
+      },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("- Mara — (Warden) — Lv 3\n  flavor: Sworn to a house that no longer exists.");
+});
+
+test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () => {
+  const view = emptyView({
+    actors: [
+      {
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
+        name: "Mara",
+        sheet: { className: "Warden", attributes: {}, maxHp: null, flavor: "   ", level: null, trackerGrants: [], trackerRevokes: [] },
+        volatile: null,
+        trackers: [],
+      },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("- Mara — (Warden)");
+  expect(out).not.toContain("flavor:");
+});
+
+// RV-11 — the persistent per-character GUIDES. The extraction round is asked for appearance/outfit/thoughts on
+// every beat and wrote them richly; NOTHING read them back, so the character turn re-invented a face it had
+// already fixed. They ride CONTINUATION lines under the member's one-liner, taught once on the section header.
+test("a cast member's appearance/outfit/thoughts ride continuation lines under its one-liner", () => {
+  const view = emptyView({
+    cast: [
+      {
+        key: "Vesna",
+        name: "Sister Vesna",
+        emoji: "🕯️",
+        mood: "warming",
+        appearance: "tall, silver-haired",
+        outfit: "patched grey habit",
+        thoughts: "weighing whether to trust you",
+        relationship: { kind: "neutral", label: "" },
+      },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain(
+    "- 🕯️ Sister Vesna — warming\n  appearance: tall, silver-haired\n  outfit: patched grey habit\n  thoughts: weighing whether to trust you",
+  );
+  // The teach rides the SECTION header (meaning once, readings N times) and names the unspoken rule.
+  expect(out).toContain("thoughts are UNSPOKEN inner state, never said aloud");
+  expect(out.match(/UNSPOKEN/g)).toHaveLength(1);
+});
+
+test("an EMPTY guide omits its line entirely (no `appearance:` with nothing after it)", () => {
+  const view = emptyView({
+    cast: [
+      { key: "Wren", name: "Wren", emoji: "", mood: "", outfit: "   ", thoughts: "she has already decided", relationship: { kind: "neutral", label: "" } },
+    ],
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("- Wren\n  thoughts: she has already decided");
+  expect(out).not.toContain("appearance:"); // absent field
+  expect(out).not.toContain("outfit:"); // whitespace-only ⇒ nothing written
+});
+
+test("a cast with NO guides keeps the bare `Present:` header (no phantom teaching)", () => {
+  const view = emptyView({ cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }] });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("Present:\n- Bob");
+  expect(out).not.toContain("UNSPOKEN");
 });
 
 test("a neutral relationship is silent in the cast line (no steering signal)", () => {

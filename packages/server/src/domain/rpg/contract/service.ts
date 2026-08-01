@@ -215,12 +215,12 @@ export type RpgResolveStateDelivery = (chatId: ChatId) => Promise<RpgStateDelive
  *  Non-exported: reachable only through `RpgResolveStateDelivery`'s signature — no consumer names it (knip). */
 interface RpgStateDeliveryVerdict {
   /** Manual-steering: the connection has NO model write path for this game's mode (`cheap`/`folded` need
-   *  `capability.tools`, `reliable` needs `capability.output.structured`). The host hand-edits every plane. */
+   *  `capability.tools`; the host resync needs `capability.output.structured`). The host hand-edits every plane. */
   readonly trackersReadOnly: boolean;
   /** The FOLD GUARD (D112 as amended, owner ruling): this wire SILENCES the model's prose when tools ride it
    *  (`coEmitsProseWithTools` is false — the local vLLM engine), so a `folded` game must NOT mount its terminal
    *  tools on the character turn. The state still lands: the flush runs `cheap`'s post-commit round instead and
-   *  says so (`fallbackReason: "local-engine-fold-guard"`). The host's EXPLICIT `cheap`/`reliable` choice is
+   *  says so (`fallbackReason: "local-engine-fold-guard"`). The host's EXPLICIT `cheap` choice is
    *  untouched by this — the guard only governs where `folded` lands. */
   readonly foldGuarded: boolean;
 }
@@ -235,12 +235,11 @@ interface RpgStateDeliveryVerdict {
  *  Non-exported: reachable only through `RpgContext.resolveCanonWindow`'s signature — no consumer names it (knip). */
 type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
 
-/** The reliable-mode post-narration extraction op (§4.6 / the delivery-model amendment). AFTER the character
- *  message commits, `reliable` mode runs a DEDICATED structured-output turn that reads the committed beat + the
- *  resolved base state and emits the whole state delta in ONE object. This is the DECLARED SEAM: `onTurnCompleted`
- *  (reliable) calls it, stages the returned delta onto the turn's accumulator, and flushes it exactly like a
- *  cheap-mode tool run. The IMPL (the structured-output schema + the model call + the parse) is W1c —
- *  W1b-integration DECLARES the type and CALLS it, and tests the reliable path with an injected fake.
+/** The STRUCTURED-OUTPUT extraction op (§4.6 / the delivery-model amendment). It reads the committed beat + the
+ *  resolved base state and emits the whole state delta in ONE object. It is no longer a delivery MODE of its own
+ *  (the `reliable` knob was deleted 2026-08-01 — owner ruling): it survives as the vehicle two capability-keyed
+ *  paths still need — the agent-sdk degrade INSIDE `runToolRound` (that wire carries no `tools[]`) and the host
+ *  `resyncFromStory` rebuild. The IMPL (the structured-output schema + the model call + the parse) is W1c.
  *
  *  The seam carries the committed variant's IDENTIFIERS, NOT its prose (`baseState` is the only resolved input):
  *  the IMPL owns chat/connection access, so it reads the beat text itself (rpg stays out of `message_variants`
@@ -249,8 +248,8 @@ type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number
  *  capability never reaches here (readonly/manual-steering; §4.6). */
 export type RpgRunExtraction = (input: RpgStateRoundInput) => Promise<RpgStateDelta>;
 
-/** CHEAP mode's DEDICATED TOOL ROUND (owner ruling 2026-07-27) — the SIBLING of `runExtraction`, structurally
- *  symmetric: a state-only request (NOT tools on the character turn) that reads the committed beat + base state
+/** CHEAP mode's DEDICATED TOOL ROUND (owner ruling 2026-07-27) — the SIBLING of the structured extraction,
+ *  structurally symmetric: a state-only request (NOT tools on the character turn) that reads the committed beat + base state
  *  and emits its writes as PARALLEL tool calls (`tool_choice:"required"` + a `no_changes` escape). The parsed
  *  calls fold to the SAME `RpgStateDelta` the flush stages + writes — the shared-plane proof (a tool round IS
  *  "the batch of tool calls the model would otherwise have made"). Same input/output as `runExtraction`; the
@@ -310,7 +309,7 @@ interface RpgResyncInput {
   readonly transcript: readonly RpgTurnTranscriptMessage[];
 }
 
-/** The shared input BOTH dedicated state rounds consume (reliable extraction + cheap tool round). Carries the
+/** The shared input every state round consumes (the tool round, its structured degrade, the fold). Carries the
  *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
  *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
  *  verdict + its OWN canon transcript (`RpgTurnContext`, chat's front door). The round runs on THAT connection
@@ -318,7 +317,7 @@ interface RpgResyncInput {
  *  F1 fix: no second `resolveRole` (a room on vllm runs its round on vllm), no force-stamped `ownerConsented`
  *  (a metered-sub round inherits the turn's belt verdict). `turnConnection.connection.capability` also gates
  *  the flush's readonly verdict (F2 — no round on a capability-absent connection). */
-/** Non-exported: the two exported op aliases (`RpgRunExtraction`/`RpgRunToolRound`) ARE the public surface;
+/** Non-exported: the exported op aliases (`RpgRunExtraction`/`RpgRunToolRound`) ARE the public surface;
  *  nothing names this shape directly outside this file (knip). */
 interface RpgStateRoundInput {
   readonly chatId: ChatId;
@@ -338,7 +337,7 @@ interface RpgStateRoundInput {
   readonly reconcile: boolean;
 }
 
-/** What a reliable-mode extraction returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
+/** What a state round returns (§4.6): the state OVERLAY (a partial snapshot-state patch under the
  *  [merge-clear] contract — staged via `applyLockedPatch` exactly like a tool write) + the journal entries to
  *  stamp with the committed variant. The SAME two planes cheap-mode tools stage during the turn, so both modes
  *  funnel through the one accumulator flush. */
@@ -373,7 +372,6 @@ export interface RpgContext {
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
-  readonly runExtraction: RpgRunExtraction;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
    *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO
@@ -384,8 +382,8 @@ export interface RpgContext {
    *  chat op (rpg reads no chat table). Wired at compose to a chat-owned builder that shares the engine's
    *  transcript projection. A fake returns a fixed transcript in tests. */
   readonly resolveCanonWindow: RpgResolveCanonWindow;
-  /** The reliable-mode reconcile/resync model call under the HOST's FRESH-resolved connection (§1.3 resync).
-   *  UNLIKE `runExtraction`/`runToolRound` (which ride the character turn's already-resolved connection +
+  /** The reconcile/resync structured model call under the HOST's FRESH-resolved connection (§1.3 resync).
+   *  UNLIKE `runToolRound` (which rides the character turn's already-resolved connection +
    *  inherited consent), this resolves the ROOM connection AS THE HOST at the verb (a host-INITIATED
    *  interactive action, not an out-of-turn background call): the consenting human is at the keyboard, so
    *  consent is the host's OWN and the principal is the host — never a caller-injected foreign principal. Wired
@@ -448,9 +446,9 @@ interface StateRoundPathInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   readonly mode: RpgExtractionMode;
-  /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round`/`structured` = a
-   *  dedicated post-commit model call. */
-  readonly path: "folded" | "tool-round" | "structured";
+  /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round` = a dedicated
+   *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call). */
+  readonly path: "folded" | "tool-round";
   readonly fallbackReason: RpgFoldFallbackReason | null;
 }
 

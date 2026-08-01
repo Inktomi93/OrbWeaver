@@ -206,7 +206,7 @@ export interface ServicesResult {
    *  proving the compose tool-registration is live. Not on the transport `Services` bundle. */
   readonly toolUse: ToolUseService;
   /** The REAL chat-side rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) —
-   *  the deps `buildRpg` closes over. Surfaced so the composed-real reliable test builds its own `buildRpg`
+   *  the deps `buildRpg` closes over. Surfaced so the composed-real extraction test builds its own `buildRpg`
    *  over the SAME real chat wiring with only the executor/connection faked (never a live model). */
   readonly chatRpgOps: ChatComposeResult["rpgChatOps"];
 }

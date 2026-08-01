@@ -269,7 +269,7 @@ function snapshotInsertFrom(
  *  and brick every later read. This gate makes "canon NEVER corrupted" STRUCTURAL, not a per-applier promise.
  *
  *  Returns `{ok:false, reason}` when the state is contract-INVALID — the caller DROPS the delta (errors-as-data,
- *  mirroring reliable-mode's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
+ *  mirroring the extraction's non-conforming empty-delta path), never commits a poisoned row, AND LOGS the
  *  reason (the drop is observable, never silent). */
 export async function writeStagedSnapshot(db: Db, state: RpgSnapshotState, target: ForwardSnapshotTarget): Promise<WriteStagedSnapshotResult> {
   const parsed = rpgSnapshotStateSchema.safeParse(state);

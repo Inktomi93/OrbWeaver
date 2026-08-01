@@ -6,8 +6,8 @@
 // reminder immediately BEFORE the license (§2.7 placement). ALWAYS ON — no knob (§13 #10, owner-FINAL): the
 // license already assumes this input, so shipping the license without it is the bug this closes.
 //
-// The diff compares two SNAPSHOTS, so it is agnostic to what produced the change — a tool round, a reliable
-// extraction, AND a host HAND EDIT all land in the snapshot, so a GM tweak lands in the fiction next turn
+// The diff compares two SNAPSHOTS, so it is agnostic to what produced the change — a tool round, a folded
+// turn's own calls, AND a host HAND EDIT all land in the snapshot, so a GM tweak lands in the fiction next turn
 // (§2.7 diff coverage — a feature, per the owner). Swipe-consistency is FREE: the gather re-resolves both ends
 // on the newly-selected lineage (§2.7), so the delta is always prev→current for the currently-selected chain.
 //

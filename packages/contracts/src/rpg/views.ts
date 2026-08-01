@@ -23,9 +23,9 @@ export interface RpgGameView {
   /** Derived per-turn from connection capability (§4.6) — never stored. `true` ⇒ the read-only pill. */
   readonly trackersReadOnly: boolean;
   /** The delivery-model knob (not host-secret — it governs the WHOLE game's freshness posture, so the
-   *  panel needs it to render the state-freshness indicator honestly). `reliable` ⇒ the tracker lags one
-   *  beat by construction (extraction runs AFTER the character turn commits — §4.9 amendment); `cheap` ⇒
-   *  the tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
+   *  panel needs it to render the state-freshness indicator honestly). `cheap` ⇒ the tracker lags one beat by
+   *  construction (a dedicated round runs AFTER the character turn commits — §4.9 amendment); `folded` ⇒ the
+   *  tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
   readonly extractionMode: RpgGameConfig["extractionMode"];
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
    *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
@@ -56,6 +56,9 @@ export interface RpgActorView {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
     readonly maxHp: number | null;
+    /** The sheet's free FLAVOR prose (RV-11) — written through `patchSheet` and, until the takeover grew a
+     *  gloss line for it, projected to no reader at all. `""` = nothing written (the line is omitted). */
+    readonly flavor: string;
     /** The hand-only progression level (§2.6) — null renders nothing (nullable-honesty, no phantom "Level 0"). */
     readonly level: number | null;
     /** The per-actor tracker exceptions (the applicability model) — surfaced so the editor can show WHY this

@@ -9,8 +9,9 @@
 // arm): ambient fields + widget values ride `editSnapshot` (whole-array/record overlay under [merge-clear]);
 // goals ride `upsertQuest`. Beats are a log (read-only by nature).
 
-import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgCastGuideField, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
 import {
+  RPG_CAST_GUIDE_FIELDS,
   RPG_TRACKER_VALUE_EMPTY,
   RPG_WEATHER_TYPES,
   TIME_OF_DAY_HOURS,
@@ -244,6 +245,20 @@ function castPatch(
   return { presentCharacters: cast.map((m) => (m.key === key ? mutate(m) : m)) };
 }
 
+/** The standing guides this member actually carries (RV-11) — spread onto the card so an UNWRITTEN guide is
+ *  simply absent (no line, never a "none" placeholder). The story authors them; the host may correct what is
+ *  there, and there is nothing honest to show for one nobody has written. */
+function guideProps(member: RpgTrackerView["cast"][number]): Partial<Record<RpgCastGuideField, string>> {
+  const out: Partial<Record<RpgCastGuideField, string>> = {};
+  for (const field of RPG_CAST_GUIDE_FIELDS) {
+    const text = member[field]?.trim() ?? "";
+    if (text !== "") {
+      out[field] = text;
+    }
+  }
+  return out;
+}
+
 interface SceneCastEdit {
   readonly onEditCast: (patch: Record<string, unknown>) => void;
   /** Write ONE tracked value on a cast member (the actorState plane — cast NPCs carry their values on the
@@ -284,6 +299,10 @@ function SceneCast({
             ? {}
             : {
                 onEditMood: (next: string): void => edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, mood: next }))),
+                // The guides ride the SAME whole-`presentCharacters` overlay mood does — no new verb: they are
+                // fields on the same snapshot row, so `editSnapshot` already accepts (and locks) them.
+                onEditGuide: (field: RpgCastGuideField, next: string): void =>
+                  edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, [field]: next.trim() }))),
                 onEditRelationshipKind: (next: RpgTrackerView["cast"][number]["relationship"]["kind"]): void =>
                   edit.onEditCast(
                     castPatch(cast, member.key, (m) => ({ ...m, relationship: { kind: next, label: next === "custom" ? m.relationship.label : "" } })),
@@ -299,7 +318,9 @@ function SceneCast({
           <CastCard
             key={member.key}
             name={member.name}
+            {...(member.emoji === "" ? {} : { emoji: member.emoji })}
             {...(member.mood === "" ? {} : { mood: member.mood })}
+            {...guideProps(member)}
             relationship={member.relationship}
             fields={texts}
             // The relationship KIND glyph (the §12.5.5 closed-vocab Record) leads the edit-mode picker.

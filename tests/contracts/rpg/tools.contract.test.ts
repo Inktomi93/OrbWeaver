@@ -99,7 +99,7 @@ test("EXT-4c: upsert_quest carries BOTH objective gestures — the authoring lis
 });
 
 // THE RELIABLE BLOCKER FIX (ruling #10, LIVE-MEASURED 2026-07-27): an 8B dropped the nested-required
-// `journal[].title` in 5/8 reliable extractions (xgrammar does not enforce `required` on nested array items),
+// `journal[].title` in 5/8 structured extractions (xgrammar does not enforce `required` on nested array items),
 // failing the WHOLE `safeParse` and silently dropping the turn's state. `title` is now OPTIONAL + derived.
 test("add_journal_entry: a title-LESS entry now PARSES (the blocker fix — title is optional)", () => {
   const parsed = addJournalEntryArgsSchema.safeParse({ type: "combat", content: "The troll fell." });

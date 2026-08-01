@@ -19,7 +19,6 @@ import type {
   RpgPostNarratorMessage,
   RpgResolveRoster,
   RpgRosterActor,
-  RpgRunExtraction,
   RpgRunToolRound,
   RpgStateDelta,
 } from "../../../../packages/server/src/domain/rpg/index";
@@ -168,7 +167,7 @@ export function principal(handle: string): Principal {
 
 /** The fakes the harness lets a test program. `membership` maps a userId → role (absent = not a member,
  *  the leak-free null). `roster` is the tracker projection. `trackersReadOnly`/`foldGuarded` are the two honest-arms delivery verdicts.
- *  `extractionDelta` is the reliable-mode `runExtraction` fake's return (default: an empty delta = no-op). */
+ *  `toolRoundDelta` is the post-commit state round fake's return (default: an empty delta = no-op). */
 export interface RpgFakes {
   membership: Map<string, ParticipantRole>;
   roster: RpgRosterActor[];
@@ -177,9 +176,8 @@ export interface RpgFakes {
    *  the model's prose when tools ride it (the local vLLM engine), so a `folded` game must not mount. */
   foldGuarded: boolean;
   dice: number[];
-  /** The reliable-mode extraction fake return (W1c supplies the real one; here it's programmable). */
-  extractionDelta: RpgStateDelta;
-  /** The cheap-mode tool-round fake return (the sibling of `extractionDelta`). Default: empty delta = no-op. */
+  /** The cheap-mode tool-round fake return — the DEDICATED post-commit round `cheap` runs and a non-folding
+   *  `folded` turn falls back to (W1c supplies the real one; here it's programmable). Default: empty = no-op. */
   toolRoundDelta: RpgStateDelta;
   /** R1 — the `foldTurnToolCalls` fake return (the folded path's delta; NO model call in the real impl). */
   foldedDelta: RpgStateDelta;
@@ -192,9 +190,9 @@ export interface RpgFakes {
   resyncDelta: RpgStateDelta;
   /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
   canonWindow: RpgTurnTranscriptMessage[];
-  /** OPTIONAL gate the fake `runExtraction` awaits before resolving — the flush-barrier race test sets it to a
-   *  deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
-  extractionGate?: Promise<void>;
+  /** OPTIONAL gate the fake post-commit round awaits before resolving — the flush-barrier race test sets it to
+   *  a deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
+  stateRoundGate?: Promise<void>;
   /** The preset-ownership fake (§3.2 fork). `${presetId}:${userId}` keys the presets a user may READ (owned or
    *  the shared default); `resolvePresetOwned` returns membership. Empty (default) ⇒ every preset is foreign. */
   ownedPresets: Set<string>;
@@ -203,10 +201,9 @@ export interface RpgFakes {
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
   readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
-  readonly extractionCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
   /** R1 — the FOLD fires (`foldTurnToolCalls`): the calls it folded + the beat it folded them onto. A fold
-   *  entry with an EMPTY `toolRoundCalls`/`extractionCalls` IS the proof that no second model call was paid. */
+   *  entry with an EMPTY `toolRoundCalls` IS the proof that no second model call was paid. */
   readonly foldCalls: { chatId: string; variantId: string; reconcile: boolean; toolCalls: readonly RpgToolCall[] }[];
   /** R1 — the GATHER's tool-mount asks (`buildFoldedTurn`): records the reconcile verdict the gather derived. */
   readonly foldedToolBuilds: { chatId: string; reconcile: boolean }[];
@@ -252,7 +249,6 @@ export function makeRpgService(
       | "trackersReadOnly"
       | "foldGuarded"
       | "dice"
-      | "extractionDelta"
       | "toolRoundDelta"
       | "foldedDelta"
       | "foldedTools"
@@ -268,7 +264,6 @@ export function makeRpgService(
     trackersReadOnly: over.trackersReadOnly ?? false,
     foldGuarded: over.foldGuarded ?? false,
     dice: [...(over.dice ?? [])],
-    extractionDelta: over.extractionDelta ?? { statePatch: {}, journal: [] },
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
     foldedDelta: over.foldedDelta ?? { statePatch: {}, journal: [] },
     foldedTools: over.foldedTools ?? [{ name: "update_scene", description: "the scene", parameters: { type: "object" } }],
@@ -279,7 +274,6 @@ export function makeRpgService(
     pointers: [],
     detaches: [],
     narratorPosts: [],
-    extractionCalls: [],
     toolRoundCalls: [],
     foldCalls: [],
     foldedToolBuilds: [],
@@ -303,21 +297,17 @@ export function makeRpgService(
     return { messageId, variantId };
   };
   const resolveRoster: RpgResolveRoster = () => Promise.resolve(fakes.roster);
-  const runExtraction: RpgRunExtraction = async (input) => {
-    fakes.extractionCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
-    // The flush-barrier race test HOLDS the extraction in-flight via this gate (a slow dedicated state round is
-    // the real 0.8-2.9s window); default is unset ⇒ the extraction resolves immediately (every other test).
-    if (fakes.extractionGate !== undefined) {
-      await fakes.extractionGate;
-    }
-    return Promise.resolve(fakes.extractionDelta);
-  };
-  const runToolRound: RpgRunToolRound = (input) => {
+  const runToolRound: RpgRunToolRound = async (input) => {
     fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
-    return Promise.resolve(fakes.toolRoundDelta);
+    // The flush-barrier race test HOLDS the round in-flight via this gate (a slow dedicated state round is the
+    // real 0.8-2.9s window); default is unset ⇒ the round resolves immediately (every other test).
+    if (fakes.stateRoundGate !== undefined) {
+      await fakes.stateRoundGate;
+    }
+    return fakes.toolRoundDelta;
   };
   // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that
-  // sees a `foldCall` and NO extraction/toolRound call has proven the second call is gone.
+  // sees a `foldCall` and NO `toolRoundCall` has proven the second call is gone.
   const buildFoldedTurn: RpgContext["buildFoldedTurn"] = ({ chatId, reconcile }) => {
     fakes.foldedToolBuilds.push({ chatId, reconcile });
     if (fakes.foldedToolsThrow === true) {
@@ -359,7 +349,6 @@ export function makeRpgService(
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
     resolveStateDelivery: () => Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded }),
-    runExtraction,
     runToolRound,
     buildFoldedTurn,
     foldTurnToolCalls,
@@ -413,7 +402,6 @@ export async function seedLiteGame(
       | "trackersReadOnly"
       | "foldGuarded"
       | "dice"
-      | "extractionDelta"
       | "toolRoundDelta"
       | "foldedDelta"
       | "foldedTools"
@@ -432,8 +420,8 @@ export async function seedLiteGame(
 }
 
 /** Pin a seeded game to a delivery MODE. Games are BORN `folded` (owner ruling 2026-08-01 — the one-call fold
- *  is the default experience, D112), so any test that drives a DEDICATED post-commit round (reliable's
- *  structured extraction / cheap's tool round) must ask for that vehicle explicitly rather than inherit it. */
+ *  is the default experience, D112), so any test that drives the DEDICATED post-commit round (cheap's
+ *  tool round) must ask for that vehicle explicitly rather than inherit it. */
 export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractionMode: RpgExtractionMode): Promise<void> {
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode });
 }

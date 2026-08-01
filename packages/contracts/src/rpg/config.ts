@@ -82,10 +82,8 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
 
 /** The delivery-model knob (the 2026-07-26 amendment / D108, as amended by D109 + the R1 fold). It picks the
  *  state round's VEHICLE, never its existence:
- *    • `reliable` = a DEDICATED post-commit structured-output extraction turn (`responseFormat` = the projected
- *      extraction schema). Two model calls per exchange; the accuracy arm (the local 8B floor).
  *    • `cheap` = a DEDICATED post-commit TOOL round (the 7 state tools, `tool_choice:"required"`). Two model
- *      calls per exchange, cheaper than reliable's schema.
+ *      calls per exchange; the LOCAL champion (grammar-bound on vLLM — the measured 8B floor).
  *    • `folded` (DEFAULT, owner ruling 2026-08-01) = the SAME 7 tools mounted on the CHARACTER turn itself with
  *      `tool_choice:"auto"`, whose co-emitted `tool_calls` ARE the state round — ONE model call per exchange
  *      (measured ~43% cheaper / ~34% faster on a hosted strong model, 6/6 co-emission — D112) and the ONLY mode
@@ -98,11 +96,19 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
  *          0 chars of narrative on 36/36 tool-attached turns (`local-engine-fold-guard`, D112 as amended by the
  *          owner ruling; the mount is withheld PRE-commit so the character turn is byte-identically tool-less).
  *      So `folded` is NOT universal: it is the hosted-strong shape, with an honest, loud degrade everywhere
- *      else. New games are BORN folded; a host who wants a two-call arm on purpose (the local floor) flips the
- *      knob — recommend, never force, and the guard never touches an EXPLICIT `cheap`/`reliable`.
+ *      else. New games are BORN folded; a host who wants the two-call arm on purpose (the local floor) flips the
+ *      knob — recommend, never force, and the guard never touches an EXPLICIT `cheap`.
  *  An ADDITIVE config field — a pre-amendment blob self-heals to the default at the parse seam (the schema
- *  `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline). */
-export const RPG_EXTRACTION_MODES = ["reliable", "cheap", "folded"] as const;
+ *  `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline).
+ *
+ *  DELETED THIRD MODE (owner ruling 2026-08-01, pre-launch NO-LEGACY): the dedicated structured-output round
+ *  ("reliable") was the accuracy arm on paper and measured WORST on the exact field its schema guardrail
+ *  existed to secure (0/12 hpDelta — a field-routing failure; the extraction-mode empirical map). It is gone
+ *  whole — no shim, no deprecation arm. The structured-output MACHINERY survives where it is still the only
+ *  vehicle: the agent-sdk wire (no wire `tools[]` ⇒ `cheap`/`folded` degrade to it) and the host resync. A game
+ *  blob still carrying the retired mode is healed to the default at rpg's parse-on-read seam
+ *  (`persistence/games.ts`), which is the ONLY place that knows the mode axis ever had a third member. */
+export const RPG_EXTRACTION_MODES = ["folded", "cheap"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
 
 /** The extraction-CONTEXT knob (the crunchy-cluster redesign §1.3) — how much of the turn's OWN story the
@@ -142,7 +148,7 @@ export type RpgDateMode = (typeof RPG_DATE_MODES)[number];
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
  *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling 2026-08-01, on
- *  D112's measured evidence; the two-call arms are the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
+ *  D112's measured evidence; the two-call `cheap` arm is the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
  *  additive, self-heals at the parse seam. */
 export const rpgGameConfigSchema = z.object({
   // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the

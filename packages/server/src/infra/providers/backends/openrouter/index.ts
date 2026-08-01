@@ -119,7 +119,7 @@ export interface OpenRouterBackendDeps {
 // The batch deps — the client + the image normalizer + the observability seam (now + the WIRE_CAPTURE sink).
 // OBSERVABILITY parity with the vLLM surface + the chat runners: each item captures its LITERAL wire body
 // (outbound-schema'd, gated by captureWire) AND emits a per-item turn log for success AND failure, TAGGED BY
-// role (`summarize` vs `structured` — owner ruling 2026-07-27) — a reliable extraction is never a black hole.
+// role (`summarize` vs `structured` — owner ruling 2026-07-27) — a structured extraction is never a black hole.
 interface OrBatchDeps {
   readonly client: OrClient;
   readonly normalize: NormalizeImageBytes;

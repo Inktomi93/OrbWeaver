@@ -709,8 +709,8 @@ export function getGame(chatId: string): Promise<GameView> {
   return trpcQuery<GameView>("rpg.getGame", { chatId });
 }
 
-/** Set the game's delivery model (`rpg.updateConfig` — host). `cheap` = a tool round on commit; `reliable` = a
- *  structured extraction (default). The exhaustive spec drives BOTH state-round arms. `mode` stays `string` (the
+/** Set the game's delivery model (`rpg.updateConfig` — host). `folded` (default) = the character turn records
+ *  its own state; `cheap` = a dedicated tool round post-commit. `mode` stays `string` (the
  *  no-inline-union-redecl gate bans re-spelling the homed RPG_EXTRACTION_MODES tuple here; the spec passes the
  *  literal). */
 export function setExtractionMode(chatId: string, mode: string): Promise<unknown> {

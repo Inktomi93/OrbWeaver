@@ -21,7 +21,7 @@
 //      FE=BE=DB proves the write→read→render seam for EVERY plane WITHOUT depending on the small 8B decomposing
 //      that plane (the honest-arms ceiling, plan-for-small-hardware). This is the bulk of the coverage.
 //   2. THE LIVE LOOP (real inference). The character turn (tool-less prose) + the dedicated post-commit STATE
-//      ROUND (both `reliable` structured-extraction AND `cheap` tool-round arms) + steering (the tracked state
+//      ROUND (the born `folded` fold AND the `cheap` tool-round arm) + steering (the tracked state
 //      reaches the prompt via the reminder AND the prose reacts). Where the 8B under-decomposes a plane that is
 //      model-bounded coverage, NOT a code defect — but the writes that DO land must be FE=BE=DB consistent.
 //
@@ -107,7 +107,7 @@ async function characterActor(chatId: string, characterId: string): Promise<Trac
 // routing pins `chat: {api:"agent-sdk", source:"vllm"}` — a RETIRED, incoherent pair (2026-07-27 owner ruling,
 // agent-sdk/env.ts): `resolveChat` throws on it, so `deriveTrackersReadOnly` returns readonly-by-construction
 // and NO state round can fire. The live loop needs a write-capable connection, so the seed pins the coherent
-// route (advertises `output.structured` ⇒ the reliable extraction round is eligible) and restores the prior
+// route (advertises `tools` ⇒ the state round is eligible) and restores the prior
 // route in cleanup. (The read-only born state under the retired route is the SAD-PATH assertion in SPEC 7.)
 const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
@@ -365,19 +365,19 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// SPEC 3 — THE LIVE LOOP (reliable): character turn (tool-less prose) → post-commit STATE ROUND (structured
-// extraction) → flush → snapshot → bus emit → CP-4 re-render. Steering PROVEN via the wire capture (the tracked
+// SPEC 3 — THE LIVE LOOP (born default): character turn → the turn's own state capture (or, on a wire that
+// cannot fold, the post-commit round) → flush → snapshot → bus emit → CP-4 re-render. Steering PROVEN via the wire capture (the tracked
 // state reached the prompt) + the canon landing. This is the real inference loop; model-bounded where noted.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const STATE_CHANGE_NARRATION =
   "I shove open the tavern door and stride out into the freezing night market of Ashfell, pulling my cloak tight. " +
   "Track this: my location is now the Ashfell Night Market, and I am Chilled from the cold. Narrate the scene.";
 
-test("rpg-lite (reliable): a live character turn + state round moves the snapshot and re-renders the panel", {
+test("rpg-lite (born default): a live character turn + state capture moves the snapshot and re-renders the panel", {
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(300_000);
-  const { chatId, cleanup } = await seedGame("e2e-rpg-reliable");
+  const { chatId, cleanup } = await seedGame("e2e-rpg-default");
   try {
     // Pre-seed a KNOWN state so the reminder carries it into the turn's prompt (the steering proof): the model
     // reads a location the GM set, and the wire capture must contain it.
@@ -415,7 +415,7 @@ test("rpg-lite (reliable): a live character turn + state round moves the snapsho
     expect(promptText).toContain("Game state");
 
     // HOP RESULT (state round → flush → snapshot): the persisted snapshot MOVES off the pre-seeded state as the
-    // reliable extraction folds the beat. Poll (the extraction is a SECOND model call after commit). The 8B is
+    // extraction folds the beat. Poll (on a non-folding wire that is a SECOND model call after commit). The 8B is
     // honest-arms bounded (plan-for-small-hardware): it USUALLY writes a beat, but a non-conforming / no-change
     // extraction is a legitimate EMPTY delta — so a hard "must move" would be model-flaky. We give it a generous
     // budget, then branch: if it moved, assert the DOM renders the SAME server-truth state (the full loop); if

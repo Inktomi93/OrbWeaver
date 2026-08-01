@@ -1,6 +1,6 @@
 // Composition seam for the rpg domain (rpg-design/05 §4.10, the LITE vertical). Owns no business logic — it
 // assembles the `RpgContext` DI bundle (db-scoped persistence + injected clock/id-mints/dice-CSPRNG + the five
-// injected cross-feature ops + the bus emit + the reliable-mode `runExtraction` impl) over the already-built
+// injected cross-feature ops + the bus emit + the structured `runExtraction` impl) over the already-built
 // sibling front doors, builds the `RpgService`, returns the `ChatRpgOps` object chat receives by injection (the
 // `input.rpg ?? null` seam, `compose/chat.ts`), and registers the 7 cheap-mode state tools into the ONE
 // tool-use registry (the imagery precedent, `compose/imagery.ts`).
@@ -11,7 +11,7 @@
 // resolveRpgRoster/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 //
-// THE `runExtraction` IMPL (§4.6 reliable mode — the delivery-model amendment + the crunchy-cluster §1.3
+// THE `runExtraction` IMPL (§4.6 — the delivery-model amendment + the crunchy-cluster §1.3
 // transcript threading): a DEDICATED structured-output turn. It rides the CHARACTER turn's ALREADY-RESOLVED
 // connection + consent verdict AND its OWN canon transcript (`input.turnConnection`: `RpgTurnContext`, threaded
 // from the engine through the flush — stickler F1 + §1.3), slices that transcript to the game's configured
@@ -72,6 +72,7 @@ import {
   extractionToStateDelta,
   findGameByChat,
   ghostTargetRefs,
+  hasStructuredWriter,
   listSheets,
   publishRpgEvent,
   reachableActorRefs,
@@ -83,7 +84,7 @@ import type { ProviderExecutor } from "#infra/providers";
 import type { ChatComposeResult } from "./chat";
 import { minter } from "./minter";
 
-/** The structured-output schema NAME the reliable extraction passes as `responseFormat.name` (OpenAI
+/** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */
 const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
 
@@ -128,7 +129,7 @@ export interface RpgComposeResult {
 
 // THE HOST resolves by ROLE (the injected `deps.rpgChatOps.resolveHostUserId`, role='host' — D19), never join
 // order: `acceptHostHandoff` (D64) swaps roles in place, so the first-joined human is NOT the host (stickler F3).
-// Both the reliable extraction (whose human funds the model call) and the capability verdict read it.
+// Both the resync extraction (whose human funds the model call) and the capability verdict read it.
 
 /** Render one transcript row as a labeled story line (`Mara: …`, `You: …`, `System: …`). A null speaker
  *  name renders by role (user → "You", system → "System", assistant → "Narrator") — the model reads coherent
@@ -177,7 +178,7 @@ function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config
   return { story: kept, beat };
 }
 
-/** The reliable-mode extraction system prompt HEADER (the arc semantics § the plane teaching composes onto).
+/** The structured-extraction system prompt HEADER (the arc semantics § the plane teaching composes onto).
  *  The model reads the RECENT STORY + the CURRENT TRACKED STATE + the LATEST BEAT and emits the WHOLE state
  *  delta as ONE structured object — no user-facing prose, structured output is the fit. The projected schema
  *  marks the five array fields REQUIRED (zod `.default([])` in output mode), so "nothing changed" is EMPTY
@@ -207,9 +208,9 @@ const RECONCILE_PROMPT_LINE =
   "refresh any plane the recent beats stopped mentioning (location, time, weather, who is here, what they carry " +
   "and wear, active quests, the plot act). Correct anything the CURRENT TRACKED STATE gets wrong against the story.";
 
-/** Compose the full reliable-mode system prompt: the header + the per-plane teaching (from the §1.6 registry,
+/** Compose the full structured-extraction system prompt: the header + the per-plane teaching (from the §1.6 registry,
  *  config/refs aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
- *  reconcile beat) the reconcile line. The registry is the ONE home both the reliable extraction and the cheap
+ *  reconcile beat) the reconcile line. The registry is the ONE home both the structured extraction and the cheap
  *  tool round teach their planes from. */
 function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
   const teaching = composePlaneTeaching({ config, refs });
@@ -439,7 +440,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
  *  the schema binds it structurally where the backend supports it, and the prompt names the valid refs
  *  everywhere). The `player` token is explained (= the human's character, currently shown as X) so the model
  *  prefers the stable ref. Returns "" for a fresh game with no refs (the composer omits the block). Both the
- *  reliable extraction (`extractionSystem`) and the cheap tool round (`toolRoundSystem`) append this. */
+ *  structured extraction (`extractionSystem`) and the cheap tool round (`toolRoundSystem`) append this. */
 function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | null): string {
   const lines: string[] = [];
   if (refs.actorRefs.length > 0) {
@@ -482,7 +483,9 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
   return lines.join("\n");
 }
 
-/** Build the reliable-mode `runExtraction` op (§4.6). Rides the CHARACTER turn's ALREADY-RESOLVED connection +
+/** Build the STRUCTURED-OUTPUT extraction op (§4.6). No longer a delivery mode of its own (the `reliable` knob
+ *  was deleted 2026-08-01 — owner ruling): it is the vehicle `runToolRound` degrades to on an agent-sdk wire (no
+ *  wire `tools[]`) and the vehicle the host resync drives. Rides the CHARACTER turn's ALREADY-RESOLVED connection +
  *  consent verdict (`input.turnConnection` — stickler F1: never a re-resolve of the host's global default, never
  *  a force-stamped consent), reads the beat, drives ONE structured-output call ROUTED BY API (agent-sdk → the
  *  chat structured-output path; every other api → the `structured` dispatcher), and folds the parsed extraction
@@ -509,12 +512,12 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // The structured-output extraction can THROW at the backend (e.g. a backend that doesn't honor
     // `outputFormat: json_schema`). Errors-as-data for CANON (a failed extraction never corrupts state — return
     // the empty delta), but the throw MUST be observable: a silent swallow at `engine.ts`'s fire-and-forget
-    // `.catch` made a broken reliable-mode extraction invisible in prod (the diagnosis that surfaced this).
+    // `.catch` made a broken extraction invisible in prod (the diagnosis that surfaced this).
     let text: string;
     try {
       text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
     } catch (err) {
-      logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg reliable extraction failed");
+      logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
       return empty;
     }
     // EXT-4a — SALVAGE PER PLANE / PER ENTRY, never all-or-nothing. The old whole-object `safeParse` let ONE
@@ -525,17 +528,17 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // cannot disagree with what applied, the `ghostTargetRefs`/D112 (3) posture).
     const { extraction, dropped } = salvageExtraction(safeJson(text));
     if (dropped.length > 0) {
-      // OBSERVABILITY: this is the path reliable was silently dying on (an 8B dropping `journal[].title` failed
+      // OBSERVABILITY: this is the path the structured arm was silently dying on (an 8B dropping `journal[].title` failed
       // `safeParse` with NO log while every other rpg log stayed silent; that contradiction is how the diagnosis
       // surfaced). The set is TOTAL: failed (throw) / unparseable (this) / healed (logExtractionOutcome) / empty
       // / phantom (logExtractionOutcome) / dropped (flush). A `root` drop means NOTHING was salvageable.
       logger.warn(
         { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, dropped },
-        "rpg reliable extraction: plane(s)/entry(ies) did not conform — DROPPED (the rest of the delta still applies)",
+        "rpg structured extraction: plane(s)/entry(ies) did not conform — DROPPED (the rest of the delta still applies)",
       );
     }
     // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
-    // first-class resolution the cheap-mode tools use; a reliable write on a party member must render too).
+    // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
@@ -631,14 +634,14 @@ function safeJson(text: string): unknown {
 // A state-only request (NOT tools on the character turn): the 6 state tools + a `no_changes` escape, with
 // ref-enum-constrained args (R1) + `tool_choice:"required"` (LIVE-VERIFIED: vLLM hermes/Qwen3 + OpenRouter
 // both emit PARALLEL calls on a change beat + a single `no_changes` on a quiet one). No prose expected. The
-// parsed calls fold to the SAME `RpgStateDelta` reliable produces (the shared-plane proof). Portable across
+// parsed calls fold to the SAME `RpgStateDelta` the structured arm produces (the shared-plane proof). Portable across
 // the ARRAY wires (chat-completions/responses); an agent-sdk host connection has no wire `tools[]`, so it
 // routes through the SAME structured-output extraction (identical delta by the shared-plane proof — the
 // honest degrade, capability-keyed: cheap needs `capability.tools`, absent ⇒ readonly upstream).
 
 /** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
  *  SAME per-plane teaching (from the §1.6 registry — plot/trackers/deception-clause) that the
- *  reliable arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
+ *  structured arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
 function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
   // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
   // wrote only ONE plane. So the prompt now walks the model plane-by-plane (a checklist) and gives the concrete
@@ -747,7 +750,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
       return empty;
     }
-    // Fold the parallel tool calls → an RpgExtraction → the SAME state delta reliable produces (`no_changes`
+    // Fold the parallel tool calls → an RpgExtraction → the SAME state delta the structured arm produces (`no_changes`
     // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
     // same way the folded arm names its drops (EXT-4a: equal drop semantics means equal VISIBILITY too — the
     // dedicated round was the one vehicle that dropped silently).
@@ -870,9 +873,10 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
       }
       throw err;
     }
-    // No structured-output writer capability ⇒ no rebuild (the SAME readonly verdict the flush enforces, F2 —
-    // a resync on a manual-steering connection would predictably fail and, on hosted creds, cost real spend).
-    if (deriveTrackersReadOnly("reliable", conn.capability)) {
+    // No structured-output writer capability ⇒ no rebuild (the resync's OWN capability gate — it is not a
+    // per-turn delivery mode, so it keys on the capability directly, mirroring the flush's F2 posture: a resync
+    // on a manual-steering connection would predictably fail and, on hosted creds, cost real spend).
+    if (!hasStructuredWriter(conn.capability)) {
       logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no structured writer — no rebuild");
       return empty;
     }
@@ -897,7 +901,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
       logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
       return empty;
     }
-    // EXT-4a — the resync reads the SAME structured emission the reliable round does, so it salvages the same
+    // EXT-4a — the resync reads the SAME structured emission the in-turn degrade does, so it salvages the same
     // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
     // re-established state (the resync is the expensive call — discarding it whole is the worst place to be
     // all-or-nothing).
@@ -935,7 +939,6 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
     resolvePresetOwned: deps.resolvePresetOwned,
     resolveStateDelivery: buildResolveStateDelivery(deps),
-    runExtraction: buildRunExtraction(deps),
     runToolRound: buildRunToolRound(deps),
     // R1 (`folded` mode) — the two halves of the ONE-CALL exchange: the gather's tool mount + the flush's fold.
     // Neither makes a model call; the character turn already paid for both.

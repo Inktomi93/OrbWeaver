@@ -6,6 +6,14 @@
 Messages API (~$3.6 total spend, 8 harnesses). Raw artifacts under `scripts/probes/rpg-extraction/` — see
 Appendix B. Results directories are gitignored; **this document is the durable record.**
 
+> **OUTCOME 2026-08-01 (owner ruling): the `reliable` MODE IS DELETED.** §4f–§4h measured it WORST on the exact
+> field its structured-output guardrail existed to secure (`hpDelta` 0/12 — a field-routing failure), so the
+> delivery axis is now `folded` (born default, hosted champion) + `cheap` (local champion, grammar-bound on
+> vLLM). Pre-launch NO-LEGACY: no shim, no deprecation arm. The structured-output VEHICLE survives where it is
+> the only one available (the agent-sdk wire's degrade inside `runToolRound`, and the host resync). Every
+> measurement below is a historical record and is left exactly as taken — the probe harness keeps the arm under
+> the name `structured`.
+>
 > **RESUME HERE.** Status 2026-07-30: **R1 is the decision and it is settled.** Read in this order —
 > §4c (the "two gaps" were a test artifact; R4/R4a withdrawn) → §4d/§4d-bis (**the top open item: a
 > one-line reminder fix, R4b**) → §4e (genre openness + the journal-type door, R4c). §4/§4a are retained

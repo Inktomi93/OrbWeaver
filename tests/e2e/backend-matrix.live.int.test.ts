@@ -424,7 +424,7 @@ function extractionReq(cell: MatrixCell): ChatRequest {
 // path end to end. The rerouted `runExtraction` uses THIS path on a max-pro-sub host connection; local vLLM
 // hosts route extraction through the summarize/chat-completions path (agent-sdk×vllm is retired), so there is
 // no agent-sdk×vllm extraction cell — its characterization moved to the not-a-valid-combo section below.
-describe.skipIf(!LIVE)("@live rpg reliable extraction — the real rpgExtractionSchema round-trips through the chat structured path", () => {
+describe.skipIf(!LIVE)("@live rpg structured extraction — the real rpgExtractionSchema round-trips through the chat structured path", () => {
   for (const cell of AGENT_CELLS) {
     test(`${cell.name}: a read-only structured extraction turn emits schema-conforming JSON (no tool server mounted)`, {
       timeout: TURN_TIMEOUT_MS,

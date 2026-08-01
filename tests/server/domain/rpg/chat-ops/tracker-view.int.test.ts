@@ -44,7 +44,7 @@ test("projects roster ∪ sheets — a roster actor with no sheet row renders th
   const view = await buildTrackerView(h.ctx, game, false);
   expect(view.actors).toHaveLength(1);
   expect(view.actors[0]?.name).toBe("Kael");
-  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] });
+  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] });
   expect(view.actors[0]?.volatile).toBeNull(); // no snapshot yet — turnless game
 });
 

@@ -6,7 +6,6 @@
 // WHERE THE TURN'S STATE IS CAPTURED, by resolved mode:
 //   • cheap    — a dedicated POST-COMMIT TOOL round (`runToolRound`: the 7 state tools, `tool_choice:required`,
 //                a `no_changes` escape, enum-constrained args), emitting PARALLEL tool calls in one request.
-//   • reliable — a dedicated POST-COMMIT STRUCTURED-OUTPUT round (`runExtraction`: one json_schema object).
 //   • folded   — R1: the SAME 7 tools ride THIS turn as TERMINAL tools (`tool_choice:"auto"`), so the model
 //                answers in prose AND records the state in ONE completion and no second call is paid. They are
 //                NOT registry tools (`tools` stays `[]` — nothing is executed or recursed on); they ride the
@@ -139,7 +138,7 @@ export async function gatherTurnContext(
   // no db read, no tools on the wire, a byte-identical tool-less character turn, and the flush's `null` channel
   // runs the SAME cheap post-commit round the no-terminal-channel arm runs, LOUDLY (`local-engine-fold-guard`).
   // The wire class arrives as a CAPABILITY fact (`coEmitsProseWithTools`, resolved at compose) — rpg never sees
-  // a credential source. An EXPLICIT `cheap`/`reliable` is untouched: the guard governs only where folded lands.
+  // a credential source. An EXPLICIT `cheap` is untouched: the guard governs only where folded lands.
   const foldable = game.config.extractionMode === "folded" && !trackersReadOnly && !foldGuarded;
   const folded = foldable ? await buildFoldedTurnSafely(ctx, game, curSnapshot) : null;
 

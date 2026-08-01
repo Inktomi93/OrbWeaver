@@ -544,8 +544,8 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
   return state;
 }
 
-/** Fold a reliable-mode `RpgExtraction` (arrays of the SAME cheap-mode tool args) into ONE `RpgStateDelta` —
- *  the shared-plane proof made runtime: a reliable extraction is exactly "a batch of the tool calls the model
+/** Fold an `RpgExtraction` (arrays of the SAME cheap-mode tool args) into ONE `RpgStateDelta` —
+ *  the shared-plane proof made runtime: an extraction is exactly "a batch of the tool calls the model
  *  would otherwise have made" (§4.6). Each entry applies over the RUNNING state (read-through, exactly like the
  *  staging accumulator during a cheap turn: entry N sees entry N-1's write), so the delta's `statePatch` is the
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).

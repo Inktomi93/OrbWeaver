@@ -92,6 +92,7 @@ function actorView(
       className: sheet.className,
       attributes: sheet.attributes,
       maxHp: sheet.maxHp,
+      flavor: sheet.flavor,
       level: sheet.level,
       trackerGrants: sheet.trackerGrants,
       trackerRevokes: sheet.trackerRevokes,

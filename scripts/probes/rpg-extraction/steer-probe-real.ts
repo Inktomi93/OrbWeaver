@@ -90,7 +90,8 @@ function realReminder(wits: number, beats: readonly string[]): string {
       {
         actorRef: { kind: "cast", castKey: "kestrel" },
         name: "Kestrel",
-        sheet: { className: "courier", attributes: {}, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
+        sheet: { className: "courier", attributes: {}, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
         trackers: [rpgTrackerDefSchema.parse({ key: "Stamina", label: "Stamina", shape: "meter", write: "delta", subject: "actor", max: 14 })],
         volatile: {
           actorRef: { kind: "cast", castKey: "kestrel" },

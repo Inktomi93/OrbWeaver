@@ -15,7 +15,6 @@
 // The two low-level geometry PARTS (TrackBar, RingGauge) live in @orb/ui (a raw <div>/<svg> with a
 // token fill can only be painted at the kit tier — the client paint law); these blocks compose them.
 
-import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -23,7 +22,6 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { CastMood, CastRelationship } from "./cast-card-slots";
 import { TrackerValue } from "./tracker-value";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -287,81 +285,10 @@ export function TrackerChip({ label, value, guide = false, onEditValue }: Tracke
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 4. CAST CARD — scene NPCs: name + mood line + their tracked values as chip rows.
+// 4. CAST CARD — extracted to ./cast-card-slots.tsx beside its three header slots (the component-size cap;
+//    the ambient-strip precedent). The card and the slots it composes are ONE unit: CastRelationship,
+//    CastMood and CastGuides have no other consumer, and the card is nothing but their arrangement.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-export interface CastField {
-  readonly name: string;
-  readonly value: string;
-}
-
-export interface CastCardProps {
-  readonly name: string;
-  readonly mood?: string;
-  readonly fields?: readonly CastField[];
-  /** The cast member's relationship stance (§2.1) — badged in the header row; a neutral default shows nothing. */
-  readonly relationship?: RpgRelationship;
-  /** Meter blocks for numeric per-NPC trackers (rendered above the text-field chips). */
-  readonly meters?: ReactNode;
-  /** Commit a field value by field name — present ⇒ its chips are editable; absent ⇒ read-only. */
-  readonly onEditField?: (fieldName: string, next: string) => void;
-  /** Commit a new mood (free text) — present ⇒ the mood is editable-in-place (§3.2). */
-  readonly onEditMood?: (next: string) => void;
-  /** Commit a new relationship KIND (the closed 6-token vocab — a PICKER, Tier-0 §12.3; off-vocab is
-   *  unconstructable). Present ⇒ the badge becomes a compact kind picker. */
-  readonly onEditRelationshipKind?: (next: RpgRelationshipKind) => void;
-  /** An optional leading relationship glyph (aria-hidden decoration) shown beside the picker in EDIT mode —
-   *  the feature supplies it from its glyph resolver, since the tier-2 kit can't reach a feature lib. In
-   *  read mode the badge carries its own glyph, so this is only used when the picker is shown. */
-  readonly relationshipGlyph?: ReactNode;
-}
-
-/** A present-character card: name · relationship badge/picker · mood · numeric meters · text-field chips. */
-export function CastCard({
-  name,
-  mood,
-  fields,
-  relationship,
-  meters,
-  onEditField,
-  onEditMood,
-  onEditRelationshipKind,
-  relationshipGlyph,
-}: CastCardProps): ReactElement {
-  return (
-    <Stack gap="block" className="rounded-card border border-border bg-card px-block py-row" data-slot="cast-card">
-      <Row justify="between" align="baseline" gap="block">
-        <Row gap="field" align="center" className="min-w-0">
-          {/* `shrink-0` keeps the name from collapsing to 0px when a long custom relationship label is present —
-              the badge yields width to the name (it truncates), never the reverse. */}
-          <Text as="span" size="label" weight="semibold" className="shrink-0">
-            {name}
-          </Text>
-          <CastRelationship
-            name={name}
-            {...(relationship === undefined ? {} : { relationship })}
-            {...(onEditRelationshipKind === undefined ? {} : { onEditRelationshipKind })}
-            {...(relationshipGlyph === undefined ? {} : { relationshipGlyph })}
-          />
-        </Row>
-        <CastMood name={name} {...(mood === undefined ? {} : { mood })} {...(onEditMood === undefined ? {} : { onEditMood })} />
-      </Row>
-      {meters}
-      {fields === undefined || fields.length === 0 ? null : (
-        <Row gap="field" className="flex-wrap">
-          {fields.map((field) => (
-            <TrackerChip
-              key={field.name}
-              label={field.name}
-              value={field.value}
-              {...(onEditField === undefined ? {} : { onEditValue: (next: string): void => onEditField(field.name, next) })}
-            />
-          ))}
-        </Row>
-      )}
-    </Stack>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 5. BEAT LINE — recentEvents: a timestamp-less muted one-liner. Newest-first ordering is the caller's.

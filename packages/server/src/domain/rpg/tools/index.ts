@@ -10,9 +10,9 @@
 // own read/write paths, §4.5). Args are the projection-clean `@orb/contracts/rpg` schemas (top-level z.object,
 // no `.transform()`/branded ids — the registry projects them to JSON Schema at registration).
 //
-// SHARED-PLANE PROOF: these tools and the reliable-mode extraction schema (`@orb/contracts/rpg` extraction.ts)
+// SHARED-PLANE PROOF: these tools and the structured extraction schema (`@orb/contracts/rpg` extraction.ts)
 // are the SAME 7 plane shapes exposed two ways — the extraction schema DERIVES from these same arg schemas, so
-// a reliable extraction is "a batch of the tool calls the model would otherwise have made" (§4.6). Both funnel
+// an extraction is "a batch of the tool calls the model would otherwise have made" (§4.6). Both funnel
 // through the ONE accumulator flush (W1a invariant).
 //
 // `roll_dice` is the odd one: ZERO state (bake-once — the ToolCallRecord on the variant IS the canon stamp).

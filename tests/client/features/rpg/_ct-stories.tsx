@@ -72,18 +72,13 @@ export function RpgTakeoverStory(): ReactElement {
 // The freshness indicator in isolation — a pure component (no providers/network), so its three honest states
 // mount directly. This proves the label datum + a11y model per state without driving a live turn over SSE.
 
-/** Reliable mode, idle — the accepted one-beat lag surfaced ("As of last beat"). */
-export function RpgFreshnessReliableIdleStory(): ReactElement {
-  return <RpgFreshnessIndicator extractionMode="reliable" pending={false} />;
+/** Cheap mode, idle — the accepted one-beat lag surfaced ("As of last beat"). */
+export function RpgFreshnessCheapIdleStory(): ReactElement {
+  return <RpgFreshnessIndicator extractionMode="cheap" pending={false} />;
 }
 
-/** Reliable mode, extraction window open — the transient "Updating…" (the pulse is aria-hidden). */
-export function RpgFreshnessReliablePendingStory(): ReactElement {
-  return <RpgFreshnessIndicator extractionMode="reliable" pending={true} />;
-}
-
-/** Cheap mode — a dedicated post-commit tool ROUND, so it lags exactly like reliable (R1 corrected the copy:
- *  cheap claimed "Live" from D108's inline-tools shape, which D109 replaced with a round). */
+/** Cheap mode, the post-commit round's window open — the transient "Updating…" (the pulse is aria-hidden).
+ *  (`cheap` claimed "Live" from D108's inline-tools shape, which D109 replaced with a dedicated round.) */
 export function RpgFreshnessCheapStory(): ReactElement {
   return <RpgFreshnessIndicator extractionMode="cheap" pending={true} />;
 }

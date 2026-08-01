@@ -9,8 +9,8 @@
 // sibling front door — the one-directional-flow SHAPE rule) rather than re-spelling a second copy. Runtime
 // cross-domain imports stay banned: this object reaches into NO chat value; it only produces the shape.
 //
-// The delivery-mode branch (§4.6 amendment) lives in the gather (tools vs none) + the flush (cheap take-only vs
-// reliable extraction-then-take). See `./gather` + `./flush`.
+// The delivery-mode branch (§4.6 amendment) lives in the gather (terminal tools vs none) + the flush (fold the
+// turn's own calls vs run the dedicated post-commit round). See `./gather` + `./flush`.
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
@@ -60,8 +60,8 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     }
   }
 
-  // Post-turn FLUSH (§2.4-2.5 + §4.6): cheap = take + write the staged tool writes; reliable = run the
-  // extraction into the accumulator first, then take + write. Keyed by `turnId`. Non-game = no-op.
+  // Post-turn FLUSH (§2.4-2.5 + §4.6): folded = fold the character turn's own calls into the accumulator;
+  // cheap = run the dedicated post-commit tool round first. Then take + write, keyed by `turnId`. Non-game = no-op.
   //
   // FLUSH BARRIER (the race fix): the flush is fire-and-forget (engine.ts — a background write must never abort
   // a committed reply), but with the dedicated state round it takes 0.8-2.9s, so a fast re-send could assemble
@@ -106,7 +106,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     },
     resolvePresetOverride,
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
-    // (reliable / readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
+    // (readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
     // has no checks, so the gather ignores them. `steerIdentity` is chat's authoritative `{{user}}`/`{{char}}`
     // binding, threaded so the reminder renders the host steeringNote's identity macros (rpg splices, never
     // re-derives). `regenSlotMessageId` is chat's swipe/reroll target — the turn's state reads resolve as of

@@ -5,7 +5,7 @@
 // WHY A REGISTRY, NOT TWO TEMPLATE LITERALS: the plane-under-service class (§1.6 audit) — `plot`, `widgets`,
 // per-cast `customFields`/`emoji`, the structured `day` counter were renderable + schema-writable planes the
 // model was NEVER PROMPTED for, because the plane prose was hand-composed in two monolithic system-prompt
-// strings (reliable extraction + cheap tool round) that drifted from the schema. Home the teaching fragment
+// strings (the structured extraction + the cheap tool round) that drifted from the schema. Home the teaching fragment
 // WITH its plane: BOTH system prompts COMPOSE from this ONE table, so a plane can't be schema-writable but
 // prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
 //
@@ -99,7 +99,7 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
 
 /** The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key — the ratchet asserts
  *  full coverage. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
- *  prompted on the reliable arm (the audit's "never mentioned" gap). */
+ *  prompted on the structured arm (the audit's "never mentioned" gap). */
 export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "scene",
@@ -225,7 +225,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   },
 ];
 
-/** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the reliable
+/** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the structured
  *  extraction and the cheap tool round walk (§1.6). Drops disabled planes (null fragments), and on a
  *  DECEPTION-ACTIVE game prefixes the surface-only standing clause (#7 recommendation A). The RECONCILE
  *  doctrine (fix a contradicted plane) rides here so both arms teach it identically. */
@@ -364,7 +364,7 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
 
 /** The state-tracking GUIDE (Appendix A's system-prompt addendum) — the "be thorough, the panel should reflect
  *  the FULL richness of the narration" instruction that lifted per-turn field coverage. Composed onto the
- *  write-surface prompts (the tool round + the reliable extraction), never onto the character turn's own
+ *  write-surface prompts (the tool round + the structured extraction), never onto the character turn's own
  *  narration prompt (which must never be asked to carry bookkeeping it might narrate back). */
 export const RPG_STATE_TRACKING_GUIDE =
   "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
