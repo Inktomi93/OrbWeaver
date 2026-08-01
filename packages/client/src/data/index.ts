@@ -52,5 +52,6 @@ export { uploadAsset } from "./upload-asset";
 export { useGatedQuery } from "./use-gated-query";
 export { useInvalidation } from "./use-invalidation";
 export { useOnlineStatus } from "./use-online-status";
+export { useSettingsViewerView } from "./use-settings-viewer-view";
 export type { Viewer, ViewerPersona } from "./use-viewer";
 export { useViewer } from "./use-viewer";

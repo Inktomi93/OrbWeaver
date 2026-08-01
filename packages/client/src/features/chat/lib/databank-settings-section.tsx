@@ -7,9 +7,16 @@ import type { SettingsSectionContribution } from "#state";
 import { DatabankSettingsSection } from "../components/databank-settings-section";
 import { DATABANK_SETTINGS_SUBCATEGORY } from "./databank-settings-section-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "chat-databank";
+
 export const databankSettingsSection: SettingsSectionContribution = {
-  id: "chat-databank",
+  id: SECTION_ID,
   anchor: "chat-behavior",
   nav: DATABANK_SETTINGS_SUBCATEGORY,
-  body: () => <DatabankSettingsSection />,
+  // Claims at the TOP-level key: `retrieval`'s leaves (k/minScore/rerank) are this section's business.
+  // `chunk` is deliberately NOT claimed — cited in UNCLAIMED_SETTINGS_KEYS (ingest-time params).
+  owns: { tier: "user", section: "databank", keys: ["retrieval", "slotTokenBudget"] },
+  body: () => <DatabankSettingsSection sectionId={SECTION_ID} />,
 };
