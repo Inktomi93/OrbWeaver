@@ -109,11 +109,15 @@ field×concept table — templates = button-fired one-shots w/ text+role[assista
 mandatory no-delete, switchless pivot, ghost bodies) · ONE DeliveryCluster + ONE role vocab + ONE
 ghost derivation (one-home literal) · §6.5 ST template census (all his screenshot slots mapped:
 exist / G9 newChatMarker ADD / group-nudge deliberately room-owned / replace-empty deliberate
-absence) · D8 OPENED w/ recommendation: OPT-IN ACTIVE-CHAT INSPECTION BINDING (real materialized
+absence) · ~~D8~~ RULED (owner 08-02): AUTO-BIND to the last-open chat, binding NAMED+DISMISSIBLE in the
+readout header, no-chat/unbound = honest tokens; freshness + one-home rows follow. Was: OPT-IN
+ACTIVE-CHAT INSPECTION BINDING (real materialized
 rows + real identity macros via one presetOverride preview read — kills two honesty compromises;
 awaits owner ruling) · fork-choice folded. ⚠ DEFECT: prompt-rack.html NEVER COMMITTED (worktree
-cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file
-receipt requirement. Old escalation note:
+cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file receipt requirement + TWO owner corrections
+riding it: assistant-role ≠ PREFILL (prefill = TAIL-positioned assistant continuation — position
+property; fix the labeling) · the per-template field table re-derives from the LOCAL ST SOURCE
+checkout with file:line receipts per slot (stop inventing semantics). Old escalation note:
 the templates-vs-prompt-sections CONFLATION sort + the FULL RACK redesign mock (toggles/drag-
 reorder/create+name) + field-vocabulary audit (section-only fields OUT of template drill-ins) +
 all queued amendments (tri-state dead, carrier bodies, no-delete, inspect discussion) — the
