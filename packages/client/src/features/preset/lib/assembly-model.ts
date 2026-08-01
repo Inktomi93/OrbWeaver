@@ -79,6 +79,14 @@ export const ZONE_ITEMS: readonly { readonly value: string; readonly label: stri
   { value: "post", label: "Post — after your message" },
 ];
 
+/** Can this section be SPLICED into the conversation and TRIGGER-filtered? The schema's own branches are
+ *  the authority: `inject` and `trigger` exist on the LITERAL and TEMPLATED-marker arms only — a PLAIN
+ *  marker (a pure carrier) declares neither, so offering either field would write a shape the contract
+ *  rejects. The absence IS the answer; nothing is disabled. */
+export function supportsArrangement(section: PromptSection): boolean {
+  return section.type === "literal" || isTemplatedMarker(section.marker);
+}
+
 /** chat_history carries the transcript's own per-message roles — no editable role field. */
 export function hasRoleField(section: PromptSection): boolean {
   return !(section.type === "marker" && section.marker === "chat_history");

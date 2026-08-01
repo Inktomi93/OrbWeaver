@@ -46,6 +46,7 @@ import {
   isStructuralSection,
   OVERRIDABLE_MARKERS,
   sectionGlyphIcon,
+  supportsArrangement,
   ZONE_ITEMS,
 } from "../../lib/assembly-model";
 import { DeliveryCluster } from "../delivery-cluster";
@@ -72,6 +73,9 @@ export interface SectionDrillInProps {
 export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInProps): ReactElement {
   const { label, oneLiner } = headerCopy(section);
   const pivot = isPivotSection(section);
+  // A CARRIER declares no `inject`/`trigger` in the schema, so those clusters are ABSENT for it — never
+  // rendered-and-disabled. Zone survives (it is array position, which every section has).
+  const arrangeable = supportsArrangement(section);
   return (
     <Stack gap="section">
       <Row align="center" gap="row" justify="between">
@@ -101,10 +105,13 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
       </Section>
 
       {pivot ? null : (
+        <Section kicker="Placement">
+          <PlacementFields form={form} index={index} section={section} />
+        </Section>
+      )}
+
+      {pivot || !arrangeable ? null : (
         <>
-          <Section kicker="Placement">
-            <PlacementFields form={form} index={index} section={section} />
-          </Section>
           <Section kicker="Triggers">
             <TriggerFields form={form} index={index} section={section} />
           </Section>
@@ -148,9 +155,13 @@ function DeliveryFields({ form, section, index }: ClusterProps): ReactElement {
       depthMax={MAX_INJECTION_DEPTH}
       depthPlaceholder="in flow"
       leading={nameField}
-      onDepthChange={(next): void => {
-        form.setFieldValue(injectName, next === null ? undefined : { depth: next, ...(inject?.order === undefined ? {} : { order: inject.order }) });
-      }}
+      onDepthChange={
+        supportsArrangement(section)
+          ? (next): void => {
+              form.setFieldValue(injectName, next === null ? undefined : { depth: next, ...(inject?.order === undefined ? {} : { order: inject.order }) });
+            }
+          : undefined
+      }
       onRoleChange={(next): void => form.setFieldValue(`sections[${index}].role`, next)}
       role={hasRoleField(section) ? section.role : null}
       roleLabel="Spoken as"
@@ -195,22 +206,24 @@ function PlacementFields({ form, section, index }: ClusterProps): ReactElement {
                 value={zone}
               />
             </Field>
-            <Field hint={ORDER_HINT} label="Order" name="section-order">
-              <NumberField
-                aria-label="Order"
-                disabled={!spliced}
-                onValueChange={(next): void => {
-                  if (inject !== undefined) {
-                    form.setFieldValue(`sections[${index}].inject`, next === null ? { depth: inject.depth } : { depth: inject.depth, order: next });
-                  }
-                }}
-                placeholder={spliced ? String(DEFAULT_INJECT_ORDER) : "set a depth first"}
-                size="inline"
-                step={1}
-                title={spliced ? undefined : "Order is the within-depth tiebreak — it applies once this section is spliced at a depth."}
-                value={inject?.order ?? null}
-              />
-            </Field>
+            {supportsArrangement(section) ? (
+              <Field hint={ORDER_HINT} label="Order" name="section-order">
+                <NumberField
+                  aria-label="Order"
+                  disabled={!spliced}
+                  onValueChange={(next): void => {
+                    if (inject !== undefined) {
+                      form.setFieldValue(`sections[${index}].inject`, next === null ? { depth: inject.depth } : { depth: inject.depth, order: next });
+                    }
+                  }}
+                  placeholder={spliced ? String(DEFAULT_INJECT_ORDER) : "—"}
+                  size="inline"
+                  step={1}
+                  title={spliced ? undefined : "Order is the within-depth tiebreak — it applies once this section is spliced at a depth."}
+                  value={inject?.order ?? null}
+                />
+              </Field>
+            ) : null}
           </Grid>
         );
       }}

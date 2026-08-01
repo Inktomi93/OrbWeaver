@@ -9,6 +9,8 @@
 //     them, and Delete persists the shorter list through the boundary's store driver with no flush.
 //   · the PIVOT carries NO enable switch anywhere — a disabled pivot is an assembly with nowhere to
 //     splice the conversation.
+//   · a plain-marker CARRIER gets NO depth/order/triggers: the schema's own branch declares neither
+//     `inject` nor `trigger` on it, so offering the field would write a shape the contract rejects.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { RackStory } from "./_rack-stories";
@@ -34,42 +36,44 @@ test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", as
 test("the drilled header's enable switch and the rack row's switch write ONE field", async ({ mount }) => {
   const probe = await mount(<RackStory />);
   const state = probe.locator("output");
-  await expect(state).toContainText("on=5");
+  await expect(state).toContainText("on=6");
 
   // Off from the RACK row's switch…
   await probe.getByRole("switch", { name: "DeleteMe enabled" }).click();
-  await expect(state).toContainText("on=4");
+  await expect(state).toContainText("on=5");
 
   // …and back on from the DRILLED header's echo: same path, so the count returns.
   await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
   await probe.getByRole("switch", { name: "DeleteMe enabled" }).click();
-  await expect(state).toContainText("on=5");
+  await expect(state).toContainText("on=6");
 });
 
-test("a MARKER's ⋯ menu omits Delete and Duplicate; a LITERAL keeps both and Delete persists", async ({ mount, page }) => {
+// The two menus are separate mounts on purpose: Base UI's popup leaves an inert backdrop behind for a beat
+// after it closes, which swallows the next click on the surface underneath — a fresh mount is the honest
+// isolation, not a sleep.
+test("a MARKER's ⋯ menu OMITS Delete and Duplicate — the structural rule (§5.2), never a disabled Delete", async ({ mount, page }) => {
   const probe = await mount(<RackStory />);
-  const state = probe.locator("output");
-  await expect(state).toContainText("ids=sec_a,sec_del,sec_mark,sec_pivot,sec_z");
 
-  // The MARKER: its menu offers the zone move only — the structural rule (§5.2), omitted not disabled.
   await probe.getByRole("button", { name: "Edit Post-history" }).click();
   await page.getByRole("button", { name: "Section actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Move below the conversation" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toHaveCount(0);
-  // Close the menu and let its portal tear down before touching the surface behind it.
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("menuitem", { name: "Move below the conversation" })).toHaveCount(0);
-  await probe.getByRole("button", { name: "Back to rack" }).click();
+});
 
-  // The LITERAL: full set, and Delete persists the shorter list through the store driver (no flush).
+test("a LITERAL keeps the full ⋯ set, and Delete persists the shorter list through the store driver", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("ids=sec_a,sec_del,sec_mark,sec_wi,sec_pivot,sec_z");
+
   await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
   await page.getByRole("button", { name: "Section actions" }).click();
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
-  await expect(state).toContainText("ids=sec_a,sec_mark,sec_pivot,sec_z");
-  await expect(state).toContainText("savedCount=4");
+  await expect(state).toContainText("ids=sec_a,sec_mark,sec_wi,sec_pivot,sec_z");
+  await expect(state).toContainText("savedCount=5");
 });
 
 test("the PIVOT carries no enable switch — on the rack or in its drill-in", async ({ mount }) => {
@@ -83,6 +87,22 @@ test("the PIVOT carries no enable switch — on the rack or in its drill-in", as
   await expect(probe.getByLabel("Zone")).toHaveCount(0);
 });
 
+test("a CARRIER's drill-in offers no depth, no order and no triggers — the schema has no such fields", async ({ mount }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit World info (before)" }).click();
+  await expect(probe.getByRole("button", { name: "Back to rack" })).toBeVisible();
+
+  // It IS arrangeable in the rack sense — zone is array position, which every section has…
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toBeVisible();
+  // …but `inject` and `trigger` exist only on the literal / templated-marker arms of the union, so the
+  // fields are ABSENT rather than rendered-and-disabled (writing either would fail the contract).
+  await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
+  await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
+  await expect(probe.getByRole("group", { name: "Fires on" })).toHaveCount(0);
+  // Its body is the source-attribution panel plus the shared entry wrapper — never a body textarea.
+  await expect(probe.getByLabel("Entry wrapper")).toBeVisible();
+});
+
 test("Add mints a section AND drills straight into it, where the Name field is", async ({ mount, page }) => {
   const probe = await mount(<RackStory />);
   const state = probe.locator("output");
@@ -93,5 +113,5 @@ test("Add mints a section AND drills straight into it, where the Name field is",
   // Auto-drilled: the editor is open on the NEW section, not the rack.
   await expect(probe.getByRole("button", { name: "Back to rack" })).toBeVisible();
   await expect(probe.getByLabel("Name", { exact: true })).toHaveValue("New literal");
-  await expect(state).toContainText("savedCount=6");
+  await expect(state).toContainText("savedCount=7");
 });
