@@ -11,8 +11,6 @@
 
 import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
-import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
-import { MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { SelectItems } from "@orb/ui/select";
 
 /** The four primary groups + their sub-tabs, in strip order (north-star §6.2). Each leaf `id` still drives
@@ -122,26 +120,3 @@ export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((
 }));
 /** The label for a compaction mode (the preset UI derives its unset-placeholder from `DEFAULT_COMPACTION_MODE`). */
 export const compactionModeLabel = (mode: CompactionMode): string => COMPACTION_MODE_LABELS[mode];
-
-// ── user-macro editor vocabularies (WAVE MU) — derived from the kit tuples, never re-spelled ────────
-
-const USER_MACRO_INPUT_KIND_LABELS: Record<UserMacroInputKind, string> = {
-  "single-select": "Single select — pick one option",
-  "boolean-toggle": "Toggle — on/off",
-  "multi-select": "Multi select — pick several, joined",
-  "random-pick": "Random pick — draw one from your pool each turn",
-};
-export const USER_MACRO_INPUT_KIND_ITEMS: SelectItems<string> = USER_MACRO_INPUT_KINDS.map((value) => ({
-  value,
-  label: USER_MACRO_INPUT_KIND_LABELS[value],
-}));
-
-const MACRO_ARG_TYPE_LABELS: Record<MacroArgType, string> = {
-  string: "Text",
-  number: "Number",
-  boolean: "Boolean",
-};
-export const MACRO_ARG_TYPE_ITEMS: SelectItems<string> = MACRO_ARG_TYPES.map((value) => ({
-  value,
-  label: MACRO_ARG_TYPE_LABELS[value],
-}));

@@ -162,7 +162,7 @@ function revealView(
 
 // A `rpg.getConfigView` stub — the HOST GM-console read (steering note, delivery model, the TRACKER defs,
 // relationship hints, the deception knobs). Empty-but-valid defaults; the console renders it.
-function configView(): unknown {
+function configView(macros: readonly unknown[] = [], presetNames: readonly string[] = []): unknown {
   return {
     statProfile: {
       attributes: [{ key: "str", label: "Strength", hint: "raw power" }],
@@ -210,6 +210,10 @@ function configView(): unknown {
     cyoa: false,
     cyoaChoiceBehavior: "compose",
     plotProgression: true,
+    // WAVE MU — the two macro-editor fields: the GAME's own authored macros and the NAMES the chat's active
+    // preset declares (the shadow gloss). Overridable per test.
+    userMacros: macros,
+    presetMacroNames: presetNames,
   };
 }
 
@@ -232,6 +236,7 @@ function stubTakeover(
     readonly game?: unknown;
     readonly messages?: unknown;
     readonly chat?: unknown;
+    readonly config?: unknown;
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -251,7 +256,7 @@ function stubTakeover(
     "rpg.addJournalEntry": () => "rpg_journal_ct_new",
     "rpg.editJournalEntry": () => undefined,
     "rpg.deleteJournalEntry": () => undefined,
-    "rpg.getConfigView": () => configView(),
+    "rpg.getConfigView": () => opts.config ?? configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened) + the transcript
     // read the Scene choice echo / card archive projects (fetched only when the play-style knobs gate on).
@@ -1396,4 +1401,68 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
   await expect(populate).toBeDisabled();
   await expect(populate).toHaveAttribute("title", NO_WRITER_REASON);
   await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50] }).toBe(0);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// WAVE MU — GAME MACROS on the crown console (owner ruling #20's game half). The read + write arms
+// landed with nothing to author them: `config.userMacros` resolved in turns and appeared in Macro
+// picks, and a host had no way to define one (the D107 dead-switch class). The section mounts the
+// SAME `EntryListEditor` + `UserMacroEditorDialog` anatomy the preset's Macros tab uses (extracted to
+// `#components`), and writes the WHOLE list through the one config door.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** One authored macro as `getConfigView` returns it (the full `UserMacroSpec` — the editor binds every field). */
+function gameMacro(name: string, description = ""): unknown {
+  return { name, description, args: [], body: "the stone hums", inputs: [], strict: false };
+}
+
+test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE list rides the config door", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")]) });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // The existing def reads as its CALL form + its own description (the list is the macro's identity).
+  const section = component.locator('[data-slot="rpg-game-macros"]');
+  await expect(section).toContainText("{{waystone}}");
+  await expect(section).toContainText("how the stone reads");
+
+  // Add → the shared editor Dialog opens on the new tail (it portals to document.body, so `page`).
+  await section.getByRole("button", { name: "Add macro" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("house_rule");
+  await page.getByRole("button", { name: "Done" }).click();
+
+  // The write is a WHOLE-LIST replace: the payload carries the existing def AND the new one (a patch that
+  // sent only the addition would silently delete the game's other macros).
+  await expect
+    .poll(() => trpc.lastInput("rpg.updateConfig"), { intervals: [100, 200, 400, 600] })
+    .toMatchObject({ patch: { userMacros: [{ name: "waystone" }, { name: "house_rule" }] } });
+});
+
+test("WAVE MU: a name that collides with the active preset's macro carries the honest 'overrides preset' gloss", async ({ mount, page }) => {
+  await stubTakeover(page, { config: configView([gameMacro("tone"), gameMacro("waystone")], ["tone", "narrator"]) });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // The colliding def states the CONSEQUENCE (the game def is the one that resolves) — the shadow rule is
+  // real and invisible everywhere else; the non-colliding sibling stays unglossed (no blanket noise).
+  const section = component.locator('[data-slot="rpg-game-macros"]');
+  await expect(section).toContainText("Overrides preset");
+  await expect(section.getByText("Overrides preset", { exact: false })).toHaveCount(1);
+});
+
+test("WAVE MU: with no macros the section says what empty MEANS (never a blank that reads as unbuilt)", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await expect(component.locator('[data-slot="rpg-game-macros"]')).toContainText("No game macros yet");
+});
+
+test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown console is host-gated (PERMISSION-omit)", async ({ mount, page }) => {
+  await stubTakeover(page, { chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false } });
+  const component = await mount(<RpgTakeoverStory />);
+
+  // The console tab itself is omitted for a member (never a disabled twin), so the section cannot be reached.
+  await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" })).toHaveCount(0);
+  await expect(component.locator('[data-slot="rpg-game-macros"]')).toHaveCount(0);
 });

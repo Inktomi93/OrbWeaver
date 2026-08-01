@@ -14,9 +14,8 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { MESSAGE_ROLE_ITEMS } from "#lib";
+import { MESSAGE_ROLE_ITEMS, PROMPT_MACRO_SUGGESTIONS } from "#lib";
 import { GUIDED_INPUT_TOKEN, guidedFooterState } from "../lib/assembly-model";
-import { PRESET_PROMPT_MACROS } from "../lib/preset-prompt-macros";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
@@ -145,7 +144,7 @@ function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonl
       </form.AppField>
 
       <form.AppField name={`guidedActions.${kind}.prompt`}>
-        {(field): ReactElement => <field.MacroField label="Template" suggestions={PRESET_PROMPT_MACROS} placeholder={factoryDefault} rows={3} />}
+        {(field): ReactElement => <field.MacroField label="Template" suggestions={PROMPT_MACRO_SUGGESTIONS} placeholder={factoryDefault} rows={3} />}
       </form.AppField>
 
       <form.Subscribe
