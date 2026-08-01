@@ -149,18 +149,22 @@
 }
 /* When a section claims the `rail.brand` zone (home), the brand cell IS that section's rail button — the
  * same element, so all the .shell-rail-brand chrome-row geometry above still applies and the active tint
- * spans the full cell. The active skin is the rail's own ember tint plus a leading accent bar (the mock's
- * brand treatment); the tint/glow pair the nav buttons use would read too heavy at chrome-row height. */
+ * spans the full cell. It carries the NAV ZONE's state grammar: muted at rest, ember + tint when active
+ * (the accent bar below replaces the nav's glow/gradient pair, which reads too heavy at chrome-row height).
+ * The icon colour is what makes the state legible — an always-ember glyph advertised "you are home" from
+ * every other section, and left the active state with no delta at all (side-eye F5). */
 .shell-rail-brand-button {
   position: relative;
   border-radius: 0;
-  color: var(--color-primary);
+  color: var(--color-muted-foreground);
 }
 .shell-rail-brand-button:hover {
   background: var(--color-sidebar-accent);
+  color: var(--color-sidebar-foreground);
 }
 .shell-rail-brand-button[data-active] {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
 }
 .shell-rail-brand-button[data-active]::before {
   content: "";
@@ -685,11 +689,18 @@
     z-index: var(--z-modal);
     transition: transform var(--shell-motion) var(--shell-ease);
   }
+  /* `width` is RE-STATED here at (0,3,0) on purpose: the desktop context-width rule above
+   * (`[data-panel-side="context"][data-panel-mode="collapsed"]`, also (0,3,0)) OUT-SPECIFIED the block's
+   * shared (0,2,0) `width: 100dvw`, so a collapsed CONTEXT drawer kept its 272px desktop width at mobile —
+   * and with `inset-inline: 0` resolving to the inline START, `translateX(100%)` moved it only 272px,
+   * leaving a dead 272px slab of panel painted over CONTENT on EVERY section. Same-specificity + later in
+   * source ⇒ this wins; keeping it in the SAME rule as the inset means the two can't drift apart again. */
   .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"],
   .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     inset-inline: 0;
+    width: 100dvw;
   }
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     transform: translateX(-100%);

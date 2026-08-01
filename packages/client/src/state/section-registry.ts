@@ -51,9 +51,15 @@ export interface RailEntry {
  *  decision H3 / arm L-b). Absent ⇒ the section has both panels, exactly as every section does today.
  *  `"unavailable"` is NOT a fourth `PanelMode`: the panel resolves `collapsed` (its track is already
  *  zero-width) and the topbar renders NO toggle for it, so the shell can never offer a door onto a
- *  surface that does not exist ("Home list — this surface isn't wired yet"). */
+ *  surface that does not exist ("Home list — this surface isn't wired yet").
+ *
+ *  The axis is PER PANEL and covers BOTH: a pane-less section (home declares both) must not ship the
+ *  detail-panel toggle either — nor the focus-mode toggle, which on a section with zero panels is a
+ *  control whose only job is collapsing panels that aren't there (it cold-booted reading "Exit focus
+ *  mode", because zero-panels trivially satisfies "both collapsed"). */
 export interface SectionPanelAvailability {
   readonly list?: "unavailable";
+  readonly context?: "unavailable";
 }
 
 /** A section's honest placeholder copy — a distinct (title, description) per section (gate-checked). */
