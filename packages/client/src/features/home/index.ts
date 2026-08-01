@@ -6,6 +6,8 @@
 //
 // Every OTHER tile is exported by the feature that owns its data + intent; home imports none of them.
 
+export { automationDormantTile } from "./lib/automation-tile";
+export { buddyDormantTile } from "./lib/buddy-tile";
 export { makeHomeSection } from "./lib/home-section";
 export { orderHomeTiles } from "./lib/order-home-tiles";
 export { sectionJumpTile } from "./lib/section-jump-tile";

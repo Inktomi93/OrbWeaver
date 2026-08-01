@@ -38,7 +38,7 @@ import {
 } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
-import { makeHomeSection, sectionJumpTile } from "#features/home";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
@@ -155,7 +155,14 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
 // `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, the dormant
 // doorways at 80/90). Home consumes the registry BLIND through `makeHomeSection`.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, sectionJumpTile]);
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  chatRecentsTile,
+  chatQuickPicksTile,
+  chatTempChatTile,
+  sectionJumpTile,
+  buddyDormantTile,
+  automationDormantTile,
+]);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.

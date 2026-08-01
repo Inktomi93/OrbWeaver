@@ -3,7 +3,7 @@
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
-import { HomeSurface, sectionJumpTile } from "@orb/client/features/home";
+import { automationDormantTile, buddyDormantTile, HomeSurface, sectionJumpTile } from "@orb/client/features/home";
 import type { HomeTileContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { useActiveSection } from "@orb/client/state";
@@ -87,4 +87,10 @@ export function HomeSectionJumpStory(): ReactElement {
 
 function ActiveSectionProbe(): ReactElement {
   return <output>section={useActiveSection()}</output>;
+}
+
+/** The REAL registered doorways (buddy + automation) — the shipped tiles, not fakes: proof the DORMANT
+ *  arm survives the round trip through the door and the frame. */
+export function HomeRealDoorwaysStory(): ReactElement {
+  return <Story tiles={[buddyDormantTile, automationDormantTile]} />;
 }

@@ -32,7 +32,7 @@ import {
 } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
-import { makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
@@ -119,7 +119,7 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, sectionJumpTile]);
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, sectionJumpTile, buddyDormantTile, automationDormantTile]);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),

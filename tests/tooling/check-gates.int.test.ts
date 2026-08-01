@@ -203,6 +203,9 @@ function writeFixtures(): void {
   // chrome-registry-completeness: a `ChromeEntry`-typed var in a file that is NOT a `*-chrome.tsx` def
   // file — the co-location arm.
   fx("packages/client/src/features/__g_gchrome/lib/stray.ts", "export const strayChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail' };\n");
+  // home-tile-registry-completeness: a `HomeTileContribution`-typed var in a file that is NOT a `*-tile`
+  // def file — the co-location arm.
+  fx("packages/client/src/features/__g_ghometile/lib/stray.ts", "export const strayTile: HomeTileContribution = { id: 'x', body: () => null };\n");
   // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
   fx(
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
