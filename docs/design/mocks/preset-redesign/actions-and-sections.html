@@ -91,6 +91,8 @@ textarea{width:100%;min-height:86px;background:color-mix(in oklab,var(--color-fo
   font-family:var(--font-mono);font-size:11px;line-height:1.6;padding:9px 10px;resize:vertical}
 textarea::placeholder{color:color-mix(in oklab,var(--color-muted-foreground) 70%,transparent)}
 .hintline{font-size:9.5px;color:var(--color-muted-foreground)}
+/* dotted underline = explanation carried on HOVER (the hints-to-hover ruling; drawing convention) */
+.tip{text-decoration:underline dotted color-mix(in oklab,var(--color-muted-foreground) 55%,transparent);text-underline-offset:3px;cursor:help}
 
 /* ————— section editor panel ————— */
 .backrow{display:flex;align-items:center;gap:6px;color:var(--color-muted-foreground);font-size:11px;font-weight:650;cursor:pointer}
@@ -289,8 +291,9 @@ object, one place (the CONTEXT inspector is deleted).</p>
         <div>
           <div class="kicker" style="margin-bottom:6px">Delivery</div>
           <div class="grid2">
-            <div class="fld"><div class="l">NAME</div><input value="Post-history"></div>
+            <div class="fld" style="grid-column:1/-1"><div class="l">NAME</div><input value="Post-history"></div>
             <div class="fld"><div class="l">SPOKEN AS</div><span class="selectbox" style="width:100%;justify-content:space-between">system <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
+            <div class="fld"><div class="l"><span class="tip">INJECT AT DEPTH</span></div><input class="mono" value="0"></div>
           </div>
         </div>
 
@@ -298,7 +301,7 @@ object, one place (the CONTEXT inspector is deleted).</p>
           <div class="kicker" style="margin-bottom:6px">Placement</div>
           <div class="grid2">
             <div class="fld"><div class="l">ZONE</div><span class="selectbox" style="width:100%;justify-content:space-between">Post — after your message <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
-            <div class="fld"><div class="l">INJECT AT DEPTH · ORDER</div><input class="mono" value="@0 · 100"></div>
+            <div class="fld"><div class="l"><span class="tip">ORDER</span></div><input class="mono" value="100"></div>
           </div>
         </div>
 
@@ -321,9 +324,12 @@ object, one place (the CONTEXT inspector is deleted).</p>
     </div>
     <p class="note"><b>One object, one place:</b> body (the landed tri-state), delivery, placement,
     triggers and override locks all live in the drill-in; the ⋯ menu is the ONE home for Duplicate ·
-    Move-to-zone · Delete (audit §16). The CONTEXT "Section" inspector and its form bridge are deleted —
-    CONTEXT becomes the per-view readout (context-readouts.html). The rack itself is unchanged
-    functionally; its rows conform to the instrument list skin.</p>
+    Move-to-zone · Delete (audit §16). <b>Round-3 ruling:</b> depth and order are SEPARATE fields —
+    INJECT AT DEPTH sits in Delivery beside the role it rides ("depth goes near whatever role it goes
+    in as"); ORDER (the within-depth tiebreak) stays in Placement with Zone. Dotted underline =
+    explanation on hover (depth's "0 = the tail · N = N turns back"; order's tiebreak semantics). The
+    CONTEXT inspector and form bridge stay deleted — CONTEXT is the per-view readout
+    (context-readouts.html).</p>
   </div>
 
 </div>

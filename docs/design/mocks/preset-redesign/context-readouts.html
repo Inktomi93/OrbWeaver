@@ -69,6 +69,8 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
   border:1px solid var(--color-border);border-radius:var(--radius-base);padding:8px 10px;
   background:color-mix(in oklab,var(--color-background) 60%,transparent);white-space:pre-wrap}
 .code b{color:var(--color-primary);font-weight:600}
+/* an UNRESOLVED runtime token — identity/chat-scoped macros never fake-resolve editor-side (Ruling B) */
+.code .tok{color:var(--color-info);background:color-mix(in oklab,var(--color-info) 10%,transparent);border-radius:4px;padding:0 3px;font-weight:600}
 .refrow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;padding:3px 4px;border-radius:4px;cursor:pointer}
 .refrow:hover{background:color-mix(in oklab,var(--color-foreground) 4%,transparent)}
 .refrow .n{font-family:var(--font-mono);font-size:10.5px}
@@ -188,14 +190,16 @@ audit §16). All panels read SAVED truth: the preset row + <span class="mono">pr
         </div>
         <div>
           <div class="kicker" style="margin-bottom:6px">Resolved — Impersonate</div>
-          <div class="code">Write Nate's next message from a first-person perspective. <b>{{input}}</b></div>
-          <div class="gloss" style="margin-top:4px">macros preview-resolved · <span class="mono">{{input}}</span> = your steer · settle-live (saved state)</div>
+          <div class="code">Write <span class="tok">{{user}}</span>'s next message from a <span class="tok">{{person}}</span>-person perspective. <b>{{input}}</b></div>
+          <div class="gloss" style="margin-top:4px"><span class="mono">{{user}}</span>/<span class="mono">{{person}}</span> resolve in chat (identity is chat-owned — never faked here) · <span class="mono">{{input}}</span> = your steer · settle-live</div>
         </div>
       </div>
     </div>
     <p class="note"><b>Informs:</b> "will my customized template actually LAND, and where?" (the §6
-    cross-link promoted to a standing readout) · "what does the model receive when I fire this?" (the
-    selected row's resolved preview).</p>
+    cross-link promoted to a standing readout) · "what does the model receive when I fire this?" — with
+    HONEST resolution: only chat-independent macros resolve editor-side; identity/fire-time tokens
+    (<span class="mono">{{user}}</span>, <span class="mono">{{person}}</span>, <span class="mono">{{input}}</span>)
+    render AS tokens with the mark — the preview shows the assembled SHAPE, never a faked identity.</p>
   </div>
 
   <!-- DATA -->

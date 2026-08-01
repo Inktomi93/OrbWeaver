@@ -101,6 +101,8 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
 .reset svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
 .prov{grid-column:2 / 4;font-size:9.5px;color:var(--color-muted-foreground);margin-top:-4px;padding-bottom:2px}
 .prov.clamp{color:var(--color-warning)}
+/* dotted underline = explanation carried on HOVER (the hints-to-hover ruling; drawing convention) */
+.tip{text-decoration:underline dotted color-mix(in oklab,var(--color-muted-foreground) 55%,transparent);text-underline-offset:3px;cursor:help}
 
 /* seed / number rows */
 .nrow{display:grid;grid-template-columns:150px 1fr auto;align-items:center;gap:12px;padding:4px 0}
@@ -172,6 +174,8 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
 <p class="lede">CONTENT = the deck: ONE flat tab level, one scrolling instrument column, kicker-separated
 clusters. Every knob is a <b>KnobRow</b>: label · slider · an <b>editable mono number</b> · reset. An
 unset knob shows its <b>effective value ghosted</b> with provenance — the datum is never hidden.
+Output/context are the SAME slider grammar at capability-fed integer ranges (round-3 ruling).
+<b>Dotted underline</b> = explanatory prose carried on hover (the hints→hover ruling) — only data stays visible.
 CONTEXT = the Params-view readout (effective profile · capability · mapping — per-view, spec §7). Knob set and ranges are the real
 <span class="mono">userIntentSchema</span> vocabulary.</p>
 
@@ -219,7 +223,7 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
 
           <!-- explicit -->
           <div class="knob explicit">
-            <div class="lbl">Temperature<small>higher = more random</small></div>
+            <div class="lbl"><span class="tip">Temperature</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:42%"></div><div class="thumb" style="left:42%"></div></div>
             <div class="val"><input value="0.85" aria-label="Temperature"></div>
             <button class="reset" title="Reset to inherited"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -227,7 +231,7 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
 
           <!-- ghost: model default -->
           <div class="knob ghost">
-            <div class="lbl">Top-P<small>nucleus cutoff</small></div>
+            <div class="lbl"><span class="tip">Top-P</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:100%"></div><div class="thumb" style="left:100%"></div></div>
             <div class="val"><input value="1.00" aria-label="Top-P"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -235,7 +239,7 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
           </div>
 
           <div class="knob ghost">
-            <div class="lbl">Top-K</div>
+            <div class="lbl"><span class="tip">Top-K</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:0%"></div><div class="thumb" style="left:0%"></div></div>
             <div class="val"><input value="0" aria-label="Top-K"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -243,21 +247,21 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
           </div>
 
           <div class="knob explicit">
-            <div class="lbl">Min-P<small>RP-critical floor</small></div>
+            <div class="lbl"><span class="tip">Min-P</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:5%"></div><div class="thumb" style="left:5%"></div></div>
             <div class="val"><input value="0.05" aria-label="Min-P"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
           </div>
 
           <div class="knob ghost">
-            <div class="lbl">Frequency penalty</div>
+            <div class="lbl"><span class="tip">Frequency penalty</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:50%"></div><div class="thumb" style="left:50%"></div></div>
             <div class="val"><input value="0.00" aria-label="Frequency penalty"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
           </div>
 
           <div class="knob ghost">
-            <div class="lbl">Presence penalty</div>
+            <div class="lbl"><span class="tip">Presence penalty</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:50%"></div><div class="thumb" style="left:50%"></div></div>
             <div class="val"><input value="0.00" aria-label="Presence penalty"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -265,7 +269,7 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
 
           <!-- clamped -->
           <div class="knob explicit">
-            <div class="lbl">Repetition penalty</div>
+            <div class="lbl"><span class="tip">Repetition penalty</span></div>
             <div class="track"><div class="rail"></div><div class="fill" style="width:75%"></div><div class="thumb" style="left:75%"></div></div>
             <div class="val"><input value="1.50" aria-label="Repetition penalty"></div>
             <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
@@ -273,8 +277,8 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
           </div>
 
           <div class="nrow">
-            <div class="lbl">Seed</div>
-            <div class="hint">fixed seed for reproducible sampling</div>
+            <div class="lbl"><span class="tip">Seed</span></div>
+            <div class="hint"></div>
             <input placeholder="random" aria-label="Seed">
           </div>
 
@@ -291,12 +295,12 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
         <div class="cluster">
           <div class="kicker">Reasoning</div>
           <div class="swrow">
-            <div class="lbl">Reasoning<small>the model thinks before replying</small></div>
+            <div class="lbl"><span class="tip">Reasoning</span></div>
             <span class="selectbox">Effort: high <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
             <div class="sw on"></div>
           </div>
           <div class="swrow">
-            <div class="lbl">Reasoning display<small>how thinking is shown when it happens</small></div>
+            <div class="lbl"><span class="tip">Reasoning display</span></div>
             <span class="selectbox">Summarized <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
           </div>
         </div>
@@ -304,15 +308,20 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
         <!-- OUTPUT -->
         <div class="cluster">
           <div class="kicker">Output</div>
-          <div class="nrow">
-            <div class="lbl">Max output tokens</div>
-            <div class="hint">this model accepts up to 32768</div>
-            <input placeholder="2048 (default)" aria-label="Max output tokens">
+          <!-- ghost KnobRows (round-3 ruling): same grammar as sampling, capability-fed ranges -->
+          <div class="knob ghost">
+            <div class="lbl"><span class="tip">Max output tokens</span></div>
+            <div class="track"><div class="rail"></div><div class="fill" style="width:6.25%"></div><div class="thumb" style="left:6.25%"></div></div>
+            <div class="val"><input value="2048" aria-label="Max output tokens" style="width:74px"></div>
+            <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
+            <div class="prov">default — accepts up to 32,768</div>
           </div>
-          <div class="nrow">
-            <div class="lbl">Max context tokens</div>
-            <div class="hint">window 131072 — older turns beyond this trim</div>
-            <input placeholder="131072 (full window)" aria-label="Max context tokens">
+          <div class="knob ghost">
+            <div class="lbl"><span class="tip">Max context tokens</span></div>
+            <div class="track"><div class="rail"></div><div class="fill" style="width:100%"></div><div class="thumb" style="left:100%"></div></div>
+            <div class="val"><input value="131072" aria-label="Max context tokens" style="width:74px"></div>
+            <button class="reset"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></button>
+            <div class="prov">full window</div>
           </div>
           <div class="nrow">
             <div class="lbl">Verbosity</div>
@@ -320,7 +329,7 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
             <span class="selectbox">Model default <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
           </div>
           <div class="nrow">
-            <div class="lbl">Stop sequences</div>
+            <div class="lbl"><span class="tip">Stop sequences</span></div>
             <div class="chips" style="grid-column:2/4">
               <span class="stop">\n{{user}}: <b>×</b></span>
               <span class="stop">&lt;|im_end|&gt; <b>×</b></span>
@@ -333,22 +342,22 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
         <div class="cluster">
           <div class="kicker">Context</div>
           <div class="nrow">
-            <div class="lbl">Compaction mode</div>
-            <div class="hint">context is always kept in bounds — this picks how</div>
+            <div class="lbl"><span class="tip">Compaction mode</span></div>
+            <div class="hint"></div>
             <span class="selectbox">Default — Managed <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
           </div>
           <div class="nrow">
-            <div class="lbl">Managed threshold</div>
-            <div class="hint">summarize past this fraction of the window</div>
+            <div class="lbl"><span class="tip">Managed threshold</span></div>
+            <div class="hint"></div>
             <input placeholder="0.85 (default)" aria-label="Managed threshold">
           </div>
           <div class="nrow">
-            <div class="lbl">Verbatim tail</div>
-            <div class="hint">newest rows kept literal when compacting</div>
+            <div class="lbl"><span class="tip">Verbatim tail</span></div>
+            <div class="hint"></div>
             <input placeholder="8 (engine default)" aria-label="Verbatim tail">
           </div>
           <div class="swrow">
-            <div class="lbl">Provider context compression<small>let the provider compress long context (where offered)</small></div>
+            <div class="lbl"><span class="tip">Provider context compression</span></div>
             <div class="sw"></div>
           </div>
         </div>
@@ -360,8 +369,10 @@ CONTEXT = the Params-view readout (effective profile · capability · mapping �
     </div>
     <p class="note"><b>Knob states:</b> Temperature/Min-P are <b>explicit</b> (full thumb, reset visible).
     Top-P/Top-K/penalties are <b>inherited</b> — the ghost thumb sits at the <b>effective</b> value with its
-    provenance gloss; drag or type to promote. Repetition penalty shows the <b>clamp</b> gloss. The
-    staleness row surfaces stored knobs this model doesn't honor — today those are invisible.</p>
+    provenance gloss; drag or type to promote. Repetition penalty shows the <b>clamp</b> gloss. Max
+    output/context are ghost KnobRows at capability ranges (1..32768 / 1..131072; typed exact values via
+    the twin). The staleness row stays VISIBLE (decision-load-bearing); every dotted-underlined label
+    carries its explanation on hover — a disabled control would carry it as native <span class="mono">title</span>.</p>
   </div>
 
   <!-- ═══════════ CONTEXT: the assembly readout ═══════════ -->
