@@ -1,6 +1,18 @@
 // The consolidated "This chat" CONTEXT tab body (panel-redesign) — everything a host bends for THIS chat,
-// in ONE tab whose body is grouped sections on the settings-modal idiom (`Section` primitive, real h3
-// headings). The former "Appearance overrides" tab and the separate "Injections" meta-tab were the same
+// in ONE tab whose body is grouped sections (`Section` primitive, real h3 headings).
+//
+// THE PANE IS INSTRUMENT TIER, SO THE SECTIONS SPEAK IN THE KICKER VOICE (density-pass-spec §2.3/§3.1 —
+// "CONTEXT panel viewport (rpg tabs, meta tabs)" is named there explicitly; side-eye 08-01 F8). They shipped
+// on `heading` — the FORM-tier h3, 16px/500 — inside the same pane where every rpg section names itself in
+// micro-caps over a hairline, so the meta tabs wore settings-modal clothes in an instrument. `kicker` is the
+// same `<h3>` (the document outline is unchanged) in the tier's own voice.
+//
+// D-1 (owner ruling 2026-07-31, `docs/design/context-panel-fidelity-findings.md` §2/§4): the merge had
+// stacked FIVE unrelated concerns in one flat list ("a whole menu got garbled together"). The HOST-OPS trio
+// — Background · Group behavior · Tool use — now sits under its own "Host controls" group, which is also
+// exactly the permission line: everything above it any member may set, everything inside it is host-only.
+//
+// The former "Appearance overrides" tab and the separate "Injections" meta-tab were the same
 // family ("what I'm bending for this chat"), so they merge here: "Field overrides" (the collapse-until-
 // needed override rows), "Injections" (the manual prompt-injection list, folded in from its deleted tab),
 // and "Background" (the per-chat decorative background). The host-only Group-behavior + Tool-use sections
@@ -81,10 +93,10 @@ export interface CommittedSettingsTabProps {
 export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup }: CommittedSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section heading={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
+      <Section kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
         <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} />
       </Section>
-      <Section heading={<InjectionsHeading chatId={chatId} />}>
+      <Section kicker={<InjectionsHeading chatId={chatId} />}>
         <QueryBoundary
           fallback={<SkeletonRows count={1} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
@@ -95,7 +107,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play
           state any member may set (`setUserMacroValues` is member-gated, the `setVariables` sibling), so it
           sits with Field overrides/Injections rather than in the host-only band below. */}
-      <Section heading="Macro picks">
+      <Section kicker="Macro picks">
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
@@ -103,28 +115,49 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           <MacroPicksSection chatId={chatId} />
         </QueryBoundary>
       </Section>
-      {isHost ? (
-        <Section heading="Background">
+      {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
+          promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
+          also needs a group chat). A member's tab simply ends after Macro picks. */}
+      {isHost ? <HostControls chatId={chatId} background={background} showGroup={showGroup} /> : null}
+    </Stack>
+  );
+}
+
+/** The host-ops trio under one name (D-1): the per-chat Background, the Group-behavior form, and the
+ *  tool-round cap. Grouped rather than merged — each keeps its own section, its own read and its own
+ *  boundary; what changes is that they read as ONE band of host knobs instead of three more entries in a
+ *  five-concern list. */
+function HostControls({
+  chatId,
+  background,
+  showGroup,
+}: {
+  readonly chatId: ChatId;
+  readonly background: ThemeBackground | null;
+  readonly showGroup: boolean;
+}): ReactElement {
+  return (
+    <Section kicker="Host controls">
+      <Stack gap="section">
+        <Section kicker="Background">
           <ChatBackgroundSection chatId={chatId} background={background} />
         </Section>
-      ) : null}
-      {showGroup ? (
-        <Section heading="Group behavior">
-          <QueryBoundary
-            // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
-            // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
-            // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
-            fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
-          >
-            <CommittedGroupConfigTab chatId={chatId} />
-          </QueryBoundary>
-        </Section>
-      ) : null}
-      {/* Tool use — host-only (⑦, the §8.1 permission-OMIT: a member never sees the control). Reads getChat
-          (already loaded for this tab) for the current cap; the QueryBoundary matches the getChat suspense. */}
-      {isHost ? (
-        <Section heading="Tool use">
+        {showGroup ? (
+          <Section kicker="Group behavior">
+            <QueryBoundary
+              // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
+              // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
+              // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
+              fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
+            >
+              <CommittedGroupConfigTab chatId={chatId} />
+            </QueryBoundary>
+          </Section>
+        ) : null}
+        {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary
+            matches the getChat suspense. */}
+        <Section kicker="Tool use">
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
@@ -132,8 +165,8 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
             <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>
         </Section>
-      ) : null}
-    </Stack>
+      </Stack>
+    </Section>
   );
 }
 
@@ -150,14 +183,16 @@ export interface DraftSettingsTabProps {
 export function DraftSettingsTab({ draftKey, showGroup }: DraftSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section heading="Field overrides">
+      <Section kicker="Field overrides">
         <DraftOverridesTabBody draftKey={draftKey} />
       </Section>
-      <Section heading="Injections">
+      <Section kicker="Injections">
         <DraftInjectionsTab draftKey={draftKey} />
       </Section>
+      {/* The draft's one host-op (no background row exists yet, no tool cap on an uncommitted chat), so it
+          carries its own name rather than a group of one. */}
       {showGroup ? (
-        <Section heading="Group behavior">
+        <Section kicker="Group behavior">
           <DraftGroupConfigTabBody draftKey={draftKey} />
         </Section>
       ) : null}

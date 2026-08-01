@@ -27,7 +27,7 @@ const QUEST_TYPE_RE = /quest/i;
 /** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" className="max-w-control-col flex-wrap">
+    <Row gap="field" className="max-w-(--width-control-col) flex-wrap">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Button key={name} intent="ghost" size="sm" className="!size-8 !p-0" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
           <Icon icon={glyph} size="sm" />
@@ -269,7 +269,7 @@ function ItemProseLine({
  *  so one authoring vocabulary serves both lenses. */
 function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement {
   return (
-    <Stack gap="row" className="w-control-col" data-slot="rpg-pack-tile-editor">
+    <Stack gap="row" className="w-(--width-control-col)" data-slot="rpg-pack-tile-editor">
       <Row gap="field" align="center" className="min-w-0">
         <ItemGlyph item={item} onPickIcon={(icon: string): void => edit.onPickIcon(item.id, icon)} />
         <ItemName item={item} edit={edit} />
@@ -328,7 +328,13 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
   );
 }
 
-/** The pack body — the OSRS grid (+ the one ghost socket) or the #37b list view (the host's EDIT lens). */
+/** The pack body — the OSRS grid or the #37b list view (the host's EDIT lens).
+ *
+ *  NO GHOST SOCKET (side-eye 08-01). The grid used to end on one dashed `aria-hidden` cell called "the
+ *  pack's growth affordance", which is what it was NOT: 150×28px of empty bordered box, no word in it,
+ *  nothing to click, and — for the member who cannot author at all — a permanent empty slot suggesting the
+ *  pack was mid-load. The host's real growth affordance is the `AddRow` directly under this grid (one add
+ *  home for both lenses, RV-5); a second, mute one beside it was decoration wearing an affordance's clothes. */
 export function PackBody({
   view,
   items,
@@ -344,14 +350,6 @@ export function PackBody({
         {items.map((item) => (
           <PackCell key={item.id} item={item} {...(edit === undefined ? {} : { edit })} />
         ))}
-        {/* ONE dashed ghost socket — the pack's growth affordance (never a fake capacity grid). */}
-        <Stack
-          aria-hidden={true}
-          gap="field"
-          align="center"
-          className="min-h-touch-target justify-center rounded-inset border border-border border-dashed px-row py-field"
-          data-slot="rpg-pack-ghost"
-        />
       </Grid>
     );
   }

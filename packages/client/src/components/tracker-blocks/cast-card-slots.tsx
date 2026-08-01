@@ -296,6 +296,8 @@ export function CastCard({
               key={field.name}
               label={field.name}
               value={field.value}
+              // WHOSE reading — the card already names the character; its chips did not (side-eye 08-01).
+              subject={name}
               {...(onEditField === undefined ? {} : { onEditValue: (next: string): void => onEditField(field.name, next) })}
             />
           ))}

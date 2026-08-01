@@ -6,6 +6,9 @@
 //   • carries a LABEL always (a bare number failed the CP-1 cold read — §3.2) and `tabular-nums`;
 //   • treats bars/rings as decoration (aria-hidden in TrackBar/RingGauge) with the value TEXT as the
 //     accessible datum (§4.9);
+//   • NEVER SYNTHESIZES A READING (side-eye 08-01): an unset value/ceiling is `null` all the way to the
+//     render, where it draws the em-dash arm + an empty rail. A meter that folds unset to `0` publishes an
+//     invention as a measurement — and because the text IS the datum, a screen reader reads it aloud;
 //   • is EDITABLE IN PLACE by default (the value is an inline field when an `onEdit*` is supplied) with
 //     a READ-ONLY arm for the honest-arms doctrine (§4.4 — never a silent degrade). Display-only is the
 //     named corruption-trainer failure (§3.2).
@@ -18,179 +21,14 @@
 import { Badge } from "@orb/ui/badge";
 import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import type { TrackColor } from "@orb/ui/meter";
-import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { TrackerValue } from "./tracker-value";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 1. METER ROW — meter trackers / per-member meters: `label · value/max` text + a 6px decorative track bar.
+// 1. METER ROW — extracted to ./meter-row.tsx (the component-size cap; the ambient-strip precedent). The
+//    row is five coupled pieces (label · datum · value cell · `/max` · track) with no other consumer.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-
-export interface MeterRowProps {
-  readonly label: string;
-  readonly value: number;
-  readonly max: number;
-  /** Which `--color-track-N` fills the bar (categorical, by definition order). @defaultValue 1 */
-  readonly color?: TrackColor;
-  /** A host-picked color LITERAL (panel-redesign free-hex ruling) overriding the ramp — passed through
-   *  to the decorative `TrackBar` (safe-color-gated there); the value text stays tokened. */
-  readonly customColor?: string;
-  /** An optional leading glyph before the label (aria-hidden decoration — the label text stays the datum;
-   *  the tracker-shape glyph is the founding consumer). */
-  readonly leading?: ReactNode;
-  /** Danger threshold — the bar swaps to the destructive intent below it (never the sole signal). */
-  readonly dangerBelow?: number;
-  /** Commit a new numeric value — present ⇒ editable-in-place; absent ⇒ read-only. */
-  readonly onEditValue?: (next: number) => void;
-  /** Commit a new MAX — present ⇒ the `/max` is editable (the caller owns the value-drag tell, §12.3). */
-  readonly onEditMax?: (next: number) => void;
-  /** What the MAX edit actually writes, when "Click to edit" understates it (per-carrier ceilings: the
-   *  caller states this-character-vs-default semantics here; it rides the rest button's `title`).
-   *  Absent ⇒ the plain "Click to edit". */
-  readonly maxEditTitle?: string;
-  /** The label's hover `title` — the host-authored HINT rides here instead of an inline microline (owner
-   *  ruling 08-01: the same hint echoed under every carrier's row is noise; hover reveals it on demand). */
-  readonly labelTitle?: string;
-  /** A transient consequence microline under the row (§12.3 clamp-and-tell — "Vitality 24 → 20, max
-   *  lowered"). The caller owns its lifecycle (shows it after a drag, clears it). */
-  readonly note?: ReactNode;
-  /** Render the value TEXT in warning tone (§12.3 — an overfull `34/30` reads in warning, never hidden). */
-  readonly valueWarning?: boolean;
-}
-
-/** The `/max` half of an editable meter row — static text, or its own click-to-edit field when the caller
- *  supplies `onEditMax` (whose `maxEditTitle` says what that edit actually writes). */
-function MaxCell({
-  label,
-  max,
-  onEditMax,
-  maxEditTitle,
-}: {
-  readonly label: string;
-  readonly max: number;
-  readonly onEditMax?: (next: number) => void;
-  readonly maxEditTitle?: string;
-}): ReactElement {
-  if (onEditMax === undefined) {
-    return (
-      <Text as="span" size="label" tone="muted" className="tabular-nums">
-        /{max}
-      </Text>
-    );
-  }
-  return (
-    <Row gap="field" align="center">
-      <Text as="span" size="label" tone="muted">
-        /
-      </Text>
-      <TrackerValue
-        ariaLabel={`${label} max`}
-        display={String(max)}
-        kind="numeric"
-        {...(maxEditTitle === undefined ? {} : { editTitle: maxEditTitle })}
-        onEdit={(next): void => {
-          const n = Number.parseInt(next, 10);
-          if (!Number.isNaN(n)) {
-            onEditMax(n);
-          }
-        }}
-        className="!w-avatar-lg px-field text-right tabular-nums"
-        restClassName="tabular-nums"
-      />
-    </Row>
-  );
-}
-
-/** The meter's label cluster — glyph + name, with the host hint riding the hover `title` (never an inline
- *  echo). Extracted from MeterRow for the complexity cap; deliberately takes `| undefined` props so the
- *  caller passes straight through without conditional spreads. */
-function MeterLabel({
-  label,
-  leading,
-  labelTitle,
-}: {
-  readonly label: string;
-  readonly leading: ReactNode | undefined;
-  readonly labelTitle: string | undefined;
-}): ReactElement {
-  return (
-    <Row gap="field" align="center" className="min-w-0">
-      {leading}
-      <Text as="span" size="label" tone="muted" className="truncate" {...(labelTitle === undefined ? {} : { title: labelTitle })}>
-        {label}
-      </Text>
-    </Row>
-  );
-}
-
-/** A labeled magnitude meter. The `value/max` text is the datum; the bar underneath is decoration. */
-export function MeterRow({
-  label,
-  value,
-  max,
-  color = 1,
-  customColor,
-  leading,
-  dangerBelow,
-  onEditValue,
-  onEditMax,
-  maxEditTitle,
-  labelTitle,
-  note,
-  valueWarning,
-}: MeterRowProps): ReactElement {
-  return (
-    <Stack gap="field" data-slot="meter-row">
-      {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the
-          label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
-          rest→edit swap pixel-stable (the no-layout-shift bar). */}
-      <Row justify="between" align="center" gap="block">
-        <MeterLabel label={label} leading={leading} labelTitle={labelTitle} />
-        {onEditValue === undefined ? (
-          <Text as="span" size="label" tone={valueWarning === true ? "warning" : undefined} className="tabular-nums">
-            {value}/{max}
-          </Text>
-        ) : (
-          // The value field sizes to ITSELF (a fixed `w-avatar-lg`, not `w-full` inside a fixed box — that
-          // collapsed the flex input to ~14px and clipped a 2-digit value's LEADING digit). `px-field` (over
-          // FIELD_CONTROL's wider `px-block`) + `text-right` hug the `/max` suffix without clipping. `shrink-0`
-          // on the whole cluster keeps the label from stealing its width (the W3c input-clip fix).
-          <Row gap="field" align="center" className="shrink-0">
-            <TrackerValue
-              ariaLabel={`${label} value`}
-              display={String(value)}
-              kind="numeric"
-              onEdit={(next): void => {
-                const n = Number.parseInt(next, 10);
-                if (!Number.isNaN(n)) {
-                  onEditValue(n);
-                }
-              }}
-              className={valueWarning === true ? "!w-avatar-lg px-field text-right tabular-nums text-warning" : "!w-avatar-lg px-field text-right tabular-nums"}
-              // At rest the value hugs its text like the read-only "24/30" (no fixed input width).
-              restClassName={valueWarning === true ? "tabular-nums text-warning" : "tabular-nums"}
-            />
-            <MaxCell label={label} max={max} {...(onEditMax === undefined ? {} : { onEditMax })} {...(maxEditTitle === undefined ? {} : { maxEditTitle })} />
-          </Row>
-        )}
-      </Row>
-      <TrackBar
-        value={value}
-        max={max}
-        color={color}
-        {...(customColor === undefined ? {} : { customColor })}
-        {...(dangerBelow === undefined ? {} : { dangerBelow })}
-      />
-      {note === undefined || note === null ? null : (
-        <Text size="micro" tone="muted">
-          {note}
-        </Text>
-      )}
-    </Stack>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 2. STAT CELL — attributes: a compact cell, big value over a small caps label; hint on `title`.
@@ -253,6 +91,11 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
 export interface TrackerChipProps {
   readonly label: string;
   readonly value: string;
+  /** WHOSE reading this is, for the editable value's accessible name (side-eye 08-01): a Scene tab with two
+   *  cast cards offered two buttons both called "Trust value" and two called "Role value", so a
+   *  name-navigating reader could not tell Sera's trust from Mara's. Absent ⇒ the bare label (a chip with no
+   *  subject, e.g. a game-level reading). */
+  readonly subject?: string;
   /** A persistent-guide chip — a leading gauge glyph distinguishes it from a condition (§3.2). */
   readonly guide?: boolean;
   /** Commit a new value — present ⇒ editable; absent ⇒ read-only. */
@@ -260,7 +103,7 @@ export interface TrackerChipProps {
 }
 
 /** A `label — value` pill (the existing badge idiom, soft tone). Guide chips lead with a gauge glyph. */
-export function TrackerChip({ label, value, guide = false, onEditValue }: TrackerChipProps): ReactElement {
+export function TrackerChip({ label, value, subject, guide = false, onEditValue }: TrackerChipProps): ReactElement {
   return (
     <Badge tone="soft" size="sm" data-slot={guide ? "guide-chip" : "tracker-chip"}>
       {guide ? <Icon icon={Gauge} size="sm" /> : null}
@@ -273,7 +116,7 @@ export function TrackerChip({ label, value, guide = false, onEditValue }: Tracke
         </Text>
       ) : (
         <TrackerValue
-          ariaLabel={`${label} value`}
+          ariaLabel={subject === undefined ? `${label} value` : `${subject} ${label}`}
           display={value}
           onEdit={onEditValue}
           className="!w-auto min-w-0 max-w-full field-sizing-content"

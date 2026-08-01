@@ -196,3 +196,82 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
   await expect(component.getByRole("heading", { name: "Field overrides", exact: true, level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", exact: true, level: 3 })).toBeVisible();
 });
+
+// ── SIDE-EYE 08-01 F8: THE PANE'S OWN VOICE, AND THE D-1 HOST-OPS GROUP ───────────────────────────────
+
+test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the form tier's h3 title", async ({ mount, page }) => {
+  // The tab lives in the CONTEXT panel viewport, which density-pass-spec §3.1 names as INSTRUMENT tier —
+  // beside rpg sections that all name themselves in micro-caps over a hairline. These shipped at the FORM
+  // heading (16px/500), so one pane spoke two dialects. COMPUTED, not by class string: `voice` re-spells
+  // every axis, so the only honest check is what the browser resolved.
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  const heading = component.getByRole("heading", { name: "Field overrides", exact: true, level: 3 });
+  await expect(heading).toBeVisible();
+
+  // The kicker step + the form-tier step, both RESOLVED from their tokens in this document — never px
+  // literals (a token retune must move the assertion with it, not break it).
+  const [micro, title] = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const px = (value: string): string => {
+      probe.style.fontSize = value;
+      return getComputedStyle(probe).fontSize;
+    };
+    const root = getComputedStyle(document.documentElement);
+    const out = [px(root.getPropertyValue("--text-micro").trim()), px(root.getPropertyValue("--text-title").trim())];
+    probe.remove();
+    return out;
+  });
+  const style = (): Promise<{ readonly size: string; readonly transform: string; readonly tag: string }> =>
+    heading.evaluate((el) => {
+      const computed = getComputedStyle(el);
+      return { size: computed.fontSize, transform: computed.textTransform, tag: el.tagName };
+    });
+  // Polled: type resolution settles with the stylesheet, and a one-shot read samples whatever the first
+  // frame had (the DEF-14 class).
+  await expect.poll(() => style().then((s) => s.size), { intervals: [20, 50, 100, 200] }).toBe(micro);
+  // ONESHOT-OK: the poll above just proved this element's type resolution has SETTLED, and nothing in this
+  // test mutates it afterwards — these are the same read, sampled once it is provably stable.
+  const settled = await style();
+  expect(settled.size).not.toBe(title);
+  expect(settled.transform).toBe("uppercase");
+  // …and it is STILL a real h3 (the outline the settings idiom bought is not what was wrong).
+  expect(settled.tag).toBe("H3");
+});
+
+test("D-1: the host-ops trio sits under a 'Host controls' group — and a member sees neither the group nor its rows", async ({ mount, page }) => {
+  // The merge had stacked five unrelated concerns in one flat list (the fidelity audit's structural root of
+  // "a whole menu got garbled together"). Background / Group behavior / Tool use are now one named group,
+  // which is also exactly the permission line.
+  await routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+
+  await expect(component.getByRole("heading", { name: "Host controls", exact: true, level: 3 })).toBeVisible();
+  const group = component.locator("section").filter({ hasText: "Host controls" }).first();
+  // CONTAINMENT is the claim — a heading rendered anywhere near them would prove nothing.
+  await Promise.all(
+    ["Background", "Group behavior", "Tool use"].map((name) => expect(group.getByRole("heading", { name, exact: true, level: 3 })).toBeVisible()),
+  );
+  // The member-reachable sections stay OUTSIDE it (Macro picks is play state any member may set).
+  await expect(group.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toHaveCount(0);
+});
+
+test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, never an empty group)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await expect(component.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Host controls", exact: true, level: 3 })).toHaveCount(0);
+  await expect(component.getByRole("heading", { name: "Background", exact: true, level: 3 })).toHaveCount(0);
+});

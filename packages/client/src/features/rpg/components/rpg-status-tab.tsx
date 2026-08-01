@@ -122,7 +122,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       <Kicker
         trailing={
           canEditShared && tracker.lockedPaths.includes("actorState") ? (
-            <RpgFieldLock onRelease={(): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: ["actorState"] })} />
+            <RpgFieldLock field="the roster" onRelease={(): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: ["actorState"] })} />
           ) : null
         }
       >
