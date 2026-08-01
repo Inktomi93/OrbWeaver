@@ -24,7 +24,7 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { useFocusOnMount } from "#lib";
+import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
@@ -128,7 +128,7 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
     );
   }
 
-  const scoped = characterFilter === null ? chats : chats.filter((chat) => chat.participantCharacterIds.includes(characterFilter.id));
+  const scoped = characterFilter === null ? chats : chatsWithCharacter(chats, characterFilter.id);
   if (characterFilter !== null && scoped.length === 0) {
     return (
       <EmptyState

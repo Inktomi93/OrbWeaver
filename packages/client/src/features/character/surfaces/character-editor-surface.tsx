@@ -20,7 +20,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import {
   clearCharacterFacet,
   clearChatListCharacterFilter,
@@ -144,7 +144,9 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
-  const chatCount = useMemo(() => chats.filter((chat) => chat.participantCharacterIds.includes(data.id)).length, [chats, data.id]);
+  // The ONE projection predicate (`#lib`) — the same one the chats-pane filter chip and the LIST projection
+  // ride, so the hero count can never disagree with the pane it points at.
+  const chatCount = useMemo(() => chatsWithCharacter(chats, data.id).length, [chats, data.id]);
 
   // Always a fresh chat with this character. Clear any per-character filter so the fresh draft isn't
   // shown behind a stale scope chip.
