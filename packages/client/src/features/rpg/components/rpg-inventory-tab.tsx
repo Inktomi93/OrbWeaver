@@ -181,14 +181,14 @@ function buildPackEdit(state: RpgPanelState, actor: RpgActorView, editSnapshot: 
   const write = (mutate: (items: readonly RpgInventoryItem[]) => readonly RpgInventoryItem[]): void =>
     editSnapshot.mutate({
       chatId: state.chatId,
-      patch: actorStatePatch(state.tracker.actors, actor.actorRef, (v) => ({ ...v, inventory: [...mutate(v.inventory)] })),
+      patch: actorStatePatch(state.tracker, actor.actorRef, (v) => ({ ...v, inventory: [...mutate(v.inventory)] })),
       lockPaths: [lockPath],
     });
   return {
     onPickIcon: (itemId, icon): void =>
       editSnapshot.mutate({
         chatId: state.chatId,
-        patch: actorStatePatch(state.tracker.actors, actor.actorRef, (v) => ({
+        patch: actorStatePatch(state.tracker, actor.actorRef, (v) => ({
           ...v,
           inventory: v.inventory.map((it) => (it.id === itemId ? { ...it, icon } : it)),
         })),

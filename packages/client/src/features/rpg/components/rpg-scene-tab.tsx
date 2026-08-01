@@ -112,7 +112,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         const ref = { kind: "cast", castKey } as const;
         editSnapshot.mutate({
           chatId,
-          patch: actorStatePatch(tracker.actors, ref, (v) => ({
+          patch: actorStatePatch(tracker, ref, (v) => ({
             ...v,
             trackerValues: {
               ...v.trackerValues,
