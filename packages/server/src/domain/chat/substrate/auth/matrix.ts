@@ -99,7 +99,6 @@ export const CHAT_VERB_AUTHORITY = {
   deleteChatInjection: "host",
   // ── variables (ChoiceBlock gameplay state — interactive play, shared story state → member) ──
   getVariables: "member",
-  getStoredVariables: "member",
   setVariables: "member",
   setUserMacroValues: "member", // WAVE MU: user-macro input picks — interactive play state (the setVariables sibling)
   getVariablePicks: "member", // the picks pane's ChoiceBlock half — the DECLARED variables (question + offered values; a ChoiceBlock has no body class to withhold) + the room's picks. Same member floor as its `setVariables` write.

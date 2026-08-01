@@ -27,7 +27,6 @@ import type {
   ClearVariablesParams,
   DeleteChatInjectionParams,
   DeleteChatParams,
-  GetStoredVariablesParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
   GetVariablesParams,
@@ -69,7 +68,6 @@ type ChatLifecycleVerbs = Pick<
   | "delete"
   | "reapTemporaryChats"
   | "getVariables"
-  | "getStoredVariables"
   | "getUserMacroPicks"
   | "getVariablePicks"
   | "setVariables"
@@ -233,14 +231,6 @@ function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
   };
 }
 
-/** `getStoredVariables` — member. The persisted `chats.variableValues` flush. */
-function createGetStoredVariables(ctx: ChatContext): ChatService["getStoredVariables"] {
-  return async ({ principal, chatId }: GetStoredVariablesParams): Promise<VariablesResult> => {
-    await requireParticipant(ctx, principal, chatId);
-    return (await loadStoredVariables(ctx.db, chatId)) ?? {};
-  };
-}
-
 /** `setVariables` — member. Flush the `{{var}}`→value map to `chats.variableValues`. Emits `chatUpdated`. */
 function createSetVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["setVariables"] {
   return async ({ principal, chatId, values }: SetVariablesParams): Promise<void> => {
@@ -401,7 +391,6 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     delete: createDelete(ctx, emit, (chatId) => deps.activeTurns.abortAll(chatId)),
     reapTemporaryChats: createReapTemporaryChats(ctx),
     getVariables: createGetVariables(ctx),
-    getStoredVariables: createGetStoredVariables(ctx),
     setVariables: createSetVariables(ctx, emit),
     setUserMacroValues: createSetUserMacroValues(ctx, emit),
     getUserMacroPicks: createGetUserMacroPicks(ctx),

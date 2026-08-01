@@ -260,12 +260,13 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
 });
 
 describe("variables — the config-plane round-trip (member)", () => {
-  test("setVariables persists; get/getStored read them back; clearVariables empties", async () => {
+  test("setVariables persists; getVariables + the picks read read them back; clearVariables empties", async () => {
     const { member, chatId } = await seedRoom();
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.setVariables({ principal: principal(member), chatId, values: { mood: "tense" } });
-    expect(await life.getStoredVariables({ principal: principal(member), chatId })).toEqual({
+    // The PERSISTED bag is read through the picks pane's own proc (the one stored-variables read there is).
+    expect((await life.getVariablePicks({ principal: principal(member), chatId })).values).toEqual({
       mood: "tense",
     });
     expect(await life.getVariables({ principal: principal(member), chatId })).toEqual({
@@ -273,7 +274,7 @@ describe("variables — the config-plane round-trip (member)", () => {
     });
 
     await life.clearVariables({ principal: principal(member), chatId });
-    expect(await life.getStoredVariables({ principal: principal(member), chatId })).toEqual({});
+    expect((await life.getVariablePicks({ principal: principal(member), chatId })).values).toEqual({});
   });
 });
 
