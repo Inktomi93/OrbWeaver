@@ -1,10 +1,11 @@
-import type { InvitePreview, InviteView, MemberCardView, ParticipantView } from "@orb/contracts/chat";
+import type { InvitePreview, InviteView, MemberCardView, ParticipantView, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import {
   acceptInviteSchema,
   characterMemberSpecSchema,
   createInviteSchema,
   previewInviteSchema,
   redeemInviteSchema,
+  resolveRenderPolicy,
   rosterMemberSpecSchema,
   seatKnobsSchema,
 } from "@orb/contracts/chat";
@@ -145,4 +146,51 @@ test("rosterMemberSpecSchema rejects `human`, `observer`, and `agent` — humans
   expect(rosterMemberSpecSchema.safeParse({ kind: "human", userId: SAMPLE_USER_ID, position: 0 }).success).toBe(false);
   expect(rosterMemberSpecSchema.safeParse({ kind: "observer", position: 0 }).success).toBe(false);
   expect(rosterMemberSpecSchema.safeParse({ kind: "agent", ownerUserId: SAMPLE_USER_ID, sourceKind: "buddy", position: 1 }).success).toBe(false);
+});
+
+// ═══ resolveRenderPolicy — the ONE tier-combine (owner ruling 2026-08-01: TIGHTEN-ONLY) ════
+//
+// The deployment "Block external media" AppSetting is an ABSOLUTE ceiling: a per-character override may
+// only restrict FURTHER. The bug this pins: the old inline `override ?? deployment` let a card carrying
+// `forbidExternalMedia: false` re-open external media on a deployment that blocks it — a dead opt-in the
+// document CSP (built from the DEPLOYMENT value alone) then blocked anyway. `trustHtml` deliberately keeps
+// `override ?? deployment`: its deployment value is a DEFAULT sitting at the strict end, not a block.
+
+const BLOCKING_DEPLOYMENT: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+const PERMISSIVE_DEPLOYMENT: RenderPolicy = { trustHtml: false, forbidExternalMedia: false };
+const CARD_ALLOWS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false };
+const CARD_FORBIDS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: true };
+const CARD_INHERITS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null };
+
+test("deployment BLOCKS + card allows ⇒ BLOCKED — a lower tier can never widen past the deployment ceiling", () => {
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, CARD_ALLOWS).forbidExternalMedia).toBe(true);
+  // …and the same for the inherit and forbid arms: while the deployment blocks, EVERY value is blocked.
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, CARD_INHERITS).forbidExternalMedia).toBe(true);
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, CARD_FORBIDS).forbidExternalMedia).toBe(true);
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, null).forbidExternalMedia).toBe(true);
+});
+
+test("deployment ALLOWS + card forbids ⇒ BLOCKED (tightening still works — the override is not ignored)", () => {
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_FORBIDS).forbidExternalMedia).toBe(true);
+});
+
+test("deployment ALLOWS + card allows/inherits ⇒ ALLOWED (the resolver is not a blanket deny)", () => {
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_ALLOWS).forbidExternalMedia).toBe(false);
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_INHERITS).forbidExternalMedia).toBe(false);
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, null).forbidExternalMedia).toBe(false);
+});
+
+test("trustHtml keeps `override ?? deployment` — the per-character escalation path is DELIBERATE (D44 §12.0)", () => {
+  const deployment: RenderPolicy = { trustHtml: false, forbidExternalMedia: false };
+  expect(resolveRenderPolicy(deployment, { trustHtml: true, forbidExternalMedia: null }).trustHtml).toBe(true);
+  expect(resolveRenderPolicy(deployment, CARD_INHERITS).trustHtml).toBe(false);
+  // …and a card may force UNtrusted below an admin-global opt-in.
+  expect(resolveRenderPolicy({ trustHtml: true, forbidExternalMedia: false }, { trustHtml: false, forbidExternalMedia: null }).trustHtml).toBe(false);
+});
+
+test("the two axes are INDEPENDENT — a trustHtml opt-in does not drag external media open", () => {
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, { trustHtml: true, forbidExternalMedia: false })).toEqual({
+    trustHtml: true,
+    forbidExternalMedia: true,
+  });
 });

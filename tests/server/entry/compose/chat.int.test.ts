@@ -19,6 +19,9 @@
 // timing evidence, from a standalone probe over the composed `createRegexApplyReplace()`: the guard THROWS in
 // ~52ms (`Script execution timed out after 50ms`, REGEX_APPLY_TIMEOUT_MS), while the native unguarded replace
 // over the SAME 40-`a` input never completes (killed at 90s) — that is exactly the hang the guard prevents.
+//
+// SECOND BLOCK (bottom of the file): the other composed-injection gap at this seam — `resolveSeatDeco`'s
+// tighten-only external-media combine, likewise stubbed everywhere else. Its own header explains the exploit.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -29,7 +32,7 @@ import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
-import { seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 /** The host `Principal` (role-irrelevant here — the edit gate matches on author identity; the host-tier regex
  *  set resolves under this user's `UserSettings`). `via:"header"` mirrors the fixture callers. */
@@ -128,5 +131,39 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     // The composed watchdog is transparent to a non-pathological rule → the find/replace lands. This is
     // what forbids a vacuous pass of the ReDoS case (an injection that no-op'd every script would fail HERE).
     expect(view.content).toBe("say **** now");
+  });
+});
+
+// The OTHER live-injection gap at this seam: `resolveSeatDeco` (chat.ts) is the ONLY site that combines the
+// deployment external-media ceiling with a card's tri-state override into the `RenderPolicy` the client
+// renders from — and `domain/chat`'s own suite stubs it, so nothing proved the COMPOSED combine. Owner
+// ruling 2026-08-01: that combine is TIGHTEN-ONLY. The exploit this closes, end to end over the real
+// composition root: a card whose owner picked "Allow" (`forbidExternalMedia: false`, written through the
+// REAL update verb the Appearance tab fires) on a deployment whose floor BLOCKS external media used to
+// resolve to `forbidExternalMedia: false` — the transcript then rendered the third-party `<img>`/`<video>`
+// (a tracking-pixel/exfil beacon on every view) and only the document CSP, which is built from the
+// DEPLOYMENT value alone, stopped the fetch. The reverse pin (trustHtml still escalates through the SAME
+// read) forbids a vacuous pass by a resolver that just returned the floor for everything.
+describe("resolveSeatDeco — the tighten-only external-media ceiling, composed (real createServices)", () => {
+  test("a card opting IN to external media does NOT widen past the blocking deployment floor", async ({ db, services }) => {
+    const host = await seedUser(db, "mediahost");
+    const principal = hostPrincipal(host);
+    const characterId = await seedCharacter(db, host, "mediacard");
+    // The card's own opt-in + an HTML opt-in, through the real front door.
+    await services.character.update({ principal, characterId, input: { forbidExternalMedia: false, trustHtml: true } });
+
+    const chatId = await seedChat(db, "media");
+    await seedParticipant(db, { chatId, key: "mediahost", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "mediacard", characterId });
+
+    const roster = await services.chat.listParticipants({ principal, chatId });
+    const seat = roster.find((p) => p.characterId === characterId);
+
+    // No stored AppSettings override ⇒ the born-in-DB floor (forbid) stands, and the card cannot lift it.
+    expect(seat?.renderPolicy?.forbidExternalMedia).toBe(true);
+    // …while the SAME read still honours the trustHtml escalation — the seam is live, not a blanket deny.
+    expect(seat?.renderPolicy?.trustHtml).toBe(true);
+    // The human seat keeps the bare deployment floor.
+    expect(roster.find((p) => p.userId === host)?.renderPolicy).toEqual({ trustHtml: false, forbidExternalMedia: true });
   });
 });

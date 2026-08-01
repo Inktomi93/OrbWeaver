@@ -24,6 +24,11 @@ export interface AuthMetaDeps {
   /** The admin-tunable effective `maxDatabankBytes` — resolves the served databank-document cap (min of route
    *  cap and this; an override may only TIGHTEN) so the client's document-upload hint matches the route. */
   readonly maxDatabankBytes: () => number;
+  /** The deployment external-media CEILING (`effectiveConfig.forbidExternalMedia`) — the same value the
+   *  document CSP is built from. Served so a lower-tier opt-in surface (the per-character "External media"
+   *  control) can tell the truth instead of offering an "Allow" that the tighten-only resolver + the CSP
+   *  both ignore. Read per request, like every other flag here. */
+  readonly forbidExternalMedia: () => boolean;
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -38,6 +43,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       discreetLogin: discreet,
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),
+      forbidExternalMedia: deps.forbidExternalMedia(),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
     });
   });

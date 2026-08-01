@@ -74,3 +74,52 @@ test("§8.1 a colour edit debounces into one write carrying the picked colour", 
 
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toEqual({ accent: "#00ff00" });
 });
+
+// ── Trust: the external-media control must not LIE (owner ruling 2026-08-01) ──────────────────────────
+// The deployment "Block external media" setting is the ABSOLUTE ceiling: the server-side render-policy
+// resolver is tighten-only and the document CSP is built from the deployment value alone, so while it is
+// on, EVERY value of this per-character control resolves to blocked. It therefore renders DISABLED with the
+// reason said out loud, never as a live-looking "Allow" (D107 — no dead switches). The deployment verdict
+// rides `/api/auth/config.forbidExternalMedia`, stubbed here at the network boundary — the honest source.
+
+async function stubExternalMediaBlocked(page: Page, blocked: boolean): Promise<void> {
+  // `httpRoute`, not `route` — the module already has a `route()` trpc helper (noShadow).
+  await page.route("**/api/auth/config", (httpRoute) =>
+    httpRoute.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "single-user",
+        requiresLogin: false,
+        localEnabled: false,
+        oidcEnabled: false,
+        discreetLogin: false,
+        defaultHandle: null,
+        multiHumanCapable: false,
+        forbidExternalMedia: blocked,
+      }),
+    }),
+  );
+}
+
+const LOCK_COPY_RE = /External media is blocked deployment-wide/u;
+
+test("deployment BLOCKS external media → the per-character control is disabled + explained (no dead switch)", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, true);
+  await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  await expect(page.getByRole("combobox", { name: "External media" })).toBeDisabled();
+  await expect(page.getByText(LOCK_COPY_RE)).toBeVisible();
+  // The sibling Trust control is a DIFFERENT axis (trustHtml escalation stays per-character) — untouched.
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
+});
+
+test("deployment ALLOWS external media → the control is live and the lock copy is absent", async ({ mount, page }) => {
+  await stubExternalMediaBlocked(page, false);
+  await route(page, null);
+  await mount(<CharacterAppearanceTabStory />);
+
+  await expect(page.getByRole("combobox", { name: "External media" })).toBeEnabled();
+  await expect(page.getByText(LOCK_COPY_RE)).toHaveCount(0);
+});

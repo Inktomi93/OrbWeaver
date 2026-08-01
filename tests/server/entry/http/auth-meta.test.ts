@@ -56,7 +56,7 @@ function run(handler: Handler, principal: Principal | null = null): MockResult {
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_DATABANK_BYTES = 20 * 1024 * 1024;
 
-function depsFor(mode: AuthMode, discreet = false, capable = false): AuthMetaDeps {
+function depsFor(mode: AuthMode, discreet = false, capable = false, forbidExternalMedia = true): AuthMetaDeps {
   return {
     mode,
     defaultHandle: "owner",
@@ -64,6 +64,7 @@ function depsFor(mode: AuthMode, discreet = false, capable = false): AuthMetaDep
     multiHumanCapable: () => capable,
     maxImageBytes: () => MAX_IMAGE_BYTES,
     maxDatabankBytes: () => MAX_DATABANK_BYTES,
+    forbidExternalMedia: () => forbidExternalMedia,
   };
 }
 
@@ -85,8 +86,30 @@ describe("GET /api/auth/config", () => {
       discreetLogin: false,
       defaultHandle: "owner",
       multiHumanCapable: false,
+      forbidExternalMedia: true,
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
     });
+  });
+
+  // The deployment external-media CEILING, served so the per-character "External media" control can render
+  // disabled-and-explained instead of a dead "Allow" (the resolver is tighten-only; the CSP blocks anyway).
+  // Read per request like every other flag here — an admin flip is live for the next boot/reload.
+  test("serves the deployment forbidExternalMedia ceiling, read PER REQUEST", () => {
+    expect(run(handlers(depsFor("local")).config).body["forbidExternalMedia"]).toBe(true);
+
+    let forbid = true;
+    const { config } = handlers({
+      mode: "local",
+      defaultHandle: "owner",
+      discreetLogin: () => false,
+      multiHumanCapable: () => false,
+      maxImageBytes: () => MAX_IMAGE_BYTES,
+      maxDatabankBytes: () => MAX_DATABANK_BYTES,
+      forbidExternalMedia: () => forbid,
+    });
+    expect(run(config).body["forbidExternalMedia"]).toBe(true);
+    forbid = false;
+    expect(run(config).body["forbidExternalMedia"]).toBe(false);
   });
 
   test("serves the resolved upload byte caps (image cap = min of the route cap and the admin maxImageBytes)", () => {
@@ -123,6 +146,7 @@ describe("GET /api/auth/config", () => {
       multiHumanCapable: () => capable,
       maxImageBytes: () => MAX_IMAGE_BYTES,
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
+      forbidExternalMedia: () => true,
     });
     expect(run(config).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -138,6 +162,7 @@ describe("GET /api/auth/config", () => {
       multiHumanCapable: () => false,
       maxImageBytes: () => MAX_IMAGE_BYTES,
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
+      forbidExternalMedia: () => true,
     });
     expect(run(config).body["defaultHandle"]).toBe("owner");
     discreet = true;

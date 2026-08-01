@@ -4,10 +4,13 @@
 //
 // The external-media arm is the placebo fix: the app-tier "Block external media" AppSetting is the
 // deployment CEILING, so `img-src`/`media-src` MUST gain `https:` exactly when the setting allows it —
-// and NOTHING else may move with it (never script-src, never http:). The last test pins the LIVENESS
-// property that made the setting a placebo in the first place: the header is derived per REQUEST, not
-// frozen at middleware construction.
+// and NOTHING else may move with it (never script-src, never http:). The LIVENESS test pins the property
+// that made the setting a placebo in the first place: the header is derived per REQUEST, not frozen at
+// middleware construction. The last test pins the CEILING against the OTHER tier (owner ruling
+// 2026-08-01): a per-character opt-in may not widen either layer.
 
+import type { RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import { resolveRenderPolicy } from "@orb/contracts/chat";
 import { securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -108,6 +111,25 @@ describe("securityHeaders", () => {
     allow = false;
     const again = (await app.request("/")).headers.get("content-security-policy") ?? "";
     expect(again).toBe(before);
+  });
+
+  // The tighten-only ceiling, across BOTH enforcement layers (owner ruling 2026-08-01). The CSP is built
+  // from the DEPLOYMENT value ALONE — it has no per-character input by construction — so this asserts the
+  // pair that has to agree: the render-policy resolver refuses to widen for an opted-in card, AND the
+  // header the browser gets for that same request carries no `https:` media allowance.
+  test("deployment BLOCKS + a per-character opt-in: the row verdict stays blocked AND the CSP gains no https:", async () => {
+    const deployment: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+    const optInCard: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false };
+
+    // Layer 1 — the resolved per-participant policy the client renders from.
+    expect(resolveRenderPolicy(deployment, optInCard).forbidExternalMedia).toBe(true);
+
+    // Layer 2 — the document CSP, wired exactly as entry/app.ts does (`() => !cfg.forbidExternalMedia`).
+    const [prod, dev] = await Promise.all([cspFor(false, !deployment.forbidExternalMedia), cspFor(true, !deployment.forbidExternalMedia)]);
+    expect(prod).not.toContain("https:");
+    expect(dev).not.toContain("https:");
+    // The card's opt-in is not an input to the header at all — same bytes as the no-card blocked arm.
+    expect(prod).toBe(await cspFor(false, false));
   });
 
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {

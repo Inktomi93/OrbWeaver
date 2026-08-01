@@ -26,6 +26,11 @@ export interface AuthConfig {
    *  probe-and-catch of a `multiHumanProcedure` NOT_FOUND. Derived server-side per request from the
    *  same `MULTI_HUMAN_CAPABLE` map the transport belt runs. */
   readonly multiHumanCapable: boolean;
+  /** The deployment "Block external media" ceiling — the value the document CSP was built from. TRUE ⇒
+   *  external media is blocked for EVERY character, and a lower-tier "Allow" is inert (the render policy
+   *  resolver is tighten-only). Surfaces that offer the per-character opt-in read this so they can disable
+   *  it honestly instead of shipping a dead switch. */
+  readonly forbidExternalMedia: boolean;
   /** The served deployment upload byte caps — the ONE source the client's dropzone hints + pre-checks
    *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
    *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
@@ -68,4 +73,13 @@ export function useAuthConfig(): UseQueryResult<AuthConfig> {
  *  ONE read every upload pre-check + dropzone hint uses — never an invented per-widget number. */
 export function useUploadCaps(): UploadCaps {
   return useAuthConfig().data?.uploads ?? DEFAULT_UPLOAD_CAPS;
+}
+
+/** Does this deployment block external media outright? TRUE ⇒ every lower-tier "allow external media"
+ *  control is inert (the resolver is tighten-only + the CSP blocks the fetch), so the control must render
+ *  disabled + explained. Falls back to FALSE until the config lands or if it never does: this drives UI
+ *  COPY only (the enforcement is server-side), and asserting "your admin blocked this" without having read
+ *  it would be its own lie. The config is fetched once at app root, so in practice it is present. */
+export function useExternalMediaBlocked(): boolean {
+  return useAuthConfig().data?.forbidExternalMedia === true;
 }

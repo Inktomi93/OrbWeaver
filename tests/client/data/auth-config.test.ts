@@ -19,6 +19,7 @@ const CONFIG: AuthConfig = {
   discreetLogin: false,
   defaultHandle: null,
   multiHumanCapable: true,
+  forbidExternalMedia: true,
   uploads: DEFAULT_UPLOAD_CAPS,
 };
 

@@ -1,6 +1,8 @@
 // The Appearance tab — two immediate-commit clusters riding `character.update` (no save bar, no dirty
 // pill): the per-character theme override (an autosave form persisting the whole `themeOverride` blob on
-// change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state, `override ?? global`).
+// change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state). `trustHtml` resolves `override ??
+// global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling, so while the deployment
+// blocks external media the control renders locked (see the Trust section below).
 
 import type { ThemeBackground, ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES, THEME_DENSITIES, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
@@ -13,8 +15,9 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { BackgroundSourceField } from "#components";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form";
@@ -84,6 +87,11 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
   const update = useUpdateCharacter({ trpc, invalidation });
+  // The deployment ceiling (`/api/auth/config.forbidExternalMedia`) — the value the document CSP was built
+  // from. While it is on, EVERY value of this control resolves to blocked, so the control is inert: render
+  // it disabled + explained rather than as a dead switch (D107).
+  const externalMediaBlocked = useExternalMediaBlocked();
+  const externalMediaLockId = useId();
 
   const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null }): void => {
     update.mutate({ characterId, input });
@@ -95,15 +103,18 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
 
       <BackgroundControl characterId={characterId} serverValue={data.backgroundOverride} />
 
-      {/* The external-media row can only TIGHTEN: the deployment-wide setting is enforced by the page's
-          Content-Security-Policy, which no per-character value can widen. Said out loud so "Allow" on a
-          blocking deployment doesn't read as a working opt-in (it renders, then the fetch is blocked). */}
+      {/* The external-media row can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling —
+          enforced twice, by the tighten-only render-policy resolver (@orb/contracts/chat) and by the page's
+          Content-Security-Policy — and no per-character value can widen it. While the deployment blocks,
+          the control is LOCKED rather than offering an "Allow" that nothing honours. */}
       <Section
         heading="Trust"
         hint="External media is capped by the deployment-wide “Block external media” setting — “Allow” here cannot load external media while that is on. Changes reach an open tab on reload."
       >
         <Row gap="field" className="flex-wrap">
-          {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
+          {/* No control-has-associated-label suppression here (unlike its sibling): the conditional
+              aria-describedby SPREAD makes the rule bail on this element, so a directive would be an
+              unused-disable error. The `label` prop still renders the visible, associated label. */}
           <Select
             label="External media"
             items={[
@@ -113,6 +124,8 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
             ]}
             value={tristateValue(data.forbidExternalMedia)}
             onValueChange={(value): void => commit({ forbidExternalMedia: tristateFlag(String(value)) })}
+            disabled={externalMediaBlocked}
+            {...(externalMediaBlocked ? { "aria-describedby": externalMediaLockId } : {})}
           />
           {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Select's `label` prop renders the visible, associated label (the rule can't see a custom prop); the bound SelectField carries the same suppression. */}
           <Select
@@ -126,6 +139,12 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
             onValueChange={(value): void => commit({ trustHtml: tristateFlag(String(value)) })}
           />
         </Row>
+        {externalMediaBlocked ? (
+          <Text id={externalMediaLockId} size="micro" tone="muted">
+            External media is blocked deployment-wide, so this character's setting is locked — every value here resolves to blocked. An admin can lift it in
+            System settings → “Block external media”.
+          </Text>
+        ) : null}
         <Text size="micro" tone="muted">
           Trust settings apply the instant you change them — no save needed.
         </Text>

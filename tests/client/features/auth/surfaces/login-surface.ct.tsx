@@ -19,6 +19,7 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     discreetLogin: false,
     defaultHandle: "owner",
     multiHumanCapable: false,
+    forbidExternalMedia: true,
     uploads: DEFAULT_UPLOAD_CAPS,
     ...overrides,
   };
