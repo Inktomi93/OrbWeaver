@@ -1109,8 +1109,9 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       sheet: minter(ID_PREFIX.rpgSheet),
       journal: minter(ID_PREFIX.rpgJournal),
       checkpoint: minter(ID_PREFIX.rpgCheckpoint),
-      // Quest ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).
+      // Quest + inventory-item ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).
       quest: () => newId(),
+      item: () => newId(),
     },
     staging: createRpgStagingStore(),
     getMembership: deps.rpgChatOps.getMembership,

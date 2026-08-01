@@ -8,6 +8,7 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type {
+  RpgActorOp,
   RpgActorRef,
   RpgDateMode,
   RpgExtractionContext,
@@ -159,6 +160,27 @@ export interface EditSnapshotParams {
    *  which values it touched (`actorState.user:<id>.pools.<name>`, `…status`), so the pin lands on the
    *  SPECIFIC datum, not the whole plane. Omit ⇒ the coarse default (every top-level patch key). */
   readonly lockPaths?: readonly string[] | undefined;
+}
+
+/** `patchActor` — THE op-shaped hand door for one actor's volatile row (R1; host). The ops apply IN ORDER
+ *  against the TRUE resolved head server-side, so there is no client image to go stale and the auto-lock is
+ *  DERIVED per op (`substrate/actor-ops.ts`) rather than claimed by the caller. `autoLock:false` is the
+ *  model-unreachable-field arm (an item's host-picked `icon` has no story write to stop). */
+export interface PatchActorParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly targetRef: RpgActorRef;
+  readonly ops: readonly RpgActorOp[];
+  readonly autoLock?: boolean | undefined;
+}
+
+/** `dismissActor` — THE removal gesture for the actor plane (R1; host): drops the actor's state row + its
+ *  scene-presence row and releases every lock at/below its path. The gesture `merge.ts`'s additive policy
+ *  always named and never had. */
+export interface DismissActorParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly targetRef: RpgActorRef;
 }
 
 /** `upsertQuest` — the hand arm of the quest plane (host). Writes the `quests` array on the current resolved

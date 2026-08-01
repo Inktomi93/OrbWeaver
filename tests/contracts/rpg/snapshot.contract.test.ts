@@ -1,8 +1,22 @@
 // @orb/contracts/rpg/snapshot — the swipe-volatile plane shapes (§2.4-2.5). Pins the quests-in-snapshot
 // shape (ratification #1: quests fold INTO the snapshot state), the objective `n/m` shape, present-cast,
-// and the full snapshot state's collection defaults + nullable ambient.
+// the full snapshot state's collection defaults + nullable ambient, and (R1) the HAND-PATCH plane split —
+// `actorState` is op-shaped, so it must be absent from the image door's vocabulary — plus the one actor
+// lock-path grammar the server stamp and the panel pin both read.
 
-import { rpgFieldLocksSchema, rpgPlotSchema, rpgPresentCharacterSchema, rpgQuestSchema, rpgSnapshotStateSchema } from "@orb/contracts/rpg";
+import {
+  RPG_HAND_PATCH_PLANES,
+  RPG_OP_SHAPED_PLANES,
+  RPG_SNAPSHOT_STATE_PLANES,
+  rpgActorLockBase,
+  rpgFieldLocksSchema,
+  rpgPlotSchema,
+  rpgPresentCharacterSchema,
+  rpgQuestSchema,
+  rpgSnapshotStateSchema,
+} from "@orb/contracts/rpg";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 test("a quest is a stable-id object with status + n/m objectives (the snapshot-resident shape)", () => {
@@ -82,4 +96,24 @@ test("plot defaults null (pre-P5 self-heal) and parses the {act,title,acts} shap
     ],
   });
   expect(rpgPlotSchema.safeParse({ act: 0 }).success).toBe(false);
+});
+
+// ── R1: the plane split + the ONE actor lock-path grammar ─────────────────────────────────────────────────
+
+test("the hand-patch planes are the state planes MINUS the op-shaped ones (derived, never a second list)", () => {
+  expect(RPG_OP_SHAPED_PLANES.has("actorState")).toBe(true);
+  expect(RPG_HAND_PATCH_PLANES.has("actorState")).toBe(false);
+  // Everything else a hand can honestly author whole is still there.
+  for (const plane of ["location", "clock", "weather", "calendarDate", "presentCharacters", "recentEvents", "trackerValues", "quests", "plot"]) {
+    expect(RPG_HAND_PATCH_PLANES.has(plane)).toBe(true);
+  }
+  // Locks are METADATA, never a patch key — on either set.
+  expect(RPG_SNAPSHOT_STATE_PLANES.has("fieldLocks")).toBe(false);
+  expect(RPG_HAND_PATCH_PLANES.has("fieldLocks")).toBe(false);
+});
+
+test("rpgActorLockBase is the ONE lock-path grammar both the server stamp and the panel pin read", () => {
+  expect(rpgActorLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira");
+  const userId = newId<UserId>();
+  expect(rpgActorLockBase({ kind: "user", userId })).toBe(`actorState.user:${userId}`);
 });

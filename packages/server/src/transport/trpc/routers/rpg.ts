@@ -28,9 +28,11 @@ import {
   rpgCreateGameInputSchema,
   rpgDeleteJournalEntryInputSchema,
   rpgDeleteQuestInputSchema,
+  rpgDismissActorInputSchema,
   rpgEditJournalEntryInputSchema,
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
+  rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPopulateFromCharacterInputSchema,
   rpgReadGameInputSchema,
@@ -51,6 +53,13 @@ export const rpgRouter = t.router({
   editSnapshot: authedProcedure
     .input(rpgEditSnapshotInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editSnapshot({ principal: ctx.auth, ...input })),
+  // R1 — the OP-SHAPED actor door + its removal gesture (they replaced `editSnapshot`'s `actorState` image,
+  // which that verb now refuses). Host-gated INSIDE each verb like every shared-plane write; both are
+  // chatId-scoped, so the cross-tenant sweep classifies them PROBED.
+  patchActor: authedProcedure.input(rpgPatchActorInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.patchActor({ principal: ctx.auth, ...input })),
+  dismissActor: authedProcedure
+    .input(rpgDismissActorInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.dismissActor({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
   deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure

@@ -17,8 +17,8 @@
 // the roster card and the takeover write through the same overlays, so a value edited in one place is the
 // same write in the other.
 
-import type { RpgActorRef, RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
-import { resolveTrackerMaxOverride, trackerNumber } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef, RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
+import { resolveTrackerMaxOverride, rpgActorLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Icon } from "@orb/ui/icons";
@@ -29,17 +29,14 @@ import { useState } from "react";
 import { RelationshipBadge } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations";
 import { actorKey } from "../lib/actor-key";
-import { actorLockBase, actorStatePatch, writeTrackerValue } from "../lib/volatile-patch";
 import type { ActorEdit } from "./rpg-actor-trackers";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers";
 import { RpgCharacterDetail } from "./rpg-character-detail";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
 import { RpgVeiledSection } from "./rpg-veiled-section";
-
-type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
 
 /** The scene-cast row this roster actor also stands in (the §12.2.3 relationship join) — or undefined.
  *  A `user` actor never joins (cast rows are NPCs), so its predicate matches nothing: no row, no badge. */
@@ -58,6 +55,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
+  const patchActor = usePatchActor({ trpc, invalidation });
   // The open character (the takeover) — null = the roster. Keyed by the stable roster selector key.
   const [openKey, setOpenKey] = useState<string | null>(null);
 
@@ -65,24 +63,26 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
     return <Text>No one on the roster yet — add characters in Members.</Text>;
   }
 
-  // One patch-and-mutate for a target actor's volatile (whole-array overlay, keyed server-side by
-  // `actorRefKey`). Every write stamps its FINE lock path (#10 — `lockSub` appends to the actor's base).
-  const patch = (ref: RpgActorRef, lockSub: string, mutate: (v: ActorVolatile) => ActorVolatile): void =>
-    editSnapshot.mutate({ chatId, patch: actorStatePatch(tracker, ref, mutate), lockPaths: [`${actorLockBase(ref)}${lockSub}`] });
+  // One op-and-mutate for a target actor's volatile: the panel names the OP it performed, the server applies
+  // it against the true head and derives the FINE lock path (#10). No image, no client-named lock paths.
+  const patch = (ref: RpgActorRef, ...ops: readonly RpgActorOp[]): void => patchActor.mutate({ chatId, targetRef: ref, ops: [...ops] });
 
   const editFor = (actor: RpgActorView): ActorEdit | undefined => {
     if (!canEditShared) {
       return;
     }
     const ref = actor.actorRef;
-    const base = actorLockBase(ref);
+    const base = rpgActorLockBase(ref);
     return {
-      onEditTracker: (key, next): void => patch(ref, `.trackerValues.${key}`, (v) => writeTrackerValue(v, key, { value: Math.max(0, next) })),
+      onEditTracker: (key, next): void => patch(ref, { op: "setTracker", key, value: { value: Math.max(0, next) } }),
       onEditTrackerText: (key, next): void => {
         const def = actor.trackers.find((d) => d.key === key);
         const trimmed = next.trim();
-        patch(ref, `.trackerValues.${key}`, (v) =>
-          writeTrackerValue(v, key, def?.shape === "list" ? { items: trimmed === "" ? [] : trimmed.split(",").map((x) => x.trim()) } : { value: trimmed }),
+        patch(
+          ref,
+          def?.shape === "list"
+            ? { op: "setTracker", key, value: { items: trimmed === "" ? [] : trimmed.split(",").map((x) => x.trim()) } }
+            : { op: "setTracker", key, value: { value: trimmed } },
         );
       },
       onEditTrackerMax: (key, nextMax): { readonly draggedTo: number } | null => {
@@ -94,15 +94,14 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
         const override = def === undefined ? clampedMax : resolveTrackerMaxOverride(def, clampedMax);
         // Lowering below the reading drags the stored VALUE down in the SAME commit (never a silent truncate).
         const drag = reading !== null && reading > clampedMax;
-        patch(ref, `.trackerValues.${key}`, (v) => writeTrackerValue(v, key, drag ? { max: override, value: clampedMax } : { max: override }));
+        patch(ref, { op: "setTracker", key, value: drag ? { max: override, value: clampedMax } : { max: override } });
         return drag ? { draggedTo: clampedMax } : null;
       },
-      onAddCondition: (name): void =>
-        patch(ref, ".conditions", (v) =>
-          v.conditions.some((c) => c.name === name) ? v : { ...v, conditions: [...v.conditions, { name, stat: null, modifier: 0, turnsLeft: null }] },
-        ),
-      onRemoveCondition: (name): void => patch(ref, ".conditions", (v) => ({ ...v, conditions: v.conditions.filter((c) => c.name !== name) })),
-      onEditStatus: (next): void => patch(ref, ".status", (v) => ({ ...v, status: next.trim() })),
+      // `addCondition` is a name-keyed UPSERT server-side, so re-adding a standing condition is idempotent —
+      // the panel no longer has to check the list before writing.
+      onAddCondition: (name): void => patch(ref, { op: "addCondition", condition: { name } }),
+      onRemoveCondition: (name): void => patch(ref, { op: "removeCondition", name }),
+      onEditStatus: (next): void => patch(ref, { op: "setStatus", status: next.trim() }),
       isLocked: (sub): boolean => tracker.lockedPaths.includes(`${base}${sub}`),
       onRelease: (sub): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [`${base}${sub}`] }),
     };
@@ -117,8 +116,9 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
   return (
     <Stack gap="section" data-slot="rpg-status-tab">
-      {/* The section-scoped hand-lock pin (§12.3): a Status hand edit stamps the TOP-LEVEL `actorState`
-          path (the whole-array overlay), so one lock ⇒ one pin ⇒ one Release, on the section label. */}
+      {/* The plane-wide hand-lock pin (§12.3). Nothing MINTS this coarse `actorState` pin any more — the ops
+          door stamps fine per-datum paths — but a snapshot written before R1 can carry one, and a pin with no
+          Release is a trap: the section keeps the affordance so a stored plane-wide lock can be let go. */}
       <Kicker
         trailing={
           canEditShared && tracker.lockedPaths.includes("actorState") ? (

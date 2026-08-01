@@ -17,6 +17,7 @@
 // so this surface reads defs and edits READINGS.
 
 import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
+import { rpgActorLockBase } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -27,8 +28,7 @@ import type { ReactElement } from "react";
 import { StatCell, TrackerChip, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchSheet } from "../hooks/use-rpg-mutations";
-import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
+import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations";
 import type { ActorEdit } from "./rpg-actor-trackers";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
@@ -328,6 +328,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
   const invalidation = useInvalidation();
   const patchSheet = usePatchSheet({ trpc, invalidation });
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
+  const patchActor = usePatchActor({ trpc, invalidation });
 
   // A member may edit only their OWN `user` sheet; a host may edit any. Cast actors have no sheet.
   // `trackersReadOnly` is NOT a factor (D108 — it gates the MODEL write path only).
@@ -335,7 +336,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
   const canEditSheet = (isHost || ownRow) && actor.actorRef.kind !== "cast";
   const profile: RpgStatProfile = state.game.publicConfig.statProfile;
   const carriesNone = actor.trackers.length === 0;
-  const lockBase = actorLockBase(actor.actorRef);
+  const lockBase = rpgActorLockBase(actor.actorRef);
   // The two write doors, resolved ONCE and PERMISSION-omitted where the viewer may not use them: the sheet
   // planes ride `patchSheet` (host any actor / a member their own), the wallet rides `editSnapshot`.
   const sheetWrites = canEditSheet
@@ -353,15 +354,10 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
     : {};
   const walletWrites = canEditShared
     ? {
+        // The purse slot rides `patchActor`'s named-amount op (an UPSERT server-side: setting a slot into
+        // existence is the same gesture as editing one) — the fine `…wallet.<name>` pin is derived there.
         onEditCoin: (name: string, next: number): void =>
-          editSnapshot.mutate({
-            chatId,
-            patch: actorStatePatch(tracker, actor.actorRef, (v) => ({
-              ...v,
-              wallet: v.wallet.map((w) => (w.name === name ? { ...w, amount: next } : w)),
-            })),
-            lockPaths: [`${lockBase}.wallet.${name}`],
-          }),
+          patchActor.mutate({ chatId, targetRef: actor.actorRef, ops: [{ op: "setWalletAmount", name, amount: next }] }),
         onReleaseCoin: (name: string): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: [`${lockBase}.wallet.${name}`] }),
       }
     : {};

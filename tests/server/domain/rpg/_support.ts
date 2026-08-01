@@ -342,6 +342,7 @@ export function makeRpgService(
   let itemSeq = 0;
   let questSeq = 0;
   let objectiveSeq = 0;
+  let handItemSeq = 0;
   const runToolRound: RpgRunToolRound = async (input) => {
     fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
     // The flush-barrier race test HOLDS the round in-flight via this gate (a slow dedicated state round is the
@@ -388,6 +389,8 @@ export function makeRpgService(
       journal: () => mintTypeId(ID_PREFIX.rpgJournal),
       checkpoint: () => mintTypeId(ID_PREFIX.rpgCheckpoint),
       quest: () => newId<RpgQuestId>(),
+      // Deterministic hand-minted item ids (the `patchActor` add arm) — a test asserts on the id it will get.
+      item: () => `item_hand_${handItemSeq++}`,
     },
     staging: createRpgStagingStore(),
     getMembership: (_chatId, userId) => {
