@@ -364,8 +364,8 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
-- **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** w4-my-lane S1 — `fireRpgTurnCompleted`
-  still AFTER the turnCompleted emit (`engine.ts:1238`; report carries the exact patch, option 1) ·
+- **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** ~~w4-my-lane S1~~ APPLIED 08-02
+  (`5272120b`, option 1 + an ordering pin; that report stays OPEN only for F5's compose-header pointer) ·
   join-history ruling #8/F6 — floored fork's variable carry (`fork.ts:383`). SEVERITY NARROWED
   (owner + code, 08-02): fork is gated host-or-sole-present-human, floor is OPT-IN — the leak path
   needs floored member → becomes sole human → forks. Kept because fork's own §3.6 strip already
