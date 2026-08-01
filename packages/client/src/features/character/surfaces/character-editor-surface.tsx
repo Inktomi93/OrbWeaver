@@ -6,8 +6,9 @@
 // Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the token split +
 // the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
 //
-// Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›"
-// scopes the Chats list to this character and switches sections.
+// Hero chat affordances: "New chat" always starts a fresh thread with this character; "N chats ›" points at
+// the LIST pane, which — with her selected — already IS her chats (list-pane-projection Arm A / D8). Both
+// ride the ONE home for those intents (`lib/character-chat-intents.ts`), shared with the LIST band.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -20,16 +21,8 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
-import { useFocusOnMount } from "#lib";
-import {
-  clearCharacterFacet,
-  clearChatListCharacterFilter,
-  selectCharacterFacet,
-  setActiveSection,
-  setChatListCharacterFilter,
-  startNewChat,
-  useSelectedCharacterFacetId,
-} from "#state";
+import { chatsWithCharacter, useFocusOnMount } from "#lib";
+import { clearCharacterFacet, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor";
 import { CharacterFacetList } from "../components/character-facet-list";
 import { CharacterHeroBand } from "../components/character-hero-band";
@@ -43,6 +36,7 @@ import {
   permanentTokenCount,
   totalTokenCount,
 } from "../lib/character-card-form-model";
+import { revealChatsProjection, startChatWithCharacter } from "../lib/character-chat-intents";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge";
 
 // The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
@@ -134,6 +128,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   const selectedFacetId = useSelectedCharacterFacetId();
+  const narrow = useNarrowViewport();
   // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
   // which row should reclaim focus.
   const [backFocusFacetId, setBackFocusFacetId] = useState<CharacterCardFacet["id"] | null>(null);
@@ -144,21 +139,16 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
-  const chatCount = useMemo(() => chats.filter((chat) => chat.participantCharacterIds.includes(data.id)).length, [chats, data.id]);
+  // The ONE projection predicate (`#lib`) — the same one the chats-pane filter chip and the LIST projection
+  // ride, so the hero count can never disagree with the pane it points at.
+  const chatCount = useMemo(() => chatsWithCharacter(chats, data.id).length, [chats, data.id]);
 
-  // Always a fresh chat with this character. Clear any per-character filter so the fresh draft isn't
-  // shown behind a stale scope chip.
-  const onNewChat = (): void => {
-    clearChatListCharacterFilter();
-    startNewChat({ characterIds: [data.id] });
-    setActiveSection("chats");
-  };
-  // Scope the Chats list to this character's threads and switch sections. We set the filter but don't
-  // pre-select a thread: the filtered list is the landing.
-  const onViewChats = (): void => {
-    setChatListCharacterFilter({ id: data.id, name: data.name });
-    setActiveSection("chats");
-  };
+  // Always a fresh chat with this character — the SAME writer the LIST band's New chat fires (one home,
+  // `character-chat-intents.ts`), so the two primaries can't drift.
+  const onNewChat = (): void => startChatWithCharacter(data.id);
+  // "N chats ›" no longer LEAVES for the Chats section (D8): with her selected, the LIST pane already IS
+  // her history, so the hero points AT it — opening the sheet on narrow, un-collapsing + focusing on wide.
+  const onViewChats = (): void => revealChatsProjection(narrow);
 
   // Publish the live handle so the CONTEXT Field inspector (a sibling shell region, no shared React
   // ancestor) can bind the facet's small fields. Clears on unmount so a stale handle never outlives

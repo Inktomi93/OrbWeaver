@@ -4,31 +4,19 @@
 // the same definition-owned seam the chats lane rides — the domain-agnostic shell never names a feature.
 //
 // Per §2 action-ownership, Corpus is BROWSE-shaped: it has no create verb, so the band carries title +
-// count only (P2's "≤1 ember button" is trivially met — zero buttons). The count is a non-suspending
-// `useQuery` on the shared `discovery.catalog` cache (the browse view below suspends on it already, so no
-// extra fetch): the title renders immediately and stays put while the count settles.
+// count only (P2's "≤1 ember button" is trivially met — zero buttons; the shared `ListPaneHeader` renders
+// no action node at all). The count is a non-suspending `useQuery` on the shared `discovery.catalog` cache
+// (the browse view below suspends on it already, so no extra fetch): the title renders immediately and
+// stays put while the count settles.
 
-import { Row } from "@orb/ui/layout";
-import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 
 export function CorpusListHeader(): ReactElement {
   const trpc = useTRPC();
   const { data: catalog } = useQuery(trpc.discovery.catalog.queryOptions());
-  const count = catalog?.totalDistilled ?? 0;
 
-  return (
-    <Row align="center" gap="field">
-      <Heading level={2} size="micro" tone="muted" transform="caps" weight="semibold">
-        Corpus
-      </Heading>
-      {count > 0 ? (
-        <Text className="font-mono" size="micro" tone="muted">
-          {count}
-        </Text>
-      ) : null}
-    </Row>
-  );
+  return <ListPaneHeader count={catalog?.totalDistilled ?? 0} title="Corpus" />;
 }

@@ -5,6 +5,8 @@
 export { cn } from "@orb/ui/lib";
 export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
+export type { ChatWithCharacterSeats } from "./chats-with-character";
+export { chatsWithCharacter } from "./chats-with-character";
 export type { ClientErrorPayload } from "./client-error-report";
 export { buildClientErrorPayload } from "./client-error-report";
 export type { RegistryContext } from "./create-registry-context";

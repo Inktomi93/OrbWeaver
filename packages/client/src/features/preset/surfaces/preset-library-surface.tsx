@@ -1,13 +1,14 @@
 // The preset library surface — the Presets list hub. Reads `preset.list` + `settings.getUserSettings`
 // (for the active-for-generation pointer), filters client-side by name, renders a `PresetLibraryRow` per
 // preset. A row click opens the preset in CONTENT (`selectPreset`); activation is the "Active for
-// generation" dropdown ONLY. CRUD composes existing verbs — New/Duplicate/Rename/Delete/Import. The
-// focus/QueryBoundary shell + header/search/empty body come from the shared library-surface scaffold.
+// generation" dropdown ONLY. CRUD composes existing verbs — Duplicate/Rename/Delete here, and New/Import in
+// the LIST chrome band (`preset-list-header.tsx`, D66 A1/A2 — the band owns the pane's create verbs). The
+// focus/QueryBoundary shell + search/empty body come from the shared library-surface scaffold.
 
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, Plus, Search, SlidersHorizontal, Upload } from "@orb/ui/icons";
+import { Icon, Search, SlidersHorizontal } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -19,7 +20,6 @@ import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { useFocusOnMount } from "#lib";
 import { selectPreset, useSelectedPresetId } from "#state";
-import { PresetImportDialog } from "../components/preset-import-dialog";
 import { PresetLibraryRow } from "../components/preset-library-row";
 import { PresetRenameDialog } from "../components/preset-rename-dialog";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
@@ -63,13 +63,14 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [renameId, setRenameId] = useState<PresetId | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
 
   const needle = deferredQuery.trim().toLowerCase();
   const filtered = needle === "" ? presets : presets.filter((p) => p.name.toLowerCase().includes(needle));
 
   const activeItems: SelectItems<string> = [{ value: "", label: "Built-in default" }, ...presets.map((p) => ({ value: p.id, label: p.name }))];
 
+  // The band owns the pane's create PRIMARY; this is the EMPTY-STATE's own action, which must stay (an
+  // empty library that only says "no presets yet" is a dead end).
   const onCreate = (): void => {
     void create.mutateAsync({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND }).then((created) => onSelectPreset(created.id));
   };
@@ -103,17 +104,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   return (
     <>
       <LibraryListLayout
-        actions={
-          <>
-            <Button aria-label="Import a SillyTavern preset" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
-              <Icon icon={Upload} size="sm" />
-            </Button>
-            <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-              <Icon icon={Plus} size="sm" />
-              New
-            </Button>
-          </>
-        }
         beforeSearch={
           <Stack gap="field">
             <Text size="micro" tone="muted" transform="caps">
@@ -146,7 +136,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         searchLabel="Search presets"
         searchPlaceholder="Search presets"
         searchValue={query}
-        title="Presets"
       >
         {filtered.map((preset) => (
           <PresetLibraryRow
@@ -174,18 +163,6 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
           open={true}
         />
       ) : null}
-
-      <PresetImportDialog
-        creating={create.isPending}
-        onImport={({ name, config }): void => {
-          void create.mutateAsync({ name, kind: NEW_PRESET_KIND, config }).then((created) => {
-            setImportOpen(false);
-            onSelectPreset(created.id);
-          });
-        }}
-        onOpenChange={setImportOpen}
-        open={importOpen}
-      />
     </>
   );
 }

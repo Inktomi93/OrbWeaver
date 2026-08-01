@@ -11,6 +11,7 @@ import { selectWorldBookFromList } from "#state";
 import { WorldInfoLibraryAnchor } from "../anchors/world-info-library-anchor";
 import { WorldInfoContent } from "../components/world-info-content";
 import { WorldInfoContextBody } from "../components/world-info-context-body";
+import { WorldInfoListHeader } from "../components/world-info-list-header";
 import { WorldInfoLibrarySurface } from "../surfaces/world-info-library-surface";
 
 export const worldInfoSection: SectionDefinition = {
@@ -26,6 +27,8 @@ export const worldInfoSection: SectionDefinition = {
       <WorldInfoLibrarySurface onSelectBook={selectWorldBookFromList} />
     </WorldInfoLibraryAnchor>
   ),
+  // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "WORLD INFO" + count + the ONE primary New.
+  listHeader: () => <WorldInfoListHeader />,
   content: () => <WorldInfoContent />,
   // The book activation panel — one body, shown once a book is open (no book = nothing to attach yet).
   context: { kind: "single", body: () => <WorldInfoContextBody /> },

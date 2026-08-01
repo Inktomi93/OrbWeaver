@@ -13,6 +13,23 @@ const ALPHA = {
   createdAt: 1,
 };
 const BETA = { id: "world_book_beta000001", name: "Beta", description: null, createdAt: 2 };
+/** Any row STATE-TOGGLE name (§12's toggle arm) — world-info deliberately has none. */
+const ANY_STAR_TOGGLE = /^(Star|Unstar) /;
+
+test("L4 the LIST band names the section + counts the books (the in-pane title is retired)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "worldInfo.listBooks": () => [ALPHA, BETA],
+    "worldInfo.listGlobal": () => [],
+  });
+
+  await mount(<WorldInfoLibrarySurfaceStory />);
+
+  const band = page.getByTestId("list-band");
+  await expect(band.getByRole("heading", { level: 2 })).toHaveText("World Info");
+  await expect(band.getByText("2", { exact: true })).toBeVisible();
+  // The title now exists EXACTLY once — in the band, not doubled by an in-pane header.
+  await expect(page.getByRole("heading", { name: "World Info" })).toHaveCount(1);
+});
 
 test("lists books, marks the global one, and New fires createBook", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -36,4 +53,24 @@ test("lists books, marks the global one, and New fires createBook", async ({ mou
 
   await page.getByRole("button", { name: "New", exact: true }).click();
   await expect.poll(() => trpc.count("worldInfo.createBook"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+// §12 per-list assignment (list-pane-projection): books are low-churn with no boolean row state and no
+// frequency evidence for any verb, so world-info is the deliberate KEBAB-ONLY arm of the grammar — no
+// inline toggle, no inline verb. Pinned so a later sweep can't quietly give every list the same cluster.
+test("§12 world-info rows stay kebab-only — no inline toggle, no inline verb", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "worldInfo.listBooks": () => [ALPHA, BETA],
+    "worldInfo.listGlobal": () => [],
+  });
+
+  await mount(<WorldInfoLibrarySurfaceStory />);
+  await expect(page.getByText("Alpha")).toBeVisible();
+
+  // Everything the row can do lives behind the one ⋯ menu.
+  await expect(page.getByRole("button", { name: "Duplicate Alpha", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: ANY_STAR_TOGGLE })).toHaveCount(0);
+  await page.getByRole("button", { name: "Actions for Alpha", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
 });

@@ -39,19 +39,32 @@ const GAME = makeChatSummary({
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", star: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
 
+// A 3-seat room — D3: it must lead with an AvatarStack, not borrow one member's portrait.
+const GROUP = makeChatSummary({
+  id: "chat_group",
+  title: "The Crimson Court",
+  participantNames: ["Aria Nightshade", "Sera", "Niko"],
+  participantCharacterIds: ["char_aria", "char_sera", "char_niko"],
+});
+
 // The character library the portrait map resolves against: Aria has a face, the faceless one doesn't.
 const CHARACTERS = {
   items: [
     { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
     { id: "char_faceless", name: "Faceless", avatarHash: null },
+    { id: "char_sera", name: "Sera", avatarHash: null },
+    { id: "char_niko", name: "Niko", avatarHash: null },
   ],
 };
 const AVATAR_IMAGE = '[data-slot="avatar-image"]';
+const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const SUBTITLE = '[data-slot="list-row-subtitle"]';
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
+/** A PRESSED star toggle's accessible name (§12 — the un-set verb names the on state). */
+const ANY_PRESSED_STAR = /^Unstar /u;
 // Base UI's Avatar mounts `avatar-image` only once the image reaches "loaded" status, so the blob route is
 // fulfilled with a real 1×1 PNG (the message-row.ct.tsx precedent).
 const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
@@ -141,11 +154,31 @@ test("a chat with a portrait-owning participant renders the REAL portrait; the o
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
   // Exactly ONE row resolved a face — the row whose participantCharacterIds hit an avatar-owning character.
-  const images = component.locator(AVATAR_IMAGE);
+  // Scoped to the ROWS: the Arm B faces strip above them paints the same portrait as a shortcut.
+  const images = component.locator(LIST_ROW_ROOT).locator(AVATAR_IMAGE);
   await expect(images).toHaveCount(1);
   await expect(images).toHaveAttribute("src", ARIA_BLOB_RE);
   // …and the participant-less row still renders (its avatar is the hue-seeded initials fallback, no <img>).
   await expect(page.getByText("Untitled chat")).toBeVisible();
+});
+
+test("D3 a MULTI-SEAT room leads with an AvatarStack (shared, not one member's face); a 1:1 keeps its portrait", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
+  await routeTrpc(page, {
+    "chat.listChats": [GROUP, ADVENTURE],
+    "character.list": CHARACTERS,
+  });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+
+  // Exactly ONE row stacks — the 3-seat room — and the stack names its cast for a screen reader.
+  const stack = component.locator(AVATAR_STACK);
+  await expect(stack).toHaveCount(1);
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Crimson Court" }).locator(AVATAR_STACK)).toBeVisible();
+  await expect(stack.getByLabel("Aria Nightshade")).toBeVisible();
+  // The single-seat row is untouched: one plain avatar, no stack.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).locator(AVATAR_STACK)).toHaveCount(0);
 });
 
 test("a chat whose participants own no portrait falls back to initials (no broken image element)", async ({ mount, page }) => {
@@ -160,14 +193,47 @@ test("a chat whose participants own no portrait falls back to initials (no broke
   await expect(component.locator(AVATAR_IMAGE)).toHaveCount(0);
 });
 
+test("§12 the star is the row's state TOGGLE, and clicking it fires the star MUTATION with the row's id", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, { "chat.listChats": [ADVENTURE, STARRED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A pinned thread")).toBeVisible();
+
+  // One element, marker + affordance: the starred row announces pressed under the un-set name.
+  const starred = component.getByRole("button", { name: "Unstar A pinned thread", exact: true });
+  await expect(starred).toHaveAttribute("aria-pressed", "true");
+  const unstarred = component.getByRole("button", { name: "Star A grand adventure", exact: true });
+  await expect(unstarred).toHaveAttribute("aria-pressed", "false");
+
+  // Assert the MUTATION fired (not a UI reaction — the row is bus-driven, so the optimistic repaint is
+  // not the thing under test): the click hits `chat.star` with THIS row's id and the flipped value.
+  await unstarred.click();
+  await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
+  // ONESHOT-OK: settled — the recorded input above proves the request already landed, so the COUNT for that
+  // same procedure is final at this point (a second fire would need another click).
+  expect(recorder.count("chat.star")).toBe(1);
+});
+
+test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Star A grand adventure", exact: true })).toBeVisible();
+
+  await component.getByRole("button", { name: "Chat actions for A grand adventure", exact: true }).click();
+  // Inline is a SHORTCUT, never the only path — everything stays reachable from one menu.
+  await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
+});
+
 test("starred and archived rows say so in ACCESSIBLE content, and the archived row recedes (F7)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, STARRED, ARCHIVED], "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A pinned thread")).toBeVisible();
 
-  // The star is an Icon with an accessible label (a11y-datum rule: state is never color-only) — exactly one.
-  await expect(component.getByLabel("Starred")).toHaveCount(1);
+  // The star is now the §12 pressable, so the state datum is its `aria-pressed` name — exactly one row
+  // carries it, and the un-set rows announce the set verb instead.
+  await expect(component.getByRole("button", { name: ANY_PRESSED_STAR })).toHaveCount(1);
   // Archived is TEXT, not just a dimming.
   await expect(component.getByText("Archived", { exact: true })).toHaveCount(1);
   // …and the dimming is the reinforcement: the archived row's root carries the receded class, others don't.
@@ -203,6 +269,52 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
   await expect(component.getByLabel("Game chat")).toHaveCount(1);
   const gameRow = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
   await expect(gameRow.getByLabel("Game chat")).toBeVisible();
+});
+
+// ── Arm B: the chats pane learns FACES (list-pane-projection §5.2) ─────────────────────────────────
+// Tapping a face rides the LANDED filter-chip seam — the same pane becomes her threads, visibly "filtered
+// by" a chip you can clear, never a second list that owns her chats (the D18 grammar).
+
+test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the pane through the filter chip", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [GROUP, ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+
+  const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
+  await expect(face).toBeVisible();
+  await face.click();
+
+  // The chip is the visible scope, and the rows narrowed to hers — the untitled (seat-less) row is gone.
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await expect(component.getByText("Aria Nightshade", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Untitled chat")).toHaveCount(0);
+  await expect(face).toHaveAttribute("aria-current", "true");
+});
+
+test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-current announces)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
+  await face.click();
+  await expect(page.getByText("Untitled chat")).toHaveCount(0);
+
+  await face.click();
+  await expect(component.getByText("Filtered:")).toHaveCount(0);
+  await expect(page.getByText("Untitled chat")).toBeVisible();
+});
+
+test("Arm B: the strip STAYS while a scope is empty — it is the way out, not a dead end", async ({ mount, page }) => {
+  // Aria's only seat is on a chat that is filtered out by the search, so the scoped list goes empty.
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+  await component.getByRole("textbox", { name: "Search chats" }).fill("zzz-no-such-chat");
+
+  await expect(component.getByText("No matches")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
 });
 
 test("an empty chats list shows the 'no chats yet' empty state", async ({ mount, page }) => {

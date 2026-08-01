@@ -55,6 +55,10 @@ export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete,
             // meaningful kind) is what tells nine "Default (edited)" rows apart.
             subtitle: presetRowSubtitle(preset.kind, preset.updatedAt, timeLib.formatRelative),
             actions: {
+              // §12.2 per-list assignment: presets have no boolean row state, and DUPLICATE is the measured
+              // frequent verb (the fork workflow — nine "Default (edited)" rows are its receipt), so it is
+              // the row's ONE inline affordance. The kebab keeps its own Duplicate item (mirror parity).
+              inlineVerb: "duplicate",
               name: preset.name,
               onRename: (): void => onRename(preset.id),
               onDuplicate: (): void => onDuplicate(preset.id),
