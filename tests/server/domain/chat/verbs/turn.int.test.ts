@@ -124,6 +124,9 @@ function harness(
     hostTierRegexScripts?: RegexScript[];
     /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
     onChatRequest?: (request: unknown) => void;
+    /** Observe every bus emit AS IT HAPPENS — `h.events` is only readable after the send settles, so an
+     *  ORDERING pin (the S1 rpg-fire-before-turnCompleted one) needs the live hook to interleave markers. */
+    onEmit?: (event: ChatBusEvent) => void;
     /** Override the resolved `PromptConfig` (the F1 injection_trigger pin drives trigger-gated sections). */
     promptConfig?: PromptConfig;
     /** Capture the `personaIds` `loadRoom` resolved for the round (the PD-70 presence-gating pin). */
@@ -194,6 +197,7 @@ function harness(
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
+    over.onEmit?.(event);
     return Promise.resolve();
   };
   const engine = createTurnEngine(ctx, {
@@ -2699,6 +2703,56 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
   expect(flushes).toEqual([null]);
+});
+
+// S1 (w4-my-lane) — the rpg post-turn register must precede the CLIENT-VISIBLE `turnCompleted` emit. The
+// barrier entry is registered SYNCHRONOUSLY inside `onTurnCompleted` (rpg/chat-ops/index.ts), so "the fire
+// happens before the emit" IS the no-stale-gather window: a scripted re-send riding the bus can only run
+// after `turnCompleted`, by which point `awaitInFlight` already sees this turn's flush. Ordering is invisible
+// to a typecheck and was silently wrong (the fire sat after the emit + the memory/chatsChanged block).
+
+/** A minimal `ctx.rpg` that stamps the shared timeline when the post-turn flush fires. */
+function fireOrderRpg(timeline: string[]): NonNullable<ChatContext["rpg"]> {
+  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent).
+  return {
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: () => {
+      timeline.push(RPG_FIRE_MARK);
+      return Promise.resolve();
+    },
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+}
+
+const RPG_FIRE_MARK = "rpg:onTurnCompleted";
+
+test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (after the commit)", async () => {
+  const host = await seedUser(db, "s1host");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "s1_order");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+
+  // ONE interleaved sequence of bus emits + the rpg fire, in real time.
+  const timeline: string[] = [];
+  const h = harness(db, { [charA]: "Aria" }, { rpg: fireOrderRpg(timeline), onEmit: (e) => timeline.push(e.type) });
+
+  await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+
+  const fired = timeline.indexOf(RPG_FIRE_MARK);
+  const completed = timeline.indexOf("turnCompleted");
+  expect(fired).toBeGreaterThanOrEqual(0);
+  expect(completed).toBeGreaterThanOrEqual(0);
+  // The reply is COMMITTED before the fire (the flush needs the committed view)…
+  expect(timeline.lastIndexOf("messageCommitted")).toBeLessThan(fired);
+  // …and the turn is not publicly DONE until after it — no listener can re-send into the pre-register window.
+  expect(fired).toBeLessThan(completed);
 });
 
 // VER-1b — the REGEN SLOT reaches the rpg gather. A swipe regenerates an EXISTING slot whose currently-selected
