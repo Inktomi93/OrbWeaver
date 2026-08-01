@@ -83,14 +83,12 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
       <Collapsible open={open} onOpenChange={onOpenChange}>
         <CollapsibleTrigger className="w-full p-block" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">
-            <Text weight="medium">{label}</Text>
-            <Text size="micro" tone="muted">
-              {isSet ? "overridden" : "inheriting"}
-            </Text>
+            <Text voice="label">{label}</Text>
+            <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>
           </Row>
         </CollapsibleTrigger>
         {isSet && !open ? (
-          <Text size="micro" tone="muted" className="line-clamp-1 px-block pb-block">
+          <Text voice="gloss" className="line-clamp-1 px-block pb-block">
             {snippet}
           </Text>
         ) : null}
@@ -193,10 +191,10 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
         <Stack gap="field">
           {/* ONE intro line (N4): the fields self-describe via their collapse rows. */}
           <Row gap="field" align="center">
-            <Text as="span" tone="muted">
+            <Text as="span" voice="gloss">
               <Icon icon={Info} size="xs" />
             </Text>
-            <Text size="micro" tone="muted">
+            <Text voice="gloss">
               {isHost
                 ? "Empty fields inherit from the character or preset. Saved automatically."
                 : "Only the host can edit these overrides. Empty fields inherit from the character or preset."}

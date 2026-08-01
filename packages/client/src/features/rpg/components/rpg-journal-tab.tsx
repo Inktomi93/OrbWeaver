@@ -133,7 +133,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     // No dead end (§4.3 rule 1): the empty chronicle still offers the host the first page.
     return (
       <Stack gap="section">
-        <Text tone="muted">
+        <Text>
           Nothing chronicled yet — {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}
         </Text>
         {composer}
@@ -182,7 +182,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
-    return <Text tone="muted">No cards yet — the story crafts them.</Text>;
+    return <Text>No cards yet — the story crafts them.</Text>;
   }
   const newestFirst = [...cards].sort((a, b) => b.createdAt - a.createdAt);
   return (
@@ -216,17 +216,17 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : null}
 
       {sorted.length === 0 ? (
-        <Text tone="muted">No marks yet{state.isHost ? " — mark a moment to bookmark this point in the story." : "."}</Text>
+        <Text>No marks yet{state.isHost ? " — mark a moment to bookmark this point in the story." : "."}</Text>
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (
-            <Row key={mark.id} gap="block" align="center" className="rounded-card border border-border bg-card px-block py-row" data-slot="rpg-mark-row">
+            <Row key={mark.id} gap="block" align="center" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-mark-row">
               <Icon icon={Pin} size="xs" className="text-muted-foreground" />
               <Stack gap="field" className="min-w-0 flex-1">
-                <Text as="span" size="label" weight="semibold" className="truncate">
+                <Text as="span" voice="label" className="truncate">
                   {mark.label}
                 </Text>
-                <Text as="span" size="micro" tone="muted">
+                <Text as="span" voice="gloss">
                   {timeLib.formatDate(mark.createdAt)}
                 </Text>
               </Stack>

@@ -48,7 +48,7 @@ const useUpdateDatabank = createEntityMutation<UpdateDatabankVars, unknown>({
 export function DatabankSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your databank settings…</Text>}
+      fallback={<Text voice="gloss">Loading your databank settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your databank settings" onRetry={retry} />}
     >
       <DatabankSettingsFormBody sectionId={sectionId} />

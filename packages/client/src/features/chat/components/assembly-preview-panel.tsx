@@ -41,7 +41,7 @@ export interface AssemblyPreviewPanelProps {
 export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Assembling the preview…</Text>}
+      fallback={<Text voice="gloss">Assembling the preview…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the preview" onRetry={retry} />}
     >
       <PreviewBody chatId={chatId} />
@@ -71,7 +71,7 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
 
       {gameState === undefined ? null : <GameStateExcerpt text={gameState.text} />}
 
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         Counts are estimated locally (QuadChars) — the real count is the provider's post-turn usage. Host-only: what the model sees, nothing more, nothing
         hidden from you.
       </Text>
@@ -133,14 +133,12 @@ function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): 
     <Card>
       <Stack gap="field">
         <Row align="baseline" gap="row" justify="between">
-          <Text size="micro" tone="muted">
-            context
-          </Text>
-          <Text size="code">{budgetHeadline(budget)}</Text>
+          <Text voice="gloss">context</Text>
+          <Text voice="datum">{budgetHeadline(budget)}</Text>
         </Row>
         <SegmentBar segments={segments} {...(windowKnown ? { total: budget.ceilingTokens } : {})} />
         {budget.ceilingEstimated ? (
-          <Text size="micro" tone="muted">
+          <Text voice="gloss">
             The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback — the ratio would be
             fiction.
           </Text>
@@ -204,13 +202,13 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
   }
   if (slice.text === "") {
     return (
-      <Text className="block pb-row" size="micro" tone="muted">
+      <Text voice="gloss" className="block pb-row">
         Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.
       </Text>
     );
   }
   return (
-    <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
+    <Text voice="datum" className="block whitespace-pre-wrap pb-row">
       {slice.text}
     </Text>
   );
@@ -226,7 +224,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
         <SeriesRow label={part.label} value={formatCount(part.tokens)} />
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text className="block whitespace-pre-wrap pb-row" size="code" tone="muted">
+        <Text voice="datum" className="block whitespace-pre-wrap pb-row">
           {part.text}
         </Text>
       </CollapsiblePanel>
@@ -239,7 +237,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text className="block max-h-40 overflow-y-auto whitespace-pre-wrap" size="code" tone="muted">
+      <Text voice="datum" className="block max-h-40 overflow-y-auto whitespace-pre-wrap">
         {text}
       </Text>
     </Card>

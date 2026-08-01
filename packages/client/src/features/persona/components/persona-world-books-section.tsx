@@ -25,7 +25,7 @@ export interface PersonaLoreBookFieldProps {
 export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading world books…</Text>}
+      fallback={<Text voice="gloss">Loading world books…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="world books" onRetry={retry} />}
     >
       <LoreBookSelect personaId={personaId} />

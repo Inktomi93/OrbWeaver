@@ -18,12 +18,10 @@ export function RpgMapTab(): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-map-tab">
       <Kicker>Map</Kicker>
-      <Stack gap="block" align="center" className="rounded-card border border-border border-dashed bg-card px-block py-section text-center">
+      <Stack gap="block" align="center" className="rounded-base border border-border border-dashed bg-card px-block py-section text-center">
         <Icon icon={MapIcon} size="lg" className="text-muted-foreground" aria-hidden={true} />
-        <Text size="label" weight="semibold">
-          Maps unlock with the map arc
-        </Text>
-        <Text size="micro" tone="muted">
+        <Text voice="label">Maps unlock with the map arc</Text>
+        <Text voice="gloss">
           The waystone above is the seed — when the arc lands, it opens into the region map here: the places the story has named, where you are, and the fog it
           hasn't cleared. Until then it keeps the sky.
         </Text>

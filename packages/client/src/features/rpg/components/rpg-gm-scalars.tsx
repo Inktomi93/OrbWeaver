@@ -126,7 +126,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                           <Toggle value="compose">compose</Toggle>
                           <Toggle value="send">send</Toggle>
                         </ToggleGroup>
-                        <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                        <Text voice="gloss" className="min-w-0 flex-1">
                           {CHOICE_BEHAVIOR_CONSEQUENCE[field.state.value]}
                         </Text>
                       </Row>
@@ -154,7 +154,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                     <Toggle value="narrated">narrated</Toggle>
                     <Toggle value="structured">structured</Toggle>
                   </ToggleGroup>
-                  <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                  <Text voice="gloss" className="min-w-0 flex-1">
                     {DATE_MODE_CONSEQUENCE[field.state.value]}
                   </Text>
                 </Row>
@@ -300,7 +300,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                       </Toggle>
                     ))}
                   </ToggleGroup>
-                  <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                  <Text voice="gloss" className="min-w-0 flex-1">
                     {EXTRACTION_CONSEQUENCE[field.state.value]}
                   </Text>
                 </Row>
@@ -312,7 +312,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
             <form.AppField name="extractionMode">
               {(field): ReactElement | null =>
                 field.state.value === "folded" ? (
-                  <Text size="micro" tone="muted">
+                  <Text voice="gloss">
                     Recommended with thinking turned OFF: the reply has to carry its own state calls, and a long reasoning pass tends to spend the turn thinking
                     instead of recording. That switch lives in your preset — this console never changes generation settings for you.
                   </Text>
@@ -327,7 +327,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
               a beat re-states everything instead of just what changed. */}
           <Stack gap="field">
             <Kicker>Extraction depth</Kicker>
-            <Text size="micro" tone="muted">
+            <Text voice="gloss">
               How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the cost is
               prompt size, not model calls.
             </Text>
@@ -350,7 +350,7 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
                       </Toggle>
                     ))}
                   </ToggleGroup>
-                  <Text size="micro" tone="muted" className="min-w-0 flex-1">
+                  <Text voice="gloss" className="min-w-0 flex-1">
                     {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
                   </Text>
                 </Row>

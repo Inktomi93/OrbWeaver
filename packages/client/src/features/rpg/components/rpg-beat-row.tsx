@@ -45,7 +45,7 @@ export interface BeatRowProps {
  *  BeatLine's own. Host ⇒ inline title + the expanding body editor + a confirmed delete. */
 export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
   const typeLabel = (
-    <Text as="span" size="micro" tone="muted" className="shrink-0 uppercase">
+    <Text as="span" voice="gloss" className="shrink-0 uppercase">
       {journalRowLabel(beat.type, beat.label)}
     </Text>
   );
@@ -53,11 +53,11 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
     return (
       <BeatLine>
         {typeLabel}{" "}
-        <Text as="span" size="label" weight="medium">
+        <Text as="span" voice="label">
           {beat.title}
         </Text>
         {beat.content === "" ? null : (
-          <Text as="span" size="label" tone="muted">
+          <Text as="span" voice="gloss">
             {` — ${beat.content}`}
           </Text>
         )}
@@ -152,7 +152,7 @@ function BeatBodyEditor({
             chevron={false}
             render={
               <Button intent="ghost" size="sm" className="!h-auto min-h-0 min-w-0 max-w-full whitespace-normal !px-field !py-0 text-left font-normal">
-                <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+                <Text as="span" voice="label" className="min-w-0 break-words">
                   {restText}
                 </Text>
               </Button>

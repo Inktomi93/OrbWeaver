@@ -21,7 +21,7 @@ export interface RpgDoorwayLineProps {
 export function RpgDoorwayLine({ children, actionLabel, onAction }: RpgDoorwayLineProps): ReactElement {
   return (
     <Row gap="field" align="baseline" className="flex-wrap" data-slot="rpg-doorway-line">
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         {children}
       </Text>
       {actionLabel === undefined || onAction === undefined ? null : (

@@ -79,10 +79,10 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   };
 
   return (
-    <Stack gap="field" data-slot="rpg-choice-echo" className="rounded-card border border-info bg-card px-block py-row">
-      <Text size="label" transform="caps" className="tracking-micro text-info">
+    <Stack gap="field" data-slot="rpg-choice-echo" className="rounded-base border border-info bg-card px-block py-row">
+      <Text voice="kicker" className="text-info">
         Choice on the table{" "}
-        <Text as="span" size="micro" tone="muted" transform="none" className="tracking-normal">
+        <Text as="span" voice="gloss" className="tracking-normal">
           · {BEHAVIOR_LINE[behavior]}
         </Text>
       </Text>

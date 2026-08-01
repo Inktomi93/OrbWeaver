@@ -69,12 +69,12 @@ export interface InjectionsListProps {
 export function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsListProps): ReactElement {
   return (
     <Stack gap="section">
-      <Text size="label" tone="muted">
+      <Text voice="gloss">
         {isHost ? "Ad-hoc context spliced into this chat's prompt. Changes save automatically." : "Ad-hoc context the host has added to this chat's prompt."}
       </Text>
 
       {rows.length === 0 ? (
-        <Text tone="muted">No injections yet.</Text>
+        <Text>No injections yet.</Text>
       ) : (
         <Stack gap="section">
           {rows.map((row) => (
@@ -110,9 +110,7 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
           <Stack gap="block">
             <Row gap="block" align="center" justify="between">
               <Row gap="block" align="center">
-                <Text size="label" weight="medium" tone="muted">
-                  Injection
-                </Text>
+                <Text voice="label">Injection</Text>
                 {/* An empty-content row is INERT: assembly skips it at every position, so it reaches no
                     prompt. With no enabled/disabled toggle ("off" = delete the row), a blank row is also the
                     normal just-added state — so it is neither refused nor deleted, it just says so. Silence

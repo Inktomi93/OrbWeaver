@@ -50,7 +50,9 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
       className="!h-auto min-h-0 gap-field !px-field !py-0 text-highlight hover:text-highlight"
     >
       <Icon icon={EyeOff} size="xs" />
-      <Text as="span" size="micro" weight="medium" transform="caps" className="tracking-micro">
+      {/* text-inherit so the button's crown-gold wins — `kicker` carries its own muted colour, and a muted
+          cue inside a highlight button is the one thing this cue must not read as. */}
+      <Text as="span" voice="kicker" className="text-inherit">
         {count} veiled
       </Text>
     </Button>

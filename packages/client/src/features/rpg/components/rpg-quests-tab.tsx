@@ -74,7 +74,7 @@ function QuestDescription({ quest, dim, edit }: { readonly quest: RpgQuestView; 
     return null;
   }
   return (
-    <Text size="micro" tone="muted" className={dim ? "line-through" : undefined}>
+    <Text voice="gloss" className={dim ? "line-through" : undefined}>
       {quest.description}
     </Text>
   );
@@ -98,7 +98,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               aria-label={`${o.text} — completed`}
             />
           ) : null}
-          <Text as="span" size="label" tone={o.completed ? "muted" : undefined} className={o.completed ? "min-w-0 flex-1 line-through" : "min-w-0 flex-1"}>
+          <Text as="span" voice="label" className={o.completed ? "min-w-0 flex-1 text-muted-foreground line-through" : "min-w-0 flex-1"}>
             {o.text}
           </Text>
           {editable ? (
@@ -168,7 +168,7 @@ function QuestCardMeta({
   return (
     <Row gap="field" align="center" className="shrink-0">
       {total > 0 ? (
-        <Text as="span" size="micro" tone="muted" className="tabular-nums">
+        <Text as="span" voice="gloss" className="tabular-nums">
           {filled}/{total}
         </Text>
       ) : null}
@@ -186,7 +186,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
   const dim = done || failed;
 
   return (
-    <Stack gap="field" className="rounded-card border border-border bg-card px-block py-row" data-slot="rpg-quest-card">
+    <Stack gap="field" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-quest-card">
       <Row gap="block" align="center">
         {total >= MIN_CLOCK_SEGMENTS ? (
           <SegmentedClock
@@ -201,7 +201,7 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
         <Stack gap="field" className="min-w-0 flex-1">
           <Row gap="block" align="baseline" justify="between">
             {edit === undefined || dim ? (
-              <Text as="span" size="label" weight="semibold" className={dim ? "text-muted-foreground line-through" : undefined}>
+              <Text as="span" voice="label" className={dim ? "text-muted-foreground line-through" : undefined}>
                 {quest.name}
               </Text>
             ) : (
@@ -215,13 +215,9 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
 
       <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
 
-      {done ? (
-        <Text size="micro" tone="muted">
-          wrapped — the story closed this one.
-        </Text>
-      ) : null}
+      {done ? <Text voice="gloss">wrapped — the story closed this one.</Text> : null}
       {failed ? (
-        <Text size="micro" className="text-destructive">
+        <Text voice="gloss" className="text-destructive">
           failed — the story closed this one.
         </Text>
       ) : null}
@@ -311,7 +307,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
         {rail}
-        <Text tone="muted">No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
+        <Text>No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
         {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
       </Stack>
     );
