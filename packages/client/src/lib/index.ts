@@ -54,6 +54,8 @@ export type { ContributorRegistry, Registry } from "./registry";
 export { createContributorRegistry, createRegistry } from "./registry";
 export * from "./registry-contracts";
 export { RenderProfiler } from "./render-profiler";
+export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust";
+export { resolveRowRenderPolicy } from "./render-trust";
 export { TEST_IDS, testId } from "./test-ids";
 export type { ThemeColorFields } from "./theme-override-form";
 export { assignThemeColorFields } from "./theme-override-form";

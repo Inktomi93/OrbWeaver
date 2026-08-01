@@ -1,4 +1,4 @@
-// Unit: the render-trust resolver (features/chat/lib/render-trust) — the ONE place the per-message render
+// Unit: the render-trust resolver (client lib/render-trust) — the ONE place the per-message render
 // trust tier + external-media gate are decided (D44 §12.0, UNTRUSTED BY DEFAULT). Pins the exact rule that
 // replaced the pre-#25 hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR an opted-in
 // character; everything else untrusted; fail-CLOSED when no resolved policy is present.
@@ -6,8 +6,8 @@
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveRowRenderPolicy } from "../../../../../packages/client/src/features/chat/lib/render-trust";
-import { expect, test } from "../../../../support/fixtures";
+import { resolveRowRenderPolicy } from "../../../packages/client/src/lib/render-trust";
+import { expect, test } from "../../support/fixtures";
 
 const VIEWER = castId<UserId>("user_viewer");
 const OTHER = castId<UserId>("user_other");

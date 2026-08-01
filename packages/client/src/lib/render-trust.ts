@@ -3,6 +3,11 @@
 // authoring character opted in via its server-resolved renderPolicy.trustHtml; else "untrusted" (the
 // safe default for assistant/LLM, other-participant, and system content). External media is a separate
 // axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed.
+//
+// Homed in lib/ (the cross-cutting display seams, beside `message-render`) rather than features/chat:
+// TWO features render the same authored content — chat's transcript rows and the rpg panel's card
+// archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
+// here would mean a second spelling of a SECURITY verdict.
 
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
