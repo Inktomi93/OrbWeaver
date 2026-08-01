@@ -66,6 +66,40 @@ merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK 
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
 resolved); the E2E_LIVE specs on the next push window.
 
+**═══ COMPACTION HANDOFF (08-02, written at the owner's invitation) ═══**
+
+**IN FLIGHT at compaction (resume via SendMessage to these, results arrive as task notifications):**
+· `a32718c88dd39445f` — macro/CEL third-surface parity + the OWNER-RULED inventory
+  description/location rendering (token-lean, capped, all three surfaces, suite cites→probes).
+· `ae7a23e7ea4435982` — SSE S2 FINAL round on branch `wt/agent-ae7a23e7ea4435982`: RF1 fix
+  (ordering-barrier lean) + cold-scrubber producer-stamp reconcile (its pump-scrubber machinery
+  DELETES) + park-skip corner. MERGE PROTOCOL: read its report → merge its branch → a THIRD
+  stickler pass ONLY if the fix is structural in a new direction. Spec close-out (ledger D-entry
+  for the multiplex + workboard SSE-1 close) happens at S5, not before.
+· `a46ac492f17cfb04c` — HUD-H1 fix-all (every side-eye finding P0→P3 incl. the shell ≤1024px dead
+  toggle + the Tabs auto-height variant). AFTER it merges: ONE COMBINED side-eye re-pass covers
+  HUD+S5 surfaces in a single stage cycle; then HUD H2 (voice pass) dispatches.
+
+**ORCHESTRATION GOTCHAS THIS SESSION PAID FOR (obey):** pass `isolation:"worktree"` on EVERY
+concurrent Agent dispatch (never implied) · the snap stage is a GLOBAL port singleton — exactly
+ONE lane holds it at a time (two side-eyes double-booked once; one must wait) · merge commits SKIP
+the pre-commit hook — run `pnpm check` on main after every merge (cross-lane gate fallout is the
+NORM: a lane based before a new gate trips it at merge — the rpg-hud voice, the SET-SEAMS footer,
+the seed coherence, the healthz assertion were all this class) · lanes correct SPECS with receipts
+regularly — read reconciliation sections, don't assume spec-letter compliance · side-eye/stickler
+loops go 2-3 rounds; the re-verify pass catches fixes that create regressions (the focus race) ·
+schema-derived exhaustive suites + strip-the-attribute liveness CTs are the two proof patterns
+that caught what review missed.
+
+**OWED TO THE OWNER:** `verify:push` on the quiesced tree (his run hit contention + a stale port,
+both resolved — 14/14 expected) then say PUSH-READY; the word is his · `E2E_LIVE=1 pnpm e2e` on
+that window · the dev stack was RESTARTED (stale-vite ghost export) — confirm :5173 serves before
+telling him to look · artifact links for his review: mock-vs-rendered
+claude.ai/code/artifact/a93f422d-40fa-4df9-aad7-4ad690f2e556 · home mock …/83605063-99da-4a1a-b64e-0bd58ef3bf77
+· projection mocks …/eeb9fdbe-2b37-4dc1-b11d-00a5c8e79ec7 + …/36f3dd88-2145-46ff-a2b3-c0031dce75d9
+· databank mocks …/9dac56bf-b773-4192-a75c-385aae024c1a + …/db0ec6ad-1aca-43aa-bf14-12ea9cdf1ca6.
+No open owner questions — the last two (inventory fields) were ruled + routed.
+
 **STANDING MANDATE (owner, 08-02 morning): BURN THE BOARD DOWN until DATABANK is the ONLY item
 remaining** — keep dispatching queue stages as lanes drain (SSE S3→S5, HUD-HOME H2→close-out,
 density S2/S6 + S3-after-HUD, SET-SEAMS S1→seal, PROSE-1 S2+, remaining smalls/probes), full-auto
