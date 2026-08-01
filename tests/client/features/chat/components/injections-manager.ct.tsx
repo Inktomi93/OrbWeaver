@@ -10,6 +10,7 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { InjectionsManagerStory } from "../_ct-stories";
 
@@ -111,6 +112,31 @@ test("editing a field autosaves — fires setChatInjection with the id + new val
       id: "injection_ct_1",
       content: "The tavern burned down.",
     });
+});
+
+// The owner ruling MACROS NEVER RESOLVE IN WRITABLE FIELDS, on the injection body — a template field the
+// assembler resolves at turn time. If this editor ever painted resolved text, the next autosave would
+// overwrite the stored `{{user}}` with whoever happened to be bound (see the helper's header). The shared
+// assertion lives in tests/support/ct/assert-token-roundtrip.ts precisely so no editor re-spells it.
+test("a literal {{token}} typed into Content round-trips to the wire unresolved", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.listChatInjections": () => [{ ...INJECTION_ROW, content: "{{char}} watches the door." }],
+    "chat.setChatInjection": () => ({ ...INJECTION_ROW }),
+  });
+
+  const component = await mount(<InjectionsManagerStory isHost={true} />);
+
+  // The READ half of the invariant: a STORED template paints literally in the field — the editor never
+  // resolves on load (which is what would make the next autosave overwrite the template with one binding).
+  await expect(component.getByLabel("Content")).toHaveValue("{{char}} watches the door.");
+
+  // The WRITE half, via the shared helper.
+  await assertTokenRoundtrip({
+    trpc,
+    field: component.getByLabel("Content"),
+    proc: "chat.setChatInjection",
+    payloadKey: "content",
+  });
 });
 
 test("Remove fires deleteChatInjection with the row's id (host)", async ({ mount, page }) => {
