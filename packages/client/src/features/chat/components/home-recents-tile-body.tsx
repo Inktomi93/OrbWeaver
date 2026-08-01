@@ -14,7 +14,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
@@ -50,9 +50,14 @@ export function HomeRecentsTileBody(): ReactElement {
   }
 
   return (
+    // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
+    // the shared row's root is a plain div, so the role rides a layout-primitive wrapper (the `import-
+    // report-summary` precedent; a literal <li> would be invalid HTML under a div[role=list]).
     <Stack aria-label="Recent chats" gap="row" role="list">
       {recents.map((chat) => (
-        <ChatSummaryRow chat={chat} key={chat.id} onSelect={openRecent} />
+        <Row key={chat.id} role="listitem">
+          <ChatSummaryRow chat={chat} onSelect={openRecent} />
+        </Row>
       ))}
     </Stack>
   );
