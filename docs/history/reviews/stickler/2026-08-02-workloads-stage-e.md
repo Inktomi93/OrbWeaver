@@ -3,7 +3,7 @@
 - **Range reviewed:** `a541ae8f..8b284802` (the merge at HEAD; branch commit `bea2851c`). 43 files.
   NOTE: `git diff a541ae8f..bea2851c` shows ~136 files (branch forked from older main) — the correct
   review surface is what the MERGE introduced; all sweeps below use `a541ae8f..8b284802`.
-- **Spec of record:** `docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md` §3.3 + §5-E;
+- **Spec of record:** `docs/history/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md` §3.3 + §5-E;
   ledger D117 clauses (9)–(12) amendment (`docs/architecture/core/Core-Path-Registry.md`).
 - **Verdict:** two findings (1 medium pre-existing at the seam, 1 low doc-law drift), one
   severity-assessed accepted risk. The stage-E work itself is solid: every D117 (9)–(12) claim checks

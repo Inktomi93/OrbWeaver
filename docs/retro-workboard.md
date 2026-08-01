@@ -395,7 +395,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    → S4 automation (server-only) → S5 workloads (event union → contracts FIRST) → close-out:
    exempt list down to chat.impersonateStream + ledger D-entry. WATCH: check-gates.int "unfired"
    flaked ONCE (217s run) then passed ×2 — recurs ⇒ chase.**
-   Spec `docs/design/sse-multiplex-spec.md`, §14 fully ruled.
+   Spec `docs/history/design/sse-multiplex-spec.md`, §14 fully ruled.
 3. **~~HUD-HOME~~ COMPLETE + CLOSED (08-02, D119 MINTED)** — H0-H4 all merged; gate live with
    8 probe-receipted arms; spec stamped BUILT; two better-than-spec deviations recorded in D119.
    Residue: the combined side-eye re-pass still owed (stage singleton) · registry-contracts.ts
@@ -516,7 +516,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
      side-eye re-pass
    Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
-   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
+   (`docs/history/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
 
 ### OWNER DECISIONS — ALL RULED (2026-08-01 evening; none pending)
 

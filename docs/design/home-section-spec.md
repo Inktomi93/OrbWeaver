@@ -15,7 +15,7 @@ an eighth rail SECTION whose CONTENT is a grid of **door-assembled tiles**, so "
 this page" is forever ONE file in the owning feature plus one array member at the door, never surgery on
 home.
 
-**Name disambiguation (read this first):** `hud-home-spec.md` is a DIFFERENT program — "the CONTEXT panel
+**Name disambiguation (read this first):** `docs/history/design/hud-home-spec.md` is a DIFFERENT program — "the CONTEXT panel
 IS the HUD's home" (the rpg takeover of the right panel). It shares no file and no concept with this spec.
 This one is HOME-SECTION; that one is HUD-HOME. There is also a dead third meaning: `routes/home-page.tsx`
 was the `/` route's old misnomer, RENAMED `app-root.tsx` under lockdown O7 precisely because *"there is no
@@ -24,7 +24,7 @@ home page concept"* — a claim this spec deliberately reverses, and §1.1 state
 **Law read IN FULL for this spec:** `client-architecture-lockdown.md` (the registry/contributor/section
 seams — §5 registry rules, §6a-§6d, §7 the door, §8 the settings precedent, §12 channel matrix, §16 gate
 spec) · the D18 RATIONALE RIDER (`Core-Path-Registry.md:49`) · `docs/design/list-pane-projection-proposal.md`
-(RATIFIED A+B — this spec composes with it, §9.1) · `set-seams-spec.md` §1-§5 (the contribution precedent
+(RATIFIED A+B — this spec composes with it, §9.1) · `docs/history/design/set-seams-spec.md` §1-§5 (the contribution precedent
 this mirrors) · `density-pass-spec.md` §2.3 (the four-voice grammar) + §3.1 (tier map) + §3.2 (chrome diet) ·
 `docs/design/mocks/README.md` + the `panel-redesign/` + `list-pane-projection/` mock sets (house style).
 
@@ -63,7 +63,7 @@ never have a place to land. This spec obeys it literally:
   no route body, no `sections={{…}}` map, no new router entry (G1's anti-god-map arm stays green).
 - home is **a shell that skims contributions**, not a god-feature. `features/home/` owns the section
   definition, the tile grid, and the ONE tile that can only be derived from the shell (section jumps).
-  Every other tile is authored by the feature that owns its data, exactly as `set-seams-spec.md` §1's
+  Every other tile is authored by the feature that owns its data, exactly as `docs/history/design/set-seams-spec.md` §1's
   doctrine parent states it: *domains raise seams, the worker skims them* — here, **features raise home
   tiles, home skims them.**
 - the landing STATE (D62 P4) does not survive as a second launcher. §4 rules its fate; the coupling
@@ -93,7 +93,7 @@ never have a place to land. This spec obeys it literally:
 | **temp chat, server-side** | `db/src/schema/chat.ts:108-111` · `domain/chat/verbs/start-chat.ts:362,418` · `persistence/queries.ts:190-198` · `verbs/chat-lifecycle.ts:188-200` · `contracts/src/settings/index.ts:408-413,526` | **BUILT:** `chats.temporary` (set only at `startChat`; a fork is born non-temporary), `listMemberChats` excludes temporary rows ALWAYS (not just when `includeArchived`), `reapTemporaryChats` bulk-deletes the caller's expired temp chats, TTL = `UserSettings.chat.tempChatTtlHours` (default 24, 1h..1yr) |
 | **temp chat, client-side** | `transport/trpc/routers/chat.ts:74-102` (`startChatSchema`) · `features/chat/lib/draft-commit.ts:17-25` (`DraftCarry`) | **ABSENT:** `temporary` is NOT in the wire schema, NOT in `DraftConfig`/`DraftCarry`, and `reapTemporaryChats` has NO router procedure. A built domain verb with no wire — the AU-8 wiring-audit class |
 | buddy | `packages/server/src/domain/` (26 domains; **no `buddy`**) · `packages/client/src/features/` (no `buddy`) | the domain map (`AGENTS.md` §6) still lists buddy = *"the companion = the `agent` role connection"*, and the lockdown's bus table + O4 describe a `domain/buddy` that the RETRO tree does not contain. Buddy is PURGED-pending-return: exactly the state the DORMANT arm exists to render honestly |
-| the sanctioned-dormant precedent | `sse-multiplex-spec.md:594-596` | *"`automation.stream` is a **DOORWAY** — sanctioned-dormant, wired through the multiplex at stage 4; the future automation-chips UI consumes it there. Not a WIRE item, not deleted."* Home's dormant tiles are the UI half of that posture |
+| the sanctioned-dormant precedent | `docs/history/design/sse-multiplex-spec.md:594-596` | *"`automation.stream` is a **DOORWAY** — sanctioned-dormant, wired through the multiplex at stage 4; the future automation-chips UI consumes it there. Not a WIRE item, not deleted."* Home's dormant tiles are the UI half of that posture |
 
 **Two receipts that BOUND the design:**
 

@@ -45,7 +45,7 @@ per the owner's steer they follow the ratified grammar + density tiers, NOT lega
 
 **Sibling programs this composes with, never fights:** `home-section-spec.md` (adds an eighth rail
 section — §3.1's rail-population arithmetic counts it) · `list-pane-projection-proposal.md` (§12 is law
-here) · `density-pass-spec.md` (§3.1 tiers) · SET-SEAMS (`set-seams-spec.md` — owns the settings modal;
+here) · `density-pass-spec.md` (§3.1 tiers) · SET-SEAMS (`docs/history/design/set-seams-spec.md` — owns the settings modal;
 the retrieval knobs already live there and this spec does NOT touch them).
 
 ---
