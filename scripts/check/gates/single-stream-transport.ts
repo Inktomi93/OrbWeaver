@@ -27,9 +27,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // PERMANENT (spec §14 decision 2).
   "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
   // STAGED — deleted by the commit that folds each room (spec §13 build sequence). `sessions.streamUserEvents`
-  // and `rpg.stream` (S1), `chat.streamMessages` (S2) and `notifications.notifications` (S3) were here until
-  // their rooms folded; their absence is now ENFORCED — re-adding any of them goes RED.
-  "automation.stream": "folds at S4 (server-side move; no client consumer today)",
+  // and `rpg.stream` (S1), `chat.streamMessages` (S2), `notifications.notifications` (S3) and
+  // `automation.stream` (S4) were here until their rooms folded; their absence is now ENFORCED — re-adding
+  // any of them goes RED. One STAGED row is left, and it is the last:
   "workloads.subscribe": "folds at S5 (its event union needs a contracts home first — spec §14 decision 3)",
 };
 

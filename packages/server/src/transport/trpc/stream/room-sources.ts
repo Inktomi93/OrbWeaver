@@ -7,45 +7,27 @@
 // its ONE contained two-cast bridge (`roomSourceFor`) where the static per-channel guarantee meets a
 // runtime-union ref.
 //
-// STAGED FOLD: the vocabulary is complete from S0 (the wire union is the thing that must not churn), but the
-// rooms fold ONE STAGE AT A TIME and each stage DELETES the per-proc subscription it replaces — no dual
-// transport, ever. A channel whose procedure still exists is therefore NOT attachable here: it refuses at
-// attach with the standard leak-free NOT_FOUND, and the commit that folds it replaces the refusal with the
-// moved generator body. `refusedUntilFolded` is that refusal, with the stage that deletes it named.
+// THE STAGED FOLD IS COMPLETE (S4). The vocabulary was complete from S0 (the wire union is the thing that
+// must not churn) and the rooms folded ONE STAGE AT A TIME, each stage DELETING the per-proc subscription it
+// replaced — no dual transport, ever. Every channel below is now a MOVED generator body, so the
+// `refusedUntilFolded` placeholder (a room that refused at attach because its procedure still existed) is
+// gone with the last of them; what keeps a folded proc from coming back is the `single-stream-transport`
+// gate, not a row here.
 
-import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import type { StreamChannel, StreamRoomRef } from "@orb/contracts/stream";
 import type { RoomSourceDef } from "./room-source";
+import { automationRoomSource } from "./sources/automation";
 import { chatRoomSource } from "./sources/chat";
 import { notificationsRoomSource } from "./sources/notifications";
 import { rpgRoomSource } from "./sources/rpg";
 import { userRoomSource } from "./sources/user";
-
-/** An iterable that ends immediately — the pump of a room that cannot be attached, and therefore is never
- *  reached. Not a generator: an empty `async function*` is three lint suppressions arguing about a body
- *  that has nothing to say. */
-const NO_FRAMES: AsyncIterable<StreamDataFrame> = {
-  [Symbol.asyncIterator]: () => ({ next: () => Promise.resolve({ done: true, value: undefined }) }),
-};
-
-/** A channel whose per-proc subscription has NOT folded yet: not attachable, refused exactly like a room
- *  that does not exist. Deleted by the commit that moves the generator body in. */
-function refusedUntilFolded<C extends StreamChannel>(channel: C, stage: string): RoomSourceDef<C> {
-  return {
-    // Unreachable either way (it refuses at attach), but stated honestly per channel so the table stays
-    // true when the stage lands: `automation` is ephemeral by design (no durable row, no cursor).
-    resumable: false,
-    authorizeAttach: () => Promise.reject(new DomainNotFoundError("stream room", `${channel} (folds at ${stage})`)),
-    run: () => NO_FRAMES,
-  };
-}
 
 export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,
   rpg: rpgRoomSource,
   chat: chatRoomSource,
   notifications: notificationsRoomSource,
-  automation: refusedUntilFolded("automation", "S4"),
+  automation: automationRoomSource,
 };
 
 /**

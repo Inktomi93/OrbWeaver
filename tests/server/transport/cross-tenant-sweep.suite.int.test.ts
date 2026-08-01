@@ -790,10 +790,13 @@ const PROBES: readonly Probe[] = [
   //    gate is the room source's per-yield membership probe (proven in routers/stream.test.ts: a non-member
   //    attaches and receives NOTHING). The `chat` room (S2) is the same shape — accept-always at attach, the
   //    verdict per yield. `detach` is idempotent and touches only the caller's own socket cell.
-  //    A room whose per-proc subscription has not folded yet (notifications/automation) refuses with the
-  //    same leak-free NOT_FOUND. The socketId here is the STRANGER's own — a foreign one is refused before
-  //    any room is recorded (stream/socket-registry.test.ts). ──
+  //    The `automation` room (S4) is the OTHER posture and is probed too: it REFUSES at attach
+  //    (`resolveStreamAuthority` throws AutomationChatNotFound for a non-present member → the same leak-free
+  //    NOT_FOUND), which is deliberate — an automation room, unlike a chat/rpg one, is never legitimately
+  //    attachable before you are seated. The socketId here is the STRANGER's own — a foreign one is refused
+  //    before any room is recorded (stream/socket-registry.test.ts). ──
   { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
+  { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "automation", chatId: i.chatId } }) },
   { path: "stream.detach", call: (c, i) => c.stream.detach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
 
   { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
@@ -956,8 +959,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // tests/server/transport/trpc/stream/socket-registry.test.ts + routers/stream.test.ts.
   "stream.connect":
     "subscription: never terminates (undrainable here); the foreign-socketId NOT_FOUND refusal is unit-tested in stream/socket-registry.test.ts + routers/stream.test.ts",
-  "automation.stream":
-    "subscription: the visibility gate is resolveStreamAuthority (throws AutomationChatNotFound → NOT_FOUND on first pull for a non-present member, before any bus tail) AND narrows a non-host member to the room-visible quickReplySurfaced only — the membership gate is the loadCallerRole present-member read, covered by the automation.stream visibility unit test",
   // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).
   "stats.overview": "self-scoped by principal.userId",
   "stats.leaderboard": "self-scoped by principal.userId",
