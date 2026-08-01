@@ -224,10 +224,29 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // The chat-list + character-library recency driver, and the sole driver on the message-commit
   // terminal path (the server fans this to every present member on both canon-commit terminals and
   // chat-list lifecycle ops). chatId present (lifecycle) also refetches that chat's getChat.
+  //
+  // `trpc.stats.pathFilter()` (the ROUTER ROOT — all twelve Analytics reads) rides here: turn ECONOMICS is
+  // written into the `owner_stats`/`character_stats` rollups inside the SAME db.batch as the canon write
+  // (`ctx.applyStatsDelta`, `domain/chat/substrate/stats-delta.ts`), and this fan is the moment that batch
+  // lands. Without it the twelve reads had NO driver at all: an open Analytics route froze at mount, and a
+  // re-open inside gcTime served numbers up to 5 min old (the previewAssembly class).
+  //
+  // The cost objection that deferred this row is bounded by how `invalidateQueries` works: it REFETCHES only
+  // ACTIVE queries and merely MARKS inactive ones stale. Every stats consumer lives in `features/stats`
+  // (the Analytics section), and `SectionContent` hides an inactive section with `<Activity mode="hidden">`
+  // — which tears down effects, so the observers unsubscribe. So a commit costs wire fetches ONLY while the
+  // dashboard is the VISIBLE section (where live numbers are the point); everywhere else it costs exactly
+  // one stale mark, which is what makes the next open correct. The reads are `owner_stats` rollup SELECTs,
+  // not scans (`domain/stats/persistence/rollups.ts`).
+  //
+  // Two honest residuals, over- and under-fire, both accepted: a chat rename/star fans this with no stats
+  // change (a spare stale mark), and a CHATLESS image generation (`imagery.editImage` with no `chatId`) does
+  // write cost stats with no chat event — that dashboard catches up on the next chat activity. Closing the
+  // latter needs a stats-grain producer event, not a wider chat one.
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
-      ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter()]
-      : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter()],
+      ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
+      : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter(), trpc.stats.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
