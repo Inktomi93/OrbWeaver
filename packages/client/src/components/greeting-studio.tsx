@@ -33,7 +33,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
 const useRewriteGreetingMutation = createEntityMutation<
@@ -83,6 +83,8 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   // The visible axis label IS the group's accessible name (aria-labelledby, not a duplicate
   // aria-label) — side-eye finding: two identical unlinked strings double-announce on readers.
   const labelIdBase = useId();
+  // The preview is the same authored prose a transcript row shows, so it obeys the same quoted-speech pref.
+  const colorQuotes = useColorQuotedSpeech();
 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -113,7 +115,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
           Preview
         </Text>
         <Stack gap="row" className="rounded-card bg-ai-bubble p-block">
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static">
+          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
             {preview}
           </Markdown>
         </Stack>

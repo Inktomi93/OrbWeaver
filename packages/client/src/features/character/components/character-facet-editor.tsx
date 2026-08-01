@@ -11,6 +11,7 @@ import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useColorQuotedSpeech } from "#data";
 import type { AppFormInstance } from "#forms";
 import { ASSISTANT_PREFILL_WARNING } from "#lib";
 import { useSpoilerBlur } from "#state";
@@ -265,6 +266,8 @@ function ExampleMessagesField({
 
 /** One Markdown block per parsed `<START>` segment. */
 function ExampleTranscript({ value, trusted }: { readonly value: string; readonly trusted: boolean }): ReactElement {
+  // QUOTE-1: example messages ARE transcript prose — they read with the same quoted-speech tint a chat row gets.
+  const colorQuotes = useColorQuotedSpeech();
   const blocks = parseExampleBlocks(value);
   if (blocks.length === 0) {
     return <Text tone="muted">No example messages yet.</Text>;
@@ -279,7 +282,7 @@ function ExampleTranscript({ value, trusted }: { readonly value: string; readonl
           padding="field"
           className="rounded-card border border-border"
         >
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static">
+          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
             {block}
           </Markdown>
         </Stack>
