@@ -240,6 +240,26 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
     expect(cap.input).toBeUndefined();
   });
 
+  test("max-pro-sub COLD cache: a recognized Claude id still inherits the floor (warmth ≠ capability)", () => {
+    // No curated match AND no daemon row. Whether the agent-sdk snapshot happens to be warm must not change
+    // what the model can do — the same cold-cache-degrades-capability class as the OR catalog.
+    const cap = resolveModelCapability("claude-sonnet-9", "max-pro-sub", "agent-sdk", { agentSdkModels: [] });
+    expect(cap.output.structured).toBe(true);
+    expect(cap.tools).toEqual({ parallel: true });
+    expect(cap.input).toEqual({ vision: true });
+    // The WINDOW is still unknowable here — the floor is about capability, never about inventing truth.
+    expect(cap.context.windowEstimated).toBe(true);
+  });
+
+  test("max-pro-sub COLD cache: a bare alias / non-anthropic id claims nothing — can't recognize, can't floor", () => {
+    for (const id of ["sonnet", "some-unlisted-model", "some-org/claude-fork-9"]) {
+      const cap = resolveModelCapability(id, "max-pro-sub", "agent-sdk", { agentSdkModels: [] });
+      expect(cap.output.structured).toBeUndefined();
+      expect(cap.tools).toBeUndefined();
+      expect(cap.input).toBeUndefined();
+    }
+  });
+
   test("vLLM: structured output is native (guided decoding); tools advertise parallel calls (U0, hermes parser)", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "chat-completions");
     expect(cap.output.structured).toBe(true);

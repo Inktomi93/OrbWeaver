@@ -335,9 +335,18 @@ export function resolveModelCapability(
       if (daemon !== undefined) {
         return { ...daemon.capability, turns: synthesizeAnthropicTurns(model, wireShape) };
       }
-      // No curated match and no daemon row: a conservative no-reasoning profile, not synthesis. Its window is
-      // the blanket default — a GUESS (nothing advertised it), so it is marked as one.
-      return staticProfile(OR_DEFAULT_WINDOW, false, false, true);
+      // No curated match and no daemon row (a COLD agent-sdk snapshot): a conservative no-reasoning profile,
+      // not synthesis. The window stays the blanket default — a GUESS (nothing advertised it), marked as one.
+      // A RECOGNIZED Claude id still inherits the family FLOOR though: whether the daemon snapshot happens to
+      // be warm must not change what the model can DO (the same cold-cache-degrades-capability class the OR
+      // catalog taught). A bare alias ("sonnet") or any non-anthropic id can't be recognized to a family —
+      // can't recognize, can't floor — and keeps the flagless profile.
+      const claude = detectModelFamily(model) === "anthropic";
+      return {
+        ...staticProfile(OR_DEFAULT_WINDOW, false, claude && CLAUDE_CAPABILITY_FLOOR.structuredOutput, true),
+        ...(claude && CLAUDE_CAPABILITY_FLOOR.vision ? { input: { vision: true } } : {}),
+        ...(claude && CLAUDE_CAPABILITY_FLOOR.parallelTools ? { tools: { parallel: true } } : {}),
+      };
     }
     case "openrouter":
       return synthesizeOpenRouter(model, wireShape, caches?.orEntry);
