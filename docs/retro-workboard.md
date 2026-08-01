@@ -102,7 +102,18 @@ it into the consolidation round. (Old sanity-check note superseded.) regen fixed
 PRE-EXISTING baseline drift: PROSE-1 bumped SCHEMA_VERSION 7 without baseline regen — lesson:
 schema-version bump = baseline-regen trigger) · smalls MERGED (`e8e7d825`: 3 labels · google_vertex
 arm DELETED · submenu retry idiom 125/125×5 · VER-1c was ALREADY BUILT [stale board row] · §2.3.1
-appended) · engine pass + preset r3 merged earlier. **PRESET DESIGN: OWNER ESCALATION in flight —
+appended) · engine pass + preset r3 merged earlier. **PRESET MAKE-IT-RIGHT ROUND MERGED (`d0809915`+`100b91ce`):** the concept SORT is law (§5.0
+field×concept table — templates = button-fired one-shots w/ text+role[assistant=PREFILL]+depth
+[G10 grows optional depth, absent=0/tail]; NO zone/order/triggers/locks/toggles/reorder/create
+[fixed enum, absence auditable] · rack = the managed list w/ enable+drag-reorder+create-and-name,
+mandatory no-delete, switchless pivot, ghost bodies) · ONE DeliveryCluster + ONE role vocab + ONE
+ghost derivation (one-home literal) · §6.5 ST template census (all his screenshot slots mapped:
+exist / G9 newChatMarker ADD / group-nudge deliberately room-owned / replace-empty deliberate
+absence) · D8 OPENED w/ recommendation: OPT-IN ACTIVE-CHAT INSPECTION BINDING (real materialized
+rows + real identity macros via one presetOverride preview read — kills two honesty compromises;
+awaits owner ruling) · fork-choice folded. ⚠ DEFECT: prompt-rack.html NEVER COMMITTED (worktree
+cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file
+receipt requirement. Old escalation note:
 the templates-vs-prompt-sections CONFLATION sort + the FULL RACK redesign mock (toggles/drag-
 reorder/create+name) + field-vocabulary audit (section-only fields OUT of template drill-ins) +
 all queued amendments (tri-state dead, carrier bodies, no-delete, inspect discussion) — the
