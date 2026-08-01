@@ -1,26 +1,28 @@
-// The Workloads settings surface — the per-user face of the workloads engine. Suspends on
-// workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
+// The Jobs section (Settings → Workloads → Jobs) — the per-user face of the workloads engine. A
+// settings-SECTION CONTRIBUTION at the `workloads` anchor since SET-SEAMS stage 3, owned by
+// features/workloads (its own engine): it owns its own read and its own suspense boundary instead of
+// riding the retired pane surface's one batch.
+//
+// Suspends on workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
 // owner/admin viewer gets the deployment-wide view, resolving each foreign row's owner handle through a
-// gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the
-// one bounded list read; each active row tails workloads.subscribe.
+// gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the one
+// bounded list read; each active row tails workloads.subscribe.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { Fragment, useRef, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useSettingsViewerView, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
-import { settingsAnchorId, useSettingsSections } from "#state";
-import { RunWorkloadDialog } from "../components/run-workload-dialog";
-import { SchedulesSection } from "../components/schedules-section";
-import { WorkloadRow } from "../components/workload-row";
+import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { testId } from "#lib";
+import { settingsAnchorId } from "#state";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
+import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav";
 import {
   groupWorkloadsByLane,
   isActiveWorkloadStatus,
@@ -30,7 +32,8 @@ import {
   WORKLOAD_LANE_LABELS,
   workloadFilterMatches,
 } from "../lib/workloads-model";
-import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
+import { RunWorkloadDialog } from "./run-workload-dialog";
+import { WorkloadRow } from "./workload-row";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 
@@ -40,28 +43,20 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
   return (WORKLOAD_FILTERS as readonly unknown[]).includes(value);
 }
 
-/** The Workloads panel body (rendered inside the settings modal's category column). */
-export function WorkloadsSettingsSurface(): ReactElement {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
-
+/** The Jobs section body — mounted at the workloads pane's sections anchor. */
+export function WorkloadsJobsSection(): ReactElement {
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
-      <QueryBoundary
-        fallback={<Text tone="muted">Loading workloads…</Text>}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your workloads" onRetry={retry} />}
-      >
-        <Container>
-          <WorkloadsPaneBody />
-        </Container>
-      </QueryBoundary>
-    </Stack>
+    <QueryBoundary
+      fallback={<Text voice="gloss">Loading workloads…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your workloads" onRetry={retry} />}
+    >
+      <WorkloadsJobsBody />
+    </QueryBoundary>
   );
 }
 
-/** Suspends on the caller's workload list + the viewer, then renders the tabs + rows + run dialog + the
- *  contributed sections (the analysis-tuning section). */
-function WorkloadsPaneBody(): ReactElement {
+/** Suspends on the caller's workload list + the viewer, then renders the tabs + rows + run dialog. */
+function WorkloadsJobsBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: workloads }, { data: viewer }] = useSuspenseQueries({
@@ -80,11 +75,6 @@ function WorkloadsPaneBody(): ReactElement {
   const [filter, setFilter] = useState<WorkloadFilter>("all");
   const [runOpen, setRunOpen] = useState(false);
 
-  // The contributed sections (§6c) — the analysis-tuning section, read off the ONE door-assembled section
-  // registry (SET-SEAMS §5.2) and `when`-filtered, in declared registry order. Each owns its own
-  // suspense/mutation, so they render below the built sections. Zero contributions ⇒ none.
-  const contributedSections = useSettingsSections("workloads", useSettingsViewerView());
-
   const ownerHandleFor = (workload: WorkloadItem): string | null => {
     if (!isPrivileged || workload.ownerId === null || workload.ownerId === viewer.userId) {
       return null;
@@ -93,8 +83,8 @@ function WorkloadsPaneBody(): ReactElement {
   };
 
   return (
-    <Stack gap="section" data-testid={testId("workloadsSection")}>
-      <Section divider={true} heading="Jobs" id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.jobs)}>
+    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={settingsAnchorId("workloads", WORKLOADS_JOBS_SUBCATEGORY.id)}>
+      <Stack gap="block" data-testid={testId("workloadsSection")}>
         <Tabs
           value={filter}
           onValueChange={(value): void => {
@@ -142,28 +132,22 @@ function WorkloadsPaneBody(): ReactElement {
             })}
           </Stack>
         </Tabs>
-      </Section>
 
-      <SchedulesSection viewerIsOwner={isOwner} viewerUserId={viewer.userId} users={isPrivileged ? users : []} />
-
-      <RunWorkloadDialog
-        open={runOpen}
-        onOpenChange={setRunOpen}
-        viewerIsOwner={isOwner}
-        users={isOwner ? users : []}
-        dependencyCandidates={workloads
-          .filter((workload) => isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId)
-          .map((workload) => ({
-            id: workload.id as string,
-            kind: workload.kind,
-            createdAt: workload.createdAt,
-          }))}
-      />
-
-      {contributedSections.map((section) => (
-        <Fragment key={section.id}>{section.node}</Fragment>
-      ))}
-    </Stack>
+        <RunWorkloadDialog
+          open={runOpen}
+          onOpenChange={setRunOpen}
+          viewerIsOwner={isOwner}
+          users={isOwner ? users : []}
+          dependencyCandidates={workloads
+            .filter((workload) => isActiveWorkloadStatus(workload.status) && workload.ownerId === viewer.userId)
+            .map((workload) => ({
+              id: workload.id as string,
+              kind: workload.kind,
+              createdAt: workload.createdAt,
+            }))}
+        />
+      </Stack>
+    </Section>
   );
 }
 
