@@ -63,7 +63,7 @@ export function RunWorkloadDialog({ open, onOpenChange, viewerIsOwner, users, de
       onOpenChange={onOpenChange}
       open={open}
       testKey="runWorkloadDialog"
-      title="Run a workload"
+      title="Run a job"
     >
       <RunWorkloadFormBody dependencyCandidates={dependencyCandidates} onDone={(): void => onOpenChange(false)} users={users} viewerIsOwner={viewerIsOwner} />
     </FormDialog>
@@ -117,7 +117,7 @@ function RunWorkloadFormBody({
 
   return (
     <Stack gap="block">
-      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Workload" items={kindItems} />}</form.AppField>
+      <form.AppField name="kind">{(field): ReactElement => <field.SelectField label="Job" items={kindItems} />}</form.AppField>
       <WorkloadParamFields form={form} />
       {viewerIsOwner ? (
         <form.Subscribe selector={(state): string => state.values.kind}>
@@ -193,7 +193,7 @@ function RunWorkloadFormBody({
       )}
       <FormSubmitButton
         disabled={start.isPending}
-        label={start.isPending ? "Starting…" : "Run workload"}
+        label={start.isPending ? "Starting…" : "Run job"}
         onSubmit={(): void => {
           void form.handleSubmit();
         }}
