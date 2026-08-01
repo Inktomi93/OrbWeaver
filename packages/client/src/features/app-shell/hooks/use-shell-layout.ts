@@ -45,7 +45,7 @@ export interface ShellLayout {
   readonly openModalId: ModalSlotId | null;
   /** True when either panel is floating in overlay mode — the dismiss scrim shows behind it. */
   readonly scrimVisible: boolean;
-  /** In an overlay regime (mobile, or narrow-desktop with a docked default): flips `openOverlayPanel`
+  /** In an overlay regime (mobile OR narrow-desktop — neither can resolve a dock): flips `openOverlayPanel`
    *  ephemeral open/close. In the wide regime: flips the persisted override docked ⇄ collapsed. */
   readonly togglePanel: (panel: PanelName) => void;
   /** Force one panel closed. Overlay regime: close the slide-over if it's the one open. Wide regime:
@@ -74,10 +74,8 @@ export function useShellLayout(): ShellLayout {
   const listOverride = usePanelOverride(activeSection, "list");
   const contextOverride = usePanelOverride(activeSection, "context");
 
-  // The raw override-or-default per panel, BEFORE the regime derivation — togglePanel/collapsePanel need
-  // this to tell "is this panel in an overlay regime right now" apart from its resolved mode (both
-  // "collapsed" and "overlay" resolve identically whether the underlying default is docked-auto-overlayed
-  // or an explicit override, but only the former is regime-driven and ephemeral).
+  // The raw override-or-default per panel, BEFORE the regime derivation — the input `resolvePanelMode`
+  // takes (the resolve is the ONE place the regime is applied; nothing here second-guesses it).
   const activeDef = registry.get(activeSection);
   // A section that declares no LIST pane resolves `collapsed` UNCONDITIONALLY — a persisted override from
   // some other section's habit must never re-open a pane that does not exist (H3 / arm L-b).
@@ -85,10 +83,13 @@ export function useShellLayout(): ShellLayout {
   const contextAvailable = activeDef.panels?.context !== "unavailable";
   const listDefault = listOverride ?? activeDef.panelDefaults.list;
   const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
-  // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) when mobile (always) or
-  // when narrow AND its own resolution is the docked default (auto-overlay eligible); otherwise it's the
-  // WIDE regime (persisted docked⇄collapsed flip). Mirrors `resolvePanelMode`'s own branch condition.
-  const isOverlayRegime = (resolved: PanelMode): boolean => isMobile || (isNarrow && resolved === "docked");
+  // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) whenever the viewport is
+  // mobile or shell-narrow: `resolvePanelMode` cannot resolve "docked" in either, so a persisted dock flip
+  // there writes a preference nothing can honour. It used to branch on the panel's raw default too, which is
+  // exactly how the ≤64rem "Show detail panel" toggle went dead (2026-08-01): the `chats` CONTEXT pane
+  // defaults `collapsed`, took the WIDE arm, wrote `docked`, and the resolve immediately re-collapsed it —
+  // a visible control whose click produced nothing. The wide regime is untouched.
+  const isOverlayRegime = (): boolean => isMobile || isNarrow;
 
   const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel }) : "collapsed";
   const contextMode: PanelMode = contextAvailable
@@ -108,8 +109,7 @@ export function useShellLayout(): ShellLayout {
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
 
   const togglePanel = (panel: PanelName): void => {
-    const resolved = panel === "list" ? listDefault : contextDefault;
-    if (isOverlayRegime(resolved)) {
+    if (isOverlayRegime()) {
       setOpenOverlayPanel(openOverlayPanel === panel ? null : panel);
       return;
     }
@@ -118,8 +118,7 @@ export function useShellLayout(): ShellLayout {
   };
 
   const collapsePanel = (panel: PanelName): void => {
-    const resolved = panel === "list" ? listDefault : contextDefault;
-    if (isOverlayRegime(resolved)) {
+    if (isOverlayRegime()) {
       if (openOverlayPanel === panel) {
         setOpenOverlayPanel(null);
       }
