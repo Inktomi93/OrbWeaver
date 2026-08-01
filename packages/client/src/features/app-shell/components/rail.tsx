@@ -7,6 +7,9 @@
 // registry render: a new rail affordance is a registered chrome entry (section / modal trigger / widget),
 // never new DOM here — the persona avatar is `personaChrome` (§E-6, the old `railFoot` prop is dead).
 
+import { Button } from "@orb/ui/button";
+import { FOCUS_RING_ON_SIDEBAR } from "@orb/ui/lib";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
@@ -60,10 +63,55 @@ function RailChromeEntry({
   return <RailButton label={entry.label} icon={entry.icon} active={active} onClick={onClick} mobile={entry.mobile ?? "sheet"} />;
 }
 
+/** The BRAND cell as a real affordance (home-section-spec §4.1). The Weave glyph was a decorative
+ *  `aria-hidden` div; when a section claims the `rail.brand` zone it becomes a named button that navigates
+ *  there, active-skinned and `aria-current`-marked like every other rail button. AppShell still never
+ *  spells a section id — it renders the entry the registry derived from that section's own `rail`
+ *  declaration. `.shell-rail-brand` IS the button here, so the cell's chrome-row geometry (height, the
+ *  shared bottom hairline, the elevation ramp) is unchanged and the active tint spans the full cell. */
+function RailBrand({
+  entry,
+  active,
+  onSelectSection,
+}: {
+  readonly entry: ChromeEntry;
+  readonly active: boolean;
+  readonly onSelectSection: (id: SectionId) => void;
+}): ReactNode {
+  const visible = entry.useVisible?.() ?? true;
+  if (!visible || entry.behavior.kind !== "section") {
+    return null;
+  }
+  const sectionId = entry.behavior.sectionId;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-current={active ? "page" : undefined}
+            aria-label={entry.label}
+            className={`shell-rail-brand shell-rail-brand-button ${FOCUS_RING_ON_SIDEBAR}`}
+            data-active={active ? "" : undefined}
+            intent="ghost"
+            onClick={(): void => onSelectSection(sectionId)}
+          >
+            <WeaveGlyph size={BRAND_GLYPH_SIZE} />
+          </Button>
+        }
+      />
+      <TooltipPopup side="right">{entry.label}</TooltipPopup>
+    </Tooltip>
+  );
+}
+
+const BRAND_GLYPH_SIZE = 26;
+
 export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps): ReactElement {
   const entries = useChromeRegistry().list();
   const navEntries = entries.filter((e) => e.zone === "rail.nav");
   const endEntries = entries.filter((e) => e.zone === "rail.end");
+  // At most one section claims the brand cell; with none, the glyph stays the decoration it always was.
+  const brandEntry = entries.find((e) => e.zone === "rail.brand");
   // The mobile-only "You" overflow tab (its projection is the You sheet, §E-5) — its trigger DERIVES from
   // the modal registry (no parallel id), the same mechanism the twin-DOM rail used.
   const youModal = useModalRegistry()
@@ -71,9 +119,35 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
     .find((m) => m.trigger.placement === "mobile-tab");
   return (
     <nav className="shell-rail" aria-label="Primary">
-      <div className="shell-rail-brand" aria-hidden="true">
-        <WeaveGlyph size={26} />
-      </div>
+      {brandEntry === undefined ? (
+        <div className="shell-rail-brand" aria-hidden="true">
+          <WeaveGlyph size={BRAND_GLYPH_SIZE} />
+        </div>
+      ) : (
+        <RailBrand
+          active={brandEntry.behavior.kind === "section" && brandEntry.behavior.sectionId === activeSection}
+          entry={brandEntry}
+          onSelectSection={onSelectSection}
+        />
+      )}
+
+      {/* The brand cell is `display:none` below 48rem, so the brand section rides the mobile bar as its
+          FIRST tab instead (home-section-spec §4.3) — the `mobileOnly` mechanism the You tab already uses.
+          Exactly one of the two is ever displayed, so there is no duplicate affordance in the a11y tree. */}
+      {brandEntry?.icon === undefined || brandEntry.behavior.kind !== "section" ? null : (
+        <RailButton
+          active={brandEntry.behavior.sectionId === activeSection}
+          icon={brandEntry.icon}
+          label={brandEntry.label}
+          mobile="tab"
+          mobileOnly={true}
+          onClick={(): void => {
+            if (brandEntry.behavior.kind === "section") {
+              onSelectSection(brandEntry.behavior.sectionId);
+            }
+          }}
+        />
+      )}
 
       <div className="shell-rail-sections">
         {SECTION_GROUPS.map((group) => (

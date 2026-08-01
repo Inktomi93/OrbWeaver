@@ -32,14 +32,16 @@ export interface AssembleChromeInput {
   readonly widgets: readonly ChromeEntry[];
 }
 
-/** A rail section as a `rail.nav` chrome entry: `order = index` preserves the SECTION_IDS tuple order
- *  the rail groups by; the section's explicit `mobile` curation carries straight through. */
+/** A rail section as a rail chrome entry: `order = index` preserves the SECTION_IDS tuple order the rail
+ *  groups by; the section's explicit `mobile` curation carries straight through. The ZONE is the section's
+ *  own declaration (`rail.brand` for the home section, else the `rail.nav` default) — this is the whole
+ *  mechanism by which app-shell navigates home without naming it (home-section-spec §4.1). */
 function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
   return {
     id: def.id,
     label: def.rail.label,
     icon: def.rail.icon,
-    zone: "rail.nav",
+    zone: def.rail.zone ?? "rail.nav",
     group: def.rail.group,
     order: index,
     mobile: def.rail.mobile,

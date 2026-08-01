@@ -116,7 +116,9 @@ export function AppShell(): ReactElement {
   const activeDef = registry.get(layout.activeSection);
   const placeholderCopy = activeDef.placeholder;
   // At most one Weave decoration per screen — it rides the content placeholder only.
-  const listContent = activeDef.list?.() ?? <SectionPlaceholder title={`${placeholderCopy.title} list`} />;
+  // A section that declares NO list pane renders nothing into the (zero-width, toggle-less) track — the
+  // "isn't wired yet" placeholder is for a section that HAS a list and hasn't built it (H3 / arm L-b).
+  const listContent = activeDef.list?.() ?? (layout.listAvailable ? <SectionPlaceholder title={`${placeholderCopy.title} list`} /> : null);
   const contentFallback = <SectionPlaceholder title={placeholderCopy.title} description={placeholderCopy.description} weave={true} />;
   // Every section's content, from the registry, so <Activity> keeps recently-visited panes mounted-but-
   // hidden across a rail switch. The DECLARED-PLANNED arm renders the section's own placeholder as its
@@ -219,6 +221,7 @@ export function AppShell(): ReactElement {
                     <TopbarTrailChrome />
                   </>
                 }
+                listAvailable={layout.listAvailable}
                 listMode={layout.listMode}
                 onToggleList={(): void => layout.togglePanel("list")}
               />

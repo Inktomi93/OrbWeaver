@@ -324,6 +324,9 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
   return {
     id,
     rail: real.rail,
+    // The section's declared PANEL CAPABILITY is shell anatomy, not story content — carry it through so a
+    // shell CT sees the real "this section has no LIST pane" arm (home).
+    ...(real.panels === undefined ? {} : { panels: real.panels }),
     panelDefaults: real.panelDefaults,
     placeholder: real.placeholder,
     ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),

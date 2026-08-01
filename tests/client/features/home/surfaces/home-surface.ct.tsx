@@ -53,6 +53,57 @@ test("ZERO contributions renders the designed empty state with its action, never
   await expect(home.locator("[data-home-tile]")).toHaveCount(0);
 });
 
+// ── RENDERED truth, not source (done ≠ rendered) ───────────────────────────────────────────────────
+// The grid reflows on the CONTENT PANE's own inline size, never the viewport. These assert the RESOLVED
+// track template + the tile card's RESOLVED padding against the token, so a collapsed/1-column/3-column
+// grid or an unpadded card fails here rather than shipping.
+
+const WHITESPACE_RE = /\s+/u;
+const trackCount = (template: string): number => template.trim().split(WHITESPACE_RE).length;
+
+test("the tile grid resolves to TWO columns at the content width", async ({ mount }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
+  expect(trackCount(template)).toBe(2);
+});
+
+test("the tile grid collapses to ONE column when its own pane is narrow", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 420, height: 900 });
+  const home = await mount(<HomeTileOrderStory />);
+
+  const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
+  expect(trackCount(template)).toBe(1);
+});
+
+test("a tile card's resolved padding IS the form-tier token — never a hardcoded value", async ({ mount }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  const [padding, token] = await home.locator('[data-home-tile="a-first"]').evaluate((el) => {
+    // Resolve `--spacing-block` to the same UNIT the computed padding reports, so the comparison is
+    // token-vs-rendered rather than rem-string-vs-px-string.
+    const probe = globalThis.document.createElement("div");
+    probe.style.width = "var(--spacing-block)";
+    el.append(probe);
+    const tokenPx = globalThis.getComputedStyle(probe).width;
+    probe.remove();
+    return [globalThis.getComputedStyle(el).paddingTop, tokenPx];
+  });
+  expect(padding).toBe(token);
+  // A card that collapsed to zero padding would pass a "toBeVisible" check and look broken.
+  expect(Number.parseFloat(padding)).toBeGreaterThan(0);
+});
+
+test("a full-span tile spans BOTH columns while a half-span tile does not", async ({ mount }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  const half = await home.locator('[data-home-tile="a-first"]').boundingBox();
+  const full = await home.locator('[data-home-tile="b-second"]').boundingBox();
+  expect(half).not.toBeNull();
+  expect(full).not.toBeNull();
+  expect((full?.width ?? 0) > (half?.width ?? 0) * 1.5).toBe(true);
+});
+
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
   expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);

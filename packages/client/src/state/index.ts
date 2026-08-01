@@ -154,11 +154,13 @@ export {
 } from "./recent-models-store";
 export type {
   RailEntry,
+  RailZone,
   SectionDefinition,
   SectionGroup,
+  SectionPanelAvailability,
   SectionPlaceholderCopy,
 } from "./section-registry";
-export { SECTION_GROUPS } from "./section-registry";
+export { RAIL_ZONES, SECTION_GROUPS } from "./section-registry";
 export type { SectionRegistry } from "./section-registry-context";
 export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";

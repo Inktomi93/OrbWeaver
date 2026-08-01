@@ -29,6 +29,10 @@ export interface ShellLayout {
   readonly activeSection: SectionId;
   readonly activeSectionLabel: string;
   readonly listMode: PanelMode;
+  /** Does the active section HAVE a LIST pane at all (`SectionDefinition.panels.list`)? `false` ⇒ the
+   *  topbar renders NO list toggle and `listMode` is pinned `collapsed` (H3 / arm L-b) — the shell never
+   *  offers a door onto a surface that does not exist. */
+  readonly listAvailable: boolean;
   readonly contextMode: PanelMode;
   /** Both panels collapsed — drives the focus-toggle affordance. */
   readonly immersive: boolean;
@@ -68,14 +72,18 @@ export function useShellLayout(): ShellLayout {
   // this to tell "is this panel in an overlay regime right now" apart from its resolved mode (both
   // "collapsed" and "overlay" resolve identically whether the underlying default is docked-auto-overlayed
   // or an explicit override, but only the former is regime-driven and ephemeral).
-  const listDefault = listOverride ?? registry.get(activeSection).panelDefaults.list;
-  const contextDefault = contextOverride ?? registry.get(activeSection).panelDefaults.context;
+  const activeDef = registry.get(activeSection);
+  // A section that declares no LIST pane resolves `collapsed` UNCONDITIONALLY — a persisted override from
+  // some other section's habit must never re-open a pane that does not exist (H3 / arm L-b).
+  const listAvailable = activeDef.panels?.list !== "unavailable";
+  const listDefault = listOverride ?? activeDef.panelDefaults.list;
+  const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
   // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) when mobile (always) or
   // when narrow AND its own resolution is the docked default (auto-overlay eligible); otherwise it's the
   // WIDE regime (persisted docked⇄collapsed flip). Mirrors `resolvePanelMode`'s own branch condition.
   const isOverlayRegime = (resolved: PanelMode): boolean => isMobile || (isNarrow && resolved === "docked");
 
-  const listMode = resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel });
+  const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel }) : "collapsed";
   const contextMode = resolvePanelMode("context", contextDefault, {
     isMobile,
     isNarrow,
@@ -83,7 +91,7 @@ export function useShellLayout(): ShellLayout {
   });
 
   const openModalId = useOpenModal();
-  const activeSectionLabel = registry.get(activeSection).rail.label;
+  const activeSectionLabel = activeDef.rail.label;
   const immersive = listMode === "collapsed" && contextMode === "collapsed";
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
 
@@ -114,7 +122,11 @@ export function useShellLayout(): ShellLayout {
       return;
     }
     const next: PanelMode = immersive ? "docked" : "collapsed";
-    setPanelMode("list", next);
+    // Never write a LIST override for a section that has no LIST pane — it would be a stored preference
+    // nothing can ever honor, waiting to surprise whoever gives the section a list later.
+    if (listAvailable) {
+      setPanelMode("list", next);
+    }
     setPanelMode("context", next);
   };
 
@@ -122,6 +134,7 @@ export function useShellLayout(): ShellLayout {
     activeSection,
     activeSectionLabel,
     listMode,
+    listAvailable,
     contextMode,
     immersive,
     openModalId,
