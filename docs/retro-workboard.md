@@ -75,9 +75,18 @@ one consolidated `pnpm check` batch certification when the lanes drain (load was
 Origin: pushed through `32539eda` mid-day; everything since is LOCAL (next push needs the word).
 
 **IN FLIGHT (4 lanes; resume via SendMessage):**
-· SE-B `ad93b26f434d3368e` — rpg/HUD side-eye cluster (band budget fork · F8 kicker + D-1 split ·
-  lying meters em-dash · crown recede · scene names · dead class · ghost tile · duplicate orbs ·
-  caption wrap). Merge on report (--no-verify while load high; batch check covers).
+· ~~SE-B~~ MERGED (`09f6178e`, unhooked): all 9 fixed — band budget took FORK (b) w/ arithmetic
+  receipt (set-arm ≤30% UNSATISFIABLE: rails 116px + set-band floor 159px > 270 ceiling; two-arm
+  law amended + **D119a MINTED — needs owner ratification**: compact ≤30% / set ≤45% / both <50%);
+  meters honest (—/30, null end-to-end); six kickers + Host-controls group (D-1); crown recedes;
+  lock names tsc-forced; dead class ×5 fixed vs CSSOM; ghost tile dead; ORB RULE stated+enforced
+  (ceilinged=ring, max-less=coin — the permanent-full-ring lie fixed); caption wrap at 20rem.
+  **ESCALATION (owner call): band-orb READOUT duplication vs roster** — DESIGN §2 mandates
+  text-under-orb (text is the datum); de-duplicating = a MOCK AMENDMENT + RingGauge caption
+  mode, not a feature-tier call. Band = persistent chrome across 7 tabs vs roster = one tab's
+  body (the OSRS idiom). Rule if you want numbers to appear once. ALSO: rpg-scene-tab.tsx sits
+  AT the 450 cap · name-echo placeholders ("act title…" class) left for a sweep · the SE-B/HUD
+  surfaces still owe a LIVE snap on a model-populated game before side-eye-closed.
 · SE-C `a0c461b088749fa65` — ui cluster (TabsPanel FOCUS_RING · Button inline arm ×13 · icon
   tiles · bubble single-home · dialogue hue via D71) + the BLESSED --color-sheen token addition.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
