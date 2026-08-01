@@ -12,8 +12,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry";
-import { SettingsShellDeepLinkStory, SettingsShellStory } from "../../settings/_ct-stories";
+import { findSettingsColumnViolation, readSettingsPaneGeometry, readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
+import { SettingsShellDeepLinkStory, SettingsShellNarrowStory, SettingsShellStory } from "../../settings/_ct-stories";
 import { WorkloadsPaneStory } from "../_ct-stories";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
@@ -96,6 +96,29 @@ test("a search leaf of a MOVED section still jumps to a live anchor", async ({ m
   // anchor would silently scroll to nothing.
   await expect(page.locator("#settings-anchor-workloads-schedules")).toBeInViewport();
   await expect(page.getByTestId("schedule-create-button")).toBeVisible();
+});
+
+// The NARROW arm swept on the SECOND pane the side-eye receipts covered (the shell owns the behaviour, but
+// workloads is the pane whose stacked-arm 60px window was measured alongside appearance): at 430×740 the
+// nav owns the pane, selecting Workloads pushes its sections full-pane, and the jobs section's own run
+// affordance — the pane's first control — is on-screen.
+test.describe("narrow (430×740)", () => {
+  test.use({ viewport: { width: 430, height: 740 } });
+
+  test("Workloads pushes full-pane and its first control is on-screen", async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<SettingsShellNarrowStory />);
+    await expect(component.getByRole("button", { name: "Workloads" })).toBeVisible();
+    expect((await readSettingsShellColumns(page)).contentPainted).toBe(false);
+
+    await component.getByRole("button", { name: "Workloads" }).click();
+
+    const columns = await readSettingsShellColumns(page);
+    expect(columns.navPainted).toBe(false);
+    expect(columns.contentPainted).toBe(true);
+    expect(columns.contentWidth).toBe(columns.rowWidth);
+    await expect(page.getByTestId("workloads-run-button")).toBeInViewport();
+  });
 });
 
 // §7.4 / §10 Q4 — a SUB-level deep link resolves the pane in render and lands on the section's anchor once
