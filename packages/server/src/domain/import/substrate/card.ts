@@ -1,5 +1,5 @@
 // domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
-// png-card-chunk (PNG tEXt decode) + #kit/serde/card (cardFromJson). Adds import-specific bits the serde
+// png-card-chunk (PNG tEXt/zTXt decode) + #kit/serde/card (cardFromJson). Adds import-specific bits the serde
 // core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
 // the flatten-to-create-input validation seam, and card tag extraction (cardFromJson drops data.tags).
 //
@@ -116,9 +116,10 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
   }
 }
 
-/** JSON rides in a base64 ccv3 (V3, preferred) or chara (V2) tEXt chunk. */
-export function parseCardPng(bytes: Uint8Array, fallbackName: string): ParsedCard | null {
-  const decoded = readCardChunk(bytes, "ccv3") ?? readCardChunk(bytes, "chara");
+/** JSON rides in a base64 ccv3 (V3, preferred) or chara (V2) tEXt/zTXt chunk. Async because the codec's
+ *  zTXt (compressed) arm inflates through `DecompressionStream`. */
+export async function parseCardPng(bytes: Uint8Array, fallbackName: string): Promise<ParsedCard | null> {
+  const decoded = (await readCardChunk(bytes, "ccv3")) ?? (await readCardChunk(bytes, "chara"));
   if (decoded === null) {
     return null;
   }

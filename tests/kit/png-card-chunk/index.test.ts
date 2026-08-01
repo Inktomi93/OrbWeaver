@@ -1,11 +1,13 @@
 // biome-ignore-all lint/suspicious/noBitwiseOperators: an independent reference CRC-32 (textbook
 // bit-shift form) is used to cross-check the codec's emitted CRC against the canonical polynomial.
+import { deflateSync } from "node:zlib";
 import { isPng, readCardChunk, writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect, test } from "../../support/fixtures";
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const IEND_TYPE_BYTES = [0x49, 0x45, 0x4e, 0x44]; // "IEND"
 const TEXT_TYPE_BYTES = [0x74, 0x45, 0x58, 0x74]; // "tEXt"
+const ZTEXT_TYPE_BYTES = [0x7a, 0x54, 0x58, 0x74]; // "zTXt"
 
 /** A minimal-but-valid PNG: signature + a zero-length IEND chunk (CRC ignored by the reader). */
 function makeBasePng(): Uint8Array {
@@ -80,31 +82,31 @@ test("isPng recognizes the 8-byte signature and rejects everything else", () => 
   expect(isPng(corrupt)).toBe(false);
 });
 
-test("write→read round-trips the V3 (ccv3) JSON, including non-ASCII UTF-8", () => {
+test("write→read round-trips the V3 (ccv3) JSON, including non-ASCII UTF-8", async () => {
   const json = v3Json("José ☃ 🎲");
   const out = writeCardChunk(makeBasePng(), json);
-  expect(readCardChunk(out, "ccv3")).toBe(json);
+  expect(await readCardChunk(out, "ccv3")).toBe(json);
 });
 
-test("readCardChunk matches the keyword case-insensitively", () => {
+test("readCardChunk matches the keyword case-insensitively", async () => {
   const json = v3Json("X");
   const out = writeCardChunk(makeBasePng(), json);
-  expect(readCardChunk(out, "CCV3")).toBe(json);
+  expect(await readCardChunk(out, "CCV3")).toBe(json);
 });
 
-test("the V2 (chara) chunk has the spec/spec_version envelope stripped", () => {
+test("the V2 (chara) chunk has the spec/spec_version envelope stripped", async () => {
   const json = v3Json("X");
   const out = writeCardChunk(makeBasePng(), json);
-  const v2 = readCardChunk(out, "chara");
+  const v2 = await readCardChunk(out, "chara");
   expect(v2).not.toBeNull();
   expect(JSON.parse(v2 ?? "")).toStrictEqual({ data: { name: "X" } });
 });
 
-test("a non-object card is written verbatim to both chunks (no stripping)", () => {
+test("a non-object card is written verbatim to both chunks (no stripping)", async () => {
   const json = '"just a string"';
   const out = writeCardChunk(makeBasePng(), json);
-  expect(readCardChunk(out, "ccv3")).toBe(json);
-  expect(readCardChunk(out, "chara")).toBe(json);
+  expect(await readCardChunk(out, "ccv3")).toBe(json);
+  expect(await readCardChunk(out, "chara")).toBe(json);
 });
 
 test("dual-chunk ORDER is chara (V2), then ccv3 (V3), then IEND", () => {
@@ -114,14 +116,14 @@ test("dual-chunk ORDER is chara (V2), then ccv3 (V3), then IEND", () => {
   expect(labels.indexOf("ccv3")).toBeLessThan(labels.indexOf("IEND"));
 });
 
-test("re-writing drops the stale card chunks (exactly one ccv3; same length as a fresh write)", () => {
+test("re-writing drops the stale card chunks (exactly one ccv3; same length as a fresh write)", async () => {
   const base = makeBasePng();
   const v1 = writeCardChunk(base, JSON.stringify({ data: { name: "old" } }));
   const json2 = JSON.stringify({ data: { name: "new" } });
   const v2 = writeCardChunk(v1, json2);
   const fresh = writeCardChunk(base, json2);
   expect(v2.length).toBe(fresh.length);
-  expect(readCardChunk(v2, "ccv3")).toBe(json2);
+  expect(await readCardChunk(v2, "ccv3")).toBe(json2);
   const ccv3Count = walk(v2).filter((c) => c.type === "tEXt" && c.keyword === "ccv3").length;
   expect(ccv3Count).toBe(1);
 });
@@ -135,13 +137,66 @@ test("the emitted tEXt CRC matches an independent canonical CRC-32 over type+dat
   expect(text?.crc).toBe(refCrc32(typeAndData));
 });
 
-test("readCardChunk returns null for non-PNG, a missing keyword, and truncation", () => {
-  expect(readCardChunk(Uint8Array.from([1, 2, 3]), "ccv3")).toBeNull();
-  expect(readCardChunk(makeBasePng(), "ccv3")).toBeNull();
+test("readCardChunk returns null for non-PNG, a missing keyword, and truncation", async () => {
+  expect(await readCardChunk(Uint8Array.from([1, 2, 3]), "ccv3")).toBeNull();
+  expect(await readCardChunk(makeBasePng(), "ccv3")).toBeNull();
   const out = writeCardChunk(makeBasePng(), JSON.stringify({ data: {} }));
   // ccv3 sits immediately before the 12-byte IEND; cutting past IEND truncates ccv3's payload, so the
   // walk hits its "declared length runs past the buffer" guard and bails → null.
-  expect(readCardChunk(out.subarray(0, out.length - 13), "ccv3")).toBeNull();
+  expect(await readCardChunk(out.subarray(0, out.length - 13), "ccv3")).toBeNull();
+});
+
+// --- zTXt (compressed) READ — cards exported by tools that compress the chunk -----------------------
+
+/** One well-formed PNG chunk: length(4 BE) + type(4) + body + CRC(4 BE over type+body). */
+function chunkBytes(typeBytes: number[], body: Uint8Array): Uint8Array {
+  const out = new Uint8Array(12 + body.length);
+  const view = new DataView(out.buffer);
+  view.setUint32(0, body.length, false);
+  out.set(typeBytes, 4);
+  out.set(body, 8);
+  view.setUint32(8 + body.length, refCrc32(Uint8Array.from([...typeBytes, ...body])), false);
+  return out;
+}
+
+/** A PNG carrying ONE zTXt chunk: `keyword\0<method byte><zlib(base64(utf8(json)))>` — the exact layout
+ *  a compressing exporter emits. `zlib` (not raw deflate) is what the PNG spec's method 0 means. */
+function makeZtxtPng(keyword: string, json: string, opts?: { method?: number; corrupt?: boolean }): Uint8Array {
+  const b64 = Buffer.from(json, "utf8").toString("base64");
+  const compressed = opts?.corrupt === true ? Uint8Array.from([0x78, 0x9c, 1, 2, 3, 4, 5]) : new Uint8Array(deflateSync(Buffer.from(b64, "latin1")));
+  const body = Uint8Array.from([...Buffer.from(`${keyword}\0`, "latin1"), opts?.method ?? 0, ...compressed]);
+  return Uint8Array.from([...PNG_SIG, ...chunkBytes(ZTEXT_TYPE_BYTES, body), ...chunkBytes(IEND_TYPE_BYTES, new Uint8Array())]);
+}
+
+test("a zTXt card decodes to exactly what the same card yields through tEXt", async () => {
+  const json = v3Json("José ☃ 🎲");
+  const viaZtxt = await readCardChunk(makeZtxtPng("ccv3", json), "ccv3");
+  const viaText = await readCardChunk(writeCardChunk(makeBasePng(), json), "ccv3");
+  expect(viaZtxt).toBe(json);
+  expect(viaZtxt).toBe(viaText);
+});
+
+test("zTXt keyword matching is case-insensitive and ignores non-card keywords", async () => {
+  expect(await readCardChunk(makeZtxtPng("ccv3", v3Json("X")), "CCV3")).toBe(v3Json("X"));
+  // A zTXt "Description" chunk is ordinary PNG metadata — the walk must skip past it, not adopt it.
+  expect(await readCardChunk(makeZtxtPng("Description", v3Json("X")), "ccv3")).toBeNull();
+});
+
+test("a corrupt zlib stream fails soft to null (the read contract), never throwing", async () => {
+  await expect(readCardChunk(makeZtxtPng("ccv3", v3Json("X"), { corrupt: true }), "ccv3")).resolves.toBeNull();
+});
+
+test("a zTXt chunk with an undefined compression method is skipped", async () => {
+  expect(await readCardChunk(makeZtxtPng("ccv3", v3Json("X"), { method: 1 }), "ccv3")).toBeNull();
+});
+
+test("a zTXt card chunk does not stop the walk from finding a later tEXt card", async () => {
+  const json = v3Json("X");
+  const written = writeCardChunk(makeBasePng(), json);
+  // Splice an unrelated-keyword zTXt in front of the written card chunks.
+  const decoy = makeZtxtPng("Comment", json).subarray(8, makeZtxtPng("Comment", json).length - 12);
+  const spliced = Uint8Array.from([...written.subarray(0, 8), ...decoy, ...written.subarray(8)]);
+  expect(await readCardChunk(spliced, "ccv3")).toBe(json);
 });
 
 test("writeCardChunk throws on a non-PNG and on a PNG with no IEND", () => {

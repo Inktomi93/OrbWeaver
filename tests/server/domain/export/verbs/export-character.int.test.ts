@@ -36,8 +36,8 @@ import {
 
 const AVATAR_HASH = "avatar_hash";
 
-function readCard(bytes: Uint8Array): unknown {
-  const json = readCardChunk(bytes, "ccv3");
+async function readCard(bytes: Uint8Array): Promise<unknown> {
+  const json = await readCardChunk(bytes, "ccv3");
   if (json === null) {
     throw new Error("exported PNG carried no ccv3 card chunk");
   }
@@ -69,7 +69,7 @@ describe("exportCharacter", () => {
 
     expect(result.filename).toBe("Aria.png");
     expect(isPng(result.bytes)).toBe(true);
-    const card = readCard(result.bytes);
+    const card = await readCard(result.bytes);
     expect(() => characterCardV3Schema.parse(card)).not.toThrow();
     const back = cardFromJson(card, "fallback");
     expect(back.name).toBe("Aria");
@@ -93,7 +93,7 @@ describe("exportCharacter", () => {
       principal: principal(owner),
       characterId: character,
     });
-    const card = characterCardV3Schema.parse(readCard(result?.bytes ?? new Uint8Array()));
+    const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
     expect(card.data.tags).toEqual(["fantasy"]);
   });
 
@@ -115,7 +115,7 @@ describe("exportCharacter", () => {
       principal: principal(owner),
       characterId: character,
     });
-    const card = characterCardV3Schema.parse(readCard(result?.bytes ?? new Uint8Array()));
+    const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
     expect(card.data.character_book?.entries).toHaveLength(1);
     expect(card.data.character_book?.entries[0]?.content).toBe("they breathe fire");
   });
@@ -133,7 +133,7 @@ describe("exportCharacter", () => {
     await seedCharacterBook(db, character, aux, "auxiliary");
 
     const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
-    const card = characterCardV3Schema.parse(readCard(result?.bytes ?? new Uint8Array()));
+    const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
 
     expect(new Set(card.data.orbweaver_attached_books)).toEqual(
       new Set([
@@ -155,7 +155,7 @@ describe("exportCharacter", () => {
 
     // Export → re-parse the emitted card back into its carried references (the IN half of the serde).
     const exported = await svc.exportCharacter({ principal: principal(owner), characterId: source });
-    const refs = parseCardPng(exported?.bytes ?? new Uint8Array(), "src")?.attachedBooks ?? [];
+    const refs = (await parseCardPng(exported?.bytes ?? new Uint8Array(), "src"))?.attachedBooks ?? [];
 
     // Import lands a fresh character on the same install; the re-link op re-points the SAME books at it.
     const target = await seedCharacter(db, { ownerId: owner, id: "character_dst", handle: "dst" });
@@ -197,8 +197,8 @@ describe("exportCharacter", () => {
     expect(harness.reads).toEqual([`${owner}:${AVATAR_HASH}`]);
     expect(harness.transforms).toHaveLength(0);
     expect(a?.bytes).not.toEqual(b?.bytes);
-    expect(readCardChunk(a?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
-    expect(readCardChunk(b?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
+    expect(await readCardChunk(a?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
+    expect(await readCardChunk(b?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
   });
 
   test("transcodes a non-PNG avatar via the injected imageTransform op", async () => {
@@ -235,7 +235,7 @@ describe("exportCharacter", () => {
     expect(harness.reads).toEqual([`${owner}:${AVATAR_HASH}`]);
     expect(harness.transforms).toHaveLength(0);
     expect(isPng(result?.bytes ?? new Uint8Array())).toBe(true);
-    expect(readCardChunk(result?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
+    expect(await readCardChunk(result?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
   });
 
   test("returns null for a character owned by someone else (no existence leak)", async () => {

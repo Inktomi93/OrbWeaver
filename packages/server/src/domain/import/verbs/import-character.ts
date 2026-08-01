@@ -80,7 +80,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const png = isPng(bytes);
     const fallbackName = fallbackNameFrom(filename);
 
-    const parsed = png ? parseCardPng(bytes, fallbackName) : parseCardJson(bytes, fallbackName);
+    const parsed = png ? await parseCardPng(bytes, fallbackName) : parseCardJson(bytes, fallbackName);
     if (parsed === null) {
       throw new ImportCardError(
         "card_unreadable",
