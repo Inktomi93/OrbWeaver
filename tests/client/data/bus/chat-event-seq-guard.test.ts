@@ -93,6 +93,27 @@ describe("createChatEventSeqGuard", () => {
     expect(guard.admit(durable(CHAT_A), "10")).toBe(false);
   });
 
+  test("highWater reports what this client APPLIED — the resume point a reconnect re-attaches at", () => {
+    // The client's own mark, not the server's delivered cursor: a frame the server yielded into a dying
+    // socket counts for the server and never for us, so the re-attach has to carry THIS number or the
+    // durable replay resumes past rows we never saw (the SSE-1 F1 class).
+    const guard = createChatEventSeqGuard();
+    expect(guard.highWater(CHAT_A)).toBeNull(); // nothing applied yet ⇒ no request to make
+
+    guard.admit(durable(CHAT_A), "4");
+    guard.admit(durable(CHAT_A), "9");
+    expect(guard.highWater(CHAT_A)).toBe(9);
+
+    // A DROPPED stale re-delivery must not move it (it is "what we applied", not "what we were offered")…
+    expect(guard.admit(durable(CHAT_A), "5")).toBe(false);
+    expect(guard.highWater(CHAT_A)).toBe(9);
+    // …and neither does an attach synthetic, which is admitted by TYPE at a non-advancing cursor.
+    guard.admit(opened(CHAT_A), "0");
+    expect(guard.highWater(CHAT_A)).toBe(9);
+    // Per chat, like the mark itself.
+    expect(guard.highWater(CHAT_B)).toBeNull();
+  });
+
   test("a non-numeric id on a durable event is always admitted (a malformed frame is never silently swallowed)", () => {
     const guard = createChatEventSeqGuard();
     expect(guard.admit(durable(CHAT_A), "5")).toBe(true);

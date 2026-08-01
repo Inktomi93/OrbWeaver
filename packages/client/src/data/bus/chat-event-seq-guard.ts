@@ -44,11 +44,20 @@ export interface ChatEventSeqGuard {
    *  stale re-delivery). A non-numeric id (never expected on a durable-log frame) is treated as
    *  always-advancing so a malformed frame is never silently swallowed. */
   readonly admit: (event: Pick<ChatBusEvent, "type" | "chatId">, rawSeqId: string) => boolean;
+  /**
+   * The last durable `seq` this client actually APPLIED for `chatId`, or `null` if it has applied none this
+   * page. This is the client's own resume truth — strictly what it received, where the server's room cursor
+   * is what it DELIVERED (a frame lost in flight on a dying socket counts for the server and not for the
+   * client). The room's re-attach on reconnect carries this, so the durable replay refills exactly the gap
+   * the client actually has. Read-only: it never advances the mark.
+   */
+  readonly highWater: (chatId: ChatId) => number | null;
 }
 
 export function createChatEventSeqGuard(): ChatEventSeqGuard {
   const highWaterSeqByChat = new Map<ChatId, number>();
   return {
+    highWater: (chatId): number | null => highWaterSeqByChat.get(chatId) ?? null,
     admit: (event, rawSeqId): boolean => {
       // Synthesized attach signals bypass the mark — their per-attach re-fire is the reopen catch-up.
       if (SYNTHESIZED_EXEMPT.has(event.type)) {
