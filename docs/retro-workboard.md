@@ -200,7 +200,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    games held sockets); BOOT-4X heal semantics carried into a per-room gate (one home, both gap
    classes, re-proven-to-fail); `single-stream-transport` gate live + ratchet-probed;
    sessions.streamUserEvents + rpg.stream DELETED. **REMAINING: S2 chat (needs its stickler
-   pass) → S3 notifications+presence → S4 automation → S5 workloads → close-out ledger entry.**
+   pass) → ~~S3~~ MERGED (`474b74d9`: notifications = resumable room, client asks NO replay
+   [refetch-trigger semantics; reconnect heal covers it]; presence at the CONNECT RESOLVER edge,
+   P3F1-safe; notifications proc DELETED + ratchet down; multi-human belt = per-ROOM attach
+   verdict [future multi-human streams: belt in authorizeAttach — stream.connect stays authed])
+   → S4 automation (server-only) → S5 workloads (event union → contracts FIRST) → close-out:
+   exempt list down to chat.impersonateStream + ledger D-entry. WATCH: check-gates.int "unfired"
+   flaked ONCE (217s run) then passed ×2 — recurs ⇒ chase.**
    Spec `docs/design/sse-multiplex-spec.md`, §14 fully ruled.
 3. **HUD-HOME** (owner-ruled 2026-08-01, from the stickler visual audit F6,
    `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): **the pre-HUD chrome seams in the
