@@ -70,12 +70,18 @@ export function filterByChips<T extends PickerEntry>(entries: readonly T[], chip
   return entries.filter((entry) => (!wantVision || hasVision(entry)) && (!wantTools || hasTools(entry)));
 }
 
-/** The footer's synced line — relative time when a snapshot `fetchedAt` is present, else the source's static provenance note. */
-export function footerSyncedLabel(fetchedAt: number | null, allowsFreeText: boolean): string {
+/** The footer's synced line — relative time when a snapshot `fetchedAt` is present, else the source's static
+ *  provenance note. The CURATED arm is its own note: a cold max-pro-sub snapshot serves the server's curated
+ *  shortlist with `fetchedAt: null` (`get-models-for-source.ts`), which "from config" misdescribes — nothing
+ *  configured those ids, they are our hardcoded stand-in until the daemon catalog warms. */
+export function footerSyncedLabel(fetchedAt: number | null, allowsFreeText: boolean, curatedFallback: boolean): string {
   if (fetchedAt !== null) {
     return `synced ${timeLib.formatRelative(fetchedAt)}`;
   }
-  return allowsFreeText ? "endpoint /models" : "from config";
+  if (allowsFreeText) {
+    return "endpoint /models";
+  }
+  return curatedFallback ? "curated shortlist" : "from config";
 }
 
 // --- Provider grouping (the picker's section plan) --------------------------------------------
