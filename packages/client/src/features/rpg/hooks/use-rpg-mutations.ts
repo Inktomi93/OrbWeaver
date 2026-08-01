@@ -98,8 +98,10 @@ export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rp
 });
 
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).
- *  A cross-feature ride on the chat proc DIRECTLY ([workloads.subscribe cross-feature] — never a
- *  features/chat hook import). `busDriven`: the turn's own bus events run the chat invalidation; the sent
+ *  A cross-feature ride on the chat proc DIRECTLY (lockdown §12 — cross-feature reads/rides go straight
+ *  through the other domain's tRPC procedure, never its client; `rpg-choice-echo.tsx`'s direct
+ *  `trpc.chat.listMessages` read is the live precedent) — never a features/chat hook import. `busDriven`:
+ *  the turn's own bus events run the chat invalidation; the sent
  *  turn is never read back (chat-turn-surface-bus-driven). */
 export const useSendChoice = createEntityMutation<inferInput<Trpc["chat"]["send"]>, unknown>({
   options: (trpc) => trpc.chat.send.mutationOptions(),
