@@ -137,7 +137,6 @@
   "packages/client/src/features/rpg/lib/rpg-context-section.tsx": 2,
   "packages/client/src/features/settings/components/tag-settings-row.tsx": 2,
   "packages/client/src/features/settings/components/theme-editor.tsx": 15,
-  "packages/client/src/features/settings/surfaces/chat-behavior-settings-surface.tsx": 1,
   "packages/client/src/features/settings/surfaces/regex-settings-surface.tsx": 1,
   "packages/client/src/features/settings/surfaces/settings-shell-surface.tsx": 7,
   "packages/client/src/features/settings/surfaces/system-settings-surface.tsx": 1,
