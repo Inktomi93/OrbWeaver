@@ -192,6 +192,13 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+**DEV-DB WIPE EXPLAINED + THE 155GB CLEANED (08-02):** the overnight "wipe" = stage-E's baseline
+squash hitting the next boot's migrator — the sanctioned pre-launch re-mint, WITH backup (the
+08:56 data-bearing snapshot kept: orbweaver.db.backup-1785596196756). REAL FINDING: boot/migrate
+backed up EVERY boot incl. no-ops → 3,220 backups, data/ at 155GB. PURGED (owner word): 3,217
+deleted, 3 kept, data/ now 50MB. STRUCTURAL FIX LANE IN FLIGHT: backup only on pending
+migrations + retention N=5 + defensive prune glob. LESSON: a baseline squash = the dev db
+re-mints on next boot — expected, announce it when squashing.
 **SIDE-EYE #1 DELIVERED → FIVE FIX LANES IN FLIGHT (fix-all law):** SE-A mobile-settings P0
 (push-detail) + aria-current/spy/parent-row · SE-B rpg cluster (band budget fork + F8 kicker +
 D-1 split + LYING METERS em-dash + crown recede + scene names + dead class + ghost tile +
