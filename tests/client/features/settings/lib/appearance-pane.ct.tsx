@@ -31,8 +31,9 @@ const ANCHOR_ORDER = [
   "settings-anchor-appearance-library",
 ];
 
-/** The nav rows the pane DERIVES from its contributions, in door order. */
-const NAV_LABELS = ["Message style", "Avatars", "Sizing & motion", "Message details & actions", "Background", "Reading typography", "Effects", "Library"];
+/** The nav rows the pane DERIVES from its contributions, in door order — a section that declares a
+ *  `navLabel` shows THAT here ("Message details & actions" stays the heading). */
+const NAV_LABELS = ["Message style", "Avatars", "Sizing & motion", "Message details", "Background", "Reading typography", "Effects", "Library"];
 /** The absorbed `motion` sub's surviving search leaf. */
 const REDUCE_MOTION_LEAF = /Reduce motion/;
 

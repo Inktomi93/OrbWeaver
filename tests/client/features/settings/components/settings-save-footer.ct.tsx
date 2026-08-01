@@ -73,7 +73,8 @@ test("ERROR: the footer's locator jumps to the failing section's anchor", async 
   const footer = page.locator('[data-slot="settings-save-footer"]');
   await expect(footer).toContainText("failed to save");
   // Scroll away first so the jump has real work to do.
-  await page.getByRole("button", { name: "Chat & message handling" }).click();
+  // The nav ROW, whose label is the section's `navLabel` ("Chat & message handling" is the heading).
+  await page.getByRole("button", { name: "Message handling" }).click();
   await footer.getByRole("button", { name: "Show me" }).click();
   await expect(page.locator("#settings-anchor-chat-behavior-world-info")).toBeInViewport();
 });

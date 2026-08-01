@@ -30,8 +30,9 @@ const ANCHOR_ORDER = [
   "settings-anchor-chat-behavior-imagery-templates",
 ];
 
-/** The nav rows the pane DERIVES from its contributions, in door order. */
-const NAV_LABELS = ["Chat & message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts"];
+/** The nav rows the pane DERIVES from its contributions, in door order — a section that declares a
+ *  `navLabel` shows THAT here ("Chat & message handling" stays the heading). */
+const NAV_LABELS = ["Message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts"];
 /** A moved section's surviving search leaf (the option row also carries its category label). */
 const STOPPING_STRINGS_LEAF = /Custom stopping strings/;
 
