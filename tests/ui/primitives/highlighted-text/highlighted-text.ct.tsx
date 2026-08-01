@@ -67,6 +67,41 @@ test("the mark wears the highlight token pair, not a raw color", async ({ mount 
   await expect(mark).toHaveCSS("color", resolvedTokenColor("color.highlight-foreground"));
 });
 
+// The `skin` axis (preset-surface-redesign.md §13) — the resolved-TEMPLATE readout is machine text, not
+// prose. Asserted by resolved type + color so a token move can't leave a stale-green class assertion.
+test("skin=code renders the runs as mono muted machine text; the default stays body-voice prose", async ({ mount, page }) => {
+  await mount(
+    <>
+      <HighlightedText ranges={[{ start: 0, end: 3 }]} text={TEXT} />
+      <HighlightedText ranges={[{ start: 0, end: 3 }]} skin="code" text={TEXT} />
+    </>,
+  );
+  const roots = page.locator('[data-slot="highlighted-text-root"]');
+  await expect(roots).toHaveCount(2);
+
+  await expect(roots.nth(0)).toHaveCSS("color", resolvedTokenColor("color.foreground"));
+  await expect(roots.nth(1)).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
+
+  const [proseFont, codeFont, proseSize, codeSize] = await Promise.all([
+    roots.nth(0).evaluate((el) => getComputedStyle(el).fontFamily),
+    roots.nth(1).evaluate((el) => getComputedStyle(el).fontFamily),
+    roots.nth(0).evaluate((el) => getComputedStyle(el).fontSize),
+    roots.nth(1).evaluate((el) => getComputedStyle(el).fontSize),
+  ]);
+  expect(proseFont).not.toContain("Geist Mono");
+  expect(codeFont).toContain("Geist Mono");
+  expect(Number.parseFloat(codeSize)).toBeLessThan(Number.parseFloat(proseSize));
+});
+
+// The mark MEANS "this run is the hit" in either voice — the skin is the surrounding type, never the
+// highlight semantics, so the token pair must survive the code arm.
+test("skin=code keeps the mark on the highlight token pair", async ({ mount, page }) => {
+  await mount(<HighlightedText ranges={[{ start: 0, end: 3 }]} skin="code" text={TEXT} />);
+  const mark = page.locator("mark").first();
+  await expect(mark).toHaveCSS("background-color", resolvedTokenColor("color.highlight"));
+  await expect(mark).toHaveCSS("color", resolvedTokenColor("color.highlight-foreground"));
+});
+
 test("the first highlight scrolls into view on mount", async ({ mount, page }) => {
   const line = "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\n";
   const filler = line.repeat(100);

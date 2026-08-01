@@ -86,7 +86,7 @@ export function ConnectionsSettingsSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your connections…</Text>}
+        fallback={<Text voice="gloss">Loading your connections…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your connections" onRetry={retry} />}
       >
         <Container>
@@ -148,9 +148,7 @@ function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: Mod
   return (
     <Section divider={true} heading="Model roles" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.roles)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text size="micro" tone="muted">
-          Pick the provider and model for each role. Leave a row on “Default” to let the app choose.
-        </Text>
+        <Text voice="gloss">Pick the provider and model for each role. Leave a row on “Default” to let the app choose.</Text>
         {/* The pane may NOT read "Saved" while it is rendering a draft: a drifted pane whose session is
             otherwise idle is one armed debounce away from saving, so it reads "Saving…" — the ratified
             three-state vocabulary, no fourth state minted (D78 §6). Which rows are drafts, and what a turn
@@ -181,9 +179,7 @@ function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: Mod
                     <Icon icon={AlertTriangle} size="xs" />
                     Dimension mismatch
                   </Badge>
-                  <Text size="micro" tone="muted">
-                    {warning}
-                  </Text>
+                  <Text voice="gloss">{warning}</Text>
                 </Row>
               )
             }
@@ -217,9 +213,7 @@ function HostClaudeSection(): ReactElement | null {
   return (
     <Section divider={true} heading="Host Claude" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.hostClaude)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text size="micro" tone="muted">
-          Check that this box's Claude subscription can reach a model. Sends one tiny probe turn.
-        </Text>
+        <Text voice="gloss">Check that this box's Claude subscription can reach a model. Sends one tiny probe turn.</Text>
         <Button intent="secondary" size="sm" onClick={runTest} disabled={probe.isPending}>
           Test Claude auth
         </Button>
@@ -229,9 +223,7 @@ function HostClaudeSection(): ReactElement | null {
           <Badge intent={result.ok ? "success" : "danger"} size="sm">
             {result.ok ? "Reachable" : "Unreachable"}
           </Badge>
-          <Text size="micro" tone="muted">
-            {result.account?.subscriptionType ?? result.model}
-          </Text>
+          <Text voice="gloss">{result.account?.subscriptionType ?? result.model}</Text>
         </Row>
       )}
     </Section>
@@ -260,7 +252,7 @@ function SavedKeysSection(): ReactElement {
   return (
     <Section divider={true} heading="Saved keys" id={anchor(CONNECTIONS_SUBCATEGORY_IDS.keys)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text size="micro" tone="muted">
+        <Text voice="gloss">
           Your provider API keys. One key is active per provider; roles resolve their key from the active one for their source. Keys are encrypted and never
           shown again.
         </Text>
@@ -287,9 +279,7 @@ function SavedKeysSection(): ReactElement {
         <Stack gap="block">
           {groupCredentialsByProvider(credentials).map(([provider, rows]) => (
             <Stack key={provider} gap="field">
-              <Text size="micro" tone="muted" transform="caps">
-                {PROVIDER_LABELS[provider]}
-              </Text>
+              <Text voice="kicker">{PROVIDER_LABELS[provider]}</Text>
               {rows.map((credential) => (
                 <CredentialKeyRow key={credential.id} credential={credential} trpc={trpc} invalidation={invalidation} />
               ))}

@@ -1,10 +1,9 @@
 import type { SliderRootProps } from "@base-ui/react/slider";
 import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { sliderVariants } from "./variants";
-
-const slots = sliderVariants();
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
 function thumbCount(value: number | readonly number[] | null | undefined): number {
@@ -12,7 +11,9 @@ function thumbCount(value: number | readonly number[] | null | undefined): numbe
 }
 
 // `orientation` is narrowed OUT: Base UI accepts "vertical" but the variants ship no vertical CSS branch.
-export interface SliderProps<Value extends number | readonly number[] = number> extends Omit<SliderRootProps<Value>, "orientation"> {
+export interface SliderProps<Value extends number | readonly number[] = number>
+  extends Omit<SliderRootProps<Value>, "orientation">,
+    VariantProps<typeof sliderVariants> {
   className?: string;
   /** Visible, auto-associated label. A plain string also seeds the thumb `aria-label` for the single-thumb case. */
   label?: ReactNode;
@@ -22,9 +23,15 @@ export interface SliderProps<Value extends number | readonly number[] = number> 
   formatValue?: (formattedValues: readonly string[], values: readonly number[]) => ReactNode;
 }
 
-/** Single or range: pass a scalar for one thumb, or an array (`value={[lo, hi]}`) for a range. */
+/**
+ * Single or range: pass a scalar for one thumb, or an array (`value={[lo, hi]}`) for a range.
+ *
+ * `tone="ghost"` mutes the fill + thumb for a row whose value is INHERITED rather than explicitly set —
+ * the thumb still sits at the resolved effective value, so the datum is never hidden (§4.1).
+ */
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
-  const { className, label, thumbLabels, showValue = false, formatValue, ...rootProps } = props;
+  const { className, label, thumbLabels, showValue = false, formatValue, tone, ...rootProps } = props;
+  const slots = sliderVariants({ tone });
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
   const singleAriaLabel = typeof label === "string" ? label : thumbLabels?.[0];

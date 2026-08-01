@@ -193,7 +193,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // `getUserMacroPicks`/`getVariablePicks` ride a preset edit too: their DECLARATIONS halves ARE the active
   // preset's `userMacros`/`variables` (adding/removing a macro input or a ChoiceBlock changes which controls
   // the picks pane must render), and no chat-bus event fires when the preset — a different domain's row — is
-  // edited.
+  // edited. The preset ROOT filter also carries `resolveEffective`: every knob autosave, reset, import and
+  // fork-COW emits this event, and re-resolving the funnel on save-settle is what makes the deck's effective
+  // column TRUE rather than a snapshot (redesign §4.4).
   presetsChanged: (_e, trpc) => [
     trpc.preset.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
@@ -216,6 +218,11 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     trpc.settings.getUserSettings.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     trpc.connection.resolveChatCapability.pathFilter(),
+    // `preset.resolveEffective` is the funnel projected AGAINST that capability, and its readout names the
+    // model ("resolved for <model>"). A routing/model change that refetched the capability but not this read
+    // would leave every provenance line — `model default`, `clamped to 1.2` — describing the OLD model.
+    // Narrow, not the preset root: the preset ROWS did not change, and `presetsChanged` already covers those.
+    trpc.preset.resolveEffective.pathFilter(),
     // The same settings feed the ASSEMBLY the fit measures (chat behavior, the resolved model/capability the
     // shaper builds against) — the preview must move with the budget, never lag a knob behind it.
     ...promptPreviewReads(trpc),

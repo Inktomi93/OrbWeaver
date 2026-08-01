@@ -26,7 +26,7 @@ export function TagsSettingsSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your tags…</Text>}
+        fallback={<Text voice="gloss">Loading your tags…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your tags" onRetry={retry} />}
       >
         <TagsSettingsList />
@@ -47,7 +47,7 @@ function TagsSettingsList(): ReactElement {
   return (
     <Section heading="Tags" divider={true} id={settingsAnchorId("tags", TAGS_SUBCATEGORY_IDS.tags)}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
-        <Text size="micro" tone="muted">
+        <Text voice="gloss">
           Rename, recolor, reorder, merge, or delete the labels you tag characters, chats, world books, personas, and presets with. Drag the handle to reorder.
         </Text>
         <Row gap="field" align="center">
@@ -59,7 +59,7 @@ function TagsSettingsList(): ReactElement {
       </Row>
 
       {tags.length === 0 ? (
-        <Text tone="muted">You have no tags yet. Tag a character, chat, world book, persona, or preset and it shows up here.</Text>
+        <Text>You have no tags yet. Tag a character, chat, world book, persona, or preset and it shows up here.</Text>
       ) : (
         <SortableList
           handle={true}

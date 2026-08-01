@@ -84,7 +84,7 @@ export function AdminEnginesSection(): ReactElement {
         </Stack>
 
         {restart.error === null ? null : (
-          <Text size="label" tone="destructive">
+          <Text voice="label" className="text-destructive">
             Couldn't restart the engine — check the server logs.
           </Text>
         )}

@@ -228,6 +228,10 @@ const PROBES: readonly Probe[] = [
   { path: "preset.update", call: (c, i) => c.preset.update({ id: i.presetId, name: "hacked" }) },
   { path: "preset.remove", call: (c, i) => c.preset.remove({ id: i.presetId }) },
   { path: "preset.resetToDefault", call: (c, i) => c.preset.resetToDefault({ id: i.presetId }) },
+  // The effective-profile read: it takes A's preset id, so a missing owner predicate would project A's
+  // generation knobs to a stranger. The capability half is Principal-only (no id to aim), so the preset
+  // read is the whole attack surface — and it must collapse leak-free.
+  { path: "preset.resolveEffective", call: (c, i) => c.preset.resolveEffective({ id: i.presetId }) },
   // ── world-info (owner-scoped) ──
   { path: "worldInfo.getBook", call: (c, i) => c.worldInfo.getBook({ bookId: i.bookId }) },
   {
@@ -864,6 +868,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "persona.import": "self-scoped: imports into the caller's own namespace",
   "preset.create": "self-scoped",
   "preset.list": "self-scoped",
+  "preset.importFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own library",
   "worldInfo.createBook": "self-scoped",
   "worldInfo.listBooks": "self-scoped",
   "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",

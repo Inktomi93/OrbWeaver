@@ -18,7 +18,7 @@ import { RhythmFigures } from "./rhythm-figures";
 export function AnalyticsTimeTab(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading activity…</Text>}
+      fallback={<Text voice="gloss">Loading activity…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="activity" onRetry={retry} />}
     >
       <TimeBody />
@@ -51,7 +51,7 @@ function TimeBody(): ReactElement {
 
       <Section heading="By weekday and hour">
         {peak === null ? null : (
-          <Text size="micro" tone="muted">
+          <Text voice="gloss">
             Peak: {peak} ({formatCompact(heatmap.peak?.count ?? 0)})
           </Text>
         )}

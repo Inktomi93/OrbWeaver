@@ -16,12 +16,15 @@
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
 import type { AssemblySlice } from "../contract/results";
 import { injectionSource, personaContributorLabel, sectionSource } from "./budget";
+import { BEFORE_HISTORY_DEPTH } from "./injections";
 import { renderMacros } from "./macros";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
@@ -159,14 +162,18 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   if (head.trim().length === 0) {
     return "";
   }
-  const parts = [`[Also present — ${member.name}]\n${head}`];
+  // The three headings are PROSE-1 slots (per-USER under the room host) carrying the `{{name}}` pre-
+  // substitution token; the card text beneath each is data, never authorable. Absent overrides ⇒ the
+  // shipped frames.
+  const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });
+  const parts = [`${heading("chat.group.alsoPresent")}\n${head}`];
   const scenario = renderMemberField("scenario", member, ctx, registry);
   const examples = renderMemberField("exampleMessages", member, ctx, registry);
   if (scenario.trim().length > 0) {
-    parts.push(`[${member.name}'s scenario]\n${scenario}`);
+    parts.push(`${heading("chat.group.scenarioHeading")}\n${scenario}`);
   }
   if (examples.trim().length > 0) {
-    parts.push(`[${member.name}'s example dialogue]\n${examples}`);
+    parts.push(`${heading("chat.group.exampleHeading")}\n${examples}`);
   }
   return parts.join("\n\n");
 }
@@ -488,10 +495,6 @@ function isSectionDynamic(section: PromptSection): boolean {
   }
   return section.marker === "memory" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
-
-/** A relative non-system section is delivered at the top of history. The splice clamps this large depth
- *  to history length. */
-const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
  *  `inject.depth` \> after the pivot (depth 0) \> non-system role (top of history) \> system block. */

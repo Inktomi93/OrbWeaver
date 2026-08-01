@@ -73,7 +73,7 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 export function MemoryTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading memory tuning…</Text>}
+      fallback={<Text voice="gloss">Loading memory tuning…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
     >
       <MemoryTuningBody sectionId={sectionId} />
@@ -135,7 +135,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
     <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={settingsAnchorId("admin", MEMORY_TUNING_SUBCATEGORY.id)}>
       <Stack gap="section">
         <Stack gap="field">
-          <Text size="label" tone="muted">
+          <Text voice="label" className="text-muted-foreground">
             Recall &amp; consolidation (memoryDefaults). Absent knobs run on the grounded deployment floor.
           </Text>
           <AdminOverrideSelect
@@ -180,7 +180,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
         </Stack>
 
         <Stack gap="field">
-          <Text size="label" tone="muted">
+          <Text voice="label" className="text-muted-foreground">
             Digest summarizer sampling (memorySummarizer). Temperature unset = the summarizer provider default.
           </Text>
           <AdminOverrideField

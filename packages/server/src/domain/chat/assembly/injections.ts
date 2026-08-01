@@ -2,9 +2,21 @@
 // (`frameInjection`) + the depth splice (`spliceInChatInjections`, with the optional `squashSystemMessages`
 // pre-merge of consecutive same-depth system runs). Shared frame()+splice consumed by both BUILD
 // (before/in-prompt section render) and SHAPE (the `in_chat` history splice) — one home, no drift.
+//
+// The two NOTE frames are PROSE-1 slots (`chat.injection.systemNote`/`.userNote`, per-USER under the room
+// host) resolved through `resolveProseText`'s `{{note}}` pre-substitution token. `prose` defaults to `{}`
+// everywhere, so a caller that doesn't thread it gets the shipped frames byte-for-byte.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { MessageRole } from "@orb/kit/message-role";
+
+/** "The TOP of the history" as a depth — the splice clamps any depth beyond the history length to that
+ *  length, so this lands an injection before the first canon row whatever the history is. The one home for
+ *  the idiom (both the relative-section walk in `assemble.ts` and the new-chat marker in `context.ts` use
+ *  it), beside the clamp that gives it meaning. */
+export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
 /** The wire role a delivered history row can take. `system` appears ONLY on a depth-0 splice when the
  *  resolved model declares `turns.midConversationSystem` (a real mid-conversation system-authority row);
@@ -17,8 +29,8 @@ type WireRole = MessageRole;
  * Returns "" for an empty/whitespace render. The `in_chat` position is not handled here — that is the
  * SHAPE splice's job ({@link spliceInChatInjections}).
  */
-export function renderInjection(injection: ChatInjection, resolveContent: (content: string) => string = (c) => c): string {
-  return frameInjection(injection.role, resolveContent(injection.content));
+export function renderInjection(injection: ChatInjection, resolveContent: (content: string) => string = (c) => c, prose: ProseOverrides = {}): string {
+  return frameInjection(injection.role, resolveContent(injection.content), undefined, prose);
 }
 
 /**
@@ -31,8 +43,9 @@ export function renderInjection(injection: ChatInjection, resolveContent: (conte
  *                 channel, not an in-character user turn.
  *
  * `originalRole` names the original role when a caller auto-converted system→user for the wire.
+ * `prose` is the room host's overrides for the two note frames; `{}` ⇒ the shipped frames.
  */
-export function frameInjection(role: MessageRole, content: string, originalRole?: "system"): string {
+export function frameInjection(role: MessageRole, content: string, originalRole?: "system", prose: ProseOverrides = {}): string {
   const trimmed = content.trim();
   if (trimmed.length === 0) {
     return "";
@@ -40,10 +53,7 @@ export function frameInjection(role: MessageRole, content: string, originalRole?
   if (role === "system" || role === "assistant") {
     return trimmed;
   }
-  if (originalRole === "system") {
-    return `[Note from system: ${trimmed}]`;
-  }
-  return `[Note from user: ${trimmed}]`;
+  return resolveProseText(originalRole === "system" ? "chat.injection.systemNote" : "chat.injection.userNote", prose, { note: trimmed });
 }
 
 /** Collapse maximal runs of consecutive same-depth system-role injections into one entry, joining content
@@ -138,6 +148,9 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  never system-role), so this only ever combines volatile injected rows — the stable prefix is
      *  untouched. Orthogonal to the adjacent-same-role squash (`roleHandling`). Absent ⇒ no pre-merge. */
     squashSystemMessages?: boolean;
+    /** The room host's PROSE-1 overrides for the two note frames (`chat.injection.*`). Absent ⇒ `{}` ⇒ the
+     *  shipped frames, byte-identical. */
+    prose?: ProseOverrides | undefined;
   } = {},
 ): (T | { role: WireRole; content: string })[] {
   // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
@@ -176,7 +189,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     // the cached prefix → re-frame it to a user note.
     const wouldMutatePrefix = inj.role === "assistant" && depth === 1 && stableTailRole === "assistant";
     const { effectiveRole, originalRole } = resolveSpliceRole(inj, depth, wouldMutatePrefix, opts.allowMidConversationSystem === true);
-    const framed = frameInjection(effectiveRole, resolveContent(inj.content), originalRole);
+    const framed = frameInjection(effectiveRole, resolveContent(inj.content), originalRole, opts.prose ?? {});
     if (framed.length === 0) {
       continue;
     }

@@ -36,7 +36,7 @@ export function ExportLibrarySection(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Text tone="muted" size="body">
+      <Text className="text-muted-foreground">
         Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
       </Text>
       <Fieldset>

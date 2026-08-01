@@ -35,7 +35,7 @@ the enforcement tier that makes a violation RED per arm.
 `preset/components/preset-library-row.tsx` · `world-info/surfaces/world-info-library-surface.tsx` (head) ·
 `app-shell/surfaces/app-shell.tsx` (LIST mount region) · `main.tsx` (door region). Law read IN FULL:
 the seven `UI-*.md`/lockdown/motion docs, `ui-cohesion-north-star.md`, `density-pass-spec.md` (approved),
-`hud-home-spec.md` (sibling program), the D-ledger D16/D18/D28/D62/D66 entries, workboard §LIST-PANE
+`docs/history/design/hud-home-spec.md` (sibling program), the D-ledger D16/D18/D28/D62/D66 entries, workboard §LIST-PANE
 RENT, and the visual audit §F5/§F7 (`docs/reviews/stickler/2026-08-01-visual-blech-audit.md`).
 
 **Mocks (authored with this spec — the owner rules from pixels, not vibes):**
@@ -44,10 +44,10 @@ the full row anatomy incl. the shared group room) ·
 `docs/design/mocks/list-pane-projection/unified-rail.html` (Arm C at its honest best beside Arm B —
 the duplication cost rendered visibly). House style per the `panel-redesign/` set.
 
-**Sibling programs (this spec composes with, never fights):** `hud-home-spec.md` (CONTEXT panel — zero
+**Sibling programs (this spec composes with, never fights):** `docs/history/design/hud-home-spec.md` (CONTEXT panel — zero
 file overlap with the LIST panes; §9.2 here records the one interaction) ·
 `density-pass-spec.md` S5 ("LIST panes + library grids" — §9.1 sequencing) · SET-SEAMS
-(`set-seams-spec.md` — owns the settings modal's nav pane, which is NOT a shell LIST pane; §6 note).
+(`docs/history/design/set-seams-spec.md` — owns the settings modal's nav pane, which is NOT a shell LIST pane; §6 note).
 
 ---
 
@@ -389,7 +389,7 @@ left accent rail, `packages/ui/src/primitives/list-row/variants.ts:16-18`). Band
 | **presets** | preset rows (F5 scent subtitles LANDED — `preset-library-row.tsx:56-58`) + active-for-generation Select + search | **MISSING** — same `LibraryListLayout` in-surface title | same L4 sweep |
 | **refinery** | DECLARED-PLANNED (`content: {planned}`); pane defaults collapsed | n/a | none until built |
 | **analytics** | leaderboard list, default-collapsed | `AnalyticsListHeader` — BUILT (`analytics-section.tsx:46`) | none |
-| **settings** | **NOT a shell LIST pane.** Settings is a full-bleed modal; its left nav is the SET-SEAMS program's surface (`set-seams-spec.md` — approved-to-build). This spec deliberately does not touch it; the shell LIST system and the settings nav stay two mechanisms | n/a | pointer only |
+| **settings** | **NOT a shell LIST pane.** Settings is a full-bleed modal; its left nav is the SET-SEAMS program's surface (`docs/history/design/set-seams-spec.md` — approved-to-build). This spec deliberately does not touch it; the shell LIST system and the settings nav stay two mechanisms | n/a | pointer only |
 
 ## 7. The D18 guardrail, threaded structurally (per arm — a prose boundary is a wish)
 
@@ -422,7 +422,7 @@ projection can never show a different truth than the Chats section (one cache en
   `active-chat-store.ts:101` already closes the mobile slide-over). The room never renders inside the
   characters section; rooms live where rooms live.
 - **HUD-HOME composition:** a projection row into a game room lands in the chats section where (post
-  HUD-1) the rpg claimant owns CONTEXT. Zero shared files with HUD-HOME (`hud-home-spec.md` scope =
+  HUD-1) the rpg claimant owns CONTEXT. Zero shared files with HUD-HOME (`docs/history/design/hud-home-spec.md` scope =
   the CONTEXT chain; this spec = LIST surfaces + section defs). The only touch-point is the `isGame`
   marker, which reads the SAME `metadata.rpg` predicate the takeover gate reads (`views.ts:69-74`) —
   the marker and the panel cannot disagree.
@@ -446,7 +446,7 @@ projection can never show a different truth than the Chats section (one cache en
 **Sequencing vs the sibling programs (§9.1):** L0–L2 touch LIST surfaces + section defs only — no
 collision with HUD-HOME (CONTEXT chain) at any stage. Density: S0–S2 (mechanism) are independent; S5
 sweeps LIST panes — run S5 AFTER L1/L3 so it sweeps the projection + faces strip once, not twice
-(the exact HUD-1/S3 ruling shape, `hud-home-spec.md` §9.1). Never run L1 and density-S5 concurrently
+(the exact HUD-1/S3 ruling shape, `docs/history/design/hud-home-spec.md` §9.1). Never run L1 and density-S5 concurrently
 on the same files (concurrent-lanes gate-thrash). SET-SEAMS: zero overlap (settings nav is not a
 shell LIST pane). **(§9.2)** The one HUD touch-point is read-only (`isGame`); no ordering constraint
 either way.

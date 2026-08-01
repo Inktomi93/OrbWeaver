@@ -139,7 +139,53 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
+S4-ruled rows untouched). ~~swipe red~~ SOLVED (`74cb00e1` — neither race nor product: tests/e2e/support/trpc.ts is a HAND
+MIRROR of contracts and TRK-2's `max` field never reached it; green ×2; lesson banked: sweep the
+e2e mirror on every contract-shape amendment). NEW FLAG from that lane → **HAND-WRITE PLANE LOSS
+investigation IN FLIGHT** (SPEC 1: hero.volatile undefined after multi-editSnapshot hand write;
+mergeKeyedArray/clone-forward seam brief). **B2 MERGED** (`5d71e287`: resolveEffective labels the
+REAL resolveChat [parity-tested w/ live clamp]; TEMPLATE_DEFS registry + GUIDED_ACTION_COPY
+retired; G9/G10 wired end-to-end; importFile via factory injection [verb→verb = depcruise RED];
+wiFormat {{entry}} refusal = write-boundary CARRIER-token law, distinct from requiredMacros
+lint-never-block; settingsChanged freshness row added — model swap re-labels provenance).
+**WAVE-2 V1 IN FLIGHT** (five-view shell + Params deck/KnobRow; V2 rack/actions/readouts/list
+next, serialized). **LIFECYCLE LANE in reconcile** (refused at the merge gate — density S4 moved
+under it; 7 density + knip×2 + fabrication + suppressions×2 + test-presence to fix on merged
+tree; the audit itself: ~everything COMPLETE, single-chat jsonl import BUILT, txt export WIRED,
+bands moved to ruled anatomy, member-strip export CHECKED SAFE [host-gated 404], slugifyHandle
+empty-name bug found+fixed; TABLED owner calls: JSON card export format · absent-character
+transcript policy [refuse vs mint-placeholder]).
+Old red note:
+(tracker plane resolving off a non-current snapshot after swipe, or a live-timing race) —
+INVESTIGATION LANE IN FLIGHT (suspects: macro-parity one-builder merge, cast-volatile era;
+verdict RACE-vs-REAL with proven-to-fail regression required). E2E_LIVE otherwise 51/52 green.
+MERGED THIS ROUND: F5 pointer (`a9e77df3` — corrected the report's over-broad claim: toolround on
+vLLM/OR leaves NO usage record unless WIRE_CAPTURE; observability small boarded below) · ARCHIVE
+sweep (`c8bdf92b`: 3 specs + 3 stickler reports → history, refs incl. gate docRows repointed;
+blech-audit LEFT — F1-F5/F7/F9/F10 board rows never struck, verify-then-archive rides side-eye
+#1) · B1 ui P0 (`2d71939a`: Slider tone axis [color-only, byte-identical default] · NumberField
+size=inline [size owns the BOX incl. width — the w-full/w-number-inline merge hazard dodged] ·
+HighlightedText skin=code; D10 ember-cluster taste call → P1 side-eye) · B3 prose stragglers
+(`49616a67`: 9 slots, group/injection/discovery; substitution = PRE-SUB TOKENS not the macro
+engine [function replacement so $& stays literal]; DistillPass kills the retry-drift vector).
+NEW SMALLS boarded: toolround usage record (rpg.ts:753, result.usage discarded on vLLM/OR) ·
+Documentation-Law §-ref-in-comments conflict (rpg.ts carries 33 — owner ruling: sweep or carve-out)
+· runStructuredTurn retry-drift pattern sweep. LESSON banked: lane commit messages need
+lane-unique scratchpad names (a cross-lane msg.txt collision landed a wrong commit message,
+caught+amended).
+**CHARACTERS+CHATS LIFECYCLE AUDIT LANE (owner-ordered 08-02):** full CRUD + single-entity
+import/export tables for both rail sections (verb+affordance+classification per row, both-ends
+verified); ALL client gaps done IN FULL (owner overruled shims: full projection-grammar adoption
+wherever wiring touches an unadopted pane — band anatomy + §12 row-actions + scent; tabling
+reserved ONLY for non-thin SERVER serde/schema work); placement RULED list-side one-home
+(band=Import, kebab=Export, rooms/editors carry zero lifecycle chrome); chat export gated on the member-strip
+visibility plane (flag-not-build if the bundle doesn't already handle it — SECURITY).
+~~density S4~~ MERGED (`15905ffc`: baseline 779→422 / 75 files, 54 files zeroed; content-
+integrity strip-diff audit caught a perl brace-eat DELETION before commit; teaching prose kept
+body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
+bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
+NOW DISPATCHABLE.
+**CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
 folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
 SET-SEAMS specs + 4 resolved stickler reports → history, refs repointed, verify-then-move) ·
 w4 F5 pointer → security-executor one-liner · E2E_LIVE=1 pnpm e2e RUNNING (the owed live specs,
@@ -148,7 +194,14 @@ isolated stacks). THEN THE COMBINED SIDE-EYE (stage singleton) dispatches AFTER 
 headings + Recompute · S1 appearance IA (§10 Q3 owner-eyeball) · the inline-Button-arm assessment ·
 live socket-count re-verify (D118 numbers). REMAINING OWNER-GATED: the VRAM-refusal drill (needs
 your word for a real GPU hog) · AGENT-1 (parked on word).
-B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
+~~B4~~ MERGED (`cdb6f2e7`): macro-resolution-home LIVE (4 sanctioned transcript-render homes,
+reasons inline; tokenizer/neutralizers ruled NOT-resolvers; probe bit on a real preset editor
+file ×2 arms) + assertTokenRoundtrip helper (write half; the READ half pinned too — stored
+{{char}} paints literally) proven on injections-manager. Wave-2 readouts joining = a SANCTIONED
+entry w/ reason or RED (the intended forcing function). Blind spots declared (data-flow/dynamic/
+alias/server). GATE-AUTHORING LAW UPGRADED: scanned-and-allowlisted (firehose shape) beats
+scanRoot-exclusion — a moved sanctioned home goes RED instead of carrying its exemption; default
+for new home gates. Was: B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
 from sanctioned render/preview/readout homes (scrubber-home pattern; kills the editor-round-trips-
 resolved-text CORRUPTION class) + the shared assert-token-roundtrip CT helper, proven on an
 existing editor; LANDS BEFORE WAVE 2 so the new editors are born unable to violate it.
@@ -388,7 +441,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    → S4 automation (server-only) → S5 workloads (event union → contracts FIRST) → close-out:
    exempt list down to chat.impersonateStream + ledger D-entry. WATCH: check-gates.int "unfired"
    flaked ONCE (217s run) then passed ×2 — recurs ⇒ chase.**
-   Spec `docs/design/sse-multiplex-spec.md`, §14 fully ruled.
+   Spec `docs/history/design/sse-multiplex-spec.md`, §14 fully ruled.
 3. **~~HUD-HOME~~ COMPLETE + CLOSED (08-02, D119 MINTED)** — H0-H4 all merged; gate live with
    8 probe-receipted arms; spec stamped BUILT; two better-than-spec deviations recorded in D119.
    Residue: the combined side-eye re-pass still owed (stage singleton) · registry-contracts.ts
@@ -509,7 +562,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
      side-eye re-pass
    Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
-   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
+   (`docs/history/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
 
 ### OWNER DECISIONS — ALL RULED (2026-08-01 evening; none pending)
 

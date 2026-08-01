@@ -187,6 +187,102 @@ test("the S1 cohort ships under the app-tier posture: home=user, macros=none (a 
   }
 });
 
+// ── S1b: the inline stragglers (group frames, injection frames, discovery's three whole prompts) ─────
+// Same frozen-fixture discipline as S1, with one addition: four of these slots interpolate a caller value,
+// so the fixture freezes the RENDERED bytes — `resolveProseText(id, {}, tokens)` must reproduce exactly the
+// template literal the server used to author inline.
+const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: Record<string, string>; readonly rendered: string }[] = [
+  // packages/server/src/domain/chat/assembly/assemble.ts — renderCoSpeakerBlock's three headings
+  { id: "chat.group.alsoPresent", tokens: { name: "Niko" }, rendered: "[Also present — Niko]" },
+  { id: "chat.group.scenarioHeading", tokens: { name: "Niko" }, rendered: "[Niko's scenario]" },
+  { id: "chat.group.exampleHeading", tokens: { name: "Niko" }, rendered: "[Niko's example dialogue]" },
+  // packages/server/src/domain/chat/engine/round.ts — buildSpeakerPrep's multi-speaker fence
+  { id: "chat.group.roundNudge", tokens: { name: "Niko" }, rendered: "[Write the next reply only as Niko.]" },
+  // packages/server/src/domain/chat/assembly/injections.ts — frameInjection's two note frames
+  { id: "chat.injection.systemNote", tokens: { note: "stay in scene" }, rendered: "[Note from system: stay in scene]" },
+  { id: "chat.injection.userNote", tokens: { note: "stay in scene" }, rendered: "[Note from user: stay in scene]" },
+];
+
+test("S1b framing slots render, unset, to the exact bytes their inline template literals produced", () => {
+  for (const { id, tokens, rendered } of S1B_FROZEN_RENDERS) {
+    expect(resolveProseText(id, {}, tokens), id).toBe(rendered);
+  }
+});
+
+// The three discovery system prompts were file-local template literals in `analyze.ts` / `distill.ts` with no
+// catalog entry at all. Re-typed here from those files at `72e10422`.
+const DISCOVERY_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
+  "discovery.compare.system": `You compare two roleplay characters for a user browsing their own library. You are given a precomputed facet diff (genres, tones, shared vs distinct tags). Ground your read in ONLY that diff — do not invent traits.
+
+Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
+{"summary":"...","overlap":"...","distinction":"..."}
+
+- summary: ONE sentence — how alike these two are overall.
+- overlap: what they genuinely share (from the shared genre/tone/tags).
+- distinction: what sets them apart (from the distinct tags + differing genre/tone).`,
+  "discovery.ask.system": `You answer a user's question about ONE of their roleplay characters, using ONLY the recent scenes provided. Do not invent facts not present in the scenes.
+
+Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
+{"answer":"...","grounded":true}
+
+- answer: a direct answer to the question, drawn from the scenes.
+- grounded: true if the scenes actually support the answer; false if they don't and you had to guess or the scenes were empty.`,
+  "discovery.distill.system": `You distill a roleplay character card into a compact, FILTERABLE summary so a large library can be browsed at a glance.
+
+Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
+{"genre":"...","subGenres":["..."],"tone":"...","setting":"...","tags":["..."],"elevatorPitch":"...","overview":"..."}
+
+- genre: the single best-fit primary genre (you will be constrained to a fixed list).
+- subGenres: 0-3 secondary genres/modes.
+- tone: the dominant tone (constrained to a fixed list).
+- setting: a short phrase for the world/place ("modern urban fantasy", "feudal Japan").
+- tags: 3-8 concrete, distinctive theme/content tags someone would filter by (not generic words).
+- elevatorPitch: ONE sentence, broad strokes — who this character is and the hook.
+- overview: 2-3 sentences — the character's premise, dynamic, and what RP with them is like. Concrete, no fluff.`,
+};
+
+test("discovery's three system prompts resolve, unset, to the exact bytes they had as file-local constants", () => {
+  for (const [id, frozen] of Object.entries(DISCOVERY_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
+    expect(resolveProseText(id, {}), id).toBe(frozen);
+  }
+});
+
+test("every S1b slot's stored override wins, and the whole cohort ships home=user / macros=none", () => {
+  const ids = [...S1B_FROZEN_RENDERS.map((r) => r.id), ...(Object.keys(DISCOVERY_FROZEN_DEFAULTS) as ProseSlotId[])];
+  for (const id of ids) {
+    const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
+    expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
+    expect(PROSE_SLOTS[id].home, id).toBe("user");
+    // The framing slots carry a `{{name}}`/`{{note}}` PRE-SUBSTITUTION token, not a macro: the caller splices
+    // it, the engine never runs. `none` is what makes that honest (and keeps any other `{{…}}` literal).
+    expect(PROSE_SLOTS[id].macros, id).toBe("none");
+  }
+});
+
+// ── The pre-substitution token mechanism (the `{{person}}`/`{{base}}` guided precedent) ─────────────
+test("a host override's own token is substituted too — the frame stays editable, the value stays the caller's", () => {
+  const overrides: ProseOverrides = { "chat.injection.userNote": { text: "<<from the table: {{note}}>>", baseVersion: 1 } };
+  expect(resolveProseText("chat.injection.userNote", overrides, { note: "look up" })).toBe("<<from the table: look up>>");
+});
+
+test("an override that DROPS the token loses the value it carried — the documented cost of the warn-not-block lint", () => {
+  // Not a bug to fix here: PROSE-1 §6.3 is explicit that `requiredMacros` is an editor WARN, never a server
+  // rejection. This test pins the consequence so the editor surface knows exactly what it is warning about.
+  const overrides: ProseOverrides = { "chat.group.roundNudge": { text: "[Next speaker only.]", baseVersion: 1 } };
+  expect(resolveProseText("chat.group.roundNudge", overrides, { name: "Niko" })).toBe("[Next speaker only.]");
+});
+
+test("a `$&`/`$1` inside a substituted value is LITERAL — the replacement is a function, not a pattern", () => {
+  // A character name or an injection body is user data; `String.replace`'s `$` patterns would silently
+  // duplicate the frame's own bytes into the prompt.
+  expect(resolveProseText("chat.group.alsoPresent", {}, { name: "$& $1 $$" })).toBe("[Also present — $& $1 $$]");
+});
+
+test("omitting `tokens` ships the text verbatim — every token-free slot and every legacy caller is untouched", () => {
+  expect(resolveProseText("chat.group.alsoPresent", {})).toBe("[Also present — {{name}}]");
+  expect(resolveProseText("chat.arbiter.system", {}, { name: "Niko" })).toBe(PROSE_SLOTS["chat.arbiter.system"].text);
+});
+
 test("adapted imagery slots are byte-identical to the shipped catalog", () => {
   for (const [mode, id] of Object.entries(IMAGERY_TEMPLATE_SLOT_IDS)) {
     expect(resolveProseText(id, {})).toBe(DEFAULT_PROMPT_TEMPLATES[mode as keyof typeof DEFAULT_PROMPT_TEMPLATES]);

@@ -1,4 +1,4 @@
-// Gate: single-stream-transport (docs/design/sse-multiplex-spec.md §11) — a browser tab holds ONE SSE
+// Gate: single-stream-transport (docs/history/design/sse-multiplex-spec.md §11) — a browser tab holds ONE SSE
 // socket. `transport/trpc/routers/stream.ts` is the only home for `.subscription(`; every other router proc
 // that wants live delivery is a ROOM on that socket (`ROOM_SOURCES`), not a second connection.
 //
@@ -6,7 +6,7 @@
 // invisible until it isn't. The 2026-08-01 starvation incident was exactly this: `useRpgBus` legitimately
 // opened a THIRD always-on stream per room, 3 sockets × 2 tabs hit the browser's ~6-per-origin ceiling, and
 // an unrelated `character.list` hung forever with zero errors (`a2658fbc`,
-// docs/design/sse-multiplex-spec.md §1). The fix was a per-hook discipline the NEXT always-on stream would
+// docs/history/design/sse-multiplex-spec.md §1). The fix was a per-hook discipline the NEXT always-on stream would
 // have to re-learn. This is the ratchet that turns that discipline into physics — and that keeps the
 // staged fold from silently un-folding.
 //
@@ -36,7 +36,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
 };
 
 const MESSAGE =
-  "a `.subscription(` outside transport/trpc/routers/stream.ts — a browser allows ~6 concurrent connections per origin and every SSE subscription pins one for its lifetime, so a second always-on stream re-opens the starvation class the multiplex closed (docs/design/sse-multiplex-spec.md §11).";
+  "a `.subscription(` outside transport/trpc/routers/stream.ts — a browser allows ~6 concurrent connections per origin and every SSE subscription pins one for its lifetime, so a second always-on stream re-opens the starvation class the multiplex closed (docs/history/design/sse-multiplex-spec.md §11).";
 
 /** The proc key this `.subscription(` call declares: the router file's name + the object-literal property
  *  the whole builder chain is assigned to (`stream: authedProcedure.input(…).subscription(…)`). */
@@ -49,7 +49,7 @@ function procKeyOf(node: Node, filePath: string): string | undefined {
 
 export const gate: GateDescriptor = {
   name: "single-stream-transport",
-  docRow: "docs/design/sse-multiplex-spec.md §11",
+  docRow: "docs/history/design/sse-multiplex-spec.md §11",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,

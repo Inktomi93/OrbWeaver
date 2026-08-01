@@ -43,7 +43,7 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusDossierSurface")}>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading dossier…</Text>}
+        fallback={<Text voice="gloss">Loading dossier…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
       >
         <DossierBody characterId={characterId} onBack={onBack} />
@@ -85,23 +85,15 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
       <Row align="center" gap="block">
         <CharacterAvatar id={characterId} name={dossier.name} hash={avatarHash} size="lg" />
         <Stack gap="field">
-          <Text size="title" weight="semibold">
-            {dossier.name}
-          </Text>
-          {facet !== "" ? (
-            <Text size="micro" tone="muted" transform="caps">
-              {facet}
-            </Text>
-          ) : null}
-          {dossier.elevatorPitch !== null ? <Text tone="muted">{dossier.elevatorPitch}</Text> : null}
+          <Text className="text-title leading-title font-semibold">{dossier.name}</Text>
+          {facet !== "" ? <Text voice="kicker">{facet}</Text> : null}
+          {dossier.elevatorPitch !== null ? <Text className="text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
         </Stack>
       </Row>
 
       {dossier.portrait !== null ? (
         <Section heading="Portrait alignment">
-          <Text size="micro" tone="muted">
-            Card ↔ art cosine: {dossier.portrait.alignment.toFixed(ALIGNMENT_PRECISION)}
-          </Text>
+          <Text voice="gloss">Card ↔ art cosine: {dossier.portrait.alignment.toFixed(ALIGNMENT_PRECISION)}</Text>
         </Section>
       ) : null}
 
@@ -119,9 +111,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       <Section heading="Keywords">
         {keywords.length === 0 ? (
-          <Text size="micro" tone="muted">
-            No keyword profile computed yet.
-          </Text>
+          <Text voice="gloss">No keyword profile computed yet.</Text>
         ) : (
           <BarList
             label="Keyword profile"
@@ -136,9 +126,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       <Section heading="Similar characters">
         {dossier.similar.length === 0 ? (
-          <Text size="micro" tone="muted">
-            No near neighbours found.
-          </Text>
+          <Text voice="gloss">No near neighbours found.</Text>
         ) : (
           <Stack gap="row" role="list">
             {dossier.similar.map((neighbor) => {
@@ -187,11 +175,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
     return <QueryErrorState label="the similar art" onRetry={art.refetch} />;
   }
   if (art.data.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        No look-alike portraits found.
-      </Text>
-    );
+    return <Text voice="gloss">No look-alike portraits found.</Text>;
   }
   return (
     <Stack gap="row" role="list">
@@ -212,7 +196,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
 /** Quiet metadata (§6.3 P5): a cosine/relevance score is a readout, not a pill — inline micro/mono/muted. */
 function Score({ value }: { readonly value: number }): ReactElement {
   return (
-    <Text className="shrink-0 font-mono" size="micro" tone="muted">
+    <Text voice="gloss" className="shrink-0 font-mono">
       {value.toFixed(ALIGNMENT_PRECISION)}
     </Text>
   );
@@ -273,25 +257,13 @@ function AskAnswer({
     return null;
   }
   if (isPending) {
-    return (
-      <Text size="micro" tone="muted">
-        Reading the recent scenes…
-      </Text>
-    );
+    return <Text voice="gloss">Reading the recent scenes…</Text>;
   }
   if (error !== null) {
-    return (
-      <Text size="micro" tone="muted">
-        Couldn't answer that one.
-      </Text>
-    );
+    return <Text voice="gloss">Couldn't answer that one.</Text>;
   }
   if (data === null) {
-    return (
-      <Text size="micro" tone="muted">
-        No played scenes to answer from yet.
-      </Text>
-    );
+    return <Text voice="gloss">No played scenes to answer from yet.</Text>;
   }
   return (
     <Card>
@@ -300,9 +272,7 @@ function AskAnswer({
           <Badge intent={data.grounded ? "success" : "warning"} size="sm">
             {data.grounded ? "Grounded" : "Speculative"}
           </Badge>
-          <Text size="micro" tone="muted">
-            {data.sampledMessages} scenes sampled
-          </Text>
+          <Text voice="gloss">{data.sampledMessages} scenes sampled</Text>
         </Row>
         <Text>{data.answer}</Text>
       </Stack>

@@ -6,6 +6,7 @@
 import type { AssembleContext, ChatInjection, GroupConfig, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
 import type { HistoryMacroNames } from "../contract/results";
 import { spliceInChatInjections } from "./injections";
@@ -73,6 +74,9 @@ interface ShapeInput {
   /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒
    *  merge consecutive system-note runs before they convert to user rows. Orthogonal to `roleHandling`. */
   squashSystemMessages?: boolean | undefined;
+  /** The room host's PROSE-1 overrides (`assembleContext.prose`) — the two injection note frames. Absent ⇒
+   *  the shipped frames, byte-identical. */
+  prose?: ProseOverrides | undefined;
 }
 
 interface ShapeOutput {
@@ -200,6 +204,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     allowMidConversationSystem: input.midConversationSystem === true,
     prefixBoundaryLen,
     squashSystemMessages: input.squashSystemMessages === true,
+    prose: input.prose,
   });
   const squashed = runSquash(injected);
   const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter));

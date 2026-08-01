@@ -195,7 +195,7 @@ function PairRow({
             {badge}
           </Badge>
         ) : null}
-        <Text className="font-mono" size="micro" tone="muted">
+        <Text voice="gloss" className="font-mono">
           {score.toFixed(SCORE_PRECISION)}
         </Text>
       </Row>
@@ -204,9 +204,5 @@ function PairRow({
 }
 
 function Muted({ children }: { readonly children: string }): ReactElement {
-  return (
-    <Text size="micro" tone="muted">
-      {children}
-    </Text>
-  );
+  return <Text voice="gloss">{children}</Text>;
 }

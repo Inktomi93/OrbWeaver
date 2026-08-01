@@ -1,6 +1,6 @@
 # SSE multiplex — ONE socket, typed room frames (SSE-1)
 
-**Status:** SPEC — **APPROVED TO BUILD (owner, 2026-08-01; §14 fully ruled)**. Not built. Owner ruling 2026-08-01 (`docs/retro-workboard.md` §CURRENT STATE): *"BUILD
+**Status:** SPEC — **CLOSED — BUILT S0-S5, D118.
 THE MULTIPLEX PROPERLY, spec first."* This document is the blueprint; nothing here is implemented.
 **Scope:** the server transport stream layer (`packages/server/src/transport/trpc/**`), the client bus
 layer (`packages/client/src/data/bus/**` + the two feature stream hooks), the CT SSE stub, the e2e SSE
