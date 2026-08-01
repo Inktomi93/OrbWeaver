@@ -18,11 +18,17 @@ import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
 const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, roomOverrides: {}, participants: [] };
 
+// The Macro-picks section's own suspense read (#24) — this tab is its production mount, so every committed
+// arm must stub it or the section's boundary would swallow the failure and the tab's composition contract
+// would silently stop covering it. Empty declarations = the section's teaching empty state.
+const EMPTY_PICKS = { macros: [], values: {} };
+
 test("committed host + group: BOTH sections render as h3 headings", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -31,6 +37,8 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toBeVisible();
+  // Macro picks (#24) — member-reachable, so it renders for host and non-host alike.
+  await expect(component.getByRole("heading", { name: "Macro picks", level: 3 })).toBeVisible();
 });
 
 // The Group-behavior section's suspense read (chat.getGroupConfig) held pending: the QueryBoundary
@@ -46,7 +54,12 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
     }
     await route.fallback();
   });
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getChat": () => CHAT_DETAIL });
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
 
@@ -65,6 +78,7 @@ test("committed non-host: Group behavior is ABSENT, Field overrides persists (re
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
@@ -81,6 +95,7 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 
@@ -117,6 +132,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
     [UPDATE_TOOL_LIMIT]: () => ({}),
   });
@@ -137,7 +153,7 @@ test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limi
 });
 
 test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [] });
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
   await expect(component.getByRole("spinbutton", { name: "Tool rounds per turn" })).toHaveCount(0);
@@ -166,6 +182,7 @@ test("count chips: no chip when nothing is set (a '0' chip would be noise)", asy
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
   });
 

@@ -47,6 +47,7 @@ import type {
   GetRoomOverridesForChatParams,
   GetShapeTraceParams,
   GetStoredVariablesParams,
+  GetUserMacroPicksParams,
   GetVariablesParams,
   ImpersonateStreamParams,
   KickParticipantParams,
@@ -128,6 +129,7 @@ import type {
   SectionPreview,
   ShapeTrace,
   StreamEventBounds,
+  UserMacroPicksView,
 } from "./views";
 
 export interface ChatService {
@@ -259,6 +261,8 @@ export interface ChatService {
   readonly clearVariables: (params: ClearVariablesParams) => Promise<void>;
   /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */
   readonly setUserMacroValues: (params: SetUserMacroValuesParams) => Promise<void>;
+  /** The picks pane read (#24) — the pickable user-macro declarations + the persisted picks. Member-gated. */
+  readonly getUserMacroPicks: (params: GetUserMacroPicksParams) => Promise<UserMacroPicksView>;
 
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */

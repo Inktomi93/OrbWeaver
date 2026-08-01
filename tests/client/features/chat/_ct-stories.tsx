@@ -112,6 +112,7 @@ import { RoomOverridesForm } from "../../../../packages/client/src/features/chat
 import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
+import { UserMacroPicksSection } from "../../../../packages/client/src/features/chat/components/user-macro-picks-section";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows";
@@ -1924,6 +1925,24 @@ export function ImageryTemplatesSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
         <ImageryTemplatesSection />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The MU PICKS pane (#24) over the real data layer — `chat.getUserMacroPicks` + `chat.setUserMacroValues`
+ *  stubbed in the `.ct.tsx`. Wrapped in the SAME `QueryBoundary` the "This chat" tab mounts it behind
+ *  (the section suspends on its own read), so the CT drives the production composition, never a bare mount. */
+export function UserMacroPicksSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480, padding: 16 }}>
+        <QueryBoundary
+          fallback={<Text tone="muted">Loading macro picks…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
+        >
+          <UserMacroPicksSection chatId={CHAT_ID} />
+        </QueryBoundary>
       </div>
     </CtDataProviders>
   );

@@ -160,6 +160,11 @@ const BUS_FILTERS: BusFilterMap = {
     trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
     trpc.chat.listChatInjections.queryFilter({ chatId: e.chatId }),
+    // `getUserMacroPicks` rides here for the SAME reason as `getGroupConfig`/`listChatInjections`: the MU
+    // picks pane reads the room's `chats.user_macro_values` through its OWN proc (not under `getChat`), and
+    // `setUserMacroValues` emits this catch-all. Without the row only the writing tab reconciled — a second
+    // member sat on the pre-pick bag forever (staleTime is Infinity; the bus is the only driver).
+    trpc.chat.getUserMacroPicks.queryFilter({ chatId: e.chatId }),
   ],
 };
 
@@ -180,7 +185,15 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
   // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
-  presetsChanged: (_e, trpc) => [trpc.preset.pathFilter(), trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
+  // `getUserMacroPicks` rides a preset edit too: its DECLARATIONS half IS the active preset's `userMacros`
+  // (adding/removing a macro input changes which controls the picks pane must render), and no chat-bus event
+  // fires when the preset — a different domain's row — is edited.
+  presetsChanged: (_e, trpc) => [
+    trpc.preset.pathFilter(),
+    trpc.chat.previewContextFit.pathFilter(),
+    trpc.chat.getUserMacroPicks.pathFilter(),
+    ...promptPreviewReads(trpc),
+  ],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.

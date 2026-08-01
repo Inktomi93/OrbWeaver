@@ -556,6 +556,12 @@ const PROBES: readonly Probe[] = [
     path: "chat.setUserMacroValues",
     call: (c, i) => c.chat.setUserMacroValues({ chatId: i.chatId, values: { mood: { tone: "grim" } } }),
   },
+  {
+    // #24: the picks pane read — `requireParticipant` miss on a stranger's chatId is a leak-free NOT_FOUND
+    // BEFORE either half loads (neither the host's macro declarations nor the room's picks cross out).
+    path: "chat.getUserMacroPicks",
+    call: (c, i) => c.chat.getUserMacroPicks({ chatId: i.chatId }),
+  },
   { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
   { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },

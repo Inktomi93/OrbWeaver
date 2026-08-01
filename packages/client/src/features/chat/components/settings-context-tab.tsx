@@ -24,6 +24,7 @@ import { CommittedGroupConfigTab } from "./group-config-form";
 import { InjectionsManager } from "./injections-manager";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
 import { ToolRecurseControl } from "./tool-recurse-control";
+import { UserMacroPicksSection } from "./user-macro-picks-section";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
@@ -89,6 +90,17 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
         >
           <InjectionsManager chatId={chatId} isHost={isHost} />
+        </QueryBoundary>
+      </Section>
+      {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play
+          state any member may set (`setUserMacroValues` is member-gated, the `setVariables` sibling), so it
+          sits with Field overrides/Injections rather than in the host-only band below. */}
+      <Section heading="Macro picks">
+        <QueryBoundary
+          fallback={<SkeletonRows count={2} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
+        >
+          <UserMacroPicksSection chatId={chatId} />
         </QueryBoundary>
       </Section>
       {isHost ? (
