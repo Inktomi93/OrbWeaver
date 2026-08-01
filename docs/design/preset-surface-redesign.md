@@ -154,6 +154,27 @@ no row here is a spec bug):
 | `reasoningParse.*` | Prompt-group ▸ "Templates" (F4 — a misnamed tab holding only this) | Transforms (it is a reply parse) |
 | `schemaVersion` | invisible (correct) | invisible (correct — `mergeOnSubmit` re-anchors it) |
 
+### 3.1 Editing the BUILT-IN preset — fork-once, as it reads in this editor
+
+The built-in opens like any preset: the same five views, every knob ghosted at its effective value,
+every section body ghosting its built-in default — the ghost-default treatment applies to the
+built-in's sections IDENTICALLY (nothing is special-cased; the lock is a WRITE property, not a render
+mode). The
+sequence when the user edits (the landed `usePresetAutosave` machinery, spelled as UX):
+
+1. the FIRST committed edit autosaves through the serialized chain; the server copy-on-writes and
+   returns the fork's row ("Default (edited)") — the mint happens exactly once per session chain;
+2. the editor RETARGETS in place: the header name flips to the fork's, the LIST grows the fork row
+   (selected), and the built-in row stays locked and unchanged;
+3. activation follows when the built-in was the active pick (the landed retarget) — the header's
+   ACTIVE chip appears, or the not-active **Activate** echo renders (§16 row 3b, the sanctioned
+   editor-side half of activation);
+4. every subsequent save patches the fork. No dialog, no interruption — the `AutosaveStatus` chip is
+   the only narration.
+
+The built-in's LIST row: lock glyph, no Delete (landed), Export hidden (§16.1), its activate toggle =
+the null pick.
+
 ## 4. The Params deck — the centerpiece
 
 One scrolling instrument column. Clusters in order, each a `kicker` + hairline (never a box, never a
@@ -283,7 +304,10 @@ readout is the named prior failure class. The contract, in full:
 ### 5.1 The rack — kept, density-conformed
 
 The rack survives as-is functionally (zones, pivot band, drag, per-row ~tokens, enable switches, the
-missing-pivot callout). Visual conformance only: rows drop `rounded-card border` for the instrument
+missing-pivot callout) — with ONE functional correction: the pivot band's enable Switch DIES
+(`pivot-band.tsx:52-56` renders one today; under §5.2's structural rule the pivot can be neither
+deleted, silenced, nor disabled — a disabled pivot is an assembly with nowhere to splice the
+conversation, the exact state the missing-pivot warning exists to prevent). Visual conformance only: rows drop `rounded-card border` for the instrument
 ListRow skin (hairline separation, `rounded-control`, selection = ember tint + left bar — already
 half-true via `bg-primary/10`), the zone chips join the CONTEXT readout (§7), and the
 Compose|Preview toolbar toggle DIES — preview moves whole to the CONTEXT readout (decision D2), so
@@ -291,16 +315,73 @@ compose is the center's only mode and the toolbar is just Add.
 
 ### 5.2 The consolidated section editor (F5 dead)
 
-Clicking a rack row drills into ONE editor owning the WHOLE section, in this order: body (the landed
-tri-state Default/Custom/Silent editor, unchanged) → delivery (name · role · **inject depth** —
-owner-ruled, mock round 3, verbatim: *"depth goes near whatever role it goes in as"*; depth is a
-DELIVERY property and sits beside the role it rides) → placement (zone · **order**, the within-depth
-tiebreak — depth and order are SEPARATE fields, never the fused `@depth · order` spelling) → triggers
-→ override locks. The CONTEXT "Section" inspector tab is DELETED with
-its bridge machinery (`preset-editor-bridge.ts`, `preset-section-inspector.tsx`,
-`section-inspector-controls.tsx` move into the drill-in) — one object, one place. The
-`onRevealSection` choreography and the `useSelectedPresetSectionId` store survive (selection is still
-the drill key); what dies is the second geography.
+**Select and drill are DISTINCT acts (ST-parity ruling, round 4).** A rack row CLICK selects — the
+CONTEXT readout echoes (highlighted token bar, attribution, preview focus): that echo IS the inspect
+affordance, our answer to ST's name-click inspect popout. The row's trailing chevron (or Enter on the
+focused row) DRILLS into the editor. The two acts never conflate: v3's "clicking a rack row drills"
+is superseded — click = inspect, chevron/Enter = edit.
+
+The drill-in owns the WHOLE section, in this order: body (branching by KIND, below) → delivery (name ·
+role · **inject depth** — owner-ruled, mock round 3, verbatim: *"depth goes near whatever role it goes
+in as"*; depth is a DELIVERY property and sits beside the role it rides) → placement (zone · **order**,
+the within-depth tiebreak — depth and order are SEPARATE fields, never the fused `@depth · order`
+spelling) → triggers → override locks. The CONTEXT "Section" inspector tab is DELETED with its bridge
+machinery (`preset-editor-bridge.ts`, `preset-section-inspector.tsx`, `section-inspector-controls.tsx`
+move into the drill-in) — one object, one place. The `onRevealSection` choreography and the
+`useSelectedPresetSectionId` store survive (selection is still the drill key); what dies is the second
+geography.
+
+**The STRUCTURAL SET — markers cannot be deleted (ST-parity ruling, round 4).** The contract's own
+three-branch union IS the classification (`contracts/preset/index.ts:604-642`): `literal` sections are
+USER-AUTHORED; `marker` sections — the ten TEMPLATED markers (`main_prompt` · `char_description` ·
+`char_personality` · `scenario` · `dialogue_examples` · `post_history` · `persona` · `memory` ·
+`compact_summary` · `guided_instruction`, `:560-571`) and the three PLAIN markers (`chat_history` ·
+`world_info_before` · `world_info_after`, `:574`) — are STRUCTURAL. The rules:
+
+- a MARKER's ⋯ menu carries NO Delete and NO Duplicate (omitted entirely, never disabled-Delete) —
+  its ONE off-switch is the enable toggle (the tri-state's Silent arm is DEAD, below);
+- a LITERAL keeps the full set (Duplicate · Move · Delete-behind-confirm);
+- the PIVOT (`chat_history`) can be neither deleted, silenced (it has no template arm), NOR disabled
+  (§5.1 — the enable switch dies), and never duplicated; duplicate pivots from imports keep the landed
+  inert-warning-band treatment (debris display, not an affordance);
+- the one-way door is DELIBERATE ST parity: the Add menu still offers ABSENT markers (an ST import can
+  arrive marker-less), and a placed marker is thereafter disabled-not-deleted — exactly ST's
+  fixed-marker-list behavior. Today's code allows deleting any section including the pivot (the
+  inspector's Delete has no marker branch) — that is what this rule kills.
+
+**§5.2a — THE TRI-STATE DIES (owner-ruled, round 4, verbatim: "Silent is just toggling the section
+off, default is default, custom is if you have something — multiple concepts for the same thing and
+doing it worse").** The Default/Custom/Silent segmented control was three-state vocabulary for what
+two existing mechanisms already express, and it goes:
+
+- **ONE textarea, ghost-when-empty**: empty = the built-in default rides (ghosted in the field, the
+  Actions templates' landed grammar — `guidedFooterState`'s "empty IS the ghosted default" semantic,
+  cited as the precedent this aligns to); typed = custom; **reset = clear the field** (§16 row 24 —
+  one reset grammar across sections AND templates). The empty-default markers (`main_prompt`,
+  `post_history`) ghost their explainer line instead of bare nothing.
+- **OFF is solely the ENABLE mechanism.** The rack row's Switch stays the primary home; the drill-in
+  HEADER gains an enable Switch as a SANCTIONED ECHO (§16 row 18 amended): while drilled, the rack —
+  the primary home — is off-screen, and an editor silently editing a disabled section would hide the
+  one state that makes every field moot. Both bind the SAME `sections[i].enabled` form path (one
+  writer by construction).
+- **The stored `""` arm is RETIRED (gap-close G8):** the contract's "Empty = render nothing"
+  (`contracts/preset/index.ts:631`) becomes unrepresentable from the editor; a v4→v5 lift maps a
+  stored `template: ""` → `{ template: undefined, enabled: false }` (Silent's stored form becomes the
+  enable mechanism it always was — NO-LEGACY, one-time, the lift chain exists for exactly this), and
+  the assembler's empty-template arm is deleted in the same change.
+
+**The BODY branches by KIND (owner ST-screenshot ruling: carriers are source-attributed, never
+editable, never blank).** The schema branch is the authority — plain markers carry NO `template` field
+(`:615-622`), which IS the carrier distinction; no new flag is invented:
+
+| kind | body slot renders |
+| - | - |
+| `literal` (authored) | the MacroField body editor (unchanged) |
+| TEMPLATED marker | ONE textarea for the FRAMING template, ghosting the built-in default when empty (§5.2a — the tri-state is DEAD) + a SOURCE line naming where the substance flows from ("Substance: the character card's Description" / "the persona" / "chat memory") — the template frames carrier content, it is not the content |
+| PLAIN marker (pure carrier) | a SOURCE-ATTRIBUTION panel, never a textarea, never blank: the source domain + the expected shape + a nav link — `world_info_before/after`: "Content comes from World info — manage in World info ↗" plus the `formatStrings.wiFormat` ENTRY-WRAPPER field beneath it (clearly labeled as framing each entry — a format string, not the body; the landed shared-wrapper editor keeps its home) · `chat_history`: "Content is the conversation itself" (no fields) |
+
+The nav link is a sanctioned cross-SECTION navigation echo (§16 row 30) riding the standing rail
+store writers.
 
 ### 5.3 The DELIVERY cluster
 
@@ -322,8 +403,10 @@ Impersonate   writes as you for one turn        [system] [Customized] "Write the
 
 Row anatomy: kind (`label` voice) · fires-when `gloss` · role badge (only when non-system) ·
 Default/Customized state chip · a one-line mono template preview (truncated; the ghosted default when
-unset). Row click drills into the editor: role select + `MacroField` ghosting the factory default +
-the landed missing-`{{input}}` lint + the assistant-prefill note. The impersonate row keeps its
+unset). The SAME select/drill split as the rack (§5.2): row click SELECTS — the Actions readout
+echoes the resolved preview (§7) — and the chevron/Enter drills into the editor: role select +
+`MacroField` ghosting the factory default + the landed missing-`{{input}}` lint + the
+assistant-prefill note. The impersonate row keeps its
 `{{person}}` vocabulary chip. The `guided_instruction` marker cross-link chip survives at the top
 (healthy/off/absent → selects the marker row in Prompt).
 
@@ -389,10 +472,66 @@ Params panel also appears in `params-deck.html` beside its CONTENT view):
 | - | - | - |
 | **no selection** (LIST browsing, no editor open) | the ACTIVE preset's effective profile — its name + the §4.3 datum rows + the capability line | "is what generation will use RIGHT NOW what I want — do I need to open, fork, or activate anything before my next turn?" It is the §4.3 read pointed at the active pick — zero new machinery, and the pane is useful before a row is ever clicked |
 | **Params** | the effective profile (every resolved knob + provenance) · the CAPABILITY card (model · window · output cap · the honored-knob list) · the quality-mapping line · the staleness COUNT | which knob to touch next (effective vs intent) · why a knob is absent or clamps (capability — today you cannot see WHY the panel shows only some sliders) · whether to trust the dial or go explicit (mapping) · whether stored intent is dead weight (staleness — the Keep/Clear AFFORDANCE stays in the deck, §4.2; the count is a pointer only) |
-| **Prompt** | the zone budget (SETUP/POST counts + ~tokens) · per-section token bars, the drilled section highlighted · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · where a section actually lands in the assembled prompt (preview) · the structural fix when the pivot is missing/duplicated (health) |
+| **Prompt** | the zone budget (SETUP/POST counts + ~tokens) · per-section token bars, the SELECTED section highlighted — **this selection echo IS the inspect view** (ST name-click parity: click a row to inspect here, chevron to edit) · a selected CARRIER's SOURCE ATTRIBUTION + expected shape (chat-free facts only — the source domain, a library-level count where one exists chat-free; never fake rows) · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · what a carrier IS and where to manage it (attribution) · where a section actually lands (preview) · the structural fix when the pivot is missing/duplicated (health) |
 | **Actions** | the DELIVERY PATH: the `guided_instruction` marker's health (healthy/off/absent) + its zone/position/depth in the current arrangement, with the section-select echo · the SELECTED action row's RESOLVED preview (the template with runtime tokens MARKED and only chat-independent macros resolved — the honesty pin above) | "will my customized template actually land, and where in the prompt?" — the §6 cross-link promoted from a chip you must notice to a standing readout · "what does the model actually receive when I fire this action?" (the resolved preview) |
 | **Data** | per-variable / per-macro REFERENCE COUNTS within this preset — which sections, templates, nudges, and macro bodies mention `{{name}}` (each reference is a section-select echo) · an unreferenced marker | "is this safe to rename or delete, and where do I look first?" — scoped honestly: a zero count reads "no references in THIS preset", never "dead" (chat-time consumers outside the preset are not claimed). The scan is a pure client derivation over the saved config — no new server read |
 | **Transforms** | the PIPELINE readout, two lanes in execution order: prompt-side (regex script counts per `REGEX_PLACEMENTS` slot, on/off) · reply-side (native reasoning → `reasoningParse` fallback → AI-output/display regex → each post-process step, on/off) | "why did the reply change / which stage do I edit?" — the ORDER is the datum; today it lives only in engine file headers |
+
+**Materialization honesty (owner ST-screenshot ruling, round 4 — the boundary stated so no lane
+invents fake rows):** ST's inspect popout shows a marker's ACTUAL expanded rows
+(`chatHistory-1/assistant/944tok…`) because ST's prompt manager lives INSIDE a chat. Our preset editor
+is chat-independent, so: (1) editor-side, a selected carrier's readout shows ATTRIBUTION + expected
+shape only — and the assembled preview is honest by construction: `preview-model.ts:1-4` is *"Display
+only — macros are tokenized, never resolved; nothing here touches live chat data"* — a pure projection
+over the preset's own `sections`, plain markers contributing their one-line hint (`:95`), never
+materialized rows; (2) the REAL materialization view (actual spliced rows, per-row token costs) is the
+CHAT-side surface — the landed PREV/assembly machinery already renders the true per-turn context
+against a live room. Whether the preset editor gets an OPT-IN binding to that reality is the ONE open
+fork of this spec — §7.1 weighs it in full (owner decision D8). Until ruled, the boundary above is the
+posture: attribution editor-side, materialization chat-side, nothing faked.
+
+### 7.1 The NAME-CLICK INSPECT — weighed in full (OPEN, owner decision D8)
+
+The ST reference, stated exactly (owner screenshots): clicking a marker's NAME opens an Inspect panel
+("Prompt List — the list of prompts associated with this marker") showing the marker's ACTUAL
+materialized rows — `chatHistory-1 / assistant / 944 tokens`, `chatHistory-2 / user / 167`, … — each
+with an expander. ST can do this because its manager lives INSIDE a chat, and the workflow the
+screenshots capture is MID-PLAY preset tuning — which is also this owner's actual workflow. Four arms,
+weighed without anchoring on the current design:
+
+- **(a) select → CONTEXT echo (the current design).** Honest verdict: NOT equivalent. The echo shows
+  ONE aggregate ~token estimate per section, and for a CARRIER that estimate is measured over the
+  TEMPLATE text — near zero — while the real cost (the whole conversation; the active WI set) is
+  precisely what a tuner wants. (a) is an ARRANGEMENT instrument, not a materialization instrument. It
+  stays correct as the unbound floor; calling it "the inspect" oversold it.
+- **(b) a dedicated editor-side inspect surface per marker.** Where would honest data come from?
+  Nowhere chat-free: WI offers only library-level counts (the ACTIVE set is chat-scoped by the
+  junctions), `chat_history`/`memory` have literally nothing. (b) either fakes rows (banned) or
+  quietly becomes (c). Rejected as its own arm.
+- **(c) an OPT-IN INSPECTION BINDING to the user's active chat.** The observation with teeth: there is
+  ONE global active preset and, mid-play, always a live chat. A binding chip on the readout
+  ("Inspecting against: <chat> · unbind") makes the readout REAL — materialized per-marker rows with
+  true roles + true token counts (ST's exact panel, with honest data), AND identity macros resolve for
+  real, because the CHAT resolves them (Ruling B is SATISFIED, not violated: chat-side resolution,
+  editor-side display). One binding kills BOTH §7 honesty compromises. Mechanics: ONE server read —
+  the landed chat-side PREV/assembly preview seam grows a `presetOverride` param (assemble THIS chat
+  as if THIS preset were active); the chat Preview tab and the bound preset readout project the SAME
+  read (one home, two projections — the §16 posture). Costs, named: (i) read-only chat coupling in the
+  preset editor — the config-rail boundary survives because the binding never WRITES chat state and
+  the editor's writes stay chat-independent; (ii) freshness — the bound readout rides `chatsChanged` +
+  turn commits (two new §4.4 rows); (iii) `presetOverride` is new surface on the preview seam (small
+  but real: previewing a NON-active preset against a room); (iv) the unbound state stays first-class
+  (no live chat ⇒ the (a) floor + attribution — never a broken pane).
+- **(d) materialization stays chat-side only, nav link from the editor.** Zero coupling, maximal
+  honesty — and it preserves a pane-hop loop (edit → jump to the chat Preview tab → look → jump back)
+  through the exact workflow the ST inspect exists to de-friction.
+
+**Recommendation (D8): (c), opt-in — defaulting BOUND when the edited preset IS the active one AND a
+chat is open** (the mid-play case: everything real), UNBOUND otherwise (the honest floor). (d) stays
+true regardless — the chat Preview tab keeps its own view of the same read. Sequenced AFTER P0–P5
+(nothing in the core depends on it); a YES lands the `presetOverride` seam + the freshness rows + a
+§16 row for the binding chip (a readout-local VIEW toggle, not a mutation — the read-only invariant
+holds).
 
 **Where the honest answer is "the same readout," said per-view:** no view duplicates another
 wholesale. Prompt and Actions share the arrangement SOURCE (both project `sections` — one derivation,
@@ -450,6 +589,7 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 | G4 | `compaction.verbatimTail` number row (CONTEXT), placeholder = engine floor | S |
 | G5 | `responseNudge` row (Actions ▸ NUDGES) | S |
 | G6 | The SINGLE-preset door, as THIN ARMS over the live portability seam (owner-corrected — never a parallel path): **export** = client-side `buildPresetFile(name, config)` from the cached `preset.get` row → download (the contract fn IS the bundle arm's serde — one home, `verbs/export.ts:15`; the affordance hides on the built-in row, matching the bundle's own system-default exclusion, `export.ts:1-3`); **import** = a thin `preset.importFile` proc DELEGATING to the existing `ImportPreset` verb, surfaced as the orb arm of the ONE band dialog — bundle semantics by construction: idempotent on `(ownerId, name)`, same-named preset MERGED in place else created under kind `roleplay`, `presetsChanged` emitted (`verbs/import.ts:2-4,40-76` — cited, reused, not re-derived); the dialog states the merge semantic | S |
+| G8 | The tri-state retirement lift (§5.2a): v4→v5 config lift mapping `template: ""` → `{template: undefined, enabled: false}`; the assembler's empty-template arm + the contract's "Empty = render nothing" clause deleted with it | S |
 | G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active (a §16 row-3 sanctioned echo — same mutation as the row toggle), and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
 
 Each pairs with `mergeOnSubmit`/`seedConfig` touches where a new bound path needs seeding — noted so
@@ -568,8 +708,8 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 
 ## 15. Owner decisions — genuine forks ONLY, with recommendations
 
-> **ALL SEVEN RULED AS RECOMMENDED (owner, mock review round 3).** The table stands as the
-> rationale record; nothing below remains open.
+> **D1–D7 RULED AS RECOMMENDED (owner, mock review round 3)** — the table stands as the rationale
+> record. **D8 (round 4) is the ONE OPEN fork.**
 
 | # | decision | recommendation |
 | - | - | - |
@@ -580,6 +720,8 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 | **D5** | **Build `preset.resolveEffective`** (the one new server read — the funnel projected for the editor) | **YES** — without it the ghost column falls back to static placeholders and the quality-fed defaults stay invisible (the F9 core). It is a projection of existing funnel code, not new resolution logic |
 | **D6** | `maxBudgetUsd`: build its OUTPUT editor, or delete the field (NO-LEGACY allows it pre-launch) | **verify the wire first, then decide** — if the funnel/runners actually enforce a budget, build the editor (S); if it is a dead schema field, delete it. This spec does not fake either |
 | **D7** | `customParameters`: read-only presence row + JSON view in ADVANCED, or stay invisible | **presence row** — an invisible stored blob that changes the wire (custom-byo) fails the no-silent-knobs bar; editing stays out (it is the server-side BYOK escape hatch by design) |
+
+| **D8** | **The inspect binding (OPEN — §7.1):** bind the preset readout to the user's ACTIVE chat so materialization + identity macros go REAL (arm c), vs the chat-side-only boundary (arm d) | **(c) opt-in, default-bound in the mid-play case** — §7.1 carries the full weighing; a YES lands post-core with the `presetOverride` preview seam |
 
 Everything else in this spec is design, not a fork: the five-view map (§3), the KnobRow anatomy
 (§4.1), the staleness row (§4.2), the Actions list grammar (§6), the gap-close register (§10 — G6/G7
@@ -613,18 +755,19 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 15 | edit output / context / compaction / advanced fields | each field's one deck row (§3 map) | none | the §3 exhaustive map — a field in two clusters is a spec bug |
 | 16 | add a section | the rack toolbar **Add** menu | the missing-pivot callout's "Add chat history" — a warning carries its own remedy (the landed rack pattern) | both call the one `makeSection` push |
 | 17 | reorder sections | rack drag (the handle) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag, and the no-pointer path | both go through `moveFieldValues`; review |
-| 18 | enable / disable a section | the rack row Switch | none — the drill-in deliberately carries NO second enable toggle | mock swept: the section editor draws none |
-| 19 | select / drill a section | the rack row name button | (a) CONTEXT preview block-click — clicking what you see IS the projection's point; (b) CONTEXT per-section bar click (same); (c) the Actions-view delivery-path echo (cross-view navigation to the `guided_instruction` marker); (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall |
+| 18 | enable / disable a section | the rack row Switch (the PIVOT carries none — it cannot be disabled, §5.2) | the drill-in HEADER Switch (§5.2a — while drilled the primary home is off-screen, and editing a disabled section with no visible state hides the fact that makes every field moot; both bind the ONE `sections[i].enabled` form path) | the pivot band's landed Switch is deleted (`pivot-band.tsx:52-56`); CT: both switches converge on one field |
+| 19 | select a section (= INSPECT — the readout echo is the inspect view, §5.2/ST parity) vs DRILL to edit — TWO DISTINCT ACTS: row click selects; the row chevron / Enter drills | click = the row body; drill = the trailing chevron | select echoes: (a) CONTEXT preview block-click; (b) CONTEXT per-section bar click; (c) the Actions-view delivery-path echo; (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall; a CT pins that row-click does NOT mount the drill-in |
 | 20 | edit a section whole (body · delivery [name · role · depth] · placement [zone · order] · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
-| 21 | duplicate / delete a section · move-to-zone | the drill-in ⋯ menu (delete behind confirm) | none | — |
+| 21 | duplicate / delete a section (LITERALS ONLY — §5.2 structural rule) · move-to-zone (any non-pivot) | the drill-in ⋯ menu (delete behind confirm) | none — a MARKER's menu OMITS Duplicate + Delete entirely (never disabled-Delete); the pivot's menu offers nothing | CT: a marker's menu renders no Delete/Duplicate items |
 | 22 | back to rack | the drill-in back button | none (Esc stays overlay-only — the house Esc rule) | — |
-| 23 | edit a guided template / nudge (role · template) | its Actions row drill-in | none | — |
-| 24 | reset a template to Default | CLEAR the field — empty IS the ghosted default (the landed `guidedFooterState` semantic); no second reset control exists | none | the footer state chip renders the semantic; CT |
+| 23 | edit a guided template / nudge (role · template) | its Actions row drill-in (chevron/Enter — click is SELECT, echoing the resolved preview, the §5.2 split) | none | — |
+| 24 | reset a template / a SECTION BODY to Default | CLEAR the field — empty IS the ghosted default (the landed `guidedFooterState` semantic, now the ONE grammar for Actions templates AND section bodies, §5.2a) | none | the state chip renders the semantic; CT |
 | 25 | variable / user-macro CRUD | the Data view's `EntryListEditor` + its dialog | none | — |
 | 26 | regex CRUD · post-process switches · reasoning-parse fields | their Transforms editors | none | — |
 | 27 | reset preset to starter | the editor-header kebab → confirm | none | — |
 | 28 | retry a failed save | the `AutosaveStatus` chip | none | — |
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
+| 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |
 
 **Invariants the table pins:** (i) CONTEXT is read-only + navigation-only — its only interactions
 are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE mutation/store
