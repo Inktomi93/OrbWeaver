@@ -57,7 +57,7 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 export function RateLimitsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading rate limits…</Text>}
+      fallback={<Text voice="gloss">Loading rate limits…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
     >
       <RateLimitsBody sectionId={sectionId} />

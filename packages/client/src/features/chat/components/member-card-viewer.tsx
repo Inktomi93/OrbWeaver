@@ -233,7 +233,7 @@ function FullTier({ card }: { readonly card: MemberCardView }): ReactElement | n
       <ProseSection icon={SlidersHorizontal} title="Post-history instructions" text={card.postHistoryInstructions} />
       {hasDepth ? (
         <SectionShell icon={SlidersHorizontal} title="Author's note depth">
-          <Text tone="muted">{card.authorsNoteDepth} messages from the end</Text>
+          <Text voice="gloss">{card.authorsNoteDepth} messages from the end</Text>
         </SectionShell>
       ) : null}
     </Stack>
@@ -304,12 +304,10 @@ function HiddenTierNote({ label, description }: { readonly label: string; readon
       <Row gap="field" align="center">
         <Icon icon={EyeOff} size="sm" className="text-muted-foreground" />
         <Stack gap="field" className="min-w-0">
-          <Text as="span" size="label" weight="medium" tone="muted">
+          <Text as="span" voice="label">
             {label} hidden
           </Text>
-          <Text size="micro" tone="muted">
-            {description}
-          </Text>
+          <Text voice="gloss">{description}</Text>
         </Stack>
       </Row>
     </Stack>
@@ -324,7 +322,7 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
           skin is preserved via the Heading overrides; only the element rank changes. */}
       <Row gap="field" align="center">
         <Icon icon={icon} size="sm" className="text-muted-foreground" />
-        <Heading level={3} size="label" weight="medium" tone="muted" transform="caps">
+        <Heading voice="kicker" level={3}>
           {title}
         </Heading>
       </Row>
@@ -335,7 +333,7 @@ function SectionShell({ icon, title, children }: { readonly icon: typeof ScrollT
 
 function Bubble({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <Stack gap="row" className="rounded-card bg-ai-bubble p-block">
+    <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
       {children}
     </Stack>
   );

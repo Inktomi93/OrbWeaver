@@ -46,7 +46,7 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
   if (onEditLevel === undefined) {
     return (
       <Badge tone="soft" size="sm" data-slot="sheet-level">
-        <Text as="span" size="micro" weight="medium" className="tabular-nums">
+        <Text as="span" voice="gloss" className="tabular-nums">
           Level {level}
         </Text>
       </Badge>
@@ -75,7 +75,7 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
       return null;
     }
     return (
-      <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+      <Text as="span" voice="label" className="min-w-0 break-words">
         {actor.sheet.flavor}
       </Text>
     );
@@ -111,7 +111,7 @@ function WalletChip({
   return (
     <Badge tone="soft" size="sm" data-slot="sheet-wallet-chip">
       {onEditAmount === undefined ? (
-        <Text as="span" size="micro" weight="medium" className="tabular-nums">
+        <Text as="span" voice="gloss" className="tabular-nums">
           {coin.amount} {coin.name}
         </Text>
       ) : (
@@ -130,7 +130,7 @@ function WalletChip({
             className="!w-avatar-md px-field text-right tabular-nums"
             restClassName="tabular-nums"
           />
-          <Text as="span" size="micro" weight="medium">
+          <Text as="span" voice="gloss">
             {coin.name}
           </Text>
           {locked === true && onRelease !== undefined ? <RpgFieldLock onRelease={onRelease} /> : null}
@@ -158,7 +158,7 @@ function WalletChips({
 }): ReactElement {
   if (wallet.length === 0) {
     return (
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         No coin yet — the story hands it out.
       </Text>
     );
@@ -246,7 +246,7 @@ function IdentityBlock({
       </Avatar>
       <Stack gap="field" className="min-w-0 flex-1">
         <Row gap="field" align="center" className="min-w-0 flex-wrap">
-          <Text as="span" size="label" weight="semibold" className="truncate">
+          <Text as="span" voice="label" className="truncate">
             {actor.name}
           </Text>
           <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
@@ -303,9 +303,7 @@ function ConditionSection({ actor, edit }: { readonly actor: RpgActorView; reado
     <Stack gap="field">
       <Kicker>Conditions</Kicker>
       {conditions.length === 0 && edit === undefined ? (
-        <Text size="micro" tone="muted">
-          Nothing on {actor.name} right now.
-        </Text>
+        <Text voice="gloss">Nothing on {actor.name} right now.</Text>
       ) : (
         <ConditionChips conditions={conditions} {...(edit === undefined ? {} : { onAdd: edit.onAddCondition, onRemove: edit.onRemoveCondition, edit })} />
       )}
@@ -384,10 +382,10 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
           <Icon icon={ChevronLeft} size="xs" />
           Roster
         </Button>
-        <Text as="span" size="micro" tone="muted" aria-hidden={true}>
+        <Text as="span" voice="gloss" aria-hidden={true}>
           /
         </Text>
-        <Text as="span" size="micro" tone="muted" className="truncate">
+        <Text as="span" voice="gloss" className="truncate">
           {actor.name}
         </Text>
       </Row>
@@ -420,14 +418,14 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
       return null;
     }
     return (
-      <Text as="span" size="label" tone="muted" className="truncate">
+      <Text as="span" voice="gloss" className="truncate">
         — {actor.sheet.className}
       </Text>
     );
   }
   return (
     <Row gap="field" align="center" className="min-w-0">
-      <Text as="span" size="label" tone="muted" aria-hidden={true}>
+      <Text as="span" voice="gloss" aria-hidden={true}>
         —
       </Text>
       <TrackerValue

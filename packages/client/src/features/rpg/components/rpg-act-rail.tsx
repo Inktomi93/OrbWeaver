@@ -48,7 +48,8 @@ function ActStop({ act, current }: { readonly act: number; readonly current: num
   return (
     <Row gap="field" align="center" className={act === 1 ? undefined : "flex-1"}>
       {act === 1 ? null : <Separator className="flex-1" />}
-      <Text as="span" size="micro" className={style.className}>
+      {/* gloss: the dot row is quiet decoration (aria-hidden) — the state className re-colours it. */}
+      <Text as="span" voice="gloss" className={style.className}>
         {style.glyph} {actNumeral(act)}
       </Text>
     </Row>
@@ -63,15 +64,15 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
   const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
   const pinned = edit === undefined ? null : ["plot", "plot.act", "plot.acts"].find((p) => edit.isLocked(p));
   return (
-    <Stack gap="field" data-slot="rpg-act-rail" className="rounded-card border border-border bg-card px-block py-row">
+    <Stack gap="field" data-slot="rpg-act-rail" className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
         {edit === undefined ? (
-          <Text size="label" weight="semibold" transform="caps" className="tracking-micro text-highlight">
+          <Text voice="kicker" className="text-highlight">
             {heading}
           </Text>
         ) : (
           <Row gap="field" align="center" className="min-w-0">
-            <Text as="span" size="label" weight="semibold" transform="caps" className="tracking-micro text-highlight">
+            <Text as="span" voice="kicker" className="text-highlight">
               Act
             </Text>
             {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
@@ -89,7 +90,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
               className="!w-avatar-md px-field text-center tabular-nums"
               restClassName="font-semibold text-highlight"
             />
-            <Text as="span" size="label" tone="muted" aria-hidden={true}>
+            <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">
               —
             </Text>
             <TrackerValue
@@ -104,7 +105,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
           </Row>
         )}
         {plot.title === "" ? null : (
-          <Text as="span" size="micro" tone="muted" className="truncate">
+          <Text as="span" voice="gloss" className="truncate">
             {plot.title}
           </Text>
         )}

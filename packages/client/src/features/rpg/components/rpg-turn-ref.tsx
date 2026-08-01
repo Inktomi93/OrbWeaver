@@ -25,7 +25,7 @@ function shortRef(messageId: string): string {
 /** The mono TurnRef chip (display-only in v1 — see the file header). */
 export function RpgTurnRef({ messageId }: RpgTurnRefProps): ReactElement {
   return (
-    <Text as="span" size="micro" tone="muted" className="shrink-0 font-mono tabular-nums" title={`Told at message ${messageId}`} data-slot="rpg-turn-ref">
+    <Text as="span" voice="gloss" className="shrink-0 font-mono tabular-nums" title={`Told at message ${messageId}`} data-slot="rpg-turn-ref">
       {shortRef(messageId)}
     </Text>
   );

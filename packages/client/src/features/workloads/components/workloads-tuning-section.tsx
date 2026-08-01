@@ -49,7 +49,7 @@ const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unkno
 export function WorkloadsTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your analysis-tuning settings…</Text>}
+      fallback={<Text voice="gloss">Loading your analysis-tuning settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
     >
       <WorkloadsTuningFormBody sectionId={sectionId} />

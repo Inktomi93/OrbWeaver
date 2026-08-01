@@ -48,7 +48,7 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 export function MemorySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your memory settings…</Text>}
+      fallback={<Text voice="gloss">Loading your memory settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your memory settings" onRetry={retry} />}
     >
       <MemorySettingsBody sectionId={sectionId} />

@@ -33,24 +33,20 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
     <Stack gap="field" data-slot="rpg-veiled-section">
       <Kicker crown={true}>Veiled — host only</Kicker>
       {lies.map((lie) => (
-        <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field" className="rounded-card border border-highlight bg-card px-block py-row">
+        <Stack key={`${lie.character}:${lie.truth}:${lie.messageId}`} gap="field" className="rounded-base border border-highlight bg-card px-block py-row">
           <Row gap="field" align="baseline" justify="between">
-            <Text as="span" size="label" weight="semibold">
+            <Text as="span" voice="label">
               {lie.character}
             </Text>
             <RpgTurnRef messageId={lie.messageId} />
           </Row>
           {/* The claim the character makes to the table (the lie's public face); `type` is the lie class. */}
-          {lie.reason === "" ? null : <Text size="label">{lie.reason}</Text>}
+          {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
           {/* The TRUTH — crown-gold, host-only. */}
-          <Text size="micro" className="text-highlight">
+          <Text voice="gloss" className="text-highlight">
             truth: {lie.truth}
           </Text>
-          {lie.type === "" ? null : (
-            <Text size="micro" tone="muted">
-              {lie.type}
-            </Text>
-          )}
+          {lie.type === "" ? null : <Text voice="gloss">{lie.type}</Text>}
         </Stack>
       ))}
     </Stack>

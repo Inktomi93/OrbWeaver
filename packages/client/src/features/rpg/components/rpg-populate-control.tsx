@@ -46,7 +46,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
   return (
     <Stack gap="field" data-slot="rpg-populate-control">
       <Kicker>Fill from card</Kicker>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         Reads {actor.name}'s card and the story's opening, then fills what play can't: title and level, starting gear and coin, and the goals their background
         implies. Runs one model call (a few seconds) and only fills what's still empty.
       </Text>

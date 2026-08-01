@@ -48,7 +48,7 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 export function LibrarySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your library settings…</Text>}
+      fallback={<Text voice="gloss">Loading your library settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
     >
       <LibraryPageSizeRow sectionId={sectionId} />

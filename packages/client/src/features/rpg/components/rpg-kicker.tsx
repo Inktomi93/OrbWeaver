@@ -23,7 +23,9 @@ export interface RpgKickerProps {
 export function Kicker({ children, crown = false, trailing }: RpgKickerProps): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Text size="micro" transform="caps" weight="semibold" className={crown ? "tracking-micro text-highlight" : "tracking-micro text-muted-foreground"}>
+      {/* `voice="kicker"` IS this anatomy (micro · caps · semibold · micro tracking · muted, §2.3) — the
+          crown case only re-colours it, so the className carries the colour and nothing else. */}
+      <Text voice="kicker" className={crown ? "text-highlight" : ""}>
         {children}
       </Text>
       {trailing}

@@ -55,7 +55,7 @@ export function RpgErrorState({ chatId, isHost, error, onRetry }: RpgErrorStateP
   }
   return (
     <Row role="alert" align="center" justify="center" gap="block" padding="section">
-      <Text tone="muted">Couldn't load the scene.</Text>
+      <Text>Couldn't load the scene.</Text>
       <Button intent="secondary" size="sm" onClick={onRetry}>
         Retry
       </Button>
@@ -70,9 +70,7 @@ function DanglingPointerState({ chatId, isHost }: { readonly chatId: ChatId; rea
   const detach = useDetachDanglingPointer({ trpc, invalidation });
   return (
     <Stack role="alert" align="center" justify="center" gap="block" padding="section">
-      <Text tone="muted" className="text-center">
-        This chat points at a game that no longer exists.
-      </Text>
+      <Text className="text-center">This chat points at a game that no longer exists.</Text>
       {isHost ? (
         <Button intent="secondary" size="sm" onClick={(): void => detach.mutate({ chatId })} disabled={detach.isPending}>
           Detach game

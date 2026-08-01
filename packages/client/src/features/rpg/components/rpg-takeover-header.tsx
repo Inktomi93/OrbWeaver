@@ -134,7 +134,7 @@ export function RpgTakeoverHeader({
       {trackersReadOnly ? (
         <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
           <Icon icon={Lock} size="xs" />
-          <Text as="span" size="micro" weight="medium">
+          <Text as="span" voice="gloss" className="text-inherit">
             Read-only
           </Text>
         </Badge>
@@ -200,11 +200,11 @@ export function RpgTakeoverHeader({
         <Stack gap="field" className="min-w-0 flex-1">
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. */}
-          <Text as="span" size="label" weight="semibold" className="truncate">
+          <Text as="span" voice="label" className="truncate">
             {location || "No location set"}
           </Text>
           {when === "" ? null : (
-            <Text as="span" size="micro" tone="muted" className="truncate tabular-nums">
+            <Text as="span" voice="gloss" className="truncate tabular-nums">
               {when}
             </Text>
           )}

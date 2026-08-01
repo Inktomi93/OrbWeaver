@@ -22,7 +22,7 @@ export interface RpgGameTabBodyProps {
 export function RpgGameTabBody({ chatId, render }: RpgGameTabBodyProps): ReactElement {
   const state = useRpgContextState(chatId);
   if (state === null) {
-    return <Text tone="muted">This chat is no longer a game.</Text>;
+    return <Text>This chat is no longer a game.</Text>;
   }
   return <>{render(state)}</>;
 }
