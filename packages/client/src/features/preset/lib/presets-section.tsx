@@ -1,20 +1,22 @@
 // The Presets rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
-// place. CONTEXT is minted via `defineContextTabs` (§6b): `usePresetContextState` pairs with the tabs so
-// `S` (PresetContextState) never crosses the shell seam. The composition root assembles this into the
-// section registry (main.tsx); AppShell consumes it via `useSectionRegistry`.
+// place. The composition root assembles this into the section registry (main.tsx); AppShell consumes it
+// via `useSectionRegistry`.
+//
+// CONTEXT is `kind: "single"` (preset-surface-redesign.md §7, owner decision D2). It was two tabs — a
+// section INSPECTOR that rented editing (deleted: one object, one place, §5.2) and a Usage placeholder
+// (folded into the readout's own copy until per-chat bindings exist). What stands is ONE readout that
+// projects by the active editor VIEW, which is why it cannot be a tabs mint: a tabs context resolves to
+// NOTHING when no entity is selected, and the no-selection panel — the ACTIVE preset's effective profile
+// — is a first-class arm of this readout, not an empty state (§7's table, row 1).
 
 import { SlidersHorizontal } from "@orb/ui/icons";
-import type { PresetContextState } from "#lib";
-import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { dismissPresetSection, selectPresetFromList } from "#state";
+import { selectPresetFromList } from "#state";
 import { PresetLibraryAnchor } from "../anchors/preset-library-anchor";
 import { PresetContent } from "../components/preset-content";
 import { PresetListHeader } from "../components/preset-list-header";
-import { PresetSectionInspector } from "../components/preset-section-inspector";
-import { PresetUsageContext } from "../components/preset-usage-context";
-import { usePresetContextState } from "../hooks/use-preset-context-state";
+import { PresetReadout } from "../components/readout/preset-readout";
 import { PresetLibrarySurface } from "../surfaces/preset-library-surface";
 
 export const presetsSection: SectionDefinition = {
@@ -33,20 +35,6 @@ export const presetsSection: SectionDefinition = {
   // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
   listHeader: () => <PresetListHeader />,
   content: () => <PresetContent />,
-  // Two tabs: Section (the rack row drilled into) and Usage (where the preset is bound).
-  context: defineContextTabs<PresetContextState>({
-    useContextState: usePresetContextState,
-    tabs: [
-      {
-        id: "section",
-        label: "Section",
-        body: () => <PresetSectionInspector onDismiss={dismissPresetSection} />,
-      },
-      {
-        id: "usage",
-        label: "Usage",
-        body: (s) => <PresetUsageContext presetId={s.presetId} />,
-      },
-    ],
-  }),
+  // ONE readout, projected by the active editor view (§7) — read-only + navigation-only.
+  context: { kind: "single", body: () => <PresetReadout /> },
 };

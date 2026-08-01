@@ -508,6 +508,11 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
   await component.getByRole("tab", { name: "Actions" }).click();
   await expect(component.getByRole("tab", { name: "Actions" })).toHaveAttribute("aria-selected", "true");
 
+  // The nudge's editor is its DRILL-IN now — the template's ONE editing home (§6.1; the round-4 inline
+  // accordion is dead). The row is registry-derived, so reaching the field is: chevron, then the field.
+  await component.getByRole("button", { name: "Edit Continue nudge" }).click();
+  await expect(component.getByRole("button", { name: "Back to actions" })).toBeVisible();
+
   // THE BELT: the nudge editor must SHOW and SAVE raw template text. A resolver anywhere in this path would
   // persist "Nate is watching …" — irreversibly, and every other assertion here would stay green.
   await assertTokenRoundtrip({

@@ -41,6 +41,7 @@ const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
+const SCHEMA_VERSION_V5 = 5;
 
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -152,6 +153,47 @@ test("a stored preset with compaction.mode:'off' parses (lifted to managed) rath
   });
   expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
   expect(parsed.params.compaction?.mode).toBe("managed");
+});
+
+// v4→v5 (redesign G8): the Default/Custom/SILENT tri-state is retired. Silent's stored form was
+// `template: ""` ("render nothing"), which is the ENABLE mechanism wearing a second face — so an empty
+// template lifts to `{ template: undefined, enabled: false }`. This is what makes "clear the field = the
+// built-in default rides" true for EVERY section rather than only the ones nobody had silenced.
+test("CONFIG_LIFTS v4→v5 turns a silenced (template:'') marker into a DISABLED one with no template", () => {
+  const liftV4 = CONFIG_LIFTS[SCHEMA_VERSION_V4];
+  if (liftV4 === undefined) {
+    throw new Error("CONFIG_LIFTS[4] is missing");
+  }
+  const lifted = liftV4({
+    schemaVersion: SCHEMA_VERSION_V4,
+    sections: [
+      { type: "marker", id: "silent", name: "Scenario", marker: "scenario", role: "system", enabled: true, template: "" },
+      { type: "marker", id: "custom", name: "Main", marker: "main_prompt", role: "system", enabled: true, template: "keep me" },
+      { type: "literal", id: "lit", name: "Note", role: "system", content: "", enabled: true },
+    ],
+  });
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V5);
+  const sections = lifted["sections"] as Record<string, unknown>[];
+  // The silenced marker: the template is GONE (not emptied) and the section is off.
+  expect(sections[0]).not.toHaveProperty("template");
+  expect(sections[0]?.["enabled"]).toBe(false);
+  // A real custom template and a literal with empty CONTENT (a different field) are untouched.
+  expect(sections[1]?.["template"]).toBe("keep me");
+  expect(sections[1]?.["enabled"]).toBe(true);
+  expect(sections[2]?.["enabled"]).toBe(true);
+});
+
+test("a stored preset carrying a silenced marker parses forward to a disabled, default-templated one", () => {
+  const parsed = parsePromptConfig({
+    ...DEFAULT_PROMPT_CONFIG,
+    schemaVersion: SCHEMA_VERSION_V4,
+    sections: [{ type: "marker", id: "silent", name: "Scenario", marker: "scenario", role: "system", enabled: true, template: "" }],
+  });
+  expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  const section = parsed.sections[0];
+  // The key is GONE, not emptied — which is what makes "omit ⇒ the built-in default" the only reading.
+  expect(section === undefined ? true : "template" in section).toBe(false);
+  expect(section?.enabled).toBe(false);
 });
 
 // ── `params: userIntentSchema.catch({})` damage-bounding ────────────────────────────────────────────

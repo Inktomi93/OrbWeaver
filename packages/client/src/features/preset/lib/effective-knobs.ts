@@ -84,6 +84,32 @@ function ghostGloss(provenance: string, quality: string | undefined): string | n
   return null;
 }
 
+/** The CONTEXT readout's terse provenance suffix for one resolved row (§7 — the `2048 default` /
+ *  `high ← quality` column). `null` for an EXPLICIT value: "you set it" is what the absence of a suffix
+ *  already says, and a badge on every row you touched is noise. Shares this file's rung vocabulary with
+ *  the deck's ghost gloss so the two surfaces cannot drift on what a rung is called. */
+export function provenanceSuffix(provenance: string): string | null {
+  if (provenance === "explicit") {
+    return null;
+  }
+  if (provenance === "quality") {
+    return "← quality";
+  }
+  if (provenance === "modelDefault") {
+    return "model default";
+  }
+  if (provenance === "floor") {
+    return "default";
+  }
+  if (provenance === "window") {
+    return "window";
+  }
+  if (provenance === "clamped") {
+    return "clamped";
+  }
+  return provenance;
+}
+
 /** The QUALITY cluster's mapping gloss (§4 cluster 1) — what the dial is CURRENTLY feeding, read straight
  *  off the resolver's provenance labels rather than a client re-mapping of quality→axes. `null` with no
  *  dial set; the "everything overridden" case says so instead of rendering an empty arrow. */
