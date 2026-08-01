@@ -370,7 +370,7 @@ async function previewRpgFields(
   rpgInjections?: readonly ChatInjection[];
   rpgCelBindings?: Readonly<Record<string, unknown>>;
 }> {
-  const rpg = ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext(chatId, undefined, false, steerIdentity);
+  const rpg = ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, steerIdentity });
   if (rpg === null) {
     return {};
   }
