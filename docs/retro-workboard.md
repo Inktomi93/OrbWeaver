@@ -89,6 +89,15 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
+**WORKLOADS STAGE-E LANE IN FLIGHT (`a2a645ca3abb5a1c6`, normal executor — owner asked 08-02:
+finish workloads cleanly):** two-lane worker + `workloads.lane` column (kills the §2 head-blocking
+defect — prerequisite value for databank's `interactive` lane) · durable `progress` column ·
+poison-row visible surface · residuals (dead export, AGENTS.md:226 indexer drift, client lane
+grouping). Q4 (direct stats mutation) EXCLUDED — still an owner fork. Spec = exit report §3.3+§5-E;
+serde verified CLEAN in §4 (import entanglement died in stage D — no serde work remains). Merge on
+its report; run the lane-scoping + poison-visibility probes' receipts past the eyeball; stickler
+the diff after merge (db baseline + engine touch).
+
 **GATES LANE IN FLIGHT (`a96553c78956cf920`, max-effort Fable, the owner's pre-compact ask):**
 three session-earned gates — `ui-size-via-variant` (the 3× tailwind-merge size-override class) ·
 the `pre-merge-commit` hook (merges skipped checks; main went red twice) · `scrubber-home`
