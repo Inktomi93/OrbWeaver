@@ -5,7 +5,8 @@
 // button that renders but dispatches nothing is exactly the failure this covers.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
+import type { Page } from "@playwright/test";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { AnalyticsOverviewSurfaceStory } from "../_ct-stories";
 
 const COMPUTED_AT = 1_750_000_000_000;
@@ -55,4 +56,65 @@ test("the dashboard's Recompute now button fires stats.reconcile", async ({ moun
   await expect.poll(() => trpc.count("stats.reconcile")).toBe(1);
   // The settle re-reads the dashboard (the invalidation covers the whole stats router root).
   await expect.poll(() => trpc.count("stats.freshness")).toBeGreaterThan(1);
+});
+
+/** Park the `stats.reconcile` response until the returned release fires; everything else falls through to
+ *  routeTrpc. Registered AFTER routeTrpc (later routes run first), the `route.fallback()` precedent. */
+async function holdReconcile(page: Page): Promise<() => void> {
+  // Definite-assignment: the executor runs synchronously, so `release` is bound before the route is added.
+  let release!: () => void;
+  const parked = new Promise<void>((resolve) => {
+    release = (): void => resolve();
+  });
+  await page.route("**/api/trpc/**", async (route) => {
+    if (!route.request().url().includes("stats.reconcile")) {
+      await route.fallback();
+      return;
+    }
+    await parked;
+    await route.fallback();
+  });
+  return release;
+}
+
+test("the button is disabled while its own recompute is in flight", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+    "stats.reconcile": () => ({ owners: 1, characters: 3, days: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
+  });
+  const release = await holdReconcile(page);
+
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await component.getByRole("button", { name: "Recompute now" }).click();
+
+  // In flight: the affordance names its own state and cannot be fired again from THIS tab.
+  const pending = component.getByRole("button", { name: "Recomputing…" });
+  await expect(pending).toBeVisible();
+  await expect(pending).toBeDisabled();
+
+  release();
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeEnabled();
+});
+
+test("a raced recompute (CONFLICT) renders the honest notice, not a failure", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+    // What the server's per-user single-flight gate returns when another tab (or an earlier click) is
+    // already rebuilding this owner's rollups.
+    "stats.reconcile": () => trpcError({ code: "CONFLICT", message: "a recompute is already running" }),
+  });
+
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await component.getByRole("button", { name: "Recompute now" }).click();
+
+  await expect(component.getByRole("status")).toHaveText("A recompute is already running — it'll finish on its own.");
+  // The dashboard is intact and the affordance is usable again — a refusal is not a broken surface.
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeEnabled();
+  await expect(component.getByText("Year in review")).toBeVisible();
 });

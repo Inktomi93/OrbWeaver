@@ -20,7 +20,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
 import { RhythmFigures } from "../components/rhythm-figures";
-import { useRecomputeStats } from "../hooks/use-recompute-stats";
+import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats";
 import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model";
 
 export function AnalyticsOverviewSurface(): ReactElement {
@@ -134,13 +134,24 @@ function OverviewBody(): ReactElement {
 
 /** Rebuild the caller's rollups from canon, awaited, and re-read the dashboard. The rollups are maintained
  *  live on the chat write path, so this is the repair affordance for a drifted/imported library — the same
- *  pass the `reconcile-stats` workload runs, minus the queue round-trip. */
+ *  pass the `reconcile-stats` workload runs, minus the queue round-trip.
+ *
+ *  The button disables while its OWN call is in flight; the server's per-user single-flight gate covers the
+ *  case this cannot see (another tab, or a pass still running from before this mount) by refusing with
+ *  CONFLICT — surfaced as the quiet notice below, since the running pass will still land. */
 function RecomputeButton(): ReactElement {
   const recompute = useRecomputeStats({ trpc: useTRPC(), invalidation: useInvalidation() });
   return (
-    <Button intent="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>
-      {recompute.isPending ? "Recomputing…" : "Recompute now"}
-    </Button>
+    <Row align="center" gap="field">
+      {isRecomputeAlreadyRunning(recompute.error) ? (
+        <Text voice="gloss" role="status">
+          A recompute is already running — it'll finish on its own.
+        </Text>
+      ) : null}
+      <Button intent="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>
+        {recompute.isPending ? "Recomputing…" : "Recompute now"}
+      </Button>
+    </Row>
   );
 }
 

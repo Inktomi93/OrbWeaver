@@ -8,6 +8,7 @@
 import type { Db } from "@orb/db";
 import { createStatsContext } from "./context";
 import type { StatsService } from "./contract/service";
+import { createReconcileInFlight } from "./reconcile-in-flight";
 import { createActivityHeatmap } from "./verbs/activity-heatmap";
 import { createByModel } from "./verbs/by-model";
 import { createCharacter } from "./verbs/character";
@@ -25,6 +26,9 @@ import { createWrapped } from "./verbs/wrapped";
 
 export function createStatsService(db: Db, now: () => number): StatsService {
   const ctx = createStatsContext(db, now);
+  // Built HERE, not in the DI bundle: the single-flight registry is process state only `reconcile` reads,
+  // and one instance per service is what makes "this user already has a rebuild running" answerable.
+  const reconcileInFlight = createReconcileInFlight();
   return {
     ...createOverview(ctx),
     ...createCharacter(ctx),
@@ -39,6 +43,6 @@ export function createStatsService(db: Db, now: () => number): StatsService {
     ...createMomentum(ctx),
     ...createLatency(ctx),
     ...createEconomics(ctx),
-    ...createReconcile(ctx),
+    ...createReconcile(ctx, reconcileInFlight),
   };
 }
