@@ -1,13 +1,11 @@
 // @orb/contracts/chat/metadata — the `chats.metadata` room-behavior blob (D16) and its fault-isolated
-// sub-blobs: room overrides (host-only four-field allowlist), the member-card visibility dial (D22), the
+// sub-blobs: room overrides (host-only three-field allowlist), the member-card visibility dial (D22), the
 // group arbitration config, the opening policy, and the guided-steer wire contract (F6). Misfiled-from-
 // settings (shared-dissolution §7 #4): these are chat verb / assemble / client-form shapes, NOT the
 // settings KV. ONE HOME here so the `db` `$type` and the server parser derive, never re-spell.
 
 import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { injectionDirectiveSchema } from "@orb/kit/injection";
-import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { OpenRouterProviderRouting } from "#connection";
 import type { ChatDocumentVisibility } from "#databank";
@@ -21,46 +19,27 @@ import { messageRoleSchema } from "./participants";
 // unions consumed by chat verbs + assemble types + client chat forms, NOT the settings KV.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// ── Room overrides (host-only; exactly four fields — the Part III §9 allowlist) ──
+// ── Room overrides (host-only; exactly three fields — the Part III §9 allowlist) ──
 const OVERRIDE_FIELD_MAX = 100_000;
 const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
 
-// ── The ROOM author's note — a first-class at-depth injection directive (task #22) ──────────────────────
-// The room's single author's note rides the SAME shared `{depth, role?}` at-depth mechanism the card
-// `depthPrompt` (`cardDepthPromptSchema`), world-info-at-depth, and the persona description use (D32),
-// widened from a bare string so the host can set its depth + role. `depth`/`role` are OPTIONAL — the
-// assembler defaults them ({@link AUTHORS_NOTE_DEFAULT_DEPTH} / {@link AUTHORS_NOTE_DEFAULT_ROLE}); `prompt`
-// keeps the 100k override cap. MIGRATION: a `z.preprocess` coerces a LEGACY bare string (the pre-#22 stored
-// shape) → `{prompt}`, so old `chatMetadata` blobs round-trip losslessly through the same
-// `roomOverridesSchema.safeParse` read seam (`domain/chat/contract/metadata.ts`).
-/** The house author's-note register depth — "near enough to steer, far enough not to dominate"
- *  (chat-crew-design/04); the default when the stored directive carries no `depth`. */
-export const AUTHORS_NOTE_DEFAULT_DEPTH = 4;
-/** The default author's-note role when the stored directive carries no `role`. */
-export const AUTHORS_NOTE_DEFAULT_ROLE: MessageRole = "system";
+// RETIRED KEY — `authorsNote` (owner ruling 2026-08-01): the room author's note was a SECOND home for the
+// concept `chat_injections` already owns. Both landed as the same `in_chat` at-depth splice (operator
+// priority, budget-exempt); the note was just an injection with a default depth. ONE door survives — the
+// per-chat Injections list (a system note at depth 4 IS the author's note). `.strict()` therefore REJECTS a
+// stored/wired `authorsNote`: the sub-blob heals to absent at the read seam (`domain/chat/contract/
+// metadata.ts` `.catch(undefined)`) and the write verb refuses it (`forbiddenOverride`). Pre-launch, stored
+// values are debris — no migration.
 
-/** The room author's note as the shared `{depth?, role?, prompt}` directive; a legacy bare string is coerced
- *  to `{prompt}` by {@link roomAuthorsNoteSchema} BEFORE this runs, so the guard only ever sees the object.
- *  D66-B (W5, ruling A): the assistant\@depth-0 prefill WRITE-reject is REMOVED — authored prefill is
- *  persistable; the SHAPE delivery gate normalizes it on a `assistantPrefill:false` model. Shape only. */
-const roomAuthorsNoteDirectiveSchema = injectionDirectiveSchema.partial().extend({ prompt: overrideField });
-
-/** The stored room author's note: the shared injection directive, coercing a LEGACY bare string → `{prompt}`
- *  so pre-#22 `chatMetadata` blobs round-trip losslessly (the migration seam). */
-export const roomAuthorsNoteSchema = z.preprocess((raw) => (typeof raw === "string" ? { prompt: raw } : raw), roomAuthorsNoteDirectiveSchema);
-export type RoomAuthorsNote = z.infer<typeof roomAuthorsNoteSchema>;
-
-/** The host-only per-room overrides — exactly four fields ("jailbreak" IS post_history). `.strict()`
- *  default-denies a stray key (an enforcer, not prose). Each field absent ⇒ inherit the card/scope
- *  fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean JSON sub-blob).
- *  `authorsNote` is the at-depth injection directive ({@link roomAuthorsNoteSchema}); the other three are
- *  plain text overrides. */
+/** The host-only per-room overrides — exactly three PLAIN-TEXT section overrides ("jailbreak" IS
+ *  post_history). `.strict()` default-denies a stray key (an enforcer, not prose). Each field absent ⇒
+ *  inherit the card/scope fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean
+ *  JSON sub-blob). At-depth steering is NOT here — it is a `chat_injections` row. */
 export const roomOverridesSchema = z
   .object({
     scenario: overrideField.optional(),
     mainPrompt: overrideField.optional(),
     postHistory: overrideField.optional(),
-    authorsNote: roomAuthorsNoteSchema.optional(),
   })
   .strict();
 export type RoomOverrides = z.infer<typeof roomOverridesSchema>;

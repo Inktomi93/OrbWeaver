@@ -26,8 +26,9 @@ test("a draft's CONTEXT panel renders the editable This chat tab (host — autos
   // per-field guidance collapsed to ONE intro line (N4); it ends with the autosave affordance.
   await expect(component.getByText("Empty fields inherit from the character or preset. Saved automatically.")).toBeVisible();
 
-  // The four host-allowlist override fields are collapse-until-needed rows — expand each and confirm its
-  // editor is present + editable (not disabled — the draft is host).
+  // The three host-allowlist override fields are collapse-until-needed rows — expand each and confirm its
+  // editor is present + editable (not disabled — the draft is host). There is no fourth (author's-note) row:
+  // it was retired into the Injections section below (owner ruling 2026-08-01).
   const expectEditableField = async (label: string): Promise<void> => {
     await component.getByRole("button", { name: label }).click();
     const field = component.getByRole("textbox", { name: label });
@@ -37,7 +38,7 @@ test("a draft's CONTEXT panel renders the editable This chat tab (host — autos
   await expectEditableField("Main prompt");
   await expectEditableField("Post-history");
   await expectEditableField("Scenario");
-  await expectEditableField("Author's note");
+  await expect(component.getByRole("button", { name: "Author's note" })).toHaveCount(0);
 });
 
 test("editing a draft override field is accepted (the autosaving textarea is live)", async ({ mount }) => {

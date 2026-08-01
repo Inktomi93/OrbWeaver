@@ -183,7 +183,8 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent): ChatServic
   };
 }
 
-/** `setRoomOverrides` — host-only. The four-field allowlist default-denies a stray field. */
+/** `setRoomOverrides` — host-only. The three-field allowlist default-denies a stray field (including the
+ *  RETIRED `authorsNote` — at-depth steering is a `chat_injections` row now). */
 function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatService["setRoomOverrides"] {
   return async ({ principal, chatId, overrides }: SetRoomOverridesParams) => {
     const { chat } = await requireHost(ctx, principal, chatId);
@@ -191,7 +192,7 @@ function createSetRoomOverrides(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     if (!parsed.success) {
       throw new ChatOperationError(
         CHAT_OP_CODES.forbiddenOverride,
-        `chat ${chatId}: room overrides accept only the four-field allowlist (scenario / mainPrompt / postHistory / authorsNote)`,
+        `chat ${chatId}: room overrides accept only the three-field allowlist (scenario / mainPrompt / postHistory)`,
       );
     }
     await ctx.db

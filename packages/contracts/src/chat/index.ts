@@ -111,12 +111,9 @@ export type {
   GuidedSteer,
   MemberCardVisibility,
   OpeningPolicy,
-  RoomAuthorsNote,
   RoomOverrides,
 } from "./metadata";
 export {
-  AUTHORS_NOTE_DEFAULT_DEPTH,
-  AUTHORS_NOTE_DEFAULT_ROLE,
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
   GROUP_POLICIES,
@@ -127,7 +124,6 @@ export {
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
   openingPolicySchema,
-  roomAuthorsNoteSchema,
   roomOverridesSchema,
 } from "./metadata";
 export type { ParticipantKind, SpeakerRef } from "./participants";

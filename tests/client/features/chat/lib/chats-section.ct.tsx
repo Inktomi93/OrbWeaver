@@ -468,42 +468,10 @@ test("host editing an override autosaves (setRoomOverrides fires, empty ⇒ omit
   expect(input.overrides).not.toHaveProperty("mainPrompt");
 });
 
-test("host sets the author's-note depth — the injection directive is saved (task #22)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": () => chatDetail("host"),
-    "chat.listChatInjections": () => [],
-    "chat.previewAssembly": () => PREVIEW,
-    "chat.setRoomOverrides": () => ({ authorsNote: { prompt: "Keep it tense.", depth: 2 } }),
-  });
-
-  const component = await mount(<ChatContextPanelStory />);
-  // The author's-note override is a collapse-until-needed row — expand it to reach the note + depth + role.
-  await component.getByRole("button", { name: "Author's note" }).click();
-  await component.getByLabel("Author's note", { exact: true }).fill("Keep it tense.");
-  // The NumberField seeds the house default depth; clear before typing so the value replaces, not appends.
-  await component.getByLabel("Depth", { exact: true }).clear();
-  await component.getByLabel("Depth", { exact: true }).fill("2");
-
-  await expect
-    .poll(() => {
-      const last = trpc.lastInput("chat.setRoomOverrides") as {
-        overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
-      } | null;
-      return last?.overrides?.authorsNote?.depth ?? null;
-    })
-    .toBe(2);
-  const input = trpc.lastInput("chat.setRoomOverrides") as {
-    overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
-  };
-  // The note is the shared directive: prompt + host-set depth + the default role (system).
-  expect(input.overrides?.authorsNote).toEqual({
-    prompt: "Keep it tense.",
-    depth: 2,
-    role: "system",
-  });
-});
-
-test("assistant role at depth 0 surfaces the author's-note prefill warning", async ({ mount, page }) => {
+// RETIRED (owner ruling 2026-08-01): the author's-note override was a SECOND home for what the Injections
+// section beside it already owns — both landed as the same at-depth splice. The field is GONE from the
+// Field-overrides section; a per-chat note is authored as an injection (system @ depth 4).
+test("the Field-overrides section has NO author's-note field — only the three text overrides", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => chatDetail("host"),
     "chat.listChatInjections": () => [],
@@ -512,71 +480,14 @@ test("assistant role at depth 0 surfaces the author's-note prefill warning", asy
   });
 
   const component = await mount(<ChatContextPanelStory />);
-  await component.getByRole("button", { name: "Author's note" }).click();
-  await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
-  await component.getByLabel("Depth", { exact: true }).clear();
-  await component.getByLabel("Depth", { exact: true }).fill("0");
-  await component.getByRole("combobox", { name: "Role" }).click();
-  await page.getByRole("option", { name: "Assistant" }).click();
-
-  await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
-});
-
-test("an invalid author's-note combo does NOT hostage a sibling edit; fixing it resumes note saves", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": () => chatDetail("host"),
-    "chat.listChatInjections": () => [],
-    "chat.previewAssembly": () => PREVIEW,
-    "chat.setRoomOverrides": () => ({}),
-  });
-
-  const component = await mount(<ChatContextPanelStory />);
-  // Put the note into the invalid assistant@depth-0 prefill combo (expand the author's-note collapse row).
-  await component.getByRole("button", { name: "Author's note" }).click();
-  await component.getByLabel("Author's note", { exact: true }).fill("Whisper it.");
-  await component.getByLabel("Depth", { exact: true }).clear();
-  await component.getByLabel("Depth", { exact: true }).fill("0");
-  await component.getByRole("combobox", { name: "Role" }).click();
-  await page.getByRole("option", { name: "Assistant" }).click();
-  await expect(component.getByText("response prefill", { exact: false })).toBeVisible();
-
-  // A sibling edit STILL persists — the whole-blob write carries scenario with the invalid note WITHHELD.
-  await component.getByRole("button", { name: "Scenario" }).click();
-  await component.getByLabel("Scenario", { exact: true }).fill("A rainy dock.");
-  await expect
-    .poll(() => {
-      const last = trpc.lastInput("chat.setRoomOverrides") as {
-        overrides?: { scenario?: string; authorsNote?: unknown };
-      } | null;
-      return last?.overrides?.scenario ?? null;
-    })
-    .toBe("A rainy dock.");
-  const invalidTurn = trpc.lastInput("chat.setRoomOverrides") as {
-    overrides?: { scenario?: string; authorsNote?: unknown };
-  };
-  expect(invalidTurn.overrides?.scenario).toBe("A rainy dock.");
-  // The invalid note is not on the wire (siblings are never hostage to a field the user was warned about).
-  expect(invalidTurn.overrides).not.toHaveProperty("authorsNote");
-
-  // Fixing the combo (depth ≥ 1) resumes note saves — the directive now lands with its host-set depth/role.
-  await component.getByLabel("Depth", { exact: true }).clear();
-  await component.getByLabel("Depth", { exact: true }).fill("1");
-  await expect
-    .poll(() => {
-      const last = trpc.lastInput("chat.setRoomOverrides") as {
-        overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
-      } | null;
-      return last?.overrides?.authorsNote?.depth ?? null;
-    })
-    .toBe(1);
-  const fixedTurn = trpc.lastInput("chat.setRoomOverrides") as {
-    overrides?: { authorsNote?: { prompt?: string; depth?: number; role?: string } };
-  };
-  expect(fixedTurn.overrides?.authorsNote).toEqual({
-    prompt: "Whisper it.",
-    depth: 1,
-    role: "assistant",
-  });
+  // The three surviving collapse rows are reachable…
+  await expect(component.getByRole("button", { name: "Main prompt" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Post-history" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Scenario" })).toBeVisible();
+  // …and the retired one is not, with no orphan depth/role controls left behind by its expanded editor.
+  await expect(component.getByRole("button", { name: "Author's note" })).toHaveCount(0);
+  await expect(component.getByLabel("Author's note", { exact: true })).toHaveCount(0);
+  await expect(component.getByLabel("Depth", { exact: true })).toHaveCount(0);
 });
 
 // ── The chat-context CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8) ──────────────────────
