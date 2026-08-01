@@ -16,7 +16,7 @@ import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat"
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT } from "@orb/contracts/preset";
+import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
@@ -675,12 +675,6 @@ function compactionTriggered(compaction: NonNullable<UserIntent["compaction"]>, 
   const overThreshold = ceiling !== null && ceiling > 0 && cumulativeUsed >= pct * ceiling;
   return overThreshold || result.droppedCount > 0;
 }
-
-/** How many newest canon rows managed compaction keeps VERBATIM (never folded into the marker) on the agent-sdk
- *  path — the SDK owns its working set, so our fit-pass never trims (no `contextBoundaryMessageId`); the coverage
- *  point is instead "everything older than the recent tail". Sized to keep the live scene intact while summarizing
- *  the aged-out bulk (mirrors the memory build's `verbatimWindow` intent — the recent scene stays literal). */
-const MANAGED_VERBATIM_TAIL = 8;
 
 /** The managed-compaction coverage point (the seq through which the new marker covers). TWO derivations:
  *   • a real FIT boundary exists (the stateless-style trim path, or a future agent-sdk that surfaces one) → the

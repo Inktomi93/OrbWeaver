@@ -61,6 +61,7 @@ import {
   setNarrowViewport,
   setOpenOverlayPanel,
   setPanelMode,
+  setPresetEditorView,
   startNewChat,
   toggleFavoritesOnly,
   toggleShowArchived,
@@ -88,6 +89,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  usePresetEditorView,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
   useSelectedCharacterFacetId,
@@ -345,6 +347,26 @@ export function PresetSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => dismissPresetSection()}>
         dismiss section
+      </button>
+    </div>
+  );
+}
+
+/** PresetEditorViewProbe — the preset editor's VIEW axis (preset-surface-redesign.md §7 mechanics / §16
+ *  row 10). The view moved out of local `Tabs` state into section state so CONTEXT can project per-view,
+ *  which makes "unset reads as null" and "the writer is the only mover" real invariants rather than
+ *  component detail. A CT, not a unit test: the read surface is the reactive hook (useSyncExternalStore
+ *  needs a browser) — the preset-selection-store.ct.tsx posture. */
+export function PresetEditorViewProbe(): ReactElement {
+  const view = usePresetEditorView();
+  return (
+    <div>
+      <output>{`view=${view ?? "unset"}`}</output>
+      <button type="button" onClick={(): void => setPresetEditorView("actions")}>
+        set actions view
+      </button>
+      <button type="button" onClick={(): void => setPresetEditorView("params")}>
+        set params view
       </button>
     </div>
   );

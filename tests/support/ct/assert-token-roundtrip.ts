@@ -36,10 +36,25 @@ export interface TokenRoundtripSpec {
   readonly field: Locator;
   /** The mutation procedure the field's save fires, e.g. `"chat.setChatInjection"`. */
   readonly proc: string;
-  /** The key on the mutation input carrying the template text, e.g. `"content"`. */
+  /** The key on the mutation input carrying the template text, e.g. `"content"`. A DOTTED path reaches a
+   *  nested one (`"config.formatStrings.continueNudge"`) — the preset surfaces save one whole config blob,
+   *  so their template fields are never top-level keys. */
   readonly payloadKey: string;
   /** Override the probe text (must contain at least one literal `{{token}}`). */
   readonly text?: string;
+}
+
+/** Read `payloadKey` off a recorded mutation input — a dotted path walks in, a plain key indexes directly
+ *  (byte-identical behavior for the single-key callers). */
+function readPayload(input: unknown, payloadKey: string): unknown {
+  let cursor: unknown = input;
+  for (const segment of payloadKey.split(".")) {
+    if (cursor === null || typeof cursor !== "object") {
+      return;
+    }
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+  return cursor;
 }
 
 /**
@@ -59,7 +74,7 @@ export async function assertTokenRoundtrip(spec: TokenRoundtripSpec): Promise<vo
   // the whole string (not a `contains` on the token) so a PARTIAL resolve — one macro substituted, the
   // other left literal — cannot pass.
   await expect.poll(() => spec.trpc.count(spec.proc)).toBeGreaterThan(before);
-  await expect.poll(() => (spec.trpc.lastInput(spec.proc) as Record<string, unknown> | undefined)?.[spec.payloadKey]).toEqual(text);
+  await expect.poll(() => readPayload(spec.trpc.lastInput(spec.proc), spec.payloadKey)).toEqual(text);
 
   // The DOM: after the save settles the field must still hold the raw template, not a resolved repaint.
   await expect(spec.field).toHaveValue(text);

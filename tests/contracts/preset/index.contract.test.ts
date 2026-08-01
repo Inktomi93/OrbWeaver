@@ -465,6 +465,21 @@ test("importStChatCompletionPreset (D68-A): ST's default min_p (0 = off) is NOT 
   expect(result.dropped.some((d) => d.field === "min_p")).toBe(false);
 });
 
+// G1 (redesign §10): `top_a` was DROPPED with "no neo sampling vocab" while `userIntentSchema.topA` sat two
+// hundred lines up — the two halves contradicted, and the drop won. It now maps exactly like `min_p`, and
+// ST's own default (0 = off, `SillyTavern/public/scripts/openai.js:418`) is the sentinel NOT carried.
+test("importStChatCompletionPreset (G1): a non-default top_a maps onto params.topA and is no longer dropped", () => {
+  const result = importStChatCompletionPreset(stBlob({ top_a: 0.2 }));
+  expect(result.config.params.topA).toBe(0.2);
+  expect(result.dropped.some((d) => d.field === "top_a")).toBe(false);
+});
+
+test("importStChatCompletionPreset (G1): ST's default top_a (0 = off) is NOT carried", () => {
+  const result = importStChatCompletionPreset(stBlob({ top_a: 0 }));
+  expect(result.config.params.topA).toBeUndefined();
+  expect(result.dropped.some((d) => d.field === "top_a")).toBe(false);
+});
+
 test("importStChatCompletionPreset (D68-A): an absent min_p produces no minP field", () => {
   const result = importStChatCompletionPreset(stBlob({ temperature: 0.8 }));
   expect(result.config.params.minP).toBeUndefined();
