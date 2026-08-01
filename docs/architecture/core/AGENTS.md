@@ -328,7 +328,7 @@ Every dispatched worktree lane obeys these or its work gets refused at the merge
 4. **Merging main into your branch:** same hook rule (`-c core.hooksPath=/dev/null`), then run the
    scoped gates on the merged tree yourself.
 5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook —
-   `pnpm install --prefer-offline` (~3s) or every gate lies.
+   `pnpm install --prefer-offline` (\~3s) or every gate lies.
 6. **Rendered proof from a worktree:** `:5173` serves MAIN, never your tree. Use
    `snap --isolated --ref <your-sha>` (a detached worktree of your commit on offset ports) or
    screenshot from the CT browser.
