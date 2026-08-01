@@ -76,18 +76,20 @@ export const useUpdateAppOverrides = createEntityMutation<{ readonly partial: Ap
 });
 
 /** Refresh the OpenRouter model catalog (fetch `/models` → write the KV snapshot, warm the cache).
- *  Invalidates the browse read so pickers see the fresh catalog. */
+ *  Invalidates the reads that actually DERIVE from the snapshot — the picker facade and the capability
+ *  descriptor — not `getCatalog` (no client consumer; that proc's client-side value is the server-side
+ *  cache warm). */
 export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connection"]["refreshCatalog"]>, unknown>({
   options: (trpc) => trpc.connection.refreshCatalog.mutationOptions(),
-  invalidates: (trpc) => [trpc.connection.getCatalog.queryFilter()],
+  invalidates: (trpc) => [trpc.connection.getModelsForSource.queryFilter(), trpc.connection.resolveChatCapability.queryFilter()],
   errorToast: "Couldn't refresh the model catalog.",
 });
 
 /** Refresh the agent-SDK daemon model catalog (run `supportedModels()` → write the KV snapshot).
- *  Invalidates its browse read. */
+ *  Same targets as the OR refresh: the picker facade + capability read both snapshots. */
 export const useRefreshAgentSdkCatalog = createEntityMutation<inferInput<Trpc["connection"]["refreshAgentSdkCatalog"]>, unknown>({
   options: (trpc) => trpc.connection.refreshAgentSdkCatalog.mutationOptions(),
-  invalidates: (trpc) => [trpc.connection.getAgentSdkCatalog.queryFilter()],
+  invalidates: (trpc) => [trpc.connection.getModelsForSource.queryFilter(), trpc.connection.resolveChatCapability.queryFilter()],
   errorToast: "Couldn't refresh the agent-SDK catalog.",
 });
 

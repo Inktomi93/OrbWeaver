@@ -32,7 +32,7 @@ import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
 import { resolveRowAttribution } from "../lib/attribution";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
-import { resolveDraftAnchorPersona } from "../lib/draft-commit";
+import { resolveDraftAnchorPersona, resolveDraftCharacterIds } from "../lib/draft-commit";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster";
 import { synthGreetingRow } from "../lib/synth-greeting-row";
@@ -61,12 +61,16 @@ export function MessageListSurface({ handle, busDeps, draftSeed, onChatForked, s
   const chatId = isCommitted(handle) ? handle.id : null;
   useChatBus(chatId, busDeps);
   const chatStyle = useChatStyle();
+  // Reactive (unlike `resolveDraftCommit`'s commit-time snapshot): a panel-added character must show its
+  // greeting row the instant it's added, not just after commit — same union the commit will write.
+  const draftKey = handle.kind === "draft" ? handle.draftKey : "";
+  const draftConfig = useDraftConfig(draftKey);
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
       {((): ReactElement => {
         if (chatId === null) {
-          const characterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+          const characterIds = handle.kind === "draft" ? resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds) : [];
           if (handle.kind !== "draft" || characterIds.length === 0) {
             return <EmptyThread />;
           }
