@@ -1,5 +1,7 @@
 // The Tags settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
-// wrapping the existing surface. Registered at the door (main.tsx); settings owns this pane (O3).
+// wrapping the feature's surface. Registered at the door (main.tsx); features/tag owns this pane (D114 /
+// SET-SEAMS stage 5, SUPERSEDING O3's "settings keeps the tags pane"). `surface` mode: a CRUD screen, not
+// a knob stack.
 
 import { Hash } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";

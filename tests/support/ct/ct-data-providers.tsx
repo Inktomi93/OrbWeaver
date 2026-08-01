@@ -51,8 +51,10 @@ import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, tagsPane, themeModal } from "@orb/client/features/settings";
+import { regexPane } from "@orb/client/features/regex";
+import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
+import { tagsPane } from "@orb/client/features/tag";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,

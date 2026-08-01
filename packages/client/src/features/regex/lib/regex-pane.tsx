@@ -1,5 +1,7 @@
 // The Regex settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
-// wrapping the existing surface. Registered at the door (main.tsx); settings owns this pane (O3).
+// wrapping the feature's surface. Registered at the door (main.tsx); features/regex owns this pane (D114 /
+// SET-SEAMS stage 5, SUPERSEDING O3's "settings keeps the regex pane"). `surface` mode: a script LIBRARY,
+// not a knob stack.
 
 import { WandSparkles } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
