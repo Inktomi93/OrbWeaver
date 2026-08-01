@@ -1,7 +1,7 @@
 import { ACCENT_HOVER, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
-// holds by construction; button adds an `icon` size on top.
+// holds by construction; button adds an `icon` and a `media` size on top.
 export const buttonVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
@@ -24,6 +24,13 @@ export const buttonVariants = tv({
     size: {
       ...CONTROL_SIZE,
       icon: "size-control-md p-0",
+      // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
+      // control height, so a display-token child larger than it (`size-avatar-hero`, 64px) paints OUTSIDE
+      // its own button and the real hit target stays the 34px control box — the stickler 2026-08-01 F2
+      // defect. A `className` cannot fix that from a feature: `size-*` on custom tokens is opaque to
+      // tailwind-merge, so the variant's `size-control-md` survives the override and wins on cascade
+      // order. The child owns the touch floor here (an avatar-hero portrait clears it by 20px).
+      media: "size-auto p-0",
     },
   },
   defaultVariants: { intent: "primary", size: "md" },

@@ -29,10 +29,6 @@ const ALLOWLIST: Record<string, string> = {
     'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
     "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
     "reasoning as preset-library-welcome.tsx.",
-  "packages/client/src/features/character/components/character-facet-inspector.tsx":
-    'the "Open a field to inspect it" prompt shown when no card-content facet is drilled — the next step ' +
-    "(pick a facet) lives in the sibling CONTENT facet list, not in this CONTEXT detail pane, so this state " +
-    "legitimately has no action of its own; the character-editor twin of preset-section-inspector.tsx.",
   // ── rpg game panel (rpg-design/11 §6) — the game surfaces are model/director-authored (pillar P1: the client
   // creates NOTHING), sibling-carried (a visible create form beside the list), or a DESIRED empty state. Each row
   // names its class so the next auditor can re-derive it. (C11 polish pass; allowlist WITH reasoning, not a bolted-on
