@@ -91,8 +91,21 @@ duplication owner call — DESIGN §2 mandates
   body (the OSRS idiom). Rule if you want numbers to appear once. ALSO: rpg-scene-tab.tsx sits
   AT the 450 cap · name-echo placeholders ("act title…" class) left for a sweep · the SE-B/HUD
   surfaces still owe a LIVE snap on a model-populated game before side-eye-closed.
-· SE-C `a0c461b088749fa65` — ui cluster (TabsPanel FOCUS_RING · Button inline arm ×13 · icon
-  tiles · bubble single-home · dialogue hue via D71) + the BLESSED --color-sheen token addition.
+· ~~SE-C~~ MERGED (`79ab1dd5`, unhooked): TabsPanel FOCUS_RING_INSET (offset ring clips in
+  scroll parents — CT via real Tab presses) · Button inline arm + ALL 13 sites, zero ! left
+  (arm ships NO padding — twMerge keeps BOTH custom-token spacings; 2 sites were Select/Input →
+  own layout arms, FIELD_CONTROL split) · icon tiles dead · bubble single-homed at lib/ (runtime
+  cross-feature = RED; type-only allowed) · --color-sheen minted STATIC_RATIONALE. DIALOGUE HUE
+  RESOLVED NO-RETUNE (orchestrator): the side-eye's violet exists NOWHERE — likely measured a
+  colorForCharacter HASH color; Hearth amber is owner-picked 07-31 and STANDS. FLAGS: default
+  Button w/o explicit intent gets no data-cta ring (documented, not repainted) · admin-rail-pin
+  CT = the known DEF-14 parallel-load flake.
+**NEW WAVE (post-SE, 3 lanes):** R1 op-shaped hand door `patchActor`+`dismissActor` (the
+approved program opens) · V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
+w/ D8+list projection; snap --isolated receipts required) · smalls#2 (Jobs vocab+CTA · toolround
+usage · ember-CT rename · retry-drift sweep · post-checkout install hook · BANG-PREFIX gate arm
+[~40-site baseline]). Batch pnpm check RUNNING in background (bnz8kvvnh) — covers the unhooked
+merge pile; SE-C self-certified post-rebase.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
