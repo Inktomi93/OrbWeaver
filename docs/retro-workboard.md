@@ -139,7 +139,11 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). WAVE 2 (after B1+B2 merge, serialized on preset feature files): the
+S4-ruled rows untouched). B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
+from sanctioned render/preview/readout homes (scrubber-home pattern; kills the editor-round-trips-
+resolved-text CORRUPTION class) + the shared assert-token-roundtrip CT helper, proven on an
+existing editor; LANDS BEFORE WAVE 2 so the new editors are born unable to violate it.
+WAVE 2 (after B1+B2+B4 merge, serialized on preset feature files): the
 VIEWS — Params deck + KnobRow · Prompt rack · Actions+drill-ins · per-view readouts + D8 binding ·
 list projection; THEN the program side-eye (fix-all law) + freshness/live drive. Entry-wrapper
 placement RATIFIED (carrier panel, ST-parity field, reset affordance). (was: (worktree
