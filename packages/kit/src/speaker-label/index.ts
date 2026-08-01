@@ -188,6 +188,16 @@ export function truncateAtForeignLabel(content: string, otherNames: readonly str
   return cut === null ? content : content.slice(0, cut).trimEnd();
 }
 
+/** The WIRE half of the same foreign-label grammar {@link truncateAtForeignLabel} enforces at RECEIVE:
+ *  `\nName:` per name, for the generation request's stop set (ST `getStoppingStrings`, script.js:3010 —
+ *  its group arm stops on every member's name). A completion runner cuts the generation the moment the
+ *  model starts a named speaker's line; the receive-side truncate stays as the fallback for the backends
+ *  that ignore stops (agent-sdk). ONE home for both ends so the two can't drift apart. Empty/blank names
+ *  are dropped; the result is deduped, and an empty `names` yields `[]` (a byte-identical request). */
+export function foreignLabelStops(names: readonly string[]): string[] {
+  return [...new Set(names.map((n) => n.trim()).filter((n) => n.length > 0))].map((n) => `\n${n}:`);
+}
+
 /** Full per-speaker reply clean: strip a leaked LEADING own-label + tag, scrub any INLINE self-label the
  *  model interleaved mid-generation (the `dumJFC: —b` word-splice), then truncate any FOREIGN-speaker drift.
  *  The one entry point the canon-persist paths (send/force/opening + continue) call so a per-speaker row is
