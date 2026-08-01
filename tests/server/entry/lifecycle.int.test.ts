@@ -74,7 +74,7 @@ test("boot migrates + serves healthz 200; shutdown flips it to 503 and stops acc
 
   const live = await waitForHealthz();
   expect(live.status).toBe(OK);
-  expect(await live.json()).toEqual({ status: "ok" });
+  expect(await live.json()).toEqual({ status: "ok", harness: false });
 
   await lifecycle.shutdown();
 
