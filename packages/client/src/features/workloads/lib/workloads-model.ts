@@ -263,20 +263,6 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
   return { kind, params } as StartWorkloadWire["input"];
 }
 
-const RESULT_PREVIEW_MAX_CHARS = 120;
-
-/** A one-line preview of a succeeded row's result blob — compact JSON, ellipsized. `null` when there is nothing worth showing. */
-export function workloadResultPreview(result: unknown): string | null {
-  if (result === null || result === undefined) {
-    return null;
-  }
-  const text = JSON.stringify(result);
-  if (text === "{}") {
-    return null;
-  }
-  return text.length > RESULT_PREVIEW_MAX_CHARS ? `${text.slice(0, RESULT_PREVIEW_MAX_CHARS)}…` : text;
-}
-
 /** The row-local live-progress view model. `pct: null` renders the indeterminate bar. */
 export interface WorkloadProgressView {
   readonly pct: number | null;

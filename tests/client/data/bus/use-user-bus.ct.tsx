@@ -18,7 +18,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeOrbSocket } from "../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../support/ct/route-trpc";
-import { UserBusGapHealStory } from "./_ct-stories";
+import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories";
 
 const ROUTES = {
   "persona.list": (): readonly { id: string }[] => [{ id: "persona_ctuserbus" }],
@@ -45,6 +45,33 @@ test("the FIRST connect does not gap-heal — a page load fetches each user root
   // link delivers strictly AFTER the `pending` connection-state transition, so a heal would already have
   // issued (and been recorded) by the time that refetch landed.
   expect(trpc.count("persona.list")).toBe(1);
+});
+
+// A MOUNT IS A DOUBLE LIFECYCLE EDGE, and it used to cost a room a round trip each way: measured on 4/4 cold
+// loads (side-eye, 2026-08-01), the `user` room attached TWICE per boot — same socket, same ref — with a
+// detach wedged between. React's dev StrictMode does this to every effect (`main.tsx`), a Suspense retry does
+// it on chat open, and a keyed remount does it here: leave then re-join, back to back in ONE commit. The
+// registry now reclaims a room inside its retire grace and drops an announce that would repeat an identical
+// attach, so the second edge costs NOTHING on the wire.
+test("a REMOUNT of the room consumer costs no second attach and no detach (the double-edge dedupe)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, ROUTES);
+  const socket = await routeOrbSocket(page, { frames: [TAGS_CHANGED], awaitAttaches: 1 });
+
+  const component = await mount(<UserBusRemountStory />);
+  await expect(component.getByTestId("user-events")).toHaveText("tagsChanged");
+  expect(socket.attachedChannels()).toEqual(["user"]);
+
+  await component.getByTestId("remount-room").click();
+  await expect(component.getByTestId("room-generation")).toHaveText("1");
+  // The barrier: a round trip issued AFTER the remount. Once it is recorded, any attach/detach the remount
+  // itself would have fired is already recorded too (counts only climb — a bare assertion would race).
+  await component.getByTestId("probe-barrier").click();
+  await expect.poll(() => trpc.count("tag.listTags")).toBe(2);
+
+  // Still ONE attach for the one room, and the room was never handed back mid-remount.
+  expect(socket.attachedChannels()).toEqual(["user"]);
+  expect(socket.detaches()).toEqual([]);
+  expect(socket.connects()).toBe(1);
 });
 
 test("a RECONNECT gap-heals — every user root refetches after the stream drops and re-attaches", async ({ mount, page }) => {

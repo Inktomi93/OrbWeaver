@@ -8,7 +8,13 @@
 //   • BOOT-4X: `onSocketLive` (the gap-heal) fires only once a room HAS ALREADY been live in this page —
 //     never on its first live edge, whether that arrives via the socket's first connect or via joining an
 //     already-live socket,
-//   • a frame for a room nobody joined is dropped, never fanned out.
+//   • a frame for a room nobody joined is dropped, never fanned out,
+//   • a REMOUNT (leave then re-join back to back — StrictMode's double effect, a Suspense retry) costs the
+//     wire nothing: the detach is deferred by a grace window and the re-join reclaims the room, so there is
+//     no detach, no second attach, and no gap-heal for a room that never went dark.
+//
+// The retire grace is a TIMER, so every test that wants a real detach advances past it (`PAST_RETIRE_GRACE_MS`
+// is "well past", not the constant itself — the tests pin the BEHAVIOUR, not the tuning).
 
 import type { RoomTransport } from "@orb/client/data";
 import { createRoomRegistry } from "@orb/client/data";
@@ -24,6 +30,12 @@ const RPG_ROOM: StreamRoomRef = { channel: "rpg", chatId: CHAT };
 const ANNOUNCE_FAILED_COPY = /Live updates could not be started/u;
 const USER_FRAME: StreamDataFrame = { channel: "user", event: { type: "tagsChanged" } };
 const RPG_FRAME: StreamDataFrame = { channel: "rpg", chatId: CHAT, event: { type: "gameChanged", chatId: CHAT } };
+/** Well past the registry's retire grace — the point where a room nobody wants is genuinely given back. */
+const PAST_RETIRE_GRACE_MS = 1000;
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 /** A recording transport — the wire the registry would otherwise reach through `useOrbSocket`. */
 function fakeTransport(): {
@@ -51,6 +63,7 @@ function fakeTransport(): {
 
 describe("ref-counting", () => {
   test("two subscribers of ONE room cost one attach; only the last leaver detaches", () => {
+    vi.useFakeTimers();
     const registry = createRoomRegistry();
     const wire = fakeTransport();
     registry.bindTransport(wire.transport);
@@ -61,10 +74,15 @@ describe("ref-counting", () => {
     expect(wire.attached).toEqual([RPG_ROOM]);
 
     leaveA();
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS);
     expect(wire.detached).toEqual([]);
     expect(registry.joined()).toEqual([`rpg:${CHAT}`]);
 
     leaveB();
+    // The detach is deferred by the retire grace (a remount inside it reclaims the room); past the window,
+    // a room nobody wants is genuinely given back.
+    expect(wire.detached).toEqual([]);
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS);
     expect(wire.detached).toEqual([RPG_ROOM]);
     expect(registry.joined()).toEqual([]);
   });
@@ -93,6 +111,35 @@ describe("late transport binding", () => {
     registry.bindTransport(wire.transport);
 
     expect(wire.attached).toEqual([USER_ROOM]);
+  });
+
+  // `useOrbSocket`'s effect is double-invoked on a dev mount too, and binding flushes every joined room —
+  // which is how a room already attached with this exact request bought a second, identical attach.
+  test("RE-binding does not re-announce a room already attached with the same request", () => {
+    const registry = createRoomRegistry();
+    const wire = fakeTransport();
+    registry.bindTransport(wire.transport);
+    registry.join(USER_ROOM, { onEvent: () => undefined });
+
+    registry.bindTransport(null);
+    registry.bindTransport(wire.transport);
+
+    expect(wire.attached).toEqual([USER_ROOM]);
+  });
+
+  // The dedupe must never eat the insurance: after a real drop the server may have reaped the cell, so the
+  // reconnect's announce goes out even though nothing about the room changed.
+  test("a RECONNECT announces past the dedupe", () => {
+    const registry = createRoomRegistry();
+    const wire = fakeTransport();
+    registry.bindTransport(wire.transport);
+    registry.join(USER_ROOM, { onEvent: () => undefined });
+    registry.socketLive();
+
+    registry.socketDown();
+    registry.socketLive();
+
+    expect(wire.attached).toEqual([USER_ROOM, USER_ROOM]);
   });
 });
 
@@ -149,21 +196,45 @@ describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", (
   });
 
   test("a room RE-joining after a detach heals — its cache went stale while nothing announced writes", () => {
+    vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
     registry.socketLive();
     healCounter(registry, RPG_ROOM).leave(); // opened a game chat, then switched away
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS); // …long enough that the room was really given back
 
     const rejoined = healCounter(registry, RPG_ROOM); // …and switched back
 
     expect(rejoined.count()).toBe(1);
   });
 
+  // The other side of that rule, and the reason the boot double-attached: a REMOUNT is not a visit away. The
+  // room never left, so re-joining inside the grace must cost nothing — no detach, no attach, and no heal
+  // (a heal here re-fetched every root of the surface that was merely re-rendering).
+  test("a re-join INSIDE the retire grace reclaims the room — no detach, no second attach, no heal", () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    const wire = fakeTransport();
+    registry.bindTransport(wire.transport);
+    registry.socketLive();
+    healCounter(registry, RPG_ROOM).leave(); // the remount's cleanup…
+
+    const remounted = healCounter(registry, RPG_ROOM); // …and its setup, in the same commit
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS);
+
+    expect(wire.attached).toEqual([RPG_ROOM]);
+    expect(wire.detached).toEqual([]);
+    expect(remounted.count()).toBe(0);
+    expect(registry.joined()).toEqual([`rpg:${CHAT}`]);
+  });
+
   test("the gate is per ROOM — one room's history never heals another", () => {
+    vi.useFakeTimers();
     const registry = createRoomRegistry();
     registry.bindTransport(fakeTransport().transport);
     registry.socketLive();
     healCounter(registry, USER_ROOM).leave();
+    vi.advanceTimersByTime(PAST_RETIRE_GRACE_MS);
 
     const user = healCounter(registry, USER_ROOM);
     const rpg = healCounter(registry, RPG_ROOM);
@@ -281,10 +352,6 @@ describe("routing and failure", () => {
 // delivery for the life of the connection — silently, with the ping keeping the socket alive so nothing ever
 // reconnects to retry. These pin the two halves of the answer: retry, then say so.
 describe("a failed announce is retried, and never silently abandoned", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   test("an announce that fails twice and then succeeds still attaches the room", async () => {
     vi.useFakeTimers();
     const registry = createRoomRegistry();
