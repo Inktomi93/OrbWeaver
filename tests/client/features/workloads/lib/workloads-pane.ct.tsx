@@ -26,6 +26,10 @@ const ANCHOR_ORDER = ["settings-anchor-workloads-jobs", "settings-anchor-workloa
 
 /** The nav rows the pane DERIVES from its contributions, in door order. */
 const NAV_LABELS = ["Jobs", "Schedules", "Analysis tuning"];
+/** The expanded category row's own label — "Jobs" now sits at BOTH levels (the pane and its first section
+ *  are the same concept, the Personas>Personas / Tags>Tags precedent), so a nav assertion has to read the
+ *  rows POSITIONALLY: a bare `getByText("Jobs")` is a strict-mode violation by construction. */
+const CATEGORY_LABEL = "Jobs";
 /** A moved section's surviving search leaf (the option row also carries its category label). */
 const CREATE_SCHEDULE_LEAF = /Create a schedule/;
 
@@ -38,11 +42,12 @@ function stub(page: Page): Promise<TrpcRecorder> {
   });
 }
 
-test("the Workloads category shows in the shell nav for a PLAIN user (per-user, not admin-gated)", async ({ mount, page }) => {
+test("the Jobs category shows in the shell nav for a PLAIN user (per-user, not admin-gated)", async ({ mount, page }) => {
   await stub(page);
 
   const component = await mount(<SettingsShellStory />);
-  const workloadsNav = component.getByRole("button", { name: "Workloads" });
+  // The pane's USER-FACING label is "Jobs" (owner 08-02) — "workloads" survives only as code/anchor vocab.
+  const workloadsNav = component.getByRole("button", { name: "Jobs" });
   await expect(workloadsNav).toBeVisible();
   await workloadsNav.click();
 
@@ -79,8 +84,14 @@ test("the derived nav lists every contributed section, in door order", async ({ 
   await mount(<WorkloadsPaneStory />);
   await page.getByRole("heading", { name: "Jobs" }).waitFor();
 
-  const nav = page.getByRole("navigation", { name: "Settings sections" });
-  await Promise.all(NAV_LABELS.map((label) => expect(nav.getByText(label, { exact: true })).toBeVisible()));
+  // Read the nav's row titles in DOM order and assert the three contributed sections sit CONTIGUOUSLY
+  // directly under the expanded category row — order is the claim, and it survives the doubled "Jobs".
+  const titles = await page.evaluate(() =>
+    [...document.querySelectorAll('[aria-label="Settings sections"] [data-slot="list-row-title"]')].map((el) => el.textContent),
+  );
+  const at = titles.indexOf(CATEGORY_LABEL);
+  expect(at).toBeGreaterThanOrEqual(0);
+  expect(titles.slice(at + 1, at + 1 + NAV_LABELS.length)).toStrictEqual(NAV_LABELS);
 });
 
 test("a search leaf of a MOVED section still jumps to a live anchor", async ({ mount, page }) => {
@@ -102,18 +113,18 @@ test("a search leaf of a MOVED section still jumps to a live anchor", async ({ m
 
 // The NARROW arm swept on the SECOND pane the side-eye receipts covered (the shell owns the behaviour, but
 // workloads is the pane whose stacked-arm 60px window was measured alongside appearance): at 430×740 the
-// nav owns the pane, selecting Workloads pushes its sections full-pane, and the jobs section's own run
+// nav owns the pane, selecting Jobs pushes its sections full-pane, and the jobs section's own run
 // affordance — the pane's first control — is on-screen.
 test.describe("narrow (430×740)", () => {
   test.use({ viewport: { width: 430, height: 740 } });
 
-  test("Workloads pushes full-pane and its first control is on-screen", async ({ mount, page }) => {
+  test("Jobs pushes full-pane and its first control is on-screen", async ({ mount, page }) => {
     await stub(page);
     const component = await mount(<SettingsShellNarrowStory />);
-    await expect(component.getByRole("button", { name: "Workloads" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Jobs" })).toBeVisible();
     expect((await readSettingsShellColumns(page)).contentPainted).toBe(false);
 
-    await component.getByRole("button", { name: "Workloads" }).click();
+    await component.getByRole("button", { name: "Jobs" }).click();
 
     const columns = await readSettingsShellColumns(page);
     expect(columns.navPainted).toBe(false);
@@ -238,7 +249,7 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
   await expect(jobs.getByText("1 owner · 128 characters")).toBeVisible();
 
   // Schedules: rows present ⇒ the header CTA is the ONE home for "New schedule" (the empty state owns it
-  // when the list is empty), and it is SECONDARY — the pane's single accent belongs to "Run a workload…".
+  // when the list is empty), and it is SECONDARY — the pane's single accent belongs to "Run a job…".
   const schedules = page.getByTestId("workloads-schedules-section");
   await expect(schedules.getByTestId("schedule-create-button")).toBeVisible();
   await expect(schedules.getByRole("switch", { name: "Enable Reconcile stats schedule" })).not.toBeChecked();

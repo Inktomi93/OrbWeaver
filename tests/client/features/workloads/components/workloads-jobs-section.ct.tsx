@@ -147,7 +147,7 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
 
   // The picker offers only singular-capable kinds — an unbuilt stub is absent by construction, and a
   // non-owner never sees the owner-only "Maintenance" group or its bulk-only kind.
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await expect(page.getByRole("option", { name: "Index (embeddings)" })).toBeVisible();
   await expect(page.getByRole("option", { name: "Crew: director" })).toHaveCount(0);
   await expect(page.getByRole("option", { name: "Refresh model catalog" })).toHaveCount(0);
@@ -187,7 +187,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
   await mount(<WorkloadsJobsSectionStory />);
   await page.getByTestId("workloads-run-button").click();
 
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await page.getByRole("option", { name: "Import from SillyTavern" }).click();
 
   await page.getByRole("switch", { name: "Bulk mode" }).click();
@@ -224,7 +224,7 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
 
   // The owner's picker is GROUPED — "Run on my data" (singular kinds) + a distinct "Maintenance
   // (all deployments)" group carrying the built bulk-only kind.
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await expect(page.getByText("Maintenance (all deployments)")).toBeVisible();
   await page.getByRole("option", { name: "Refresh model catalog" }).click();
 
@@ -301,10 +301,10 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
   await mount(<WorkloadsJobsSectionStory />);
 
   await page.getByRole("button", { name: "Cancel — Index (embeddings)" }).click();
-  await expect(page.getByText("Cancel this workload?")).toBeVisible();
+  await expect(page.getByText("Cancel this job?")).toBeVisible();
   // The M5 cancelLabel extension: this confirm's Cancel button reads "Keep running", not the default.
   await expect(page.getByRole("button", { name: "Keep running" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel workload" }).click();
+  await page.getByRole("button", { name: "Cancel job" }).click();
   // No DOM correlate: the mock's `workloads.list` responder is static, so the invalidation-driven
   // refetch re-renders nothing observable — poll the call-count, but tightly (not the 1.85s default).
   await expect.poll(() => trpc.count("workloads.cancel"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
@@ -355,7 +355,7 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
 
   await mount(<WorkloadsJobsSectionStory />);
   await page.getByTestId("workloads-run-button").click();
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await page.getByRole("option", { name: "Index (embeddings)" }).click();
 
   // Defer to a far-future instant — the datetime-local control parses to an epoch-ms scheduledAt.
@@ -596,4 +596,29 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
   await expect(page.getByText("Succeeded", { exact: true })).toBeVisible();
   await expect.poll(() => socket.detaches().map((ref) => ("workloadId" in ref ? ref.workloadId : ref.channel))).toEqual(["workload_ct_1"]);
   expect(socket.connects()).toBe(1);
+});
+
+// The two-homes CTA fix (SE-D, owner 08-02). An empty FILTERED tab is a state to READ ("no failed jobs"),
+// not a dead end — the header's "Run a job…" is on screen directly above it, so a per-tab CTA was a second
+// simultaneous home for one verb. Only the ALL tab (genuinely nothing to read, ever) keeps its own.
+test("empty states: only the ALL tab carries a run CTA; a filtered tab's empty state has none", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "workloads.list": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsJobsSectionStory />);
+
+  const allPanel = page.getByRole("tabpanel", { name: "All" });
+  await expect(allPanel.getByText("No jobs yet. Background jobs you run appear here.")).toBeVisible();
+  await expect(allPanel.getByRole("button", { name: "Run a job" })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Failed" }).click();
+  const failedPanel = page.getByRole("tabpanel", { name: "Failed" });
+  await expect(failedPanel.getByText("No failed jobs. Good.")).toBeVisible();
+  await expect(failedPanel.getByRole("button")).toHaveCount(0);
+
+  // The ONE surviving home is the section header's primary — never hidden per-tab (hiding it would flicker).
+  await expect(page.getByTestId("workloads-run-button")).toBeVisible();
 });
