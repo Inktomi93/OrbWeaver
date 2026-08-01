@@ -163,15 +163,26 @@ built-in's sections IDENTICALLY (nothing is special-cased; the lock is a WRITE p
 mode). The
 sequence when the user edits (the landed `usePresetAutosave` machinery, spelled as UX):
 
-1. the FIRST committed edit autosaves through the serialized chain; the server copy-on-writes and
-   returns the fork's row ("Default (edited)") — the mint happens exactly once per session chain;
-2. the editor RETARGETS in place: the header name flips to the fork's, the LIST grows the fork row
-   (selected), and the built-in row stays locked and unchanged;
-3. activation follows when the built-in was the active pick (the landed retarget) — the header's
+1. **First-ever edit (no fork exists): the SILENT COW — unchanged.** The edit autosaves through the
+   serialized chain; the server copy-on-writes and returns the fork's row ("Default (edited)") — the
+   mint happens exactly once per session chain; no dialog, no interruption.
+2. **Edit while the owner already holds ≥1 fork (owner-ruled; BUILD lane in flight): the CHOICE.**
+   The save chain INTERCEPTS before the write — a confirm-shaped dialog: *"Your edits to Default live
+   in <fork name>"* → **Keep editing it** (primary — retargets the session to that fork, the newest
+   built-in-descended one, and the pending edit converges there) vs **Start a new fork** (a name
+   input — mints with `forkedFrom` lineage; the non-unique name index deliberately permits N
+   deliberate forks). The dialog is the standard confirm anatomy + one name field — landed primitives,
+   not drawn (nothing novel to draw).
+3. either way the editor RETARGETS in place: the header name flips to the target fork's, the LIST
+   selects it, and the built-in row stays locked and unchanged;
+4. activation follows when the built-in was the active pick (the landed retarget) — the header's
    ACTIVE chip appears, or the not-active **Activate** echo renders (§16 row 3b, the sanctioned
    editor-side half of activation);
-4. every subsequent save patches the fork. No dialog, no interruption — the `AutosaveStatus` chip is
-   the only narration.
+5. every subsequent save patches the target fork; the `AutosaveStatus` chip is the only narration.
+
+One-home note (the load-bearing half of the ruling): the interception is a ROUTING DECISION inside
+the ONE save path (`usePresetAutosave`'s chain — the exact seam that owns the silent COW), never a
+second write path; its two arms route to EXISTING homes (§16 row 32).
 
 The built-in's LIST row: lock glyph, no Delete (landed), Export hidden (§16.1), its activate toggle =
 the null pick.
@@ -865,6 +876,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
 | 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |
 | 31 | manage the guided-template SET (add / remove / reorder / toggle a template) | **NO HOME EXISTS, BY DESIGN** (§5.0: `GUIDED_ACTION_KINDS` is a fixed product enum; every action always resolves) | none — an affordance for this appearing ANYWHERE is the §5.0 conflation as a defect | mock + review: the Actions view renders no grips/switches/Add; the audit pins the ABSENCE |
+| 32 | the COW-moment fork CHOICE (§3.1 step 2 — editing the built-in while ≥1 fork exists; owner-ruled, build in flight) | the interception dialog AT the one save path (`usePresetAutosave`'s chain — the seam that owns the silent COW; a routing decision inside the ONE write path) | its two arms are ROUTERS to existing homes, never new ones: **Keep editing <fork>** = the landed RETARGET semantics (session moves; the pending edit converges); **Start a new fork** = the DUPLICATE home's create-with-config + the `forkedFrom` stamp | review: no second write path exists; the dialog renders only from the save chain's built-in-with-existing-fork branch; CT: both arms land the pending edit exactly once |
 
 **Invariants the table pins:** (i) CONTEXT is read-only + navigation-only — its only interactions
 are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE mutation/store
@@ -883,7 +895,7 @@ a THIN ARM over the same descriptor, never a parallel path):
 | create | `preset.create` | band **New** (#1) | starter config; selected after create |
 | rename | `preset.update` (name) | row kebab dialog (#6) | names are NOT unique — the fork workflow mints same-name rows by design; the scent subtitle + qualifier machinery disambiguates |
 | duplicate | `preset.get` + `preset.create(config)` | inline row verb (#5) | "Copy of <name>"; selected after |
-| fork (COW) | `preset.update` against the system default | implicit — editing the built-in (§ fork-once, landed) | server mints "Default (edited)" ONCE per session chain; activation retargets when the built-in was the pick; the queued `forkedFrom` column adds lineage scent later |
+| fork (COW) | `preset.update` against the system default | implicit — editing the built-in; with ≥1 existing fork, the §3.1 CHOICE dialog intercepts at the same save path (row 32) | first-ever: silent COW mints "Default (edited)" once per session chain; thereafter: Keep-editing (retarget + converge) vs named new fork; `forkedFrom` stamps lineage (LANDED — the §9 column); activation retargets when the built-in was the pick |
 | activate | `settings` seeds patch (`defaultPresetId`) | row toggle (#3, + its two sanctioned echoes) | one-of-N; the built-in row = the null pick |
 | delete | `preset.remove` | row kebab confirm (#8) | deleting the ACTIVE preset clears the pointer first (landed); the built-in cannot be deleted |
 | ST import | client-side `importStChatCompletionPreset` → `preset.create` | the ONE band import dialog (#2) | landed: browser-side parse, dropped-fields summary, selected after |

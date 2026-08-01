@@ -113,7 +113,7 @@ the landed F5 behavior; the built-in row carries the lock and the same toggle (a
           <div class="row selected show">
             <div class="body">
               <div class="t">Default (edited)</div>
-              <div class="sub">generation · edited 2h ago</div>
+              <div class="sub">generation · forked from Default · edited 2h ago</div>
             </div>
             <div class="acts">
               <button class="act activate" aria-pressed="true" title="Active for generation"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg></button>
@@ -150,7 +150,7 @@ the landed F5 behavior; the built-in row carries the lock and the same toggle (a
           <div class="row">
             <div class="body">
               <div class="t">Default (edited)</div>
-              <div class="sub">generation · edited Jul 28, 14:02</div>
+              <div class="sub">generation · forked from Default · edited Jul 28, 14:02</div>
             </div>
             <div class="acts">
               <button class="act activate" aria-pressed="false" title="Activate for generation"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg></button>
@@ -177,9 +177,12 @@ the landed F5 behavior; the built-in row carries the lock and the same toggle (a
     <p class="note"><b>The toggle is the state AND the affordance:</b> pressed (amber, filled, always
     visible) marks the active preset; pressing another row moves the pick — never a bare unpress. The
     built-in's toggle maps to the null pick. Kebab keeps Activate (keyboard parity) · Rename · Duplicate ·
-    <b>Export</b> (the thin single-preset arm over the live portability serde; hidden on the built-in row) · Delete. Lineage stays the honest scent (stamp + kind)
-    until the queued <span class="mono">forkedFrom</span> column lands — then the subtitle gains
-    "forked from Default".</p>
+    <b>Export</b> (the thin single-preset arm over the live portability serde; hidden on the built-in row) · Delete. Lineage is LANDED (the
+    <span class="mono">forked_from</span> self-FK): the subtitle reads "forked from &lt;name&gt;",
+    resolved from rows the surface holds — N deliberate forks EACH read "forked from Default"
+    (non-unique names are deliberate; the edit stamp disambiguates), and editing the built-in with
+    forks standing raises the keep-editing-vs-new-fork choice at the ONE save path (spec §3.1,
+    audit row 32).</p>
   </div>
 
 </div>
