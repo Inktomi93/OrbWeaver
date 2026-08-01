@@ -76,9 +76,15 @@ resolved); the E2E_LIVE specs on the next push window.
   DELETES) + park-skip corner. MERGE PROTOCOL: read its report → merge its branch → a THIRD
   stickler pass ONLY if the fix is structural in a new direction. Spec close-out (ledger D-entry
   for the multiplex + workboard SSE-1 close) happens at S5, not before.
-· `a46ac492f17cfb04c` — HUD-H1 fix-all (every side-eye finding P0→P3 incl. the shell ≤1024px dead
-  toggle + the Tabs auto-height variant). AFTER it merges: ONE COMBINED side-eye re-pass covers
-  HUD+S5 surfaces in a single stage cycle; then HUD H2 (voice pass) dispatches.
+· ~~HUD-H1 fix-all~~ MERGED (all 14 findings; Tabs `layout` variant; the void is now the HUD's
+  GROUND; the ≤1024px dead toggle was TWO coupled shell bugs, both fixed; locked-Map RULING taken:
+  activatable one-story, aria-disabled dropped — SPEC AMENDED IN PLACE, needs owner ratification
+  + the generic panel still speaks the OLD lock vocabulary, follow-up ruling if another
+  contributor ships disabledReason). NEXT: the COMBINED side-eye re-pass (HUD+S5 surfaces, one
+  stage cycle) then HUD H2.
+· S2 branch @ `ddfd76ca` — RF1 fixed via the RESUMABLE ORDERING BARRIER + scrub reconcile +
+  park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
+  (scoped to the barrier); MERGE on its verdict.
 
 **ORCHESTRATION GOTCHAS THIS SESSION PAID FOR (obey):** pass `isolation:"worktree"` on EVERY
 concurrent Agent dispatch (never implied) · the snap stage is a GLOBAL port singleton — exactly
