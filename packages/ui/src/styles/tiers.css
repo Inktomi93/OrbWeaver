@@ -22,17 +22,87 @@
   /* instrument — read-mostly, glanceable, many data per cm²; chrome is subtracted until only data is left. */
   --orb-tier-island-pad: var(--spacing-row);
   --orb-tier-island-radius: var(--radius-base);
+  --orb-tier-row-gap: var(--spacing-field);
+  --orb-tier-row-atom-gap: var(--spacing-tight);
+  --orb-tier-row-title-size: var(--text-label);
+  --orb-tier-row-title-leading: var(--leading-label);
+  --orb-tier-row-title-weight: 600;
+  --orb-tier-row-gloss-size: var(--text-micro);
+  --orb-tier-field-size: var(--text-label);
+  --orb-tier-field-leading: var(--leading-label);
 }
 
 [data-surface-tier="form"] {
-  /* form — write-mostly, one decision per row; chrome carries grouping and affordance. */
+  /* form — write-mostly, one decision per row; chrome carries grouping and affordance. The row/field steps
+   * here are the primitives' OWN tier-less defaults restated, which is the point: a form surface must land
+   * exactly where an un-tiered surface does, so declaring `tier="form"` never silently retunes a pane. */
   --orb-tier-island-pad: var(--spacing-block);
   --orb-tier-island-radius: var(--radius-card);
+  --orb-tier-row-gap: var(--spacing-row);
+  --orb-tier-row-atom-gap: var(--spacing-field);
+  --orb-tier-row-title-size: var(--text-body);
+  --orb-tier-row-title-leading: var(--leading-body);
+  --orb-tier-row-title-weight: 500;
+  --orb-tier-row-gloss-size: var(--text-label);
+  --orb-tier-field-size: var(--text-body);
+  --orb-tier-field-leading: var(--leading-body);
 }
 
 [data-surface-tier] [data-slot="card-root"] {
   padding: var(--orb-tier-island-pad);
   border-radius: var(--orb-tier-island-radius);
+}
+
+/* ── THE LIST CLASS (density-pass-spec.md §3.1 "LIST panes") ────────────────────────────────────────
+ * A ListRow is the list-pane island, and its DENSITY-BEARING properties are mapped here — not spelled in
+ * `list-row/variants.ts` — for the reason S5 proved the hard way: a retune written into the variants is
+ * GLOBAL, so the dense list-pane type landed on every unswept form-tier surface too (the settings modal's
+ * nav rows dropped 15px → 13px with no tier ever declared). Anything whose value DIFFERS by tier belongs
+ * in this file; the variants keep the tier-less (= form) default so an un-tiered row is unchanged.
+ *
+ * What is deliberately NOT here: the row's PADDING and RADIUS. Both are the same step in both tiers
+ * (`px-row py-field`, `rounded-control` — §3.1 gives the list island `p-row`, and CD1 keeps a row a
+ * radius-control cell in either tier), so mapping them would be either a no-op or an invented retune of
+ * every un-swept form surface. They stay the variants' business, where `density` (the control-height axis)
+ * already owns the row box. */
+[data-surface-tier] [data-slot="list-row-root"],
+[data-surface-tier] [data-slot="list-row-body"] {
+  gap: var(--orb-tier-row-gap);
+}
+
+[data-surface-tier] [data-slot="list-row-markers"] {
+  gap: var(--orb-tier-row-atom-gap);
+}
+
+/* The row TITLE is the `label` voice at instrument (the mock's 12.5px/600 row name), the `body` voice at
+ * form. The WEIGHT is a bare number because the type scale has no weight tokens (weight rides Tailwind's
+ * `font-*` utilities everywhere else, and 600 is that scale's `semibold` step) — this is the mock's
+ * contract for a LIST-row title only, which is why it lives on the tier layer and not in the `label` VOICE
+ * (voices stay global; a voice change would move every label in the app). */
+[data-surface-tier] [data-slot="list-row-title"] {
+  font-size: var(--orb-tier-row-title-size);
+  font-weight: var(--orb-tier-row-title-weight);
+  line-height: var(--orb-tier-row-title-leading);
+}
+
+/* The row's quiet second line + its stamp — the `gloss` voice at instrument, `label` at form. SIZE only:
+ * the LINE-HEIGHT stays in the variants because it is the one property the `subtitleWrap` arm has to
+ * raise (a clamped two-line gloss at 1.25 is cramped), and a tier rule here would outrank that arm.
+ * The mock's stamp is 9.5px; there is no 9.5px token and one is not invented here — `micro` (10.5px) is
+ * the step the same 9.5px mock value already resolves to for the `kicker` voice (§2.3). */
+[data-surface-tier] [data-slot="list-row-subtitle"],
+[data-surface-tier] [data-slot="list-row-subtitle-reveal"],
+[data-surface-tier] [data-slot="list-row-meta"] {
+  font-size: var(--orb-tier-row-gloss-size);
+}
+
+/* The pane's own chrome — a search field and a picker inside a LIST pane are NOT the datum, and at the
+ * tier-less body step (15px) they outshouted the 13px row titles they filter (side-eye P1-1). One step
+ * down at instrument, untouched at form. */
+[data-surface-tier] [data-slot="input-root"],
+[data-surface-tier] [data-slot="select-trigger"] {
+  font-size: var(--orb-tier-field-size);
+  line-height: var(--orb-tier-field-leading);
 }
 
 /* ELEVATED is the explicit opt-in that outranks the tier (density-pass-spec.md §2.1: `--radius-card` is
