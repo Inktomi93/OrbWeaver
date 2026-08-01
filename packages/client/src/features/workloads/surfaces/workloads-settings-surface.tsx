@@ -21,7 +21,15 @@ import { RunWorkloadDialog } from "../components/run-workload-dialog";
 import { SchedulesSection } from "../components/schedules-section";
 import { WorkloadRow } from "../components/workload-row";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
-import { isActiveWorkloadStatus, WORKLOAD_FILTER_EMPTY_COPY, WORKLOAD_FILTER_LABELS, WORKLOAD_FILTERS, workloadFilterMatches } from "../lib/workloads-model";
+import {
+  groupWorkloadsByLane,
+  isActiveWorkloadStatus,
+  WORKLOAD_FILTER_EMPTY_COPY,
+  WORKLOAD_FILTER_LABELS,
+  WORKLOAD_FILTERS,
+  WORKLOAD_LANE_LABELS,
+  workloadFilterMatches,
+} from "../lib/workloads-model";
 import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
@@ -122,17 +130,12 @@ function WorkloadsPaneBody(): ReactElement {
                       }
                     />
                   ) : (
-                    <Stack gap="row">
-                      {rows.map((workload) => (
-                        <WorkloadRow
-                          key={workload.id}
-                          workload={workload}
-                          ownerHandle={ownerHandleFor(workload)}
-                          onCancel={(): void => cancelWorkload.mutate({ id: workload.id })}
-                          onRetry={(): void => retryWorkload.mutate({ id: workload.id })}
-                        />
-                      ))}
-                    </Stack>
+                    <LaneGroups
+                      rows={rows}
+                      ownerHandleFor={ownerHandleFor}
+                      onCancel={(workloadId): void => cancelWorkload.mutate({ id: workloadId })}
+                      onRetry={(workloadId): void => retryWorkload.mutate({ id: workloadId })}
+                    />
                   )}
                 </TabsPanel>
               );
@@ -159,6 +162,42 @@ function WorkloadsPaneBody(): ReactElement {
 
       {contributedSections.map((section) => (
         <Fragment key={section.id}>{section.node}</Fragment>
+      ))}
+    </Stack>
+  );
+}
+
+/** The rows of one filter tab, grouped by EXECUTION LANE (interactive vs sweep — derived from the contracts
+ *  tuple, so a new lane needs no edit here). The lanes run independently, so the grouping is the honest
+ *  reading of "what is actually running at once"; with rows in only one lane the heading is dropped. */
+function LaneGroups({
+  rows,
+  ownerHandleFor,
+  onCancel,
+  onRetry,
+}: {
+  readonly rows: readonly WorkloadItem[];
+  readonly ownerHandleFor: (workload: WorkloadItem) => string | null;
+  readonly onCancel: (id: WorkloadItem["id"]) => void;
+  readonly onRetry: (id: WorkloadItem["id"]) => void;
+}): ReactElement {
+  const groups = groupWorkloadsByLane(rows);
+  const showHeadings = groups.length > 1;
+  return (
+    <Stack gap="block">
+      {groups.map((group) => (
+        <Stack key={group.lane} gap="row" data-slot="workload-lane-group">
+          {showHeadings ? <Text voice="kicker">{WORKLOAD_LANE_LABELS[group.lane]}</Text> : null}
+          {group.rows.map((workload) => (
+            <WorkloadRow
+              key={workload.id}
+              workload={workload}
+              ownerHandle={ownerHandleFor(workload)}
+              onCancel={(): void => onCancel(workload.id)}
+              onRetry={(): void => onRetry(workload.id)}
+            />
+          ))}
+        </Stack>
       ))}
     </Stack>
   );

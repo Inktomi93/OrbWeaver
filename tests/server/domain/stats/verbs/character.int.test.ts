@@ -5,6 +5,9 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedCharacterStats, seedUser } from "../_support.ts";
 
+/** A fixed instant for the service's injected clock (only `reconcile` reads it). */
+const STATS_NOW = 1_700_000_000_000;
+
 let db: Db;
 
 beforeEach(async () => {
@@ -16,7 +19,7 @@ describe("stats.character", () => {
     const owner = await seedUser(db);
     const ch = await seedCharacter(db, owner, { name: "Aria" });
     await seedCharacterStats(db, ch, { assistantTurns: 4 });
-    const svc = createStatsService(db);
+    const svc = createStatsService(db, () => STATS_NOW);
     const c = await svc.character(owner, ch);
     expect(c?.name).toBe("Aria");
     expect(c?.assistantTurns).toBe(4);

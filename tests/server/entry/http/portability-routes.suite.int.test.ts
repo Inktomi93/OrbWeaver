@@ -17,7 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures";
-import { makeRunnerDeps } from "../../domain/workloads/_support.ts";
+import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // The portability route suite builds the full service graph + drives a real `import-bundle` workload; it
 // passes warm in ~2-3 s but exceeds vitest's 5 s default under parallel CPU contention. A generous per-suite
@@ -160,10 +160,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       const res = await importHandler(makeCtx(target, { raw: req }));
       expect(res.status).toBe(202);
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
-      const row = await loadWorkload(db, app.workloadContributions, workloadId);
-      if (row === null) {
-        throw new Error("import-bundle workload row missing after start");
-      }
+      const row = await loadRunnableWorkload(db, app.workloadContributions, workloadId);
       await runWorkload(makeRunnerDeps(db, app.workloadContributions), row, new AbortController().signal);
       const done = await loadWorkload(db, app.workloadContributions, workloadId);
       expect(done?.status).toBe("succeeded");

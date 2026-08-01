@@ -8,14 +8,16 @@
 // domain's real contribution: this file tests the STATE MACHINE, and each domain's body is pinned at its own
 // mirror. That also keeps this file stable as kinds re-home.
 
+import type { WorkloadProgress } from "@orb/contracts/workloads";
 import { describe, vi } from "vitest";
+import type { WorkloadContribution } from "../../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { contributionsWith, fakeContributions, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
+import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The row read path narrows params against the contribution registry.
 const CONTRIBUTIONS = fakeContributions();
@@ -24,6 +26,9 @@ const CONTRIBUTIONS = fakeContributions();
 // it) whose body this file replaces wholesale.
 const KIND = "reconcile-world-state";
 
+/** The run body's exact shape for this kind — the type a swapped-in double is written against. */
+type RunBody = WorkloadContribution<typeof KIND>["run"];
+
 const sig = (): AbortSignal => new AbortController().signal;
 
 describe("runWorkload", () => {
@@ -31,10 +36,7 @@ describe("runWorkload", () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
     const id = await seedWorkloadRow(db, { id: "wl_ok", kind: KIND, status: "queued" });
-    const row = await loadWorkload(db, CONTRIBUTIONS, id);
-    if (row === null) {
-      throw new Error("seed failed");
-    }
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("succeeded");
     expect(run).toHaveBeenCalledTimes(1);
@@ -49,10 +51,7 @@ describe("runWorkload", () => {
     const run = vi.fn(() => Promise.reject(new Error("boom")));
     const audit = vi.fn<WorkloadRunnerDeps["audit"]>(() => Promise.resolve());
     const id = await seedWorkloadRow(db, { id: "wl_fail", kind: KIND, status: "queued" });
-    const row = await loadWorkload(db, CONTRIBUTIONS, id);
-    if (row === null) {
-      throw new Error("seed failed");
-    }
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { audit }), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("failed");
     expect((await loadWorkload(db, CONTRIBUTIONS, id))?.error).toContain("boom");
@@ -74,10 +73,7 @@ describe("runWorkload", () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
     const id = await seedWorkloadRow(db, { id: "wl_run", kind: KIND, status: "running" });
-    const row = await loadWorkload(db, CONTRIBUTIONS, id);
-    if (row === null) {
-      throw new Error("seed failed");
-    }
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(run).not.toHaveBeenCalled();
     expect(await loadWorkloadStatus(db, id)).toBe("running");
@@ -88,10 +84,7 @@ describe("runWorkload", () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
     const id = await seedWorkloadRow(db, { id: "wl_cxl", kind: KIND, status: "queued" });
-    const row = await loadWorkload(db, CONTRIBUTIONS, id);
-    if (row === null) {
-      throw new Error("seed failed");
-    }
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     const ac = new AbortController();
     ac.abort();
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, ac.signal);
@@ -109,12 +102,73 @@ describe("runWorkload", () => {
       await markTerminal(db, { id, status: "worker_died", now: T0 });
       return { deferred: true } as const;
     });
-    const row = await loadWorkload(db, CONTRIBUTIONS, id);
-    if (row === null) {
-      throw new Error("seed failed");
-    }
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("worker_died");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).not.toContain("succeeded");
+  });
+});
+
+// The DURABLE progress snapshot. The in-process replay ring is a 60s live-tail smoother — this column is
+// what a client with NO subscription (a reload, a tab opened 20 minutes into an import) actually reads.
+describe("runWorkload progress durability", () => {
+  test("report() lands the latest snapshot on the ROW, readable with no subscription at all", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { id: "wl_prog", kind: KIND, status: "queued" });
+    const seen: (WorkloadProgress | null)[] = [];
+    const run = vi.fn<RunBody>(async (_ctx, _params, report) => {
+      report({ message: "step one", current: 1, total: 3 });
+      // Read the row back MID-RUN through the plain read path — this is the reconnect view.
+      seen.push((await loadWorkload(db, CONTRIBUTIONS, id))?.progress ?? null);
+      report({ message: "step three", current: 3, total: 3, pct: 100 });
+      seen.push((await loadWorkload(db, CONTRIBUTIONS, id))?.progress ?? null);
+      return { deferred: true } as const;
+    });
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
+    await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
+
+    expect(seen[0]).toEqual({ message: "step one", current: 1, total: 3 });
+    expect(seen[1]).toEqual({ message: "step three", current: 3, total: 3, pct: 100 });
+    // …and it survives the terminal stamp, so a finished row still explains where it got to.
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.progress).toEqual({ message: "step three", current: 3, total: 3, pct: 100 });
+  });
+
+  test("a run that never reports leaves progress null (no phantom snapshot)", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { id: "wl_quiet", kind: KIND, status: "queued" });
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
+    await runWorkload(
+      makeRunnerDeps(
+        db,
+        contributionsWith(KIND, async () => ({ deferred: true }) as const),
+      ),
+      row,
+      sig(),
+    );
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.progress).toBeNull();
+  });
+
+  test("the durable write is THROTTLED to the lease cadence — a chatty run writes one snapshot per period", async () => {
+    const db = await freshDb();
+    const id = await seedWorkloadRow(db, { id: "wl_chatty", kind: KIND, status: "queued" });
+    let clock = T0;
+    const run = vi.fn<RunBody>(async (_ctx, _params, report) => {
+      // Three reports inside ONE 5s cadence window: only the first reaches the row.
+      report({ message: "a" });
+      clock += 10;
+      report({ message: "b" });
+      clock += 10;
+      report({ message: "c" });
+      expect((await loadWorkload(db, CONTRIBUTIONS, id))?.progress).toEqual({ message: "a" });
+      // Past the cadence, the next report writes again (carrying the latest).
+      clock += 5000;
+      report({ message: "d" });
+      expect((await loadWorkload(db, CONTRIBUTIONS, id))?.progress).toEqual({ message: "d" });
+      return { deferred: true } as const;
+    });
+    const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
+    // heartbeatMs left at its 5s DEFAULT here (the throttle window under test); the cancel poll stays off.
+    await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { now: () => clock, cancelPollMs: 0, heartbeatMs: 5000 }), row, sig());
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

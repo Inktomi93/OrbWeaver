@@ -1,4 +1,4 @@
-// transport/trpc/routers/stats — the read-only analytics surface (core/Tier-4-Transport.md). authed; every verb
+// transport/trpc/routers/stats — the analytics surface (core/Tier-4-Transport.md). authed; every verb
 // takes a positional `ownerId` that is ALWAYS the resolved `Principal.userId` (never client input — the
 // single-owner row-scoping invariant). Thin: validate → `ctx.services.stats.<verb>` → map errors.
 //
@@ -53,4 +53,9 @@ export const statsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
 
   latency: authedProcedure.input(latencyScopeSchema).query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
+
+  // The ONE write on this surface: rebuild the CALLER's rollups from canon, awaited (the instant "recompute
+  // my stats"). Owner-scoped by construction — `ownerId` is the resolved principal, never input — so there is
+  // no id to IDOR. The all-owners sweep stays the owner-gated `reconcile-stats` workload.
+  reconcile: authedProcedure.mutation(({ ctx }) => ctx.services.stats.reconcile(ctx.auth.userId)),
 });

@@ -50,9 +50,12 @@ function workloadRow(overrides: Record<string, unknown> = {}): Record<string, un
     status: "running",
     mode: "singular",
     source: "all",
+    lane: "sweep",
     ownerId: "user_ct_kes",
     dependsOn: null,
     error: null,
+    progress: null,
+    poison: false,
     scheduledAt: 1_750_000_000_000,
     createdAt: 1_750_000_000_000,
     updatedAt: 1_750_000_000_000,
@@ -643,6 +646,79 @@ test("list: a deferred (future-dated) queued row shows the Scheduled state, not 
   await expect(allPanel.getByText("Scheduled for", { exact: false })).toBeVisible();
   // A deferred row isn't processing → no indeterminate progress bar.
   await expect(allPanel.getByRole("progressbar")).toHaveCount(0);
+});
+
+// The lane split (two independent worker loops) is a real thing a user can observe: an interactive job and
+// a sweep run AT THE SAME TIME. The pane groups by lane so "why are two things running?" has an answer.
+test("list: rows in BOTH lanes render under their lane headings", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "workloads.list": () => [
+      workloadRow({ id: "workload_ct_ingest", kind: "databank-ingest", lane: "interactive", status: "running", params: {} }),
+      workloadRow({ id: "workload_ct_sweep", kind: "import-st", lane: "sweep", status: "running", params: {} }),
+    ],
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsSettingsStory />);
+
+  const allPanel = page.getByRole("tabpanel", { name: "All" });
+  await expect(allPanel.getByText("Interactive — jobs you're waiting on")).toBeVisible();
+  await expect(allPanel.getByText("Sweeps — bulk maintenance")).toBeVisible();
+  await expect(allPanel.getByText("Databank ingest")).toBeVisible();
+  await expect(allPanel.getByText("Import from SillyTavern")).toBeVisible();
+});
+
+test("list: with every row in ONE lane the heading is dropped (a lone group label is noise)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "workloads.list": () => [workloadRow(), workloadRow({ id: "workload_ct_2", kind: "compute-themes", params: {} })],
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsSettingsStory />);
+
+  const allPanel = page.getByRole("tabpanel", { name: "All" });
+  await expect(allPanel.getByText("Compute themes")).toBeVisible();
+  await expect(allPanel.getByText("Sweeps — bulk maintenance")).toHaveCount(0);
+});
+
+// The DURABLE progress column is what a reconnect actually reads — here the SSE tail carries NOTHING (the
+// 61st second of a 20-minute import), and the row still renders its real position off the list read.
+test("list: a running row renders its DURABLE progress with no live event at all", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "workloads.list": () => [workloadRow({ progress: { pct: 72, message: "Embedded 720 of 1000" } })],
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsSettingsStory />);
+
+  const bar = page.getByRole("progressbar", { name: "Embedded 720 of 1000" });
+  await expect(bar).toBeVisible();
+  await expect(bar).toHaveAttribute("aria-valuenow", "72");
+});
+
+// A row whose stored params no longer parse used to VANISH from this list. It is now visibly broken here.
+test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "workloads.list": () => [workloadRow({ status: "failed", error: "unrecognized or malformed workload kind: compute-themes", params: null, poison: true })],
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+    "workloads.retry": () => ({ id: "workload_ct_retry" }),
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsSettingsStory />);
+
+  const allPanel = page.getByRole("tabpanel", { name: "All" });
+  await expect(allPanel.getByText("Unreadable", { exact: true })).toBeVisible();
+  await expect(allPanel.getByText("This run's saved settings can no longer be read", { exact: false })).toBeVisible();
+  await allPanel.getByRole("button", { name: "Retry — Index (embeddings)" }).click();
+  await expect.poll(() => trpc.count("workloads.retry")).toBe(1);
 });
 
 test("list: a queued row with dependsOn shows the Waiting-on-dependencies state", async ({ mount, page }) => {
