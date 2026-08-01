@@ -256,7 +256,13 @@ backed up EVERY boot incl. no-ops → 3,220 backups, data/ at 155GB. PURGED (own
 deleted, 3 kept, data/ now 50MB. STRUCTURAL FIX LANE IN FLIGHT: backup only on pending
 migrations + retention N=5 + defensive prune glob. LESSON: a baseline squash = the dev db
 re-mints on next boot — expected, announce it when squashing.
-**SIDE-EYE #1 DELIVERED → FIVE FIX LANES IN FLIGHT (fix-all law):** SE-A mobile-settings P0
+**SIDE-EYE #1 DELIVERED → FIVE FIX LANES IN FLIGHT (fix-all law):** ~~SE-A~~ MERGED (`44ee46d1`: P0 DEAD — narrow arm = container-queried push-detail [nav
+full-pane → push → back row], deep links + search jumps push correctly; ONE aria-current
+[ListRow expanded prop, groups hand the marker to the active child]; no-scroll spy resolves
+FIRST; contentless parent = group semantics + activeSub lands on first section]. OWNER CALL
+boarded: "Message details & actions" clips at 220px nav — proposal: split nav-label vs heading
+vocabulary in SettingsSubcategory [nav "Message details", heading unchanged]; title-tooltip
+recovery pinned meanwhile.) Was: SE-A mobile-settings P0
 (push-detail) + aria-current/spy/parent-row · SE-B rpg cluster (band budget fork + F8 kicker +
 D-1 split + LYING METERS em-dash + crown recede + scene names + dead class + ghost tile +
 duplicate orbs + caption wrap) · SE-C ui (TabsPanel FOCUS_RING + Button inline arm ×13 + icon
