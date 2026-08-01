@@ -1,7 +1,10 @@
 import { ACCENT_HOVER, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
-// holds by construction; button adds an `icon` and a `media` size on top.
+// holds by construction; button adds an `icon`, a `media` and a `wrap` size on top. The size axis is the
+// SOLE owner of the box: no other variant (and no call-site class) may set a height, because the
+// control-height tokens are opaque to tailwind-merge and a second height would resolve by stylesheet
+// order, not by intent.
 export const buttonVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
@@ -31,6 +34,15 @@ export const buttonVariants = tv({
       // tailwind-merge, so the variant's `size-control-md` survives the override and wins on cascade
       // order. The child owns the touch floor here (an avatar-hero portrait clears it by 20px).
       media: "size-auto p-0",
+      // MULTILINE: the `sm` step's WRAPPING twin — a choice/option affordance carrying a model-authored
+      // sentence, so the label wraps (`whitespace-normal` over the base's nowrap) and the height FOLLOWS
+      // the wrapped text, floored at the `sm` control height (D62: ≥ the pointer's tap floor at both
+      // pointer classes — `--spacing-control-sm` is 44px coarse / 32px fine, ≥ `--spacing-touch-target`).
+      // A call-site `h-auto` CANNOT express this: a custom-token height (`h-control-sm`) is opaque to
+      // tailwind-merge, so both heights survive the merge and stylesheet order picks the winner — the
+      // `media` (F2) and TabsTab `layout="stacked"` precedent. Pinned by COMPUTED height in
+      // tests/ui/primitives/button/button.ct.tsx.
+      wrap: "h-auto min-h-control-sm whitespace-normal px-block py-field text-label leading-label",
     },
   },
   defaultVariants: { intent: "primary", size: "md" },

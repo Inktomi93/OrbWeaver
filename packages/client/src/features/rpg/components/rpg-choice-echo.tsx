@@ -92,11 +92,11 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
           // message-choices-block keying precedent; a verbatim repeat is the same choice).
           key={option}
           intent="secondary"
-          size="sm"
+          size="wrap"
           focusableWhenDisabled={true}
           disabled={busy}
           {...(busy ? { title: TURN_IN_FLIGHT } : {})}
-          className="h-auto min-h-touch-target justify-start whitespace-normal py-field text-left"
+          className="justify-start text-left"
           onClick={(): void => {
             if (!busy) {
               pick(option);
