@@ -1601,7 +1601,7 @@ test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell'
 
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {
   // `voice="gloss"` paints `text-muted-foreground`; without `text-inherit` the caption stays grey while the
-  // glyph and the cell tint go ember, which reads as "nothing is selected". Asserted as the COMPUTED colour
+  // glyph and the cell tint go accent, which reads as "nothing is selected". Asserted as the COMPUTED colour
   // against the same token the cell's `data-active:text-primary` resolves to.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
@@ -1700,7 +1700,7 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   expect(tall.railBottom).toBeCloseTo(tall.regionBottom, 0);
 });
 
-test("HUD-1 §5.2: the ember binding edge paints FLUSH at the pane's top edge, full-bleed — like the generic band's", async ({ mount, page }) => {
+test("HUD-1 §5.2: the primary binding edge paints FLUSH at the pane's top edge, full-bleed — like the generic band's", async ({ mount, page }) => {
   // The claimant owns the pane's TOP EDGE. Under the shell's panel-body padding the HUD's edge landed 8px
   // down and 8px shy of both inline edges while the generic band's inset one paints at row 0 across the
   // full width (2026-08-01 side-eye, measured off the real screenshots). shell.css drops that padding under
@@ -1808,8 +1808,8 @@ test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at res
   // A non-host cell in the SAME (owning) rail is untouched — the gold marks a class of cell, not the rail.
   expect(await glyphColor("This chat")).not.toBe(highlight);
 
-  // ACTIVE beats crowned: once the cell is the answer to "where am I", the ember state colour owns it —
-  // a gold glyph inside an ember cell argues with the one treatment that means "selected".
+  // ACTIVE beats crowned: once the cell is the answer to "where am I", the accent state colour owns it —
+  // a gold glyph inside an accent cell argues with the one treatment that means "selected".
   await rail.getByRole("tab", { name: "Preview" }).click();
   await expect(rail.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
   expect(await glyphColor("Preview")).not.toBe(highlight);

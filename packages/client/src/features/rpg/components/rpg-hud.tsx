@@ -3,7 +3,7 @@
 // the F6 defects fixable at all (nobody owned it before — the band was the shell's, the strips were the
 // shell's, the bodies were the feature's, and the arrangement was an accident of three specs).
 //
-// THE COLUMN, top to bottom: BAND (flex-none — the waystone, painting the 2px ember content↔context binding
+// THE COLUMN, top to bottom: BAND (flex-none — the waystone, painting the 2px primary content↔context binding
 // edge itself now that no `.shell-panel-header` sits above it) → GAME rail (flex-none, the state tabs) →
 // VIEWPORT (`flex-initial` = `flex: 0 1 auto` + min-h-0 + scroll) → GROUND (`flex-1`, the residual span) →
 // ADMIN rail (flex-none, the chat tabs).
@@ -20,7 +20,7 @@
 // there is no layout jump between them (asserted as geometry in CT, never eyeballed).
 //
 // THE PANE'S EDGES ARE THE HUD'S: shell.css drops `.shell-panel-body`'s padding under a claim, so the band's
-// ember edge paints flush at the pane's top edge, full-bleed, exactly as the generic band's inset one does
+// primary edge paints flush at the pane's top edge, full-bleed, exactly as the generic band's inset one does
 // (§5.2 — "the claimant owns the pane's TOP EDGE"). The VIEWPORT re-pays that padding itself, so tab bodies
 // read as before; only the chrome (band, rails, ground) reaches the pane's edges.
 //
@@ -136,7 +136,7 @@ export function RpgHud({ view }: RpgHudProps): ReactElement {
   );
 }
 
-/** The HUD's own BAND — the waystone composite, plus the 2px ember top edge the shell's band used to paint
+/** The HUD's own BAND — the waystone composite, plus the 2px primary top edge the shell's band used to paint
  *  (the content↔context binding survives; it just gets painted by its owner now, §5.1).
  *
  *  The chat id comes from `#state`'s active-chat pointer, not from the claimant's `S`: the region `render`
@@ -316,8 +316,8 @@ function RpgHudCell({
   const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   // CROWN GOLD AT REST (§4): the host-only cells (`preview`, the crown GM console) read as host-only
-  // without spending a word on it. AT REST only — once the cell is active the ember state colour is the
-  // answer to "where am I", and a gold glyph inside an ember cell would argue with it. And at rest the gold
+  // without spending a word on it. AT REST only — once the cell is active the accent state colour is the
+  // answer to "where am I", and a gold glyph inside an accent cell would argue with it. And at rest the gold
   // rides its RAIL'S ownership voice (`CROWN_OWNERSHIP_CLASSES`), so a receded strip's crown recedes with it.
   const crowned = tab.crown && !isActive;
   return (
@@ -331,7 +331,7 @@ function RpgHudCell({
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
       {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
-      {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active ember) wins. */}
+      {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active accent) wins. */}
       <Text as="span" voice="gloss" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
         {tab.label}
       </Text>
