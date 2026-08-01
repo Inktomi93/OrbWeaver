@@ -12,6 +12,7 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainRateLimitError } from "@orb/kit/errors";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { SocketListener } from "@orb/server/transport/trpc";
 import { createSocketRegistry, ROOMS_PER_SOCKET, SOCKET_REAP_MS, SOCKETS_PER_USER } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
@@ -21,6 +22,12 @@ const MALLORY = castId<UserId>("user_mallory");
 const SOCKET = castId<SocketId>("socket_a");
 const USER_ROOM: StreamRoomRef = { channel: "user" };
 const rpgRoom = (n: number): StreamRoomRef => ({ channel: "rpg", chatId: castId<ChatId>(`chat_${n}`) });
+
+/** An inert listener — also the OWNER TOKEN a `goDark` has to present (a superseded generator's teardown
+ *  must not dark a cell that a successor already took over), so a test holds the one it went live with. */
+function inertListener(): SocketListener {
+  return { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined, onEvicted: () => undefined };
+}
 
 /** A registry over a hand-driven clock — reap is a TIME property, so it must never read the wall clock. */
 function fixedClock(): { registry: ReturnType<typeof createSocketRegistry>; advance: (ms: number) => void } {
@@ -49,7 +56,7 @@ describe("cell creation is order-independent", () => {
     const { registry } = fixedClock();
     const cell = registry.adopt(ALICE, SOCKET);
     const attached: StreamRoomRef[] = [];
-    registry.goLive(cell, { onAttach: (ref) => attached.push(ref), onAnnounce: () => undefined, onDetach: () => undefined });
+    registry.goLive(cell, { ...inertListener(), onAttach: (ref) => attached.push(ref) });
 
     registry.attach(ALICE, SOCKET, USER_ROOM, null);
 
@@ -112,9 +119,10 @@ describe("reaping and reconnect", () => {
   test("a dark cell survives the retry window and is reaped only AFTER it", () => {
     const { registry, advance } = fixedClock();
     const cell = registry.adopt(ALICE, SOCKET);
-    registry.goLive(cell, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
+    const listener = inertListener();
+    registry.goLive(cell, listener);
     registry.attach(ALICE, SOCKET, USER_ROOM, null);
-    registry.goDark(cell);
+    registry.goDark(cell, listener);
 
     advance(SOCKET_REAP_MS - 1);
     expect(registry.reap()).toBe(0);
@@ -129,7 +137,7 @@ describe("reaping and reconnect", () => {
   test("a LIVE cell is never reaped, however long it has been connected", () => {
     const { registry, advance } = fixedClock();
     const cell = registry.adopt(ALICE, SOCKET);
-    registry.goLive(cell, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
+    registry.goLive(cell, inertListener());
 
     advance(SOCKET_REAP_MS * 10);
 
@@ -140,14 +148,15 @@ describe("reaping and reconnect", () => {
   test("a reconnect adopts the SAME cell, keeping each room's cursor", () => {
     const { registry, advance } = fixedClock();
     const first = registry.adopt(ALICE, SOCKET);
-    registry.goLive(first, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
+    const listener = inertListener();
+    registry.goLive(first, listener);
     registry.attach(ALICE, SOCKET, USER_ROOM, null);
     const room = first.rooms.get("user");
     expect(room).toBeDefined();
     if (room !== undefined) {
       room.cursor = 42; // what a durable pump would have stamped
     }
-    registry.goDark(first);
+    registry.goDark(first, listener);
 
     advance(3000); // the EventSource retry window
     const second = registry.adopt(ALICE, SOCKET);
@@ -163,7 +172,7 @@ describe("re-attach is idempotent, and only a LOWER cursor means anything", () =
     const cell = registry.adopt(ALICE, SOCKET);
     const attaches: (number | null)[] = [];
     const announces: StreamRoomRef[] = [];
-    registry.goLive(cell, { onAttach: (_ref, cursor) => attaches.push(cursor), onAnnounce: (ref) => announces.push(ref), onDetach: () => undefined });
+    registry.goLive(cell, { ...inertListener(), onAttach: (_ref, cursor) => attaches.push(cursor), onAnnounce: (ref) => announces.push(ref) });
     registry.attach(ALICE, SOCKET, USER_ROOM, 10);
 
     registry.attach(ALICE, SOCKET, USER_ROOM, 99);
@@ -181,7 +190,7 @@ describe("re-attach is idempotent, and only a LOWER cursor means anything", () =
     const cell = registry.adopt(ALICE, SOCKET);
     const attaches: (number | null)[] = [];
     const announces: StreamRoomRef[] = [];
-    registry.goLive(cell, { onAttach: (_ref, cursor) => attaches.push(cursor), onAnnounce: (ref) => announces.push(ref), onDetach: () => undefined });
+    registry.goLive(cell, { ...inertListener(), onAttach: (_ref, cursor) => attaches.push(cursor), onAnnounce: (ref) => announces.push(ref) });
     registry.attach(ALICE, SOCKET, USER_ROOM, 10);
 
     registry.attach(ALICE, SOCKET, USER_ROOM, 0);
@@ -194,20 +203,77 @@ describe("re-attach is idempotent, and only a LOWER cursor means anything", () =
 
   test("the reconnect barrier's flag: `announced` clears when the socket goes dark and returns on the re-attach", () => {
     // The server cursor counts what it handed a dying socket's WRITER, so a resumable room must not resume
-    // until the client has said where IT got to. `announced` is that state, and it is per CONNECTION.
+    // until the client has said where IT got to. `announcedFor` is that state, and it is per CONNECTION —
+    // an EPOCH rather than a flag, because the barrier cannot wait for the previous generator to die (a
+    // half-open socket defers that for minutes while the client is already back).
     const { registry } = fixedClock();
     const cell = registry.adopt(ALICE, SOCKET);
-    registry.goLive(cell, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
-    registry.attach(ALICE, SOCKET, USER_ROOM, null);
-    expect(cell.rooms.get("user")?.announced).toBe(true);
 
-    registry.goDark(cell);
-    expect(cell.rooms.get("user")?.announced).toBe(false);
-
-    // An announce that lands while the socket is STILL dark counts too — the barrier is order-independent,
-    // exactly like cell creation (the re-announce POST can beat the reconnected EventSource).
+    // The attach that MINTS the room lands while the cell is dark — it counts for the connection about to
+    // take over, which is what makes the first connect deliver instead of deadlocking on the barrier.
     registry.attach(ALICE, SOCKET, USER_ROOM, null);
-    expect(cell.rooms.get("user")?.announced).toBe(true);
+    expect(cell.rooms.get("user")?.announcedFor).toBe(1);
+    const first = inertListener();
+    registry.goLive(cell, first);
+    expect(cell.connectionSeq).toBe(1);
+
+    // A RECONNECT bumps the epoch, so the room's old announce no longer matches — the barrier is armed
+    // WITHOUT the previous generator's teardown having run (it has not, here).
+    const second = inertListener();
+    registry.goLive(cell, second);
+    expect(cell.connectionSeq).toBe(2);
+    expect(cell.rooms.get("user")?.announcedFor).toBe(1);
+
+    // …and the client's re-announce on the new connection lifts it.
+    registry.attach(ALICE, SOCKET, USER_ROOM, null);
+    expect(cell.rooms.get("user")?.announcedFor).toBe(2);
+  });
+
+  test("an announce that lands while the cell is DARK counts for the NEXT connection", () => {
+    // Order-independence, the same property cell creation has: the re-announce POST can beat the
+    // reconnected EventSource, and the barrier must not hold a room whose client already spoke.
+    const { registry } = fixedClock();
+    const cell = registry.adopt(ALICE, SOCKET);
+    const first = inertListener();
+    registry.attach(ALICE, SOCKET, USER_ROOM, null);
+    registry.goLive(cell, first);
+    registry.goDark(cell, first);
+
+    registry.attach(ALICE, SOCKET, USER_ROOM, null); // while dark
+
+    const second = inertListener();
+    registry.goLive(cell, second);
+    expect(cell.rooms.get("user")?.announcedFor).toBe(cell.connectionSeq);
+  });
+
+  test("a SUPERSEDED generator is evicted, and its late teardown cannot dark the live cell", () => {
+    // The half-open-TCP overlap: the client reconnects at 45s while the server is still buffering writes
+    // into a dead socket. Two generators legitimately share the cell — but only one owns it.
+    const { registry } = fixedClock();
+    const cell = registry.adopt(ALICE, SOCKET);
+    let evicted = 0;
+    const zombie: SocketListener = {
+      ...inertListener(),
+      onEvicted: (): void => {
+        evicted += 1;
+      },
+    };
+    registry.goLive(cell, zombie);
+
+    const live = inertListener();
+    registry.goLive(cell, live); // takeover
+
+    expect(evicted).toBe(1); // the predecessor was told to stop producing
+    expect(cell.listener).toBe(live);
+
+    // The zombie's `finally` finally runs, minutes later. It must change NOTHING: a cleared listener would
+    // silence every room on the live socket, and a dark+timestamped cell is reap-eligible WHILE serving.
+    registry.goDark(cell, zombie);
+
+    expect(cell.live).toBe(true);
+    expect(cell.listener).toBe(live);
+    expect(cell.lastSeenAt).toBeNull();
+    expect(registry.liveSocketCount(ALICE)).toBe(1);
   });
 
   test("detaching a room nobody attached is a no-op, not an error", () => {
@@ -226,16 +292,17 @@ describe("the live-socket counter (the starvation regression pin)", () => {
     const one = registry.adopt(ALICE, castId<SocketId>("socket_1"));
     const two = registry.adopt(ALICE, castId<SocketId>("socket_2"));
     const theirs = registry.adopt(MALLORY, castId<SocketId>("socket_3"));
-    registry.goLive(one, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
-    registry.goLive(theirs, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
+    const oneListener = inertListener();
+    registry.goLive(one, oneListener);
+    registry.goLive(theirs, inertListener());
 
     expect(registry.liveSocketCount(ALICE)).toBe(1); // `two` was adopted but never connected
     expect(registry.liveSocketCount()).toBe(2);
 
-    registry.goLive(two, { onAttach: () => undefined, onAnnounce: () => undefined, onDetach: () => undefined });
+    registry.goLive(two, inertListener());
     expect(registry.liveSocketCount(ALICE)).toBe(2);
 
-    registry.goDark(one);
+    registry.goDark(one, oneListener);
     expect(registry.liveSocketCount(ALICE)).toBe(1);
   });
 });

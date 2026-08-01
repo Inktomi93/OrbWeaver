@@ -5,6 +5,7 @@
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type {
   CharacterId,
@@ -318,4 +319,15 @@ export interface DiscoveryService {
   /** Compute + write `image_embeddings.hub_score` (per-space; image↔image ONLY — never read on text→image,
    *  esoteric #2; discovery stamps it, `search` omits it cross-modally). */
   readonly computeImageHubScores: (opts?: ComputeHubScoresOptions) => Promise<number>;
+}
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root (the five analytics
+ *  kinds) — this domain's own verbs, plus the triggering user's settings (the tunable precedence's middle
+ *  rung: per-run param → this knob → the domain's own floor). */
+export interface DiscoveryWorkloadDeps {
+  readonly discovery: Pick<
+    DiscoveryService,
+    "computeThemes" | "distillCharacters" | "computeCooccurrence" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores"
+  >;
+  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 }

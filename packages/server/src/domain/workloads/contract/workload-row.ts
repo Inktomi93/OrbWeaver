@@ -2,10 +2,8 @@
 // narrowing of the Drizzle unknown JSON columns (params/result) against the kind discriminator. One place
 // does the narrowing (persistence/toView), so no consumer casts the JSON blobs.
 
-import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadMode, WorkloadParamsByKind, WorkloadResultByKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
-import type { ParamsByKind } from "./workload-params";
-import type { ResultByKind } from "./workload-result";
 
 interface WorkloadRowBase {
   readonly id: WorkloadId;
@@ -24,8 +22,8 @@ interface WorkloadRowBase {
 
 type WorkloadRow<K extends WorkloadKind> = WorkloadRowBase & {
   readonly kind: K;
-  readonly params: ParamsByKind[K];
-  readonly result: ResultByKind[K] | null;
+  readonly params: WorkloadParamsByKind[K];
+  readonly result: WorkloadResultByKind[K] | null;
 };
 
 /** A row whose kind isn't in this build narrows to nothing and is filtered as poison on the read path. */

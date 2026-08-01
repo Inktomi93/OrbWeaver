@@ -299,12 +299,12 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
     trackers: trackersForCarrier(defs, { actorKey: `user:${PLAYER_USER}`, name: r.name, kind: "party", grants: [], revokes: [] }),
   }));
   const castTrackers: Record<string, readonly RpgTrackerEntry[]> = {};
-  const castConditions: Record<string, RpgActorVolatile["conditions"]> = {};
+  const castVolatile: Record<string, RpgActorVolatile | null> = {};
   for (const c of state.presentCharacters) {
     const carried = trackersForCarrier(defs, { actorKey: `cast:${c.key}`, name: c.name, kind: "npcs", grants: [], revokes: [] });
     const volatileRow = volatileByKey.get(`cast:${c.key}`);
     castTrackers[c.key] = carried.map((def) => ({ def, value: volatileRow?.trackerValues[def.key] ?? null }));
-    castConditions[c.key] = volatileRow?.conditions ?? [];
+    castVolatile[c.key] = volatileRow ?? null;
   }
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
@@ -318,7 +318,7 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
     cast: state.presentCharacters,
     trackerDefs: defs,
     castTrackers,
-    castConditions,
+    castVolatile,
     gameTrackers: gameEntries,
     quests,
     plot: state.plot,

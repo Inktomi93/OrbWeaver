@@ -38,11 +38,13 @@ export interface PresetLibraryRowProps {
 
 /** A single preset library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
 export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect, onDelete, onDuplicate, onRename }: PresetLibraryRowProps): ReactElement {
-  let leading: ReactNode;
+  // TITLE-LINE markers, not a leading slot: only some rows are Active/built-in, and a leading badge of a
+  // different width per row left the title column ragged across the pane (side-eye P2-6).
+  let markers: ReactNode;
   if (active) {
-    leading = <ActiveMarker />;
+    markers = <ActiveMarker />;
   } else if (preset.isSystemDefault) {
-    leading = <Icon icon={Lock} size="sm" />;
+    markers = <Icon icon={Lock} size="sm" />;
   }
 
   return (
@@ -50,7 +52,7 @@ export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect
       onSelect={(): void => onSelect(preset.id)}
       selected={selected}
       title={preset.name}
-      {...(leading === undefined ? {} : { leading })}
+      {...(markers === undefined ? {} : { markers })}
       {...(preset.isSystemDefault
         ? { subtitle: "Built-in default" }
         : {
@@ -79,7 +81,7 @@ export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect
   );
 }
 
-/** The leading passive amber ACTIVE marker (a compact `Badge`, primary intent — the amber accent). */
+/** The passive amber ACTIVE marker on the title line (a compact `Badge`, primary intent — the amber accent). */
 function ActiveMarker(): ReactElement {
   return (
     <Badge intent="primary" size="sm">

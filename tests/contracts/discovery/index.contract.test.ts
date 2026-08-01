@@ -1,5 +1,5 @@
 import type { DuplicateRelation } from "@orb/contracts/discovery";
-import { duplicateRelationSchema, RELATIONS } from "@orb/contracts/discovery";
+import { computeThemesWorkloadParams, duplicateRelationSchema, findDuplicatesWorkloadParams, RELATIONS } from "@orb/contracts/discovery";
 import { expect, test } from "../../support/fixtures";
 
 // ── The dedup `relation` axis (D34 — promoted to contracts so db `duplicate_chat_pairs.relation` derives it) ──
@@ -29,4 +29,21 @@ const RELATION_SEEN: Record<DuplicateRelation, true> = {
 
 test("the relation union has no member beyond the tuple (exhaustive over duplicate|forked)", () => {
   expect(Object.keys(RELATION_SEEN).sort()).toEqual([...RELATIONS].sort());
+});
+
+// ── The two workload params schemas discovery OWNS (the workloads junk-drawer exit: a kind's params schema
+//    is authored by the owning domain and correlated to the kind by `@orb/contracts/workloads`). ──
+
+test("computeThemesWorkloadParams accepts an optional k and rejects a non-positive k", () => {
+  expect(computeThemesWorkloadParams.parse({ k: 8 })).toEqual({ k: 8 });
+  expect(computeThemesWorkloadParams.parse({})).toEqual({});
+  expect(() => computeThemesWorkloadParams.parse({ k: 0 })).toThrow();
+  expect(() => computeThemesWorkloadParams.parse({ k: -3 })).toThrow();
+});
+
+test("findDuplicatesWorkloadParams accepts an optional cosine threshold (0..1) and rejects out-of-range", () => {
+  expect(findDuplicatesWorkloadParams.parse({ threshold: 0.85 })).toEqual({ threshold: 0.85 });
+  expect(findDuplicatesWorkloadParams.parse({})).toEqual({});
+  expect(() => findDuplicatesWorkloadParams.parse({ threshold: 1.5 })).toThrow();
+  expect(() => findDuplicatesWorkloadParams.parse({ threshold: -0.1 })).toThrow();
 });

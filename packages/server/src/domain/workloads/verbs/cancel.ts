@@ -13,7 +13,7 @@ const ENTITY = "workload";
 
 export function createCancel(ctx: WorkloadServiceContext): Pick<WorkloadService, "cancel"> {
   async function cancel(params: CancelWorkloadParams): Promise<CancelWorkloadResult> {
-    const row = await loadWorkload(ctx.db, params.id);
+    const row = await loadWorkload(ctx.db, ctx.getContributions(), params.id);
     if (row === null || !isVisibleToCaller(ctx.isAdmin, params.caller, row.ownerId)) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }

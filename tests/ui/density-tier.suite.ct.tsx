@@ -15,10 +15,13 @@
 // retune must not red this file, and an authored-string assertion would stay green through a visual
 // regression (the Waystone lesson). One `mount()` per test — a second throws.
 import { Card } from "@orb/ui/card";
+import { Input } from "@orb/ui/input";
 import { Surface } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { ReactElement } from "react";
 
 /** The px a token resolves to IN THE LIVE DOCUMENT — a throwaway probe node, so the value is whatever the
  *  cascade (theme.css, a theme value-set, a density re-binding) actually produced, not what tokens.json says. */
@@ -203,6 +206,112 @@ test("VOICE: each of the four voices resolves its own type step, and BEATS the s
 
   const gloss = await read("gloss");
   expect(gloss.size).toBe(resolved.micro);
+});
+
+/** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
+function resolveFontSize(el: Locator, token: string): Promise<string> {
+  return el.evaluate((node, name) => {
+    const probe = node.ownerDocument.createElement("div");
+    probe.style.fontSize = `var(${name})`;
+    node.ownerDocument.body.append(probe);
+    const size = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return size;
+  }, token);
+}
+
+/** The density-bearing computed values of one rendered LIST pane (row slots + its search field). */
+interface PaneMetrics {
+  rootGap: string;
+  bodyGap: string;
+  markerGap: string;
+  titleSize: string;
+  titleWeight: string;
+  titleLeading: string;
+  subtitleSize: string;
+  metaSize: string;
+  inputSize: string;
+}
+
+/** Every density-bearing computed value of one rendered ListRow, in one page round-trip. */
+function readRow(root: Locator): Promise<PaneMetrics> {
+  return root.evaluate((node) => {
+    const read = (slot: string, prop: keyof CSSStyleDeclaration): string => {
+      const el = node.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
+      return el === null ? "MISSING" : String(getComputedStyle(el)[prop]);
+    };
+    return {
+      rootGap: read("list-row-root", "columnGap"),
+      bodyGap: read("list-row-body", "columnGap"),
+      markerGap: read("list-row-markers", "columnGap"),
+      titleSize: read("list-row-title", "fontSize"),
+      titleWeight: read("list-row-title", "fontWeight"),
+      titleLeading: read("list-row-title", "lineHeight"),
+      subtitleSize: read("list-row-subtitle", "fontSize"),
+      metaSize: read("list-row-meta", "fontSize"),
+      inputSize: read("input-root", "fontSize"),
+    };
+  });
+}
+
+/** A LIST pane's worth of slots — every one the tier map keys on. */
+function listPane(): ReactElement {
+  return (
+    <>
+      <Input aria-label="Search" defaultValue="" />
+      <ListRow markers={<span>★</span>} meta="2h" subtitle="Rain again, and she is late" title="Azarael" />
+    </>
+  );
+}
+
+test("LIVE: stripping data-surface-tier moves EVERY list-pane value back to the tier-less default", async ({ mount }) => {
+  // The liveness probe the S5 side-eye asked for (P1-3): the tier map is only load-bearing if REMOVING the
+  // attribute changes what the browser computed. A row whose dense steps are hardcoded in its variants
+  // reads identically before and after — that is exactly the defect this asserts against.
+  const surface = await mount(
+    <Surface tier="instrument">
+      <div data-testid="pane">{listPane()}</div>
+    </Surface>,
+  );
+  const pane = surface.getByTestId("pane");
+  const instrument = await readRow(pane);
+  await surface.evaluate((node) => node.removeAttribute("data-surface-tier"));
+  const untiered = await readRow(pane);
+
+  for (const [key, value] of Object.entries(instrument)) {
+    expect(value, `${key} must be tier-dependent`).not.toBe(untiered[key as keyof PaneMetrics]);
+  }
+  // …and the instrument values are the mapped token steps, not merely "different".
+  expect(instrument.titleSize).toBe(await resolveFontSize(pane, "--text-label"));
+  expect(instrument.titleWeight).toBe("600");
+  expect(instrument.subtitleSize).toBe(await resolveFontSize(pane, "--text-micro"));
+  expect(instrument.metaSize).toBe(await resolveFontSize(pane, "--text-micro"));
+  expect(instrument.inputSize).toBe(await resolveFontSize(pane, "--text-label"));
+});
+
+test("the four LIST pane declarations resolve identically, and a form pane keeps the comfortable steps", async ({ mount }) => {
+  // The chats pane, the character library, the shared preset/world-info list layout and the chats-with-
+  // character projection all declare `tier="instrument"` — one tier, so one rhythm. A form pane (the home
+  // tile grid) must land on the SAME values as no tier at all: `tier="form"` restates the defaults.
+  const both = await mount(
+    <div>
+      <Surface tier="instrument">
+        <div data-testid="instrument">{listPane()}</div>
+      </Surface>
+      <Surface tier="form">
+        <div data-testid="form">{listPane()}</div>
+      </Surface>
+      <div data-testid="untiered">{listPane()}</div>
+    </div>,
+  );
+  const instrument = await readRow(both.getByTestId("instrument"));
+  const form = await readRow(both.getByTestId("form"));
+  const untiered = await readRow(both.getByTestId("untiered"));
+  expect(form).toEqual(untiered);
+  // The search chrome no longer outshouts the rows it filters (side-eye P1-1): at instrument it sits AT the
+  // title step, and it is the form/untiered pane that keeps the larger body step.
+  expect(instrument.inputSize).toBe(instrument.titleSize);
+  expect(Number.parseFloat(form.inputSize)).toBeGreaterThan(Number.parseFloat(instrument.inputSize));
 });
 
 test("CD3: exactly ONE focal element at rest in a surface (accent fill or elevation shadow)", async ({ mount }) => {

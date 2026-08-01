@@ -314,6 +314,92 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     expect(applied).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
+  test("the OVERLAP case: a reconnect that outruns the server's death-detection still holds, and the zombie cannot clobber the live cell", async () => {
+    // THE HALF-OPEN TCP CLASS (§8's motivating one, and the barrier's primary trigger). A server learns a
+    // socket died when a write to it fails; on a NAT rebind / sleep / dead proxy those writes BUFFER for
+    // minutes, while the client gives up at 45s and reconnects. Two generators then share one cell, so:
+    //   • the barrier cannot key on the predecessor's teardown having run (it has not) — it keys on the
+    //     CONNECTION epoch, which the takeover bumps;
+    //   • the zombie must stop producing (eviction), or it keeps advancing shared cursors into a dead pipe;
+    //   • the zombie's eventual teardown must touch NOTHING — a cleared listener silences every room on the
+    //     live socket, and a dark+timestamped cell is reap-eligible WHILE it is serving.
+    const chatId = castId<ChatId>("chat_overlap");
+    const log: { readonly seq: number; readonly event: ChatBusEvent }[] = [
+      { seq: 1, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "a" }, memberText: null } },
+      { seq: 2, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "b" }, memberText: null } },
+      { seq: 3, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "c" }, memberText: null } },
+      { seq: 4, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "d" }, memberText: null } },
+      { seq: 5, event: { type: "turnCompleted", chatId, intent: "send", messageId: null } },
+    ];
+    const replayChatEvents: ChatService["replayChatEvents"] = ({ afterSeq }) => Promise.resolve(log.filter((r) => r.seq > (afterSeq ?? 0)));
+    const sockets: SocketRegistry = createSocketRegistry(() => 0);
+    const socketId = nextSocket();
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: bounds, replayChatEvents } },
+      sockets,
+    });
+    const room = { channel: "chat", chatId } as const;
+    const guard = createChatEventSeqGuard();
+    const applied: number[] = [];
+    const receive = (frame: StreamFrame): void => {
+      if (!(isChatFrame(frame) && guard.admit(frame.event, String(frame.seq)))) {
+        return;
+      }
+      if (!SYNTHETIC_TYPES.has(frame.event.type)) {
+        applied.push(frame.seq);
+      }
+    };
+
+    // ── socket #1: rows 1..5 yielded, only 1..3 received. It is then NEVER torn down. ──
+    await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: 0 });
+    const cell = sockets.adopt(MEMBER, socketId);
+    const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it1 = first[Symbol.asyncIterator]();
+    for (let i = 0; i < 7; i++) {
+      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
+      const frame = frameOf((await it1.next()).value);
+      if (isChatFrame(frame) && frame.seq > 3) {
+        continue;
+      }
+      receive(frame);
+    }
+    expect(applied).toEqual([1, 2, 3]);
+    expect(cell.live).toBe(true);
+    log.push({ seq: 6, event: { type: "chatUpdated", chatId } });
+
+    // ── socket #2 connects while #1 is STILL LIVE (no `.return()`, no goDark) ──
+    const second = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it2 = second[Symbol.asyncIterator]();
+    const parked = it2.next();
+    const held = await Promise.race([parked.then(() => "delivered"), new Promise<string>((resolve) => setTimeout(() => resolve("held"), 60))]);
+    // THE PIN: the barrier holds even though `goDark` never ran for the predecessor.
+    expect(held).toBe("held");
+    // …and the takeover EVICTED #1: its queue closed, so its generator has finished rather than pumping on.
+    expect((await it1.next()).done).toBe(true);
+
+    // ── the re-announce at the client's own mark ──
+    await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: guard.highWater(chatId) ?? 0 });
+    receive(frameOf((await parked).value));
+    for (let i = 0; i < 4; i++) {
+      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
+      receive(frameOf((await it2.next()).value));
+    }
+    expect(applied).toEqual([1, 2, 3, 4, 5, 6]);
+
+    // ── the zombie's teardown, arriving late (its `finally` already ran on eviction — assert the cell it
+    //    left behind is the LIVE one, intact) ──
+    expect(cell.live).toBe(true);
+    expect(cell.lastSeenAt).toBeNull();
+    expect(sockets.liveSocketCount(MEMBER)).toBe(1);
+
+    // …and the live socket still serves: a NEW room attaches and gets its ack (a clobbered listener would
+    // record the room and start nothing — silent, with no error anywhere).
+    await caller(ctx).stream.attach({ socketId, ref: { channel: "rpg", chatId } });
+    expect(frameOf((await it2.next()).value)).toEqual({ channel: "control", type: "attached", ref: { channel: "rpg", chatId } });
+    await it2.return?.(undefined);
+  });
+
   test("a live-only room does NOT wait for the announce — it has no cursor to be wrong about", async () => {
     // The barrier costs a round trip of freshness, so it is spent only where it buys something. `rpg`/`user`
     // carry no durable cursor: their recovery is the client's blanket invalidate, which a delay would only

@@ -97,8 +97,11 @@ export function CharacterCardTile({
       }
       className="group"
       clickable={true}
+      // `md` (32px) is THE list-row portrait size — the mock's one row rhythm, shared with the chats panes
+      // (side-eye P2-5). The library's 40px pitched its rows ~12px taller than the chats list of the same
+      // entities. 40px survives where it means HIERARCHY: the projection's identity HEADER.
       leading={
-        <Avatar hueSeed={character.id} shape="square" size="lg" {...avatarSrc}>
+        <Avatar hueSeed={character.id} shape="square" size="md" {...avatarSrc}>
           {initialsFor(character.name)}
         </Avatar>
       }

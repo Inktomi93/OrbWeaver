@@ -13,3 +13,13 @@ export const IMAGE_LENSES = ["image-raw", "image-captioned"] as const;
 export type ImageLens = (typeof IMAGE_LENSES)[number];
 
 export const imageLensSchema = z.enum(IMAGE_LENSES);
+
+// ── The `index` workload's terminal result (the workloads junk-drawer exit: a workload's result shape is
+//    domain↔domain wire, authored by the OWNING domain — embeddings owns the ONE vector write path). ──
+
+/** An embed pass's counts. `skipped` = rows already embedded in the active space (the resumable-by-skip
+ *  arm a non-`force` run takes). */
+export interface EmbedPassResult {
+  readonly embedded: number;
+  readonly skipped: number;
+}

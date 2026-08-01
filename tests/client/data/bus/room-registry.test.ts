@@ -15,12 +15,13 @@ import { createRoomRegistry } from "@orb/client/data";
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
 const CHAT = castId<ChatId>("chat_reg_1");
 const USER_ROOM: StreamRoomRef = { channel: "user" };
 const RPG_ROOM: StreamRoomRef = { channel: "rpg", chatId: CHAT };
+const ANNOUNCE_FAILED_COPY = /Live updates could not be started/u;
 const USER_FRAME: StreamDataFrame = { channel: "user", event: { type: "tagsChanged" } };
 const RPG_FRAME: StreamDataFrame = { channel: "rpg", chatId: CHAT, event: { type: "gameChanged", chatId: CHAT } };
 
@@ -272,5 +273,86 @@ describe("routing and failure", () => {
 
     // The JOIN announced `null` (nothing applied yet), then each reconnect announced the CURRENT mark.
     expect(requested).toEqual([null, 41, 77]);
+  });
+});
+
+// The announce is not a fire-and-forget nicety any more: the SERVER WAITS for it (the reconnect barrier in
+// `stream/socket.ts` holds a durable room until it lands), so a swallowed failure costs the room ALL of its
+// delivery for the life of the connection — silently, with the ping keeping the socket alive so nothing ever
+// reconnects to retry. These pin the two halves of the answer: retry, then say so.
+describe("a failed announce is retried, and never silently abandoned", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("an announce that fails twice and then succeeds still attaches the room", async () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    const attempts: (number | null)[] = [];
+    let fail = 2;
+    registry.bindTransport({
+      attach: (_ref, sinceSeq): Promise<void> => {
+        attempts.push(sinceSeq);
+        if (fail > 0) {
+          fail -= 1;
+          return Promise.reject(new Error("network flap"));
+        }
+        return Promise.resolve();
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+    const errors: string[] = [];
+
+    registry.join(USER_ROOM, { onEvent: () => undefined, onError: (message) => errors.push(message), sinceSeq: 7 });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    // Three attempts, the last one landing — and the replay request is re-read each time, so a retry never
+    // resurrects a stale cursor.
+    expect(attempts).toEqual([7, 7, 7]);
+    expect(errors).toEqual([]);
+  });
+
+  test("an announce that exhausts its retries SURFACES to the room instead of holding it silently", async () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    let calls = 0;
+    registry.bindTransport({
+      attach: (): Promise<void> => {
+        calls += 1;
+        return Promise.reject(new Error("refused"));
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+    const errors: string[] = [];
+
+    registry.join(USER_ROOM, { onEvent: () => undefined, onError: (message) => errors.push(message) });
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(calls).toBe(3);
+    // The room is genuinely not receiving; a live socket must not be allowed to look like a quiet chat.
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(ANNOUNCE_FAILED_COPY);
+  });
+
+  test("a room LEFT mid-retry stops retrying — a torn-down surface never announces or errors", async () => {
+    vi.useFakeTimers();
+    const registry = createRoomRegistry();
+    let calls = 0;
+    registry.bindTransport({
+      attach: (): Promise<void> => {
+        calls += 1;
+        return Promise.reject(new Error("flap"));
+      },
+      detach: (): Promise<void> => Promise.resolve(),
+    });
+    const errors: string[] = [];
+
+    const leave = registry.join(USER_ROOM, { onEvent: () => undefined, onError: (message) => errors.push(message) });
+    await vi.advanceTimersByTimeAsync(0); // the first attempt has failed; a backoff is pending
+    leave();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(calls).toBe(1);
+    expect(errors).toEqual([]);
   });
 });
