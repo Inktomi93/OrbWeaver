@@ -1,12 +1,12 @@
 ---
 kind: spec
-status: draft
+status: approved (owner-ruled — D1-D7 as recommended; mock round 3 amendments folded)
 updated: 2026-08-02
 ---
 
 # PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1)
 
-**Status:** DESIGN SPEC — DRAFT, nothing here is built. Owner charge (2026-08-02, verbatim): the preset
+**Status:** APPROVED-TO-BUILD (owner, mock review round 3: D1-D7 ruled as recommended; the round-3 amendments — output/context KnobRow sliders, the depth/order split, the hover-hint rule — are folded in below). Nothing here is built yet; §13 is the build lanes' dispatch table. Owner charge (2026-08-02, verbatim): the preset
 content pane *"feels wrong and is organized wrong… when compared to SillyTavern's generation params and
 presets and templates and fields are crunchy and it just does not feel good to use"* — he *"really truly
 hates how it looks and feels"* and is separately *"still not set on presets being their own thing"*
@@ -133,7 +133,7 @@ no row here is a spec bug):
 | `params.logitBias` | Sampling ▸ Advanced JSON textarea | Params ▸ ADVANCED (unchanged mechanism) |
 | `params.effort` / `thinkingBudgetTokens` | Reasoning leaf | Params ▸ REASONING |
 | `params.thinkingDisplay` | Prompt ▸ Message delivery (F4) | Params ▸ REASONING (re-homed beside its axis) |
-| `params.maxOutputTokens` / `maxContextTokens` / `verbosity` | Output leaf | Params ▸ OUTPUT (keeps the landed effective placeholders) |
+| `params.maxOutputTokens` / `maxContextTokens` / `verbosity` | Output leaf | Params ▸ OUTPUT — output/context as ghost-armed `KnobRow` SLIDERS (owner-ruled, mock round 3; §4 cluster 4); verbosity a select |
 | `params.maxBudgetUsd` | NO EDITOR (F8) | owner decision D6: editor in OUTPUT vs delete the field |
 | `params.providerContextCompression` | NO EDITOR (F8) | Params ▸ CONTEXT (gap-close G3) |
 | `params.compaction.{mode,thresholdPct,instructions}` | Context ▸ Compaction leaf | Params ▸ CONTEXT |
@@ -168,8 +168,14 @@ closed disclosure except ADVANCED):
    added (G1) · the seed row (mono int input, capability-gated) · the **staleness row** (§4.2).
 3. **REASONING** — the reasoning switch · effort select (model's real levels only) or budget KnobRow
    per the descriptor's mode · the adaptive note · `thinkingDisplay` (re-homed).
-4. **OUTPUT** — `maxOutputTokens` + `maxContextTokens` (keep the landed effective placeholders +
-   live caps line) · `verbosity` · `stop` sequences as a chip-list editor (G2) · `maxBudgetUsd` per D6.
+4. **OUTPUT** — `maxOutputTokens` + `maxContextTokens` as `KnobRow` SLIDERS (owner-ruled, mock
+   round 3): the SAME grammar as the sampling knobs — slider + the editable mono number twin, with the
+   ghost/inherited arm carrying the placeholder-as-default semantics (ghost thumb at the effective
+   value; provenance `2048 default` / `131072 window`). Ranges are capability-fed: output spans
+   1..`capability.output.maxTokens.max`, context spans 1..`capability.context.window` — integer step 1
+   with a range-sized `largeStep` for keyboard paging (the Base UI root passes all three through);
+   precision entry is the twin's job, so a large range needs no log scale · `verbosity` · `stop`
+   sequences as a chip-list editor (G2) · `maxBudgetUsd` per D6.
 5. **CONTEXT** — compaction mode/threshold/instructions (with the landed auto-mode honesty note) ·
    `verbatimTail` (G4, placeholder "8 (engine default)") · `providerContextCompression` (G3).
 6. **ADVANCED** (the one collapsed disclosure — genuinely rare escape hatches) — logitBias JSON ·
@@ -201,8 +207,23 @@ The anatomy (left → right, one ~32px instrument row):
   the STORAGE semantic; the row grammar just stops hiding the default's value.
 - **Bounds/step from the descriptor `Range`** exactly as today; a typed out-of-range value clamps on
   commit with a one-beat gloss ("clamped to 2.0").
+- **The integer-range arm** (output/context — owner-ruled, mock round 3): the same grammar at large
+  ranges. Range from the capability, step 1, `largeStep` sized to the range (~1/64th, rounded to a
+  power of two) for PageUp/PageDown; the twin accepts typed exact values, which is why 0..131072 needs
+  no log scale.
 - Ember budget (CD3): the explicit state uses foreground WEIGHT, not accent; accent stays reserved for
-  focus and the pane's one primary.
+  focus and the pane's one primary. NOTE for the build: the shipped Slider indicator is `bg-primary`
+  (`slider/variants.ts`) — the ghost variant must tone it down, and whether EXPLICIT rows keep the
+  ember fill across a seven-row cluster is a side-eye taste call (D10-class), flagged not legislated.
+- **The hover-hint rule (owner-ruled, mock round 3 — the [[hints→hover]] precedent generalized):** a
+  row's VISIBLE text is the datum set — label, value, terse provenance (`default` · `← quality (deep)`
+  · `clamped 1.2`). EXPLANATORY prose (what nucleus sampling is, what a provenance source means,
+  bounds sentences, cluster teach lines) rides a hover hint — the landed `SettingRow.hint`
+  info-glyph/`Tooltip` anatomy. Judgment boundaries: the DATUM never hides behind hover (the
+  ghost-value rule), and decision-load-bearing lines (the clamp gloss, the staleness row, empty-state
+  explainers) stay visible. Caveat: a DISABLED control cannot host the Tooltip wrap — its reason rides
+  the native `title` (the base-ui aria-disabled precedent). The mocks mark tooltip-carried prose with
+  a DOTTED UNDERLINE (the drawing convention for hover-carried explanation).
 
 ### 4.2 The staleness row — stored-but-unhonored knobs (F7 dead)
 
@@ -247,8 +268,11 @@ compose is the center's only mode and the toolbar is just Add.
 ### 5.2 The consolidated section editor (F5 dead)
 
 Clicking a rack row drills into ONE editor owning the WHOLE section, in this order: body (the landed
-tri-state Default/Custom/Silent editor, unchanged) → delivery (name · role) → placement (zone +
-inject depth/order) → triggers → override locks. The CONTEXT "Section" inspector tab is DELETED with
+tri-state Default/Custom/Silent editor, unchanged) → delivery (name · role · **inject depth** —
+owner-ruled, mock round 3, verbatim: *"depth goes near whatever role it goes in as"*; depth is a
+DELIVERY property and sits beside the role it rides) → placement (zone · **order**, the within-depth
+tiebreak — depth and order are SEPARATE fields, never the fused `@depth · order` spelling) → triggers
+→ override locks. The CONTEXT "Section" inspector tab is DELETED with
 its bridge machinery (`preset-editor-bridge.ts`, `preset-section-inspector.tsx`,
 `section-inspector-controls.tsx` move into the drill-in) — one object, one place. The
 `onRevealSection` choreography and the `useSelectedPresetSectionId` store survive (selection is still
@@ -430,38 +454,54 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | CONTEXT is read-only + navigation-only | §16 invariant (i): context bodies carry zero mutation hooks; selection echoes ride the one store writer | review + CT |
 | density conformance | the landed density-tier gate arms (A1 radius, A2 box-in-box) — the guided-card and rack-row `rounded-card border` rows come OUT of the baseline in this sweep, shrink-only | lint-time |
 
-## 13. Primitives inventory — the fugly-prevention list (per the §11 projection precedent)
+## 13. Primitives inventory — the DEFINITIVE build-input table (re-verified post-approval + round-3 amendments)
 
-Walked element-by-element against the mocks; verdicts against the REAL variants files read this
-session. The anti-fugly law: a look no variant offers is a NEW VARIANT row, never a `className`
-override.
+> **Status: the build lanes dispatch FROM this table.** D1–D7 are APPROVED as recommended; the table
+> below was re-verified against the ACTUAL `@orb/ui` seal this session (every verdict cites the
+> surface read, not an assumption), and re-run against the round-3 amendments (output/context KnobRow
+> sliders · the depth/order split · the hover-hint rule). Verdict vocabulary: **EXISTS** (compose
+> as-is) · **VARIANT-ROW** (a new variant arm on an existing primitive — never a `className`
+> override, the anti-fugly law) · **COMPOSITE** (feature-local or client-shared composition, no
+> `@orb/ui` change) · **MINT** (a NEW primitive — none survived verification, stated per row where
+> it was checked).
 
-| mock element | verdict | renders as / mint spec |
+| piece | verdict | receipt + build note |
 | - | - | - |
-| the knob row | **NEW tier-2-candidate composite `KnobRow`** — ONE consumer today, so it homes feature-local (`features/preset/components/knob-row.tsx`) and promotes to `components/` when a second feature (rpg GM knobs, connections preview) adopts it (the R2 bar honored, not pre-paid) | `Row` + `Text voice="label"` + `Slider` + `NumberField` + reset ghost `Button size="icon"` + `Text voice="gloss"`. API: `{ label, description?, range, step, value: number \| undefined, effective: { value: number; source: EffectiveSource } \| undefined, onChange(next: number \| undefined) }` |
-| slider ghost (inherited) state | **NEW `@orb/ui` Slider variant arm** — a `tone: "default" \| "ghost"` axis (muted thumb/track at rest) | `slider/variants.ts` — a variant row, never an opacity className at the call site (the tailwind-merge custom-token lesson) |
-| the editable mono value twin | **NEW `NumberField` size/skin variant** `size="inline"` (compact, mono, tabular, right-aligned — the datum voice as an input) | `number-field/variants.ts`. NOTE the landed Base-UI reality: NumberField renders a TEXTBOX role, and the seal currently lacks aria-valuenow — the SET-SEAMS S2 sweep flag applies here too; CTs locate by role textbox |
-| quality segmented strip | EXISTS | `ToggleGroup` + `Toggle` (single-select, deselectable) — the assembly-toolbar idiom; no mint |
-| kicker cluster headers | EXISTS (density S1) | `Section` kicker rendering / `Text voice="kicker"` + hairline |
-| staleness / callout row | EXISTS | the rack's missing-pivot warning-Row idiom (feature composition; no mint) |
-| stop-sequence chip list | EXISTS | `Badge` chips + ghost × `Button size="icon"` + an `Input` add-row (the tag-chip anatomy; the density S1 `--spacing-tight` tokens) |
-| actions/nudges rows | EXISTS | `ListRow` (title · subtitle · meta · actions) + `Badge` state chip + mono preview via `Text voice="datum"` — the projection-lane anatomy verbatim |
-| template editor | EXISTS | `MacroField`/`MacroTextarea` with `placeholder` ghosting (landed) |
-| rack rows (conformed) | EXISTS | `ListRow`-skin treatment of the landed `SectionRow` composition (drop the border boxes; keep the three tab stops) |
-| activate row toggle | EXISTS | **`RowToggleAction`** (minted by the projection lane, `components/row-toggle-action.tsx`) — pressed=always/unpressed=revealed is its built posture; the one-of-N radio SEMANTIC is caller-side (activate-only, never bare unpress) |
-| inline Duplicate + kebab | EXISTS | `LibraryRow` `inlineVerb` arm (landed) + `RowActionsMenu` |
-| per-section token bars (readout) | EXISTS | tracker-kit `TrackBar`/meter anatomy (`@orb/ui` charts) — text is the datum, bars aria-hidden |
-| effective-profile datum rows | EXISTS | `Row` + `Text voice="label"` / `voice="datum"` / `voice="gloss"` |
-| band header | EXISTS | `ListPaneHeader` (landed) |
+| the slider control, INCLUDING large integer ranges (output 1..32768, context 1..131072) | **EXISTS** | `slider/slider.tsx:15` — the Base UI `SliderRootProps` pass-through carries `min`/`max`/`step`/`largeStep`; a large range is props, and precision entry belongs to the twin, so no log-scale machinery. NOT a mint |
+| slider ghost/inherited tone | **VARIANT-ROW** | `slider/variants.ts` has NO tone axis today, and the indicator is hardcoded `bg-primary` — add `tone: "default" \| "ghost"` dimming track-fill + thumb + indicator. Flag for the build: whether EXPLICIT rows keep the ember fill across a 7-row cluster is a CD3/D10-class side-eye call |
+| the editable numeric twin | **VARIANT-ROW** | `number-field/` EXISTS (Base UI; textbox role by design, bounds as accessible DESCRIPTION — `number-field.tsx:19-26`; placeholder-as-default built in; drag-to-scrub bonus). Today's skin is full-width + touch-target steppers + centered text (`variants.ts`) — add `size="inline"`: stepper-less compact group, mono tabular right-aligned ~9ch, scrub + bounds-description retained. CTs locate by textbox (the landed Base UI reality) |
+| `KnobRow` (label · slider · twin · reset · provenance) | **COMPOSITE** (feature-local) | `features/preset/components/knob-row.tsx` — Row + Field + Slider(tone) + NumberField(inline) + ghost reset Button + Text voices. ONE consumer today; promotes to `components/` when a second feature (rpg GM knobs, connections preview) adopts it — the R2 bar honored, not pre-paid |
+| the quality segmented strip | **EXISTS** | `ToggleGroup`/`Toggle` (single-select, deselectable — the assembly-toolbar idiom); `option-strip` is the listbox-flavored alternative if the descriptions return |
+| kicker cluster headers | **EXISTS** | `Section.kicker` (landed — `layout/section.tsx:17,45-49`) + `Text voice="kicker"` (density S1) |
+| hover hints (the round-3 rule) | **EXISTS** | `primitives/tooltip/` + the landed `SettingRow.hint` info-glyph anatomy (`setting-row.tsx` imports Tooltip + Info). Disabled controls: native `title`, never a Tooltip wrap (the base-ui aria-disabled precedent). The dotted-underline is a DRAWING convention; the build renders the info-glyph/underline through the tooltip primitive |
+| the staleness / callout row | **COMPOSITE** | the rack's missing-pivot warning-Row idiom — feature composition, no seal change |
+| the stop-sequence chip list | **COMPOSITE** | Badge chips + ghost × icon Button + an add `Input` (the tag-chip anatomy on `--spacing-tight`); no chip-input primitive exists in the seal and none is needed — verified against the full primitives listing |
+| seed · threshold · verbatim-tail · DEPTH · ORDER fields | **EXISTS** | `Field` + `NumberField size="inline"` (the same twin skin — one variant serves the deck rows AND the section editor's split depth/order fields) |
+| the depth-beside-role delivery cluster | **EXISTS** | pure `Grid`/`Field` composition (round-3 relocation is layout, not primitive work) |
+| actions / nudges list rows | **EXISTS** | `ListRow` (title · subtitle · meta · actions) + `Badge` state chip + `Text voice="datum"` preview — the projection-lane anatomy verbatim |
+| template / nudge editors | **EXISTS** | `MacroField`/`MacroTextarea` with `placeholder` ghosting (landed) |
+| the resolved-template block (`{{input}}` marked) | **EXISTS + VARIANT-ROW** | `highlighted-text/` is the renderer (char-range `<mark>` runs on the `highlight` token — `highlighted-text.tsx:8-19`) — checked as a mint candidate, it is not one. Its root is BODY-voice prose (`variants.ts`); add `skin="code"` (mono micro, muted) for the Actions readout |
+| the pipeline step list (Transforms readout) | **COMPOSITE** | Stack/Row + Text voices + status glyphs — checked for a stepper/timeline primitive: none exists and none is needed (a static ordered read, not an interactive control) |
+| budget bars (Prompt readout) | **EXISTS** + COMPOSITE row | `charts/meter/track-bar.tsx` — the decorative rail (aria-hidden, text-is-the-datum); the bar ROW (name · TrackBar · mono tokens, click-to-select) is a feature composition |
+| effective-profile datum rows | **EXISTS** | Row + `Text voice="label"/"datum"/"gloss"` |
+| the assembled preview | **EXISTS** | today's `AssemblyPreview`, relocated to the Prompt readout |
+| rack rows (density conformance) | **EXISTS** | ListRow-skin treatment of the landed `SectionRow` composition (drop the border boxes; keep the three tab stops) |
+| the activate row toggle | **EXISTS** | `components/row-toggle-action.tsx` (minted by the projection lane); the one-of-N radio SEMANTIC is caller-side (activate-only, never bare unpress) |
+| inline Duplicate + kebab | **EXISTS** | `LibraryRow.inlineVerb` (landed) + `RowActionsMenu` |
+| the band header | **EXISTS** | `components/list-pane-header.tsx` (landed) |
+| variables / user-macro CRUD | **EXISTS** | `EntryListEditor` + the shared dialogs (landed) |
+| **MINT (new primitive)** | **NONE** | every candidate was checked against the seal this session — slider (exists), numeric twin (exists), chip input (composition), resolved-template renderer (`HighlightedText` exists), pipeline list (composition), tooltip (exists). The build needs ZERO new primitives |
 
-**Mint summary: zero new primitives; two variant rows (`Slider tone="ghost"`, `NumberField
-size="inline"`); one feature-local composite (`KnobRow`).** Everything else is landed anatomy.
+**Build-material summary: zero primitive MINTS · three VARIANT-ROWS (`Slider tone="ghost"` ·
+`NumberField size="inline"` · `HighlightedText skin="code"`) · one feature-local COMPOSITE
+(`KnobRow`) · the rest is landed anatomy.** Each variant row ships with its §13.7/§13.8-bar CT
+(token assertions via the generated map; the twin's textbox-role location pin).
 
 ## 14. Build shape — stages, each independently shippable
 
 | stage | lands | needs |
 | - | - | - |
-| **P0** | the two `@orb/ui` variant rows + `KnobRow` + the §4.3 `preset.resolveEffective` read (D5) | contracts/domain verb + ui variants |
+| **P0** | the three `@orb/ui` variant rows (§13: Slider ghost · NumberField inline · HighlightedText code) + `KnobRow` + the §4.3 `preset.resolveEffective` read (D5) | contracts/domain verb + ui variants |
 | **P1** | the Params deck (replaces the Generation group's four leaves) + staleness row + G1-G4 | P0 |
 | **P2** | the five-view flattening + Actions view (templates+nudges, G5) + Data/Transforms regroup | P1 (the deck is the biggest moved piece) |
 | **P3** | Prompt consolidation: section editor absorbs the inspector; bridge deleted; CONTEXT becomes the per-view readout (§7, D2 — the `presetEditorView` store seam lands here); toolbar preview toggle dies | P2 |
@@ -473,6 +513,9 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 `--context-tab` per view; computed-value assertions per density §5.3, never authored classes.
 
 ## 15. Owner decisions — genuine forks ONLY, with recommendations
+
+> **ALL SEVEN RULED AS RECOMMENDED (owner, mock review round 3).** The table stands as the
+> rationale record; nothing below remains open.
 
 | # | decision | recommendation |
 | - | - | - |
@@ -518,7 +561,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 17 | reorder sections | rack drag (the handle) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag, and the no-pointer path | both go through `moveFieldValues`; review |
 | 18 | enable / disable a section | the rack row Switch | none — the drill-in deliberately carries NO second enable toggle | mock swept: the section editor draws none |
 | 19 | select / drill a section | the rack row name button | (a) CONTEXT preview block-click — clicking what you see IS the projection's point; (b) CONTEXT per-section bar click (same); (c) the Actions-view delivery-path echo (cross-view navigation to the `guided_instruction` marker); (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall |
-| 20 | edit a section whole (body · name · role · placement · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
+| 20 | edit a section whole (body · delivery [name · role · depth] · placement [zone · order] · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
 | 21 | duplicate / delete a section · move-to-zone | the drill-in ⋯ menu (delete behind confirm) | none | — |
 | 22 | back to rack | the drill-in back button | none (Esc stays overlay-only — the house Esc rule) | — |
 | 23 | edit a guided template / nudge (role · template) | its Actions row drill-in | none | — |
