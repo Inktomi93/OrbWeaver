@@ -139,7 +139,25 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). **CHARACTERS+CHATS LIFECYCLE AUDIT LANE (owner-ordered 08-02):** full CRUD + single-entity
+S4-ruled rows untouched). **⚠ LIVE RED (08-02, twice-reproduced — NOT flake): rpg-lite swipe-consistency @live spec**
+(tracker plane resolving off a non-current snapshot after swipe, or a live-timing race) —
+INVESTIGATION LANE IN FLIGHT (suspects: macro-parity one-builder merge, cast-volatile era;
+verdict RACE-vs-REAL with proven-to-fail regression required). E2E_LIVE otherwise 51/52 green.
+MERGED THIS ROUND: F5 pointer (`a9e77df3` — corrected the report's over-broad claim: toolround on
+vLLM/OR leaves NO usage record unless WIRE_CAPTURE; observability small boarded below) · ARCHIVE
+sweep (`c8bdf92b`: 3 specs + 3 stickler reports → history, refs incl. gate docRows repointed;
+blech-audit LEFT — F1-F5/F7/F9/F10 board rows never struck, verify-then-archive rides side-eye
+#1) · B1 ui P0 (`2d71939a`: Slider tone axis [color-only, byte-identical default] · NumberField
+size=inline [size owns the BOX incl. width — the w-full/w-number-inline merge hazard dodged] ·
+HighlightedText skin=code; D10 ember-cluster taste call → P1 side-eye) · B3 prose stragglers
+(`49616a67`: 9 slots, group/injection/discovery; substitution = PRE-SUB TOKENS not the macro
+engine [function replacement so $& stays literal]; DistillPass kills the retry-drift vector).
+NEW SMALLS boarded: toolround usage record (rpg.ts:753, result.usage discarded on vLLM/OR) ·
+Documentation-Law §-ref-in-comments conflict (rpg.ts carries 33 — owner ruling: sweep or carve-out)
+· runStructuredTurn retry-drift pattern sweep. LESSON banked: lane commit messages need
+lane-unique scratchpad names (a cross-lane msg.txt collision landed a wrong commit message,
+caught+amended).
+**CHARACTERS+CHATS LIFECYCLE AUDIT LANE (owner-ordered 08-02):** full CRUD + single-entity
 import/export tables for both rail sections (verb+affordance+classification per row, both-ends
 verified); ALL client gaps done IN FULL (owner overruled shims: full projection-grammar adoption
 wherever wiring touches an unadopted pane — band anatomy + §12 row-actions + scent; tabling
