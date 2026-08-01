@@ -33,12 +33,23 @@ export interface DraftCommit {
   readonly carry: DraftCarry;
 }
 
+/** The draft's founding cast: the seed roster + pre-send additions from the panel, in that order — the
+ *  SAME union `resolveDraftCommit` writes to `chat.startChat`'s `characterIds`, so a panel-added
+ *  character's pre-commit greeting preview (`DraftGreetingThread`) shows exactly the cast the commit
+ *  will create (no "appears only after commit" gap). */
+export function resolveDraftCharacterIds(
+  seedCharacterIds: readonly CharacterId[] | undefined,
+  addedCharacterIds: readonly CharacterId[] | undefined,
+): CharacterId[] {
+  return [...(seedCharacterIds ?? []), ...(addedCharacterIds ?? [])];
+}
+
 /** Read the active draft's config + seed into the `startChat` commit shape. Non-reactive (a commit-time
  *  snapshot, like `readDraftConfig`). A committed handle yields an empty carry + the (empty) seed cast. */
 export function resolveDraftCommit(handle: ChatHandle, draftSeed: DraftSeed | undefined): DraftCommit {
   const draftKey = handle.kind === "draft" ? handle.draftKey : null;
   const config = draftKey === null ? EMPTY_DRAFT_CONFIG : readDraftConfig(draftKey);
-  const characterIds = [...(draftSeed?.characterIds ?? []), ...(config.addedCharacterIds ?? [])];
+  const characterIds = resolveDraftCharacterIds(draftSeed?.characterIds, config.addedCharacterIds);
   const carry: DraftCarry = {
     ...(config.greetings !== undefined ? { seedGreetings: config.greetings } : {}),
     ...(config.rosterOverrides !== undefined ? { rosterOverrides: config.rosterOverrides } : {}),

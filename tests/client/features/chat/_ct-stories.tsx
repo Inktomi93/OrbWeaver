@@ -36,6 +36,7 @@ import type {
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
+  addDraftCharacter,
   cancelEditingMessage,
   chatStream,
   committedChat,
@@ -1041,6 +1042,16 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
           itself is what the send hook subscribes to, and this fires it deterministically for CHAT_ID. */}
       <button type="button" data-testid="drive-message-committed" onClick={(): void => chatStream.notifyUserMessageCommitted(CHAT_ID)}>
         commit
+      </button>
+      {/* Simulates the roster panel adding a founding member mid-draft (`addDraftCharacter`) — the pre-commit
+          greeting preview must show the new character's row immediately, matching the union `resolveDraftCommit`
+          will write at send-time (the panel-added-character regression this CT extends to cover). */}
+      <button
+        type="button"
+        data-testid="add-panel-character"
+        onClick={(): void => addDraftCharacter("draft_ct_room", castId<CharacterId>("char_ct_panel_added"))}
+      >
+        add character
       </button>
     </div>
   );

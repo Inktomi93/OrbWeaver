@@ -52,6 +52,9 @@ const SERIAL_INT = [
   // The P6 agent-seat wire round-trips (D60): full-`createServices` app-fixture files — cold import of the
   // whole server graph on the first test flakes a parallel 5s timeout.
   "tests/server/transport/trpc/routers/chat.int.test.ts",
+  // rpg compose wire: repeatedly flaked with 5s/20s timeouts under fork contention (heavy full-composition
+  // file, same class as chat.int/databank.int above).
+  "tests/server/entry/compose/rpg.int.test.ts",
 ];
 
 export default defineConfig({
