@@ -377,8 +377,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   iteration (the probe's fixture set is the harness — long-scene 3/3 reproduces), model choice,
   or a review-UI tell ("this reads like {{char}} — regenerate?") can move it. Folds naturally
   into PROSE-1 (the impersonate nudge becomes editable data there — iterate it against the probe).
-- **IMP-2 LANE IN FLIGHT (08-02)** — visible Stop/cancel during impersonate (the unsubscribe handle IS the lever, nothing
-  renders it; guided icons show a misleading wait reason meanwhile).
+- ~~IMP-2~~ WAS ALREADY BUILT (`4848306c`, on main — the board row was STALE; audit-lists-are-
+  snapshots strikes again). Audited + verified 08-02: Stop at the cluster's right edge (turn-abort
+  visual precedent), stop = completion not rejection (partial stays, no toast, no D57 restore);
+  honest "impersonating" wait reason; AND the server-stops question answered with a 7-link receipt
+  chain: the provider stream aborts end-to-end on unsubscribe (trpc subscription signal ← fetch req
+  signal ← hono socket close), classified clean {aborted:true}, no token burn into a dead pipe
 - **QUOTE-1 follow-up** — greeting-preview surfaces (greeting studio / facet editor /
   character-greeting-preview) render through the seal but don't get the dialogue tint (need the
   appearance query inside the character feature).
