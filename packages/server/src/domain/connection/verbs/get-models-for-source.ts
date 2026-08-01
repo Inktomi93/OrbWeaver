@@ -15,6 +15,9 @@ import type { SourceModelEntry, SourceModelsResult } from "../contract/results";
 import type { ConnectionService } from "../contract/service";
 import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
 import { readCatalogSnapshot } from "../persistence/catalog-snapshot";
+// The config-derived (source, role) → model map is SHARED with resolveRole (substrate/config-model.ts):
+// what this verb displays as the row default IS what a turn resolves. Two copies drifted into a 404 once.
+import { EMBED_ROLES, localLightModelForRole, vllmModelForRole } from "../substrate/config-model";
 import { curatedShortlistEntries } from "../substrate/curated-shortlist";
 
 function assertNever(value: never): never {
@@ -23,32 +26,8 @@ function assertNever(value: never): never {
 
 const BUILTIN_EMBED_DIM = 1024;
 
-const EMBED_ROLES: ReadonlySet<RoutingRoleKey> = new Set<RoutingRoleKey>(["embed", "imageEmbed"]);
-
 function orDefaultForRole(role: RoutingRoleKey): string | null {
   return role === "generateImage" ? null : DEFAULT_OR_CHAT_MODEL_ID;
-}
-
-/** Mirrors resolve-role.ts's per-role selectors; generateImage isn't a vllm role so GEN is a harmless fall-through. */
-function vllmModelForRole(role: RoutingRoleKey): string {
-  if (EMBED_ROLES.has(role)) {
-    return env.VLLM_EMBED_MODEL;
-  }
-  if (role === "rerank") {
-    return env.VLLM_RERANK_MODEL;
-  }
-  return env.VLLM_GEN_MODEL;
-}
-
-/** null for a non-derive role — local-light serves the three derive roles only. */
-function localLightModelForRole(role: RoutingRoleKey, trio: ConnectionContext["localLightDefaults"]): string | null {
-  if (EMBED_ROLES.has(role)) {
-    return role === "imageEmbed" ? trio.imageEmbed : trio.embed;
-  }
-  if (role === "rerank") {
-    return trio.rerank;
-  }
-  return null;
 }
 
 function orEntryToSourceModel(entry: ModelCatalogEntry): SourceModelEntry {

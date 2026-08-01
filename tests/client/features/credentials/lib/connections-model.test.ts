@@ -180,11 +180,13 @@ test("every source/model/protocol arm the pickers can produce round-trips throug
     { ...EMPTY_FORM, embed: { source: "vllm", model: "" }, rerank: { source: "openrouter", model: "rerank-v3.5" } },
     // custom_openai's free-text model id (the picker commits it trimmed).
     { ...EMPTY_FORM, chat: { source: "custom_openai", model: "my-local-model", api: "chat-completions" } },
-    // Every role configured, each on a source its own schema arm permits.
+    // Every role configured, each on a source its own schema arm permits. The two CONFIG-DERIVED rows
+    // (vllm/local-light) carry NO model — their cell is a read-only server-config display, and the
+    // projection drops a model on those sources anyway (the server rejects such a pin).
     {
       chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "agent-sdk" },
-      embed: { source: "vllm", model: "bge-m3" },
-      rerank: { source: "local-light", model: "rerank-v3.5" },
+      embed: { source: "vllm", model: "" },
+      rerank: { source: "local-light", model: "" },
       imageEmbed: { source: "openrouter", model: "clip-vit-large" },
       summarize: { source: "max-pro-sub", model: "claude-haiku-4-5" },
       generateImage: { source: "openrouter", model: "black-forest-labs/flux-1.1-pro" },
@@ -192,6 +194,24 @@ test("every source/model/protocol arm the pickers can produce round-trips throug
   ];
   const diverged = arms.filter((form) => JSON.stringify(reprojected(form)) !== JSON.stringify(form));
   expect(diverged).toEqual([]);
+});
+
+// The pane's mirror of the server's write-boundary rule (settings/substrate/routing-coherence.ts): vllm and
+// local-light serve the model they were LAUNCHED with, so no model is persisted for them. Without this, a
+// legacy row (`{source:"vllm", model:"anthropic/claude-sonnet-5"}` — the live 404) would be re-submitted
+// verbatim on the next autosave and bounce off the server's `incoherent_role_model` refusal, blocking every
+// unrelated edit in the pane.
+test("a CONFIG-DERIVED source persists NO model — a legacy pin is cleared by the next save", () => {
+  const form: RoutingForm = { ...EMPTY_FORM, chat: { source: "vllm", model: "anthropic/claude-sonnet-5", api: "chat-completions" } };
+  const section = toRoutingSection(form);
+  expect(section.roleDefaults["chat"]).toEqual({ source: "vllm", model: null, api: "chat-completions" });
+  // A CATALOG source is untouched — its model IS the user's selection.
+  const orForm: RoutingForm = { ...EMPTY_FORM, chat: { source: "openrouter", model: "anthropic/claude-sonnet-5", api: "chat-completions" } };
+  expect(toRoutingSection(orForm).roleDefaults["chat"]).toEqual({
+    source: "openrouter",
+    model: "anthropic/claude-sonnet-5",
+    api: "chat-completions",
+  });
 });
 
 // --- LIVE vs DRAFT (the 2026-08-01 phantom: a never-saved pane read as configured) --------------
