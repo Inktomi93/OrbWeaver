@@ -26,9 +26,8 @@ const ROUTER_NAME_RE = /\/routers\/(?<router>[^/]+)\.ts$/u;
 const EXEMPT: Readonly<Record<string, string>> = {
   // PERMANENT (spec §14 decision 2).
   "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
-  // STAGED — deleted by the commit that folds each room (spec §13 build sequence).
-  "sessions.streamUserEvents": "folds at S1 (the `user` room — the first of the two cheap live-only rooms)",
-  "rpg.stream": "folds at S1 (the `rpg` room — the stream that caused the measured starvation incident)",
+  // STAGED — deleted by the commit that folds each room (spec §13 build sequence). `sessions.streamUserEvents`
+  // and `rpg.stream` were here until S1 folded them; their absence is now ENFORCED — re-adding either goes RED.
   "chat.streamMessages": "folds at S2 (durable replay + the per-yield member strip move into sources/chat.ts)",
   "notifications.notifications": "folds at S3 (durable replay #2 + the multiHuman belt relocation + the presence move)",
   "automation.stream": "folds at S4 (server-side move; no client consumer today)",

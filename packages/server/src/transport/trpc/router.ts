@@ -25,6 +25,7 @@ import { searchRouter } from "./routers/search";
 import { sessionsRouter } from "./routers/sessions";
 import { settingsRouter } from "./routers/settings";
 import { statsRouter } from "./routers/stats";
+import { streamRouter } from "./routers/stream";
 import { tagRouter } from "./routers/tag";
 import { workloadsRouter } from "./routers/workloads";
 import { worldInfoRouter } from "./routers/world-info";
@@ -83,6 +84,7 @@ export const appRouter = t.router({
   sessions: sessionsRouter,
   settings: settingsRouter,
   stats: statsRouter,
+  stream: streamRouter,
   tag: tagRouter,
   workloads: workloadsRouter,
   worldInfo: worldInfoRouter,

@@ -9,7 +9,7 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useAuthConfig, useInvalidation, useRpgBus, useUserBus } from "#data";
+import { useAuthConfig, useInvalidation, useOrbSocket, useRpgBus, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
@@ -29,7 +29,12 @@ export function AppRoot(): ReactElement {
     }
   }, [joinToken]);
   const invalidation = useInvalidation();
-  // The always-on per-user entity-changed stream, mounted once here (never in a feature, which could
+  // THE socket (SSE-1): one multiplexed SSE connection per tab, carrying every live room the tab attaches.
+  // Mounted FIRST so the room registry's mutation channel is bound before the room hooks below join —
+  // and mounted here for the same reason they are (a feature could unmount and drop every freshness driver
+  // at once). Adding the next always-on room costs an attach, not a connection.
+  useOrbSocket();
+  // The always-on per-user entity-changed room, mounted once here (never in a feature, which could
   // unmount and drop the freshness driver).
   useUserBus({
     invalidateUser: invalidation.invalidateUser,
@@ -43,9 +48,9 @@ export function AppRoot(): ReactElement {
   const activeChatId = isCommitted(handle) ? handle.id : null;
   const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
 
-  // The per-game live event stream (Context-Panel-Program §4.9), mounted here (never in a feature, which
-  // could unmount and drop the freshness driver) and keyed to the active committed chat. `null` (a draft or
-  // no chat) detaches; a non-game chat's stream is an idle member-gated relay (no rpg events ever fire).
+  // The per-game live event room (Context-Panel-Program §4.9), mounted here (never in a feature, which
+  // could unmount and drop the freshness driver) and keyed to the active committed chat. `null` (a draft,
+  // no chat, or a non-game chat) attaches nothing at all.
   useRpgBus(activeChatId, {
     invalidateRpg: invalidation.invalidateRpg,
     gapHealRpg: invalidation.gapHealRpg,

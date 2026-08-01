@@ -129,6 +129,15 @@ export interface RpgTraceInspector {
   recent: (filter: { chatId?: string; turnId?: string; limit?: number }) => readonly object[];
 }
 
+/** The multiplexed-socket read port (SSE-1 §12) — structural-injection so foundation accepts transport's
+ *  socket registry without importing it (the `RpgTraceInspector` precedent; transport sits ABOVE foundation
+ *  in the tier list, so the dependency has to arrive as data). This is the STARVATION REGRESSION PIN: the
+ *  whole point of the multiplex is "one socket per tab, and opening a game chat adds ZERO", which is a claim
+ *  about a COUNT that nothing outside the process can otherwise observe. */
+export interface SocketInspector {
+  liveSocketCount: (userId?: string) => number;
+}
+
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
 export interface DebugAuthOptions {
   expectedToken: string | undefined;
@@ -143,6 +152,8 @@ export interface DebugRoutesOptions {
   assets?: AssetInspector;
   /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
   rpgTrace?: RpgTraceInspector;
+  /** The live multiplexed-socket counter (SSE-1). Absent ⇒ the /stream/sockets route is not registered. */
+  sockets?: SocketInspector;
   auth?: DebugAuthOptions | string;
 }
 
@@ -175,7 +186,7 @@ export const debugAuthMiddleware: MiddlewareHandler = createDebugAuthMiddleware(
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, rpgTrace, auth = env.DEBUG_TOKEN } = options;
+  const { db, assets, rpgTrace, sockets, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) =>
@@ -202,6 +213,15 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       }),
     }),
   );
+
+  // The one-socket-per-tab pin: `?userId=` narrows to one principal, omitted counts every live socket in
+  // the process. A tab that opened a GAME chat must not move this number.
+  if (sockets !== undefined) {
+    app.get("/api/_debug/stream/sockets", (c) => {
+      const userId = c.req.query("userId");
+      return c.json({ liveSockets: sockets.liveSocketCount(userId) });
+    });
+  }
 
   app.get("/api/_debug/errors", (c) => c.json({ errors: collectErrors(toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT)) }));
 

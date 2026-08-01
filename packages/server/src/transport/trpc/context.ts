@@ -28,6 +28,7 @@ import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
 import type { PresenceRegistry } from "./presence-registry";
+import type { SocketRegistry } from "./stream/socket-registry";
 
 /**
  * The constructed domain services, wired with their db + cross-feature deps at the entry composition root
@@ -81,6 +82,9 @@ export interface Context {
   readonly rateLimit: RateLimitGate;
   /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness. */
   readonly presence: PresenceRegistry;
+  /** The multiplexed-socket cells (SSE-1) — one per tab, holding which rooms that tab wants across its own
+   *  reconnects. Composed at entry (it owns the reap clock), read only by the `stream` router. */
+  readonly sockets: SocketRegistry;
   /** Can ≥2 humans authenticate on this deployment? `multiHumanProcedure` refuses its surfaces with
    *  NOT_FOUND while false. Derived per-request (the local toggle is a runtime AppSetting). */
   readonly multiHumanCapable: boolean;
@@ -95,6 +99,7 @@ export function createContext(parts: {
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly presence: PresenceRegistry;
+  readonly sockets: SocketRegistry;
   readonly multiHumanCapable: boolean;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
@@ -104,6 +109,7 @@ export function createContext(parts: {
     services: parts.services,
     rateLimit: parts.rateLimit,
     presence: parts.presence,
+    sockets: parts.sockets,
     multiHumanCapable: parts.multiHumanCapable,
     csrfHeaderPresent: parts.csrfHeaderPresent,
     clientIp: parts.clientIp,

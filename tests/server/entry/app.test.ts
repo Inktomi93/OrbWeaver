@@ -11,7 +11,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
-import { classifyDomainError } from "@orb/server/transport/trpc";
+import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
@@ -93,6 +93,9 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
       },
       read: (userId) => ({ userId, online: true, lastSeenAt: null }),
     },
+    // The multiplexed-socket cells (SSE-1). Real, frozen-clock instance: the /api/_debug/stream/sockets
+    // route reads it, and route tests want the honest "zero live sockets" answer, not a stub's opinion.
+    sockets: createSocketRegistry((): number => FROZEN_NOW),
     assets: stub,
     cas: stub,
     character: stub,

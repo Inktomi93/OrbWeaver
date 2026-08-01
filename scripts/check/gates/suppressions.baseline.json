@@ -153,6 +153,7 @@
   "packages/server/src/kit/serde/chat/index.ts": 4,
   "packages/server/src/transport/jobs/workloads-worker.ts": 2,
   "packages/server/src/transport/trpc/routers/notifications.ts": 1,
+  "packages/server/src/transport/trpc/stream/frame-queue.ts": 1,
   "packages/ui/src/charts/chart/use-chart-theme.ts": 1,
   "packages/ui/src/charts/meter/segmented-clock.tsx": 2,
   "packages/ui/src/code-editor/code-editor.tsx": 1,

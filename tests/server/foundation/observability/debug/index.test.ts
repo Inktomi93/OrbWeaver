@@ -1,8 +1,13 @@
-// foundation/observability/debug/routes — the /api/_debug/rpg/traces read surface (R-OBS). Registered only when
-// an `rpgTrace` inspector is wired (tracing on); host-only behind the same debug gate; forwards the chatId /
-// turnId / limit query filters to the recorder's `recent`. Exercised through a real Hono app + fetch.
+// foundation/observability/debug/routes — the two INJECTED read surfaces (both structural-injection, because
+// foundation may not import the tiers above it):
+//   • /api/_debug/rpg/traces  (R-OBS) — registered only when an `rpgTrace` inspector is wired (tracing on);
+//     forwards the chatId / turnId / limit query filters to the recorder's `recent`.
+//   • /api/_debug/stream/sockets (SSE-1 §12) — the STARVATION REGRESSION PIN. "One socket per tab, and
+//     opening a game chat adds ZERO" is a claim about a COUNT nothing outside the process can otherwise see;
+//     this route is how an e2e/live check asserts it in one request.
+// Both are host-only behind the same debug gate, and both are exercised through a real Hono app + fetch.
 
-import type { RpgTraceInspector } from "@orb/server/foundation/observability/debug";
+import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/observability/debug";
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -56,6 +61,54 @@ describe("/api/_debug/rpg/traces", () => {
 
   test("the route is absent when no inspector is wired (tracing off) — 404", async () => {
     const res = await appWith(undefined).fetch(authed("/api/_debug/rpg/traces"));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("/api/_debug/stream/sockets — the one-socket-per-tab pin", () => {
+  /** A stub counter that records the userId narrowing it was asked for. */
+  function stubSockets(count: number): { inspector: SocketInspector; lastUserId: () => string | undefined } {
+    let seen: string | undefined;
+    return {
+      inspector: {
+        liveSocketCount: (userId): number => {
+          seen = userId;
+          return count;
+        },
+      },
+      lastUserId: () => seen,
+    };
+  }
+
+  function socketsApp(inspector?: SocketInspector): Hono {
+    const app = new Hono();
+    registerDebugRoutes(app, { auth: TOKEN, ...(inspector === undefined ? {} : { sockets: inspector }) });
+    return app;
+  }
+
+  test("reports the live socket count for the whole process when no userId is given", async () => {
+    const { inspector, lastUserId } = stubSockets(2);
+    const res = await socketsApp(inspector).fetch(authed("/api/_debug/stream/sockets"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ liveSockets: 2 });
+    expect(lastUserId()).toBeUndefined();
+  });
+
+  test("narrows to one principal with ?userId=", async () => {
+    const { inspector, lastUserId } = stubSockets(1);
+    await socketsApp(inspector).fetch(authed("/api/_debug/stream/sockets?userId=user_nate"));
+    expect(lastUserId()).toBe("user_nate");
+  });
+
+  test("an unauthorized request is rejected by the gate (401), never reaching the registry", async () => {
+    const { inspector, lastUserId } = stubSockets(3);
+    const res = await socketsApp(inspector).fetch(new Request("http://x/api/_debug/stream/sockets"));
+    expect(res.status).toBe(401);
+    expect(lastUserId()).toBeUndefined();
+  });
+
+  test("the route is absent when no registry is wired — 404", async () => {
+    const res = await socketsApp(undefined).fetch(authed("/api/_debug/stream/sockets"));
     expect(res.status).toBe(404);
   });
 });
