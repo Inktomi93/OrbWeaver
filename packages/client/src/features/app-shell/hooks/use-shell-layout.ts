@@ -34,7 +34,13 @@ export interface ShellLayout {
    *  offers a door onto a surface that does not exist. */
   readonly listAvailable: boolean;
   readonly contextMode: PanelMode;
-  /** Both panels collapsed — drives the focus-toggle affordance. */
+  /** Does the active section HAVE a CONTEXT pane at all (`SectionDefinition.panels.context`)? The LIST
+   *  twin: `false` ⇒ NO detail-panel toggle and `contextMode` pinned `collapsed`. */
+  readonly contextAvailable: boolean;
+  /** Does the section have ANY panel? `false` ⇒ focus mode is a control over nothing (and would read
+   *  "Exit focus mode" from cold boot, since zero panels trivially satisfies "both collapsed"). */
+  readonly anyPanelAvailable: boolean;
+  /** Both AVAILABLE panels collapsed — drives the focus-toggle affordance. */
   readonly immersive: boolean;
   readonly openModalId: ModalSlotId | null;
   /** True when either panel is floating in overlay mode — the dismiss scrim shows behind it. */
@@ -76,6 +82,7 @@ export function useShellLayout(): ShellLayout {
   // A section that declares no LIST pane resolves `collapsed` UNCONDITIONALLY — a persisted override from
   // some other section's habit must never re-open a pane that does not exist (H3 / arm L-b).
   const listAvailable = activeDef.panels?.list !== "unavailable";
+  const contextAvailable = activeDef.panels?.context !== "unavailable";
   const listDefault = listOverride ?? activeDef.panelDefaults.list;
   const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
   // A panel is in an OVERLAY REGIME (ephemeral open/close via `openOverlayPanel`) when mobile (always) or
@@ -84,15 +91,20 @@ export function useShellLayout(): ShellLayout {
   const isOverlayRegime = (resolved: PanelMode): boolean => isMobile || (isNarrow && resolved === "docked");
 
   const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isMobile, isNarrow, openOverlayPanel }) : "collapsed";
-  const contextMode = resolvePanelMode("context", contextDefault, {
-    isMobile,
-    isNarrow,
-    openOverlayPanel,
-  });
+  const contextMode: PanelMode = contextAvailable
+    ? resolvePanelMode("context", contextDefault, {
+        isMobile,
+        isNarrow,
+        openOverlayPanel,
+      })
+    : "collapsed";
 
   const openModalId = useOpenModal();
   const activeSectionLabel = activeDef.rail.label;
-  const immersive = listMode === "collapsed" && contextMode === "collapsed";
+  const anyPanelAvailable = listAvailable || contextAvailable;
+  // A section with NO panels is not "immersive" — there is nothing to have collapsed. Reading it as
+  // immersive is what cold-booted the focus toggle into its "Exit focus mode" arm on home.
+  const immersive = anyPanelAvailable && listMode === "collapsed" && contextMode === "collapsed";
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
 
   const togglePanel = (panel: PanelName): void => {
@@ -122,12 +134,14 @@ export function useShellLayout(): ShellLayout {
       return;
     }
     const next: PanelMode = immersive ? "docked" : "collapsed";
-    // Never write a LIST override for a section that has no LIST pane — it would be a stored preference
-    // nothing can ever honor, waiting to surprise whoever gives the section a list later.
+    // Never write an override for a panel the section does not have — it would be a stored preference
+    // nothing can ever honor, waiting to surprise whoever gives the section that pane later.
     if (listAvailable) {
       setPanelMode("list", next);
     }
-    setPanelMode("context", next);
+    if (contextAvailable) {
+      setPanelMode("context", next);
+    }
   };
 
   return {
@@ -136,6 +150,8 @@ export function useShellLayout(): ShellLayout {
     listMode,
     listAvailable,
     contextMode,
+    contextAvailable,
+    anyPanelAvailable,
     immersive,
     openModalId,
     scrimVisible,
