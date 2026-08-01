@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context";
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests";
-import { CONSOLIDATION_SYSTEM_PROMPT } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts";
+import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
 import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types";
@@ -16,6 +16,10 @@ import { freshDb } from "../../../../../support/db";
 import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support";
+
+// PROSE-1 S1: the consolidation system prompt is a slot resolved off the ROOM HOST. The harness's chat ctx
+// carries no override, so the discriminator these tests key on is the resolved shipped default.
+const CONSOLIDATION_SYSTEM_PROMPT = consolidationSystemPrompt({});
 
 /** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against. */
 const emptySummarize = (): Promise<SummarizeResult> =>
@@ -104,6 +108,34 @@ describe("memory/build/digests", () => {
     expect(first?.isGroup).toBe(false);
     // the summarizer was called once per block + once for the consolidation.
     expect(sum.calls).toHaveLength(3);
+  });
+
+  // PROSE-1 census 78/80/81 — the digest + consolidation prompts are per-USER slots resolved against the ROOM
+  // HOST. `resolveChatProse` is the ONE seam; with no override the calls carry the shipped defaults (asserted
+  // implicitly everywhere else in this file), with one they carry the host's bytes.
+  test("PROSE-1: the room host's prose overrides ride the digest AND consolidation prompts", async () => {
+    const chatId = await seedChat(db, "prose");
+    await seedTurns(db, chatId, aria, 4);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, {
+      summarize: sum.fn,
+      embeddingsStore: store.store,
+      resolveChatProse: () =>
+        Promise.resolve({
+          "chat.memory.digestSystem": { text: "HOST DIGEST RULES", baseVersion: 1 },
+          "chat.memory.consolidationSystem": { text: "HOST ARC RULES", baseVersion: 1 },
+          "chat.memory.consolidationLead": { text: "HOST LEAD:", baseVersion: 1 },
+        }),
+    });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } });
+
+    expect(sum.calls.filter((c) => c.systemPrompt === "HOST DIGEST RULES")).toHaveLength(2);
+    const consolidation = sum.calls.find((c) => c.systemPrompt === "HOST ARC RULES");
+    expect(consolidation).toBeDefined();
+    // The lead is the authored half of the user prompt; the numbered facets after it stay builder-owned data.
+    expect(consolidation?.userPrompt.startsWith("HOST LEAD:\n\n[1]\n")).toBe(true);
   });
 
   test("the resolved AppSettings.memorySummarizer sampling rides every summarize call", async () => {

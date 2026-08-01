@@ -365,6 +365,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The side-gen sampling ladder's middle rung (chat host preset params) — default = an empty posture so the
     // per-site floors stand (byte-identical to pre-ladder behavior). A test exercising the override supplies its own.
     resolveChatPresetParams: () => Promise.resolve({}),
+    // PROSE-1 — no host override by default, so every assembled/side-gen prompt is the shipped default.
+    resolveChatProse: () => Promise.resolve({}),
     resolveChat: notStubbed,
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,

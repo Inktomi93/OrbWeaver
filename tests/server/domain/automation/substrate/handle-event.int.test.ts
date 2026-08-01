@@ -114,6 +114,7 @@ function depthOps(depth: number): AutomationOps {
       resolveViewerVisibility: () => Promise.resolve(null),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
+      resolveChatProse: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),
@@ -308,6 +309,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
         resolveViewerVisibility: () => Promise.resolve(null),
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
+        resolveChatProse: () => Promise.resolve({}),
         applyVariableOps: (_chatId, varOps) => {
           captured.push(...varOps);
           return Promise.resolve();
@@ -409,6 +411,7 @@ describe("F3 durable auto-disable author notice", () => {
         resolveViewerVisibility: () => Promise.resolve(null),
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
+        resolveChatProse: () => Promise.resolve({}),
         applyVariableOps: () => Promise.resolve(),
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),
@@ -531,6 +534,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
         },
         readVariables: () => Promise.resolve({}),
         readChoicePicks: () => Promise.resolve({}),
+        resolveChatProse: () => Promise.resolve({}),
         applyVariableOps: () => Promise.resolve(),
         listBackgroundChoices: () => Promise.resolve([]),
         setChatBackground: () => Promise.resolve(),

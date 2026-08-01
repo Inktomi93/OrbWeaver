@@ -9,7 +9,9 @@
 // keystone's `materializeBackground`/`enqueueEmbedReindex` holders use to break a genuine construction cycle.
 
 import type { Principal } from "@orb/contracts/identity";
+import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { BatchStmt, Db } from "@orb/db";
@@ -145,6 +147,9 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // settings read). Unset ⇒ byte-identical to the shipped default.
     resolvePromptTemplate: async (caller, mode) => resolveImageryTemplate((await deps.loadUserSettings(caller.userId)).imagery, mode),
     resolveCaptionInstruction: async (caller, mode) => resolveImageryCaption((await deps.loadUserSettings(caller.userId)).imagery, mode),
+    // PROSE-1 census 88 — the negative-prompt base off the caller's `UserSettings.prose` (same seam, same
+    // caller scoping as its template siblings). No override ⇒ the shipped catalog bytes.
+    resolveNegativeBase: async (caller) => resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, (await deps.loadUserSettings(caller.userId)).prose),
     // EC-B owner-gated byte read (the caller owns the asset it references).
     readAsset: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId),
 

@@ -11,6 +11,7 @@ import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/con
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
@@ -283,6 +284,10 @@ export interface ChatComposeResult {
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
   readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
+  /** The room HOST's app-tier prose overrides for a chat (PROSE-1 §4.3, owner-decision 8 option (a)) —
+   *  surfaced so automation's `set_chat_background` quiet pick reads the SAME host prose the room's other
+   *  side generations do, instead of re-deriving the host itself. */
+  readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
   /** The NON-HUMAN turn seam (automation-design/03 §4 / 05 §AC-B) — automation's `trigger_turn` arm + the
    *  Tier-2 plugin membrane's `turn.trigger` inject this at the composition root. Principal-free: the funding
    *  host is resolved from the room, and the four walls (depth/authority/budget/consent) enforce inside the verb
@@ -597,6 +602,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.params;
   };
 
+  // The chat's app-tier PROSE overrides, resolved under the chat's HOST (PROSE-1 owner-decision 8, option
+  // (a) — the room's side generations read one stable voice, not the speaker-of-the-moment's). One home with
+  // `resolvePromptVariables`/`resolveChatPresetParams`: same host resolution, same hostless degrade — an
+  // empty record, which resolves every slot to its shipped default (byte-identical to pre-PROSE-1).
+  const resolveChatProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+    const hostUserId = await resolveChatHostUserId(chatId);
+    if (hostUserId === null) {
+      return {};
+    }
+    return (await input.settings.loadUserSettings(hostUserId)).prose;
+  };
+
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
   // re-reading settings — the opt-out can't be honored on the turn and dropped on the sweep.
@@ -643,6 +660,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       getOrSkinTierModels: () => input.connection.getOrSkinTierModels(),
     }),
     resolveChatPresetParams,
+    resolveChatProse,
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
 
     resolveCredential: async ({ runAsUserId, source }) => input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
@@ -1049,6 +1067,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),
+    resolveChatProse,
     requestTurn: chatBundle.requestTurn,
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),

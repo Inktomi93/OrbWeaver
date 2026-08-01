@@ -1109,6 +1109,29 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
     expect(anchorInj?.content).toContain("The person the character knows as the user is Alex");
   });
 
+  // PROSE-1 census 74 — the lead-in clause is a per-USER slot resolved against the ROOM HOST through
+  // `ctx.resolveChatProse`; the brackets, the name and the description stay the injection's grammar.
+  test("swap: a host override REPLACES the anchor identity lead-in, keeping the name/description frame", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      resolveChatProse: () => Promise.resolve({ "chat.assembly.anchorIdentity": { text: "Your operator is", baseVersion: 1 } }),
+    });
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: {
+        anchor: { name: "Alex", description: "Alex is a knight", placement: { kind: "in_prompt" } as const },
+        active: { name: "Steve", description: "Steve is a mage", placement: { kind: "at_depth", depth: 2, role: "system" } as const },
+      },
+    });
+
+    const anchorInj = (out.chatInjections ?? []).find((i) => i.position === "in_static");
+    expect(anchorInj?.content).toBe("[Your operator is Alex: Alex is a knight]");
+  });
+
   test("swap with anchor descriptionPosition='none': the anchor is NOT injected in either role", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");

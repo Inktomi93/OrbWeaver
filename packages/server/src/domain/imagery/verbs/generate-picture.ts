@@ -168,7 +168,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     // literal words are used verbatim.
     const prompt = resolved.source === "user" ? resolved.prompt : ensurePrefix(resolved.prompt, p.mode);
     // Step 5: compose negative (DEFAULT_NEGATIVE + user's, appended) + size (preset or the mode default).
-    const negativePrompt = composeNegative(p.negative);
+    const negativePrompt = composeNegative(await ctx.resolveNegativeBase(p.caller), p.negative);
     const size = SIZE_PRESETS[p.size ?? defaultSizeFor(p.mode)];
 
     // Step 6: resolve role + capability (one resolution — the B3 gate + the request build read the same model).

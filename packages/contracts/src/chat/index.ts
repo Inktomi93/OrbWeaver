@@ -10,6 +10,7 @@
 //   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
 //   • content-classes.ts — the parity-plus §3 content-class visibility registry (`CONTENT_CLASS_POLICY`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
+//   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
 //
 // LAWS honored across these modules:
 //   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
@@ -153,6 +154,8 @@ export {
   buildPersonaAvatarMap,
   buildPersonaNameMap,
 } from "./producers";
+// The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
+export { CHAT_PROSE_SLOTS } from "./prose";
 export type {
   AcceptInviteInput,
   CharacterMemberSpec,
