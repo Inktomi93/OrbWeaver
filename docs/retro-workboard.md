@@ -139,7 +139,16 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
+S4-ruled rows untouched). **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
+folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
+SET-SEAMS specs + 4 resolved stickler reports → history, refs repointed, verify-then-move) ·
+w4 F5 pointer → security-executor one-liner · E2E_LIVE=1 pnpm e2e RUNNING (the owed live specs,
+isolated stacks). THEN THE COMBINED SIDE-EYE (stage singleton) dispatches AFTER density S4 merges
+— one stage cycle covering: HUD H2/H3 voices+compact · density S3/S4/S5 surfaces · workloads lane
+headings + Recompute · S1 appearance IA (§10 Q3 owner-eyeball) · the inline-Button-arm assessment ·
+live socket-count re-verify (D118 numbers). REMAINING OWNER-GATED: the VRAM-refusal drill (needs
+your word for a real GPU hog) · AGENT-1 (parked on word).
+B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
 from sanctioned render/preview/readout homes (scrubber-home pattern; kills the editor-round-trips-
 resolved-text CORRUPTION class) + the shared assert-token-roundtrip CT helper, proven on an
 existing editor; LANDS BEFORE WAVE 2 so the new editors are born unable to violate it.
