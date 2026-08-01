@@ -1,5 +1,14 @@
 // The Schedules section (Settings → Workloads → Schedules). Lists the caller's recurring schedules with an
 // enable/disable Switch + Edit + Delete per row, and a "New schedule" button opening the create dialog.
+//
+// ONE ACTION, ONE HOME (side-eye, 2026-08-01). "New schedule" used to render TWICE at once — a header button
+// and the empty state's CTA, 111px apart, both opening the same dialog. The empty state OWNS the action while
+// there is nothing to list (it is the only thing on screen); the header button appears only once rows exist.
+// The `scheduleCreateButton` testid rides whichever one is on screen, because exactly one ever is.
+//
+// AND IT IS SECONDARY, NOT ACCENT (CD3 — one focal element per surface). The workloads pane renders Jobs and
+// Schedules on ONE scroll surface, so an accent fill here made two at rest. Jobs keeps the accent: "Run a
+// workload…" is the pane's reason to exist, scheduling is the follow-on.
 // Reads workloads.listSchedules (server-scoped: a plain user sees only their own; owner/admin sees every
 // owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule; the
 // server re-gates regardless.
@@ -81,15 +90,17 @@ function SchedulesBody(): ReactElement {
           <Text voice="label" className="text-muted-foreground">
             Run a job automatically on a recurring cadence.
           </Text>
-          <Button intent="primary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
-            New schedule…
-          </Button>
+          {schedules.length === 0 ? null : (
+            <Button intent="secondary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
+              New schedule…
+            </Button>
+          )}
         </Row>
         {schedules.length === 0 ? (
           <EmptyState
             title="No schedules yet. Recurring jobs you set up appear here."
             action={
-              <Button intent="secondary" onClick={(): void => setCreateOpen(true)}>
+              <Button intent="secondary" data-testid={testId("scheduleCreateButton")} onClick={(): void => setCreateOpen(true)}>
                 New schedule
               </Button>
             }

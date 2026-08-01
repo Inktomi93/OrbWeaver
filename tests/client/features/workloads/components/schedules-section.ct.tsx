@@ -10,6 +10,9 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { WorkloadsSchedulesSectionStory } from "../_ct-stories";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
+/** Matches BOTH homes of the create action ("New schedule…" in the header, "New schedule" in the empty state)
+ *  — the point of the assertion is that only one of them is ever on screen. */
+const NEW_SCHEDULE_LABEL = /New schedule/;
 const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" };
 
 const ADMIN_USERS = [
@@ -86,6 +89,40 @@ test("lists a schedule off its OWN read; toggle/delete fire the owner-scoped ver
 
   // The handle map is an adminProcedure read, skipToken-gated for a plain user — it must never have fired.
   await expect.poll(() => trpc.count("admin.listUsers")).toBe(0);
+});
+
+// ONE ACTION, ONE HOME. "New schedule" used to render twice at once — a header button AND the empty state's
+// CTA, 111px apart, both opening the same dialog. Whichever is on screen is the only one on screen.
+test("the create action has exactly ONE home: the empty state when empty, the header once rows exist", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+  });
+
+  await mount(<WorkloadsSchedulesSectionStory />);
+  const section = page.getByTestId("workloads-schedules-section");
+
+  // Empty: the empty state owns the action — one button, and it is the one INSIDE the empty state.
+  await expect(section.getByTestId("schedule-create-button")).toHaveCount(1);
+  await expect(section.getByRole("button", { name: NEW_SCHEDULE_LABEL })).toHaveCount(1);
+  await expect(section.getByText("No schedules yet", { exact: false })).toBeVisible();
+});
+
+test("with rows the header owns the create action, and the empty state is gone", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [scheduleRow()],
+  });
+
+  await mount(<WorkloadsSchedulesSectionStory />);
+  const section = page.getByTestId("workloads-schedules-section");
+
+  await expect(section.getByTestId("schedule-create-button")).toHaveCount(1);
+  await expect(section.getByText("No schedules yet", { exact: false })).toHaveCount(0);
+  // CD3 — the pane's one accent at rest belongs to Jobs' "Run a workload…", so this button is SECONDARY.
+  // Asserted on the COMPUTED fill (an intent prop is not a pixel): secondary is `bg-transparent`.
+  const fill = await section.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(fill).toBe("rgba(0, 0, 0, 0)");
 });
 
 test("the create dialog wires a singular createSchedule (kind + cadence + params)", async ({ mount, page }) => {

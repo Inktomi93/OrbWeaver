@@ -98,7 +98,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
         id: "workload_ct_3",
         kind: "compute-themes",
         status: "succeeded",
-        result: { themes: 7 },
+        result: { scanned: 40, written: 7 },
       }),
     ],
     "sessions.me": () => USER_VIEWER,
@@ -115,9 +115,10 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
   await expect(allPanel.getByText("Compute themes")).toBeVisible();
   await expect(allPanel.getByText("Failed", { exact: true })).toBeVisible();
   await expect(allPanel.getByText("Succeeded", { exact: true })).toBeVisible();
-  // The failure reason + the result preview render on their rows.
+  // The failure reason + the result SUMMARY render on their rows. The summary is per-kind copy, never the
+  // stored blob — this row used to read `{"scanned":40,"written":7}`.
   await expect(allPanel.getByText("runtime: provider unreachable")).toBeVisible();
-  await expect(allPanel.getByText('{"themes":7}')).toBeVisible();
+  await expect(allPanel.getByText("40 rows · 7 written")).toBeVisible();
 
   // The section stamps its own anchor now (§7.1 — the id is byte-identical across the move).
   await expect(page.locator("#settings-anchor-workloads-jobs")).toBeVisible();
@@ -518,7 +519,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
     "workloads.list": () => {
       listCalls += 1;
       // The seed read sees the running row; the terminal-event invalidate refetches the succeeded one.
-      return listCalls === 1 ? [workloadRow()] : [workloadRow({ status: "succeeded", result: { embedded: 12 } })];
+      return listCalls === 1 ? [workloadRow()] : [workloadRow({ status: "succeeded", result: { embedded: 12, skipped: 0 } })];
     },
     "sessions.me": () => USER_VIEWER,
   });
@@ -535,7 +536,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
   await mount(<WorkloadsJobsSectionStory />);
 
   await expect(page.getByText("Succeeded", { exact: true })).toBeVisible();
-  await expect(page.getByText('{"embedded":12}')).toBeVisible();
+  await expect(page.getByText("12 embedded")).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel — Index (embeddings)" })).toHaveCount(0);
 });
 

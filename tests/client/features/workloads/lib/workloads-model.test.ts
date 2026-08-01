@@ -17,7 +17,6 @@ import {
   RUNNABLE_WORKLOAD_KINDS,
   WORKLOAD_FILTERS,
   workloadFilterMatches,
-  workloadResultPreview,
 } from "../../../../../packages/client/src/features/workloads/lib/workloads-model";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -122,14 +121,4 @@ test("cancel/retry affordance predicates: active holds the slot; failure termina
   expect(isRetryableWorkloadStatus("cancelled")).toBe(true);
   expect(isRetryableWorkloadStatus("worker_died")).toBe(true);
   expect(isRetryableWorkloadStatus("running")).toBe(false);
-});
-
-test("workloadResultPreview: compact JSON, ellipsized past the cap, null for nothing-to-show", () => {
-  expect(workloadResultPreview(null)).toBeNull();
-  expect(workloadResultPreview({})).toBeNull();
-  expect(workloadResultPreview({ embedded: 12 })).toBe('{"embedded":12}');
-  const long = workloadResultPreview({ text: "x".repeat(500) });
-  expect(long).not.toBeNull();
-  expect(long?.endsWith("…")).toBe(true);
-  expect(long?.length).toBeLessThanOrEqual(121);
 });
