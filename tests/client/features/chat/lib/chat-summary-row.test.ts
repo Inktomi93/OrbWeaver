@@ -6,7 +6,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { chatPortraitHash, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row";
+import { chatPortraits, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row";
 import { expect, test } from "../../../../support/fixtures";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -95,24 +95,28 @@ test("chatSummaryRowView: `when` prefers lastMessageAt, falling back to updatedA
   expect(chatSummaryRowView(makeSummary({ lastMessageAt: null, updatedAt: 2 })).when).toBe(2);
 });
 
-// F7 — the portrait arm: the avatar slot resolves a REAL face from the seat ids instead of a hue blob.
-const AVATARS = new Map<string, string | null>([
-  ["char_faceless", null],
-  ["char_azarael", "hash_azarael"],
-  ["char_niko", "hash_niko"],
+// F7 + D3 — the LEADING-slot arm: the seat ids resolve to real faces (one portrait, or a stack for a
+// shared room) instead of one hue blob standing in for a whole cast.
+const SEATS = new Map<string, { readonly name: string; readonly hash: string | null }>([
+  ["char_faceless", { name: "Faceless", hash: null }],
+  ["char_azarael", { name: "Azarael", hash: "hash_azarael" }],
+  ["char_niko", { name: "Niko", hash: "hash_niko" }],
 ]);
 
-test("chatPortraitHash: the FIRST seat that owns an avatar wins", () => {
-  expect(chatPortraitHash(["char_azarael", "char_niko"], AVATARS)).toBe("hash_azarael");
+test("chatPortraits: resolves every known seat, IN SEAT ORDER (the stack's paint order)", () => {
+  expect(chatPortraits(["char_niko", "char_azarael"], SEATS).map((seat) => seat.name)).toEqual(["Niko", "Azarael"]);
 });
 
-test("chatPortraitHash: a portrait-less seat is skipped, not treated as the answer", () => {
-  expect(chatPortraitHash(["char_faceless", "char_niko"], AVATARS)).toBe("hash_niko");
+test("chatPortraits: a portrait-LESS seat is kept (its initials are the datum), not dropped", () => {
+  expect(chatPortraits(["char_faceless", "char_niko"], SEATS)).toEqual([
+    { name: "Faceless", hash: null },
+    { name: "Niko", hash: "hash_niko" },
+  ]);
 });
 
-test("chatPortraitHash: null when nothing resolves (no seats · unknown seat · every seat portrait-less)", () => {
-  expect(chatPortraitHash([], AVATARS)).toBeNull();
-  // An unknown id is the un-landed / departed-seat case — the row keeps its initials blob.
-  expect(chatPortraitHash(["char_departed"], AVATARS)).toBeNull();
-  expect(chatPortraitHash(["char_faceless"], AVATARS)).toBeNull();
+test("chatPortraits: an UNRESOLVED seat is dropped — an unnamed chip would claim a person we can't name", () => {
+  // The un-landed character list / foreign-row case: the row degrades to what it CAN name.
+  expect(chatPortraits(["char_departed", "char_azarael"], SEATS)).toEqual([{ name: "Azarael", hash: "hash_azarael" }]);
+  expect(chatPortraits([], SEATS)).toEqual([]);
+  expect(chatPortraits(["char_departed"], SEATS)).toEqual([]);
 });

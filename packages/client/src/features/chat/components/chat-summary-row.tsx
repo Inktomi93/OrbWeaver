@@ -12,12 +12,14 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
+import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Star, Swords } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
 import { RowToggleAction } from "#components";
 import { cn, timeLib } from "#lib";
+import type { ChatRowPortrait } from "../lib/chat-summary-row";
 import { chatSummaryRowView } from "../lib/chat-summary-row";
 
 type ChatSummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -26,9 +28,10 @@ interface ChatSummaryRowProps {
   readonly chat: ChatSummaryItem;
   readonly onSelect: (chatId: ChatId) => void;
   readonly selected?: boolean;
-  /** The CAS hash of the row's resolved participant portrait (`chatPortraitHash`); null/omitted falls back
-   *  to the hue-seeded initials blob. Resolved by the SURFACE, which owns the character-list read. */
-  readonly portraitHash?: string | null;
+  /** The row's resolved character SEATS (`chatPortraits`), in seat order — one paints a portrait, two or
+   *  more paint an `AvatarStack` (D3: a shared room must read SHARED at rest). Empty/omitted falls back to
+   *  the hue-seeded initials blob. Resolved by the SURFACE, which owns the character-list read. */
+  readonly portraits?: readonly ChatRowPortrait[];
   /** Extra trailing controls (the chats-list kebab menu), rendered after the relative-time stamp. */
   readonly menu?: ReactNode;
   /** Supplied by a LIST PANE (which owns the star mutation) — the star stops being a passive marker and
@@ -37,6 +40,42 @@ interface ChatSummaryRowProps {
   readonly onToggleStar?: ((next: boolean) => void) | undefined;
   /** Row root className (the chats-list `group` hover-reveal root). */
   readonly className?: string;
+}
+
+/** The number of leading slots a multi-seat room spends: 3 real faces + the "+N" chip (D3/§3.6). */
+const STACK_SLOTS = 4;
+
+/** The row's LEADING slot. One seat (or none) = a single portrait / the hue-seeded initials blob; two or
+ *  more = an `AvatarStack`, so a group room reads SHARED at rest instead of borrowing one member's face
+ *  and looking like a 1:1 with them (D3). Both surfaces inherit this — one row anatomy, no fork. */
+function RowLeading({
+  chatId,
+  portraits,
+  title,
+}: {
+  readonly chatId: string;
+  readonly portraits: readonly ChatRowPortrait[];
+  readonly title: string;
+}): ReactElement {
+  if (portraits.length >= 2) {
+    return (
+      <AvatarStack
+        items={portraits.map((seat) => ({ name: seat.name, ...(seat.hash === null ? {} : { src: blobUrl(seat.hash) }) }))}
+        max={STACK_SLOTS}
+        size="sm"
+      />
+    );
+  }
+  // A single seat's portrait, or nothing resolved at all (a departed/foreign seat, a portrait-less
+  // character, a character list that hasn't landed) — the initials blob is the honest fallback.
+  const hash = portraits[0]?.hash ?? null;
+  // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
+  const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
+  return (
+    <Avatar fallbackDelay={0} hueSeed={chatId} size="sm" {...avatarSrc}>
+      {initialsFor(title)}
+    </Avatar>
+  );
 }
 
 /** The row's STAR: the §12 state toggle on a list pane (a caller that owns the mutation), else the passive
@@ -67,10 +106,8 @@ function starMarker({
 
 /** One chat-summary row: portrait/initials avatar · title · participants subtitle · relative-time stamp ·
  *  star + archived markers, plus an optional trailing `menu`. The clickable body calls `onSelect(chat.id)`. */
-export function ChatSummaryRow({ chat, onSelect, selected = false, portraitHash, menu, onToggleStar, className }: ChatSummaryRowProps): ReactElement {
+export function ChatSummaryRow({ chat, onSelect, selected = false, portraits = [], menu, onToggleStar, className }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
-  // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
-  const avatarSrc = portraitHash === undefined || portraitHash === null ? {} : { src: blobUrl(portraitHash) };
   const hasTrailing = chat.isGame || chat.star || chat.archived || menu !== undefined || onToggleStar !== undefined;
   const starSlot = starMarker({ pressed: chat.star, title, onToggleStar });
   return (
@@ -99,11 +136,7 @@ export function ChatSummaryRow({ chat, onSelect, selected = false, portraitHash,
           }
         : {})}
       clickable={true}
-      leading={
-        <Avatar fallbackDelay={0} hueSeed={chat.id} size="sm" {...avatarSrc}>
-          {initialsFor(title)}
-        </Avatar>
-      }
+      leading={<RowLeading chatId={chat.id} portraits={portraits} title={title} />}
       onClick={(): void => onSelect(chat.id)}
       selected={selected}
       subtitle={subtitle}
