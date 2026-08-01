@@ -210,8 +210,8 @@ export interface ChatInjectionView extends ChatInjection {
   readonly id: ChatInjectionId;
 }
 
-/** The per-chat ChoiceBlock variable map (`{{get::<name>}}`) — getVariables (effective, computed-this-turn)
- *  and getStoredVariables (the persisted `chats.variableValues` flush) both return this shape. */
+/** The per-chat ChoiceBlock variable map (`{{get::<name>}}`) — what `getVariables` (effective,
+ *  computed-this-turn) returns; the PERSISTED picks ride `getVariablePicks.values` (the pane's one read). */
 export type ChatVariables = Record<string, string>;
 
 /** One PICKABLE user macro as the picks pane sees it (#24) — the least-privilege projection of the active

@@ -46,7 +46,6 @@ import type {
   GetMemberCardParams,
   GetRoomOverridesForChatParams,
   GetShapeTraceParams,
-  GetStoredVariablesParams,
   GetUserMacroPicksParams,
   GetVariablePicksParams,
   GetVariablesParams,
@@ -257,8 +256,6 @@ export interface ChatService {
   // ── variables ─────────────────────────────────────────────────────────────────
   /** The EFFECTIVE ChoiceBlock variables computed for the next turn. */
   readonly getVariables: (params: GetVariablesParams) => Promise<VariablesResult>;
-  /** The persisted `chats.variableValues` flush. */
-  readonly getStoredVariables: (params: GetStoredVariablesParams) => Promise<VariablesResult>;
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
   readonly clearVariables: (params: ClearVariablesParams) => Promise<void>;
   /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */

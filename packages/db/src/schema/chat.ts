@@ -134,7 +134,7 @@ export const chats = sqliteTable(
     // `@orb/db/kit` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
     // PERSISTED CANON: the per-chat ChoiceBlock variable flush — `setVariables` writes it,
-    // `getStoredVariables` reads it. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
+    // `getVariablePicks` reads it back. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
     // seam. Nullable (no variables flushed yet).
     variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
     // WAVE MU user-macro delivery — the per-chat user-macro INPUT picks (`setUserMacroValues` writes it,
