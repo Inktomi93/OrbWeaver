@@ -1,4 +1,6 @@
-// Engine test: runWorkload — the per-row state machine. Pins the success lifecycle (claim → succeeded +
+// Engine test: runWorkload — the per-row state machine. Driven through `group-character-backfill`, whose
+// body is a fake injected op, so this stays a pure ENGINE test: it must not depend on any owning domain's
+// contribution body (those are tested at their own mirrors). Pins the success lifecycle (claim → succeeded +
 // result + bus events), failure (→ failed + the PD-113 WORKLOAD_FAILED audit through the injected op),
 // the claim-loser early-return, the cancelling→cancelled PIN (an aborted run that returned normally), and
 // the reaper-vs-zombie guard (a row reaped mid-run is not resurrected). Timers are disabled
@@ -24,7 +26,7 @@ describe("runWorkload", () => {
     const env = fakeEnv();
     const id = await seedWorkloadRow(db, {
       id: "wl_ok",
-      kind: "reconcile-stats",
+      kind: "group-character-backfill",
       status: "queued",
     });
     const row = await loadWorkload(db, CONTRIBUTIONS, id);
@@ -33,8 +35,8 @@ describe("runWorkload", () => {
     }
     await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("succeeded");
-    expect(env.stats.reconcileStats).toHaveBeenCalledTimes(1);
-    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.result).toEqual({ owners: 1, characters: 4 });
+    expect(env.character.backfillGroupCharacters).toHaveBeenCalledTimes(1);
+    expect((await loadWorkload(db, CONTRIBUTIONS, id))?.result).toEqual({ scanned: 5, changed: 1 });
     const types = getRecentWorkloadEvents(id).map((e) => e.type);
     expect(types).toContain("started");
     expect(types).toContain("succeeded");
@@ -43,16 +45,13 @@ describe("runWorkload", () => {
   test("a thrown runner fails the row + emits failed + audits WORKLOAD_FAILED", async () => {
     const db = await freshDb();
     // The env op is readonly — build the double with the throwing op set at construction (no mutation).
-    const env = {
-      ...fakeEnv(),
-      stats: {
-        reconcileStats: vi.fn((_args: { signal: AbortSignal }) => Promise.reject(new Error("boom"))),
-      },
-    };
+    const env = fakeEnv({
+      character: { backfillGroupCharacters: vi.fn(() => Promise.reject(new Error("boom"))) },
+    });
     const audit = vi.fn<WorkloadRunnerDeps["audit"]>(() => Promise.resolve());
     const id = await seedWorkloadRow(db, {
       id: "wl_fail",
-      kind: "reconcile-stats",
+      kind: "group-character-backfill",
       status: "queued",
     });
     const row = await loadWorkload(db, CONTRIBUTIONS, id);
@@ -70,7 +69,7 @@ describe("runWorkload", () => {
         action: "WORKLOAD_FAILED",
         entityType: "workload",
         entityId: id,
-        metadata: { kind: "reconcile-stats", error: "boom" },
+        metadata: { kind: "group-character-backfill", error: "boom" },
       },
       T0,
     );
@@ -81,7 +80,7 @@ describe("runWorkload", () => {
     const env = fakeEnv();
     const id = await seedWorkloadRow(db, {
       id: "wl_run",
-      kind: "reconcile-stats",
+      kind: "group-character-backfill",
       status: "running",
     });
     const row = await loadWorkload(db, CONTRIBUTIONS, id);
@@ -89,7 +88,7 @@ describe("runWorkload", () => {
       throw new Error("seed failed");
     }
     await runWorkload(makeRunnerDeps(db, fakeContributions(env)), row, sig());
-    expect(env.stats.reconcileStats).not.toHaveBeenCalled();
+    expect(env.character.backfillGroupCharacters).not.toHaveBeenCalled();
     expect(await loadWorkloadStatus(db, id)).toBe("running");
     expect(getRecentWorkloadEvents(id)).toHaveLength(0);
   });
@@ -99,7 +98,7 @@ describe("runWorkload", () => {
     const env = fakeEnv();
     const id = await seedWorkloadRow(db, {
       id: "wl_cxl",
-      kind: "reconcile-stats",
+      kind: "group-character-backfill",
       status: "queued",
     });
     const row = await loadWorkload(db, CONTRIBUTIONS, id);
@@ -119,20 +118,19 @@ describe("runWorkload", () => {
     const db = await freshDb();
     const id = await seedWorkloadRow(db, {
       id: "wl_zmb",
-      kind: "reconcile-stats",
+      kind: "group-character-backfill",
       status: "queued",
     });
     // The env op is readonly — build the double with the row-reaping op set at construction (no mutation).
-    const env = {
-      ...fakeEnv(),
-      stats: {
-        reconcileStats: vi.fn(async (_args: { signal: AbortSignal }) => {
+    const env = fakeEnv({
+      character: {
+        backfillGroupCharacters: vi.fn(async () => {
           // simulate a reaper terminalizing the in-flight row WHILE the runner is working
           await markTerminal(db, { id, status: "worker_died", now: T0 });
-          return { owners: 0, characters: 0 };
+          return { scanned: 0, changed: 0 };
         }),
       },
-    };
+    });
     const row = await loadWorkload(db, CONTRIBUTIONS, id);
     if (row === null) {
       throw new Error("seed failed");

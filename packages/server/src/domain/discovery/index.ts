@@ -63,7 +63,7 @@ export type {
   UnusedCharacter,
   VisualArchetype,
 } from "./contract/results";
-export type { DiscoveryService, DiscoveryServiceDeps } from "./contract/service";
+export type { DiscoveryService, DiscoveryServiceDeps, DiscoveryWorkloadDeps } from "./contract/service";
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,
@@ -84,3 +84,4 @@ export {
   computeImageHubScores,
   computeSegmentHubScores,
 } from "./verbs/compute-hub-scores";
+export { createDiscoveryWorkloadContributions } from "./workload-contributions";

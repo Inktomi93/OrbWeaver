@@ -1,9 +1,7 @@
-// Builds the one true cross-feature hub, the `WorkloadRunnerEnv` — the typed bundle of every cross-feature
-// op the workload runners depend on, assembled here (the only tier above domain-no-cross-feature) and
-// threaded by the worker into every dispatch. Each op wires to the real backing domain verb where it
-// exists; a deferred op is a typed inert seam that rejects with a clear "not built" message — never a fake
-// success. Every op is now built (`import.importAll`, the last deferred seam, wires to the
-// run-profile-dir-import driver).
+// Builds what is LEFT of the retiring cross-feature hub, the `WorkloadRunnerEnv` (the workloads junk-drawer
+// exit). Each kind whose ownership move has landed reads its deps from its OWN domain's
+// `workload-contributions.ts` factory instead; this file shrinks with every stage and is deleted with the
+// last one. NOTHING may be added here.
 
 import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -18,22 +16,11 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { BulkImportChats } from "#domain/chat";
-import type { ConnectionService } from "#domain/connection";
 import type { DatabankIngest } from "#domain/databank";
-import type { DiscoveryService } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
-
 import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
-import type {
-  WorkloadCharacterEnv,
-  WorkloadConnectionEnv,
-  WorkloadDiscoveryEnv,
-  WorkloadEmbeddingsEnv,
-  WorkloadMemoryEnv,
-  WorkloadRunnerEnv,
-  WorkloadStatsEnv,
-} from "#domain/workloads";
+import type { WorkloadCharacterEnv, WorkloadMemoryEnv, WorkloadRunnerEnv } from "#domain/workloads";
 import type { Cas } from "#infra/storage";
 import { stageDirectory } from "#infra/storage";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import";
@@ -46,10 +33,7 @@ import {
   runProfileDirImport,
 } from "../import";
 
-type DiscoveryOut = Awaited<ReturnType<WorkloadDiscoveryEnv["computeThemes"]>>;
-type StatsOut = Awaited<ReturnType<WorkloadStatsEnv["reconcileStats"]>>;
-type CatalogOut = Awaited<ReturnType<WorkloadConnectionEnv["refreshCatalogSnapshot"]>>;
-type EmbedOut = Awaited<ReturnType<WorkloadEmbeddingsEnv["embedCorpus"]>>;
+type StatsOut = Awaited<ReturnType<WorkloadRunnerEnv["stats"]["reconcileStats"]>>;
 type MaintCountsOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["collectGarbage"]>>;
 type FsckOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["fsck"]>>;
 
@@ -59,12 +43,10 @@ export interface RunnerEnvDeps {
   readonly now: () => number;
   readonly cas: Cas;
 
-  readonly discovery: Pick<
-    DiscoveryService,
-    "computeThemes" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores" | "distillCharacters" | "computeCooccurrence"
-  >;
-  readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "purgeMemoryVectors" | "purgeDocumentVectors">;
+  /** Only the PURGE ops survive here — the `index` kind's embed passes moved to
+   *  `domain/embeddings/workload-contributions.ts`. The purges are fired by the memory-backfill +
+   *  databank-reindex runners, which have not moved yet. */
+  readonly embeddings: Pick<EmbeddingsService, "purgeMemoryVectors" | "purgeDocumentVectors">;
   /** The databank ingest subsystem (chunk→embed→prune) — the databank-ingest/reindex runners' backing ops. */
   readonly databankIngest: DatabankIngest;
   readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
@@ -249,14 +231,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   const stProfileDir = deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR;
   return {
     embeddings: {
-      embedCorpus: async ({ ownerId, force, signal }): Promise<EmbedOut> => {
-        const r = await deps.embeddings.embedCorpus({ ownerId, force, signal });
-        return { embedded: r.embedded, skipped: r.skipped };
-      },
-      embedAssets: async ({ ownerId, force, signal }): Promise<EmbedOut> => {
-        const r = await deps.embeddings.embedAssets({ ownerId, force, signal });
-        return { embedded: r.embedded, skipped: r.skipped };
-      },
       // PD-139(b): the chat-memory old-space reclaim; the runner gates it to the bulk, non-aborted pass. The
       // purge's row counts are advisory — the runner discards them (the sweep's own counts are the result).
       purgeMemoryVectors: async (): Promise<void> => {
@@ -271,45 +245,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
     databank: {
       ingest: (args): Promise<IngestRunResult> => deps.databankIngest.ingestDocument(args),
       reindex: (args): Promise<IngestRunResult> => deps.databankIngest.reindex(args),
-    },
-    discovery: {
-      computeThemes: async ({ ownerId, k }): Promise<DiscoveryOut> => {
-        const stats = await deps.discovery.computeThemes({ k, ownerId });
-        return { scanned: stats.digestsAssigned, written: stats.clustersWritten };
-      },
-      distillCharacters: async ({ ownerId, signal }): Promise<DiscoveryOut> => {
-        const stats = await deps.discovery.distillCharacters({
-          signal,
-          ...(ownerId !== null ? { ownerId } : {}),
-        });
-        return { scanned: stats.scanned, written: stats.distilled };
-      },
-      computeCooccurrence: async ({ maxPairs, hubFraction, signal }): Promise<DiscoveryOut> => {
-        const stats = await deps.discovery.computeCooccurrence({
-          signal,
-          ...(maxPairs !== undefined ? { maxPairs } : {}),
-          ...(hubFraction !== undefined ? { hubFraction } : {}),
-        });
-        return { scanned: stats.charKeywordsWritten, written: stats.pairsWritten };
-      },
-      // Both dedup arms run in the one find-duplicates workload; counts are summed. The user/param
-      // `threshold` is a raw-COSINE floor — it drives the CHARACTER arm only. The chat arm is Jaccard of
-      // segment content-hash sets (a set-overlap fraction, not a cosine), an incompatible scale, so it keeps
-      // its own `DEFAULT_CHAT_JACCARD` floor internally — never this cosine knob.
-      findDuplicates: async ({ ownerId, threshold }): Promise<DiscoveryOut> => {
-        const [chars, chatPairs] = await Promise.all([
-          deps.discovery.computeDuplicatePairs({ ownerId, ...(threshold !== undefined ? { threshold } : {}) }),
-          deps.discovery.computeChatDuplicatePairs({ ownerId }),
-        ]);
-        return {
-          scanned: chars.charactersScanned + chatPairs.chatsScanned,
-          written: chars.pairsWritten + chatPairs.pairsWritten,
-        };
-      },
-      computeHubScores: async ({ ownerId }): Promise<DiscoveryOut> => {
-        const stats = await deps.discovery.computeCharacterHubScores({ ownerId });
-        return { scanned: stats.rowsScored, written: stats.rowsScored };
-      },
     },
     import: {
       importAll: bindImportAll(stProfileDir, stagingRoot, deps.now, deps.profileImport),
@@ -338,20 +273,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
           ...(ownerId !== null ? { ownerId } : {}),
         });
         return { owners: r.owners, characters: r.characters };
-      },
-    },
-    connection: {
-      // Both lanes run under allSettled so one lane's failure never discards the other's refresh; a failed
-      // lane reports null (distinct from 0 = a real empty catalog). Only rethrows when BOTH lanes failed.
-      refreshCatalogSnapshot: async ({ signal }): Promise<CatalogOut> => {
-        const [or, agentSdk] = await Promise.allSettled([deps.connection.refreshCatalog({ signal }), deps.connection.refreshAgentSdkCatalog({ signal })]);
-        if (or.status === "rejected" && agentSdk.status === "rejected") {
-          throw or.reason;
-        }
-        return {
-          models: or.status === "fulfilled" ? or.value.models.length : null,
-          agentSdkModels: agentSdk.status === "fulfilled" ? agentSdk.value.models.length : null,
-        };
       },
     },
     memory: { backfill: deps.memoryBackfill },

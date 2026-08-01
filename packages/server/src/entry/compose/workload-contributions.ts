@@ -9,8 +9,25 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
+import type { ConnectionWorkloadDeps } from "#domain/connection";
+import { createConnectionWorkloadContributions } from "#domain/connection";
+import type { DiscoveryWorkloadDeps } from "#domain/discovery";
+import { createDiscoveryWorkloadContributions } from "#domain/discovery";
+import type { EmbeddingsWorkloadDeps } from "#domain/embeddings";
+import { createEmbeddingsWorkloadContributions } from "#domain/embeddings";
+import type { StatsWorkloadDeps } from "#domain/stats";
+import { createStatsWorkloadContributions } from "#domain/stats";
 import type { AnyWorkloadContribution, ShimContributionDeps, WorkloadContributions } from "#domain/workloads";
 import { buildShimContributions } from "#domain/workloads";
+
+/** What the registry seam needs from the composition root: each owning domain's contribution deps, plus
+ *  (transitionally) what the not-yet-moved kinds' shim still reads. */
+export interface WorkloadContributionsDeps
+  extends ShimContributionDeps,
+    EmbeddingsWorkloadDeps,
+    DiscoveryWorkloadDeps,
+    StatsWorkloadDeps,
+    ConnectionWorkloadDeps {}
 
 /** Key a flat contribution list by kind, asserting exhaustive + duplicate-free registration. */
 function keyByKind(contributions: readonly AnyWorkloadContribution[]): WorkloadContributions {
@@ -34,6 +51,12 @@ function keyByKind(contributions: readonly AnyWorkloadContribution[]): WorkloadC
  * each stage replaces a slice of that shim with its domain's real factory, and the shim is deleted with the
  * last one.
  */
-export function buildWorkloadContributions(deps: ShimContributionDeps): WorkloadContributions {
-  return keyByKind(Object.values(buildShimContributions(deps)));
+export function buildWorkloadContributions(deps: WorkloadContributionsDeps): WorkloadContributions {
+  return keyByKind([
+    ...createEmbeddingsWorkloadContributions(deps),
+    ...createDiscoveryWorkloadContributions(deps),
+    ...createStatsWorkloadContributions(deps),
+    ...createConnectionWorkloadContributions(deps),
+    ...buildShimContributions(deps),
+  ]);
 }

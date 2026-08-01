@@ -14,3 +14,26 @@ import { z } from "zod";
 export const RELATIONS = ["duplicate", "forked"] as const;
 export type DuplicateRelation = (typeof RELATIONS)[number];
 export const duplicateRelationSchema = z.enum(RELATIONS);
+
+// ── The discovery workloads' params + result vocabulary (the workloads junk-drawer exit: a workload's
+//    params schema + result shape are authored by the OWNING domain, then correlated to the kind by
+//    `@orb/contracts/workloads`). Five kinds ride these: compute-themes, distill-characters,
+//    compute-cooccurrence, find-duplicates, csls. ──
+
+/** compute-themes: the k-means theme pass. `k` is an optional per-run cluster count; precedence is
+ *  param → `UserSettings.workloads.computeThemesK` → discovery's own floor, resolved in the contribution. */
+export const computeThemesWorkloadParams = z.object({ k: z.number().int().positive().optional() });
+export type ComputeThemesWorkloadParams = z.infer<typeof computeThemesWorkloadParams>;
+
+/** find-duplicates: the near-dup analytics pass. `threshold` is an optional per-run raw-COSINE floor for
+ *  the CHARACTER arm (0..1); precedence is param → `UserSettings.workloads.dupThreshold` → discovery's
+ *  floor. The chat arm is Jaccard of segment content-hash sets — an incompatible scale — so it keeps its
+ *  own floor internally and this knob never touches it. */
+export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() });
+export type FindDuplicatesWorkloadParams = z.infer<typeof findDuplicatesWorkloadParams>;
+
+/** What every discovery analytics pass reports: rows examined, rows written. */
+export interface AnalyticsResult {
+  readonly scanned: number;
+  readonly written: number;
+}

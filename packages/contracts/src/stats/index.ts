@@ -110,3 +110,12 @@ export interface CharacterModelEconomics {
   readonly genSamples: number;
   readonly costUsd: number;
 }
+
+// ── The `reconcile-stats` workload's terminal result (the workloads junk-drawer exit: authored by the
+//    OWNING domain). The same rebuild also runs awaited, in-request, off the import post-settle. ──
+
+/** The rollup rebuild's counts: owners swept, character rollups rewritten. */
+export interface ReconcileStatsWorkloadResult {
+  readonly owners: number;
+  readonly characters: number;
+}

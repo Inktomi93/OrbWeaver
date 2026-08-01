@@ -7,19 +7,11 @@
 // whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
 // still awaiting their owner + assembles the exhaustive map.
 
+import type { CatalogRefreshResult } from "#connection";
 import type { IngestRunResult } from "#databank";
-
-/** An embed pass's counts (`index`). */
-export interface EmbedPassResult {
-  readonly embedded: number;
-  readonly skipped: number;
-}
-
-/** A discovery analytics pass's counts. */
-export interface AnalyticsResult {
-  readonly scanned: number;
-  readonly written: number;
-}
+import type { AnalyticsResult } from "#discovery";
+import type { EmbedPassResult } from "#embeddings";
+import type { ReconcileStatsWorkloadResult } from "#stats";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -40,19 +32,6 @@ export interface FsckReport {
   readonly danglingRows: number;
   readonly corruptBlobs: number;
   readonly orphanBlobs: number;
-}
-
-/** The stats rollup rebuild's counts. */
-export interface ReconcileStatsWorkloadResult {
-  readonly owners: number;
-  readonly characters: number;
-}
-
-/** Each lane (OR models, agent-sdk models) is best-effort and independent; a failed lane reports null
- *  (distinct from 0, a real empty catalog). The run only fails when both lanes fail. */
-export interface CatalogRefreshResult {
-  readonly models: number | null;
-  readonly agentSdkModels: number | null;
 }
 
 /** `deferred:true` distinguishes an inert v2-stub run from a real zero-work pass. */

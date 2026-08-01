@@ -1,19 +1,14 @@
-// domain/workloads/contract/runner-env — the one true cross-feature composition seam. The typed bundle of
-// every cross-feature op the runners depend on; the runtime value is built once at the `entry/` composition
-// root and threaded through the worker into every dispatch. Runners reach in via `ctx.env.<feature>.<op>`,
-// never a sideways import; each sub-interface is the minimal op subset that feature's runners use.
+// domain/workloads/contract/runner-env — the RETIRING cross-feature hub (the junk-drawer exit).
+//
+// This file WAS "the one true cross-feature composition seam": the licensed backdoor that let any domain's
+// capability be bolted onto workloads instead of built as a proper injected-op seam at the owning domain's
+// door. It is being emptied one stage at a time — each sub-interface dies when its kinds re-home as
+// `WorkloadContribution`s in their owning domain. What is left below is only what the not-yet-moved
+// `runners/` still read. NOTHING may be added here.
 
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
-import type {
-  AnalyticsResult,
-  BackfillPassResult,
-  BundleImportWorkloadResult,
-  CatalogRefreshResult,
-  EmbedPassResult,
-  FsckReport,
-  MemoryBackfillResult,
-  ReconcileStatsWorkloadResult,
-} from "@orb/contracts/workloads";
+import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
+import type { BackfillPassResult, BundleImportWorkloadResult, FsckReport, MemoryBackfillResult } from "@orb/contracts/workloads";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import type { Cas } from "#infra/storage";
 
@@ -26,10 +21,9 @@ interface MaintenancePassCounts {
 // Every op a singular-capable kind drives carries an `ownerId: UserId | null` — `null` = the bulk
 // all-owners pass, a `UserId` = scoped to that one owner. Bulk-only ops carry no `ownerId`.
 
-/** embeddings.* — the one vector write path's bulk passes. `force` re-embeds matched rows (else resumable skip). */
+/** embeddings.* — the old-embed-space reclaims the memory-backfill + databank-reindex runners fire after a
+ *  BULK sweep. (The `index` kind's embed passes have MOVED to `domain/embeddings/workload-contributions.ts`.) */
 export interface WorkloadEmbeddingsEnv {
-  readonly embedCorpus: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
-  readonly embedAssets: (args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => Promise<EmbedPassResult>;
   /** PD-139(b): reclaim the OLD chat-memory embed space (`chat_segments`/`chat_digests`) after a BULK
    *  memory-backfill. The memory-backfill runner calls it only for the box-global pass, after the sweep,
    *  and never on abort — the bulk-only + skip-on-abort guard the embedCorpus/embedAssets purge also uses. */
@@ -48,20 +42,6 @@ export interface WorkloadEmbeddingsEnv {
 export interface WorkloadDatabankEnv {
   readonly ingest: (args: { documentId: DocumentId; signal: AbortSignal }) => Promise<IngestRunResult>;
   readonly reindex: (args: { ownerId: UserId | null; scope: ReindexScope; mode: ReindexMode; signal: AbortSignal }) => Promise<IngestRunResult>;
-}
-
-/** discovery.* — the semantics passes. `computeHubScores` computes then writes back internally — workloads
- *  sees one op. `computeCooccurrence` is bulk-only. */
-export interface WorkloadDiscoveryEnv {
-  readonly computeThemes: (args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly distillCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  /** `maxPairs`/`hubFraction` (optional) are the triggering user's `UserSettings.workloads` cooccurrence
-   *  knobs; absent ⇒ discovery's own runner floors (DEFAULT_MAX_PAIRS / DEFAULT_HUB_FRACTION). */
-  readonly computeCooccurrence: (args: { maxPairs?: number | undefined; hubFraction?: number | undefined; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  /** `threshold` (optional) is the CHARACTER arm's raw-cosine floor (0..1); absent ⇒ discovery's own default.
-   *  The chat Jaccard arm keeps its own floor internally — a different metric, never this cosine knob. */
-  readonly findDuplicates: (args: { ownerId: UserId | null; threshold?: number | undefined; signal: AbortSignal }) => Promise<AnalyticsResult>;
-  readonly computeHubScores: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<AnalyticsResult>;
 }
 
 /** import.* — the two import passes, both create-kind (`ownerId` is the target, never `null`). `importAll`
@@ -98,12 +78,6 @@ export interface WorkloadStatsEnv {
   readonly reconcileStats: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<ReconcileStatsWorkloadResult>;
 }
 
-/** connection.* — the provider catalog snapshot refreshes, counts only (no provider entry shapes cross into
- *  the workloads contract). Runs both the OpenRouter and agent-sdk catalog refreshes. */
-export interface WorkloadConnectionEnv {
-  readonly refreshCatalogSnapshot: (args: { signal: AbortSignal }) => Promise<CatalogRefreshResult>;
-}
-
 /** memory.* — the corpus-wide memory backfill (enumerates every chat × scope bucket, runs the same
  *  idempotent segment/digest builds the engine's post-turn trigger uses). */
 export interface WorkloadMemoryEnv {
@@ -119,11 +93,9 @@ export interface WorkloadCharacterEnv {
 export interface WorkloadRunnerEnv {
   readonly embeddings: WorkloadEmbeddingsEnv;
   readonly databank: WorkloadDatabankEnv;
-  readonly discovery: WorkloadDiscoveryEnv;
   readonly import: WorkloadImportEnv;
   readonly assets: WorkloadAssetsEnv;
   readonly stats: WorkloadStatsEnv;
-  readonly connection: WorkloadConnectionEnv;
   readonly memory: WorkloadMemoryEnv;
   readonly character: WorkloadCharacterEnv;
 
