@@ -104,8 +104,9 @@ duplication owner call — DESIGN §2 mandates
 approved program opens) · V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
 w/ D8+list projection; snap --isolated receipts required) · smalls#2 (Jobs vocab+CTA · toolround
 usage · ember-CT rename · retry-drift sweep · post-checkout install hook · BANG-PREFIX gate arm
-[~40-site baseline]). Batch pnpm check RUNNING in background (bnz8kvvnh) — covers the unhooked
-merge pile; SE-C self-certified post-rebase.
+[~40-site baseline]). **BATCH CHECK PASS (exit 0) — the unhooked-merge debt is CLEARED**; tree certified through the
+SE-C merge. Remaining in flight: R1 `aaf92c075ecb7572f`? / V2 / smalls#2 / mirror-pin (ids in
+the wave note above + handoff #2).
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
