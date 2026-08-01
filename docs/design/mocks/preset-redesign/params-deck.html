@@ -172,7 +172,7 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
 <p class="lede">CONTENT = the deck: ONE flat tab level, one scrolling instrument column, kicker-separated
 clusters. Every knob is a <b>KnobRow</b>: label · slider · an <b>editable mono number</b> · reset. An
 unset knob shows its <b>effective value ghosted</b> with provenance — the datum is never hidden.
-CONTEXT = the assembly readout (effective profile · budget · preview). Knob set and ranges are the real
+CONTEXT = the Params-view readout (effective profile · capability · mapping — per-view, spec §7). Knob set and ranges are the real
 <span class="mono">userIntentSchema</span> vocabulary.</p>
 
 <div class="stage">
@@ -366,9 +366,9 @@ CONTEXT = the assembly readout (effective profile · budget · preview). Knob se
 
   <!-- ═══════════ CONTEXT: the assembly readout ═══════════ -->
   <div>
-    <p class="plabel">Context pane — the readout (320px)</p>
+    <p class="plabel">Context pane — the PARAMS-view readout (320px)</p>
     <div class="panel ctx">
-      <div class="band"><span class="caps">Assembly</span></div>
+      <div class="band"><span class="caps">Params · readout</span></div>
       <div class="ctxbody">
 
         <div>
@@ -383,30 +383,27 @@ CONTEXT = the assembly readout (effective profile · budget · preview). Knob se
         </div>
 
         <div>
-          <div class="kicker" style="margin-bottom:6px">Budget</div>
-          <div class="zone"><span class="zbadge z-setup">SETUP</span><span class="muted"><b style="color:var(--color-foreground)">9</b> on · before the conversation · ~1,412</span></div>
-          <div class="zone" style="margin:3px 0 8px"><span class="zbadge z-post">POST</span><span class="muted"><b style="color:var(--color-foreground)">1</b> on · after your message · ~86</span></div>
-          <div class="bar"><span class="n">Main</span><div class="b"><i style="width:34%"></i></div><span class="t">~480</span></div>
-          <div class="bar"><span class="n">Description</span><div class="b"><i style="width:26%"></i></div><span class="t">~370</span></div>
-          <div class="bar"><span class="n">Personality</span><div class="b"><i style="width:14%"></i></div><span class="t">~198</span></div>
-          <div class="bar"><span class="n">Scenario</span><div class="b"><i style="width:9%"></i></div><span class="t">~120</span></div>
-          <div class="bar"><span class="n">User persona</span><div class="b"><i style="width:7%"></i></div><span class="t">~96</span></div>
-          <div class="bar"><span class="n">Examples</span><div class="b"><i style="width:6%"></i></div><span class="t">~88</span></div>
-          <div class="bar post"><span class="n">Post-history</span><div class="b"><i style="width:6%"></i></div><span class="t">~86</span></div>
+          <div class="kicker" style="margin-bottom:6px">Capability</div>
+          <div class="drow"><span class="k">model</span><span class="v">qwen3-32b</span></div>
+          <div class="drow"><span class="k">window</span><span class="v">131072</span></div>
+          <div class="drow"><span class="k">output cap</span><span class="v">32768</span></div>
+          <div class="drow"><span class="k">honors</span><span class="v" style="font-size:9.5px">temp · top-p · top-k · min-p · penalties · seed</span></div>
+          <div class="gloss" style="margin-top:6px">why a knob is absent or clamps — the deck shows only these</div>
         </div>
 
         <div>
-          <div class="kicker" style="margin-bottom:6px">Preview</div>
-          <button class="prevbtn">Show assembled preview</button>
-          <div class="gloss" style="margin-top:6px">block-click selects the section in the editor</div>
+          <div class="kicker" style="margin-bottom:6px">Quality mapping</div>
+          <div class="drow"><span class="k">deep →</span><span class="v">effort high · temp 1.0</span></div>
+          <div class="gloss" style="margin-top:6px">what the dial feeds when a knob is left inherited</div>
         </div>
 
       </div>
     </div>
-    <p class="note"><b>CONTEXT stops renting editing</b> (the Section inspector consolidates into the
-    drill-in) and becomes the preset's instrument: the effective profile (the same resolver feeding the
-    ghost knobs), the zone budget with per-section token bars, and the preview. Text is the datum; bars
-    are aria-hidden decoration.</p>
+    <p class="note"><b>CONTEXT is per-view</b> (spec §7): while the PARAMS hand is active the eye gets the
+    effective profile (the same resolver feeding the ghost knobs — which knob to touch next), the
+    capability card (WHY a knob is absent or clamps), the quality mapping (trust the dial or go explicit),
+    and the staleness COUNT (the Keep/Clear affordance stays in the deck — CONTEXT is read-only).
+    Budget + preview moved to the PROMPT view's readout — see <b>context-readouts.html</b> for all six.</p>
   </div>
 
 </div>

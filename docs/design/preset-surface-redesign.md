@@ -31,7 +31,8 @@ every claim below is grounded in full component-tree reads, and the build's own 
 rendered verification.
 
 **Mocks (authored with this spec — the owner rules from pixels):**
-`docs/design/mocks/preset-redesign/params-deck.html` (the Params view + the CONTEXT readout) ·
+`docs/design/mocks/preset-redesign/params-deck.html` (the Params view + its CONTEXT readout) ·
+`docs/design/mocks/preset-redesign/context-readouts.html` (all six per-view CONTEXT panels, §7) ·
 `docs/design/mocks/preset-redesign/actions-and-sections.html` (the Actions view + the consolidated
 section editor) · `docs/design/mocks/preset-redesign/list-pane.html` (the LIST projection). House mock
 pattern per `docs/design/mocks/README.md` — drawings, not code; the token/primitive law applies to the
@@ -299,23 +300,50 @@ defaults, the ghosted "Default" text in every row follows automatically (same im
 Default/Customized chip semantics are unchanged (this surface edits per-PRESET overrides; S2 edits the
 app-tier defaults elsewhere). No S2 editor is designed here.
 
-## 7. The CONTEXT panel — from inspector to readout (decision D2)
+## 7. The CONTEXT panel — a per-view readout, never decoration (decision D2, amended per owner steer 2026-08-01)
 
 With the inspector consolidated into the drill-in (§5.2), CONTEXT stops renting editing and becomes
-the preset's INSTRUMENT: the glanceable answer to "what will this preset actually do", always beside
-the editing hand. One tab, "Assembly" (the Usage tab folds in as a footer note until per-chat bindings
-exist — its current body is two sentences of placeholder prose):
+the preset's INSTRUMENT — and it PROJECTS BY VIEW: what the eye needs depends on which hand is
+active. Owner steer (2026-08-01, verbatim): *"context actually needs to be useful"* — so every
+element below names the decision it informs; an element that informs no decision does not ship. The
+v1 draft's single static Assembly readout is SUPERSEDED by this table.
 
-- **The effective profile** — the §4.3 read rendered as datum rows: `temp 1.0 ← quality` ·
-  `effort high` · `out 2048 default` · `ctx 131072 window`, plus the capability provenance line
-  ("resolved for <model> · chat role") and the staleness count when non-zero.
-- **The budget** — the zone summary (SETUP n·~tok / POST n·~tok, moved from the center strip) + a
-  per-section token bar list (the rack's ~tokens as a scannable profile; tracker-kit `TrackBar`
-  anatomy, text-is-the-datum).
-- **The preview** — the assembled-prompt preview (today's `AssemblyPreview`, relocated), block-click
-  still selects the section in the center.
+**Mechanics — three pins:**
 
-This is the panel earning its keep the HUD way: CONTENT = the hand, CONTEXT = the eye.
+- **The active view becomes section state.** The editor's view selection moves from local `Tabs`
+  state into the preset selection store (`presetEditorView`, beside `useSelectedPresetSectionId`).
+  The ONE writer is the editor's tab strip; CONTEXT projects from the same read and NEVER sets the
+  view (the `contextTab`-seam pattern — a projection, not a second navigation surface).
+- **CONTEXT reads SAVED truth only** — the `preset.get` row + `preset.resolveEffective` (§4.3) + the
+  capability read. The form bridge does NOT return (§5.2's deletion stands): autosave-everywhere
+  means saved lags typed edits by one debounce, the `AutosaveStatus` chip already narrates settle,
+  and a pure-query CONTEXT needs no cross-region form machinery. Every readout is server-derived;
+  "settle-live" is stated, never faked keystroke-live.
+- **CONTEXT is read-only + navigation-only.** Its only interactive elements are the sanctioned
+  selection ECHOES (§16 rows 14/19) — every one writes through the ONE selection store action. Zero
+  mutation affordances live in the panel; that is a §16 standing invariant.
+
+**The per-view table** (mock: `mocks/preset-redesign/context-readouts.html` — all six panels; the
+Params panel also appears in `params-deck.html` beside its CONTENT view):
+
+| CONTENT view | CONTEXT shows | the decision each element informs |
+| - | - | - |
+| **no selection** (LIST browsing, no editor open) | the ACTIVE preset's effective profile — its name + the §4.3 datum rows + the capability line | "is what generation will use RIGHT NOW what I want — do I need to open, fork, or activate anything before my next turn?" It is the §4.3 read pointed at the active pick — zero new machinery, and the pane is useful before a row is ever clicked |
+| **Params** | the effective profile (every resolved knob + provenance) · the CAPABILITY card (model · window · output cap · the honored-knob list) · the quality-mapping line · the staleness COUNT | which knob to touch next (effective vs intent) · why a knob is absent or clamps (capability — today you cannot see WHY the panel shows only some sliders) · whether to trust the dial or go explicit (mapping) · whether stored intent is dead weight (staleness — the Keep/Clear AFFORDANCE stays in the deck, §4.2; the count is a pointer only) |
+| **Prompt** | the zone budget (SETUP/POST counts + ~tokens) · per-section token bars, the drilled section highlighted · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · where a section actually lands in the assembled prompt (preview) · the structural fix when the pivot is missing/duplicated (health) |
+| **Actions** | the DELIVERY PATH: the `guided_instruction` marker's health (healthy/off/absent) + its zone/position/depth in the current arrangement, with the section-select echo · the SELECTED action row's RESOLVED preview (the template with `{{input}}` marked and macros preview-resolved) | "will my customized template actually land, and where in the prompt?" — the §6 cross-link promoted from a chip you must notice to a standing readout · "what does the model actually receive when I fire this action?" (the resolved preview) |
+| **Data** | per-variable / per-macro REFERENCE COUNTS within this preset — which sections, templates, nudges, and macro bodies mention `{{name}}` (each reference is a section-select echo) · an unreferenced marker | "is this safe to rename or delete, and where do I look first?" — scoped honestly: a zero count reads "no references in THIS preset", never "dead" (chat-time consumers outside the preset are not claimed). The scan is a pure client derivation over the saved config — no new server read |
+| **Transforms** | the PIPELINE readout, two lanes in execution order: prompt-side (regex script counts per `REGEX_PLACEMENTS` slot, on/off) · reply-side (native reasoning → `reasoningParse` fallback → AI-output/display regex → each post-process step, on/off) | "why did the reply change / which stage do I edit?" — the ORDER is the datum; today it lives only in engine file headers |
+
+**Where the honest answer is "the same readout," said per-view:** no view duplicates another
+wholesale. Prompt and Actions share the arrangement SOURCE (both project `sections` — one derivation,
+two projections), and the no-selection state IS the Params readout pointed at the active preset
+(stated above, not hidden). The v1 draft showed budget + preview beside the Params hand — decoration
+half the time; they belong to the Prompt hand and moved there.
+
+The Usage placeholder (two sentences of prose today) folds into a footer note until per-chat
+bindings exist. This is the panel earning its keep the HUD way: CONTENT = the hand, CONTEXT = the
+eye — one eye per hand.
 
 ## 8. The Transforms + Data views
 
@@ -362,7 +390,7 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 | G4 | `compaction.verbatimTail` number row (CONTEXT), placeholder = engine floor | S |
 | G5 | `responseNudge` row (Actions ▸ NUDGES) | S |
 | G6 | Export door: kebab Export → `preset.export` download; import dialog gains the `orb.preset` arm (`parsePresetFile` — STRICT, loud errors, per its contract) | S |
-| G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active, and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
+| G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active (a §16 row-3 sanctioned echo — same mutation as the row toggle), and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
 
 Each pairs with `mergeOnSubmit`/`seedConfig` touches where a new bound path needs seeding — noted so
 the build doesn't rediscover the D78 seeding rule per field.
@@ -398,6 +426,8 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | tabs stay one level | the two nested `Tabs` mounts die in the same commit (no half-migration) | review |
 | section editing has one home | `preset-editor-bridge.ts` is DELETED — a re-import fails to resolve | compile-time |
 | activation has one affordance | the pane Select is deleted in the same commit as the row toggle (old-beside-new is the banned half-migration) | review |
+| one home per affordance | the §16 audit table is the standing review artifact — its enforcement column names the per-row wall (shared writers, deleted twins, compile-time bridge death) | review |
+| CONTEXT is read-only + navigation-only | §16 invariant (i): context bodies carry zero mutation hooks; selection echoes ride the one store writer | review + CT |
 | density conformance | the landed density-tier gate arms (A1 radius, A2 box-in-box) — the guided-card and rack-row `rounded-card border` rows come OUT of the baseline in this sweep, shrink-only | lint-time |
 
 ## 13. Primitives inventory — the fugly-prevention list (per the §11 projection precedent)
@@ -434,7 +464,7 @@ size="inline"`); one feature-local composite (`KnobRow`).** Everything else is l
 | **P0** | the two `@orb/ui` variant rows + `KnobRow` + the §4.3 `preset.resolveEffective` read (D5) | contracts/domain verb + ui variants |
 | **P1** | the Params deck (replaces the Generation group's four leaves) + staleness row + G1-G4 | P0 |
 | **P2** | the five-view flattening + Actions view (templates+nudges, G5) + Data/Transforms regroup | P1 (the deck is the biggest moved piece) |
-| **P3** | Prompt consolidation: section editor absorbs the inspector; bridge deleted; CONTEXT becomes the readout (D2); toolbar preview toggle dies | P2 |
+| **P3** | Prompt consolidation: section editor absorbs the inspector; bridge deleted; CONTEXT becomes the per-view readout (§7, D2 — the `presetEditorView` store seam lands here); toolbar preview toggle dies | P2 |
 | **P4** | LIST projection: row activate toggle (D1), Select deleted, kebab Export + orb-native import arm (G6), header truth chip (G7) | independent of P1-P3 |
 | **P5** | density-baseline shrink for the surface + the CT set (§12) + side-eye fix-all + close-out ledger row | all |
 
@@ -447,7 +477,7 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 | # | decision | recommendation |
 | - | - | - |
 | **D1** | **Inline activate on rows** (amends the ratified §12.2 presets row: state toggle — → Activate; the pane Select dies) | **YES** — activation is the row's own one-of-N state; the frequent post-fork act lands where the eye is; the built-in row's toggle maps to the null pick. The Select was pane chrome a mixed config-list couldn't keep anyway (§11) |
-| **D2** | **CONTEXT stops being an inspector and becomes the assembly READOUT**; section editing consolidates whole into the drill-in (the bridge + inspector die) | **YES** — F5 is a three-geography edit of one object; the readout gives the panel a real instrument job (effective profile · budget · preview). *Alternative if vetoed: keep the inspector and the readout shares the panel as a second tab — F5 survives* |
+| **D2** | **CONTEXT stops being an inspector and becomes the PER-VIEW readout (§7)**; section editing consolidates whole into the drill-in (the bridge + inspector die) | **YES** — F5 is a three-geography edit of one object; the readout gives the panel a real instrument job, one eye per hand (§7's table). *Alternative if vetoed: keep the inspector and the readout shares the panel as a second tab — F5 survives* |
 | **D3** | **Flatten 4 groups × 10 leaves → 5 flat views** (amends north-star §6.2's regroup) | **YES** — §6.2 grouped the sprawl; the leaves themselves were the defect (a tab per radio group). Five honest views, one nav level |
 | **D4** | **Knob unset grammar: ghost-effective + touch-to-promote + reset** (replaces the override-switch-gates-slider row) | **ghost-effective** — the datum must always be visible (F2); the switch made "off" a hidden number. The storage semantic (blank-means-default) is unchanged; only the rendering stops hiding it |
 | **D5** | **Build `preset.resolveEffective`** (the one new server read — the funnel projected for the editor) | **YES** — without it the ghost column falls back to static placeholders and the quality-fed defaults stay invisible (the F9 core). It is a projection of existing funnel code, not new resolution logic |
@@ -458,3 +488,49 @@ Everything else in this spec is design, not a fork: the five-view map (§3), the
 (§4.1), the staleness row (§4.2), the Actions list grammar (§6), the gap-close register (§10 — G6/G7
 are wiring existing verbs/state, not policy), and the tier/voice assignments (§2) carry
 recommendations inline and need only the D1-D5 ratifications to build.
+## 16. The one-home audit — every affordance, its ONE home, echoes justified (owner-required, 2026-08-01)
+
+Owner steer (verbatim): *"actions and things only have one home so it also needs to audit that."*
+The rule this table enforces: every action has exactly ONE primary home; an echo exists only with a
+named justification; any other duplication is a design defect and was fixed in the design, not
+recorded. The mocks were swept against this table both directions — one drawing bug was found and
+fixed (the v1 section-editor drawing omitted the ⋯ menu that homes Duplicate / Move / Delete), and
+the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + preview), re-homed per §7.
+
+| # | action | ONE primary home | sanctioned echoes (each justified) | enforcement |
+| - | - | - | - | - |
+| 1 | create preset | LIST band **New** (the pane's one primary) | the empty-state "New preset" action — an empty pane may not dead-end ([[empty-states-are-load-bearing]], the landed rule) | both call the one `useCreatePreset`; review |
+| 2 | import (ST + orb-native) | LIST band ghost icon → the import dialog | none | — |
+| 3 | activate for generation | the row toggle (§9, `RowToggleAction`, one-of-N) | (a) row kebab "Activate" — keyboard/discoverability parity, the ratified §12.2 mirror rule; (b) the editor-header Activate (G7), rendered ONLY in the not-active state — the fork-once retarget changes activation UNDER the editor, and the LIST can be a closed sheet on mobile; a status chip naming an actionable state must act | the pane-level Select is DELETED in the same commit (the half-migration ban); all three paths call the ONE `setDefault` mutation — review + CT |
+| 4 | open a preset (edit) | the row body click | ⌘K (the global palette — an app-wide echo outside this surface's budget) | — |
+| 5 | duplicate preset | the inline row verb (ratified §12.2 — the measured frequent verb) | row kebab mirror (the §12.2 grammar's own parity rule) | CT: both fire the same create-with-config |
+| 6 | rename preset | row kebab → dialog | none — the editor header SHOWS the name, never edits it | — |
+| 7 | export preset | row kebab (G6) | none | — |
+| 8 | delete preset | row kebab → confirm | none (destructive is kebab-only, §12.2) | — |
+| 9 | search presets | the pane search input | none | — |
+| 10 | switch editor view | the ONE tab strip | none — CONTEXT projects the view, never sets it (§7) | `presetEditorView` has ONE writer (the store-door discipline); review |
+| 11 | set quality | the QUALITY segmented strip | none | — |
+| 12 | set a knob explicit | the KnobRow — slider + number twin are TWO MODALITIES of one control bound to ONE field, not two homes | none | CT: drag-then-read-number and type-then-read-slider converge (§12) |
+| 13 | reset a knob to inherit | the KnobRow ↺ | none (staleness Clear is a DIFFERENT action — it bulk-clears unhonored knobs only) | — |
+| 14 | staleness keep / clear | the deck's staleness row (§4.2) | none — the CONTEXT staleness COUNT is a pointer, deliberately not an affordance (§7 read-only invariant) | review: zero mutation hooks in context bodies |
+| 15 | edit output / context / compaction / advanced fields | each field's one deck row (§3 map) | none | the §3 exhaustive map — a field in two clusters is a spec bug |
+| 16 | add a section | the rack toolbar **Add** menu | the missing-pivot callout's "Add chat history" — a warning carries its own remedy (the landed rack pattern) | both call the one `makeSection` push |
+| 17 | reorder sections | rack drag (the handle) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag, and the no-pointer path | both go through `moveFieldValues`; review |
+| 18 | enable / disable a section | the rack row Switch | none — the drill-in deliberately carries NO second enable toggle | mock swept: the section editor draws none |
+| 19 | select / drill a section | the rack row name button | (a) CONTEXT preview block-click — clicking what you see IS the projection's point; (b) CONTEXT per-section bar click (same); (c) the Actions-view delivery-path echo (cross-view navigation to the `guided_instruction` marker); (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall |
+| 20 | edit a section whole (body · name · role · placement · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
+| 21 | duplicate / delete a section · move-to-zone | the drill-in ⋯ menu (delete behind confirm) | none | — |
+| 22 | back to rack | the drill-in back button | none (Esc stays overlay-only — the house Esc rule) | — |
+| 23 | edit a guided template / nudge (role · template) | its Actions row drill-in | none | — |
+| 24 | reset a template to Default | CLEAR the field — empty IS the ghosted default (the landed `guidedFooterState` semantic); no second reset control exists | none | the footer state chip renders the semantic; CT |
+| 25 | variable / user-macro CRUD | the Data view's `EntryListEditor` + its dialog | none | — |
+| 26 | regex CRUD · post-process switches · reasoning-parse fields | their Transforms editors | none | — |
+| 27 | reset preset to starter | the editor-header kebab → confirm | none | — |
+| 28 | retry a failed save | the `AutosaveStatus` chip | none | — |
+| 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
+
+**Invariants the table pins:** (i) CONTEXT is read-only + navigation-only — its only interactions
+are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE mutation/store
+writer, never a second code path; (iii) destructive actions each live in exactly one confirm-gated
+menu. The audit is a STANDING review artifact: a new affordance lands with its row here, or it does
+not land.
