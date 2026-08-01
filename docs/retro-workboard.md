@@ -89,7 +89,17 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
-**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · ~~SSE S4~~ MERGED (`d2597146`: automation = ephemeral room, resumable:false per §7; proc DELETED;
+**WAVE (08-02 late) — SEVEN IN FLIGHT:** preset round 3 (sliders+depth-split+primitives table+
+tooltip debulk) · S4 reconcile (floorValue union) · HUD H4 close-out (gate arms + §5.2 amendments;
+D-entry stays orchestrator's) · density S3 conformance sweep (rpg context + the 5 tone= settings
+sections; zero layout movement — computed CTs are law) · smalls batch (stale labels ×3 · F7
+credentials disposition · guided submenu settle idiom · VER-1c isError · spec §2.3 leaf-claims) ·
+forkedFrom column (+fork idempotency + lineage scent) · #16 engine sleep/wake LIVE pass (engines
+pre-authorized; launcher untouchable; found-posture restored). AFTER: SET-SEAMS S5→S6 (serialized
+behind S4) · combined side-eye (stage singleton — waits for this wave's surfaces to settle) ·
+PRESET-1 build (needs round 3's primitives table) · densities S4/S6 · DATABANK.
+
+**OLD FIVE-LANE NOTE:** SET-SEAMS S2 (chat-behavior, S1 template) · ~~SSE S4~~ MERGED (`d2597146`: automation = ephemeral room, resumable:false per §7; proc DELETED;
 NO client consumer existed [§14 sanctioned-dormant doorway — none invented]; last placeholder
 machinery deleted [refusedUntilFolded + NO_FRAMES]; Tier-4 doc row updated) → **SSE S5 LANE IN
 FLIGHT** (workloads fold — event union homes in contracts first; ratchet closes to
