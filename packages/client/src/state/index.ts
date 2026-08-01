@@ -140,6 +140,7 @@ export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry";
 export type { ModalRegistry } from "./modal-registry-context";
 export { ModalRegistryContext, useModalRegistry } from "./modal-registry-context";
 export { ModalRegistryProvider } from "./modal-registry-provider";
+export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store";
 export {
   clearPresetSection,
   clearPresetSelection,

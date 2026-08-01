@@ -9,16 +9,22 @@
 //     write the pre-reset values back over the freshly-reset row (the durable no-op reset — the boundary's
 //     discard-flagged teardown, driven by `session.reseed(row.config)` off the mutation response).
 //
-// The Quality dial (`params.quality`, first tab, no capability needed) is the visible+editable config
-// field: A = "fast", B = "deep", the starter = unset (no radio checked). `preset.get`/`settings.getUserSettings`
-// are stubbed at the NETWORK (routeTrpc). No chat model is configured → the sampling/reasoning/output tabs
-// show the connect-a-model note; Quality still renders, which is all these pins touch.
+// The Quality dial (`params.quality`, the Params view's first cluster, no capability needed) is the
+// visible+editable config field: A = "fast", B = "deep", the starter = unset (nothing pressed).
+// `preset.get`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc). No chat model is
+// configured → the SAMPLING/REASONING/OUTPUT clusters show the connect-a-model note; QUALITY still renders,
+// which is all these pins touch.
+//
+// Post-redesign (preset-surface-redesign.md §3/§4): the editor is ONE flat tab level and Params is the
+// DEFAULT view, so these pins need no tab navigation at all; the dial is a segmented `ToggleGroup`
+// (`aria-pressed` buttons), not a radio group.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
@@ -37,11 +43,17 @@ const PRESET_B = "preset_ct_bbbbbbbbbb";
 const BUILT_IN = "preset_00000000000000000000000000";
 const FORK = "preset_ct_forkedddddd";
 
-// Quality-dial radio accessible-name matchers (hoisted — useTopLevelRegex).
-const FAST_RE = /Fast/;
-const BALANCED_RE = /Balanced/;
-const DEEP_RE = /Deep/;
+// Quality-dial toggle accessible names + the pressed-state attribute (the segmented strip's own semantic).
+const FAST = "Fast";
+const BALANCED = "Balanced";
+const DEEP = "Deep";
+const PRESSED = "aria-pressed";
 const RESET_ITEM_RE = /Reset to starter/;
+
+/** One quality-dial cell — a `ToggleGroup` button, located by its exact label. */
+function qualityCell(root: Locator, label: string): Locator {
+  return root.getByRole("button", { name: label, exact: true });
+}
 
 const SETTINGS_VIEW = {
   userId: "user_ct_preset",
@@ -98,9 +110,10 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
 // until I reloaded"). Connections persists `routing.roleDefaults` through the busDriven
 // `settings.updateUserSettingsSection`, so the user-bus `settingsChanged` row in data/invalidation.ts is the
 // ONLY thing that can refresh `connection.resolveChatCapability` (staleTime Infinity, no focus refetch).
-// The FIRST resolve fails (no chat connection configured) → the axis shows its connect-a-model note naming
-// the hidden knobs; after the event the second resolve succeeds and the Output knobs render with the model's
-// real caps as their blank-means-default PLACEHOLDERS.
+// The FIRST resolve fails (no chat connection configured) → the cluster shows its connect-a-model note
+// naming the hidden knobs; after the event the second resolve succeeds and the OUTPUT KnobRows render — each
+// GHOSTED at its effective value (the twin's blank-means-default placeholder, redesign §4.1) with the
+// provenance gloss under the track.
 // The read returns the descriptor PLUS the identity it resolved for (`ResolvedChatCapability`); this panel
 // reads the descriptor half only.
 const CAPABILITY = makeResolvedChatCapability({
@@ -111,6 +124,14 @@ const CAPABILITY = makeResolvedChatCapability({
   }),
 });
 const OUTPUT_GATE_RE = /Max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
+// The funnel's own projection for this preset (`preset.resolveEffective`, §4.3) — `maxOutputTokens` resolves
+// to the engine FLOOR (nothing explicit, nothing dialed), which is exactly what the ghost must show.
+const EFFECTIVE_FLOOR = {
+  presetId: PRESET_A,
+  model: "qwen3-32b",
+  knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
+  stale: [],
+};
 
 test("capability freshness — a settingsChanged tick swaps the connect-a-model note for the live Output knobs", async ({ mount, page }) => {
   // Fail-then-succeed script (the routeTrpc header's own counter idiom): resolve #1 rejects — no chat
@@ -123,10 +144,10 @@ test("capability freshness — a settingsChanged tick swaps the connect-a-model 
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: "no chat connection configured" }) : CAPABILITY),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
   const component = await mount(<PresetEditorCapabilityFreshnessStory />);
 
-  await component.getByRole("tab", { name: "Output" }).click();
   await expect(component.getByText(OUTPUT_GATE_RE)).toBeVisible();
   // Fire the bus tick only AFTER the mount fetch has landed — invalidating an in-flight query yields NO
   // second call, which would make this pin pass for the wrong reason.
@@ -137,8 +158,14 @@ test("capability freshness — a settingsChanged tick swaps the connect-a-model 
   // The seam refetches the capability (proof the map row exists) and the axis re-renders with the knobs.
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(2);
   await expect(component.getByText(OUTPUT_GATE_RE)).toBeHidden();
-  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveAttribute("placeholder", "2048 (default)");
-  await expect(component.getByLabel("Max context tokens", { exact: true })).toHaveAttribute("placeholder", "32768 (full window)");
+  // The GHOST: each twin is genuinely EMPTY (blank-means-default is the storage semantic) while showing the
+  // effective value as its placeholder — max output from the funnel's floor, max context from the model's
+  // own window — each with its provenance gloss visible.
+  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveAttribute("placeholder", "2048");
+  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveValue("");
+  await expect(component.getByLabel("Max context tokens", { exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(component.getByText("default", { exact: true })).toBeVisible();
+  await expect(component.getByText("full window", { exact: true })).toBeVisible();
 });
 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
@@ -152,24 +179,24 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
 
   // A is open: its name + its Quality dial ("fast") are shown.
   await expect(component.getByText("Preset A")).toBeVisible();
-  await expect(component.getByRole("radio", { name: FAST_RE })).toBeChecked();
+  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "true");
 
   // Dirty A to "balanced" (a value DISTINCT from B's "deep", so the frozen-seed bug can't hide behind a
   // coincidental match). The debounced autosave persists it AGAINST A, proving the edit took.
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await qualityCell(component, BALANCED).click();
   await expect.poll(() => updatesAgainst(trpc, PRESET_A).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
 
   // Switch A→B (the rail prop change). The boundary rekeys its Session on the new entityId and seeds from
   // B's REAL row — the header shows B and the dial shows B's "deep", NOT A's frozen edited "balanced" seed.
   await component.getByRole("button", { name: "switch to B" }).click();
   await expect(component.getByText("Preset B")).toBeVisible();
-  await expect(component.getByRole("radio", { name: DEEP_RE })).toBeChecked();
-  await expect(component.getByRole("radio", { name: BALANCED_RE })).not.toBeChecked();
+  await expect(qualityCell(component, DEEP)).toHaveAttribute(PRESSED, "true");
+  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
 
   // THE PIN (Finding 1): the ONE keystroke on the newly-selected B must persist as B's own value — never
   // A's frozen "balanced". Pick "fast" on B; the autosave fires against B with "fast", and NO update
   // against B ever carries A's "balanced" (the frozen-seed persist-the-previous-preset bug).
-  await component.getByRole("radio", { name: FAST_RE }).click();
+  await qualityCell(component, FAST).click();
   await expect.poll(() => updatesAgainst(trpc, PRESET_B).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("fast");
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   expect(updatesAgainst(trpc, PRESET_B).some((call) => call.config?.params?.quality === "balanced")).toBe(false);
@@ -197,8 +224,8 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // A is open with "fast". Dirty it to "balanced" so the pre-reset form is non-default (isDefaultValue
   // false — the exact precondition under which the teardown flush would re-persist the old values). This
   // fires ONE legit autosave against A (the pre-reset edit); the pin below counts only writes AFTER reset.
-  await expect(component.getByRole("radio", { name: FAST_RE })).toBeChecked();
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "true");
+  await qualityCell(component, BALANCED).click();
   await expect.poll(() => updatesAgainst(trpc, PRESET_A).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
 
   // Snapshot the update count once the pre-reset edit has settled — any write past this line is the
@@ -213,9 +240,9 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   await page.getByRole("button", { name: "Reset" }).click();
 
   // The editor reseeds from the FRESH starter row — the Quality dial shows NO selection (params unset).
-  await expect(component.getByRole("radio", { name: FAST_RE })).not.toBeChecked();
-  await expect(component.getByRole("radio", { name: BALANCED_RE })).not.toBeChecked();
-  await expect(component.getByRole("radio", { name: DEEP_RE })).not.toBeChecked();
+  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "false");
+  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
+  await expect(qualityCell(component, DEEP)).toHaveAttribute(PRESSED, "false");
 
   // THE PIN: the reset calls `session.reseed(starter)`, whose discard-flagged teardown must NOT flush the
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
@@ -284,15 +311,14 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
 
   const component = await mount(<PresetForkOnceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
-  await expect(component.getByRole("radio", { name: BALANCED_RE })).not.toBeChecked();
+  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
 
   // FIELD 1 — the Quality dial. Its debounce fires the first save, which the route handler holds open.
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await qualityCell(component, BALANCED).click();
   await expect.poll(() => mintRequests, { intervals: [50, 100, 200, 300] }).toBe(1);
 
   // FIELD 2, fired INSIDE the mint's in-flight window — the race arm. Serialized, it must wait for the fork id
   // and patch the copy; unserialized it re-targets the built-in and mints a second "(edited)" row.
-  await component.getByRole("tab", { name: "Output" }).click();
   await component.getByLabel(MAX_OUTPUT_LABEL, { exact: true }).fill("1234");
 
   // THE PIN: the retarget is complete — the selection, the editor's own save target, and the
@@ -384,7 +410,7 @@ test("FORK-CHOICE — with a fork already in the library, a built-in edit is INT
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await qualityCell(component, BALANCED).click();
 
   // The dialog renders in a PORTAL (document.body) — and it NAMES the fork, since "your edits live in a copy"
   // is useless if the owner can't tell which of their rows that is.
@@ -405,7 +431,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await qualityCell(component, BALANCED).click();
   await page.getByRole("dialog").getByRole("button", { name: KEEP_EDITING_LABEL }).click();
 
   // The pending edit applies THERE (the arm is a retarget, not a discard).
@@ -427,7 +453,7 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await qualityCell(component, BALANCED).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: NEW_FORK_LABEL }).click();
 
@@ -455,4 +481,39 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
   // The new row is IN THE LIBRARY (a row button), not just in the editor header the retarget also updated.
   await expect(component.getByRole("button", { name: "Deep run", exact: true })).toBeVisible();
   await expect(component.getByText(LINEAGE_RE)).toHaveCount(2);
+});
+
+// ── The FIVE-VIEW SHELL (redesign §3) + the macro-gate belt ───────────────────────────────────────────
+// The two-level tree is gone: ONE tab strip, five views, Params first. The Actions view is where the
+// guided templates + nudges now live (§3's map moved them out of the Prompt tab's collapsibles), and a
+// template-text editor is exactly the surface the macro-resolution ruling covers — so the re-homed nudge
+// editor carries the SHARED roundtrip assertion (tests/support/ct/assert-token-roundtrip.ts), never a
+// hand-rolled one. That gate is import-keyed and blind to this data flow; the helper is its belt.
+test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge editor round-trips a raw {{token}}", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // ONE level: exactly the five views, in strip order, with Params selected by default (the store's unset
+  // read resolves to the tuple's first entry). The old Generation/Prompt/Context/Transforms group strip and
+  // its ten leaves are gone — a second tablist would fail this count.
+  await expect(component.getByRole("tab")).toHaveText(["Params", "Prompt", "Actions", "Data", "Transforms"]);
+  await expect(component.getByRole("tab", { name: "Params" })).toHaveAttribute("aria-selected", "true");
+
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await expect(component.getByRole("tab", { name: "Actions" })).toHaveAttribute("aria-selected", "true");
+
+  // THE BELT: the nudge editor must SHOW and SAVE raw template text. A resolver anywhere in this path would
+  // persist "Alex is watching …" — irreversibly, and every other assertion here would stay green.
+  await assertTokenRoundtrip({
+    trpc,
+    field: component.getByLabel("Continue nudge", { exact: true }),
+    proc: "preset.update",
+    payloadKey: "config.formatStrings.continueNudge",
+  });
 });

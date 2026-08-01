@@ -13,23 +13,37 @@ import { QUALITY_LEVELS } from "@orb/contracts/preset";
 // The sampling axis: each entry names the params path it binds, the label, and the capability.sampling
 // key that gates it (renders only when that key carries a Range).
 
-/** The `PromptConfig.params.*` numeric-knob paths a sampling slider may bind. */
-const SAMPLING_PARAM_PATHS = [
+/** The `PromptConfig.params.*` numeric-knob paths a `KnobRow` may bind — the sampling sliders PLUS the
+ *  large-integer rows (output/context/thinking budget) that ride the same grammar at capability-fed ranges
+ *  (redesign §4.1's integer arm). ONE tuple: the deck's row component and this model's specs bind from the
+ *  same vocabulary, so a knob cannot be given a path no row can render. */
+const KNOB_PARAM_PATHS = [
   "params.temperature",
   "params.topP",
   "params.topK",
   "params.minP",
+  "params.topA",
   "params.frequencyPenalty",
   "params.presencePenalty",
   "params.repetitionPenalty",
+  "params.maxOutputTokens",
+  "params.maxContextTokens",
+  "params.thinkingBudgetTokens",
 ] as const;
-type SamplingParamPath = (typeof SAMPLING_PARAM_PATHS)[number];
+type KnobParamPath = (typeof KNOB_PARAM_PATHS)[number];
+
+/** The exported carrier for {@link KnobParamPath} — a feature lib may not export a bare `type` alias
+ *  (§7.4), so consumers read the path union as `KnobBinding["field"]`. */
+export interface KnobBinding {
+  readonly field: KnobParamPath;
+}
 
 interface SamplingKnobSpec {
-  /** The `capability.sampling` key that gates this knob (renders only when it carries a `Range`). */
+  /** The `capability.sampling` key that gates this knob (renders only when it carries a `Range`). It is
+   *  ALSO the `EffectiveKnob` name the effective profile keys its readings by (one spelling, both reads). */
   readonly key: keyof NonNullable<ModelCapability["sampling"]>;
   /** The `params.<field>` path this knob binds (the nested TanStack Form name — a typed literal). */
-  readonly field: SamplingParamPath;
+  readonly field: KnobParamPath;
   /** The row's human label. */
   readonly label: string;
   /** A one-line explainer (the field description). */
@@ -67,6 +81,15 @@ const SAMPLING_KNOB_SPECS: readonly SamplingKnobSpec[] = [
     field: "params.minP",
     label: "Min-P",
     description: "Drop tokens below this fraction of the top token's probability (RP-critical).",
+    step: 0.01,
+  },
+  {
+    // G1 (redesign §10): schema-supported since the knob was minted, with no editor anywhere — the deck's
+    // first honest home for it. Capability-gated like every sibling (OpenRouter advertises `top_a`).
+    key: "topA",
+    field: "params.topA",
+    label: "Top-A",
+    description: "Drop tokens whose probability falls below `topA × (top token)²` — an adaptive tail cut.",
     step: 0.01,
   },
   {
@@ -195,3 +218,17 @@ export const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((val
 
 // The quality→axes mapping lives server-side, not here — this client model owns only the dial's
 // display copy; it must not re-map quality → effort (a second derivation would drift from the funnel).
+
+// ── The large-integer arm's keyboard paging (redesign §4.1) ──────────────────────────────────────────
+
+/** How many PageUp/PageDown steps cross a whole range — the paging feel the §4.1 integer arm specifies
+ *  ("a range-sized largeStep, ~1/64th of the span"). */
+const PAGE_STEPS_PER_RANGE = 64;
+
+/** PageUp/PageDown paging for a LARGE integer range: ~1/64th of the span, rounded to a power of two and
+ *  floored at 1. ONE home — output, context and the thinking budget all page the same way, and a
+ *  per-cluster spelling would drift. */
+export function pageStep(min: number, max: number): number {
+  const span = Math.max(max - min, 1);
+  return Math.max(2 ** Math.round(Math.log2(span / PAGE_STEPS_PER_RANGE)), 1);
+}
