@@ -91,6 +91,8 @@ import { AppearanceAvatarsSection } from "../../../../packages/client/src/featur
 import { AppearanceMessageDetailsSection } from "../../../../packages/client/src/features/chat/components/appearance-message-details-section";
 import { AppearanceMessageStyleSection } from "../../../../packages/client/src/features/chat/components/appearance-message-style-section";
 import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel";
+import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section";
+import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
@@ -2060,6 +2062,34 @@ export function AppearanceMessageDetailsSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
         <AppearanceMessageDetailsSection sectionId="appearance-message-details" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── The two CHAT-owned chat-behavior SECTIONS (SET-SEAMS stage 2) ─────────────────────────────────
+// Each is a self-owned settings section at the `chat-behavior` anchor: its own cache-first read, its own
+// autosave form session and its own KEY-MINIMAL `updateUserSettingsSection("chat")` write. Mounted bare (no
+// `SaveStatusHostContext`) so the DEGRADED save-status arm renders inline — the pane-level story in the
+// settings module drives the hosted arm.
+
+/** The Chat & message handling section — `getUserSettings` + the chat section-patch are stubbed per-test. */
+export function ChatMessageHandlingSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <ChatMessageHandlingSection sectionId="chat-message-handling" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Streaming section. */
+export function ChatStreamingSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <ChatStreamingSection sectionId="chat-streaming" />
       </div>
     </CtDataProviders>
   );
