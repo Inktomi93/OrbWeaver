@@ -113,7 +113,18 @@ absence) · ~~D8~~ RULED (owner 08-02): AUTO-BIND to the last-open chat, binding
 readout header, no-chat/unbound = honest tokens; freshness + one-home rows follow. Was: OPT-IN
 ACTIVE-CHAT INSPECTION BINDING (real materialized
 rows + real identity macros via one presetOverride preview read — kills two honesty compromises;
-awaits owner ruling) · fork-choice folded. ⚠ DEFECT: prompt-rack.html NEVER COMMITTED (worktree
+awaits owner ruling) · fork-choice folded. ~~DEFECT~~ RECOVERED + ALL MERGED: prompt-rack.html RECREATED (`6d42c9ce` — the rack first-class:
+grip/glyph/name=select vs chevron=edit, cue badges, ~tokens w/ line-through-off, carriers ~—,
+switchless PIVOT band, literal=only deletable kind; Add auto-drills to name) · prefill CORRECTED
+from ST source w/ receipts + census receipted + D8 folded (`8e0cf278`) · FORK-CHOICE BUILD MERGED
+(`acd85005`+knip fix: interception in use-preset-autosave [nothing written until an arm picked];
+keep-editing writes DIRECTLY to the fork [no-mint structural]; dismiss=primary arm [no Cancel —
+the keystroke happened]; uniquePresetName de-collision NOT import-merge [cited]; 140 unit +31 CT;
+editor read set now includes preset.list — every editor CT stubs it). ALL 5 MOCKS PUBLISHED:
+rack …/bce1a214-701d-4c60-8aa2-a6307ed9dcd0 (NEW) + 4 republished. Lesson: git commit --
+<pathspec> silently SKIPS untracked files — worktree teardown after = data loss; lanes must
+git-show-receipt their own commits. PRESET-1 spec is now FULLY SETTLED — build lanes dispatchable
+on owner's mock eyeball. (was: (worktree
 cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file receipt requirement + TWO owner corrections
 riding it: assistant-role ≠ PREFILL (prefill = TAIL-positioned assistant continuation — position
 property; fix the labeling) · the per-template field table re-derives from the LOCAL ST SOURCE
