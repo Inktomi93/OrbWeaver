@@ -297,10 +297,12 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
 
-  // The four thumb-reach tabs render as named buttons.
-  await Promise.all(["Chats", "Characters", "Corpus", "You"].map((name) => expect(shell.getByRole("button", { name, exact: true })).toBeVisible()));
+  // The four thumb-reach tabs render as named buttons (owner decision H2: Home · Chats · Characters ·
+  // You — home rides the bar as a `mobileOnly` tab because the desktop brand cell is display:none here).
+  await Promise.all(["Home", "Chats", "Characters", "You"].map((name) => expect(shell.getByRole("button", { name, exact: true })).toBeVisible()));
   // The overflow sections + the desktop footer triggers are NOT on the bar (they live in the You sheet).
   // display:none on the desktop block removes them from the a11y tree entirely.
+  await expect(page.getByRole("button", { name: "Corpus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
@@ -325,8 +327,8 @@ test("mobile: you land on CONTENT — the list panel is collapsed, not an open s
 test("mobile: a tab click switches the section", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Corpus", exact: true }).click();
-  await expect(page.getByText("corpus content pane")).toBeVisible();
+  await shell.getByRole("button", { name: "Characters", exact: true }).click();
+  await expect(page.getByText("characters content pane")).toBeVisible();
   // Same <Activity> pane-keeping as desktop: chats CONTENT stays mounted-but-hidden across the switch.
   await expect(page.getByText("chats content pane")).toBeHidden();
 });

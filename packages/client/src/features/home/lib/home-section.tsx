@@ -23,7 +23,8 @@ import { HomeSurface } from "../surfaces/home-surface";
 export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>): SectionDefinition {
   return {
     id: "home",
-    rail: { label: "Home", icon: Compass, group: "primary", mobile: "tab" },
+    rail: { label: "Home", icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
+    panels: { list: "unavailable" },
     panelDefaults: { list: "collapsed", context: "collapsed" },
     placeholder: {
       title: "Home",

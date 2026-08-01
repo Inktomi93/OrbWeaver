@@ -21,7 +21,7 @@
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
-import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
+import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
@@ -33,13 +33,14 @@ import { Rail } from "../../../../packages/client/src/features/app-shell/compone
 import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
-import { openModal } from "../../../../packages/client/src/state/shell-store";
+import { openModal, setActiveSection, useActiveSection } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
 import {
   CtChatContributorSectionRegistry,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
+  CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "../../../support/ct/ct-data-providers";
 
@@ -54,6 +55,9 @@ export function AppShellStory(): ReactElement {
             content: <p>chats content pane</p>,
             context: <p>chats context pane</p>,
           },
+          // Characters is a mobile-bar tab (Home · Chats · Characters · You after the H2 curation), so it
+          // carries real content for the bar-navigation CT.
+          characters: { content: <p>characters content pane</p> },
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
       >
@@ -165,6 +169,55 @@ export function RailStory(): ReactElement {
         <Rail activeSection="chats" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
+  );
+}
+
+/** The Rail with the BRAND cell ACTIVE (home-section-spec §4.1) — the glyph is home's rail affordance, so
+ *  it must carry `aria-current="page"` when home is the active section, exactly as any rail button does. */
+export function RailBrandActiveStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <Rail activeSection="home" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+/** The Rail wired to the REAL `setActiveSection` + a probe of the shell store — so the glyph CT asserts
+ *  the STORE ACTION FIRED, never a rendered echo. */
+export function RailBrandNavStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <RailWithStore />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+function RailWithStore(): ReactElement {
+  const activeSection = useActiveSection();
+  return (
+    <>
+      <output>section={activeSection}</output>
+      <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />
+    </>
+  );
+}
+
+/** The REAL shell landed on a caller-chosen section (real registry) — for the LIST-pane CAPABILITY CT
+ *  (home declares `panels.list = "unavailable"`, so its topbar renders NO list toggle; chats still does). */
+export function AppShellOnSectionStory({ section }: { readonly section: SectionId }): ReactElement {
+  useEffect(() => {
+    setActiveSection(section);
+  }, [section]);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <AppShell />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 

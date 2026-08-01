@@ -52,7 +52,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
             title="Nothing on your home yet"
           />
         ) : (
-          <Grid cols="wide" gap="block">
+          <Grid cols="wide" data-home-grid={true} gap="block">
             {list.map((tile) => (
               <HomeTile key={tile.id} tile={tile} />
             ))}
