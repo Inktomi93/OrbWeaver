@@ -19,12 +19,12 @@
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat";
 import type { StagedTurnFlush } from "../contract/params";
-import type { RpgContext, RpgFoldFallbackReason, RpgGameRow, RpgRunToolRound } from "../contract/service";
+import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service";
 import { insertJournalEntry } from "../persistence/journal";
 import { writeStagedSnapshot } from "../persistence/snapshots";
 import { snapshotStateBeforeSlot } from "../snapshot-edit";

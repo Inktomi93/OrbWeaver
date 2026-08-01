@@ -23,6 +23,7 @@ function gameView(behavior: RpgCyoaChoiceBehavior): unknown {
     status: "active",
     trackersReadOnly: false,
     extractionMode: "cheap",
+    effectiveDelivery: { path: "tool-round", fallbackReason: null },
     publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: true, cyoaChoiceBehavior: behavior, plotProgression: true },
   };
 }

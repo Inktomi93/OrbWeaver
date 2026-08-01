@@ -19,7 +19,9 @@ import type {
   EmitRpgEvent,
   RpgActorRef,
   RpgConfigView,
+  RpgDeliveryPath,
   RpgExtractionMode,
+  RpgFoldFallbackReason,
   RpgGameView,
   RpgJournalEntryView,
   RpgRevealView,
@@ -483,19 +485,17 @@ interface FoldBuildFailedInfo {
  *  tools-incapable model, or a mount the backend could not build) or `local-engine-fold-guard` (the wire CAN carry them but
  *  silences the prose when they ride, so the mount was deliberately withheld — D112 as amended).
  *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
-/** WHY a `folded` game did not fold. `no-terminal-channel` = the wire cannot carry terminal tools at all;
- *  `local-engine-fold-guard` = it can, but attaching them silences the prose (`coEmitsProseWithTools` false), so
- *  the mount was withheld on purpose. Exported: the flush's reason-derivation names it (one home for the
- *  vocabulary — the log's cause words are not re-spelled per call site). */
-export type RpgFoldFallbackReason = "no-terminal-channel" | "local-engine-fold-guard";
-
+/** The cause vocabulary moved to `@orb/contracts/rpg` (EFF-3): the panel's freshness surface reads the SAME
+ *  reasons off `RpgGameView.effectiveDelivery`, so the words home once, below both consumers. */
 interface StateRoundPathInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   readonly mode: RpgExtractionMode;
   /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round` = a dedicated
-   *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call). */
-  readonly path: "folded" | "tool-round";
+   *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call).
+   *  `none` is excluded BY TYPE: a flush that reports a path has already passed the F2 readonly gate, so the
+   *  no-vehicle-at-all member of the axis can never appear on this line. */
+  readonly path: Exclude<RpgDeliveryPath, "none">;
   readonly fallbackReason: RpgFoldFallbackReason | null;
 }
 
