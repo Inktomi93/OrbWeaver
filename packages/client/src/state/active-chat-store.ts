@@ -14,7 +14,7 @@ import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle";
 import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
 import { createGatedStore } from "./create-gated-store";
-import { setOpenOverlayPanel } from "./shell-store";
+import { openModal, setOpenOverlayPanel } from "./shell-store";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat`. All
  *  fields optional — an empty seed is a legal narrator-only room. */
@@ -34,6 +34,12 @@ interface ActiveChatState {
   readonly handle: ChatHandle;
   readonly draftSeed: DraftSeed | undefined;
   readonly sessionKey: string;
+  /** The seed the new-chat PICKER opens pre-loaded with, so there is ONE creation ceremony: an opener with
+   *  a creation-only intent (the home temp-chat tile) presets the flag here and opens the same modal every
+   *  other "New chat" affordance opens, instead of forking a second launcher that skips the cast pick.
+   *  Lives beside `draftSeed` because it is the same shape at an earlier moment; the picker clears it on
+   *  unmount, so a later plain "New chat" can never inherit a stale intent. */
+  readonly newChatPreset: DraftSeed | undefined;
 }
 
 // Deterministic monotonic counter: each new-chat click mints a fresh key so consecutive drafts remount
@@ -53,6 +59,7 @@ const useActiveChatStore = createGatedStore<ActiveChatState>(
     handle: landingChat(),
     draftSeed: undefined,
     sessionKey: INITIAL_SESSION_KEY,
+    newChatPreset: undefined,
   }),
 );
 
@@ -66,15 +73,32 @@ export function startNewChat(seed?: DraftSeed): void {
   // it keeps the same sessionKey (no remount), so animating it would flash the live room.
   withViewTransition(() => {
     const sessionKey = nextSessionKey();
-    useActiveChatStore.setState({ handle: draftChat(sessionKey), draftSeed: seed, sessionKey }, true, "activeChat/startNew");
+    useActiveChatStore.setState({ handle: draftChat(sessionKey), draftSeed: seed, sessionKey, newChatPreset: undefined }, true, "activeChat/startNew");
   });
+}
+
+/** Open the new-chat PICKER with a seed preset — the ONE creation ceremony. An opener whose intent is a
+ *  creation-only FLAG (the home temp-chat tile) presets it here rather than bypassing the cast pick. */
+export function openNewChatPicker(preset?: DraftSeed): void {
+  useActiveChatStore.setState({ newChatPreset: preset }, false, "activeChat/openNewChatPicker");
+  openModal("newChat");
+}
+
+/** Drop the picker's preset — called by the picker itself on unmount, so a modal dismissed without
+ *  starting anything can never leak its intent into the next plain "New chat". */
+export function clearNewChatPreset(): void {
+  useActiveChatStore.setState({ newChatPreset: undefined }, false, "activeChat/clearNewChatPreset");
 }
 
 /** Make an existing committed chat active. Keyed by the chat id, so re-selecting the same chat is
  *  idempotent and switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
   withViewTransition(() => {
-    useActiveChatStore.setState({ handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId }, true, "activeChat/select");
+    useActiveChatStore.setState(
+      { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId, newChatPreset: undefined },
+      true,
+      "activeChat/select",
+    );
   });
 }
 
@@ -89,14 +113,18 @@ export function commitDraft(chatId: ChatId, forDraftKey: string): void {
   if (handle.kind !== "draft" || handle.draftKey !== forDraftKey) {
     return;
   }
-  useActiveChatStore.setState({ handle: committedChat(chatId), draftSeed, sessionKey }, true, "activeChat/commitDraft");
+  useActiveChatStore.setState({ handle: committedChat(chatId), draftSeed, sessionKey, newChatPreset: undefined }, true, "activeChat/commitDraft");
 }
 
 /** Return to the at-rest landing state. Mints a fresh `sessionKey` so a subsequent new-chat/select
  *  remounts a clean slot. */
 export function goToLanding(): void {
   withViewTransition(() => {
-    useActiveChatStore.setState({ handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() }, true, "activeChat/goToLanding");
+    useActiveChatStore.setState(
+      { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey(), newChatPreset: undefined },
+      true,
+      "activeChat/goToLanding",
+    );
   });
 }
 
@@ -128,6 +156,11 @@ export function useActiveChatHandle(): ChatHandle {
  *  the returned id. */
 export function useActiveChatId(): ChatId | null {
   return useActiveChatStore((s) => (isCommitted(s.handle) ? s.handle.id : null));
+}
+
+/** The seed the new-chat picker was opened with (`openNewChatPicker`), or undefined for a plain open. */
+export function useNewChatPreset(): DraftSeed | undefined {
+  return useActiveChatStore((s) => s.newChatPreset);
 }
 
 /** The active chat's new-chat seed — threaded to `ChatRoomSurface.draftSeed`. */
