@@ -110,7 +110,11 @@ client consumers. REDESIGN: 5 flat views · KnobRow grammar (label·slider·mono
 unset = GHOSTED effective value with provenance) · ONE new read preset.resolveEffective ·
 CONTEXT becomes the assembly readout (per-section token bars) · list = ratified projection +
 inline activate RowToggleAction · zero new primitives (2 variant rows + 1 local composite).
-OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
+OWNER PUSHBACK (08-02) → designer RESUMED for two required additions before rulings: (a) PER-VIEW
+CONTEXT definition (static Assembly readout insufficient — each of the 5 views + list-only state
+gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) the
+ONE-HOME AUDIT table (every affordance → one primary home → justified echoes only → enforcement;
+mocks swept against it). THEN OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
 ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
 GATE FOLLOW-UP flagged: knob-wire-coverage should grow a preset-editor reader arm (the F8
 minted-but-editor-less class). Mocks PUBLISHED: params-deck
