@@ -66,9 +66,11 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
 // greeting studio, /autobg, caption) used to hardcode its own `temperature`/`maxTokens` constants — a
 // buried const that the user's own generation params could never override. The ladder resolves each site's
 // posture right-to-left through `@orb/kit/side-gen-posture`:
-//   per-action override (guidedActions.sampling)  →  the caller's preset `params`  →  THIS floor.
+//   the caller's preset `params`  →  THIS floor.
+// There is no third rung: a per-TEMPLATE sampling override on the preset's guided actions was DELETED (owner
+// ruling 2026-08-01) — guided generations run at the preset's normal generation params like every other turn.
 // This catalog is the FLOOR — the last word, and the byte-identical encoding of the OLD hardcoded consts, so
-// a user with no preset params + no per-action sampling gets exactly today's behavior. The numbers are NOT
+// a user with no preset params gets exactly today's behavior. The numbers are NOT
 // arbitrary — each entry carries the WHY from the const it replaced (a summary is not creative writing; a
 // name is not prose; etc.). To retune a floor, edit HERE (one home), never at a call site.
 export const SIDE_GEN_KINDS = [
@@ -84,7 +86,7 @@ export const SIDE_GEN_KINDS = [
 ] as const satisfies readonly string[];
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
-/** A side-generation floor posture — the sampling knobs a side-gen call runs at ABSENT a preset/per-action
+/** A side-generation floor posture — the sampling knobs a side-gen call runs at ABSENT a preset
  *  override. Both fields optional: an ABSENT field means "the runner/backend default stands" (caption's
  *  empty posture is the honest encoding of a call that passed nothing). `maxOutputTokens` (not `maxTokens`)
  *  matches the `userIntentSchema` vocabulary — a call site whose seam takes `maxTokens` (the summarize role)
@@ -122,7 +124,7 @@ export const SIDE_GEN_POSTURES = {
   // a tiny output budget because we want a name, nothing else.
   autobg: { temperature: 0.2, maxOutputTokens: 32 },
   // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
-  // defaults stood). An empty posture is the honest encoding; a preset/per-action override CAN now reach it.
+  // defaults stood). An empty posture is the honest encoding; the caller's preset params CAN now reach it.
   caption: {},
 } as const satisfies Record<SideGenKind, SideGenPosture>;
 // biome-ignore-end lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
@@ -298,28 +300,17 @@ const GREETING_NEW_DEFAULT_PROMPT =
 
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
-/** The per-action sampling override — the TOP rung of the side-gen sampling ladder (the resolver folds it
- *  over the caller's preset params, then the floor posture). Every field OPTIONAL + the whole object absent
- *  by default (the stored-blob-predates-field precedent): a blob without it parses, and an absent field
- *  simply defers to the next rung. Only guided-action-backed side-gen sites consume it today (the greeting
- *  studio via greeting_rewrite/greeting_new → the `greeting_studio` posture); non-guided sites skip this
- *  rung. The knob VOCABULARY is `userIntentSchema`'s (camelCase — these are NOT snake-case wire fields). */
-const guidedActionSamplingSchema = z
-  .object({
-    temperature: generationKnobSchemas.temperature,
-    topP: generationKnobSchemas.topP,
-    maxOutputTokens: generationKnobSchemas.maxOutputTokens,
-  })
-  .optional();
-
+// A guided action carries its TEMPLATE + delivery role and NOTHING about sampling: the per-template
+// sampling override (temperature/topP/maxOutputTokens) was DELETED (owner ruling 2026-08-01) — a guided
+// generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
+// a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
+// parses and simply loses it.
 export const guidedActionConfigSchema = z.object({
   /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone. */
   prompt: z.string(),
   /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
    *  prompt, `user`/`assistant` push as an in-chat depth-0 injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
-  /** Per-action sampling override — the ladder's top rung (see {@link guidedActionSamplingSchema}). */
-  sampling: guidedActionSamplingSchema,
 });
 export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
 

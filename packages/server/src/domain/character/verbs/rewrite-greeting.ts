@@ -21,6 +21,6 @@ export function createRewriteGreeting(ctx: CharacterContext): CharacterService["
     }
     const template = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_rewrite" });
     const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer, base: greeting });
-    return ctx.generateGreetingText({ caller: principal, prompt, kind: "greeting_rewrite" });
+    return ctx.generateGreetingText({ caller: principal, prompt });
   };
 }
