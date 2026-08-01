@@ -8,9 +8,8 @@
 
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
-import type { BackfillPassResult, BundleImportWorkloadResult, FsckReport, MemoryBackfillResult } from "@orb/contracts/workloads";
+import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
 import type { DocumentId, UserId } from "@orb/kit/ids";
-import type { Cas } from "#infra/storage";
 
 /** Counts a maintenance/backfill op returns BEFORE the runner adds the `dryRun` echo (→ MaintenanceResult). */
 interface MaintenancePassCounts {
@@ -21,13 +20,9 @@ interface MaintenancePassCounts {
 // Every op a singular-capable kind drives carries an `ownerId: UserId | null` — `null` = the bulk
 // all-owners pass, a `UserId` = scoped to that one owner. Bulk-only ops carry no `ownerId`.
 
-/** embeddings.* — the old-embed-space reclaims the memory-backfill + databank-reindex runners fire after a
- *  BULK sweep. (The `index` kind's embed passes have MOVED to `domain/embeddings/workload-contributions.ts`.) */
+/** embeddings.* — the old-document-embed-space reclaim the databank-reindex runner fires after a BULK
+ *  sweep. (Every other embeddings op has MOVED to its owning domain's contribution factory.) */
 export interface WorkloadEmbeddingsEnv {
-  /** PD-139(b): reclaim the OLD chat-memory embed space (`chat_segments`/`chat_digests`) after a BULK
-   *  memory-backfill. The memory-backfill runner calls it only for the box-global pass, after the sweep,
-   *  and never on abort — the bulk-only + skip-on-abort guard the embedCorpus/embedAssets purge also uses. */
-  readonly purgeMemoryVectors: () => Promise<void>;
   /** PD-139(c): reclaim the OLD document embed space (`document_chunks`) after a BULK databank-reindex
    *  re-embeds every chunk into the box's active space. The databank-reindex runner calls it only for the
    *  box-global (`ownerId === null`) pass, after the sweep, and never on abort — the same bulk-only +
@@ -65,28 +60,9 @@ export interface WorkloadImportEnv {
   }) => Promise<BundleImportWorkloadResult>;
 }
 
-/** assets.* — the GC/backfill/fsck maintenance verbs that run as workloads. `collectGarbage` is the
- *  grace-windowed mark-sweep GC; `fsck` is the read-only integrity report (both global, no per-owner concept). */
-export interface WorkloadAssetsEnv {
-  readonly backfillAvatars: (args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => Promise<MaintenancePassCounts>;
-  readonly collectGarbage: (args: { dryRun: boolean; signal: AbortSignal }) => Promise<MaintenancePassCounts>;
-  readonly fsck: (args: { signal: AbortSignal }) => Promise<FsckReport>;
-}
-
 /** stats.* — the rollup rebuild from canon (the `reconcile-stats` workload + the import post-settle). */
 export interface WorkloadStatsEnv {
   readonly reconcileStats: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<ReconcileStatsWorkloadResult>;
-}
-
-/** memory.* — the corpus-wide memory backfill (enumerates every chat × scope bucket, runs the same
- *  idempotent segment/digest builds the engine's post-turn trigger uses). */
-export interface WorkloadMemoryEnv {
-  readonly backfill: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<MemoryBackfillResult>;
-}
-
-/** character.* — the synthetic group-character backfill; idempotent via the find-first short-circuit. */
-export interface WorkloadCharacterEnv {
-  readonly backfillGroupCharacters: (args: { ownerId: UserId | null; signal: AbortSignal }) => Promise<BackfillPassResult>;
 }
 
 /** The full cross-feature op bundle the runner context closes over (`ctx.env`). */
@@ -94,11 +70,5 @@ export interface WorkloadRunnerEnv {
   readonly embeddings: WorkloadEmbeddingsEnv;
   readonly databank: WorkloadDatabankEnv;
   readonly import: WorkloadImportEnv;
-  readonly assets: WorkloadAssetsEnv;
   readonly stats: WorkloadStatsEnv;
-  readonly memory: WorkloadMemoryEnv;
-  readonly character: WorkloadCharacterEnv;
-
-  /** infra/storage blob bytes — the image-embed pass reads originals through it (NOT feature-owned). */
-  readonly cas: Cas;
 }

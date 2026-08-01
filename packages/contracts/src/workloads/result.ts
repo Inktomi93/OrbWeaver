@@ -7,6 +7,8 @@
 // whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
 // still awaiting their owner + assembles the exhaustive map.
 
+import type { FsckReport } from "#assets";
+import type { BackfillPassResult, MemoryBackfillResult } from "#chat";
 import type { CatalogRefreshResult } from "#connection";
 import type { IngestRunResult } from "#databank";
 import type { AnalyticsResult } from "#discovery";
@@ -27,31 +29,9 @@ export interface BundleImportWorkloadResult {
   readonly failed: number;
 }
 
-/** The asset-store integrity report (`assets-fsck`) — the three fault counts ARE the product of the run. */
-export interface FsckReport {
-  readonly danglingRows: number;
-  readonly corruptBlobs: number;
-  readonly orphanBlobs: number;
-}
-
 /** `deferred:true` distinguishes an inert v2-stub run from a real zero-work pass. */
 export interface DeferredResult {
   readonly deferred: true;
-}
-
-/** A backfill sweep's scan/change counts. */
-export interface BackfillPassResult {
-  readonly scanned: number;
-  readonly changed: number;
-}
-
-export interface MemoryBackfillResult {
-  readonly segments: BackfillPassResult;
-  readonly digests: BackfillPassResult;
-  /** Chats whose per-chat build threw an UNEXPECTED error and were isolated-and-skipped (structural twin of
-   *  chat's `MemoryBackfillCounts.failed`, #41). A non-silent skip: the sweep survives one bad chat, but the
-   *  failure lands in the durable result JSON (and an `error`-level log), never vanishing without a trace. */
-  readonly failed: number;
 }
 
 /**

@@ -20,12 +20,15 @@ import { createConnectionWorkloadContributions } from "../../../../packages/serv
 import { createDiscoveryWorkloadContributions } from "../../../../packages/server/src/domain/discovery/workload-contributions.ts";
 import { createEmbeddingsWorkloadContributions } from "../../../../packages/server/src/domain/embeddings/workload-contributions.ts";
 import { createStatsWorkloadContributions } from "../../../../packages/server/src/domain/stats/workload-contributions.ts";
-import type { AnyWorkloadContribution, WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
+import type {
+  AnyWorkloadContribution,
+  WorkloadContribution,
+  WorkloadContributions,
+} from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
 import type { WorkloadRunnerContext, WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
 import { buildShimContributions } from "../../../../packages/server/src/domain/workloads/substrate/shim-contributions.ts";
-import type { Cas } from "../../../../packages/server/src/infra/storage/index.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 /** A fixed instant — every timestamp in a test pins to this (no ambient clock; test-determinism §3). */
@@ -75,6 +78,14 @@ export function fakeContributions(env: WorkloadRunnerEnv = fakeEnv()): WorkloadC
     }),
   ];
   return Object.fromEntries(contributions.map((contribution) => [contribution.kind, contribution])) as WorkloadContributions;
+}
+
+/** The registry with ONE kind's run body swapped for a test double. The seam an ENGINE test drives: the
+ *  state machine is what's under test, so it must not ride any owning domain's real body (those are tested
+ *  at their own mirrors) — and this stays correct as kinds re-home. */
+export function contributionsWith<K extends WorkloadKind>(kind: K, run: WorkloadContribution<K>["run"]): WorkloadContributions {
+  const base = fakeContributions();
+  return { ...base, [kind]: { ...base[kind], run } };
 }
 
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
@@ -128,7 +139,6 @@ export function principal(id: string, role: UserRole = "user"): Principal {
 export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<WorkloadRunnerEnv[K]> } = {}): WorkloadRunnerEnv {
   return {
     embeddings: {
-      purgeMemoryVectors: vi.fn(async () => undefined),
       purgeDocumentVectors: vi.fn(async () => undefined),
       ...overrides.embeddings,
     },
@@ -162,42 +172,12 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         failed: 0,
       })),
     },
-    assets: {
-      backfillAvatars: vi.fn(async (_args: { ownerId: UserId | null; dryRun: boolean; signal: AbortSignal }) => ({
-        scanned: 20,
-        changed: 3,
-      })),
-      collectGarbage: vi.fn(async (_args: { dryRun: boolean; signal: AbortSignal }) => ({
-        scanned: 10,
-        changed: 4,
-      })),
-      fsck: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        danglingRows: 1,
-        corruptBlobs: 0,
-        orphanBlobs: 2,
-      })),
-    },
     stats: {
       reconcileStats: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         owners: 1,
         characters: 4,
       })),
     },
-    memory: {
-      backfill: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
-        segments: { scanned: 4, changed: 2 },
-        digests: { scanned: 6, changed: 3 },
-        failed: 0,
-      })),
-    },
-    character: {
-      backfillGroupCharacters: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
-        scanned: 5,
-        changed: 1,
-      })),
-      ...overrides.character,
-    },
-    cas: {} as Cas,
   };
 }
 

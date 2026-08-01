@@ -9,6 +9,10 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
+import type { AssetsWorkloadDeps } from "#domain/assets";
+import { createAssetsWorkloadContributions } from "#domain/assets";
+import type { ChatWorkloadDeps } from "#domain/chat";
+import { createChatWorkloadContributions } from "#domain/chat";
 import type { ConnectionWorkloadDeps } from "#domain/connection";
 import { createConnectionWorkloadContributions } from "#domain/connection";
 import type { DiscoveryWorkloadDeps } from "#domain/discovery";
@@ -27,7 +31,9 @@ export interface WorkloadContributionsDeps
     EmbeddingsWorkloadDeps,
     DiscoveryWorkloadDeps,
     StatsWorkloadDeps,
-    ConnectionWorkloadDeps {}
+    ConnectionWorkloadDeps,
+    AssetsWorkloadDeps,
+    ChatWorkloadDeps {}
 
 /** Key a flat contribution list by kind, asserting exhaustive + duplicate-free registration. */
 function keyByKind(contributions: readonly AnyWorkloadContribution[]): WorkloadContributions {
@@ -57,6 +63,8 @@ export function buildWorkloadContributions(deps: WorkloadContributionsDeps): Wor
     ...createDiscoveryWorkloadContributions(deps),
     ...createStatsWorkloadContributions(deps),
     ...createConnectionWorkloadContributions(deps),
+    ...createAssetsWorkloadContributions(deps),
+    ...createChatWorkloadContributions(deps),
     ...buildShimContributions(deps),
   ]);
 }

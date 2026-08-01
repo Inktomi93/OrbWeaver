@@ -634,7 +634,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const { portability, runnerEnv } = buildPortabilityRunner({
     db,
     now,
-    cas,
     tagCtx,
     settingsCtx,
     presetCtx,
@@ -658,7 +657,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloads,
     embeddings,
     databankIngest,
-    chat: { backfill: chatCompose.backfill },
     ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
   });
@@ -667,9 +665,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   workloadContributions = buildWorkloadContributions({
     db,
     now,
+    cas,
     embeddings,
     discovery,
     connection,
+    assets,
+    backfillMemory: (args) => chatCompose.backfill.memory(args),
+    backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
+    purgeMemoryVectors: async (): Promise<void> => {
+      // The purge's row counts are advisory — the sweep's own counts are the workload result.
+      await embeddings.purgeMemoryVectors();
+    },
     loadUserSettings: settings.loadUserSettings,
     // TRANSITIONAL: what the not-yet-moved kinds' runner shim still reads.
     env: runnerEnv,
