@@ -69,8 +69,11 @@ resolved); the E2E_LIVE specs on the next push window.
 **═══ COMPACTION HANDOFF (08-02, written at the owner's invitation) ═══**
 
 **IN FLIGHT at compaction (resume via SendMessage to these, results arrive as task notifications):**
-· `a32718c88dd39445f` — macro/CEL third-surface parity + the OWNER-RULED inventory
-  description/location rendering (token-lean, capped, all three surfaces, suite cites→probes).
+· ~~macro parity~~ MERGED (`231e7653`: one-builder grammar exported from reminder.ts, macro-view
+  composes it — 47 proven/26 cited matching the reminder path-for-path; inventory ruling applied
+  all three surfaces, notes capped 60; delta cite now STRUCTURAL [no inventory edit arm — re-open
+  if one lands]). EYEBALL ITEM: {{rpgSceneState}}/{{rpgCast}} are materially LONGER now (correct
+  parity, real token cost) — look at a live render if a preset places them.
 · `ae7a23e7ea4435982` — SSE S2 FINAL round on branch `wt/agent-ae7a23e7ea4435982`: RF1 fix
   (ordering-barrier lean) + cold-scrubber producer-stamp reconcile (its pump-scrubber machinery
   DELETES) + park-skip corner. MERGE PROTOCOL: read its report → merge its branch → a THIRD
