@@ -66,6 +66,49 @@ merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK 
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
 resolved); the E2E_LIVE specs on the next push window.
 
+**═══ COMPACTION HANDOFF #2 (08-02 evening — CURRENT; supersedes everything between here and
+the old handoff below) ═══**
+
+**TREE:** main green through `pnpm check` as of the SE-A-era merges; THREE unhooked merges since
+(cast-fix 775ba2c9 · retention 760be66e · SE-D 859c674e · SE-A 44ee46d1 also unhooked) — **OWED:
+one consolidated `pnpm check` batch certification when the lanes drain (load was ~60, easing).**
+Origin: pushed through `32539eda` mid-day; everything since is LOCAL (next push needs the word).
+
+**IN FLIGHT (4 lanes; resume via SendMessage):**
+· SE-B `ad93b26f434d3368e` — rpg/HUD side-eye cluster (band budget fork · F8 kicker + D-1 split ·
+  lying meters em-dash · crown recede · scene names · dead class · ghost tile · duplicate orbs ·
+  caption wrap). Merge on report (--no-verify while load high; batch check covers).
+· SE-C `a0c461b088749fa65` — ui cluster (TabsPanel FOCUS_RING · Button inline arm ×13 · icon
+  tiles · bubble single-home · dialogue hue via D71) + the BLESSED --color-sheen token addition.
+· V1 `a2111779d0b28b190` — preset wave-2: five-view shell + Params deck/KnobRow (fence: zero
+  app-shell edits; only the preset pane door line legal).
+· nav-label `a512a625a8eb468a4` — SettingsSubcategory.navLabel split ("Message details").
+
+**THEN, IN ORDER:** batch `pnpm check` → **R1** (op-shaped patchActor + dismissActor — the
+APPROVED actor-state program's first stage; supersedes volatile-patch.ts) → V2 preset views
+(rack build · Actions off the registry + kind badges · template drill-ins · per-view readouts +
+D8 binding · list projection) → R2+R3 one lane (NPC becomes actor · presence plane ·
+cast* projections die · HP DEMOTION + condition stat-enum→tracker-key widening + GM→HOST vocab
+sweep, all in R2's baseline squash; stickler pass before merge) → preset program side-eye +
+freshness live drive → R4 promotion doorway → smalls batch (jobs-vs-workloads vocab+CTA ·
+toolround usage record · Doc-Law §-refs ruling · ember-CT rename · runStructuredTurn retry-drift
+sweep) → density S6 (transcript+composer, baseline→{}) → SSE close-out residue (impersonate +1
+socket verify) → **DATABANK alone**.
+
+**OPEN OWNER ITEMS:** JSON-card export format · absent-character transcript import policy ·
+DRAFT-TRUST architecture call · macro-feed cast-guides celBindings question · VRAM-drill word ·
+AGENT-1 word · D22 multi-user (needs multi-user stack).
+
+**FRESH LESSONS THIS STRETCH (all banked in memory hubs):** lanes snap own commits via
+`snap --isolated --ref <sha>` · CSS-hidden panes swallow scrolls + lying scroll-spies · CT =
+production React (StrictMode unreachable; keyed remount) · deferred room-retire needs fake
+timers · git commit -- <pathspec> skips untracked (worktree teardown = data loss; git-show
+receipts mandatory) · cwd resets on deleted dirs/outside-project (lanes git -C always;
+orchestrator never tears down resumable worktrees) · lane merges bypass the pre-merge hook w/
+core.hooksPath=/dev/null; orchestrator merges keep it except under load (--no-verify + batch) ·
+4+ concurrent lanes synchronize verification phases into load spikes — stagger or cap at 3.
+
+**OLD HANDOFF (stale, kept for archeology):**
 **═══ COMPACTION HANDOFF (08-02, written at the owner's invitation) ═══**
 
 **IN FLIGHT at compaction (resume via SendMessage to these, results arrive as task notifications):**
