@@ -102,14 +102,25 @@ duplication owner call — DESIGN §2 mandates
   CT = the known DEF-14 parallel-load flake.
 **NEW WAVE (post-SE, 3 lanes):** R1 op-shaped hand door `patchActor`+`dismissActor` (the
 approved program opens) · V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
-w/ D8+list projection; snap --isolated receipts required) · smalls#2 (Jobs vocab+CTA · toolround
-usage · ember-CT rename · retry-drift sweep · post-checkout install hook · BANG-PREFIX gate arm
-[~40-site baseline]). **BATCH CHECK: FAIL→FIXED→pending re-run** — the ONLY red was my §L AGENTS.md append unformatted
-(format:docs applied); code stages all green. Re-running the check now certifies the pile. ~~mirror-pin~~ MERGED (`acad5df6`, unhooked — 26 shapes pinned two-axis [keys+values]; proven
+w/ D8+list projection; snap --isolated receipts required) · ~~smalls#2~~ **MERGED (`165cd85e`,
+HOOKED — the 12/12 check on this merge CERTIFIED the whole unhooked pile incl. mirror-pin; batch
+debt CLEARED).** All six landed: Jobs = the one user noun (pane copy swept, filtered-tab CTAs
+dropped, 44 CT green) · `rpg.toolround.usage` economics record (§10.1a true, 42 int green) ·
+ember-CT title rename · retry-drift sweep = NOTHING TO BUNDLE (3 call sites tree-wide, all clean
+by construction; invariant commented) · lefthook post-checkout auto-install (4-arm scratch-repo
+probe) · bang-prefix arm (v4.3.3 engine probed: both `!x` and `x!` spellings bite). NEW FROM IT:
+**DEBT_BASELINE re-opened 14 rows** (all `features/rpg` `!size-N !p-0` icon buttons — the gate
+was blind to `!` so the old TERMINAL {} was a LIE) → the queued square-glyph Button small below
+is now the payoff path · side-eye item: "Jobs > Jobs" doubled nav row (Personas>Personas
+precedent kept; eyeball it) · ember PROSE strays remain (rpg-context-section.ct.tsx:1604 body
+comment, rpg-hud.tsx:319/:1811) + 2 "workload" strings outside the pane
+(admin-create-user-dialog.tsx:74, admin-ops-section.tsx:67) — fold into the next docs/copy sweep
+· lefthook caveat: hand-added worktree w/ dead baked binary path prints "can't find lefthook"
+and exits 0 (pre-existing gap, recorded). LESSON banked: gate blind spots make baselines lie —
+re-derive blind spots before trusting a terminal zero. ~~mirror-pin~~ MERGED (`acad5df6` — 26 shapes pinned two-axis [keys+values]; proven
 on the exact TRK-2 regression; found+fixed FOUR more live drifts on landing [poolDefs debris,
-missing flavor/gr ants, phantom namesBehavior, weather |undefined]; envelope-sourced shapes
-listed as honest scope). Remaining in flight: R1 / V2 / smalls#2 (ids in the wave note +
-handoff #2). Post-merge check owed with the next merge batch.
+missing flavor/grants, phantom namesBehavior, weather |undefined]; envelope-sourced shapes
+listed as honest scope). Remaining in flight: R1 / V2.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
@@ -865,12 +876,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   named "ember state colour"; any spec prose) in the next docs/test-touching lane. Code already
   token-clean (D71 pipeline); mock-local --ember-tint = drawing shorthand, fine.
 
-- **WORKLOADS-PANE VOCAB + JOBS CTA (owner 08-02: "I don't even know the difference between jobs
-  and workloads"):** the pane says Workloads, its section says Jobs — same concept, two nouns;
-  pick ONE user-facing word (lean: "Jobs" for humans, workloads stays the system/code name) and
-  sweep the pane copy. SAME LANE: the Jobs two-homes CTA shape — drop the per-tab empty-state
-  CTAs on filtered tabs (the header "Run a workload…" stays; hiding it per-tab would flicker) —
-  SE-D's flagged fix. Small; side-eye the result.
+- ~~WORKLOADS-PANE VOCAB + JOBS CTA~~ DONE in smalls#2 (`165cd85e` — "Jobs" is the one user
+  noun; filtered-tab CTAs dropped; side-eye rider: the "Jobs > Jobs" doubled nav row).
+- **SQUARE-GLYPH BUTTON size variant + 14-site sweep** (from smalls#2's bang-prefix arm): the
+  re-opened DEBT_BASELINE's 14 rows are ONE shape — `<Button intent="ghost" size="sm"
+  className="!size-N !p-0">` icon buttons in features/rpg at scales 4/5/6/8 + one `!w-block`
+  TrackBar. Honest fix = a square-glyph size arm + sweep with computed-geometry proof; UI change,
+  own review + side-eye. Clears the baseline back to terminal {}.
 
 - ~~SMALLS LANE~~ MERGED: blur ON by default (`96c6df7d` — .catch+.default, explicit-[] survival
   pinned, CT toggle test corrected both directions; contracts audit ARCHIVED to
