@@ -128,7 +128,13 @@ claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + acti
 same URLs. Owner's two bars met. MOCK FEEDBACK RULED (08-02, round 3 in flight): output+context tokens =
 KnobRow SLIDERS (typeable, ghost arm, capability-fed ranges) · section editor's fused depth·order
 SPLITS — DEPTH moves to DELIVERY beside SPOKEN-AS ("depth goes near whatever role it goes in as"),
-ORDER stays in Placement. **OWNER APPROVED THE REDESIGN (08-02) — D1-D7 as recommended.** Round 3 also re-verifies §13
+ORDER stays in Placement. **OWNER APPROVED THE REDESIGN (08-02) — D1-D7 as recommended.** FOUR BUILD-HAZARD REQS added to
+round 3 (owner): identity macros NEVER fake-resolve editor-side (chat-owned, Ruling B — token +
+"resolves in chat" gloss; fix the Actions mock) · full CRUD+import/export lifecycle table (orb-
+native import DOOR must be designed — F8 says none exists) · FRESHNESS contract (every write +
+capability change invalidates resolveEffective/readouts; freshness gate classifies the new procs
+— the preview-section saga's lesson) · FORM FACTORY mandatory (no bespoke form state — the
+AppearanceForm disease). Round 3 also re-verifies §13
 into the definitive primitives table (EXISTS/VARIANT/COMPOSITE/MINT — incl. whether a Slider
 primitive exists AT ALL for the large-range token knobs; each MINT gets an anatomy sketch) —
 that table is the build lanes' dispatch input. PRESET-1 BUILD queues after round 3 lands +
