@@ -173,7 +173,14 @@ isolated stacks). THEN THE COMBINED SIDE-EYE (stage singleton) dispatches AFTER 
 headings + Recompute · S1 appearance IA (§10 Q3 owner-eyeball) · the inline-Button-arm assessment ·
 live socket-count re-verify (D118 numbers). REMAINING OWNER-GATED: the VRAM-refusal drill (needs
 your word for a real GPU hog) · AGENT-1 (parked on word).
-B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
+~~B4~~ MERGED (`cdb6f2e7`): macro-resolution-home LIVE (4 sanctioned transcript-render homes,
+reasons inline; tokenizer/neutralizers ruled NOT-resolvers; probe bit on a real preset editor
+file ×2 arms) + assertTokenRoundtrip helper (write half; the READ half pinned too — stored
+{{char}} paints literally) proven on injections-manager. Wave-2 readouts joining = a SANCTIONED
+entry w/ reason or RED (the intended forcing function). Blind spots declared (data-flow/dynamic/
+alias/server). GATE-AUTHORING LAW UPGRADED: scanned-and-allowlisted (firehose shape) beats
+scanRoot-exclusion — a moved sanctioned home goes RED instead of carrying its exemption; default
+for new home gates. Was: B4 LANE ADDED (owner-ruled gate, 08-02): `macro-resolution-home` — resolvers importable ONLY
 from sanctioned render/preview/readout homes (scrubber-home pattern; kills the editor-round-trips-
 resolved-text CORRUPTION class) + the shared assert-token-roundtrip CT helper, proven on an
 existing editor; LANDS BEFORE WAVE 2 so the new editors are born unable to violate it.
