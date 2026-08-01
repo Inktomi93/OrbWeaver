@@ -40,11 +40,11 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
       <Stack gap="section" data-slot="rpg-game-door" align="start">
         <Row gap="field" align="center">
           <Icon icon={Crown} size="sm" className="text-highlight" />
-          <Text size="micro" transform="caps" weight="semibold" className="tracking-micro text-highlight">
+          <Text voice="kicker" className="tracking-micro text-highlight">
             RPG overlay off
           </Text>
         </Row>
-        <Text tone="muted">The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
+        <Text>The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
         <Button intent="primary" size="sm" onClick={(): void => updateConfig.mutate({ chatId, patch: { engaged: true } })}>
           <Icon icon={Play} size="xs" /> Turn the overlay on
         </Button>
@@ -57,11 +57,11 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
     <Stack gap="section" data-slot="rpg-game-door" align="start">
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" className="text-highlight" />
-        <Text size="micro" transform="caps" weight="semibold" className="tracking-micro text-highlight">
+        <Text voice="kicker" className="tracking-micro text-highlight">
           Turn on RPG
         </Text>
       </Row>
-      <Text tone="muted">An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
+      <Text>An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
       <Row gap="field" className="flex-wrap">
         <Button intent="primary" size="sm" onClick={(): void => createGame.mutate({ chatId, mode: "lite" })}>
           <Icon icon={WandSparkles} size="xs" /> Freeform story

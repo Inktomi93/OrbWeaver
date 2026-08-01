@@ -90,9 +90,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
           <form.AppField name="output">
             {(field): ReactElement => (
               <Stack gap="field">
-                <Text size="label" weight="medium">
-                  How the cast replies
-                </Text>
+                <Text voice="label">How the cast replies</Text>
                 <ToggleGroup
                   value={[field.state.value]}
                   onValueChange={(value): void => {
@@ -108,7 +106,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                   <Toggle value="per-speaker">Per-speaker</Toggle>
                   <Toggle value="narrator">Narrator</Toggle>
                 </ToggleGroup>
-                <Text size="micro" tone="muted">
+                <Text voice="gloss">
                   {field.state.value === "narrator"
                     ? "One message voices everyone — you can't swipe individuals."
                     : "Each character replies in their own message — swipe them individually."}

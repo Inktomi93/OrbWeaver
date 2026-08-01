@@ -62,7 +62,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   if (tracker.actors.length === 0) {
-    return <Text tone="muted">No one on the roster yet — add characters in Members.</Text>;
+    return <Text>No one on the roster yet — add characters in Members.</Text>;
   }
 
   // One patch-and-mutate for a target actor's volatile (whole-array overlay, keyed server-side by
@@ -162,7 +162,7 @@ function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): React
   const volatile = actor.volatile;
   const castRow = castRowFor(actor, cast);
   return (
-    <Stack gap="field" data-slot="rpg-status-card" className="rounded-card border border-border bg-card px-block py-row">
+    <Stack gap="field" data-slot="rpg-status-card" className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
         <Row gap="field" align="center" className="min-w-0">
           <Button
@@ -176,7 +176,7 @@ function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): React
             <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: actor.avatar })}>
               {actor.name.slice(0, 1).toUpperCase()}
             </Avatar>
-            <Text as="span" size="label" weight="semibold" className="truncate">
+            <Text as="span" voice="label" className="truncate">
               {actor.name}
             </Text>
             <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
@@ -184,7 +184,7 @@ function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): React
           {castRow === undefined ? null : <RelationshipBadge relationship={castRow.relationship} />}
         </Row>
         {actor.sheet.className === "" ? null : (
-          <Text as="span" size="micro" tone="muted" className="shrink-0">
+          <Text as="span" voice="gloss" className="shrink-0">
             {actor.sheet.className}
           </Text>
         )}

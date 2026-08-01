@@ -163,9 +163,7 @@ function ArrayPickControl({ input, value, onPick }: InputControlProps): ReactEle
           />
         ))}
         <Row gap="field" align="center" justify="between">
-          <Text size="micro" tone="muted">
-            {consequence}
-          </Text>
+          <Text voice="gloss">{consequence}</Text>
           {isSet ? (
             <Button intent="ghost" size="sm" type="button" onClick={(): void => onPick(undefined)}>
               Use default
@@ -262,9 +260,7 @@ function VariableMultiControl({ spec, value, onPick }: VariableControlProps): Re
             onChange={(checked): void => toggle(option.value, checked)}
           />
         ))}
-        <Text size="micro" tone="muted">
-          {consequence}
-        </Text>
+        <Text voice="gloss">{consequence}</Text>
       </Stack>
     </Fieldset>
   );
@@ -304,7 +300,7 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
     // NOT rendered as nothing (omit ≠ none-yet): the section says the feature exists and where it comes from,
     // so an author who declared a macro without inputs isn't left wondering why the pane is blank.
     return (
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         The preset this chat runs declares no variables and no macro inputs. Add a variable or a typed macro input (Presets → Prompt / Macros) and it appears
         here to pick per chat.
       </Text>
@@ -322,7 +318,7 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
     <Stack gap="section">
       {variableData.variables.length > 0 ? (
         <Stack gap="field">
-          <Heading level={4} size="body">
+          <Heading level={4} voice="label">
             Variables
           </Heading>
           {variableData.variables.map((spec) => (
@@ -333,21 +329,13 @@ export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElem
       {data.macros.map((macro) => (
         <Stack gap="field" key={macro.name}>
           <Row gap="field" align="baseline">
-            <Heading level={4} size="body">{`{{${macro.name}}}`}</Heading>
+            <Heading level={4} voice="label">{`{{${macro.name}}}`}</Heading>
             {/* Provenance, quietly: a macro declared by the GAME appears with the game and leaves with it (and
                 on a name clash it is the def the turn resolves). The preset half is the unmarked default — the
                 pane would be noisier, not clearer, for saying "from preset" on every row. */}
-            {macro.source === "game" ? (
-              <Text size="micro" tone="muted">
-                from game
-              </Text>
-            ) : null}
+            {macro.source === "game" ? <Text voice="gloss">from game</Text> : null}
           </Row>
-          {macro.description.length > 0 ? (
-            <Text size="micro" tone="muted">
-              {macro.description}
-            </Text>
-          ) : null}
+          {macro.description.length > 0 ? <Text voice="gloss">{macro.description}</Text> : null}
           {macro.inputs.map((input) => (
             <InputControl
               input={input}

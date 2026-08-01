@@ -69,7 +69,7 @@ export function DraftMembersTabBody({ draftKey, cast }: DraftMembersTabBodyProps
   const cfg = useDraftConfig(draftKey);
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading roster…</Text>}
+      fallback={<Text voice="gloss">Loading roster…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the roster" onRetry={retry} />}
     >
       <DraftMembersRoster draftKey={draftKey} characterIds={cast} rosterOverrides={cfg.rosterOverrides} />

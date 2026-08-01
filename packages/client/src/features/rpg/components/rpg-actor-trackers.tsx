@@ -131,7 +131,7 @@ function ActorTrackerText({ def, value, edit }: { readonly def: RpgTrackerDef; r
   const display = def.shape === "list" ? (value.items ?? []).join(", ") : String(value.value ?? "");
   return (
     <Row gap="field" align="baseline" justify="between">
-      <Text as="span" size="label" tone="muted" {...(def.hint === "" ? {} : { title: def.hint })}>
+      <Text as="span" voice="label" {...(def.hint === "" ? {} : { title: def.hint })}>
         {def.label}
       </Text>
       <TrackerValue
@@ -188,7 +188,7 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
       return null;
     }
     return (
-      <Text as="span" size="micro" tone="muted" className="truncate">
+      <Text as="span" voice="gloss" className="truncate">
         {status}
       </Text>
     );

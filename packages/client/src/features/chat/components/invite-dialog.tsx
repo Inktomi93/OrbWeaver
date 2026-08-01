@@ -136,7 +136,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
                     )}
                   </form.AppField>
                   {handleError === null ? null : (
-                    <Text size="label" tone="destructive" role="alert">
+                    <Text voice="label" role="alert" className="text-destructive">
                       {handleError}
                     </Text>
                   )}
@@ -162,16 +162,14 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
 
           {mintedLink === null ? null : (
             <Stack gap="field" data-testid={testId("inviteLinkResult")}>
-              <Text size="label" weight="medium" className="font-mono break-all">
+              <Text voice="label" className="font-mono break-all">
                 {mintedLink}
               </Text>
               <Row gap="field" align="center">
                 <Button type="button" intent="secondary" size="sm" onClick={(): void => void copyLink(mintedLink)} data-testid={testId("inviteCopyLink")}>
                   Copy link
                 </Button>
-                <Text size="micro" tone="muted">
-                  Copy it now — you won't see this link again.
-                </Text>
+                <Text voice="gloss">Copy it now — you won't see this link again.</Text>
               </Row>
             </Stack>
           )}
@@ -197,14 +195,14 @@ function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactEleme
   const revoke = useRevokeInvite({ trpc, invalidation });
 
   if (isError) {
-    return <Text tone="muted">Couldn't load the outstanding invites.</Text>;
+    return <Text>Couldn't load the outstanding invites.</Text>;
   }
   if (invites === undefined || invites.length === 0) {
     return null;
   }
   return (
     <Stack gap="row" data-testid={testId("inviteOutstandingList")}>
-      <Text as="span" size="micro" tone="muted" transform="caps">
+      <Text as="span" voice="kicker">
         Outstanding invites
       </Text>
       {invites.map((invite) => (
@@ -231,10 +229,10 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
         <Badge size="sm" intent={STATUS_INTENT[invite.status]}>
           {invite.status}
         </Badge>
-        <Text as="span" size="label" className="min-w-0 truncate">
+        <Text as="span" voice="label" className="min-w-0 truncate">
           {invite.invitedUserId === null ? "Share link" : "Targeted invite"}
         </Text>
-        <Text as="span" size="micro" tone="muted" className="font-mono whitespace-nowrap">
+        <Text as="span" voice="gloss" className="font-mono whitespace-nowrap">
           {uses} · {expiry}
         </Text>
       </Row>

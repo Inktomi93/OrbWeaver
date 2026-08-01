@@ -77,7 +77,7 @@ function tileTitle(item: RpgInventoryItem): string {
 // pixel-identical at rest (PERMISSION differs in what a CLICK does, never in what the pack looks like).
 // A left-aligned card, not the old empty square: the grid track (layout/variants `cols="cell"`) gives it
 // the width the item's own words need, and the card is only as tall as those words.
-const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-card border border-border bg-card !px-row !py-field text-left";
+const TILE_CLASS = "relative w-full min-w-0 items-center gap-field rounded-control border border-border bg-card !px-row !py-field text-left";
 
 /** The tile's INK — the glyph · the name (wrapped) · ×N · where it's kept. Shared by both arms. */
 function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElement {
@@ -86,7 +86,7 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
       {QUEST_TYPE_RE.test(item.type) ? (
         // The ember quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
-        <Text as="span" aria-hidden={true} className="absolute top-field right-field text-primary" size="micro" title="quest item">
+        <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary" title="quest item">
           ●
         </Text>
       ) : null}
@@ -95,12 +95,14 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
         <Row gap="field" align="baseline" className="min-w-0">
           {/* The NAME is the datum (§4.9) and a model writes it: it WRAPS inside the tile rather than
               truncating away — the tile grows a line, the pack keeps its rhythm (the grid row stretches). */}
-          <Text as="span" size="micro" weight="semibold" className="min-w-0 flex-1 break-words">
+          {/* `label` — the tile's NAME, the same voice the LIST row's `ItemName` speaks; a tile whose name
+              recedes to `gloss` like its ×N and location has no head to read first. */}
+          <Text as="span" voice="label" className="min-w-0 flex-1 break-words">
             {item.name}
           </Text>
           {/* The ×N read, the list row's exact grammar — a stack of one renders nothing (no "×1" noise). */}
           {item.quantity > 1 ? (
-            <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">
+            <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
               ×{item.quantity}
             </Text>
           ) : null}
@@ -109,7 +111,7 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
             Model-authored free text with no length contract: it wraps; empty ⇒ nothing (the editor is where
             an unset location gets filled in, and it says so with a placeholder). */}
         {item.location === "" ? null : (
-          <Text as="span" size="micro" tone="muted" className="min-w-0 break-words">
+          <Text as="span" voice="gloss" className="min-w-0 break-words">
             {item.location}
           </Text>
         )}
@@ -166,7 +168,7 @@ export interface PackEdit {
 function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   if (edit === undefined) {
     return (
-      <Text as="span" size="label" weight="semibold" className="min-w-0 break-words">
+      <Text as="span" voice="label" className="min-w-0 break-words">
         {item.name}
       </Text>
     );
@@ -194,14 +196,14 @@ function ItemName({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
 function ItemQuantity({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement | null {
   if (edit === undefined) {
     return item.quantity > 1 ? (
-      <Text as="span" size="micro" tone="muted" className="shrink-0 tabular-nums">
+      <Text as="span" voice="gloss" className="shrink-0 tabular-nums">
         ×{item.quantity}
       </Text>
     ) : null;
   }
   return (
     <Row gap="field" align="baseline" className="shrink-0">
-      <Text as="span" size="micro" tone="muted" aria-hidden={true}>
+      <Text as="span" voice="gloss" aria-hidden={true}>
         ×
       </Text>
       <TrackerValue
@@ -240,7 +242,7 @@ function ItemProseLine({
 }): ReactElement | null {
   if (edit === undefined) {
     return value === "" ? null : (
-      <Text as="span" size="micro" tone="muted" className="min-w-0 break-words">
+      <Text as="span" voice="gloss" className="min-w-0 break-words">
         {value}
       </Text>
     );
@@ -297,7 +299,7 @@ function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; reado
  *  (RV-5): every datum is click-to-edit in place and the row carries a confirmed delete. */
 function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly edit?: PackEdit }): ReactElement {
   return (
-    <Row gap="field" align="center" className="rounded-card border border-border bg-card px-block py-row" data-slot="rpg-pack-row">
+    <Row gap="field" align="center" className="rounded-base border border-border bg-card px-block py-row" data-slot="rpg-pack-row">
       <ItemGlyph item={item} {...(edit === undefined ? {} : { onPickIcon: (icon: string): void => edit.onPickIcon(item.id, icon) })} />
       <Stack gap="field" className="min-w-0 flex-1">
         <Row gap="field" align="baseline" className="min-w-0">
@@ -347,7 +349,7 @@ export function PackBody({
           aria-hidden={true}
           gap="field"
           align="center"
-          className="min-h-touch-target justify-center rounded-card border border-border border-dashed px-row py-field"
+          className="min-h-touch-target justify-center rounded-inset border border-border border-dashed px-row py-field"
           data-slot="rpg-pack-ghost"
         />
       </Grid>
