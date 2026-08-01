@@ -5,8 +5,8 @@
 //
 // Ported from neo's 01-smoke + 02-auth. Deltas vs neo, grounded in orb's real wiring:
 //   • healthz lives at `/healthz` on the Hono server (entry/http/healthz.ts), NOT `/api/healthz`, and the
-//     vite dev front door (:5173, the baseURL) only proxies `/api` + `/join` — so `/healthz` is hit on the
-//     backend port :8788 DIRECTLY. Body is `{status:"ok"}` (no `ok`/`version` field — neo's shape differs).
+//     vite dev front door (the baseURL) only proxies `/api` + `/join` — so `/healthz` is hit on the backend
+//     port DIRECTLY. Body is `{status:"ok", harness:…}` (no `ok`/`version` field — neo's shape differs).
 //   • orb has no `app-root`/`app-shell` DOM testid stamped (the registry key is unused); the shell's ONE
 //     `main` landmark (app-shell.tsx `<main className="shell-content">`) is the stable shell-mounted target.
 //   • the chat list surface (chat-list-surface.tsx) owns an `aria-label="Chats"` region OR an empty-state —
@@ -14,9 +14,12 @@
 //     section is the default CONTENT+LIST on `/`, so the list panel is present from first paint.
 
 import { expect, test } from "@playwright/test";
+import { SINGLE_USER } from "./support/modes";
 
-// The backend origin — healthz is server-only (not proxied through vite). stack.sh pins PORT default 8788.
-const HEALTHZ_URL = "http://127.0.0.1:8788/healthz";
+// The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
+// project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
+// a hardcoded probe there would have reported the operator's dev stack's health instead of the harness's).
+const HEALTHZ_URL = `${SINGLE_USER.backendUrl}/healthz`;
 const LOGIN_FIELD = /password|handle|username/u;
 const APP_READY = "html[data-app-ready]";
 

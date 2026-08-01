@@ -1,6 +1,8 @@
 # OpenRouter chat-completions backend — measured findings & fixes
 
-**Status:** findings 1–4 APPLIED (2026-07-31); 5–7 open · **Date:** 2026-07-30 · **Scope:**
+**Status:** findings 1–4 APPLIED (2026-07-31); 5–7 MEASURED, unbuilt (2026-08-01 — verdicts +
+recommendations in [`scripts/probes/openrouter/RESULTS.md`](../../scripts/probes/openrouter/RESULTS.md),
+raw wire evidence in that harness's `results/*.jsonl`) · **Date:** 2026-07-30 · **Scope:**
 `packages/server/src/infra/providers/backends/openrouter/` (the sealed `chat-completions` runner + `kit`).
 **Evidence:** live probes against `anthropic/claude-sonnet-5` via OpenRouter (~$0.24) + the Anthropic native
 Messages API. Sibling doc: `rpg-extraction-one-call-spike.md` (different subject; §4a there shares finding 6).
@@ -18,9 +20,9 @@ Messages API. Sibling doc: `rpg-extraction-one-call-spike.md` (different subject
 | 2 | The Anthropic "pin" doesn't pin | 1 field | correctness of a stated guarantee |
 | 3 | An invalid TTL silently disables caching | guard + warning | 10× cost, zero signal |
 | 4 | `isError` on tool results is silently dropped | warning | D41 no-silent-degrade |
-| 5 | Cache breakpoints counted in array offsets, not role switches | small | under-caching on tool-heavy turns |
-| 6 | OR under-drives `effort` 3–6× vs native | none (know it) | invalidates effort-based conclusions |
-| 7 | Reasoning is never round-tripped | contract change | continuity on long agentic chains |
+| 5 | Cache breakpoints counted in array offsets, not role switches | small | ~~under-caching~~ **downgraded 08-01**: the read still hits (lookback); cost is a wasted WRITE per tool depth |
+| 6 | OR under-drives `effort` 3–6× vs native | none (know it) | **confirmed + sharpened 08-01**: 28× at the ceiling, and no lever reaches native depth (F5) |
+| 7 | Reasoning is never round-tripped | contract change | continuity on long agentic chains — **08-01: an unsigned replay is a hard 400, so the signature must be structurally non-optional** |
 
 ---
 
@@ -167,6 +169,11 @@ contract change (`ChatContentPart` + a signature guard) with an unquantified pay
 
 ## Verification
 
-Probe scripts live in the session scratchpad, not the repo (unlike the rpg harnesses). Re-deriving is cheap:
+Findings 5–7 now have a STANDING harness in the repo: `scripts/probes/openrouter/`
+(`node scripts/probes/openrouter/run.mjs`, resumable, ~$0.32 for the full batch) — it also answers F4
+(tool descriptions ARE cache-key bytes; any edit invalidates the whole prefix) and F4a (effort keys the
+cache, one extra full write per distinct effort). Read `RESULTS.md` there before re-deriving anything below.
+
+The findings 1–4 probes live in the session scratchpad, not the repo (unlike the rpg harnesses). Re-deriving is cheap:
 each finding above states its exact arm and the expected number. Findings 1–3 are ~$0.10 to reconfirm,
 finding 6 is ~$0.39 and needs **both** `OPENROUTER_API_KEY` and `ANTHROPIC_API_KEY`.

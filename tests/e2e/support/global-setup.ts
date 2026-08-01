@@ -14,11 +14,16 @@
 // Seed via API, not UI — faster + more reliable, and it runs against the SAME running stack the specs hit.
 // The un-credentialed 127.0.0.1 owner-fallback seam resolves the owner in every mode (single-user always;
 // local/forward-header on a local origin), so these seed calls need no login.
+//
+// THE TARGET GUARD (target-guard.ts) runs FIRST, before any write: step 3 below rewrites `roleDefaults`
+// unconditionally, and it once landed in the operator's LIVE dev DB. Every reachable origin must carry the
+// harness stamp and must not hold a dev port, or this whole setup throws and the run dies before it writes.
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import type { ModeProject } from "./modes";
-import { LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes";
+import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes";
+import { probeTarget, targetRefusal } from "./target-guard";
 
 // A deterministic anchor card authored only when the library is empty (a wiped-and-latched DB).
 const ANCHOR_HANDLE = "e2e-anchor";
@@ -134,17 +139,20 @@ async function seedMode(mode: ModeProject): Promise<void> {
 
 /** Playwright `globalSetup` — runs once, after the webServers are up, before the first spec. Seeds EVERY
  *  mode-project's stack that actually BOOTED (a `--project=<name>`-scoped run boots only that project's
- *  webServer, so a fetch to a non-booted origin would hang — we probe /api/auth/config first and skip the
- *  ones that don't answer). Seeding is idempotent, so a full run seeds all three. */
+ *  webServer, so a fetch to a non-booted origin would hang — we probe /healthz first and skip the ones that
+ *  don't answer). Every origin that DOES answer must pass the target guard: an unreachable mode is a skip, an
+ *  unowned one is a THROW (Playwright aborts the run) — never a silent seed into someone's real data.
+ *  Seeding is idempotent, so a full run seeds all three. */
 export default async function globalSetup(): Promise<void> {
   // Probe every mode's origin in parallel; seed only the stacks that actually booted (distinct DBs/ports ⇒
   // seeding them concurrently is safe — no shared state).
-  const booted = await Promise.all(
-    MODE_PROJECTS.map((mode) =>
-      fetch(`${mode.backendUrl}/api/auth/config`)
-        .then((r) => r.ok)
-        .catch(() => false),
-    ),
-  );
-  await Promise.all(MODE_PROJECTS.filter((_, i) => booted[i] === true).map(seedMode));
+  const probes = await Promise.all(MODE_PROJECTS.map((mode) => probeTarget(mode.backendUrl)));
+  const booted = MODE_PROJECTS.map((mode, i) => ({ mode, probe: probes[i] ?? { reachable: false, stamped: false } })).filter(({ probe }) => probe.reachable);
+  const refusals = booted
+    .map(({ mode, probe }) => targetRefusal(mode, probe, DEV_TARGET_ALLOWED))
+    .filter((message): message is string => message !== undefined);
+  if (refusals.length > 0) {
+    throw new Error(refusals.join("\n"));
+  }
+  await Promise.all(booted.map(({ mode }) => seedMode(mode)));
 }

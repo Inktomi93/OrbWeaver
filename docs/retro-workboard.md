@@ -31,6 +31,18 @@ still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + 
 commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
 fully-polished tree; engines adopt-only.
 
+**STANDING MANDATE (owner, 08-02 morning): BURN THE BOARD DOWN until DATABANK is the ONLY item
+remaining** — keep dispatching queue stages as lanes drain (SSE S3→S5, HUD-HOME H2→close-out,
+density S2/S6 + S3-after-HUD, SET-SEAMS S1→seal, PROSE-1 S2+, remaining smalls/probes), full-auto
+ladder, no blocking. Every UI build gets its side-eye and **ALL side-eye findings get fixed —
+never just the top ones** (re-affirmed; the [[side-eye-fix-all-findings]] rule is the law of this
+run). Databank builds LAST, alone at the end. No origin pushes without the per-push word.
+
+**MORNING RULINGS (08-02, all four as recommended):** PROSE-1 #8 = ROOM HOST (S1 lane dispatched) ·
+density S5 PULLED FORWARD (S0+S1+S5 lane dispatched; S3 still waits for HUD-HOME) · unsent-draft
+reload stays BY-DESIGN (closed) · e2e isolation = INVESTIGATE + structural guard (lane dispatched).
+SSE S2 (chat fold, stickler-mandated) dispatched with them — four lanes in flight at handoff.
+
 **THE OVERNIGHT IN ONE PARAGRAPH (owner slept after ~01:00; full-auto ladder ran):** SSE multiplex
 S0+S1 LANDED + live-verified (1 socket/tab measured; rpg gate leak mechanism fixed) · the
 LIST-PANE PROJECTION built (A+B, mocks-ratified) through TWO side-eye fix-all rounds + a seam
@@ -170,11 +182,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   the runtime no-terminal-channel arm is post-turn-only — such a room still reads "Live".
   Same-ruling closures: card-note mute stays DEAD (no replacement knob until missed in play) ·
   ST export stays ONE-WAY (no note_prompt heuristic) · snippet search LANDED (`86f172e0`).
-- **PROSE-1** — model-facing prose → host-editable data with VERSIONED shipped defaults (owner:
-  "prose shouldn't live in the code"). Inventory: card/cyoa teaches · steering license · delta
-  headings · impersonate/continue/response nudges · R2 template shells · FOLDED_RECONCILE_NOTE.
-  Homes: per-game teaches ride config.features; nudge/voice prose rides the PRESET (ST
-  `assistant_impersonation` precedent). Reuses the preset copy-on-edit fork model. Spec-first.
+- **PROSE-1 — S0 MACHINERY LANDED** (`174bbad2`: prose-slot/prose contracts split [depcruise
+  type-only cycles], two-rung resolver, prose-baseline.json with BOTH refusal arms probed live,
+  17 slots incl. the impersonate nudge as editable data with the IMP-1 probe named as its
+  iteration instrument). **LADDER RULING (logged): the escalated tool-description fork = option
+  (b)** — rows 37/90 move to S5's close-out with the rest of the tool-description class (one
+  migration, not two; widening the sealed resolveTools seam waits for the class). S2 CAVEAT
+  recorded: guidedActions defaults materialize at zod PARSE time — "unset" unrepresentable, so
+  placeholder-as-default can't work there until the storage semantic changes. NEXT: S1 app-tier
+  cohort (clean threading paths named: resolveChatHostUserId precedent) — dispatch AFTER
+  SET-SEAMS S0 merges (shared settings territory); then S2 editors → S5 gate+ledger.
 - ~~IMP-1~~ **MEASURED + landed what the data justified** (`4fa8a65b`, 84 real gens,
   `scripts/probes/impersonate/RESULTS.md`): hosted 0/12 clean · local 8B **28% bleed, dominant
   class = UNLABELLED first-person takeover** (invisible to every mechanical layer, ST's included).
@@ -247,15 +264,24 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   model:null; a pin on a config-derived source is REFUSED), read-side heal with a WARN naming
   stored vs resolved, ONE (source,role)→model home shared by pane + resolver, and the display
   names an ignored pin instead of labeling it "server config".
-- **⚠ OWNER MORNING QUESTION: an e2e run wrote to the DEV stack** — the 404 row's shape is
-  verbatim the e2e global-setup patch, but memory says e2e owns its OWN adopt-only stack
-  ([[e2e-live-verification-facts]]). Either an e2e run was pointed at :8788 at some point, or the
-  seed ran outside its harness. Worth confirming how before trusting the isolation again.
+- ~~⚠ OWNER MORNING QUESTION: an e2e run wrote to the DEV stack~~ **ANSWERED + STRUCTURALLY FIXED.**
+  The isolation memory was wrong for ONE project: the `single-user` mode-project was DEFINED on the
+  dev ports with no `DATABASE_URL` (`tests/e2e/support/modes.ts`) and `reuseExistingServer` locally
+  (`playwright.config.ts`), so every local `pnpm e2e` / `pnpm e2e:smoke` (the `verify --push` browser
+  lane!) attached to the running dev stack and ran globalSetup's unconditional `pinRouting` against
+  the LIVE DB. Now: single-user owns an isolated stack (8796/5181 + `.cache/e2e-single/orb.db`), every
+  mode boots with `E2E_HARNESS=on`, `/healthz` reports the stamp, and globalSetup HARD-FAILS on an
+  unstamped or dev-port target (`tests/e2e/support/target-guard.ts`) unless `E2E_ALLOW_DEV_TARGET=1`.
+  Verified: full `pnpm e2e` 30/30 green on the isolated stacks; the dev stack's `/healthz` carries no
+  stamp, so the guard refuses it.
   Related note: `import-user-settings` bypasses the new write guard (whole-blob verb) — imports
   heal+warn at read instead of refusing at write; lift the guard into the import path on want.
 - WAKE-STATUS: the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
-- Freshness-gate DEFERRED debt: 12 `stats.*` keys (driver-vs-dashboard-cost tradeoff) +
-  `assets.listOwned` (the raw multipart upload seam invalidates nothing).
+- ~~Freshness DEFERRED debt~~ **ALL WIRED (`b0d35cee`)**: 12 stats.* keys ride chatsChanged (the
+  cost argument was FALSE — refetchType:"active" means hidden surfaces pay one stale mark, not a
+  fetch); assets.listOwned rides the new use-upload-asset front door (proven load-bearing CT);
+  DEFERRED registry now EMPTY. Residuals recorded in the seam: rename/star over-fires a spare
+  stale mark; chatless imagery.editImage under-fires (needs a stats-grain producer event).
 - Scout: `connection.getCatalog`/`getAgentSdkCatalog` appear in admin `invalidates` with zero literal
   consumers — aliased reads or dead rows.
 - `composer-guided-cluster.ct` flake — **MECHANISM FOUND (08-01 overnight): Base UI NESTED-SUBMENU
@@ -263,22 +289,31 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   3×fail-then-pass pattern observed twice, screenshot shows menu open + submenu collapsed). Fix =
   a submenu-open wait/retry idiom in the test or a Base UI hover-intent workaround — not a timeout
   knob. Also the original whole-file 30s note stands (no per-file timeout idiom exists repo-wide).
-- `blurSurfaces` consuming selector unconfirmed (low). · `useListDocked` (#state) now has ZERO
-  feature consumers (its one caller was the landing's showRecents, deleted by the home slim) —
-  liveness-sweep candidate, kept per unwired≠delete pending the sweep.
+- Personas list: owner RULED FINE AS-IS (08-02) — no grammar sweep needed; do not re-board.
+  "People" = the roster's HUMAN SUBSET (no tab exists; app-root comment corrected); multi-human
+  verification parked with D22.
+- ~~blurSurfaces~~ ALIVE (full wire verified, CT-covered — closed). · ~~useListDocked~~ KEPT with
+  an honest header (the ONE sanctioned list-pane-visibility read for section bodies; deleting it
+  re-opens the M10 hand-copy class — closed).
 - `staging.ensure` residual: first-write-wins seeded from HEAD — dormant unless rpg tools ever mount
   as REGISTRY tools again (D112 keeps `tools: []`); reroll accumulation would return via that seam.
 - R5b(a) verify: `refEnumerationLines` (non-enforcing-backend prompt fallback) should enumerate
   active conditions post-R5a — confirm stage-1's R6 build carried it; ~2 lines if not.
 
-### PROBES / OPTIONAL (spend live money, block nothing)
+### PROBES / OPTIONAL
 
-F4 (enriched descriptions vs prompt-cache prefix) · F4a (does `effort` change bust the OR cache?) ·
-F5 (OR effort translation / native-depth reachability — re-opens the Anthropic-skin question if
-capped) · OR-5 (cache breakpoints count array offsets — under-caches tool-heavy turns) · OR-7
-(reasoning round-trip; dropping proven safe, replay wrong = hard 400) · #16 engine auto-sleep/wake
-live pass (wake-on-demand now built; the live drive is the remaining lens) · D22 member-tiers live
-verification (needs the multi-user e2e stack).
+~~F4/F4a/F5/OR-5/OR-7~~ **ALL MEASURED 08-02** (`scripts/probes/openrouter/RESULTS.md`, $0.32):
+F4 any tool-payload byte change re-bills the WHOLE prefix · F4a effort KEYS the cache (entry per
+effort, no invalidation) · **F5 native thinking depth is UNREACHABLE via OR (205 vs 5783 tokens,
+28×; tool-call counts unaffected)** — the agent-sdk skin (terminal channel now built) is the
+deep-thinking path · OR-5's under-cache hypothesis REFUTED (lookback serves reads; waste = one
+small write/tool-depth) · OR-7 replaying reasoning is safe SIGNED, hard-400 unsigned.
+**FOLLOW-UP QUEUED (the one actionable): F4-CACHE-VOLATILITY** — `buildToolRoundWireTools`
+re-renders descriptions + ref-constrained schemas from LIVE game state every call
+(compose/rpg.ts:407,411), so each new condition/actor re-bills the entire prefix (~10× that
+turn). Verify whether that path's system block is already per-turn volatile, then pick between
+RESULTS.md's two options. Honest gap: large tool fan-outs vs the ~20-block lookback (unmeasured).
+Still open: #16 engine auto-sleep/wake live pass · D22 member-tiers (multi-user stack).
 
 ### DISCUSSION PILE (owner, no build)
 
@@ -327,6 +362,14 @@ real payload (tracker defs, teaches, steering prose, extraction knobs). Spec the
 (parked) · flakes/facelift micro-ledgers.
 
 ## ═══ STANDING FACTS + POSTURE ═══
+
+- **LAUNCH-PREP CHECKLIST — h3/QUIC (five minutes, deployment-level; the multiplex already did
+  the app-side prep):** verify Caddy h3 enabled (default since 2.6) + **UDP 443 open** (the classic
+  silent miss — browsers fall back to h2 via Alt-Svc and never tell you) · the 15s SSE ping
+  already keeps QUIC NAT bindings alive · 0-RTT stays off non-idempotent (Caddy default) · do NOT
+  add TCP-era tricks (sharding, server push — dead; 103 Early Hints if ever needed). Dev stays
+  h1.1 deliberately (a STRICTER transport test — the starvation class was only visible there).
+  Optional: a local Caddy h2/h3 profile for occasional prod-transport feel.
 
 - **OVERNIGHT FULL-AUTO: ACTIVE (owner, 2026-08-01 late).** Proceed through THE QUEUE in ruled
   order without blocking; stuck = the escalation ladder (stickler → ast/code → docs → judgment),

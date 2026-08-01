@@ -11,10 +11,13 @@
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
 import process from "node:process";
+import { SINGLE_USER } from "./modes";
 
-// The vite front door (the specs' baseURL). Overridable; the config pins localhost:5173 (vite binds [::1]).
+// The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
+// the default is SINGLE_USER.baseUrl — derived, never a literal: the project moved off the dev ports (a
+// hardcoded :5173 would have aimed these reads/writes at the operator's dev stack). `E2E_BASE_URL` overrides.
 // biome-ignore lint/style/noProcessEnv: e2e node support reads the base-URL env exactly as global-setup.ts does (its sanctioned peer).
-const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://localhost:5173";
+const BASE_URL = process.env["E2E_BASE_URL"] ?? SINGLE_USER.baseUrl;
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
 

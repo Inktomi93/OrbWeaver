@@ -1,0 +1,162 @@
+# OpenRouter probe batch — verdicts
+
+**Run:** 2026-08-01 · **Wire:** `anthropic/claude-sonnet-5` via OpenRouter (Anthropic pinned,
+`allow_fallbacks:false`), plus the Anthropic Messages API for F5's native reference arms.
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32**.
+**Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
+**Sibling docs:** `docs/design/openrouter-provider-findings.md` (findings 1–7) ·
+`docs/design/rpg-extraction-one-call-spike.md` §7 (the F-list).
+
+| # | Question | Verdict | Consequence |
+|---|---|---|---|
+| **F4** | do enriched tool descriptions break the prompt-cache prefix? | **YES — any tool-payload edit invalidates the WHOLE prefix** (cached 2841 → **0**) | tool descriptions/schemas are cache-key bytes: keep them stable per session |
+| **F4a** | does changing `effort` bust the OR cache? | **YES, but per-effort ENTRIES, not invalidation** — the `low` entry survived a `high` round-trip | each distinct effort costs ONE extra full prefix write per TTL window |
+| **F5** | is native thinking depth reachable through OR? | **NO — 205 vs 5783 thinking tokens (28×)**; neither `max_tokens` nor `reasoning:{max_tokens}` moves it | deliberation depth is capped by this wire; tool-call output was unaffected |
+| **OR-5** | do array-offset breakpoints under-cache tool-heavy turns? | **REFUTED in the strong form** — the read still hits (3477 both ways); cost is a small wasted WRITE per depth | a real but bounded defect; fix is ~2 lines, ROI scales with tool-result size |
+| **OR-7** | is replaying a reasoning block a hard 400? | **only when the signature is missing** — verbatim 200 · unsigned **400** · ST `reasoning.encrypted` 200 · drop 200 | if reasoning is ever round-tripped, the signature must be structurally non-optional |
+
+---
+
+## F4 — enriched tool descriptions vs the prompt-cache prefix
+
+`results/f4.jsonl` · one variable: the description string of ONE tool (the last of three). System block,
+user message, tool names and tool schemas byte-identical across all four arms.
+
+| arm | tool description | prompt | cached | cache write | cost |
+|---|---|---|---|---|---|
+| 1 prime-terse | 36 B | 2952 | 0 | 2841 | $0.0080 |
+| 2 replay-terse | 36 B | 2952 | **2841** | 0 | $0.0014 |
+| 3 enriched-tail | 396 B | 3075 | **0** | 2964 | $0.0083 |
+| 4 replay-enriched | 396 B | 3075 | **2964** | 0 | $0.0015 |
+
+**Verdict.** The OpenAI-compat `tools` field is part of the Anthropic cached prefix and sits UPSTREAM of
+the system breakpoint: changing 360 bytes in one tool's description dropped `cached_tokens` from 2841 to
+**zero**. Arm 4 proves arm 3 was invalidation, not a fluke — the enriched payload caches perfectly well
+on its own. Enrichment's standing cost is trivial (**+123 prompt tokens/turn**, billed at the 0.1× cached
+rate); the cost is entirely in *changing* it.
+
+**RECOMMENDATION (do not build in this lane).** The rpg tool round rebuilds BOTH the descriptions and the
+tool parameter schemas from live game state on every call —
+`entry/compose/rpg.ts:buildToolRoundWireTools` → `buildRpgToolDescriptions({config, refs})` +
+`constrainExtractionSchema(…, refs)`, where `refs` carries `actorRefs` and `conditionNames` derived from
+the CURRENT snapshot (`compose/rpg.ts:407,411`). Every time a condition appears/retires or an actor joins,
+the tools payload changes and that turn re-bills the entire prefix at the 1.25× cache-write rate
+(measured on a 10k prefix elsewhere in this batch: ~$0.029 written vs ~$0.0028 read — a **~10×** turn).
+Two honest options, neither taken here: (a) accept it and record the cost in the cache receipt, or
+(b) hoist the volatile ref enumerations OUT of the tool payload into a *late* message (below the history
+breakpoint), leaving the tool descriptions/schemas static per game config. Worth measuring whether the rpg
+tool round's system block is already per-turn volatile before spending anything on (b) — if the prefix
+never caches on that path today, this changes nothing.
+
+## F4a — does an `effort` change bust the OR cache?
+
+`results/f4a.jsonl` · one variable: the effort string. No tools; identical 11.4k-token prefix throughout.
+
+| arm | effort | cached | cache write | cost |
+|---|---|---|---|---|
+| 1 prime-low | low | 0 | 11438 | $0.0291 |
+| 2 replay-low | low | **11438** | 0 | $0.0028 |
+| 3 switch-high | high | **0** | 11438 | $0.0291 |
+| 4 replay-high | high | **11438** | 0 | $0.0026 |
+| 5 back-to-low | low | **11438** | 0 | $0.0028 |
+
+**Verdict.** Effort IS part of the cache key on the OR wire — a `low → high` flip missed the cache and
+re-wrote the whole prefix. But arm 5 is the load-bearing one: after the high round-trip, the ORIGINAL low
+prefix still read 11438 cached tokens. So the mechanism is **separate cache entries per effort value**,
+not invalidation. Per-turn effort variation is therefore expensive, not ruinous: the bill is one extra
+full write per distinct effort per TTL window (here **+$0.026 per new effort value on an 11.4k prefix**),
+after which each effort has its own warm entry.
+
+**RECOMMENDATION.** Effort belongs to the preset/session, not to the turn. This does not need a code
+change today (`buildReasoningRequest` reads a resolved knob, not a per-turn toggle) — but it is a hard
+constraint on any future "think harder on this one" UI lever, and it means the `provider.cache` receipt's
+cache-write spike (`chat-completions.ts:emitCacheReceipt`) can legitimately fire from an effort change
+with nothing wrong. Worth a line in the effort knob's own doc rather than a guard.
+
+## F5 — OR effort translation / native-depth reachability
+
+`results/f5.jsonl` · identical messages + identical 4 tools on both wires. Signal: OR
+`completion_tokens_details.reasoning_tokens` vs native `output_tokens_details.thinking_tokens`.
+
+| wire | knob | max_tokens | thinking | output | tool calls |
+|---|---|---|---|---|---|
+| openrouter | `effort:"low"` | 4000 | 83 | 473 | 5 |
+| openrouter | `effort:"high"` | 4000 | 113 | 1052 | 5 |
+| openrouter | `effort:"high"` | 16000 | **156** | 1562 | 5 |
+| openrouter | `reasoning:{max_tokens:8000}` | 16000 | **205** | 1437 | 5 |
+| native | `output_config:{effort:"high"}` | 16000 | **497** | 1228 | 5 |
+| native | `output_config:{effort:"max"}` | 16000 | **5783** | 6611 | 5 |
+
+**Verdict.** Both candidate levers fail. Quadrupling `max_tokens` at constant effort moved thinking
+83→156 tokens (OR does *not* derive a budget from `max_tokens` in any meaningful way), and OR's explicit
+`reasoning:{max_tokens:8000}` yielded **205** tokens — i.e. it is a ceiling request, not a budget the
+model spends. Native at the same nominal `high` thinks 3.2× more, and native `max` thinks **28× more**
+than OR's best. Confirms and sharpens finding §6: **real deliberation depth is unreachable on this wire at
+any setting.**
+
+**RECOMMENDATION.** Do NOT re-open the Anthropic-skin migration on this evidence. The counter-measurement
+is in the same table: tool-call count was **5 on every arm, both wires** — 28× more thinking bought
+nothing on the workload we actually ship, consistent with the rpg spike's finding that `low` already flips
+the only field that separates. Treat "thinking depth ≤ ~200 tokens" as a documented capability ceiling of
+the OpenRouter connection, and re-open only if a feature lands whose quality is *measured* to track
+thinking depth. (Second datum for that day: native `max` took **72 s** for one turn.)
+
+## OR-5 — cache breakpoints count array offsets, not conversational turns
+
+`results/or5.jsonl` · one variable: the breakpoint index. Identical 7-row history in arms 2–4.
+The probe reproduces the production sequence: arm 1 is the depth-1 call, arms 2–4 are the depth-2 call
+after `runRecurseLoop` appended one assistant tool-call row + one tool row.
+
+| arm | history len | offset | idx | role at idx | cached | cache write |
+|---|---|---|---|---|---|---|
+| 1 turn1-offset1 | 5 | 1 | 3 | assistant | 0 | 3477 |
+| 2 depth2-**stale** offset1 (what we ship) | 7 | 1 | **5** | assistant *(generated this turn)* | 3477 | **30** |
+| 3 depth2-corrected offset3 | 7 | 3 | 3 | assistant *(stable boundary)* | 3477 | **0** |
+| 4 breakpoint on a `role:"tool"` row | 7 | 0 | 6 | tool | 3507 | 81 |
+
+**Verdict — the strong hypothesis is REFUTED.** Tool-heavy turns do *not* under-cache: Anthropic's
+automatic lookback finds the earlier breakpoint's entry, so the slid breakpoint still read the full 3477
+stable tokens. The real defect is narrower: the slid breakpoint writes a NEW cache entry that covers bytes
+generated this turn (30 tokens here) and can therefore never be read again — a wasted write per tool
+depth, sized by the tool exchange, billed at 1.25×. Arm 4 confirms the old note: a breakpoint on a
+`role:"tool"` message is accepted (200) and writes.
+
+**RECOMMENDATION (do not build in this lane).** The drift is real and the fix is tiny:
+`chat/engine/pipeline.ts:runRecurseLoop` re-sends `{ ...input.request, history }` with an unchanged
+`cacheBreakpointFromEnd` after `history = [...history, ...toolExchangeMessages(reduced.content, batch)]`
+— it should advance the offset by the number of rows it just appended (`toolExchangeMessages` emits
+exactly one wire row per element, so `+= appended.length` is exact). Priority is LOW on the measured
+number (~$0.0001/depth here) but scales linearly with tool-result size — a 2k-token tool result makes it
+~$0.0075 per depth. Not measured: whether a large fan-out can push the intended boundary out of
+Anthropic's ~20-block lookback, which WOULD turn this into a real miss.
+
+## OR-7 — reasoning round-trip
+
+`results/or7.jsonl` · one variable: the shape of the replayed assistant reasoning. Captured turn, tool
+result and follow-up user message identical across arms 2–5.
+
+| arm | replayed shape | status |
+|---|---|---|
+| 2 drop (what we ship) | — | 200 |
+| 3 verbatim | `reasoning.text` + `signature` | **200** |
+| 4 unsigned | `reasoning.text`, signature deleted | **400** |
+| 5 st-encrypted | `reasoning.encrypted` + `data` | **200** |
+
+Arm 4's verbatim upstream body:
+
+```
+400  messages.1.content.0: Invalid `signature` in `thinking` block   (provider_name: Anthropic)
+```
+
+**Verdict.** Replaying is safe *only* if the signature survives byte-exact. Both working shapes are
+confirmed: OR's returned object verbatim, and SillyTavern's rebuilt `reasoning.encrypted` + `data` (which
+carries no text and therefore cannot hit the unsigned-400 at all). Dropping remains safe. A first
+`blocked` row in the JSONL is kept as evidence of a second fact: a trivial beat with
+`tool_choice:"required"` produced **zero** reasoning tokens at `effort:"high"` — there is often nothing to
+round-trip.
+
+**RECOMMENDATION.** Keep dropping. If the `ChatContentPart` reasoning arm is ever built (findings §7),
+the signature must be structurally non-optional or the shape must be `reasoning.encrypted` — a
+reasoning part that can exist without its signature is a hard 400 on every subsequent turn of the chat,
+and `shared.ts:reshapeReasoningDetails` currently drops `signature` while keeping `text`, which is exactly
+the fatal combination. The payoff (agentic continuity) is still unquantified; the failure mode now is not.

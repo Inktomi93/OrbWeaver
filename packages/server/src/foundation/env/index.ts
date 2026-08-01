@@ -105,6 +105,12 @@ const envSchema = z
     // zero retained bytes. `on` wires the sink; the per-process ring is read host-only at
     // /api/_debug/wire/captures (the drive kit / an int test forces it on via the `wireCapture` compose dep).
     WIRE_CAPTURE: z.enum(["on", "off"]).default("off"),
+    // The E2E-HARNESS SELF-STAMP. `on` is set ONLY by the Playwright webServer env (tests/e2e/support/modes.ts)
+    // when the harness boots a stack it owns; it makes `/healthz` report `harness:true` so the e2e globalSetup
+    // can PROVE the origin it is about to seed is a throwaway harness stack and not the operator's dev stack
+    // (tests/e2e/support/target-guard.ts). Never set in dev or prod — the stamp's whole value is that a stack a
+    // human started does NOT carry it. Read-only signal: it changes no app behavior.
+    E2E_HARNESS: z.enum(["on", "off"]).default("off"),
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like

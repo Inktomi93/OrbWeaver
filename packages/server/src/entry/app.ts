@@ -234,6 +234,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   registerHealthz(plain, {
     isShuttingDown: deps.isShuttingDown,
     credentialsKeyOk: deps.credentialsKeyOk,
+    isHarnessStack: () => env.E2E_HARNESS === "on",
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
 

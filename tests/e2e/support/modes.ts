@@ -4,13 +4,23 @@
 // package) so it stays import-free of the app trees, exactly like `trpc.ts`.
 //
 // WHY a project per mode: the harness must boot the stack in a CHOSEN `AUTH_MODE` to exercise login /
-// sessions / cross-user visibility. Each mode gets an ISOLATED stack — its own DB + assets dir + a distinct
-// port pair (mirrors the dev `multi-user-fixture.sh` recipe) — so the modes never collide and can run
-// independently. The dev stack on 8788/5173 is untouched (these use 87xx/51xx offsets).
+// sessions / cross-user visibility. EVERY mode (single-user included, since 2026-08-01) gets an ISOLATED
+// stack — its own DB + assets dir + a distinct port pair (mirrors the dev `multi-user-fixture.sh` recipe) —
+// so the modes never collide and can run independently. The dev stack on 8788/5173 is untouched (these use
+// 87xx/51xx offsets), and every mode carries `E2E_HARNESS=on` so `global-setup.ts`'s target guard
+// (target-guard.ts) can PROVE the origin it seeds is a throwaway harness stack.
+//
+// THE INCIDENT that made single-user isolated: it used to run on the DEV ports with NO `DATABASE_URL`, and
+// `reuseExistingServer` locally — so `pnpm e2e` seeded the operator's LIVE dev DB (globalSetup's `pinRouting`
+// rewrote their real `routing.roleDefaults`). `E2E_ALLOW_DEV_TARGET=1` restores exactly that old shape for a
+// deliberate, supervised drive against the running dev stack, and waives the guard with it.
 //
 // The secrets here are DEV-ONLY deterministic literals (insecure by design — never a real deploy), matching
 // `scripts/dev/stack.sh` / `multi-user-fixture.sh`. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
+
+import process from "node:process";
+import { devTargetAllowed } from "./target-guard";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `stack.sh start-fg`
  *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono
@@ -41,13 +51,22 @@ const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456
 export const LOCAL_OWNER = { handle: "owner", password: "owner-dev-pass" } as const;
 export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as const;
 
-// ── single-user (the default lane; the existing 22 specs) — ports 8788/5173, no isolated DB (the dev stack's
-// own drift-free seed via global-setup). AUTH_MODE=single-user, adopt-only engines, WIRE_CAPTURE on (the
-// @live specs read /api/_debug/wire/captures). This mirrors the pre-split `stackEnv` EXACTLY. ──
+// ── single-user (the default lane; the existing 22 specs) — ISOLATED ports 8796/5181 + its own DB/assets
+// under .cache, exactly like the local/forward projects. AUTH_MODE=single-user, adopt-only engines (they
+// ADOPT the box's already-running loopback vLLM fleet — isolation is of the DB, never the GPU), WIRE_CAPTURE
+// on (the @live specs read /api/_debug/wire/captures).
+//
+// `E2E_ALLOW_DEV_TARGET=1` flips this project back to the pre-2026-08-01 shape: the dev ports 8788/5173 and
+// NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
+// playwright.config.ts). That is the supervised-live-drive escape hatch, and it waives the target guard. ──
+// biome-ignore lint/style/noProcessEnv: e2e node support reads the override env exactly as trpc.ts does (its sanctioned peer).
+const SINGLE_USER_ON_DEV_STACK = devTargetAllowed(process.env);
+const SINGLE_BACKEND_PORT = SINGLE_USER_ON_DEV_STACK ? "8788" : "8796";
+const SINGLE_VITE_PORT = SINGLE_USER_ON_DEV_STACK ? "5173" : "5181";
 export const SINGLE_USER: ModeProject = {
   name: "single-user",
-  baseUrl: "http://localhost:5173",
-  backendUrl: "http://127.0.0.1:8788",
+  baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
+  backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
   testMatch: /(?<!\.(?:local|forward))\.spec\.ts$/u,
   webServerEnv: {
@@ -57,9 +76,29 @@ export const SINGLE_USER: ModeProject = {
     CREDENTIALS_KEY,
     LOCAL_INITIAL_PASSWORD: "orbweaver-dev-password",
     WIRE_CAPTURE: "on",
+    E2E_HARNESS: "on",
+    // The dev-target escape hatch boots/reuses the dev stack VERBATIM (its own .env-driven DB) — pinning
+    // ports or a DB there would defeat the point of asking for the operator's stack.
+    ...(SINGLE_USER_ON_DEV_STACK
+      ? {}
+      : {
+          PORT: SINGLE_BACKEND_PORT,
+          VITE_PORT: SINGLE_VITE_PORT,
+          VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
+          DATABASE_URL: "file:./.cache/e2e-single/orb.db",
+          ASSETS_DIR: "./.cache/e2e-single/assets",
+          // The checked-in dev `.env` loads with override:true; flip to override:false so THIS project's
+          // DATABASE_URL/ports win (the same escape hatch the local/forward projects use).
+          ORB_ENV_NO_OVERRIDE: "1",
+        }),
   },
   seedMultiUser: false,
 };
+
+/** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)?
+ *  Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts`
+ *  (waive the target guard). */
+export const DEV_TARGET_ALLOWED = SINGLE_USER_ON_DEV_STACK;
 
 /** The scripted fixture provider's loopback port (support/fixture-provider.ts) — a fixed port so the LOCAL
  *  stack's egress allowlist can name it and the reasoning-strip spec can start the fixture there. */
@@ -83,6 +122,7 @@ const LOCAL: ModeProject = {
     CREDENTIALS_KEY,
     LOCAL_INITIAL_PASSWORD: LOCAL_OWNER.password,
     WIRE_CAPTURE: "on",
+    E2E_HARNESS: "on",
     PORT: LOCAL_BACKEND_PORT,
     VITE_PORT: LOCAL_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
@@ -124,6 +164,7 @@ const FORWARD_HEADER: ModeProject = {
     // request literal, so this only needs to be non-empty to pass the "no trusted key source" gate).
     FORWARD_AUTH_VERIFY_JWT: "true",
     FORWARD_AUTH_JWKS_ALLOWLIST: "idp.e2e.local",
+    E2E_HARNESS: "on",
     PORT: FWD_BACKEND_PORT,
     VITE_PORT: FWD_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
