@@ -43,7 +43,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { WireTool } from "#infra/providers";
-import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat";
+import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -56,6 +56,7 @@ import type {
   ListCheckpointsParams,
   ListJournalParams,
   PatchSheetParams,
+  PopulateFromCharacterParams,
   ReadGameParams,
   RestoreCheckpointParams,
   ResyncFromStoryParams,
@@ -223,6 +224,12 @@ interface RpgStateDeliveryVerdict {
    *  says so (`fallbackReason: "local-engine-fold-guard"`). The host's EXPLICIT `cheap` choice is
    *  untouched by this — the guard only governs where `folded` lands. */
   readonly foldGuarded: boolean;
+  /** Can the HOST BORN-STATE round run on this wire (`populateFromCharacter`)? `hasStructuredWriter` — the
+   *  structured-output writer that round drives, which is a DIFFERENT capability question from
+   *  `trackersReadOnly`'s mode-keyed tools verdict (a tools-capable, structure-less wire would leave the
+   *  button enabled on a round that can only no-op). Rides this ONE resolve because the connection resolve is
+   *  the expensive part — the panel read must never pay for it twice. */
+  readonly canPopulate: boolean;
 }
 
 /** The DEEP canon-window read (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed). An
@@ -309,6 +316,37 @@ interface RpgResyncInput {
   readonly transcript: readonly RpgTurnTranscriptMessage[];
 }
 
+/** The `populateFromCharacter` model call (owner ruling 2026-08-01 — the host BORN-STATE round). Reads ONE
+ *  character's card + the room's opening line and returns the born state they establish: the identity sheet
+ *  fields no beat can write, plus the inventory/wallet/quest planes the background implies. Like the resync it
+ *  resolves the ROOM connection AS THE HOST fresh at the verb (a host-INITIATED interactive action — the
+ *  consenting human is at the keyboard) and it needs a STRUCTURED writer (`hasStructuredWriter`); a
+ *  capability-absent connection yields an EMPTY delta (a no-op round, never a corrupt write).
+ *  Non-exported: reachable only through `RpgContext.runPopulateExtraction`'s signature — no consumer names it. */
+type RpgRunPopulateExtraction = (input: RpgPopulateInput) => Promise<RpgPopulateDelta>;
+
+/** The resolved inputs the populate model call consumes. `hostUserId` is the ROOM host (resolved by ROLE at the
+ *  verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied principal (the
+ *  injected-op caller-gate class). `targetRef` is the card's display NAME, which is both the round's ref enum
+ *  and the name the inventory writes resolve through at apply. */
+interface RpgPopulateInput {
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  readonly targetRef: string;
+  readonly baseState: RpgSnapshotState;
+  readonly corpus: RpgCardCorpus;
+}
+
+/** What a populate round returns: the SNAPSHOT overlay (inventory/wallet/quests — the same [merge-clear] +
+ *  lock-honored patch every state round produces, so the verb's tail is the resync's) and the SHEET half (the
+ *  hand-only identity fields, which live in `rpg_sheets` and therefore cannot ride a snapshot patch). Both are
+ *  empty on a no-op round. The sheet fields are spelled in STORAGE vocabulary (`className`), not the wire's
+ *  `title` — the impl maps at the parse seam so the domain never learns two names for one field. */
+export interface RpgPopulateDelta {
+  readonly statePatch: Record<string, unknown>;
+  readonly sheet: { readonly className?: string; readonly level?: number };
+}
+
 /** The shared input every state round consumes (the tool round, its structured degrade, the fold). Carries the
  *  committed variant's IDENTIFIERS (never its prose — the impl reads the beat itself), the resolution-ladder
  *  base state, AND `turnConnection` — the NARRATION turn's already-resolved route + enforced owner-consent
@@ -389,6 +427,15 @@ export interface RpgContext {
    *  consent is the host's OWN and the principal is the host — never a caller-injected foreign principal. Wired
    *  at compose (the `resolveStateDelivery` host-resolve precedent). A fake returns a fixed delta in tests. */
   readonly runResyncExtraction: RpgRunResyncExtraction;
+  /** The BORN-STATE corpus read (the injected CHAT op — rpg reads no chat/character table): one roster
+   *  character's card prose + the room's opening line, resolved under the room host's card ownership. `null` =
+   *  no card (a gone card / a hostless room) and the verb refuses the round. A fake returns a fixed corpus. */
+  readonly resolveCardCorpus: ResolveRpgCardCorpus;
+  /** The host BORN-STATE model call (owner ruling 2026-08-01 — `populateFromCharacter`). The resync's sibling:
+   *  host-initiated, non-inherited, structured-writer-gated — but it reads the CARD + opening instead of the
+   *  story window, and it fills the hand-only identity sheet the turn vehicles are forbidden to reach. Wired at
+   *  compose; a fake returns a fixed delta in tests. */
+  readonly runPopulateExtraction: RpgRunPopulateExtraction;
   /** The feature-root rpg-bus emit (the injected `EmitRpgEvent` op — wired at compose to `publishRpgEvent`,
    *  `domain/rpg/bus.ts`). A verb/flush calls it AFTER its durable write commits (§4.9); fire-and-forget
    *  (`void`) — LIVE-ONLY, a dropped tick is healed by the client's reconnect blanket invalidate. A fake
@@ -546,4 +593,13 @@ export interface RpgService {
    *  a no-op (no write). Deception-active games stay surface-only by construction (the §1.6 registry clause — the
    *  tracker never carries hidden `<lie>`/`<ofilter>` truth). */
   readonly resyncFromStory: (params: ResyncFromStoryParams) => Promise<void>;
+  /** HOST (owner ruling 2026-08-01 — the born-state doorway). ONE model call over a character's CARD + the
+   *  room's opening line, filling what a card establishes and play cannot: the identity sheet's `title`/`level`
+   *  (hand-only everywhere else — `patchSheet` is their only other door), the starting inventory + purse, and
+   *  the quests the background already implies. Host-gated INSIDE the verb (a member gets leak-free NOT_FOUND /
+   *  FORBIDDEN before any model call); refused for an actor with no card. FILLS, never overwrites: a sheet
+   *  field the host already set survives, and the snapshot half merges lock-honored like every other round. It
+   *  touches NO live-play plane (scene/party/trackers/journal are absent from its schema). Button-only — nothing
+   *  auto-runs it. */
+  readonly populateFromCharacter: (params: PopulateFromCharacterParams) => Promise<void>;
 }

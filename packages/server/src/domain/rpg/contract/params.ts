@@ -259,6 +259,18 @@ export interface ResyncFromStoryParams {
   readonly chatId: ChatId;
 }
 
+/** `populateFromCharacter` — the HOST born-state round over ONE character (owner ruling 2026-08-01). Chat- +
+ *  actor-scoped; the verb resolves the HOST floor (`resolveHost`) so a member can never trigger the
+ *  host-principal model call, then resolves the card corpus under the room host. `actorRef` names WHICH roster
+ *  character the round fills — a `user`/`cast` ref carries no card and is refused (the honest applicability
+ *  arm the client's disabled button mirrors). No corpus arg: the card + opening are server-resolved, so a
+ *  caller can never feed the round its own prose. */
+export interface PopulateFromCharacterParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly actorRef: RpgActorRef;
+}
+
 /** `listJournal` — the paged lineage-projected archive (member). */
 export interface ListJournalParams {
   readonly principal: Principal;

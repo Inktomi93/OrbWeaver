@@ -22,6 +22,12 @@ export interface RpgGameView {
   readonly status: RpgGameStatus;
   /** Derived per-turn from connection capability (§4.6) — never stored. `true` ⇒ the read-only pill. */
   readonly trackersReadOnly: boolean;
+  /** Can the room's connection run the HOST born-state round (`populateFromCharacter`)? Capability-derived off
+   *  the SAME one resolve `trackersReadOnly` rides (`hasStructuredWriter` — the structured-output writer the
+   *  round needs), and DISTINCT from it: the delivery knob's tools-capability verdict does not answer this
+   *  question, so reusing it would either hide the button on a working connection or leave it enabled on one
+   *  that silently no-ops. `false` ⇒ the takeover's populate button disables with the honest reason. */
+  readonly canPopulate: boolean;
   /** The delivery-model knob (not host-secret — it governs the WHOLE game's freshness posture, so the
    *  panel needs it to render the state-freshness indicator honestly). `cheap` ⇒ the tracker lags one beat by
    *  construction (a dedicated round runs AFTER the character turn commits — §4.9 amendment); `folded` ⇒ the

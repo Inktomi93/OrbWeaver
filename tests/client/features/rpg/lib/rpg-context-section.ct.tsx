@@ -38,6 +38,8 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
     mode: "lite",
     status: "active",
     trackersReadOnly,
+    // The born-state round's own capability verdict (`hasStructuredWriter`) — a real `getGame` always carries it.
+    canPopulate: true,
     extractionMode,
     publicConfig: {
       statProfile: {
@@ -229,6 +231,7 @@ function stubTakeover(
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
     "rpg.patchSheet": () => undefined,
+    "rpg.populateFromCharacter": () => undefined,
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
     "rpg.deleteQuest": () => undefined,
@@ -928,6 +931,7 @@ function d20Game(): unknown {
     mode: "lite",
     status: "active",
     trackersReadOnly: false,
+    canPopulate: true,
     extractionMode: "cheap",
     publicConfig: {
       statProfile: {
@@ -1274,4 +1278,43 @@ test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disab
   // The member READS everything the host does — and has no tile trigger at all.
   await expect(component.locator('[data-slot="rpg-pack-cell"]').filter({ hasText: "Healing potion" })).toContainText("×12");
   await expect(component.getByRole("button", { name: "Edit Bone key" })).toHaveCount(0);
+});
+
+// The POPULATE doorway on the takeover (owner ruling 2026-08-01): host-only, per character, BUTTON-ONLY. The
+// two arms that matter are the mutation COUNT ([assert-the-mutation-fired] — the panel never reads the round's
+// return; the invalidation repaints it) and the HONEST DISABLED state on a connection that cannot run it.
+
+test("Status takeover: the born-state button fires populateFromCharacter for THIS character — the mutation COUNT", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  const populate = component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" });
+  await expect(populate).toBeEnabled();
+  await populate.click();
+  await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+/** The disabled-reason the born-state button carries on a writer-less connection (hoisted — a regex literal
+ *  inside a test body is a per-call recompile, `useTopLevelRegex`). */
+const NO_WRITER_REASON = /can't write structured state/;
+
+test("Status takeover: a connection with no structured writer DISABLES the born-state button with the reason (never a hidden control)", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await stubTakeover(page, {
+    game: { ...(d20Game() as Record<string, unknown>), canPopulate: false },
+    tracker: richTracker(),
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  // Still PRESENT (the affordance is real and the reason is stated) — and refusing, so no call is ever made.
+  const populate = component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" });
+  await expect(populate).toBeDisabled();
+  await expect(populate).toHaveAttribute("title", NO_WRITER_REASON);
+  await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50] }).toBe(0);
 });

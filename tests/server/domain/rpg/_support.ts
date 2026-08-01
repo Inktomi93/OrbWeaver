@@ -12,10 +12,11 @@ import { presets, rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { WireTool } from "@orb/server/infra/providers";
-import type { ChatRpgOps, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
+import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
 import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type {
   RpgContext,
+  RpgPopulateDelta,
   RpgPostNarratorMessage,
   RpgResolveRoster,
   RpgRosterActor,
@@ -190,6 +191,12 @@ export interface RpgFakes {
   resyncDelta: RpgStateDelta;
   /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
   canonWindow: RpgTurnTranscriptMessage[];
+  /** The BORN-STATE corpus the injected `resolveCardCorpus` fake returns (the host populate round). Default:
+   *  a minimal readable card; a test drives the unreadable-card arm by ASSIGNING `null` after construction
+   *  (an `over` default could not express it — `??` swallows an explicit null). */
+  cardCorpus: RpgCardCorpus | null;
+  /** The `populateFromCharacter` model-call fake return. Default: the empty delta = a no-op round. */
+  populateDelta: RpgPopulateDelta;
   /** OPTIONAL gate the fake post-commit round awaits before resolving — the flush-barrier race test sets it to
    *  a deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
   stateRoundGate?: Promise<void>;
@@ -218,6 +225,11 @@ export interface RpgFakes {
   readonly resyncCalls: { chatId: string; hostUserId: string; windowTokens: number }[];
   /** The `resolveCanonWindow` reads (the injected chat op) — records the budget so a test pins the deep read. */
   readonly canonWindowReads: { chatId: string; maxTokens: number }[];
+  /** The `populateFromCharacter` host model call fires — records the host userId it resolved UNDER (the
+   *  host-principal seam) + the target ref + the corpus it read, so a test proves the round ran on the CARD. */
+  readonly populateCalls: { chatId: string; hostUserId: string; targetRef: string; corpus: RpgCardCorpus }[];
+  /** The `resolveCardCorpus` reads (the injected chat op) — the characterId the verb asked for. */
+  readonly cardCorpusReads: { chatId: string; characterId: string }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
@@ -255,6 +267,7 @@ export function makeRpgService(
       | "foldedToolsThrow"
       | "resyncDelta"
       | "canonWindow"
+      | "populateDelta"
     >
   > = {},
 ): RpgHarness {
@@ -270,6 +283,8 @@ export function makeRpgService(
     ...(over.foldedToolsThrow !== undefined ? { foldedToolsThrow: over.foldedToolsThrow } : {}),
     resyncDelta: over.resyncDelta ?? { statePatch: {}, journal: [] },
     canonWindow: over.canonWindow ?? [],
+    cardCorpus: { name: "Mara", card: "DESCRIPTION:\nA warden of a fallen house.", opening: "You meet at the ford." },
+    populateDelta: over.populateDelta ?? { statePatch: {}, sheet: {} },
     ownedPresets: new Set(),
     pointers: [],
     detaches: [],
@@ -281,6 +296,8 @@ export function makeRpgService(
     foldBuildFailures: [],
     resyncCalls: [],
     canonWindowReads: [],
+    populateCalls: [],
+    cardCorpusReads: [],
     busEvents: [],
     flushDrops: [],
     barrierTimeouts: [],
@@ -348,13 +365,24 @@ export function makeRpgService(
     resolveRoster,
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
-    resolveStateDelivery: () => Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded }),
+    resolveStateDelivery: () =>
+      Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded, canPopulate: !fakes.trackersReadOnly }),
     runToolRound,
     buildFoldedTurn,
     foldTurnToolCalls,
     resolveCanonWindow: (chatId, opts) => {
       fakes.canonWindowReads.push({ chatId, maxTokens: opts.maxTokens });
       return Promise.resolve(fakes.canonWindow);
+    },
+    resolveCardCorpus: (chatId, characterId) => {
+      fakes.cardCorpusReads.push({ chatId, characterId });
+      return Promise.resolve(fakes.cardCorpus);
+    },
+    runPopulateExtraction: (input) => {
+      // The host userId the round resolved UNDER + the target + the corpus it was handed — the same
+      // host-principal seam assertion the resync recorder makes (never a caller-injected foreign id).
+      fakes.populateCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, targetRef: input.targetRef, corpus: input.corpus });
+      return Promise.resolve(fakes.populateDelta);
     },
     runResyncExtraction: (input) => {
       // Record the host userId the resync resolved UNDER + the window budget it read — the test asserts the
@@ -408,6 +436,7 @@ export async function seedLiteGame(
       | "foldedToolsThrow"
       | "resyncDelta"
       | "canonWindow"
+      | "populateDelta"
     >
   > = {},
   key = "a",
