@@ -248,6 +248,49 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   return blocks.join("\n");
 }
 
+/** The plane rows POPULATE-FROM-CHARACTER teaches — the two born-state planes a background implies. The
+ *  live-play planes are not merely untaught here: they are absent from `rpgPopulateSchema` entirely and
+ *  rebuilt empty by `salvagePopulate`, so this filter and the schema agree by construction. */
+const POPULATE_PLANES: ReadonlySet<keyof RpgExtraction> = new Set<keyof RpgExtraction>(["inventory", "quests"]);
+
+/** The populate round's INVENT-NOTHING doctrine — the counterpart to the extraction's RECONCILE line. A card
+ *  read has no story to check itself against, so the only guardrail is "what the card and the opening actually
+ *  establish"; the round runs ONCE per character, at the host's click, and everything it writes is immediately
+ *  hand-editable, so a thin answer is strictly better than a confabulated one. */
+const POPULATE_DOCTRINE =
+  "Record ONLY what the character card and the opening scene actually establish or plainly imply — the gear " +
+  "they are described carrying, the coin their station implies, the goals their background already gives them. " +
+  "If the card says nothing about a plane, leave it empty. Do NOT invent adventuring loot, quest chains, or a " +
+  "purse the character has no reason to carry.";
+
+/** Compose the POPULATE teaching block (the host's born-state round): the deception clause when the game runs
+ *  hidden layers (an opening message may itself carry a `<lie>` span — the tracker stays surface-only there
+ *  exactly as it does in play), the SAME per-plane fragments the turn vehicles teach for the two born-state
+ *  planes, and the invent-nothing doctrine. One home with the extraction teaching, so a plane taught two ways
+ *  stays impossible. */
+export function composePopulateTeaching(ctx: ExtractionPromptContext): string {
+  const blocks: string[] = [];
+  if (isDeceptionActive(ctx.config.features)) {
+    blocks.push(DECEPTION_SURFACE_CLAUSE);
+  }
+  blocks.push(
+    "IDENTITY — sheet.title is this character's TITLE or class as the card presents them (\"Warden of House " +
+      'Vane", "hedge-witch"), short and in the card\'s own voice; sheet.level is their starting level as a ' +
+      "whole number — 1 unless the card explicitly establishes a veteran standing.",
+  );
+  for (const row of EXTRACTION_PLANE_PROMPTS) {
+    if (!POPULATE_PLANES.has(row.plane)) {
+      continue;
+    }
+    const fragment = row.fragment(ctx);
+    if (fragment !== null) {
+      blocks.push(fragment);
+    }
+  }
+  blocks.push(POPULATE_DOCTRINE);
+  return blocks.join("\n");
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // R2 — the enriched TOOL DESCRIPTIONS, as TEMPLATES (the spike's Appendix A, un-frozen).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════

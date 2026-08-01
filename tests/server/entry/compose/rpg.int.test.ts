@@ -25,9 +25,9 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { messages, messageVariants } from "@orb/db";
+import { characters, messages, messageVariants } from "@orb/db";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
@@ -1549,4 +1549,127 @@ test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical remin
   expect(new Set(reminders).size).toBe(1);
   expect(reminders[0]).toContain("crossed the rope bridge");
   expect(reminders[0]).not.toContain("confessed to Niko at the tower");
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// POPULATE-FROM-CHARACTER (owner ruling 2026-08-01) — the host BORN-STATE round, driven END-TO-END.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The verb's own int test fakes the round; THIS drives the REAL one (the [ct-stub-lie] antidote): the real
+// corpus read (card prose + the room's opening line off the real db), the real prompt + constrained grammar on
+// the wire, the real `salvagePopulate` (which must throw away the live-play planes a wire volunteered), the
+// real title→className mapping, and the real two-door write tail.
+
+/** A canned POPULATE payload — the identity + born gear the card implies, PLUS a `scene` write no card read is
+ *  allowed to make (a non-enforcing wire volunteering one). What lands proves the strip is structural. */
+const CANNED_POPULATE = {
+  sheet: { title: "Warden of House Vane", level: 3 },
+  inventory: [
+    {
+      targetRef: "mara",
+      add: [{ name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch" }],
+      walletDeltas: [{ name: "gold", delta: 20 }],
+    },
+  ],
+  quests: [{ name: "Reach the Vault of Ash", action: "create", objectives: ["Find the road north"] }],
+  scene: { location: "SHOULD NEVER LAND", recentEvent: "SHOULD NEVER LAND" },
+  party: [{ targetRef: "mara", hpDelta: -5 }],
+  journal: [{ type: "note", title: "nope", content: "SHOULD NEVER LAND" }],
+};
+
+test("POPULATE (real round): the card's identity + gear land, and the live-play planes it volunteered do NOT", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "populate");
+  // A real CARD the host owns, with prose the corpus read renders, seated in the room.
+  // A REAL minted TypeID: the snapshot write re-validates the volatile `actorRef`, so a fabricated
+  // `character_<key>` id would be dropped at the F1 backstop and the gear would silently vanish.
+  const characterId = await seedCharacter(db, hostId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  await db.update(characters).set({ description: "A warden of a fallen house, sworn to a dead name." }).where(eq(characters.id, characterId));
+  await seedParticipant(db, { chatId, key: "populate_char", characterId, joinSeq: 1 });
+  // The room's OPENING line (the first canon slot) — the second half of the corpus.
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet Mara at the ford, her cloak heavy with rain." });
+
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: JSON.stringify(CANNED_POPULATE) });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+
+  // The round rode the `structured` dispatcher (a non-agent-sdk wire) with the POPULATE grammar: the sheet
+  // plane is REQUIRED (the xgrammar lever) and the one target is the whole inventory ref enum.
+  expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
+  const schema = spy.schemas[0] as {
+    required?: string[];
+    properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
+  };
+  expect(schema.required).toContain("sheet");
+  expect([...(schema.properties.sheet.required ?? [])].sort()).toEqual(["level", "title"]);
+  expect(schema.properties.inventory.items.properties.targetRef.enum).toEqual(["mara"]);
+  // The prompt carried BOTH halves of the corpus — the card prose and the room's opening line.
+  expect(spy.userPrompts[0]).toContain("sworn to a dead name");
+  expect(spy.userPrompts[0]).toContain("her cloak heavy with rain");
+
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const actor = view.actors.find((a) => a.name === "mara");
+  // The WIRE said `title`; the SHEET stores `className` (the one mapping, at the parse seam).
+  expect(actor?.sheet.className).toBe("Warden of House Vane");
+  expect(actor?.sheet.level).toBe(3);
+  expect(actor?.volatile?.inventory.map((i) => i.name)).toEqual(["Bone key"]);
+  expect(actor?.volatile?.wallet).toEqual([{ name: "gold", amount: 20 }]);
+  expect(view.quests.map((q) => q.name)).toEqual(["Reach the Vault of Ash"]);
+  // …and NOTHING the live-play planes volunteered landed: no scene move, no hp write, no journal beat.
+  expect(view.ambient?.location ?? "").toBe("");
+  expect(actor?.volatile?.hp ?? null).toBeNull();
+  expect(await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 })).toEqual([]);
+});
+
+test("POPULATE (real round): a connection with NO structured writer runs no round at all (honest no-op)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "populate-readonly");
+  const characterId = await seedCharacter(db, hostId, "vesna", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId, key: "populate_ro_char", characterId, joinSeq: 1 });
+  const spy = emptySpy();
+  const rpgCompose = buildRpg({
+    db,
+    now: () => FROZEN_AT,
+    rpgChatOps: app.chatRpgOps,
+    connection: {
+      // Tools but NO structured output — the populate round's own capability gate must refuse it.
+      resolveChat: () =>
+        Promise.resolve(
+          makeResolvedConnection({
+            api: "chat-completions",
+            model: castId<ModelId>("fake-chat-model"),
+            capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, tools: { parallel: true } }),
+          }),
+        ),
+      getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    },
+    executor: {
+      structured: (req): Promise<SummarizeResult> => {
+        spy.summarizeModels.push(req.model);
+        return Promise.resolve({
+          items: [{ text: "{}", usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
+          model: "fake-chat-model",
+        } satisfies SummarizeResult);
+      },
+      runChatTurn: (): Promise<ChatResult> => {
+        spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: false });
+        // FABRICATION-OK: this arm must never fire on this test — a minimal double proves it by staying unused.
+        return Promise.resolve({ reply: "" } as unknown as ChatResult);
+      },
+    },
+    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolvePresetOwned: () => Promise.resolve(false),
+    toolUse: { register: () => undefined },
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+
+  // NO model call was paid on a wire that could only have produced garbage, and nothing was written.
+  expect(spy.summarizeModels).toEqual([]);
+  expect(spy.chatTurns).toEqual([]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.actors.find((a) => a.name === "vesna")?.sheet.className).toBe("");
+  // …and the panel says so honestly: the born-state button is disabled on this connection.
+  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
+  expect(game.canPopulate).toBe(false);
 });

@@ -36,6 +36,7 @@ import type {
   PromptTransformRegistry,
   RequestTurnOp,
   ResolveCanonWindow,
+  ResolveRpgCardCorpus,
   ResolveRpgRoster,
   SetRpgPointer,
   TurnMessage,
@@ -53,6 +54,7 @@ import {
   createPostNarratorMessage,
   createPromptTransformRegistry,
   createResolveCanonWindow,
+  createResolveRpgCardCorpus,
   createResolveRpgRoster,
   createSetRpgPointer,
   getGroupConfig,
@@ -265,6 +267,9 @@ export interface ChatComposeResult {
     /** The DEEP canon-window read (crunchy-cluster §1.3) — the `resyncFromStory` host verb's story feed, sharing
      *  the engine's transcript projection (chat owns canon reads; rpg reads no chat table). */
     readonly resolveCanonWindow: ResolveCanonWindow;
+    /** The BORN-STATE corpus read (the host `populateFromCharacter` round): one roster character's card prose
+     *  + the room's opening line (chat owns the card + canon reads; rpg reads no table). */
+    readonly resolveCardCorpus: ResolveRpgCardCorpus;
   };
   /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
    *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -1016,6 +1021,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveRpgRoster: createResolveRpgRoster(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
+      resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),

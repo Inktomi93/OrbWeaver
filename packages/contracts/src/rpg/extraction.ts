@@ -506,6 +506,105 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
   return { extraction, dropped };
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// POPULATE-FROM-CHARACTER (owner ruling 2026-08-01) — the BORN-STATE schema, the ONE hand-only doorway.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// A host-invoked, per-character, ONE-SHOT round over the character CARD + the room's OPENING message. It is a
+// DIFFERENT schema from `rpgExtractionSchema`, deliberately, and the difference cuts BOTH ways:
+//   • it ADDS the identity `sheet` plane (`title`/`level`) — the hand-only fields `patchSheet` otherwise owns
+//     alone (`./sheet`: "ABSENT from the extraction schema + every tool arg"). That law stands for PLAY: no
+//     turn vehicle (folded/cheap) can reach these, because they are in neither the extraction schema nor any
+//     tool arg, and this schema rides NO turn. The owner sanctioned exactly one doorway, and this is it — a
+//     host clicking a button on one character, once, before the numbers mean anything.
+//   • it REMOVES every LIVE-PLAY plane (`scene`/`party`/`trackers`/`journal`): a card read is not a beat, so
+//     mood/ambient/hp/beat-log are not its business. The removal is STRUCTURAL, not prompt-side — the planes
+//     are absent from the schema AND {@link salvagePopulate} rebuilds them EMPTY, so even a non-enforcing wire
+//     that emits `scene` writes nothing (unreachable, not merely untaught).
+// What survives is the shared-plane proof: `inventory`/`quests` are the SAME tool arg schemas the extraction
+// planes derive from, so the populate delta folds through the SAME `extractionToStateDelta` → locks → write
+// tail (no bespoke write path).
+
+/** The identity-sheet half of a populate round — the hand-only fields a card implies but no beat ever writes.
+ *  `title` is the model-facing name for `RpgSheet.className` (what the takeover renders beside the name — the
+ *  client has called it "title" since the tracked-field unification; the storage name is not the wire's).
+ *  Both are OPTIONAL in the zod (a card that implies neither must still PARSE) and both are re-marked REQUIRED
+ *  in the projected grammar ({@link constrainPopulateSchema}) — the LOOSE-ZOD + STRICT-PROJECTION pattern
+ *  D112 (3) documents: an enforcing wire must answer, a non-enforcing one degrades to "the card said nothing". */
+export const rpgPopulateSheetSchema = z.object({
+  title: z.string().min(1).optional(),
+  level: z.number().int().min(0).optional(),
+});
+export type RpgPopulateSheet = z.infer<typeof rpgPopulateSheetSchema>;
+
+/** The populate round's whole payload: the identity sheet + the two BORN-STATE planes a background implies —
+ *  what this character CARRIES (`inventory`, incl. `walletDeltas` = the starting purse) and what they are
+ *  already chasing (`quests`, the background-implied hooks). Array planes `.default([])` so an empty round is
+ *  the empty object, exactly like the extraction schema. */
+export const rpgPopulateSchema = z.object({
+  sheet: rpgPopulateSheetSchema.optional(),
+  inventory: z.array(updateInventoryArgsSchema).default([]),
+  quests: z.array(upsertQuestArgsSchema).default([]),
+});
+export type RpgPopulate = z.infer<typeof rpgPopulateSchema>;
+
+/** What a salvaging populate parse yields: the sheet half (`null` = the model wrote none), the state half as
+ *  an `RpgExtraction` whose LIVE-PLAY planes are empty BY CONSTRUCTION (so the one `extractionToStateDelta`
+ *  fold applies it unchanged), and the itemized losses (EXT-4a equal-drop semantics). */
+export interface RpgPopulateSalvage {
+  readonly sheet: RpgPopulateSheet | null;
+  readonly extraction: RpgExtraction;
+  readonly dropped: readonly RpgExtractionDrop[];
+}
+
+/** The planes a populate drop can belong to — the two state planes plus the unusable root. Every other plane
+ *  is not offered, so a drop can never be reported against one. */
+const POPULATE_DROP_PLANES: ReadonlySet<RpgExtractionDropPlane> = new Set<RpgExtractionDropPlane>(["inventory", "quests", "root"]);
+
+/**
+ * Parse a populate payload PER PLANE / PER ENTRY (the EXT-4a contract, reused whole): the two state planes ride
+ * {@link salvageExtraction} — the SAME per-entry validation the three turn vehicles use, so a bad item costs
+ * that item and never the quests beside it — and the sheet stands or falls alone. The result's `extraction`
+ * carries ONLY `inventory`/`quests`: the live-play planes are rebuilt EMPTY here rather than filtered at the
+ * caller, which is what makes "populate cannot touch scene/party/trackers/journal" a property of the parse
+ * instead of a promise about the prompt.
+ */
+export function salvagePopulate(value: unknown): RpgPopulateSalvage {
+  const salvaged = salvageExtraction(value);
+  // The live-play planes are DISCARDED here (never merely unread): a non-enforcing wire that volunteered a
+  // `scene`/`party`/`trackers`/`journal` write gets nothing, by construction.
+  const extraction: RpgExtraction = { party: [], inventory: salvaged.extraction.inventory, trackers: [], quests: salvaged.extraction.quests, journal: [] };
+  const dropped = salvaged.dropped.filter((drop) => POPULATE_DROP_PLANES.has(drop.plane));
+  const rawSheet = value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>)["sheet"] : undefined;
+  if (rawSheet === undefined || rawSheet === null) {
+    return { sheet: null, extraction, dropped };
+  }
+  const parsed = rpgPopulateSheetSchema.safeParse(rawSheet);
+  if (!parsed.success) {
+    return { sheet: null, extraction, dropped: [...dropped, { plane: "root", index: null, issues: issueLines(parsed.error) }] };
+  }
+  return { sheet: parsed.data, extraction, dropped };
+}
+
+/**
+ * Constrain the PROJECTED populate schema for ONE target actor: `inventory[].targetRef` is pinned to that
+ * actor's name (a populate round writes exactly one character — any other ref is untypeable), and the sheet
+ * plane + both its fields are re-marked REQUIRED.
+ *
+ * The REQUIRED marking is the xgrammar lever, not decoration: a small local model SKIPS optional fields
+ * outright (measured — the establish-when-unset scene fix exists for the same reason), and a populate round
+ * whose entire point is "fill the born fields nobody else can write" has nothing to fall back on if it skips
+ * them. Returns a fresh schema (never mutates the cached projection).
+ */
+export function constrainPopulateSchema(schema: Record<string, unknown>, targetRef: string): Record<string, unknown> {
+  const clone = cloneNode(schema as JsonSchemaNode);
+  constrainArrayItemRef(clone, "inventory", "targetRef", [targetRef]);
+  const sheetNode = propsOf(clone)?.["sheet"];
+  requireField(clone, "sheet");
+  requireField(sheetNode, "title");
+  requireField(sheetNode, "level");
+  return clone;
+}
+
 /**
  * The HEAL predicate (EXT-4b), read off a folded extraction so ALL THREE vehicles report it identically: the
  * `journal` indexes whose `type` the model omitted and `journalTypeFor` therefore healed to `note`. One

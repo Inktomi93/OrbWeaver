@@ -1,5 +1,6 @@
 // domain/rpg/verbs/read/get-game — getGame (rpg-design/05 §4.8). The takeover's mode read + the honest-arms
-// `trackersReadOnly` verdict. Member-gated.
+// delivery verdicts (`trackersReadOnly` = the model write path for this game's mode; `canPopulate` = the
+// structured writer the host born-state round needs — one resolve, both answers). Member-gated.
 
 import type { RpgGameView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "../../contract/params";
@@ -9,13 +10,14 @@ import { resolveMember } from "../../guard";
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const { trackersReadOnly } = await ctx.resolveStateDelivery(params.chatId);
+    const { trackersReadOnly, canPopulate } = await ctx.resolveStateDelivery(params.chatId);
     return {
       id: game.id,
       chatId: game.chatId,
       mode: game.mode,
       status: game.status,
       trackersReadOnly,
+      canPopulate,
       extractionMode: game.config.extractionMode,
       publicConfig: {
         statProfile: game.config.statProfile,

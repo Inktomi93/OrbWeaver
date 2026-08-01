@@ -60,7 +60,8 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
     trackerRevokes: patch.trackerRevokes !== undefined ? [...patch.trackerRevokes] : current.trackerRevokes,
     maxHp: "maxHp" in patch ? (patch.maxHp ?? null) : current.maxHp,
     flavor: patch.flavor ?? current.flavor,
-    // §2.6 hand-only level — `patchSheet` is the ONLY write door (absent from extraction + tool args).
+    // §2.6 hand-only level — no TURN can write it (absent from extraction + tool args); the only other door is
+    // the host born-state round (`populateFromCharacter`), which FILLS it from the card while it is still null.
     level: "level" in patch ? (patch.level ?? null) : current.level,
   };
 }

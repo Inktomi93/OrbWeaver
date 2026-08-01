@@ -13,6 +13,7 @@ export type {
   RpgContext,
   RpgGetMembership,
   RpgIdMints,
+  RpgPopulateDelta,
   RpgPostNarratorMessage,
   RpgResolvePresetOwned,
   RpgResolveRoster,
