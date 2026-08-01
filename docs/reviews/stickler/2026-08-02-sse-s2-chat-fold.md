@@ -414,3 +414,213 @@ pass). Everything else from the base review's NOT-read list stands.
   keyed per room, not per pump instance) — worth one line in whatever RF1's fix touches.
 - socket.test.ts's `bounds` fake comment says "an unclamped MEMBER" while returning
   `viewerIsHost: true` — comment nit only; the suite is about delivery, not projection.
+
+---
+
+# PASS 3 ddfd76ca — the resumable ordering barrier + the scrub reconcile (final pass)
+
+**Reviewed:** the merge `ddfd76ca` (parents: branch `261b728b`, main `65b90415`) in the worktree
+`.claude/worktrees/agent-ae7a23e7ea4435982`. The true new content (files differing from BOTH parents):
+`stream/socket.ts`, `stream/socket-registry.ts`, `stream/frame-queue.ts`, `stream/room-source.ts`,
+`stream/room-sources.ts`, `stream/sources/{chat,user,rpg}.ts` + the six stream test files — all read IN
+FULL. Also read in full (carried verbatim from main's `ed2aafc5`, but the scrub reconcile's other half):
+`domain/chat/bus.ts`, `domain/chat/substrate/member-visibility.ts`; and (unchanged since pass 2, the
+barrier's client half): `use-orb-socket.ts`, `room-registry.ts`, `use-bus-room.ts`, `use-chat-bus.ts`,
+`chat-event-seq-guard.ts`, `routers/stream.ts`, plus the `memberText` contract arm
+(`contracts/src/chat/bus.ts:214-231`) and the compose fan (`entry/compose/services.ts:364-373`).
+Law applied: spec §3.3/§4.2/§5.3-§5.5/§6/§7/§8; the §5.5 leak fence; D106; D16.
+
+**VERDICT: MERGE-WITH-FIXES.** The barrier is correct and probe-verified for every reconnect the server
+has NOTICED (clean close, reap-window retry, process restart) — but the cell has no single-owner guard,
+so a reconnect that beats the server's death-detection (the half-open-TCP class: NAT rebind, sleep/wake,
+silently-dead proxy — precisely §8's motivating class) runs a SECOND generator on the still-"live" cell,
+bypasses the barrier (`announced` was never re-armed), resurrects RF1's stranded terminal, and the zombie
+generator's eventual teardown then clobbers the live connection's listener (P3F1, HIGH — reproduced).
+Everything else probed is sound.
+
+## Findings
+
+### P3F1 (HIGH) — no single-owner guard on the socket cell: a reconnect that outruns the server's death-detection bypasses the barrier (RF1 resurrected) and the zombie's late `goDark` clobbers the live generator
+
+`packages/server/src/transport/trpc/routers/stream.ts:31` (adopt returns a LIVE cell with no takeover) ×
+`packages/server/src/transport/trpc/stream/socket-registry.ts:193-207` (`goLive` overwrites the listener;
+`announced` is re-armed ONLY in `goDark`) × `packages/server/src/transport/trpc/stream/socket.ts:229-235`
+(the finally runs `goDark(cell)` unconditionally — no identity check that this generator still owns the
+cell).
+
+**The mechanism.** `announced` is per-CONNECTION state, but it is cleared only when the PREVIOUS
+generator's finally runs. The server learns a socket died when a write to it errors: on a clean close
+(FIN/RST) that is immediate, but on a half-open TCP (client NAT-rebound, slept, or switched networks)
+the 15s ping's writes BUFFER into the kernel and the error surfaces only after the retransmission
+timeout — minutes. The client meanwhile reconnects at `reconnectAfterInactivityMs` (45s). In that
+overlap window:
+
+1. `adopt` hands the new `stream.connect` the still-live cell; `runSocket` #2's setup slice reads
+   `room.announced === true` (never re-armed) → `startOrHoldPump` starts the chat pump IMMEDIATELY from
+   the server's delivered cursor — the barrier is bypassed on exactly the reconnect class it was built
+   for. Pre-announce delivery jumps the client's mark past the gap; the re-announce's rewind replay is
+   then guard-dropped wholesale. A lost turn terminal strands the slot — RF1's exact failure.
+2. While both generators live, the zombie's drain loop keeps "delivering" (into the dead socket) any
+   frames its still-running pumps produce, ADVANCING the shared room cursors past rows no live client
+   received — compounding the loss.
+3. When the zombie's finally eventually runs, `goDark` clobbers the LIVE cell: `listener = null` (every
+   subsequent attach/announce records the room but starts NO pump — a silently-dead room on a live
+   socket, no `attached` ack, no error, until the next reconnect), `live = false` + `lastSeenAt` set
+   (the cell is reap-eligible WHILE a live socket serves it — 60s later any registry entry point deletes
+   it, discarding every cursor), `announced = false` (spurious re-arm), and `liveSocketCount`
+   undercounts (the `/api/_debug` starvation pin).
+
+**Reproduced this session** — `reports/stickler/scratch/dual-generator-overlap-repro.ts` (worktree),
+driving the REAL `runSocket` ×2 concurrently on one REAL registry cell + the REAL chat room source + the
+REAL client seq guard (fakes: the two chat service reads — the socket.test.ts pattern). Rows 1-3 applied,
+4 (delta) + 5 (turnCompleted) yielded-but-lost (cursor 5, mark 3), row 6 written offline; reconnect
+BEFORE #1 is aborted:
+
+```
+[1] server cursor = 5 | client mark = 3 | announced = true
+[2] BARRIER CHECK — frames delivered on the reconnected socket BEFORE any announce:
+    control:attached | chat seq=5 chatOpened | chat seq=6 chatUpdated
+    client mark now = 6
+[3] applied: 1,2,3,6 | guard-dropped: 4,5,6
+    turn terminal (row 5) applied: NO — RF1 stranded slot, resurrected
+[4] after #1's late goDark, while #2 is STILL live:
+    cell.live = false | cell.listener = NULL (clobbered) | chat.announced = false
+[5] new-room attach on the LIVE socket #2 → NOTHING delivered (silent room: no ack, no pump)
+```
+
+The composed regression suite never covers this shape: every socket.test.ts reconnect does
+`it1.return()` (→ finally → goDark) BEFORE `stream.connect` #2 — the sequential case, where the barrier
+holds (verified: its pin bites, see below). socket-registry.test.ts likewise never calls `goLive` twice
+without an intervening `goDark`.
+
+**Safe remediation direction (for the orchestrator, not implemented):** make the cell single-owner.
+(a) Re-arm the barrier at CONNECT, not only at disconnect — `goLive` clears `announced` for every room
+whose source is resumable (`announced` is per-connection state; clearing it where the connection BEGINS
+removes the dependence on the zombie's timely death). (b) Epoch-stamp ownership: `goLive` returns/records
+a token (or the listener identity), and `goDark` + the drain loop's `advanceCursorOnDelivery` no-op when
+the caller is no longer the cell's current owner — that kills the clobber and the zombie cursor
+inflation. (c) Optionally have `goLive` on a live cell abort the previous generator via a cell-held
+handle (the eager kill; (a)+(b) are sufficient for correctness without it, since the zombie can no longer
+write anything that matters). Regression test: the repro's timeline — two concurrent `runSocket` on one
+cell, assert nothing is delivered pre-announce on #2, the terminal is APPLIED after the re-announce, and
+a post-overlap new-room attach still gets its `attached` ack + pump.
+
+### P3F2 (MEDIUM) — the barrier's liveness hangs on ONE swallowed, unretried HTTP mutation: a lost re-announce now silences a resumable room for the life of the connection
+
+`packages/client/src/data/bus/room-registry.ts:140-145` (`announce` = `void transport.attach(...).catch(()
+=> undefined)`) × `packages/server/src/transport/trpc/stream/socket.ts:168-172` (a held room lifts ONLY
+on `onAttach`/`onAnnounce` — both exist solely as consequences of that mutation; no timer, by design) ×
+spec §8 (ping 15s < `reconnectAfterInactivityMs` 45s ⇒ a healthy socket never self-reconnects).
+
+**The consequence chain (each link verified by read this session):** on a reconnect the SSE stream and
+the `stream.attach` re-announce are independent HTTP requests. If the announce fails while the stream
+succeeded — a flap outliving the reconnect by seconds, a server restart between the two, a cap/rate-limit
+refusal (`DomainRateLimitError` rides the same collapsed `.catch`, indistinguishable from the deliberate
+NOT_FOUND swallow) — then: the barrier holds the chat room (no `attached` ack, no `chatOpened`, no
+frames); nothing retries the announce; `resumeAfterLag` cannot fire (the pump never ran, so it cannot
+shed); the ping keeps the socket alive so no inactivity reconnect ever comes. The transcript is frozen
+with zero signal until the user leaves and re-enters the chat or the network flaps again. Pre-barrier
+(261b728b) the same lost announce cost only the REWIND — delivery still resumed from the server cursor;
+the barrier raises the stake of that one unacknowledged mutation from "gap heal" to "all delivery".
+This is the answer to the builder's own hot-spot question ("is the pin strong enough?"): the pin
+(re-announce per live edge) is tested client-side, but the TRANSPORT of the announce has no
+delivery guarantee and its failure mode is total, silent, and unbounded in duration.
+
+**Safe remediation direction:** any one of — a bounded retry on the announce (it is idempotent
+server-side by design, so retrying is free); surfacing a failed attach for a JOINED room to the room's
+`onError` instead of the blanket swallow (the swallow exists for the leak-free NOT_FOUND refusal, which
+is distinguishable by code); or a server-side barrier timeout that degrades to the pre-barrier
+resume-from-cursor (delivery with a possible gap + `chatOpened` invalidate beats silence). Regression
+test: drop exactly the re-announce mutation in the room-registry/socket composition and assert the room
+still delivers (or surfaces an error) within the timeout.
+
+## Builder hot-spots — adversarially verified
+
+1. **attach emits ONE signal (onAttach XOR onAnnounce); no double-start.** Verified in
+   `socket-registry.ts::attach` (every path returns after exactly one callback) and pinned in
+   socket-registry.test.ts ("a rewind is an attach, never also an announce"). `startPump` aborts and
+   replaces any prior controller under the same key (`pumps` holds one entry per room); `liftBarrier`
+   starts only when `!pumps.has(key)`. All listener callbacks run synchronously inside the mutation, and
+   `pumps.set` happens in the same synchronous slice as `onAttach` — an announce can never observe a
+   half-started rewind. CLEAN (the dual-GENERATOR case of P3F1 is a different axis: two pumps maps).
+2. **`liftBarrier` vs an in-flight rewind.** The racing interleavings all collapse to duplicate replay
+   (client-deduped) or a correct restart; traced every ordering incl. announce-during-park (lift starts
+   from the delivered cursor; the later notice's unconditional `resumeAfterLag` re-restarts — duplicates
+   only). CLEAN.
+3. **Barrier liveness.** The client DOES announce on every live edge after the first
+   (`room-registry.socketLive` → unconditional `announce` per room when `reconnected`; the first edge is
+   covered by the join/bind announce, which also sets `announced: true` on the freshly-created server
+   room). Pinned in room-registry.test.ts + the socket-registry announce tests. The contract-break
+   consequence is P3F2 (silent room, no timer — confirmed); the barrier-bypass consequence is P3F1.
+4. **resumable ⟺ lag correspondence.** Runtime-pinned in room-sources.test.ts (set-equality over
+   `STREAM_CHANNELS` + the exact set `["notifications","chat"]`); the `.test-d` pins table totality both
+   directions. `refusedUntilFolded("notifications")` honestly carries `resumable: true` but is
+   unreachable (attach always refuses). CLEAN.
+5. **unstamped (undefined) vs stamped-identical (null).** Cannot be confused: `exactOptionalPropertyTypes`
+   is ON (tsconfig.base.json:38), so no producer can spell `view:`/`memberText: undefined` explicitly —
+   and JSON round-trips preserve the distinction (null survives `chat_events` storage; undefined is
+   absent). The producer stamps EVERY delta (`memberText: null` for reasoning ticks + identical-text
+   ticks, a string for scrubbed ticks — `member-visibility.ts:266-281`), the compose root fans the
+   LOGGED copy (`services.ts:364-373` fans `logged.event`), and the member-replay round-trip through the
+   real db is pinned (chat.int.test.ts D16-streaming test: a member's replay CONTAINS the stamped-null
+   post-join delta — a stripped stamp would withhold it and fail that assertion). Legacy pre-stamp
+   `chat_events` delta rows replay as unstamped ⇒ withheld from members — fail-closed under-delivery,
+   healed by the at-commit view; acceptable pre-launch posture, stated in the contract comment. CLEAN.
+
+## Probe-bite re-verification (mandated)
+
+Disabled the barrier (`startOrHoldPump` → unconditional `startPump`; cp/backup + mv restore, no git):
+`socket.test.ts` fails EXACTLY at the pin — "rows lost in flight … re-delivered AND applied" red with
+`expected 'delivered' to be 'held'` (pre-attach delivery observed), the other four tests stay green.
+Restored; file re-run green (5/5); `git status` clean. The merge message's bite claim is accurate.
+
+## Verified clean (what this pass's silence covers)
+
+- **The delivered-cursor contract + shed heal (261b728b's arms), recomposed with the barrier:** re-read
+  in full; the park-fires-on-every-shed / notice-rate-limited split (`frame-queue.ts::announceLag`) and
+  the unconditional `resumeAfterLag` close pass 2's park-skip suspicion; the new socket.test.ts test 2
+  drives exactly the re-attach-while-notice-pending interleaving and asserts the contiguous-prefix pin.
+  A `collapse`-room park at capacity restarts via the same notice path (pass 2's noted small behavior
+  change, unchanged).
+- **`refusedUntilFolded` / NO_FRAMES:** refusal precedes the pump in `stream.attach` (authorize first),
+  so the pump is unreachable; `resumable` on the refused arms cannot gate anything.
+- **The scrub reconcile at the room source:** `deltaScrubbers`/`scrubberFor`/`retireScrubberOnCommit`
+  deleted from `sources/chat.ts`; `resolveLiveYield` is now fully stateless (per-yield `memberBounds` →
+  D16 floor → host verbatim / member `scrubDeltaEventForMember`+`stripChatEventForMember`), byte-equal
+  in verdict to the durable twin `scrubChatEventReplayForMember`. §5.5 two-room isolation re-pinned on
+  what remains per-room (the P3 reasoning verdict; the stamp forwarded verbatim; unstamped withheld
+  without stalling; reconnect re-derives from current membership) — chat.test.ts:457-630, driven through
+  the real ladder. The mid-slot reconnect leak is pinned END-TO-END over a real db + real durable bus
+  (chat.int.test.ts:361-423: opener lands in the disconnect gap, closer arrives live, the tail bytes and
+  the `"/>` framing never reach the member's wire).
+- **`retireSlotState`'s `"view" in event` narrow:** safe — `exactOptionalPropertyTypes` forbids explicit
+  `view: undefined`, and every live emit site passes a defined view (grep of all six view-carrying emit
+  constructions) or filters first; absent-view events fall through to the terminal sweep. An ast-grep +
+  grep sweep found zero `view: undefined` spellings repo-wide.
+- **`emit`-is-total unchanged:** the stamper runs before the try, but it cannot throw on any
+  constructible event (above), and `reportDroppedAppend` never throws.
+- **Gates + suites (worktree, this session):** `pnpm check` PASS — all 12 stages, full output read
+  (biome, eslint, types ×5, tests:execution-membership, structure:full, depcruise, knip, docs).
+  `pnpm vitest run` over the six stream suites + client bus (incl. the 3 bus suites) — 109/109, 0 type
+  errors. socket.test.ts re-run green post-probe.
+- **Merge-fidelity:** `domain/chat/bus.ts` + `member-visibility.ts` are byte-identical to main's
+  `ed2aafc5` (diff vs the main parent is empty); the client bus files are byte-identical to the branch
+  parent (pass 2's review of them stands).
+
+## Regions NOT read / not run
+
+Main-side churn riding the merge (settings/rpg/ui files identical to `65b90415`) — out of scope, not
+read. The `@live`/e2e specs — unchanged since pass 2; reviewed then, not executed (the merge message
+claims a green isolated-stack run; not re-verified here). `routers/chat.ts` CRUD middle — unchanged,
+still unread (tsc + pass 1 cover). `apply-chat-bus-event.ts` reducer internals — ran green; relied on,
+not re-audited.
+
+## Unconfirmed suspicions (low priority, not findings)
+
+- The worktree's copy of THIS report is stale (the merge kept the branch-side file, dropping main's
+  RE-REVIEW section — main's copy, updated at `e0cb972e`, is canonical and is where this pass appends).
+  Housekeeping, not a code defect.
+- Pass 2's cross-room rate-limiter interaction (a SECOND flooding lag room holding the queue at capacity
+  while the first room's notice pends) is narrowed by park-on-every-shed but a mixed-room saturation
+  still parks/restarts rooms via a shared capacity — traced as safe (each room's own notice restarts it;
+  duplicates deduped), not exhaustively driven.
