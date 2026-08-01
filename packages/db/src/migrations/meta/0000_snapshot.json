@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0d3fbba4-b10f-47e8-afe4-711212a0c905",
+  "id": "6bf1107e-4db2-4bd8-b54f-89fe381d9e92",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -7270,6 +7270,14 @@
           "autoincrement": false,
           "default": "'none'"
         },
+        "lane": {
+          "name": "lane",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'sweep'"
+        },
         "params": {
           "name": "params",
           "type": "text",
@@ -7280,6 +7288,13 @@
         },
         "result": {
           "name": "result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "progress": {
+          "name": "progress",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -7374,6 +7389,10 @@
         "workloads_source_check": {
           "name": "workloads_source_check",
           "value": "source in ('none', 'text', 'image', 'all')"
+        },
+        "workloads_lane_check": {
+          "name": "workloads_lane_check",
+          "value": "lane in ('interactive', 'sweep')"
         }
       }
     },

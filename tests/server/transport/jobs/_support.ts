@@ -4,14 +4,14 @@
 // claim/dispatch/decision with zero ambient time or I/O. The loop tests drive shutdown via a real
 // AbortController.
 
-import type { WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadLane, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import type { WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
-import type { WorkloadRowAnyKind } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
 import type { CatalogRefreshSchedulerDeps } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
 import type { OidcGcSchedulerDeps } from "../../../../packages/server/src/transport/jobs/oidc-gc-scheduler.ts";
 import type { WorkloadsWorkerDeps } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
@@ -21,18 +21,23 @@ export const T0 = 1_700_000_000_000;
 
 /** A minimal valid `reconcile-stats` row (no params) — the worker treats the row opaquely (it threads it into
  *  the faked `run`), so the kind is fixed and only the lifecycle fields the tests vary are overridable (a
- *  `Partial<WorkloadRowAnyKind>` spread would break the discriminated kind↔params correlation). */
-export function makeRow(overrides: { id?: WorkloadId; status?: WorkloadStatus; ownerId?: UserId | null; updatedAt?: number } = {}): WorkloadRowAnyKind {
+ *  `Partial<WorkloadRunnableRow>` spread would break the discriminated kind↔params correlation). */
+export function makeRow(
+  overrides: { id?: WorkloadId; status?: WorkloadStatus; ownerId?: UserId | null; updatedAt?: number; lane?: WorkloadLane } = {},
+): WorkloadRunnableRow {
   return {
     id: overrides.id ?? castId<WorkloadId>("workload_1"),
     kind: "reconcile-stats",
     status: overrides.status ?? "queued",
     mode: "bulk",
+    lane: overrides.lane ?? "sweep",
     ownerId: overrides.ownerId ?? null,
     dependsOn: null,
     error: null,
+    progress: null,
     params: {},
     result: null,
+    poison: false,
     scheduledAt: T0,
     createdAt: T0,
     updatedAt: overrides.updatedAt ?? T0,
@@ -57,8 +62,10 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
   return {
     runnerDeps: makeRunnerDeps(),
     signal: new AbortController().signal,
-    nextRunnable: vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
-    run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRowAnyKind, _signal: AbortSignal) => Promise.resolve()),
+    nextRunnable: vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number, _lane: WorkloadLane) =>
+      Promise.resolve<WorkloadRunnableRow | null>(null),
+    ),
+    run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRunnableRow, _signal: AbortSignal) => Promise.resolve()),
     reap: vi.fn((_args: { db: Db; contributions: WorkloadContributions; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
     load: vi.fn((_db: Db, _contributions: WorkloadContributions, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     subscribeWake: vi.fn((_listener: () => void) => () => undefined),

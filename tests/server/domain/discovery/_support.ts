@@ -45,6 +45,9 @@ import { createStatsService } from "../../../../packages/server/src/domain/stats
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
+/** A fixed instant for the service's injected clock (only `reconcile` reads it). */
+const STATS_NOW = 1_700_000_000_000;
+
 // The injected writeHubScores op type (not re-exported from the front door — derive it from the ctx).
 type WriteHubScores = DiscoveryContext["writeHubScores"];
 
@@ -174,7 +177,7 @@ export function makeDiscoveryHarness(
   const tagAttach = makeTagAttachRecorder();
   // The injected `stats` economics seam (PD-22) — default to the REAL stats reads over the SAME db (the
   // "inject the real dep at the root" doctrine; the composition root wires `stats.characterEconomics`).
-  const stats = createStatsService(db);
+  const stats = createStatsService(db, () => STATS_NOW);
   const ctx: DiscoveryContext = {
     db,
     now: () => FROZEN_AT,

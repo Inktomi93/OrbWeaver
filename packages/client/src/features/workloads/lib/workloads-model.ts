@@ -1,8 +1,8 @@
 // workloads-model — the Workloads pane's pure vocabulary, DOM-free. Everything derives from the
 // canonical tuples in @orb/contracts/workloads, so a kind flipping stub→built needs zero client edits.
 
-import type { IndexSource, WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
-import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS } from "@orb/contracts/workloads";
+import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadStatus } from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select";
 import type { inferInput } from "@trpc/tanstack-react-query";
@@ -105,6 +105,21 @@ export const WORKLOAD_STATUS_INTENT: Record<WorkloadStatus, NonNullable<BadgePro
   // biome-ignore lint/style/useNamingConvention: the key IS the canonical D34 wire status member (`worker_died`, @orb/contracts/workloads) — a camelCase respell would break the exhaustive Record.
   worker_died: "danger",
 };
+
+/** Lane → group heading (exhaustive over the WORKLOAD_LANES tuple — a new lane is a tsc error here). The
+ *  lane is EXECUTION, not priority: two rows in different lanes run at the same time. */
+export const WORKLOAD_LANE_LABELS: Record<WorkloadLane, string> = {
+  interactive: "Interactive — jobs you're waiting on",
+  sweep: "Sweeps — bulk maintenance",
+};
+
+/** Split rows into their execution lanes, in tuple order, dropping lanes with no rows. A SINGLE non-empty
+ *  lane returns one group — the caller renders it flat (a lone heading is noise, not information). */
+export function groupWorkloadsByLane<T extends { readonly lane: WorkloadLane }>(
+  rows: readonly T[],
+): readonly { readonly lane: WorkloadLane; readonly rows: readonly T[] }[] {
+  return WORKLOAD_LANES.map((lane) => ({ lane, rows: rows.filter((row) => row.lane === lane) })).filter((group) => group.rows.length > 0);
+}
 
 /** A status that still holds the kind's single-active slot — Cancel is offered exactly here. */
 export function isActiveWorkloadStatus(status: WorkloadStatus): boolean {

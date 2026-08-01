@@ -4,7 +4,7 @@
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) — the shell's own
 // consumers — driving the `header`/`listHeader` slots the analytics section supplies.
 
-import { AnalyticsListAnchor, AnalyticsListSurface } from "@orb/client/features/stats";
+import { AnalyticsListAnchor, AnalyticsListSurface, AnalyticsOverviewSurface } from "@orb/client/features/stats";
 import { clearAnalyticsSelection, selectAnalyticsCharacter, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,6 +21,18 @@ export function AnalyticsListSurfaceStory(): ReactElement {
         <AnalyticsListAnchor>
           <AnalyticsListSurface />
         </AnalyticsListAnchor>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Analytics OVERVIEW dashboard over the real data layer (four suspense reads + the recompute
+ *  mutation). */
+export function AnalyticsOverviewSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 720 }}>
+        <AnalyticsOverviewSurface />
       </div>
     </CtDataProviders>
   );

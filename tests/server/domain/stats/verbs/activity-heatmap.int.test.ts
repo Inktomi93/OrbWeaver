@@ -5,6 +5,9 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
 
+/** A fixed instant for the service's injected clock (only `reconcile` reads it). */
+const STATS_NOW = 1_700_000_000_000;
+
 let db: Db;
 
 beforeEach(async () => {
@@ -31,7 +34,7 @@ describe("stats.activityHeatmap", () => {
       createdAt: T0,
       variants: [{ content: "y" }],
     });
-    const svc = createStatsService(db);
+    const svc = createStatsService(db, () => STATS_NOW);
     const h = await svc.activityHeatmap(owner);
     expect(h.total).toBe(2);
   });

@@ -24,6 +24,29 @@ describe("workloads.start — enqueue + conflict", () => {
     expect(row.mode).toBe("singular");
   });
 
+  // The lane is EXECUTION policy owned by the CONTRIBUTION, stamped at the enqueue door (never client
+  // input, never derived at claim time — so a restart keeps every queued row in the lane it was filed under).
+  test("stamps the row's lane from the OWNING domain's contribution", async () => {
+    const db = await freshDb();
+    const s = makeService(db);
+    const ingest = await s.start({
+      input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
+      caller: null,
+      mode: "singular",
+      ownerId: null,
+    });
+    // databank-ingest is the interactive archetype (a user is waiting on their upload).
+    expect((await s.get({ id: ingest.id, caller: null })).lane).toBe("interactive");
+
+    const sweep = await s.start({
+      input: { kind: "reconcile-stats", params: {} },
+      caller: null,
+      mode: "bulk",
+      ownerId: null,
+    });
+    expect((await s.get({ id: sweep.id, caller: null })).lane).toBe("sweep");
+  });
+
   test("a second active BULK row of the same kind is a DomainConflictError (global lock)", async () => {
     const s = makeService(await freshDb());
     await s.start({
