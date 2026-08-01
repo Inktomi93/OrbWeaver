@@ -76,15 +76,16 @@ test("square shape uses the control radius token; size rides the DISPLAY-avatar 
   await expect(root).toHaveCSS("width", `${avatarLgPx}px`);
 });
 
-test("rounded shape uses the card radius token (§B.3 avatar versatility)", async ({ mount, page }) => {
+test("rounded shape uses the PORTRAIT radius token (§B.3 avatar versatility)", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Rounded avatar" shape="rounded">
       R
     </Avatar>,
   );
   const root = page.locator('[data-slot="avatar-root"]');
-  // rounded = --radius-card (0.625rem = 10px)
-  await expect(root).toHaveCSS("border-radius", "10px");
+  // rounded = --radius-base (0.5rem = 8px). It was --radius-card until the density pass S2: `card` is the
+  // FLOATING-island step (density-pass-spec.md §2.1 / D6) and `base` is the one assigned to portraits.
+  await expect(root).toHaveCSS("border-radius", "8px");
 });
 
 test("portrait aspect renders a 2:3 box (the VN/immersive presence lever, §B.3/§B.4)", async ({ mount, page }) => {

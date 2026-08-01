@@ -54,8 +54,10 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
     aspectRatio: dims === undefined ? PLACEHOLDER_ASPECT : `${dims.w} / ${dims.h}`,
   };
 
+  // `rounded-base` (not `card`): media and its gate/broken placeholders are GROUPED CONTENT inside the
+  // message bubble, which is the elevated island itself (density-pass-spec.md §2.1 D6).
   const fallbackClass = cn(
-    "flex w-full max-w-full items-center justify-center rounded-card border border-border bg-muted p-block text-body text-muted-foreground",
+    "flex w-full max-w-full items-center justify-center rounded-base border border-border bg-muted p-block text-body text-muted-foreground",
     className,
   );
 
@@ -85,7 +87,7 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
     );
   }
 
-  const mediaClass = cn("max-w-full rounded-card", className);
+  const mediaClass = cn("max-w-full rounded-base", className);
 
   if (media === "image") {
     const img = (
