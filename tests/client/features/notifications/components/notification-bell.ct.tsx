@@ -1,17 +1,20 @@
 // CT: the topbar notifications bell (features/notifications — the multi-human invites lane). Drives
 // the PRODUCTION path over the stubbed network: `notifications.list` (the durable inbox read) + the
-// `notifications.notifications` SSE subscription (a scripted `text/event-stream` body in the exact
-// tRPC wire shape — the routeOrbSocket pattern, local here because that helper types its frames as
-// `ChatBusEvent`) + the invite verbs. Asserts: the unread badge + accessible name; open→markAllRead
-// (ONE bulk mutation, not a per-row markRead loop); the inline Accept (fires `invites.acceptInvite`
-// with the notification's `inviteId`, then dismisses);
-// Decline→`declineInvite`+dismiss; and a LIVE arrival re-rendering the list without a refresh.
+// `notifications` ROOM on the tab's ONE multiplexed socket (SSE-1 S3 — `routeOrbSocket` serves the real
+// `stream.connect` body and records the `stream.attach` for the room) + the invite verbs. Asserts: the
+// unread badge + accessible name; open→markAllRead (ONE bulk mutation, not a per-row markRead loop); the
+// inline Accept (fires `invites.acceptInvite` with the notification's `inviteId`, then dismisses);
+// Decline→`declineInvite`+dismiss; a LIVE arrival re-rendering the list without a refresh; and a room-level
+// server fault surfacing as a toast instead of being read as an arrival.
 //
 // The bell button is addressed by ROLE + accessible name (its aria-label carries the unread count) —
 // deliberate: the name IS the a11y contract (see the component header for why no testid rides it).
 
+import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { NotificationBellStory, NotificationBellToastStory } from "../_ct-stories";
 
@@ -35,34 +38,19 @@ function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unkn
   };
 }
 
-/** SSE frames in the tRPC wire shape (route-orb-socket.ts, retyped for InboxView payloads). */
-function sseBody(events: readonly Record<string, unknown>[]): string {
-  const frames = ["event: connected\ndata: {}\n\n"];
-  for (const [i, event] of events.entries()) {
-    frames.push(`data: ${JSON.stringify(event)}\nid: ${String(i + 1)}\n\n`);
-  }
-  return frames.join("");
+/** One inbox row as a `notifications` FRAME on the socket — the InboxView rides verbatim under `event`, and
+ *  `seq` is the durable cursor that used to be the tracked envelope id (SSE-1 §3.2/§3.3). */
+function arrivalFrame(row: Record<string, unknown>): StreamFrame {
+  // FABRICATION-OK: this CT stubs the NETWORK, so its rows are deliberately authored as the raw JSON wire object (`inviteRow`, which the `notifications.list` stub serves verbatim too) rather than as a typed InboxView — what the browser parses off the wire IS the fixture.
+  return { channel: "notifications", seq: row["seq"], event: row } as unknown as StreamFrame;
 }
 
-/** Serve the notifications subscription a scripted stream; everything else falls back to routeTrpc.
- *  Register AFTER routeTrpc (later routes run first; non-SSE requests fall through). */
-async function routeInboxStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
-  let served = false;
-  await page.route("**/api/trpc/**", async (route) => {
-    const accept = route.request().headers()["accept"] ?? "";
-    if (!accept.includes("text/event-stream")) {
-      await route.fallback();
-      return;
-    }
-    // First subscribe gets the script; a reconnect gets a bare connected frame (no replay).
-    const body = served ? sseBody([]) : sseBody(events);
-    served = true;
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-      body,
-    });
-  });
+/** Stub the tab's ONE socket and serve the given frames once the inbox room has attached. `awaitAttaches`
+ *  is the handshake: the registry DROPS a frame for a room nobody joined (correct — the real server never
+ *  sends one), so a body served before the attach would race. Register AFTER routeTrpc (later routes run
+ *  first; non-socket requests fall through, including the attach mutation routeTrpc answers `null`). */
+async function routeInboxStream(page: Page, frames: readonly StreamFrame[]): Promise<OrbSocketRecorder> {
+  return await routeOrbSocket(page, { frames, awaitAttaches: frames.length === 0 ? 0 : 1 });
 }
 
 test("unread invites badge the bell; opening lists the invite and marks it read", async ({ mount, page }) => {
@@ -160,7 +148,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
       return listCalls === 1 ? { items: [], nextCursor: null } : { items: [inviteRow()], nextCursor: null };
     },
   });
-  await routeInboxStream(page, [inviteRow()]);
+  await routeInboxStream(page, [arrivalFrame(inviteRow())]);
 
   await mount(<NotificationBellStory />);
 
@@ -168,14 +156,24 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
   await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
 });
 
-test("a typed __subscriptionError terminal frame surfaces as a toast (it is NOT an arrival)", async ({ mount, page }) => {
+test("a typed roomFailed frame surfaces as a toast (it is NOT an arrival)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "notifications.list": () => ({ items: [], nextCursor: null }),
   });
-  // The frame `withSubscriptionErrors` yields when the stream's source throws a DomainError (here: the
-  // durable replay). Before the fix the consumer took it for an inbox arrival and INVALIDATED on it —
-  // the inbox looked freshly-loaded behind a stream that had just died, and the user was told nothing.
-  await routeInboxStream(page, [{ __subscriptionError: true, code: "SERVICE_UNAVAILABLE", message: "the inbox stream failed" }]);
+  // The frame the socket yields when THIS room's pump throws a DomainError (here: the durable replay).
+  // Before `54643a8d` the consumer took the typed fault for an inbox arrival and INVALIDATED on it — the
+  // inbox looked freshly-loaded behind a stream that had just died, and the user was told nothing. The fold
+  // carries that fix: a room fault is a CONTROL frame routed to the room's `onError`, so it can no longer
+  // reach `onEvent` at all, and it still says so out loud.
+  await routeInboxStream(page, [
+    {
+      channel: "control",
+      type: "roomFailed",
+      ref: { channel: "notifications" },
+      code: "SERVICE_UNAVAILABLE",
+      message: "the inbox stream failed",
+    },
+  ]);
 
   await mount(<NotificationBellToastStory />);
 
@@ -221,4 +219,26 @@ test("a handoff-nominated row carries Accept — fires acceptHostHandoff with th
   expect(accepted.chatId).toBe("chat_ct_target");
   // Acting on the nomination clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+test("the inbox rides the tab's ONE socket — one connect, one attach, zero extra connections", async ({ mount, page }) => {
+  // The S3 socket-count claim, asserted on the wire. Before the fold the bell held a `notifications`
+  // subscription of its own: mounting it cost a SECOND browser connection on top of the app's socket, and a
+  // browser allows ~6 per origin (the 2026-08-01 starvation incident). Now it is a ROOM — one `stream.attach`
+  // mutation on the batched HTTP link, which costs no connection at all.
+  await routeTrpc(page, {
+    "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  const socket = await routeInboxStream(page, []);
+
+  await mount(<NotificationBellStory />);
+  await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
+  // The inbox room is attached — the barrier proving the socket did its work before the counts are read.
+  await expect.poll(() => socket.attachedChannels()).toEqual(["notifications"]);
+
+  // ONESHOT-OK: settled by the attach poll above — the attach mutation is issued strictly AFTER the
+  // EventSource request the socket makes on mount, so once it is recorded every connect this mount is going
+  // to make has already been counted. The inbox is a ROOM, not a second stream: exactly ONE connect.
+  expect(socket.connects()).toBe(1);
 });

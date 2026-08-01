@@ -74,11 +74,14 @@ export interface RunSocketArgs {
   readonly cell: SocketCell;
   readonly principal: Principal;
   readonly services: Services;
+  /** The request's multi-human capability — part of every room's `RoomArgs` (a room whose surface is
+   *  multi-human-only owns that belt on its attach; see `room-source.ts`). */
+  readonly multiHumanCapable: boolean;
   readonly signal: AbortSignal;
 }
 
 export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnvelope<StreamFrame>> {
-  const { registry, cell, principal, services, signal } = args;
+  const { registry, cell, principal, services, multiHumanCapable, signal } = args;
   const socketId: SocketId = cell.socketId;
   const queue = createFrameQueue({
     cursorFor: (key) => cell.rooms.get(key)?.cursor ?? null,
@@ -92,7 +95,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
     try {
       const source = roomSourceFor(ref);
-      for await (const frame of source.run({ ref, principal, services, cursor, signal: control.signal })) {
+      for await (const frame of source.run({ ref, principal, services, multiHumanCapable, cursor, signal: control.signal })) {
         if (control.signal.aborted) {
           return;
         }
