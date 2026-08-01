@@ -31,6 +31,11 @@ function castTrackersFor(castKey: string, entries: readonly RpgTrackerEntry[]): 
   return { [castKey]: entries };
 }
 
+/** The per-cast conditions map (same computed-key reason as {@link castTrackersFor}). */
+function castConditionsFor(castKey: string, names: readonly string[]): RpgTrackerView["castConditions"] {
+  return { [castKey]: names.map((name) => ({ name, stat: null, modifier: 0, turnsLeft: null })) };
+}
+
 /** ONE tracker reading, TOTAL (the stored shape). */
 function value(v: number | string | null, items: string[] | null = null, max: number | null = null): RpgTrackerValue {
   return { value: v, items, max };
@@ -65,6 +70,7 @@ function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
     cast: [],
     trackerDefs: [],
     castTrackers: {},
+    castConditions: {},
     gameTrackers: [],
     quests: [],
     plot: null,
@@ -250,6 +256,33 @@ test("the cast line renders relationship + the member's TRACKERS shape-aware", (
   expect(out).toContain("vassal (sworn to serve but resentful)"); // M1 hint gloss
   expect(out).toContain("suspicion 7/10"); // meter kind-aware
   expect(out).toContain("trust: guarded"); // text kind
+});
+
+// The cast CONDITIONS gap: `update_party` writes conditions onto a cast NPC's `cast:<key>` volatile row exactly
+// as it does a roster member's, but the reminder rendered `conditions:` for roster actors ONLY — so an NPC the
+// tool round had just poisoned was model-INVISIBLE, and the model could neither play the affliction nor retire
+// it. (Pre-F4 the constraint enums leaked the names in by accident; that channel is correctly gone.)
+test("a cast NPC's CONDITIONS ride its line in the same grammar a party line uses", () => {
+  const view = emptyView({
+    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    castTrackers: castTrackersFor("Mari", [
+      { def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") },
+    ]),
+    castConditions: castConditionsFor("Mari", ["poisoned", "bleeding"]),
+  });
+  const out = buildLiteReminder(input({ view }));
+  // A ` — ` seg (short state, like mood), AFTER the trackers — never a continuation line (those carry prose).
+  expect(out).toContain("- Mari — wary — trust: guarded — conditions: poisoned, bleeding");
+});
+
+test("a cast NPC with NO conditions omits the seg (no dangling `conditions:` label)", () => {
+  const view = emptyView({
+    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    castConditions: castConditionsFor("Mari", []),
+  });
+  const out = buildLiteReminder(input({ view }));
+  expect(out).toContain("- Mari — wary");
+  expect(out).not.toContain("conditions:");
 });
 
 // R4b (§4d-bis) — the host-authored tracker `hint` must reach the MODEL, not just the panel tooltip. A bare

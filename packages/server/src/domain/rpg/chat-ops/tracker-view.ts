@@ -168,10 +168,16 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
   });
   // The scene cast: each present member's carried trackers paired with the readings on its `cast:<key>`
   // volatile row (the SAME actorState plane roster members use — one value home, D108 ruling #2).
+  // The CONDITIONS ride the same row (`update_party` writes them on a cast target exactly as it does on a
+  // roster one) and have no home on `RpgPresentCharacter`, so they are projected beside the trackers rather
+  // than left unreadable behind the volatile plane.
   const castTrackers: Record<string, readonly RpgTrackerEntry[]> = {};
+  const castConditions: Record<string, RpgActorVolatile["conditions"]> = {};
   for (const c of state.presentCharacters) {
     const carried = trackersForCarrier(defs, castCarrier(c.key, c.name));
-    castTrackers[c.key] = trackerEntries(carried, volatileByKey.get(`cast:${c.key}`)?.trackerValues);
+    const volatileRow = volatileByKey.get(`cast:${c.key}`);
+    castTrackers[c.key] = trackerEntries(carried, volatileRow?.trackerValues);
+    castConditions[c.key] = volatileRow?.conditions ?? [];
   }
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
@@ -182,6 +188,7 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     cast: state.presentCharacters,
     trackerDefs: defs,
     castTrackers,
+    castConditions,
     gameTrackers: gameEntries,
     quests,
     // The P5 snapshot-resident plot plane (act rail) — swipe-consistent like every plane here; null until

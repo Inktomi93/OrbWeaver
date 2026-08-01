@@ -117,6 +117,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
         { def: WREN_TRACKERS[2] as RpgTrackerDef, value: { value: "fixer", items: null, max: null } },
       ],
     },
+    castConditions: {},
     gameTrackers: [],
     quests: [],
     plot: null,
