@@ -193,6 +193,14 @@ export interface RpgConfigView {
   /** The per-custom-kind steering hints — relationship kinds (M1) + R4c custom journal types. */
   readonly relationshipHints: RpgGameConfig["features"]["relationshipHints"];
   readonly journalTypeHints: RpgGameConfig["features"]["journalTypeHints"];
+  /** WAVE MU (owner ruling #20's game half) — the GAME's authored user macros, the host editor's list. Written
+   *  back whole (`updateConfig({patch:{userMacros}})` is a whole-list replace). */
+  readonly userMacros: RpgGameConfig["userMacros"];
+  /** The NAMES the chat's active preset declares (the injected preset-macro read). Names only — the editor
+   *  needs collision detection, never the preset's bodies (the picks-view least-privilege posture). A game
+   *  macro whose name is in this set SHADOWS the preset def at turn time (`shadowPresetUserMacros`), and the
+   *  editor says so rather than letting the host discover it in a prompt. */
+  readonly presetMacroNames: readonly string[];
   /** The P3 hidden-channel knobs (§3.3/§3.6) surfaced to the host editor: `deception`/`omniscience` gate the
    *  teaching + the member reasoning-strip; `hiddenContentReveal` (M4) governs the host's reveal eye;
    *  `recentBeatsKeepLast` bounds the reminder's Recent-beats slice (the P3 fold). */

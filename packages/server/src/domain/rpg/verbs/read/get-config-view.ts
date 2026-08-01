@@ -1,6 +1,8 @@
 // domain/rpg/verbs/read/get-config-view — getConfigView (rpg-design/05 §4.8). The Stats & Trackers editor
-// surface: the full `statProfile` + `steeringNote` + the `gmPresetId`/`extractionMode` knobs. HOST-gated (never
-// a member view — the host-read discipline).
+// surface: the full `statProfile` + `steeringNote` + the `gmPresetId`/`extractionMode` knobs, plus the game's
+// authored user macros and the NAMES the active preset declares (the editor's shadow gloss — a game macro
+// shadows a preset macro of the same name at turn time). HOST-gated (never a member view — the host-read
+// discipline).
 
 import type { RpgConfigView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "../../contract/params";
@@ -10,6 +12,10 @@ import { resolveHost } from "../../guard";
 export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfigView"> {
   async function getConfigView(params: ReadGameParams): Promise<RpgConfigView> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    // The preset half of the two definition homes (owner ruling #20) — NAMES only: the editor's shadow gloss
+    // needs to know which names are taken, never the preset's bodies. Resolved through the injected chat op
+    // (the picks pane's own resolution), so the console cannot disagree with what the turn actually registers.
+    const presetMacros = await ctx.resolvePresetUserMacros(params.chatId);
     return {
       statProfile: game.config.statProfile,
       steeringNote: game.config.lite.steeringNote,
@@ -23,6 +29,8 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       trackers: game.config.trackers,
       relationshipHints: game.config.features.relationshipHints,
       journalTypeHints: game.config.features.journalTypeHints,
+      userMacros: game.config.userMacros,
+      presetMacroNames: presetMacros.map((def) => def.name),
       deception: game.config.features.deception,
       omniscience: game.config.features.omniscience,
       hiddenContentReveal: game.config.features.hiddenContentReveal,
