@@ -36,10 +36,12 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
+  chatMessageHandlingSection,
   chatOptionsChrome,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
+  chatStreamingSection,
   chatTempChatTile,
   commandModal,
   databankSettingsSection,
@@ -235,8 +237,12 @@ const chrome = createContributorRegistry(
 //
 // DOOR ORDER IS RENDER ORDER: within a pane, sections render in the order they appear below.
 const settingsSections = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
-  // chat-behavior ← chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
-  // databank ④ (retrieval), imagery (prompt templates).
+  // chat-behavior ← the DECOMPOSED chat-behavior pane (SET-SEAMS stage 2) leading, then the sections that
+  // were already contributions: chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
+  // databank ④ (retrieval), imagery (prompt templates). The two chat-owned knob groups come FIRST, which
+  // reproduces the pre-split pane exactly (its own sections rendered above the contributed ones).
+  chatMessageHandlingSection,
+  chatStreamingSection,
   memorySettingsSection,
   worldInfoSettingsSection,
   databankSettingsSection,

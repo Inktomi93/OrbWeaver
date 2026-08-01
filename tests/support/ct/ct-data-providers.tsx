@@ -32,11 +32,14 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
+  chatMessageHandlingSection,
   chatQuickPicksTile,
   chatRecentsTile,
+  chatStreamingSection,
   chatTempChatTile,
   commandModal,
   databankSettingsSection,
+  imageryTemplatesSection,
   makeChatsSection,
   memorySettingsSection,
   newChatModal,
@@ -168,9 +171,13 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // shell (nav + search) and by each host pane's surface (render), so the shell CT renders the contributed
 // sections exactly as production does.
 const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
+  // chat-behavior ← the DECOMPOSED pane (SET-SEAMS stage 2) leading, then the already-contributed sections.
+  chatMessageHandlingSection,
+  chatStreamingSection,
   memorySettingsSection,
   worldInfoSettingsSection,
   databankSettingsSection,
+  imageryTemplatesSection,
   memoryTuningSection,
   rateLimitsSection,
   workloadsTuningSection,
