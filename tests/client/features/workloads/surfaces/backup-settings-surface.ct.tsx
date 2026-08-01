@@ -2,39 +2,27 @@
 // surface). Drives the PRODUCTION paths: the EXPORT half builds the `/api/export/library` download href
 // from the kind checkboxes (a full pick omits `kinds`; unchecking one narrows it + always appends
 // `assets`); the IMPORT half POSTs a dropped `.zip` to `/api/import/bundle` (→ `{ workloadId }`), tails the
-// `workloads.subscribe` SSE for progress + the terminal `succeeded`, and renders the count summary. The
-// download + upload are RAW `/api` routes (not tRPC), so they're page.route-d directly.
+// import workload's ROOM on the tab's ONE socket (SSE-1 S5 — `workloads.subscribe` is gone) for progress +
+// the terminal `succeeded`, and renders the count summary. The download + upload are RAW `/api` routes (not
+// tRPC), so they're page.route-d directly.
 
+import type { WorkloadEvent } from "@orb/contracts/workloads";
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { BackupSettingsStory } from "../_ct-stories";
 
-/** SSE frames in the tRPC tracked wire shape (the workloads-settings-surface.ct.tsx pattern, local here). */
-function sseBody(events: readonly Record<string, unknown>[]): string {
-  const frames = ["event: connected\ndata: {}\n\n"];
-  for (const [i, event] of events.entries()) {
-    frames.push(`data: ${JSON.stringify(event)}\nid: ${String(i + 1)}\n\n`);
-  }
-  return frames.join("");
-}
-
-/** Serve `workloads.subscribe` a scripted stream; everything else falls through. Register AFTER routeTrpc. */
-async function routeWorkloadStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
-  let served = false;
-  await page.route("**/api/trpc/**", async (route) => {
-    const accept = route.request().headers()["accept"] ?? "";
-    if (!accept.includes("text/event-stream")) {
-      await route.fallback();
-      return;
-    }
-    const body = served ? sseBody([]) : sseBody(events);
-    served = true;
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-      body,
-    });
+/** The tab's ONE socket, scripted with the import run's frames. The tracker mounts only AFTER the upload
+ *  returns a workloadId, so the stub holds the stream open until that room attaches (a frame for an unjoined
+ *  room is dropped by the registry, exactly as the real server never sends one). */
+function routeImportWorkloadSocket(page: Page, events: readonly WorkloadEvent[]): Promise<OrbSocketRecorder> {
+  return routeOrbSocket(page, {
+    frames: events.map((event) => ({ channel: "workloads", workloadId: event.workloadId, event })),
+    awaitAttaches: 1,
   });
 }
 
@@ -83,10 +71,10 @@ test("import: dropping a .zip POSTs the bundle, tails the workload, and shows th
       body: JSON.stringify({ workloadId: "workload_ct_import" }),
     });
   });
-  await routeWorkloadStream(page, [
+  const socket = await routeImportWorkloadSocket(page, [
     {
       type: "succeeded",
-      workloadId: "workload_ct_import",
+      workloadId: castId<WorkloadId>("workload_ct_import"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
       result: { imported: 12, skipped: 1, failed: 0 },
@@ -105,4 +93,7 @@ test("import: dropping a .zip POSTs the bundle, tails the workload, and shows th
   await expect.poll(() => bundlePost?.method, { intervals: [20, 50, 100] }).toBe("POST");
   await expect(page.getByTestId("import-report")).toBeVisible();
   await expect(page.getByText("12 imported · 1 skipped")).toBeVisible();
+  // The tail cost ZERO extra connections: it is a room on the socket this pane already had (SSE-1 S5).
+  expect(socket.attachedChannels()).toEqual(["workloads:workload_ct_import"]);
+  expect(socket.connects()).toBe(1);
 });

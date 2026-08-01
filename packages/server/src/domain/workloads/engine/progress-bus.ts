@@ -4,10 +4,10 @@
 // for cross-replica observability). Replay TTL clock is event-time (max `at` emitted), never Date.now().
 
 import { EventEmitter } from "node:events";
+import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { createReplayBuffer } from "@orb/kit/replay-buffer";
-import type { WorkloadEvent } from "../contract/workload-events";
 
 const MAX_LISTENERS = 256;
 const REPLAY_TTL_MS = 60_000;

@@ -1,7 +1,8 @@
 // The portability bundle-import POST — the Backup & Restore pane's zip-import seam. Raw fetch, not
 // tRPC — a Hono raw-body handler; the whole zip rides as the request body (not multipart). Workload-
 // backed: the route stages the upload and enqueues a per-owner import-bundle workload, replying
-// `202 { workloadId }`; progress streams over the existing workloads.subscribe machinery. A second
+// `202 { workloadId }`; progress streams over the existing workloads live-tail machinery (the `workloads`
+// room on the tab's one socket). A second
 // concurrent import for one owner is a 409; an oversize upload a 413.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";

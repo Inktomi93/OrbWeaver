@@ -2,6 +2,9 @@
 // directory-module law: internals flat, this index re-exports, consumer-invisible):
 //   • axes.ts         — the canonical KIND/SOURCE/MODE/STATUS/CADENCE tuples `@orb/db` derives its enum
 //                       columns + CHECKs from (D34), plus the per-kind mode policy
+//   • events.ts       — the lifecycle EVENT union + its failure shape: what the `workloads` room delivers on
+//                       the multiplexed socket (SSE-1 S5), which is why it is a wire contract and not a
+//                       domain-internal one
 //   • params.ts       — the per-kind params schemas + `WorkloadParamsByKind` + the `start` wire input
 //   • result.ts       — the per-kind terminal result shapes + `WorkloadResultByKind`
 //   • execution.ts    — the DOM-free half of the contribution seam: the lane + resume axes, the progress
@@ -28,6 +31,7 @@ export {
   workloadModeSchema,
   workloadStatusSchema,
 } from "./axes";
+export type { WorkloadError, WorkloadEvent } from "./events";
 export type { ReportProgress, WorkloadLane, WorkloadProgress, WorkloadResumePolicy, WorkloadRunContext } from "./execution";
 export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution";
 export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params";

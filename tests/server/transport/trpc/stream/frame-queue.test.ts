@@ -4,8 +4,9 @@
 //   • `lag`      (chat/notifications) sheds the room's tail and says so, carrying the room's last-DELIVERED
 //                DURABLE cursor, and calls back (`onShed`) so the socket can park that room and resume it
 //                there — the replay from that cursor is what refills the gap. It sheds ONLY that room.
-//   • `collapse` (user/rpg/automation) keeps at most one pending frame per (room, event type) — legal only
-//                because every one of those handlers is a pure invalidation trigger.
+//   • `collapse` (user/rpg/automation/workloads) keeps at most one pending frame per (room, event type) —
+//                legal only because every one of those handlers is a pure invalidation/redraw trigger whose
+//                truth is re-readable (the workloads room's is the durable `progress` column, D117 (10)).
 // Plus the two ordering guarantees: FIFO within a room, and control frames never stuck behind a flood.
 
 import type { StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
@@ -44,6 +45,10 @@ test("the policy table is the documented one (a channel that carries CONTENT nev
     chat: "lag",
     rpg: "collapse",
     automation: "collapse",
+    // The durable `progress` COLUMN is the truth the client re-reads (D117 (10)) — a live frame is a redraw
+    // trigger and a progress snapshot is absolute, so the newest of a type is the whole story. `lag` would be
+    // a lie: this room has no log a shed row could be re-read from.
+    workloads: "collapse",
   });
 });
 
