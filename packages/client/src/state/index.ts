@@ -7,8 +7,10 @@
 export type { DraftSeed } from "./active-chat-store";
 export {
   chatDeletedFromList,
+  clearNewChatPreset,
   commitDraft,
   goToLanding,
+  openNewChatPicker,
   selectChat,
   selectChatFromList,
   startNewChat,
@@ -16,6 +18,7 @@ export {
   useActiveChatId,
   useActiveDraftSeed,
   useActiveSessionKey,
+  useNewChatPreset,
 } from "./active-chat-store";
 export {
   clearAnalyticsSelection,
