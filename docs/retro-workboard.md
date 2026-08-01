@@ -100,8 +100,23 @@ duplication owner call — DESIGN §2 mandates
   colorForCharacter HASH color; Hearth amber is owner-picked 07-31 and STANDS. FLAGS: default
   Button w/o explicit intent gets no data-cta ring (documented, not repainted) · admin-rail-pin
   CT = the known DEF-14 parallel-load flake.
-**NEW WAVE (post-SE, 3 lanes):** R1 op-shaped hand door `patchActor`+`dismissActor` (the
-approved program opens) · V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
+**NEW WAVE (post-SE, 3 lanes):** ~~R1~~ **MERGED (`a2bf1085` via hooked merge, 12/12 green;
+worktree torn down).** The op-shaped hand door is LIVE: `rpg.patchActor` (10 per-field ops,
+in-order against the TRUE head via the new `writeHandState(derive)` seam in snapshot-edit.ts —
+read-modify-write atomic with the resolve; applyHandEdit is a thin arm of it) + `rpg.dismissActor`
+(drops state row + presence row + locks at/below) + editSnapshot refuses actorState-as-image
+naming both verbs. volatile-patch.ts + its test DEAD; 4 client call sites → one-op mutates; 622
+scoped tests incl. the headline red-first regression (flush-interleave: human datum lands, flush
+fields survive, retired image PROVEN to have clobbered) + inverted cast-NPC CT (72 green) +
+cross-tenant rows. Decisions: item ops address `id` (raw-id gate; blob strings deliberate) ·
+ctx.ids.item minted server-side · conditions/inventory KEEP plane-level pins (per-element pins
+must FOLLOW a per-element Release UI — flagged, not skipped) · e2e dismissActor helper deleted
+(knip-red, unverifiable from lane). DEFERRED→R2: panel dismiss affordance (Known-characters
+disclosure is its home) · member-own-volatile doorway noted in patch-actor.ts header · @live
+rpg-lite-loop pass owed next stack window (SPEC 1 now drives patchActor). Lesson banked:
+[[op-shaped-hand-door-write-seam]]. **R2+R3 LANE DISPATCHED** (NPC becomes actor + presence
+plane + hp demotion + GM→HOST sweep; stickler pass before merge). ·
+V2 preset views P3-P5 (rack+drill-ins+Actions-from-registry+readouts
 w/ D8+list projection; snap --isolated receipts required) · ~~smalls#2~~ **MERGED (`165cd85e`,
 HOOKED — the 12/12 check on this merge CERTIFIED the whole unhooked pile incl. mirror-pin; batch
 debt CLEARED).** All six landed: Jobs = the one user noun (pane copy swept, filtered-tab CTAs
@@ -120,7 +135,27 @@ and exits 0 (pre-existing gap, recorded). LESSON banked: gate blind spots make b
 re-derive blind spots before trusting a terminal zero. ~~mirror-pin~~ MERGED (`acad5df6` — 26 shapes pinned two-axis [keys+values]; proven
 on the exact TRK-2 regression; found+fixed FOUR more live drifts on landing [poolDefs debris,
 missing flavor/grants, phantom namesBehavior, weather |undefined]; envelope-sourced shapes
-listed as honest scope). Remaining in flight: R1 / V2.
+listed as honest scope). Remaining in flight: R1 / V2. **WAVE-2 ADDS (owner word "dispatch any
+other needed waves", 08-02): PROSE-1 S2 lane** (the Prose settings section — host-editable slot
+defaults; D107 arm B same-commit registration; SET-SEAMS grammar; preset/** + rpg/** are
+NO-TOUCH collision boundaries) · **smalls#3 lane** (ChatSummary game-marker+snippet fields [one
+migration, both markers] · ChoiceBlock picks tRPC pair into the MU pane · DRAFT-CAST union fix ·
+QUOTE-1 greeting-preview tint · VER-1c custom-byo isError [verify-first] · ember/workload copy
+strays). Four lanes total; load 8.8 at dispatch; lanes are scoped-verification-only per §L.
+smalls#3 RESULT: 2/6 were live work (QUOTE-1 greeting-preview tint via ONE-HOME hook
+`data/use-color-quoted-speech.ts` [computed-color CT both arms] · ember/jobs prose sweep) —
+**4/6 ALREADY BUILT on the tree** (ChatSummary marker+snippet `4f3d689b` [projection-time, NO
+migration] · ChoiceBlock picks pair `0925bb0d` · DRAFT-CAST union `2b1bdc09` · VER-1c custom-byo
+isError `9e58c49d` — audit-lists-are-snapshots bit at BATCH granularity; queue rows struck
+below). **MERGED (hooked, 12/12 green; worktree torn down)** — the parked test-presence-client
+red was cleared by the warm lane (`97f06b32`: mirror CT at tests/client/data/, four real arms
+incl. missing-key→true [pins the !== false spelling] and failed-read→degrade-to-default).
+**+ ZOD LEVERAGE AUDIT (stickler, read-only — owner-ordered 08-02 "use zod to its fullest, not
+lazily"):** we're on zod 4.4.3; snapshot found 562 z.object vs 2 strictObject (v4 strips unknown
+keys — trust-boundary posture question), 0 codecs vs hand-written seam mappers, 0 templateLiteral
+vs hand-parsed `cast:<name>` keys, 1 .meta vs 16 toJSONSchema sites, 0 stringbool vs ==="1" env
+checks. 11-axis audit brief incl. the toJSONSchema-throws-on-brand/transform constraint; report →
+docs/reviews/stickler/2026-08-02-zod-leverage-audit.md; build program runs past owner after.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
@@ -837,19 +872,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   honest "impersonating" wait reason; AND the server-stops question answered with a 7-link receipt
   chain: the provider stream aborts end-to-end on unsubscribe (trpc subscription signal ← fetch req
   signal ← hono socket close), classified clean {aborted:true}, no token burn into a dead pipe
-- **QUOTE-1 follow-up** — greeting-preview surfaces (greeting studio / facet editor /
-  character-greeting-preview) render through the seal but don't get the dialogue tint (need the
-  appearance query inside the character feature).
+- ~~QUOTE-1 follow-up~~ DONE in smalls#3 (`a8ba4b55` — one-home hook data/use-color-quoted-speech.ts [#data because greeting-studio is a two-feature tier-2 composite]; computed-color CT ON + zero-tint OFF arms).
 - **ZTXT-1** — zTXt PNG chunks in kit/png-card-chunk, dependency-free via
   `DecompressionStream("deflate")` (verified present in Node here + browsers; kit stays isomorphic).
 - **DRAFT-TRUST** — drafts run the untrusted floor (strip `<i>`/`<b>`), committed trustHtml renders
   them; needs a "what render policy would this card get" server seam (architecture call).
-- **DRAFT-CAST** — DraftGreetingThread uses seed.characterIds only; commit unions
-  addedCharacterIds — a panel-added character shows no greeting row pre-commit (cheap union fix).
+- ~~DRAFT-CAST~~ ALREADY BUILT (`2b1bdc09` — resolveDraftCharacterIds threaded; CT pin at chat-room-surface.ct.tsx:129; verified by smalls#3).
 - ~~#24 MU-picks pane~~ **BUILT + merged 08-01 late** (`24e4f38d` — incl. the missing READ,
   `chat.getUserMacroPicks`, least-privilege: members get identity+inputs, never macro bodies).
-  FOLLOW-ON small: the ChoiceBlock picks sibling (getVariables/setVariables) still has zero tRPC
-  procs — wiring it into the same Section makes the spec's "one pane, two knob families" true. ·
+  ~~FOLLOW-ON small~~ ALREADY BUILT (`0925bb0d` — chat.setVariables + getVariablePicks, sweep rows + freshness + macro-picks-section consumer; verified by smalls#3). ·
   **DATABANK SURFACE — SPEC'D + MOCKED + RULED (08-01 late), build QUEUED LAST** (owner: "own
   rail section... they look good. this can go at the end after everything"). Spec
   `docs/design/databank-surface-spec.md` + artifact-published mocks. D-0=own 9th rail section ·
@@ -857,7 +888,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   progress · rack after Injections · home tile). Legacy audited CARRY/REJECT, 5 named defects
   die. S1-S3 fork-independent; RowToggleAction minted by the projection lane (first). DISPATCH
   after projection + home + SSE stages land. · **AU-10** background-library manage UI ·
-- **VER-1c** — custom-byo `role:"tool"` wire still drops `isError` silently (OR-4's unbuilt sibling).
+- ~~VER-1c~~ ALREADY BUILT (`9e58c49d` — turnWarnings tool_result_error_dropped mirrors the OR arm; 30 unit green re-verified by smalls#3).
 - **Preset multi-tab fork idempotency** — two tabs editing the built-in can still mint two forks (no
   `forkedFrom` column; cheap when it bites).
 - **`ChatRpgOps.gatherTurnContext` args-object refactor** — 5 positional args, 2 lite-ignored
@@ -923,9 +954,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   presets is the only `useSuspenseQuery` library list — a cancelled suspended query hangs with a
   clean cache; moving it to the Characters `useQuery`+SkeletonRows pattern changes the shared
   `LibrarySurfaceShell` contract (world-info rides it) — owner-taste design call if ever wanted.
-- Chat-row rpg/game marker SKIPPED by Lane B (correctly): `ChatSummary` carries no rpg pointer and
-  rpgRouter has no list-games query — needs a contract field; fold into the ChatSummary
-  last-message-snippet field work (one migration, both markers).
+- ~~Chat-row rpg/game marker + snippet~~ ALREADY BUILT (`4f3d689b` — both ChatSummary fields at projection time [row_number window + isRpgEngaged], NO migration; Swords marker + subtitle scent live; verified by smalls#3).
 - ~~BUS-FLAP~~ CLOSED (dev-only StrictMode double-invoke of the devlog MIRROR effect; the wire
   opens ONE socket — server-log receipt; causal StrictMode probe). · ~~BOOT-4X~~ FIXED
   (`46d75eaf` — heal starts from the SECOND connection; 4 wasted round-trips/load gone; both CTs
