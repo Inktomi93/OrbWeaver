@@ -270,15 +270,17 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      (principal-scoped + Recompute-now button + EXEMPT row)
    - [x] STICKLER DONE (report 2026-08-02-workloads-stage-e.md): stage E itself SOLID — every
      ledger claim verified; claim/reap/baseline/poison/heartbeat/wake all clean. TWO findings →
-     FIX LANE IN FLIGHT: F1 MEDIUM `scheduledAt` NEVER enforced at dispatch (pre-existing; "Run
-     at" runs immediately; lane test enshrined it — invert + starvation-ordering check) · F2 LOW
-     worker header claims an enqueue wake that doesn't exist (emit at door or correct header) ·
-     +OWNER ADDITION: `dependsOn` same-suspicion — DAG machinery exists (queries.ts:36-53,259-292)
-     but dispatch enforcement UNVERIFIED post-stage-E rewrite; lane verifying + wiring + 4
-     regressions (pending-dep holds, dispatches on success, failure arm per machinery semantics,
-     no lane starvation).
-   - [x] stats.reconcile guard: A1 assessed acceptable-as-shipped (atomic batch, own-data only,
-     button disables) AND owner ruled single-flight anyway — GUARD LANE IN FLIGHT (wait-not-cancel).
+     ALL FIXES MERGED (`26423eda`): scheduledAt now ENFORCED at the head query (no IS NULL arm —
+     column is notNull, receipted deviation) with boundary + non-starvation pins; stage-E lane
+     test repaired in place; F2 = header CORRECTED (verb→engine emit needs a ctx seam; ≤2s poll
+     is designed-for). OWNER's dependsOn suspicion: it IS enforced (resolveDependencyGate per
+     head row, fail-fast dependency_failed) — the SCHEMA COMMENT lied the OTHER way; corrected +
+     the missing starvation regression added. Lesson: wired-and-tested ≠ enforced — read the
+     WHERE, not the column.
+   - [x] stats.reconcile single-flight guard MERGED (`883c86e4`): domain-root registry
+     (active-turns precedent), per-service build, CONFLICT → quiet inline role=status notice
+     (errorToast null for CONFLICT, isSilencedTurnAbort precedent). **WORKLOADS = FULLY DONE
+     including review + fixes.**
    - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
      side-eye re-pass
    Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
