@@ -59,7 +59,7 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
   background:color-mix(in oklab,var(--color-info) 12%,transparent);padding:2px 8px;border-radius:var(--radius-full);cursor:pointer}
 
 /* ————— action rows (instrument list — the rack grammar reused) ————— */
-.arow{display:grid;grid-template-columns:110px 1fr auto auto 150px 14px;align-items:center;gap:10px;
+.arow{display:grid;grid-template-columns:110px 1fr auto auto 150px 14px;align-items:center;gap:8px;
   min-height:34px;padding:4px 8px;border-radius:var(--radius-control);cursor:pointer}
 .arow:hover{background:color-mix(in oklab,var(--color-foreground) 4%,transparent)}
 .arow + .arow{border-top:1px solid color-mix(in oklab,var(--color-foreground) 3.5%,transparent)}
@@ -74,11 +74,11 @@ h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
   overflow:hidden;text-overflow:ellipsis;text-align:right}
 .arow .chev{color:var(--color-muted-foreground)}
 .arow svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
-.arow.open{background:var(--ember-tint)}
+.arow.selected{background:var(--ember-tint)}
+/* the KIND chip — the registry's kind field rendered; info hue family, DISTINCT from the state chips */
+.kindchip{font-size:9px;font-weight:650;padding:1px 7px;border-radius:var(--radius-full);white-space:nowrap;
+  font-family:var(--font-mono);color:var(--color-info);background:color-mix(in oklab,var(--color-info) 12%,transparent)}
 
-/* the expanded editor under the open row */
-.aedit{margin:2px 0 8px;padding:12px 12px 14px;border-left:2px solid var(--color-primary);display:flex;flex-direction:column;gap:10px;
-  background:color-mix(in oklab,var(--color-foreground) 2.5%,transparent);border-radius:0 var(--radius-base) var(--radius-base) 0}
 .frow{display:flex;align-items:center;gap:10px}
 .frow .lbl{font-size:11px;font-weight:600;width:96px}
 .selectbox{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--color-input);border-radius:var(--radius-control);
@@ -118,8 +118,10 @@ textarea::placeholder{color:color-mix(in oklab,var(--color-muted-foreground) 70%
 </style></head><body>
 
 <h1>Preset redesign — Actions view + the consolidated section editor</h1>
-<p class="lede">Left: the <b>Actions</b> view — the 8 guided templates + the 3 nudges as ONE instrument
-list (the rack drill grammar reused), replacing eight boxed cards inside a closed disclosure. Right: a
+<p class="lede">Left: the <b>Actions</b> view — the guided templates + format strings + nudges as ONE
+instrument list speaking the §5.0 one-list-grammar (rows select · chevrons drill · editors are
+drill-ins), grouped by the registry's KIND (spec §6.6), replacing eight boxed cards inside a closed
+disclosure. Right: a
 rack row's drill-in now edits the WHOLE section — body, delivery, placement, triggers, locks — one
 object, one place (the CONTEXT inspector is deleted).</p>
 
@@ -147,73 +149,81 @@ object, one place (the CONTEXT inspector is deleted).</p>
           <span class="xlink">Delivers via Guided instruction ↗</span>
         </div>
 
-        <div>
-          <div class="kicker" style="margin-bottom:4px">Templates</div>
-
+                <div>
+          <div class="kicker" style="margin-bottom:4px">Steers</div>
           <div class="arow">
             <span class="k">Response</span><span class="fires">steers your next reply</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">steer</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">{{input}}</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">Swipe</span><span class="fires">steers a re-roll of the last reply</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">steer</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">{{input}}</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
-
-          <!-- open row + its editor -->
-          <div class="arow open">
-            <span class="k">Impersonate</span><span class="fires">writes as you for one turn</span>
-            <span class="rolebadge">user</span><span class="state s-custom">Customized</span>
-            <span class="prevw">Write {{user}}'s next message from a {{person}}-person…</span>
-            <span class="chev"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
-          </div>
-          <div class="aedit">
-            <div class="grid2">
-              <div class="fld"><div class="l">DELIVERED AS</div><span class="selectbox" style="width:100%;justify-content:space-between">user — in-chat <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
-              <div class="fld"><div class="l"><span class="tip">AT DEPTH</span></div><input class="mono" value="" placeholder="0 — the tail"></div>
-            </div>
-            <div class="hintline">the SAME delivery cluster as a section's (one grammar) · <b>tail prefill</b> is a CONFIGURATION mark — shown only for assistant + depth 0 (prefill is a position, not a role; per-wire, normalized where unsupported)</div>
-            <div class="frow">
-              <span class="pill">{{person}}</span>
-              <span class="hintline">first · second · third — picked when you fire</span>
-            </div>
-            <div>
-              <textarea aria-label="Template">Write {{user}}'s next message from a {{person}}-person perspective. {{input}}</textarea>
-              <div class="hintline" style="margin-top:4px">Ghosts the built-in default when empty (Default/Custom = the one state grammar) · a non-empty template without <span class="mono">{{input}}</span> lints</div>
-            </div>
-          </div>
-
           <div class="arow">
             <span class="k">Rewrite</span><span class="fires">rewrites the last reply out of character</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">steer</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">Rewrite the last reply: {{input}}</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">Opening</span><span class="fires">a new chat's first message</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">steer</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">Begin the roleplay…</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">Continue</span><span class="fires">steers a continuation of the last reply</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">steer</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">Continue from where…</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:4px">Voice</div>
+          <div class="arow selected">
+            <span class="k">Impersonate</span><span class="fires">writes as you for one turn</span>
+            <span class="kindchip">voice</span>
+            <span class="state s-custom">Customized</span>
+            <span class="prevw">Write {{user}}'s next message from a {{person}}-person…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:4px">Studio</div>
           <div class="arow">
             <span class="k">Greeting rewrite</span><span class="fires">rewrites a greeting in the character studio</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">studio</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">{{base}} …</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">New greeting</span><span class="fires">generates a fresh greeting in the studio</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">studio</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">Write a fresh opening…</span>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:4px">Format</div>
+          <div class="arow">
+            <span class="k">New-chat marker</span><span class="fires">starts the history block when set (G9)</span>
+            <span class="kindchip">format</span>
+            <span class="state s-default">Default</span>
+            <span class="prevw">(blank — off)</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
         </div>
@@ -222,19 +232,22 @@ object, one place (the CONTEXT inspector is deleted).</p>
           <div class="kicker" style="margin-bottom:4px">Nudges</div>
           <div class="arow">
             <span class="k">Continue nudge</span><span class="fires">steers every continuation</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">nudge</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">Continue the last response…</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">Impersonate nudge</span><span class="fires">the measured voice-lock — edits iterate against the IMP-1 probe</span>
-            <span></span><span class="state s-custom">Customized</span>
+            <span class="kindchip">nudge</span>
+            <span class="state s-custom">Customized</span>
             <span class="prevw">Write only as {{user}}…</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
           <div class="arow">
             <span class="k">Response nudge</span><span class="fires">fires when a Response lands on an assistant tail</span>
-            <span></span><span class="state s-default">Default</span>
+            <span class="kindchip">nudge</span>
+            <span class="state s-default">Default</span>
             <span class="prevw">…</span>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
           </div>
@@ -242,9 +255,11 @@ object, one place (the CONTEXT inspector is deleted).</p>
 
       </div>
     </div>
-    <p class="note"><b>One grammar, two lists:</b> rows drill exactly like the rack. State chip
-    (Default/Customized) + role badge only when non-system + a mono one-line preview = the scent that was
-    invisible inside the old collapsed grid. The nudges (incl. the previously editor-less
+    <p class="note"><b>The §5.0 one-list-grammar, spoken exactly as in Prompt:</b> NAME click = select
+    (the readout echoes the resolved preview + delivery path); CHEVRON/Enter = drill into the template's
+    ONE editing home (the round-5 accordion is DEAD — the two-homes defect + the mobile seal). Groups +
+    per-row KIND chips derive from the ONE template-definition registry (spec §6.6) — the kind chip's
+    info hue is deliberately a different family from the Default/Customized state chips. The nudges (incl. the previously editor-less
     <b>responseNudge</b>) live beside their kin. Defaults' bytes stay PROSE-1 slots — when S2 lands
     host-edited defaults, the ghosts follow automatically. <b>This list is a FIXED ENUM</b> — no
     toggles, no drag, no Add (the manageable list is the RACK, prompt-rack.html; §5.0 kills the
@@ -252,6 +267,55 @@ object, one place (the CONTEXT inspector is deleted).</p>
     cluster; zone/order/triggers/locks are section vocabulary and never appear here. The ST template
     census (spec §6.5) maps every ST slot to its one home. While this view is active, CONTEXT shows
     the DELIVERY PATH + the selected row's resolved preview (context-readouts.html, spec §7).</p>
+  </div>
+
+  <!-- ═══════════ the TEMPLATE drill-in (the ONE editing home — §5.0 one-list-grammar) ═══════════ -->
+  <div>
+    <p class="plabel">Content pane — Actions view, a template drilled in (Impersonate)</p>
+    <div class="panel">
+      <div class="ehead">
+        <span class="nm">Default (edited)</span><span class="chip c-active">ACTIVE</span>
+        <span class="grow"></span><span class="autosave">Saved</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button aria-selected="false">Params</button>
+        <button aria-selected="false">Prompt</button>
+        <button aria-selected="true">Actions</button>
+        <button aria-selected="false">Data</button>
+        <button aria-selected="false">Transforms</button>
+      </div>
+      <div class="body">
+
+        <div class="backrow"><svg viewBox="0 0 24 24"><path d="M19 12H5m7-7-7 7 7 7"/></svg> Back to actions</div>
+
+        <div class="shead">
+          <div class="t">Impersonate <span class="kindchip" style="margin-left:6px">voice</span></div>
+          <div class="g">writes as you for one turn — fired from the composer's ✨ menu</div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Template</div>
+          <textarea aria-label="Template" placeholder="(the built-in default ghosts here — empty means it rides; clear to reset)">Write {{user}}'s next message from a {{person}}-person perspective. {{input}}</textarea>
+          <div class="hintline" style="margin-top:4px"><span class="pill">{{person}}</span> first · second · third — picked when you fire · a non-empty template without <span class="mono">{{input}}</span> lints</div>
+        </div>
+
+        <div>
+          <div class="kicker" style="margin-bottom:6px">Delivery</div>
+          <div class="grid2">
+            <div class="fld"><div class="l">DELIVERED AS</div><span class="selectbox" style="width:100%;justify-content:space-between">user — in-chat <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
+            <div class="fld"><div class="l"><span class="tip">AT DEPTH</span></div><input class="mono" value="" placeholder="0 — the tail"></div>
+          </div>
+          <div class="hintline" style="margin-top:3px">the SAME DeliveryCluster as a section's · <b>tail prefill</b> marks only assistant + depth 0 (a position, not a role; per-wire, normalized where unsupported)</div>
+        </div>
+
+      </div>
+    </div>
+    <p class="note"><b>The template's ONE editing home</b> — same shape as the section drill-in, fewer
+    clusters (no placement/triggers/locks: arrangement vocabulary, §5.0); fields the registry's caps
+    declare (role · depth · tokens) render, nothing else. The row keeps the kind chip + state chip +
+    mono preview; the readout keeps the resolved preview + delivery path. <b>Narrow widths:</b> every
+    drill-in is a full-pane takeover with the back row — the house mobile pattern; the owner's mobile
+    seal on drill-for-both ("if we have a drill-down, why do we need an accordion?").</p>
   </div>
 
   <!-- ═══════════ the consolidated section editor ═══════════ -->
@@ -331,6 +395,7 @@ object, one place (the CONTEXT inspector is deleted).</p>
     OFF is the enable toggle alone (the header switch is its sanctioned drilled-in echo).
     <b>Select ≠ drill:</b>
     a rack-row CLICK selects (the readout echo IS the inspect view); the chevron/Enter drills here.
+    On narrow widths every drill-in takes the FULL pane with the back row (the house mobile pattern).
     <b>Structural rule:</b> this is a MARKER — its ⋯ menu is Move only (Duplicate/Delete omitted;
     literals keep the full set; the pivot offers nothing and cannot be disabled).
     <b>Round-3 ruling:</b> depth and order are SEPARATE fields —
