@@ -36,6 +36,7 @@ import { mintDefKey } from "../lib/mint-key";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { GmConsoleScalars } from "./rpg-gm-scalars";
+import { RpgHintMapEditor } from "./rpg-hint-map-editor";
 import { Kicker } from "./rpg-kicker";
 import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor";
 
@@ -249,56 +250,40 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const hints = config.relationshipHints;
-  const entries = Object.entries(hints);
-  const commit = (next: Record<string, string>): void => updateConfig.mutate({ chatId, patch: { relationshipHints: next } });
   return (
-    <Stack gap="field" data-slot="rpg-relationship-hints">
-      <Kicker>Relationship hints — gloss custom labels</Kicker>
-      {entries.length === 0 ? <RpgDoorwayLine>No custom relationship labels glossed yet — the six built-in kinds need none.</RpgDoorwayLine> : null}
-      {entries.map(([label, hint]) => (
-        <Row key={label} gap="field" align="center">
-          <Badge tone="soft" size="sm" intent="neutral">
-            {label}
-          </Badge>
-          <HintEditor
-            ariaLabel={`${label} hint`}
-            hint={hint}
-            max={RPG_HINT_MAX}
-            placeholder="how this label steers…"
-            onEdit={(next): void => commit({ ...hints, [label]: next })}
-          />
-          <Button
-            intent="ghost"
-            size="sm"
-            className="!size-6 !p-0 shrink-0"
-            onClick={(): void => {
-              const { [label]: _removed, ...rest } = hints;
-              commit(rest);
-            }}
-            title={`Remove ${label}`}
-          >
-            <Icon icon={Trash2} size="xs" />
-          </Button>
-        </Row>
-      ))}
-      <AddRow
-        ariaLabel="New relationship label"
-        placeholder="custom label (e.g. debtor)"
-        actions={[
-          {
-            key: "label",
-            label: "Add",
-            icon: Plus,
-            onAdd: (label: string): void => {
-              if (!(label in hints)) {
-                commit({ ...hints, [label]: "" });
-              }
-            },
-          },
-        ]}
-      />
-    </Stack>
+    <RpgHintMapEditor
+      kicker="Relationship hints — gloss custom labels"
+      emptyLine="No custom relationship labels glossed yet — the six built-in kinds need none."
+      labelNoun="relationship label"
+      addPlaceholder="custom label (e.g. debtor)"
+      hints={config.relationshipHints}
+      onCommit={(next): void => updateConfig.mutate({ chatId, patch: { relationshipHints: next } })}
+    />
+  );
+}
+
+/** The JOURNAL-TYPE hint editor (R4c) — the exact sibling of the relationship hints, on the plane that fires on
+ *  ~79% of turns: a journal entry may ride `type:"custom"` with a free label, and this maps that label to the
+ *  gloss the extraction prompt teaches with it. Stored + read (the tool descriptions render it) with no editor
+ *  until now — the D107 dead-switch class. Whole-record replace on commit. */
+function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const updateConfig = useUpdateConfig({ trpc, invalidation });
+  return (
+    <RpgHintMapEditor
+      kicker="Journal type hints — gloss your own beat types"
+      emptyLine="No custom journal types glossed yet — the built-in beat types need none."
+      labelNoun="journal type"
+      addPlaceholder="custom type (e.g. omen)"
+      hints={config.journalTypeHints}
+      onCommit={(next): void => updateConfig.mutate({ chatId, patch: { journalTypeHints: next } })}
+    >
+      <Text size="micro" tone="muted">
+        A beat the story records as your own type carries only its bare label unless you say what it means. The gloss rides the same instruction that teaches
+        the built-in types.
+      </Text>
+    </RpgHintMapEditor>
   );
 }
 
@@ -340,11 +325,13 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
         </Text>
       </Row>
       {/* Section order: Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
-          the Sheet tab's pool defs, the old cast-field schemas, and the band-pin section) → Relationship hints
-          → the scalar form (Play style → Hidden channels → Steering note → Delivery model last). */}
+          the Sheet tab's pool defs, the old cast-field schemas, and the band-pin section) → the two gloss maps
+          (relationship labels, then journal types — same block, same gesture) → the scalar form (Play style →
+          Immersive cards → Hidden channels → Prompt budget → Steering note → Delivery model → Extraction depth). */}
       <RpgStatProfileEditor chatId={state.chatId} config={config} />
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
+      <JournalTypeHintsEditor chatId={state.chatId} config={config} />
       <GmConsoleScalars chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
       {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
