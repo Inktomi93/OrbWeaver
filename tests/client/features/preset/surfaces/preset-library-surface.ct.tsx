@@ -80,6 +80,20 @@ function routeLibrary(page: Page, activeId: string | null): Promise<TrpcRecorder
   });
 }
 
+test("L4 the LIST band names the section, counts the presets, and carries the pane's create verbs", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  await mount(<PresetLibrarySurfaceStory />);
+
+  const band = page.getByTestId("list-band");
+  await expect(band.getByRole("heading", { level: 2 })).toHaveText("Presets");
+  await expect(band.getByText(String(PRESETS.length), { exact: true })).toBeVisible();
+  // A2 — ONE ember primary in the band; Import is its ghost companion, not a second CTA.
+  await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
+  await expect(band.getByRole("button", { name: "Import a SillyTavern preset", exact: true })).toBeVisible();
+  // The in-pane title is retired, not doubled.
+  await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
+});
+
 test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offers no delete at all", async ({ mount, page }) => {
   const trpc = await routeLibrary(page, null);
   const component = await mount(<PresetLibrarySurfaceStory />);

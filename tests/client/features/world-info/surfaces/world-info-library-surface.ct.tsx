@@ -16,6 +16,21 @@ const BETA = { id: "world_book_beta000001", name: "Beta", description: null, cre
 /** Any row STATE-TOGGLE name (§12's toggle arm) — world-info deliberately has none. */
 const ANY_STAR_TOGGLE = /^(Star|Unstar) /;
 
+test("L4 the LIST band names the section + counts the books (the in-pane title is retired)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "worldInfo.listBooks": () => [ALPHA, BETA],
+    "worldInfo.listGlobal": () => [],
+  });
+
+  await mount(<WorldInfoLibrarySurfaceStory />);
+
+  const band = page.getByTestId("list-band");
+  await expect(band.getByRole("heading", { level: 2 })).toHaveText("World Info");
+  await expect(band.getByText("2", { exact: true })).toBeVisible();
+  // The title now exists EXACTLY once — in the band, not doubled by an in-pane header.
+  await expect(page.getByRole("heading", { name: "World Info" })).toHaveCount(1);
+});
+
 test("lists books, marks the global one, and New fires createBook", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "worldInfo.listBooks": () => [ALPHA, BETA],
