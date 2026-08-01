@@ -171,15 +171,18 @@ object, one place (the CONTEXT inspector is deleted).</p>
             <span class="chev"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
           </div>
           <div class="aedit">
+            <div class="grid2">
+              <div class="fld"><div class="l">DELIVERED AS</div><span class="selectbox" style="width:100%;justify-content:space-between">user — in-chat <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
+              <div class="fld"><div class="l"><span class="tip">AT DEPTH</span></div><input class="mono" value="" placeholder="0 — the tail"></div>
+            </div>
+            <div class="hintline">the SAME delivery cluster as a section's (one grammar) · assistant = <b>prefill</b> — the reply begins with this text (normalized where the wire lacks prefill)</div>
             <div class="frow">
-              <span class="lbl">Delivered as</span>
-              <span class="selectbox">user <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
               <span class="pill">{{person}}</span>
-              <span class="hintline">first · second · third</span>
+              <span class="hintline">first · second · third — picked when you fire</span>
             </div>
             <div>
               <textarea aria-label="Template">Write {{user}}'s next message from a {{person}}-person perspective. {{input}}</textarea>
-              <div class="hintline" style="margin-top:4px">Ghosts the built-in default when empty · a non-empty template without <span class="mono">{{input}}</span> lints</div>
+              <div class="hintline" style="margin-top:4px">Ghosts the built-in default when empty (Default/Custom = the one state grammar) · a non-empty template without <span class="mono">{{input}}</span> lints</div>
             </div>
           </div>
 
@@ -243,8 +246,12 @@ object, one place (the CONTEXT inspector is deleted).</p>
     (Default/Customized) + role badge only when non-system + a mono one-line preview = the scent that was
     invisible inside the old collapsed grid. The nudges (incl. the previously editor-less
     <b>responseNudge</b>) live beside their kin. Defaults' bytes stay PROSE-1 slots — when S2 lands
-    host-edited defaults, the ghosts follow automatically. While this view is active, CONTEXT shows the
-    DELIVERY PATH + the selected row's resolved preview (context-readouts.html, spec §7).</p>
+    host-edited defaults, the ghosts follow automatically. <b>This list is a FIXED ENUM</b> — no
+    toggles, no drag, no Add (the manageable list is the RACK, prompt-rack.html; §5.0 kills the
+    conflation). Template fields = text + role (assistant = prefill) + depth — the shared delivery
+    cluster; zone/order/triggers/locks are section vocabulary and never appear here. The ST template
+    census (spec §6.5) maps every ST slot to its one home. While this view is active, CONTEXT shows
+    the DELIVERY PATH + the selected row's resolved preview (context-readouts.html, spec §7).</p>
   </div>
 
   <!-- ═══════════ the consolidated section editor ═══════════ -->

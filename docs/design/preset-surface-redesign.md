@@ -33,6 +33,7 @@ rendered verification.
 **Mocks (authored with this spec — the owner rules from pixels):**
 `docs/design/mocks/preset-redesign/params-deck.html` (the Params view + its CONTEXT readout) ·
 `docs/design/mocks/preset-redesign/context-readouts.html` (all six per-view CONTEXT panels, §7) ·
+`docs/design/mocks/preset-redesign/prompt-rack.html` (the rack itself, first-class — §5.1) ·
 `docs/design/mocks/preset-redesign/actions-and-sections.html` (the Actions view + the consolidated
 section editor) · `docs/design/mocks/preset-redesign/list-pane.html` (the LIST projection). House mock
 pattern per `docs/design/mocks/README.md` — drawings, not code; the token/primitive law applies to the
@@ -301,17 +302,76 @@ readout is the named prior failure class. The contract, in full:
 
 ## 5. The Prompt view
 
-### 5.1 The rack — kept, density-conformed
+### 5.0 THE TWO CONCEPTS, SORTED (owner escalation, round 4 — the conflation this kills)
 
-The rack survives as-is functionally (zones, pivot band, drag, per-row ~tokens, enable switches, the
-missing-pivot callout) — with ONE functional correction: the pivot band's enable Switch DIES
+The owner's read of the Actions mock as "the thing for presets" exposed a real presentation defect:
+the mock set drew only DRILL-INS, never the rack itself, so the guided-template LIST read as the
+section manager — and its (correct) lack of toggles/reorder/create read as a miss. The sort, written
+as law:
+
+- **A GUIDED TEMPLATE fires when a USER CLICKS A BUTTON** (steer / impersonate / continue / rewrite /
+  opening / greeting studio). It is prose wrapping for a one-shot. Its field set (owner-refined,
+  round 4b: *"depth and role and default/custom are valid for templates as well… wrap in like
+  prefill"*): the template text (ghost-default), the delivery **role**, and the delivery **depth** —
+  today's contract carries `prompt` + `role` only (`contracts/preset/index.ts:314-320`) with depth
+  FIXED at 0 by the role comment; G10 grows the contract by an optional `depth` (absent = 0, the
+  tail — byte-compatible with every stored blob), so the fixture becomes the default. Assistant-role
+  delivery is named for what it is: **PREFILL** — the reply begins with the template's rendered text,
+  normalized on wires without prefill support (the landed note). Nudges (`formatStrings.*`) stay pure
+  strings — text only.
+- **A PROMPT SECTION is an ASSEMBLY ROW** — arrangement is its meaning. It owns the section-only
+  vocabulary: enable, order-in-rack, zone, splice depth/order, triggers, role, override locks, and
+  (literals) create/name/delete.
+
+**The field×concept table — what lives where, and WHY:**
+
+| field / capability | guided template (Actions) | prompt section (Prompt) | why |
+| - | - | - | - |
+| body text, ghost-default-when-empty (Default/Custom state) | YES (`prompt` — the state chip is the same derivation) | YES (literal content / marker framing) | both are authored prose; ONE ghost grammar + ONE state derivation (`guidedFooterState`, §5.2a) |
+| `{{input}}` splice + lint | YES — the steer lands here | NO — the `guided_instruction` MARKER carries the resolved steer into the assembly | the steer exists only when a button fires |
+| delivered-as role | YES (`role`) — assistant = **PREFILL**, named | YES — same semantic at the tail | both deliver on the wire; ONE role vocabulary (`MESSAGE_ROLE_ITEMS`), ONE prefill concept |
+| inject depth | **YES (owner, round 4b)** — `depth` joins the contract (G10; absent = 0/tail, the current behavior) | YES (Delivery, beside role — round-3 ruling) | both are in-chat delivery; ONE delivery-cluster grammar (role + depth side by side) serves BOTH drill-ins — the one-home rule made literal (§13 `DeliveryCluster`) |
+| splice order | NO | YES (Placement) | within-depth tiebreak is assembly vocabulary |
+| zone | NO | YES | zones are pivot-relative arrangement |
+| triggers | **NO — the BUTTON is the trigger** | YES (normal / continue / swipe / …) | a guided template's firing condition is the user's click |
+| enable / off | **NO — an action always resolves SOME template** (empty = the default rides; the fixed enum cannot be "off") | YES (rack toggle + drilled header echo) | turning Impersonate's template "off" would leave the button firing nothing |
+| reorder | **NO — there is no order among button templates** | YES (drag + Move echo) | assembly order is meaning; a button set has none |
+| create / delete / name | **NO — `GUIDED_ACTION_KINDS` is a fixed product enum** | literals: full CRUD; markers: no-delete (§5.2) | the action set is product surface; sections are user arrangement |
+| override locks | NO | `main_prompt` / `post_history` only | card/room overrides target SECTIONS |
+
+A mock or build giving the Actions view toggles, drag handles, or an Add affordance — or giving a
+guided-template editor the ARRANGEMENT vocabulary (zone / splice order / triggers / locks) — is a
+defect against this table (§16 row 31 pins the absence). Role, depth, and the Default/Custom ghost
+state are the SHARED half, and they ship as shared pieces, never re-spelled per surface.
+
+### 5.1 The rack — the section manager, drawn first-class (round-4 full redesign)
+
+The rack IS the list you manage — the ST prompt-manager anatomy (owner screenshots: per-row enable
+toggle, edit pencil, per-row token count, mandatory rows without delete), on our grammar. Mock:
+`mocks/preset-redesign/prompt-rack.html` (the rack itself, first-class — the round-4 presentation fix).
+
+**Row anatomy, left → right:** drag GRIP (`SortableList handle` — landed) · type glyph (literal /
+templated / carrier) · NAME button (= SELECT, the inspect act — §5.2's split) with the subtitle scent ·
+cue badges ONLY-WHEN-SET (splice `@depth·order` as a compact CUE — the fused form is legal as a
+read-only badge; the EDITOR fields stay split per round 3 · triggers · lock · custom-body dot ·
+non-system role) · the ~token estimate (mono, line-through when off) · the enable Switch (ABSENT on
+the pivot) · the drill chevron/pencil (= EDIT). A disabled row dims whole; selection = ember tint +
+left bar; zone accents stay (steel-blue setup / warm-amber post) with the pivot band as the horizon.
+
+**Manage capabilities, each with its one home (§16):** per-row ON/OFF (row 18, + the drilled header
+echo) · DRAG reorder with the keyboard path (dnd-kit keyboard sensors are in-house — the
+sortable-keyboard-focus lesson applies: focus restores at DROP; the ⋯ Move-above/below item is the
+sanctioned no-pointer/zone-jump echo, row 17) · CREATE + NAME (row 16: the Add menu mints — a literal
+or any ABSENT marker — and AUTO-DRILLS into the editor where the NAME field is, so naming is part of
+creating, one flow) · DELETE literals-only in the drill-in ⋯ (rows 20-21; markers never, §5.2).
+
+ONE functional correction from the landed rack: the pivot band's enable Switch DIES
 (`pivot-band.tsx:52-56` renders one today; under §5.2's structural rule the pivot can be neither
 deleted, silenced, nor disabled — a disabled pivot is an assembly with nowhere to splice the
-conversation, the exact state the missing-pivot warning exists to prevent). Visual conformance only: rows drop `rounded-card border` for the instrument
-ListRow skin (hairline separation, `rounded-control`, selection = ember tint + left bar — already
-half-true via `bg-primary/10`), the zone chips join the CONTEXT readout (§7), and the
-Compose|Preview toolbar toggle DIES — preview moves whole to the CONTEXT readout (decision D2), so
-compose is the center's only mode and the toolbar is just Add.
+conversation, the exact state the missing-pivot warning exists to prevent). Visual conformance: rows drop `rounded-card border` for the instrument
+ListRow skin (hairline separation, `rounded-control`), the zone chips join the CONTEXT readout (§7),
+and the Compose|Preview toolbar toggle DIES — preview moves whole to the CONTEXT readout (decision
+D2), so compose is the center's only mode and the toolbar is just **Add**.
 
 ### 5.2 The consolidated section editor (F5 dead)
 
@@ -401,6 +461,16 @@ Response      steers your next reply            [system] [Default]   "{{input}}�
 Impersonate   writes as you for one turn        [system] [Customized] "Write the next…"  ›
 ```
 
+**This list is a FIXED PRODUCT ENUM, not a manageable collection (§5.0):** no toggles, no drag
+handles, no Add — `GUIDED_ACTION_KINDS` + the nudges are the exhaustive set, and every row always
+resolves (empty = the default rides). The manageable list lives in Prompt (§5.1); a manage affordance
+appearing here is the §5.0 conflation rebuilt. The drill-in's HONEST field set (owner-refined, round
+4b): the template textarea (ghost-default) + the DELIVERY CLUSTER — role (assistant = **prefill**,
+labeled as such) beside depth (G10; blank = 0, the tail) — the SAME cluster grammar the section
+drill-in uses (one home, §13 `DeliveryCluster`; one role vocabulary via `MESSAGE_ROLE_ITEMS`).
+Zone / splice order / triggers / locks are ARRANGEMENT vocabulary and never render here (the button
+is the trigger). Nudge editors are text-only (a `formatStrings` slot has no role or depth).
+
 Row anatomy: kind (`label` voice) · fires-when `gloss` · role badge (only when non-system) ·
 Default/Customized state chip · a one-line mono template preview (truncated; the ghosted default when
 unset). The SAME select/drill split as the rack (§5.2): row click SELECTS — the Actions readout
@@ -430,6 +500,26 @@ already the one home the schema defaults and the ghosts read. When PROSE-1 S2 la
 defaults, the ghosted "Default" text in every row follows automatically (same import), and the
 Default/Customized chip semantics are unchanged (this surface edits per-PRESET overrides; S2 edits the
 app-tier defaults elsewhere). No S2 editor is designed here.
+
+### 6.5 The ST TEMPLATE CENSUS — every ST slot mapped to its ONE home (owner-supplied list, round 4b)
+
+The owner's parity requirement: *"we need to make sure we have the same templates along with our
+own."* Every ST template section, mapped — ONE home each, never a duplicate slot:
+
+| ST template | our ONE home | verdict |
+| - | - | - |
+| Impersonation prompt | TWO jobs, one home each: `formatStrings.impersonateNudge` (the standing voice-lock — the measured IMP-1 instrument) + `guidedActions.impersonate` (the `{{input}}` wrap when you STEER an impersonation) | **EXISTS** — ST's single slot is honestly two jobs here; the census notes the split so nobody "unifies" the pair into drift |
+| World Info format (`{0}` wrapper) | `formatStrings.wiFormat` (`{{entry}}`) | **EXISTS** |
+| Scenario format | the `scenario` MARKER's template (`DEFAULT_MARKER_TEMPLATES.scenario` = `{{scenario}}`) | **EXISTS** — a section template, deliberately NOT a second formatString (one home) |
+| Personality format | the `char_personality` MARKER's template | **EXISTS** (same shape) |
+| Group Nudge prompt | room-owned, NOT preset-owned — the recorded importer ruling (`DROPPABLE_FIELDS`: "group nudge is room-owned"); the multi-character reply-forcing machinery is the chat domain's arbitration | **DELIBERATELY ELSEWHERE** — named, not missing |
+| New Chat / New Group Chat | no home — ST emits a history-start boundary marker; our assembly emits none (and our rooms have no chat/group split, so ONE slot covers both) | **ADD (G9)**: `formatStrings.newChatMarker`, blank-by-default (= today's behavior); the assembler emits it at history start when set |
+| New Example Chat | the `dialogue_examples` MARKER's template — it already frames EACH example block (the contract's own doc: "One example dialogue block, rendered inside the dialogue-examples marker") | **EXISTS** — ST's separator IS our per-block wrapper |
+| Continue nudge | `formatStrings.continueNudge` | **EXISTS** |
+| Replace empty message | none — and DELIBERATELY: in ST an empty send needs placeholder text; here the empty-composer act IS the first-class **Continue** action (its nudge is the slot) | **DELIBERATE ABSENCE** — recorded so it reads as mapped, not missed; revisit only if a real empty-send flow ever lands |
+
+Census rule: a future ST-parity sweep starts HERE, not at the ST list — each row names where the job
+lives, so a "missing template" claim must first beat the mapping.
 
 ## 7. The CONTEXT panel — a per-view readout, never decoration (decision D2, amended per owner steer 2026-08-01)
 
@@ -589,6 +679,8 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 | G4 | `compaction.verbatimTail` number row (CONTEXT), placeholder = engine floor | S |
 | G5 | `responseNudge` row (Actions ▸ NUDGES) | S |
 | G6 | The SINGLE-preset door, as THIN ARMS over the live portability seam (owner-corrected — never a parallel path): **export** = client-side `buildPresetFile(name, config)` from the cached `preset.get` row → download (the contract fn IS the bundle arm's serde — one home, `verbs/export.ts:15`; the affordance hides on the built-in row, matching the bundle's own system-default exclusion, `export.ts:1-3`); **import** = a thin `preset.importFile` proc DELEGATING to the existing `ImportPreset` verb, surfaced as the orb arm of the ONE band dialog — bundle semantics by construction: idempotent on `(ownerId, name)`, same-named preset MERGED in place else created under kind `roleplay`, `presetsChanged` emitted (`verbs/import.ts:2-4,40-76` — cited, reused, not re-derived); the dialog states the merge semantic | S |
+| G10 | `guidedActions.<kind>.depth` (owner, round 4b): optional int 0..MAX_INJECTION_DEPTH on `guidedActionConfigSchema`; absent = 0 (the tail — byte-compatible, today's fixed behavior becomes the default); edited via the SHARED DeliveryCluster | S |
+| G9 | `formatStrings.newChatMarker` (census §6.5): blank-by-default history-start boundary; one slot serves chat + group (no split exists here); assembler emits only when non-blank | S |
 | G8 | The tri-state retirement lift (§5.2a): v4→v5 config lift mapping `template: ""` → `{template: undefined, enabled: false}`; the assembler's empty-template arm + the contract's "Empty = render nothing" clause deleted with it | S |
 | G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active (a §16 row-3 sanctioned echo — same mutation as the row toggle), and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
 
@@ -649,6 +741,7 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | the slider control, INCLUDING large integer ranges (output 1..32768, context 1..131072) | **EXISTS** | `slider/slider.tsx:15` — the Base UI `SliderRootProps` pass-through carries `min`/`max`/`step`/`largeStep`; a large range is props, and precision entry belongs to the twin, so no log-scale machinery. NOT a mint |
 | slider ghost/inherited tone | **VARIANT-ROW** | `slider/variants.ts` has NO tone axis today, and the indicator is hardcoded `bg-primary` — add `tone: "default" \| "ghost"` dimming track-fill + thumb + indicator. Flag for the build: whether EXPLICIT rows keep the ember fill across a 7-row cluster is a CD3/D10-class side-eye call |
 | the editable numeric twin | **VARIANT-ROW** | `number-field/` EXISTS (Base UI; textbox role by design, bounds as accessible DESCRIPTION — `number-field.tsx:19-26`; placeholder-as-default built in; drag-to-scrub bonus). Today's skin is full-width + touch-target steppers + centered text (`variants.ts`) — add `size="inline"`: stepper-less compact group, mono tabular right-aligned ~9ch, scrub + bounds-description retained. CTs locate by textbox (the landed Base UI reality) |
+| `DeliveryCluster` (role select + depth field, side by side — round-3 arrangement) | **COMPOSITE** (feature-local) | ONE grammar serving BOTH drill-ins (section §5.2 + template §6.1 — the owner's one-home charge made literal); role items from the shared `MESSAGE_ROLE_ITEMS`, depth via `NumberField size="inline"`; the assistant option carries the "prefill" labeling in ONE place |
 | `KnobRow` (label · slider · twin · reset · provenance) | **COMPOSITE** (feature-local) | `features/preset/components/knob-row.tsx` — Row + Field + Slider(tone) + NumberField(inline) + ghost reset Button + Text voices. ONE consumer today; promotes to `components/` when a second feature (rpg GM knobs, connections preview) adopts it — the R2 bar honored, not pre-paid |
 | the quality segmented strip | **EXISTS** | `ToggleGroup`/`Toggle` (single-select, deselectable — the assembly-toolbar idiom); `option-strip` is the listbox-flavored alternative if the descriptions return |
 | kicker cluster headers | **EXISTS** | `Section.kicker` (landed — `layout/section.tsx:17,45-49`) + `Text voice="kicker"` (density S1) |
@@ -753,8 +846,8 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 13 | reset a knob to inherit | the KnobRow ↺ | none (staleness Clear is a DIFFERENT action — it bulk-clears unhonored knobs only) | — |
 | 14 | staleness keep / clear | the deck's staleness row (§4.2) | none — the CONTEXT staleness COUNT is a pointer, deliberately not an affordance (§7 read-only invariant) | review: zero mutation hooks in context bodies |
 | 15 | edit output / context / compaction / advanced fields | each field's one deck row (§3 map) | none | the §3 exhaustive map — a field in two clusters is a spec bug |
-| 16 | add a section | the rack toolbar **Add** menu | the missing-pivot callout's "Add chat history" — a warning carries its own remedy (the landed rack pattern) | both call the one `makeSection` push |
-| 17 | reorder sections | rack drag (the handle) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag, and the no-pointer path | both go through `moveFieldValues`; review |
+| 16 | add a section + NAME it | the rack toolbar **Add** menu — mints (a literal, or any ABSENT marker) and AUTO-DRILLS into the editor where the NAME field lives (naming is part of creating, one flow) | the missing-pivot callout's "Add chat history" — a warning carries its own remedy (the landed rack pattern) | both call the one `makeSection` push |
+| 17 | reorder sections | rack drag (the handle; dnd-kit KEYBOARD sensors are the same home's no-pointer path — the sortable-keyboard-focus lesson applies: focus restores at DROP) | the drill-in ⋯ "Move above/below" — a ZONE flip (cross the pivot) is a semantic move distinct from positional drag | both go through `moveFieldValues`; review |
 | 18 | enable / disable a section | the rack row Switch (the PIVOT carries none — it cannot be disabled, §5.2) | the drill-in HEADER Switch (§5.2a — while drilled the primary home is off-screen, and editing a disabled section with no visible state hides the fact that makes every field moot; both bind the ONE `sections[i].enabled` form path) | the pivot band's landed Switch is deleted (`pivot-band.tsx:52-56`); CT: both switches converge on one field |
 | 19 | select a section (= INSPECT — the readout echo is the inspect view, §5.2/ST parity) vs DRILL to edit — TWO DISTINCT ACTS: row click selects; the row chevron / Enter drills | click = the row body; drill = the trailing chevron | select echoes: (a) CONTEXT preview block-click; (b) CONTEXT per-section bar click; (c) the Actions-view delivery-path echo; (d) Data-view reference clicks (§7) | EVERY selection write goes through the one `selectPresetSection` store action — a second writer is the store-door wall; a CT pins that row-click does NOT mount the drill-in |
 | 20 | edit a section whole (body · delivery [name · role · depth] · placement [zone · order] · triggers · locks) | the consolidated drill-in (§5.2) | none — the CONTEXT inspector is DELETED | compile-time: `preset-editor-bridge.ts` is gone; a re-import fails to resolve |
@@ -768,6 +861,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 28 | retry a failed save | the `AutosaveStatus` chip | none | — |
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
 | 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |
+| 31 | manage the guided-template SET (add / remove / reorder / toggle a template) | **NO HOME EXISTS, BY DESIGN** (§5.0: `GUIDED_ACTION_KINDS` is a fixed product enum; every action always resolves) | none — an affordance for this appearing ANYWHERE is the §5.0 conflation as a defect | mock + review: the Actions view renders no grips/switches/Add; the audit pins the ABSENCE |
 
 **Invariants the table pins:** (i) CONTEXT is read-only + navigation-only — its only interactions
 are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE mutation/store
