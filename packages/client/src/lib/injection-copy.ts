@@ -90,6 +90,15 @@ export const IMPERSONATE_AFTER_COMMIT_FAILED_LEAD = "Your chat was created, but 
  *  text like "Unknown error", never user copy). */
 export const GENERATION_FAILED_DETAIL = "The generation didn't complete — check the connection and try again.";
 
+/** START-1, the same class as the impersonate composite above: `startChat` COMMITTED the room and only the
+ *  generated opening failed. The server returns that as data (`openingFailure`), so the lead must say the room
+ *  survived — a plain "couldn't guide the opening" reads as "nothing happened" and the retry mints a second
+ *  chat. Composed `"<lead> <detail> <hint>"`; the detail is the server's curated reason, else the generic one. */
+export const OPENING_AFTER_COMMIT_FAILED_LEAD = "Your chat was created, but the opening generation failed.";
+
+/** The recovery the user has, named at the point of failure — they are being navigated INTO the room. */
+export const OPENING_AFTER_COMMIT_FAILED_HINT = "Regenerate it from the chat.";
+
 export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
 export const STEER_CUE_SWIPE = "Uses your typed text to steer the reroll";
 export const STEER_CUE_CONTINUE = "Uses your typed text to steer the continuation";

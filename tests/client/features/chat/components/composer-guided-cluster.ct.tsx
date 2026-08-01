@@ -13,7 +13,13 @@
 // The trigger buttons are inline (component-scoped); menu POPUPs render through a Base UI Portal, so
 // menu-item assertions use the PAGE locator (`page.getByRole`), never `component` (the menu.ct.tsx split).
 
-import { GENERATION_FAILED_DETAIL, IMPERSONATE_AFTER_COMMIT_FAILED_LEAD, IMPERSONATE_FAILED_LEAD } from "@orb/client/lib";
+import {
+  GENERATION_FAILED_DETAIL,
+  IMPERSONATE_AFTER_COMMIT_FAILED_LEAD,
+  IMPERSONATE_FAILED_LEAD,
+  OPENING_AFTER_COMMIT_FAILED_HINT,
+  OPENING_AFTER_COMMIT_FAILED_LEAD,
+} from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -82,7 +88,7 @@ test("Response fires chat.generate with the typed steer + afterAssistant on an a
 });
 
 test("Response on a DRAFT fires chat.startChat opening:generate (Generate opening)", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
   const component = await mount(<ComposerStory committed={false} />);
 
   const btn = component.getByRole("button", { name: RESPONSE_DRAFT });
@@ -91,6 +97,27 @@ test("Response on a DRAFT fires chat.startChat opening:generate (Generate openin
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
   // ONESHOT-OK: the poll above settled the recorder at exactly 1 call, so lastInput is stable at read.
   expect(trpc.lastInput("chat.startChat")).toMatchObject({ opening: "generate" });
+});
+
+// START-1 — the room COMMITS before the opening generates, so the server reports a dead engine as
+// `openingFailure` DATA on a SUCCESSFUL startChat. The client must enter the room it really created and say
+// so: the old behavior (the whole mutation rejecting) left the user on the draft UI reading "Couldn't guide
+// the opening" over a real orphaned chat, and the obvious retry minted a SECOND one.
+test("Response on a DRAFT whose opening generation FAILED: one room, and an honest toast (not 'couldn't start')", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: { reason: "The model is overloaded." } }),
+  });
+  const component = await mount(<ComposerStory committed={false} />);
+
+  await component.getByRole("button", { name: RESPONSE_DRAFT }).click();
+
+  // The notify sink (the story binds `notify` to it) — lead + the server's CURATED reason + the recovery.
+  await expect(component.getByTestId("composer-notified")).toHaveText(
+    `${OPENING_AFTER_COMMIT_FAILED_LEAD} The model is overloaded. ${OPENING_AFTER_COMMIT_FAILED_HINT}`,
+  );
+  // ONESHOT-OK: the toast above only renders after the mutation RESOLVED, so the recorder is settled.
+  // Exactly ONE room — the flow completed instead of rejecting the user back onto the draft.
+  expect(trpc.count("chat.startChat")).toBe(1);
 });
 
 test("Swipe KEEPS the steer (reroll again with the same guidance — no composer clear)", async ({ mount, page }) => {
@@ -158,7 +185,7 @@ test("Impersonate on a COMMITTED chat STREAMS into the composer PROGRESSIVELY an
 });
 
 test("Impersonate on a DRAFT commits WITH the greeting preserved (no opening:none) then STREAMS into the promoted composer", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
   const sse = await routeImpersonateStream(page, ["Good evening — ", "is there a room to spare?"]);
   const component = await mount(<ComposerStory committed={false} />);
   const box = component.getByRole("textbox", { name: "Message" });
@@ -187,7 +214,7 @@ test("Impersonate on a DRAFT with a typed steer threads the steer + person, pres
   mount,
   page,
 }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
   const sse = await routeImpersonateStream(page, ["I greet the innkeeper ", "with a warm smile."]);
   const component = await mount(<ComposerStory committed={false} />);
   const box = component.getByRole("textbox", { name: "Message" });
@@ -272,7 +299,7 @@ test("a RETRYABLE server fault is terminal (the dead-engine zombie): one connect
 });
 
 test("a DRAFT whose commit SUCCEEDED then failed to draft says the chat survived", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID } }) });
+  const trpc = await routeTrpc(page, { "chat.startChat": () => ({ chat: { id: COMPOSER_CHAT_ID }, openingFailure: null }) });
   const sse = await routeImpersonateStreamOnce(page, { end: "server-error" });
   const component = await mount(<ComposerStory committed={false} />);
 

@@ -13,7 +13,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { NotificationBellStory } from "../_ct-stories";
+import { NotificationBellStory, NotificationBellToastStory } from "../_ct-stories";
 
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
 function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -166,6 +166,22 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
 
   // The scripted stream frame lands → onData invalidates → the refetch surfaces the unread badge.
   await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
+});
+
+test("a typed __subscriptionError terminal frame surfaces as a toast (it is NOT an arrival)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+  });
+  // The frame `withSubscriptionErrors` yields when the stream's source throws a DomainError (here: the
+  // durable replay). Before the fix the consumer took it for an inbox arrival and INVALIDATED on it —
+  // the inbox looked freshly-loaded behind a stream that had just died, and the user was told nothing.
+  await routeInboxStream(page, [{ __subscriptionError: true, code: "SERVICE_UNAVAILABLE", message: "the inbox stream failed" }]);
+
+  await mount(<NotificationBellToastStory />);
+
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast).toContainText("the inbox stream failed");
+  await expect(toast).toHaveAttribute("data-type", "error");
 });
 
 /** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). */

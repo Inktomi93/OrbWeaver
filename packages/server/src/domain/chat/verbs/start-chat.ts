@@ -11,6 +11,11 @@
 // `generate` delegates to the turn engine as a single `kind:"opening"` runTurn. Absent policy resolves by
 // roster size (1 ⇒ first-message, >1 ⇒ greet-all, 0 ⇒ none).
 //
+// The `generate` opening is the ONE part of this verb that is NOT atomic with the room — it runs after the
+// creation batch commits, so it is DEGRADED-NOT-BROKEN: its failure comes back as `openingFailure` DATA and
+// the verb still succeeds (START-1, `runOpeningOrDegrade`). Rejecting instead orphaned a real committed chat
+// behind the draft UI and invited the retry that minted a second one.
+//
 // FLAG[greeting-macro]: the verbatim greeting is seeded raw at seed time. Identity macros
 // (`{{char}}`/`{{user}}`/`{{persona}}`) stay raw/per-view, resolved at read against the character +
 // the chat anchor persona (never the reader's active persona), identically on server and client.
@@ -28,14 +33,16 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { errorMessage } from "@orb/kit/error-message";
+import { DomainError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { ResolveCreatorGroupDefaultsOp } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type { GuidedSteer, StartChatParams } from "../contract/params";
-import type { StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
+import type { OpeningFailure, StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
@@ -313,9 +320,33 @@ async function runGeneratedOpening(
   });
 }
 
+/** The `generate` opening is DEGRADED-NOT-BROKEN (START-1 — the `forkChat` game-clone posture). The chat +
+ *  roster ALREADY COMMITTED atomically by the time the engine runs, so letting the engine's failure reject the
+ *  whole verb was a lie with teeth: the caller saw "couldn't start the chat", stayed on the draft UI, and
+ *  retried — minting a SECOND room, while the first sat orphaned in the chat list. Log it and hand the failure
+ *  back as DATA so the caller can enter the room it really created and say what actually failed. Only a
+ *  `DomainError`'s CURATED message rides back to the user (see {@link OpeningFailure}); a provider/link fault's
+ *  message is framework text, so it degrades to `reason: null`. */
+async function runOpeningOrDegrade(
+  ctx: ChatContext,
+  deps: StartChatDeps,
+  args: Parameters<typeof runGeneratedOpening>[2],
+): Promise<{ readonly outcome: TurnOutcome | null; readonly failure: OpeningFailure | null }> {
+  try {
+    return { outcome: await runGeneratedOpening(ctx, deps, args), failure: null };
+  } catch (err) {
+    getLog().warn(
+      { event: "chat.start.opening_generation_failed", err, chatId: args.chatId },
+      "chat: the generated opening failed — the room ships without one",
+    );
+    return { outcome: null, failure: { reason: err instanceof DomainError ? errorMessage(err) : null } };
+  }
+}
+
 /** `startChat` — mint the room: the caller as `host`, the founding characters as members, then open per
  *  the resolved `OpeningPolicy`. The chat row + roster (+ verbatim greeting canon) commit in one atomic
- *  batch; a `generate` opening runs the engine after the room exists (it needs the committed roster). */
+ *  batch; a `generate` opening runs the engine after the room exists (it needs the committed roster) and is
+ *  DEGRADED-NOT-BROKEN on failure ({@link runOpeningOrDegrade}). */
 function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService["startChat"] {
   return async ({
     principal,
@@ -433,16 +464,16 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
     }
 
-    const openingOutcome =
+    const { outcome: openingOutcome, failure: openingFailure } =
       policy === "generate"
-        ? await runGeneratedOpening(ctx, deps, {
+        ? await runOpeningOrDegrade(ctx, deps, {
             chatId,
             hostUserId,
             characterIds,
             anchorPersonaId: anchor,
             guided,
           })
-        : seedOutcome(seed.views);
+        : { outcome: seedOutcome(seed.views), failure: null };
 
     const chatRow = await loadChatRow(ctx.db, chatId);
     if (chatRow === undefined) {
@@ -465,6 +496,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
       }),
       opening: openingOutcome,
+      openingFailure,
     };
   };
 }
