@@ -47,6 +47,7 @@ import {
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
   rpgPatchSheetInputSchema,
+  rpgPopulateFromCharacterInputSchema,
   rpgReadGameInputSchema,
   rpgRestoreCheckpointInputSchema,
   rpgRollDiceInputSchema,
@@ -107,6 +108,14 @@ export const rpgRouter = t.router({
   resyncFromStory: authedProcedure
     .input(rpgReadGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.resyncFromStory({ principal: ctx.auth, ...input })),
+  // populateFromCharacter — HOST-gated (a stamped-id write + model-call boundary): read ONE character's card +
+  // the room's opening line and fill the BORN state (the identity sheet's hand-only title/level, the starting
+  // inventory + purse, background-implied quests). The host authority gate lives INSIDE the verb
+  // (`resolveHost`), so a non-member collapses to leak-free NOT_FOUND and a non-host member to FORBIDDEN BEFORE
+  // any model call. Actor-scoped; an actor with no card is refused there too.
+  populateFromCharacter: authedProcedure
+    .input(rpgPopulateFromCharacterInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
   getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),

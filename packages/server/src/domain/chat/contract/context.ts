@@ -345,6 +345,28 @@ export type ResolveRpgRoster = (chatId: ChatId) => Promise<readonly RpgRosterAct
  *  at the composition root. */
 export type ResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
 
+/** The BORN-STATE corpus one character's populate round reads (the host `populateFromCharacter` verb, owner
+ *  ruling 2026-08-01): the card's authored prose + the room's OPENING line. This is deliberately NOT the story
+ *  window — a populate round establishes what the character walked IN with, so reading play would let a beat
+ *  that already happened bleed into the born state (that is `resyncFromStory`'s job, and it is a different
+ *  verb). Card reads resolve under the room HOST's ownership (the `ResolveRpgRoster` seat precedent, D18/D19). */
+export interface RpgCardCorpus {
+  /** The card's display name — the `targetRef` the round's inventory writes must name. */
+  readonly name: string;
+  /** The card's authored prose (description · personality · scenario), labeled + joined. Empty sections are
+   *  omitted, so a thin card yields a short corpus rather than a scaffold of empty headings. */
+  readonly card: string;
+  /** The room's OPENING line (the first canon slot's selected body — the greeting as actually posted, edits
+   *  included). `""` when the room has no message yet (a game opened before its first beat). */
+  readonly opening: string;
+}
+
+/** Resolve one roster character's {@link RpgCardCorpus}. STANDALONE + principal-free (the rpg verb gated its
+ *  HOST caller before invoking — the `ResolveCanonWindow` precedent). `null` = no such card under the room
+ *  host / a hostless room: the caller refuses the round rather than running it on nothing. Wired into
+ *  `RpgContext.resolveCardCorpus` at the composition root. */
+export type ResolveRpgCardCorpus = (chatId: ChatId, characterId: CharacterId) => Promise<RpgCardCorpus | null>;
+
 /** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
  *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
  *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver

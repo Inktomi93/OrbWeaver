@@ -22,9 +22,13 @@ export const rpgSheetSchema = z.object({
   flavor: z.string().default(""),
   // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
   // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven
-  // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable by the model, proven by test),
-  // reachable only through `patchSheet`. A model bumping "level" off a vibe is the progression-inflation footgun
-  // the no-`update_stats` posture exists to prevent; matching marinara's restraint here is the honest call.
+  // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable BY PLAY, proven by test): a
+  // model bumping "level" off a vibe is the progression-inflation footgun the no-`update_stats` posture exists
+  // to prevent, and matching marinara's restraint there is the honest call.
+  // TWO write doors, both host-driven and neither of them a turn (owner ruling 2026-08-01): `patchSheet` (the
+  // hand edit) and `populateFromCharacter` (the ONE sanctioned model doorway — a host-clicked, per-character,
+  // one-shot round over the character CARD + the room's opening, which FILLS this only while it is still null;
+  // `rpgPopulateSchema`, a schema no turn vehicle rides). Birth is not progression.
   level: z.number().int().min(0).nullable().default(null),
   // The per-actor TRACKER EXCEPTIONS (the unification's applicability model, §5.1). The def carries the class
   // (`party`/`npcs`/`everyone`/an explicit ref list); THIS actor may additionally be GRANTED a tracker the

@@ -85,6 +85,18 @@ export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["r
   errorToast: "Couldn't resync from the story.",
 });
 
+/** `rpg.populateFromCharacter` — the HOST born-state round (owner ruling 2026-08-01; host-only, the server
+ *  gate refuses a member and refuses an actor with no card). ONE host-principal model call reads the
+ *  character's card + the room's opening and fills what play cannot: the sheet's title/level, the starting
+ *  inventory + purse, background-implied quests. Repaints the tracker view (sheet + actor volatile + quests all
+ *  ride it) and the chat message list (the round writes a fresh silent state-anchor slot, exactly like the
+ *  resync). Nothing auto-runs it — the takeover's button is its only caller. */
+export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rpg"]["populateFromCharacter"]>, unknown>({
+  options: (trpc) => trpc.rpg.populateFromCharacter.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't fill this character from their card.",
+});
+
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).
  *  A cross-feature ride on the chat proc DIRECTLY ([workloads.subscribe cross-feature] — never a
  *  features/chat hook import). `busDriven`: the turn's own bus events run the chat invalidation; the sent
