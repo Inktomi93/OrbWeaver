@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, Users } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Stack, Surface } from "@orb/ui/layout";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -178,42 +178,46 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const selectedCount = collection.selection.selected.size;
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="block">
-      <CharacterLibraryToolbar onQueryChange={setQuery} query={query} />
-      <CharacterFilterChips
-        availableTags={availableTags}
-        favoritesOnly={favoritesOnly}
-        onToggleArchived={toggleShowArchived}
-        onToggleFavorites={toggleFavoritesOnly}
-        onToggleTag={toggleTagFilter}
-        showArchived={showArchived}
-        tagFilter={tagFilter}
-      />
-      {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
+    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes): the library is a list you SCAN for a face
+    // and a name, not a form you operate.
+    <Surface tier="instrument">
+      <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="row">
+        <CharacterLibraryToolbar onQueryChange={setQuery} query={query} />
+        <CharacterFilterChips
+          availableTags={availableTags}
+          favoritesOnly={favoritesOnly}
+          onToggleArchived={toggleShowArchived}
+          onToggleFavorites={toggleFavoritesOnly}
+          onToggleTag={toggleTagFilter}
+          showArchived={showArchived}
+          tagFilter={tagFilter}
+        />
+        {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
           names are already the rows' titles right below. */}
-      <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
-      <Stack className="min-h-0 flex-1">
-        <CharacterLibraryBody
-          ariaLabel={ariaLabel}
-          categorized={viewMode === "categorized"}
-          error={collection.error}
-          filtered={filtered}
-          hasNextPage={collection.hasNextPage}
-          isEmpty={collection.isEmpty}
-          isFetchingNextPage={collection.isFetchingNextPage}
-          isPending={collection.isPending}
-          listProps={collection.listProps}
-          onClearSearch={(): void => setQuery("")}
-          onRetry={collection.refetch}
-          query={deferredQuery}
-          renderRow={renderRow}
-        />
+        <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
+        <Stack className="min-h-0 flex-1">
+          <CharacterLibraryBody
+            ariaLabel={ariaLabel}
+            categorized={viewMode === "categorized"}
+            error={collection.error}
+            filtered={filtered}
+            hasNextPage={collection.hasNextPage}
+            isEmpty={collection.isEmpty}
+            isFetchingNextPage={collection.isFetchingNextPage}
+            isPending={collection.isPending}
+            listProps={collection.listProps}
+            onClearSearch={(): void => setQuery("")}
+            onRetry={collection.refetch}
+            query={deferredQuery}
+            renderRow={renderRow}
+          />
+        </Stack>
+        {bulkMode && selectedCount > 0 ? (
+          <CharacterBulkBar ids={[...collection.selection.selected]} onClear={collection.selection.clear} selectedCount={selectedCount} trpc={trpc} />
+        ) : null}
       </Stack>
-      {bulkMode && selectedCount > 0 ? (
-        <CharacterBulkBar ids={[...collection.selection.selected]} onClear={collection.selection.clear} selectedCount={selectedCount} trpc={trpc} />
-      ) : null}
-    </Stack>
+    </Surface>
   );
 }
 

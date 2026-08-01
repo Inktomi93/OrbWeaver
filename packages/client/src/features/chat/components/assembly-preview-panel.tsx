@@ -130,7 +130,7 @@ function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): 
   }));
   const windowKnown = budget.ceilingTokens > 0 && !budget.ceilingEstimated;
   return (
-    <Card padding="block">
+    <Card>
       <Stack gap="field">
         <Row align="baseline" gap="row" justify="between">
           <Text size="micro" tone="muted">
@@ -238,7 +238,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
  *  when the chat is a game (the server omits the source otherwise). */
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
-    <Card padding="block">
+    <Card>
       <Text className="block max-h-40 overflow-y-auto whitespace-pre-wrap" size="code" tone="muted">
         {text}
       </Text>

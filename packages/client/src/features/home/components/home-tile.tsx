@@ -48,9 +48,10 @@ function TileHeader({
     <Row align="center" gap="row" justify="between" className="border-border border-b pb-field">
       <Row align="center" gap="field">
         <Icon className="text-muted-foreground" icon={tile.icon} size="sm" />
-        {/* The KICKER voice on a real heading element — `size="micro"` keeps the band's type scale, `level`
-            keeps the document outline (a styled div would leave home with zero headings). */}
-        <Heading id={headingId} level={2} size="micro" tone="muted" transform="caps" weight="semibold">
+        {/* The `kicker` VOICE on a real heading element (density-pass §2.3 — it used to spell the same skin
+            out of four internal axes); `level` keeps the document outline (a styled div would leave home
+            with zero headings). */}
+        <Heading id={headingId} level={2} voice="kicker">
           {tile.title}
         </Heading>
       </Row>
@@ -67,13 +68,13 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
         <Icon className="text-muted-foreground" icon={tile.icon} size="md" />
       </Row>
       <Stack gap="field" className="min-w-0">
-        <Text size="label" tone="muted">
-          {doorway.teaser}
-        </Text>
-        {/* FOOTNOTE scale (mock: 9px mono at .75 alpha): the tracked reason is developer citation under a
-            user-facing teaser, so it sits a full step BELOW the teaser's voice — at `code` size it read as
-            a peer of the promise it annotates. */}
-        <Text size="micro" tone="muted" className="font-mono tracking-normal opacity-60">
+        {/* The `label` VOICE — the teaser is the doorway's one real statement, so it keeps the datum-name
+            step; the dashed frame + the Dormant badge carry "not built yet", not a whisper-quiet type. */}
+        <Text voice="label">{doorway.teaser}</Text>
+        {/* FOOTNOTE (mock: 9px mono at .75 alpha): the tracked reason is developer citation under a
+            user-facing teaser, so it sits a step BELOW it — the `gloss` voice, plus mono + the alpha this
+            tier of footnote has always carried. */}
+        <Text className="font-mono opacity-60" voice="gloss">
           waiting on: {doorway.reason}
         </Text>
       </Stack>
@@ -93,7 +94,7 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   // muted glyph + the badge; the dashed edge is what makes "not built yet" legible from across the grid.
   const frame = [span === "full" ? "col-span-full" : "", dormant === null ? "" : "border-dashed"].filter((c) => c !== "").join(" ");
   return (
-    <Card padding="block" className={frame === "" ? undefined : frame} data-home-tile={tile.id} role="region" aria-labelledby={headingId}>
+    <Card className={frame === "" ? undefined : frame} data-home-tile={tile.id} role="region" aria-labelledby={headingId}>
       <Stack gap="row">
         <TileHeader
           headingId={headingId}

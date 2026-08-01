@@ -2,6 +2,9 @@
 import { DISABLED_STATE_NATIVE, FOCUS_RING, tv } from "#lib";
 
 const GAP = {
+  // The small-end step (density-pass-spec.md §2.2/D2): ATOM gaps inside an island — label↔bar,
+  // glyph↔text, value↔caption. Below `field`; not a surface/block rhythm, so it has no PADDING twin.
+  tight: "gap-tight",
   field: "gap-field",
   row: "gap-row",
   block: "gap-block",
@@ -51,6 +54,11 @@ export const sectionVariants = tv({
     // inline-flex so the hint trigger sits on the heading's baseline instead of dropping to its own line
     // (mirrors the Field label/hint row, field/variants.ts).
     headingRow: "inline-flex items-center gap-field",
+    // The KICKER band (density-pass-spec.md §2.3/§4.3): a caps micro label + a hairline rule running to the
+    // edge. This is the CD1 replacement for a box — a read-only grouping gets a name and a rule, never a
+    // border+radius+bg. The type itself is the `kicker` VOICE on a real <Heading> (one spelling, in
+    // text/variants.ts); only the band's layout lives here.
+    kickerRow: "flex items-center gap-field",
     hintTrigger: "text-muted-foreground hover:text-foreground",
   },
   variants: {

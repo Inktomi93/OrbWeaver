@@ -43,6 +43,14 @@ export const tv = createTV({
     extend: {
       classGroups: {
         "font-size": [{ text: ["display", "headline", "title", "body", "label", "code", "micro"] }],
+        // The line-height + letter-spacing twins of the font-size group above, for the same reason:
+        // `--leading-*`/`--tracking-*` are custom DTCG namespaces, so tailwind-merge does not know
+        // `leading-body` belongs in the same group as core `leading-tight` and would keep BOTH — leaving the
+        // winner to stylesheet source order, i.e. luck. The four-voice grammar (text/variants.ts) rides
+        // exactly this override (a voice re-spells leading/tracking over the size default), so an
+        // unregistered group is a silently-wrong line-height, not a lint nit.
+        leading: [{ leading: ["display", "headline", "title", "body", "label"] }],
+        tracking: [{ tracking: ["micro"] }],
       },
     },
   },

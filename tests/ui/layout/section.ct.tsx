@@ -41,6 +41,31 @@ test("hint renders an info trigger whose name derives from the heading, without 
   await expect(page.getByText("How the sampler shapes the distribution.")).toBeVisible();
 });
 
+test("kicker renders the section NAME as a real heading in the micro-caps voice, plus the hairline rule", async ({ mount }) => {
+  // The CD1 replacement for a box (density-pass-spec.md §3.2): a read-only grouping gets a name + a rule,
+  // never a border+radius+bg. Asserted by COMPUTED value against the document-resolved token, because the
+  // whole point is the type STEP DOWN — an authored-class assertion would pass on the wrong size.
+  const component = await mount(
+    <Section kicker="On stage">
+      <p>content</p>
+    </Section>,
+  );
+  const heading = component.getByRole("heading", { name: "On stage" });
+  await expect(heading).toBeVisible();
+  await expect(heading).toHaveAttribute("data-voice", "kicker");
+  await expect(heading).toHaveCSS("text-transform", "uppercase");
+  const sized = await heading.evaluate((el) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.fontSize = "var(--text-micro)";
+    el.ownerDocument.body.append(probe);
+    const micro = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return { actual: getComputedStyle(el).fontSize, micro };
+  });
+  expect(sized.actual).toBe(sized.micro);
+  await expect(component.getByRole("separator")).toBeVisible();
+});
+
 test("no hint → no info trigger beside the heading", async ({ mount }) => {
   const component = await mount(
     <Section heading="Sampling">
