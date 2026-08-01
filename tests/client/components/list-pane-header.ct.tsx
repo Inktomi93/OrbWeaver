@@ -30,7 +30,7 @@ test("the count is mono and micro; a ZERO count renders nothing at all", async (
   const component = await mount(<ListPaneHeader count={12} title="Chats" />);
   const count = component.getByText("12", { exact: true });
   await expect(count).toHaveCSS("font-size", MICRO_PX);
-  expect(await count.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(MONO_STACK_RE);
+  await expect.poll(() => count.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(MONO_STACK_RE);
 
   await component.update(<ListPaneHeader count={0} title="Chats" />);
   await expect(page.getByText("0", { exact: true })).toHaveCount(0);

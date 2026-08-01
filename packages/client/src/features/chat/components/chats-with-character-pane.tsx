@@ -34,11 +34,9 @@ const SKELETON_ROW_COUNT = 4;
  *  the chats pane uses. Below it, a search box would be chrome over a list you can already read (§3.5). */
 const SEARCH_THRESHOLD = 8;
 
-/** The pane's props ARE the published projection view (the O5 door shape) — no second spelling. */
-export type ChatsWithCharacterPaneProps = CharacterChatsProjectionView;
-
-/** The chats-with-this-character projection, rendered as the characters section's LIST body. */
-export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }: ChatsWithCharacterPaneProps): ReactElement {
+/** The chats-with-this-character projection, rendered as the characters section's LIST body. Its props ARE
+ *  the published `CharacterChatsProjectionView` (the O5 door shape) — never a second spelling of it. */
+export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }: CharacterChatsProjectionView): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
