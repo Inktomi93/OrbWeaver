@@ -27,6 +27,14 @@ const UNTITLED = makeChatSummary({
   title: null,
   participantNames: [],
 });
+// The two scent fields: the server-resolved snippet (long enough that it MUST clip) + the game marker.
+const GAME = makeChatSummary({
+  id: "chat_game",
+  title: "The Ashfell run",
+  participantNames: ["Aria Nightshade"],
+  lastMessagePreview: "The door gives way and the market noise floods in from the street beyond, louder than anything you have…",
+  isGame: true,
+});
 // F7 state rows: the summary already carries star/archived — the row must SHOW them.
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", star: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
@@ -40,6 +48,7 @@ const CHARACTERS = {
 };
 const AVATAR_IMAGE = '[data-slot="avatar-image"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
+const SUBTITLE = '[data-slot="list-row-subtitle"]';
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
@@ -166,6 +175,34 @@ test("starred and archived rows say so in ACCESSIBLE content, and the archived r
   await expect(archivedRow).toHaveClass(RECEDED_RE);
   const plainRow = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
   await expect(plainRow).not.toHaveClass(RECEDED_RE);
+});
+
+test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME marker is labelled text (not color)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [GAME, ADVENTURE] });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Ashfell run")).toBeVisible();
+
+  // The snippet REPLACES the participants line on a chat with history; the plain row keeps its identity line.
+  await expect(component.getByText("The door gives way", { exact: false })).toBeVisible();
+  await expect(component.getByText("Aria Nightshade", { exact: true })).toHaveCount(1);
+  // done ≠ rendered: the long snippet must actually be clipped to one line, not wrap the row open.
+  const subtitle = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" }).locator(SUBTITLE);
+  const clipping = await subtitle.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      whiteSpace: s.whiteSpace,
+      overflow: s.overflow,
+      textOverflow: s.textOverflow,
+      lines: Math.round(el.getBoundingClientRect().height / Number.parseFloat(s.lineHeight)),
+    };
+  });
+  expect(clipping).toEqual({ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lines: 1 });
+
+  // The game marker is a labelled glyph — the datum is TEXT for a screen reader — and only the game row has it.
+  await expect(component.getByLabel("Game chat")).toHaveCount(1);
+  const gameRow = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
+  await expect(gameRow.getByLabel("Game chat")).toBeVisible();
 });
 
 test("an empty chats list shows the 'no chats yet' empty state", async ({ mount, page }) => {

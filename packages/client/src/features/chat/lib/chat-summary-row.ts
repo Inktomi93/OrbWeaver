@@ -35,15 +35,18 @@ export function chatPortraitHash(participantCharacterIds: readonly string[], ava
   return null;
 }
 
-/** Title fallback · subtitle · last-activity epoch for one chat summary. When the title falls back to the
- *  participant names (no authored title), the subtitle switches to the message count so the row never
- *  prints the same names twice. */
+/** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when
+ *  the server resolved one (`lastMessagePreview` — the newest message this caller may see, already stripped +
+ *  flattened + capped server-side): a chat with history says what was last said, which is what the row is for.
+ *  Falling back (an empty chat, or a viewer whose history floor hides everything) it keeps the identity line —
+ *  the participant names, or the message count when the title ALREADY is the names (never print them twice). */
 export function chatSummaryRowView(chat: ChatSummaryItem): { readonly title: string; readonly subtitle: string; readonly when: number } {
   const names = chat.participantNames.length > 0 ? chat.participantNames.join(", ") : null;
   const titleIsNames = (chat.title ?? "").trim().length === 0 && names !== null;
+  const identity = titleIsNames ? `${chat.messageCount} ${chat.messageCount === 1 ? "message" : "messages"}` : (names ?? "No characters");
   return {
     title: deriveChatTitle(chat.title, chat.participantNames),
-    subtitle: titleIsNames ? `${chat.messageCount} ${chat.messageCount === 1 ? "message" : "messages"}` : (names ?? "No characters"),
+    subtitle: chat.lastMessagePreview ?? identity,
     when: chat.lastMessageAt ?? chat.updatedAt,
   };
 }

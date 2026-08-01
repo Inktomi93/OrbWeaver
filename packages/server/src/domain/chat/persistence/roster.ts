@@ -8,7 +8,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { assertForcedCharacterMember } from "./participant";
 
 /** How many rows an existence probe needs. */
@@ -42,6 +42,36 @@ export async function loadPresentVisibilityRow(
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
   return rows.at(0) ?? null;
+}
+
+/** The BATCHED twin of {@link loadPresentVisibilityRow}: one viewer's present participant row across a SET
+ *  of chats, in ONE read (the listing projections resolve a per-caller floor for every row on the page — a
+ *  per-chat call would be the N+1 the `loadChatMessageStats` precedent exists to avoid). Same three raw
+ *  columns, same policy home (`substrate/auth/clamp` derives the number); a chat the viewer is not a present
+ *  member of is ABSENT from the map, which the caller must read fail-closed (never "floor 0"). */
+export async function loadPresentVisibilityRows(
+  db: Db,
+  chatIds: readonly ChatId[],
+  userId: UserId,
+): Promise<Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for the per-chat viewer verdict
+  const out = new Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>();
+  if (chatIds.length === 0) {
+    return out;
+  }
+  const rows = await db
+    .select({
+      chatId: chatParticipants.chatId,
+      role: chatParticipants.role,
+      joinSeq: chatParticipants.joinSeq,
+      joinHistoryVisibility: chatParticipants.joinHistoryVisibility,
+    })
+    .from(chatParticipants)
+    .where(and(inArray(chatParticipants.chatId, [...chatIds]), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)));
+  for (const { chatId, ...verdict } of rows) {
+    out.set(chatId, verdict);
+  }
+  return out;
 }
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
