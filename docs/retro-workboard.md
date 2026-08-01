@@ -89,6 +89,12 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
+**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · SSE S4
+(automation fold, ephemeral room) · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
+side-eye at the combined window AFTER merge) · density S2 (@orb/ui slot conformance + gate arm) ·
+PROSE-1 S1 (app-tier cohort; #8=room host; tool descriptions wait for S5). Merge each on report;
+check after each merge.
+
 ~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
 13 fully-landed docs archived, 11 refs repointed, pain-points annotated in place. Lesson: check a
 report's findings AND its NEXT-list before archiving. **S2 SSE MERGED (`89b0e4c1`)** — P3F1 fixed
