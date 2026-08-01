@@ -76,7 +76,9 @@ export interface SettingsService {
   /** Read this user's typed/defaulted UserSettings. A never-touched account reads parsed defaults with no
    *  write (`updatedAt: 0`). */
   readonly getUserSettings: (params: GetUserSettingsParams) => Promise<UserSettingsView>;
-  /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. */
+  /** Deep-merge one namespace + re-validate the whole blob. Serialized per user. A `routing` patch is first
+   *  made coherent (a named source without a named model clears the model) and throws
+   *  `DomainOperationError(incoherent_role_model)` when it pins a model on a server-configured source. */
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
   /** Materialize a user-pasted external image URL into an owned CAS asset and return a ready
    *  `BackgroundLibraryEntry` (side-eye F-P0-2). A DISCRETE action — the client appends the returned entry to

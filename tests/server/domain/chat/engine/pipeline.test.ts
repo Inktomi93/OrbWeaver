@@ -897,7 +897,7 @@ describe("runTurnPipeline — user-macro registry threading (WAVE MU)", () => {
   };
 
   test("a threaded macroRegistry renders the user macro in BUILD; absent ⇒ byte-identical (the token passes through)", async () => {
-    const turn = buildTurnUserMacros({ defs: moodConfig.userMacros, sourceId: "preset-1", values: {}, prng: () => 0 });
+    const turn = buildTurnUserMacros({ preset: { id: "preset-1", defs: moodConfig.userMacros }, values: {}, prng: () => 0 });
     if (turn === null) {
       throw new Error("expected a built registry");
     }

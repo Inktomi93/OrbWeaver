@@ -502,6 +502,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const rpgOpsDelegate: NonNullable<ChatContext["rpg"]> = {
     startGame: (chatId, params) => rpgOps().startGame(chatId, params),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
+    resolveUserMacros: (chatId) => rpgOps().resolveUserMacros(chatId),
     // Rest-forwarded: the contract is 5-positional (chatId, pendingUserText, respondsToLatestUserTurn,
     // steerIdentity, regenSlotMessageId) and a pure delegate has no business re-spelling it.
     gatherTurnContext: (...args) => rpgOps().gatherTurnContext(...args),

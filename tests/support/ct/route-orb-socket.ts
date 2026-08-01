@@ -60,6 +60,13 @@ export interface RouteOrbSocketOptions {
   readonly awaitAttaches?: number;
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */
   readonly closeStream?: boolean;
+  /**
+   * End the FIRST connection's body WITHOUT the terminal `return` frame, so the EventSource sees an EOF and
+   * tRPC's link RECONNECTS. This is the only way a CT reaches the gap-heal, which is deliberately skipped on
+   * a room's first live edge (BOOT-4X, `data/bus/room-registry.ts`). Every later connection closes cleanly,
+   * so the reconnect happens exactly once. @defaultValue false
+   */
+  readonly dropFirstConnection?: boolean;
 }
 
 const HANDSHAKE_TIMEOUT_MS = 5000;
@@ -97,6 +104,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const frames = opts.frames ?? [];
   const awaitAttaches = opts.awaitAttaches ?? 0;
   const closeStream = opts.closeStream ?? true;
+  const dropFirstConnection = opts.dropFirstConnection ?? false;
   const attached: StreamRoomRef[] = [];
   const detached: StreamRoomRef[] = [];
   let connects = 0;
@@ -114,10 +122,12 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
         // biome-ignore lint/performance/noAwaitInLoops: polling for the handshake is inherently sequential.
         await new Promise((resolve) => setTimeout(resolve, HANDSHAKE_POLL_MS));
       }
+      // A dropped FIRST connection omits the `return` frame → EOF → the link reconnects (see the option).
+      const clean = closeStream && !(dropFirstConnection && connects === 1);
       await route.fulfill({
         status: 200,
         headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-        body: socketBody(frames, closeStream),
+        body: socketBody(frames, clean),
       });
       return;
     }

@@ -11,14 +11,23 @@
 export interface FilterableChat {
   readonly title: string | null;
   readonly participantNames: readonly string[];
+  readonly lastMessagePreview: string | null;
 }
 
-/** Case-insensitive substring match against the title OR any participant name. An empty/whitespace query
- *  matches everything (the unfiltered list). A null title never matches (only its participants can). */
+/** Case-insensitive substring match against the title, any participant name, OR the last-message
+ *  preview (owner ruling 2026-08-01: a remembered phrase should find the chat; full message-content
+ *  search is a separate concern — this matches only the snippet the row already shows). An
+ *  empty/whitespace query matches everything (the unfiltered list). A null title/preview never
+ *  matches (only the other fields can). */
 export function filterChats<T extends FilterableChat>(items: readonly T[], query: string): readonly T[] {
   const q = query.trim().toLowerCase();
   if (q === "") {
     return items;
   }
-  return items.filter((item) => (item.title?.toLowerCase().includes(q) ?? false) || item.participantNames.some((name) => name.toLowerCase().includes(q)));
+  return items.filter(
+    (item) =>
+      (item.title?.toLowerCase().includes(q) ?? false) ||
+      (item.lastMessagePreview?.toLowerCase().includes(q) ?? false) ||
+      item.participantNames.some((name) => name.toLowerCase().includes(q)),
+  );
 }

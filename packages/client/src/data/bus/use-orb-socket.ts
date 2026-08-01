@@ -75,11 +75,15 @@ export function useOrbSocket(): void {
           routeFrame(envelope.data);
         },
         onConnectionStateChange: (connection) => {
-          // `pending` = the socket is live; fires on the first connect AND every reconnect. The registry
-          // re-announces its rooms and fans the gap-heal out to each one.
+          // `pending` = the socket is live. There is exactly ONE `pending` per successful connection (a drop
+          // goes `pending → connecting/error → pending`), so this counts CONNECTIONS, not renders. The
+          // registry re-announces its rooms and fans the gap-heal to the ones that had already been live —
+          // never on a first live edge (BOOT-4X; the gate is in `room-registry.ts`).
           if (connection.state === "pending") {
             roomRegistry.socketLive();
+            return;
           }
+          roomRegistry.socketDown();
         },
         onError: (error) => {
           notify.error(error.message);

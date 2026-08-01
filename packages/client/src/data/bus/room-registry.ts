@@ -20,6 +20,26 @@
 // an EMPTY cell and go permanently silent with no error anywhere. Attach is idempotent server-side (§5.4),
 // so it costs one batched mutation per reconnect — the same edge that already fires the gap-heal. The FIRST
 // live edge is deliberately excluded: every joined room already announced itself when the transport bound.
+//
+// THE GAP-HEAL IS A RE-CONNECT INSTRUMENT, NEVER A PAGE-LOAD ONE (BOOT-4X, `46d75eaf`). `onSocketLive` fires
+// for a room only once that room HAS ALREADY BEEN LIVE in this page. The rule was measured, not reasoned:
+// healing on the first connect re-fetched every mounted user root a SECOND time on every page load
+// (persona.list / character.list / settings.getUserSettings / chat.listChats each ×2, the heal wave landing
+// ~5ms AFTER the mount wave had RESOLVED — `invalidateQueries` only rides an in-flight fetch while it IS in
+// flight, and these were not). A first connect has no downtime window to close: the reads it would heal were
+// issued by that same page load, in the same commit as the subscription.
+//
+// It is tracked PER ROOM, not per socket, because a room has two ways to become live and both matter:
+//   • the SOCKET reconnects while the room is attached — the classic dropped-stream gap;
+//   • the ROOM re-attaches after having been detached (a chat switch away and back). Its reads are served
+//     from a `staleTime: Infinity` cache that went stale while nothing was announcing writes — the same
+//     downtime window, at room granularity. This is BOOT-4X's own "a REMOUNT keeps an old cache across a
+//     detached stream, which IS a real gap and correctly heals", generalized to every room.
+// A room's FIRST attach in a page is excluded by the same argument as the first connect: whatever mounts
+// alongside it is fetching right then.
+//
+// Scope is the PAGE LOAD (a module-level set, the `seqGuard` idiom — not a hook-local ref): a fresh module
+// means a fresh QueryClient, whose data cannot predate this socket.
 
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
@@ -28,7 +48,8 @@ import { roomKey } from "@orb/contracts/stream";
  *  verbatim on `.event`); the other two are the degradation surfaces. */
 export interface RoomSubscriber {
   readonly onEvent: (frame: StreamDataFrame) => void;
-  /** Every transition into a LIVE socket — first connect AND every reconnect. The gap-heal edge. */
+  /** The GAP-HEAL edge: this room went live again after having been live before — a socket reconnect, or a
+   *  re-attach after the room was detached. NEVER on the room's first live edge of a page (BOOT-4X). */
   readonly onSocketLive?: (() => void) | undefined;
   /** The room's typed failure (`roomFailed`), or a socket-level fault. The room is detached server-side. */
   readonly onError?: ((message: string) => void) | undefined;
@@ -49,8 +70,12 @@ export interface RoomRegistry {
   readonly bindTransport: (transport: RoomTransport | null) => void;
   /** Route one arriving DATA frame to its room's subscribers. A frame for an unjoined room is dropped. */
   readonly deliver: (frame: StreamDataFrame) => void;
-  /** The socket went live (connect or reconnect): re-announce every room, then fan out the gap-heal. */
+  /** The socket went live (connect or reconnect): re-announce every room, then fan out the gap-heal to the
+   *  rooms that had already been live (BOOT-4X — never on a first live edge). */
   readonly socketLive: () => void;
+  /** The socket left the live state (drop / reconnecting / idle). The next `socketLive` is a RE-connect for
+   *  every attached room, which is exactly what the gap-heal exists for. */
+  readonly socketDown: () => void;
   /** A room lagged — the socket shed its tail. Same healing edge as a reconnect for that ONE room. */
   readonly lagged: (ref: StreamRoomRef) => void;
   /** A room failed (or the whole socket did, with `ref` omitted): surface it to the affected subscribers. */
@@ -78,9 +103,14 @@ function lowestSinceSeq(entry: RoomEntry): number | null {
 export function createRoomRegistry(): RoomRegistry {
   const rooms = new Map<string, RoomEntry>();
   let transport: RoomTransport | null = null;
-  // Has the socket ever been live? The FIRST live edge needs no re-announce (every joined room announced
+  // Has the SOCKET ever been live? The first live edge needs no re-announce (every joined room announced
   // itself on bind); only a RECONNECT does, and only because the server may have reaped the cell.
   let everLive = false;
+  /** Is the socket live RIGHT NOW? A room joining a live socket goes live immediately. */
+  let socketIsLive = false;
+  /** Room keys that have been live at least once in this page — the BOOT-4X gate (see the header). Never
+   *  pruned on detach: "this room's cache may predate now" stays true for the rest of the page load. */
+  const everLiveRooms = new Set<string>();
 
   // Attach/detach are fire-and-forget from the caller's view: a refused attach is the room's OWN verdict
   // (a leak-free NOT_FOUND for a room the viewer may not have), and it must not become an unhandled
@@ -100,6 +130,19 @@ export function createRoomRegistry(): RoomRegistry {
     void transport.detach(entry.ref).catch(() => undefined);
   }
 
+  /** One room reached the live state. Heals ONLY if it had already been live in this page — the BOOT-4X
+   *  gate, at room granularity (see the header). Records the visit either way. */
+  function roomWentLive(key: string, entry: RoomEntry): void {
+    const hadBeenLive = everLiveRooms.has(key);
+    everLiveRooms.add(key);
+    if (!hadBeenLive) {
+      return; // first live edge for this room in this page — its reads ARE the fresh state
+    }
+    for (const subscriber of entry.subscribers) {
+      subscriber.onSocketLive?.();
+    }
+  }
+
   function join(ref: StreamRoomRef, subscriber: RoomSubscriber): () => void {
     const key = roomKey(ref);
     const entry = rooms.get(key) ?? { ref, subscribers: new Set<RoomSubscriber>() };
@@ -108,6 +151,11 @@ export function createRoomRegistry(): RoomRegistry {
     rooms.set(key, entry);
     if (isFirst) {
       announce(entry);
+      if (socketIsLive) {
+        // Joining an ALREADY-live socket: this room is live now, so its own live edge is here, not at the
+        // next `socketLive()` (which may never come). A RE-join after a detach heals; a first join does not.
+        roomWentLive(key, entry);
+      }
     }
     return (): void => {
       entry.subscribers.delete(subscriber);
@@ -142,14 +190,16 @@ export function createRoomRegistry(): RoomRegistry {
     socketLive: (): void => {
       const reconnected = everLive;
       everLive = true;
-      for (const entry of rooms.values()) {
+      socketIsLive = true;
+      for (const [key, entry] of rooms) {
         if (reconnected) {
           announce(entry);
         }
-        for (const subscriber of entry.subscribers) {
-          subscriber.onSocketLive?.();
-        }
+        roomWentLive(key, entry);
       }
+    },
+    socketDown: (): void => {
+      socketIsLive = false;
     },
     lagged: (ref): void => {
       const entry = rooms.get(roomKey(ref));

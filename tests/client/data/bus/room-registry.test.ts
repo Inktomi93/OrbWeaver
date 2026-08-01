@@ -5,6 +5,9 @@
 //   • a join made before the socket mounted is flushed on bind (children commit before their parent),
 //   • a reconnect re-announces (the 60s cell reap would otherwise strand a slept laptop) but the FIRST
 //     live edge does not (every room already announced itself),
+//   • BOOT-4X: `onSocketLive` (the gap-heal) fires only once a room HAS ALREADY been live in this page —
+//     never on its first live edge, whether that arrives via the socket's first connect or via joining an
+//     already-live socket,
 //   • a frame for a room nobody joined is dropped, never fanned out.
 
 import type { RoomTransport } from "@orb/client/data";
@@ -92,42 +95,80 @@ describe("late transport binding", () => {
   });
 });
 
-describe("the live edge", () => {
-  test("the FIRST live edge heals but does NOT re-announce (the join already did)", () => {
-    const registry = createRoomRegistry();
-    const wire = fakeTransport();
-    registry.bindTransport(wire.transport);
+describe("the live edge — BOOT-4X: the gap-heal is a RE-connect instrument", () => {
+  /** A joined room that counts its heals. */
+  function healCounter(registry: ReturnType<typeof createRoomRegistry>, ref: StreamRoomRef): { count: () => number; leave: () => void } {
     let heals = 0;
-    registry.join(USER_ROOM, {
+    const leave = registry.join(ref, {
       onEvent: () => undefined,
       onSocketLive: (): void => {
         heals += 1;
       },
     });
+    return { count: () => heals, leave };
+  }
+
+  test("the FIRST live edge does NOT heal — and does not re-announce (the join already did)", () => {
+    const registry = createRoomRegistry();
+    const wire = fakeTransport();
+    registry.bindTransport(wire.transport);
+    const room = healCounter(registry, USER_ROOM);
 
     registry.socketLive();
 
     expect(wire.attached).toEqual([USER_ROOM]);
-    expect(heals).toBe(1);
+    // The measured regression: healing here re-fetched every mounted user root a second time on every
+    // page load. The mount's own reads ARE that page's fresh state.
+    expect(room.count()).toBe(0);
   });
 
-  test("a RECONNECT re-announces every room — the server may have reaped the cell", () => {
+  test("a RECONNECT heals every room AND re-announces it (the server may have reaped the cell)", () => {
     const registry = createRoomRegistry();
     const wire = fakeTransport();
     registry.bindTransport(wire.transport);
-    let heals = 0;
-    registry.join(USER_ROOM, {
-      onEvent: () => undefined,
-      onSocketLive: (): void => {
-        heals += 1;
-      },
-    });
+    const room = healCounter(registry, USER_ROOM);
     registry.socketLive(); // first connect
 
+    registry.socketDown();
     registry.socketLive(); // reconnect
 
     expect(wire.attached).toEqual([USER_ROOM, USER_ROOM]);
-    expect(heals).toBe(2);
+    expect(room.count()).toBe(1);
+  });
+
+  test("a room joining an ALREADY-live socket for the FIRST time does not heal", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.socketLive();
+
+    const room = healCounter(registry, RPG_ROOM);
+
+    // Its panel is mounting and fetching right now — nothing to close.
+    expect(room.count()).toBe(0);
+  });
+
+  test("a room RE-joining after a detach heals — its cache went stale while nothing announced writes", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.socketLive();
+    healCounter(registry, RPG_ROOM).leave(); // opened a game chat, then switched away
+
+    const rejoined = healCounter(registry, RPG_ROOM); // …and switched back
+
+    expect(rejoined.count()).toBe(1);
+  });
+
+  test("the gate is per ROOM — one room's history never heals another", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.socketLive();
+    healCounter(registry, USER_ROOM).leave();
+
+    const user = healCounter(registry, USER_ROOM);
+    const rpg = healCounter(registry, RPG_ROOM);
+
+    expect(user.count()).toBe(1); // been live before
+    expect(rpg.count()).toBe(0); // first time
   });
 
   test("roomLagged heals ONLY that room", () => {

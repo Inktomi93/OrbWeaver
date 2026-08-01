@@ -6,6 +6,7 @@
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import type {
   RpgActorRef,
   RpgDateMode,
@@ -116,6 +117,9 @@ export interface UpdateConfigParams {
         readonly extractionContext?: RpgExtractionContext | undefined;
         readonly extractionWindowTokens?: number | undefined;
         readonly reconcileEveryBeats?: number | undefined;
+        // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE
+        // write (whole-list replace, the `trackers` semantics); omit keeps the current set.
+        readonly userMacros?: readonly UserMacroSpec[] | undefined;
       }
     | undefined;
   readonly gmPresetId?: PresetId | null | undefined;
