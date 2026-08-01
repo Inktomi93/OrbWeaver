@@ -1,6 +1,10 @@
-// The typed API surface: PresetContext (the DI bundle) and PresetService (the 6-verb interface). preset is a
-// leaf user-scoped CRUD feature: no cross-feature port, no injected guard — it gates by `ownerId === userId`.
+// The typed API surface: PresetContext (the DI bundle) and PresetService. preset is a leaf user-scoped CRUD
+// feature and gates by `ownerId === userId` — no injected guard. Its ONE cross-feature port is the chat-role
+// CAPABILITY read (`resolveEffective`): the type is declared here, the runtime op is wired at the composition
+// root, so preset never imports `connection` (the sideways-import ban, AGENTS §2).
 
+import type { ResolvedChatCapability } from "@orb/contracts/connection";
+import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
@@ -9,12 +13,20 @@ import type {
   ClonePackagedParams,
   CreatePresetParams,
   GetPresetParams,
+  ImportPresetFileParams,
   ListPresetsParams,
   RemovePresetParams,
   ResetToDefaultParams,
+  ResolveEffectiveParams,
   UpdatePresetParams,
 } from "./params";
-import type { PresetDetail, PresetSummary } from "./views";
+import type { PresetImportOutcome } from "./portability";
+import type { EffectivePreset, PresetDetail, PresetSummary } from "./views";
+
+/** The injected chat-role capability read — `connection.resolveChatCapability` at the composition root. Takes
+ *  the acting Principal and NOTHING else (no caller-supplied user id or role), so the injected op can only
+ *  ever answer for the caller's own connection. */
+export type ResolveChatCapabilityOp = (params: { readonly principal: Principal }) => Promise<ResolvedChatCapability>;
 
 /** The DI bundle the preset verbs close over, wired at the composition root. */
 export interface PresetContext {
@@ -25,6 +37,9 @@ export interface PresetContext {
   /** Fires `presetsChanged` with the acting owner's `userId` after every preset mutation's durable write,
    *  so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
+  /** The caller's OWN chat-role capability — the SAME read the editor's params panel already consumes, so the
+   *  effective projection and the capability card can never disagree about the model. */
+  readonly resolveChatCapability: ResolveChatCapabilityOp;
 }
 
 /** The generation-config library surface. All verbs are owner-scoped: reads return the owner's rows union
@@ -49,4 +64,12 @@ export interface PresetService {
    *  `preset.clonePackaged`); returns the fork's detail. Throws `PresetNotFoundError` when the packaged
    *  template row is absent (unseeded). The cross-feature clone-source op (rpg `createGame` → `gmPresetId`). */
   readonly clonePackaged: (params: ClonePackagedParams) => Promise<PresetDetail>;
+  /** The generation funnel PROJECTED for one readable preset against the caller's own chat model (redesign
+   *  §4.3): per-knob effective value + provenance, plus the stored-but-unhonored list. A read — no write, no
+   *  audit. Throws `PresetNotFoundError` for a preset this caller can't read. */
+  readonly resolveEffective: (params: ResolveEffectiveParams) => Promise<EffectivePreset>;
+  /** Import ONE orb-native preset file — the thin single-preset arm over the SAME `ImportPreset` verb the
+   *  whole-profile bundle uses (idempotent on `(ownerId, name)`: a same-named preset is MERGED in place).
+   *  Never throws for a malformed file; the outcome carries the error. */
+  readonly importFile: (params: ImportPresetFileParams) => Promise<PresetImportOutcome>;
 }

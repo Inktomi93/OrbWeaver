@@ -5,7 +5,7 @@
 // Default/Customized state · a missing-`{{input}}` lint.
 
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_GUIDED_ACTIONS, GUIDED_ACTION_KINDS, GUIDED_IMPERSONATE_PERSONS } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, GUIDED_ACTION_KINDS, GUIDED_IMPERSONATE_PERSONS, TEMPLATE_DEF_BY_ID } from "@orb/contracts/preset";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -21,22 +21,6 @@ type AssemblyForm = AppFormInstance<PromptConfig>;
 
 /** The `impersonate`-only macro whose value is the perspective word (`GUIDED_IMPERSONATE_PERSONS`). */
 const PERSON_TOKEN = "{{person}}";
-
-/** Human titles + one-line "fires on" copy per guided-action kind (registry-as-data over the tuple). */
-const GUIDED_ACTION_COPY: Record<GuidedActionKind, { readonly title: string; readonly fires: string }> = {
-  response: { title: "Response", fires: "You steer your next reply from the composer" },
-  swipe: { title: "Swipe", fires: "You steer a re-roll of the last reply" },
-  impersonate: { title: "Impersonate", fires: "The model writes as you for one turn" },
-  rewrite: { title: "Rewrite", fires: "You rewrite the last reply out of character" },
-  opening: { title: "Opening", fires: "A new chat's first message" },
-  continue: { title: "Continue", fires: "You steer a continuation of the last reply" },
-  // Greeting studio (audit §3) — authoring-time card templates the studio verbs resolve; `{{base}}` (the
-  // existing greeting) is available in the rewrite template.
-  // biome-ignore-start lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
-  greeting_rewrite: { title: "Greeting rewrite", fires: "You rewrite an existing greeting in the character studio" },
-  greeting_new: { title: "New greeting", fires: "You generate a fresh greeting in the character studio" },
-  // biome-ignore-end lint/style/useNamingConvention: the map key IS the GuidedActionKind string (snake_case vocabulary, audit §3)
-};
 
 /** The three cross-link states for the `guided_instruction` marker's health + their chip copy. */
 const MARKER_HEALTHS = ["healthy", "off", "absent"] as const;
@@ -115,14 +99,16 @@ function MarkerCrossLink({
 
 /** One guided-action card — role Select + template MacroField, ghosting the default, with lint + state. */
 function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonly kind: GuidedActionKind }): ReactElement {
-  const copy = GUIDED_ACTION_COPY[kind];
+  // G11: the row's label + fires-on gloss come from the TEMPLATE DEFINITION REGISTRY (`@orb/contracts/preset`)
+  // — the client's own copy map is retired, so a new template is one registry row and nothing here changes.
+  const def = TEMPLATE_DEF_BY_ID[kind];
   const factoryDefault = DEFAULT_GUIDED_ACTIONS[kind].prompt;
 
   return (
     <Stack gap="field" padding="field" className="rounded-card border border-border bg-card">
       <Row gap="field" align="center" justify="between">
         <Text size="body" weight="medium">
-          {copy.title}
+          {def.label}
         </Text>
         {kind === "impersonate" ? (
           <Row gap="field" align="center">
@@ -136,7 +122,7 @@ function GuidedActionCard({ form, kind }: { readonly form: AssemblyForm; readonl
         ) : null}
       </Row>
       <Text size="micro" tone="muted">
-        {copy.fires}
+        {def.fires}
       </Text>
 
       <form.AppField name={`guidedActions.${kind}.role`}>

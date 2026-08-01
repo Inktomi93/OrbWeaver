@@ -150,6 +150,10 @@ export const PRESET_FORMAT_SLOT_IDS = {
   impersonateNudge: "preset.format.impersonateNudge",
   responseNudge: "preset.format.responseNudge",
   wiFormat: "preset.format.wiFormat",
+  // `formatStrings.newChatMarker` (G9) is deliberately NOT here: a PROSE-1 slot is AUTHORED BYTES (the
+  // registry's own invariant is that no slot ships empty text), and this field's shipped default is BLANK —
+  // "no boundary marker" is the product behavior, not a default sentence someone wrote. It becomes a slot the
+  // day it ships bytes.
 } as const satisfies Record<string, ProseSlotId>;
 
 /** Guided-action kind → slot id. `response` and `swipe` intentionally share ONE slot. */

@@ -158,6 +158,10 @@ export {
 export { fetchOrCatalog } from "./backends/openrouter";
 export * from "./contract";
 export { createProviderDiagnostics } from "./diagnostics";
+// The (UserIntent × ModelCapability) → resolved wire knobs FUNNEL. Public because it has a SECOND consumer
+// besides the runners: `preset.resolveEffective` projects the very same call for the editor, so the deck
+// shows what the next turn will actually send instead of a client re-derivation (redesign §4.3, D5).
+export { resolveChat } from "./resolve-chat";
 export { createAgentRole } from "./roles/agent";
 export { createChatRole } from "./roles/chat";
 export { backendForSource, deriveRunner, requireBackend, requireRoleImpl } from "./roles/dispatch";

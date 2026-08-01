@@ -24,6 +24,7 @@ import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
 import type { AssemblySlice } from "../contract/results";
 import { injectionSource, personaContributorLabel, sectionSource } from "./budget";
+import { BEFORE_HISTORY_DEPTH } from "./injections";
 import { renderMacros } from "./macros";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
@@ -494,10 +495,6 @@ function isSectionDynamic(section: PromptSection): boolean {
   }
   return section.marker === "memory" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
-
-/** A relative non-system section is delivered at the top of history. The splice clamps this large depth
- *  to history length. */
-const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
  *  `inject.depth` \> after the pivot (depth 0) \> non-system role (top of history) \> system block. */

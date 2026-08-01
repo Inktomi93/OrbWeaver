@@ -50,6 +50,8 @@ const ORIGIN_SOURCE: Record<ChatInjectionOrigin, { readonly source: AssemblySour
   ["authors-note"]: { source: "steering", label: "author's note" },
   ["guided"]: { source: "steering", label: "guided steer" },
   ["game-state"]: { source: "game-state", label: "state block" },
+  // The preset's `formatStrings.newChatMarker` boundary (G9) — operator-authored framing, not card or lore.
+  ["new-chat-marker"]: { source: "steering", label: "new-chat marker" },
 };
 
 const UNSTAMPED_INJECTION = { source: "steering", label: "chat injections" } as const satisfies { source: AssemblySource; label: string };

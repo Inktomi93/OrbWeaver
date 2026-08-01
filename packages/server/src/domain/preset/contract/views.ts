@@ -5,7 +5,7 @@
 // domain-internal `SYSTEM_DEFAULT_PRESET_ID` sentinel.
 
 import type { PromptConfig } from "@orb/contracts/preset";
-import type { PresetId } from "@orb/kit/ids";
+import type { ModelId, PresetId } from "@orb/kit/ids";
 
 export interface PresetSummary {
   readonly id: PresetId;
@@ -26,4 +26,60 @@ export interface PresetSummary {
 export interface PresetDetail extends PresetSummary {
   readonly config: PromptConfig;
   readonly schemaVersion: number;
+}
+
+// ── The EFFECTIVE profile (`resolveEffective`, redesign §4.3) ──────────────────────────────────────
+// What the generation funnel ACTUALLY produces for this preset against the caller's own chat model — the
+// editor's answer to "what will the next turn send?". Never a client mirror of the funnel.
+
+/** WHY a knob has the value it has — the funnel's four rungs, plus the engine floor that stands when the
+ *  funnel itself yields nothing. `clamped` wins over its own source: a value the user (or the quality dial)
+ *  asked for that the capability moved is a clamp, and the deck says so. */
+export const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor"] as const;
+export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
+
+/** The SCALAR generation knobs the funnel resolves — the KnobRow surface, in deck order. Deliberately NOT
+ *  every `params` field: `logitBias`/`stop` are collection editors (no datum row), and
+ *  `maxContextTokens`/`compaction.*`/`maxBudgetUsd` never enter `resolveChat` at all, so projecting them
+ *  would be inventing a resolution the turn pipeline does not perform. */
+export const EFFECTIVE_KNOBS = [
+  "temperature",
+  "topP",
+  "topK",
+  "minP",
+  "topA",
+  "frequencyPenalty",
+  "presencePenalty",
+  "repetitionPenalty",
+  "seed",
+  "effort",
+  "thinkingBudgetTokens",
+  "thinkingDisplay",
+  "maxOutputTokens",
+  "verbosity",
+] as const;
+export type EffectiveKnob = (typeof EFFECTIVE_KNOBS)[number];
+
+/** A resolved knob: the value the wire would carry + where it came from. */
+export interface EffectiveKnobReading {
+  readonly value: number | string;
+  readonly provenance: EffectiveProvenance;
+}
+
+/** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is
+ *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. */
+export interface StaleKnob {
+  readonly knob: EffectiveKnob;
+  readonly value: number | string;
+}
+
+export interface EffectivePreset {
+  readonly presetId: PresetId;
+  /** The model the funnel resolved AGAINST — the readout says "resolved for <model>", and it may not lie
+   *  after a model swap (the §4.4 freshness contract's capability rung). */
+  readonly model: ModelId;
+  /** Only the knobs that actually resolve; an absent knob means the funnel produces NOTHING for it on this
+   *  model (nothing to ghost — the honest empty, never a fabricated default). */
+  readonly knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>>;
+  readonly stale: readonly StaleKnob[];
 }
