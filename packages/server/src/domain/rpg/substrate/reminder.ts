@@ -170,13 +170,13 @@ function trackerVocabularyLine(defs: readonly RpgTrackerDef[]): string {
   return `Trackers: ${sortTrackers(defs).map(trackerVocabulary).join(" · ")}`;
 }
 
-/** THE ONE conditions reading — `conditions: poisoned, bleeding`, or null when the carrier has none. Read by
- *  BOTH carrier surfaces (a roster actor's volatile segs AND the cast line), because a cast NPC's conditions
- *  reached the model NOWHERE: the reminder rendered them for roster actors only, and the accidental channel
- *  they used to leak through (the pre-F4 constraint enums, which enumerated every live condition name) is
- *  correctly gone. An affliction the tool round had just applied to an NPC was therefore invisible to the very
- *  turn that had to play it — and unremovable, since the model could not know it existed (D113 #4: the
- *  reminder is the model's KNOWLEDGE). */
+/** THE ONE conditions reading — `conditions: poisoned, bleeding`, or null when the carrier has none. Read
+ *  through {@link volatileSegs}, which BOTH carrier surfaces now share (a roster actor's line AND the cast
+ *  line), because a cast NPC's volatile plane reached the model NOWHERE: the reminder rendered it for roster
+ *  actors only, and the accidental channel it used to leak through (the pre-F4 constraint enums, which
+ *  enumerated every live condition name) is correctly gone. An affliction the tool round had just applied to an
+ *  NPC was therefore invisible to the very turn that had to play it — and unremovable, since the model could
+ *  not know it existed (D113 #4: the reminder is the model's KNOWLEDGE). */
 function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | null {
   return conditions.length === 0 ? null : `conditions: ${conditions.map((c) => c.name).join(", ")}`;
 }
@@ -185,8 +185,13 @@ function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | nul
  *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
  *  The TRACKER segs are NOT here: an actor carries its trackers whether or not a snapshot ever wrote it a
  *  volatile row, so they render off `actor.trackers` in `actorLine` (the null-volatile actor — the user
- *  actor on a game whose beats only ever touched the NPC — otherwise lost every tracker it carries). */
-function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"]>): string[] {
+ *  actor on a game whose beats only ever touched the NPC — otherwise lost every tracker it carries).
+ *
+ *  ONE builder for BOTH carrier surfaces (the reachability-suite fix): the roster line and the scene-cast line
+ *  read the SAME plane through the SAME segs, so a cast NPC's hp/wallet/inventory/status can never again be
+ *  writable-but-unreadable while a party member's identical row renders. Two builders is how that split was
+ *  born (only `conditions` had been hand-carried across). */
+function volatileSegs(v: RpgActorVolatile): string[] {
   const segs: string[] = [];
   if (v.hp !== null) {
     segs.push(`HP ${v.hp.value}/${v.hp.max}`);
@@ -280,7 +285,7 @@ function castHeader(cast: RpgTrackerView["cast"]): string {
 function castLine(
   cast: RpgTrackerView["cast"][number],
   trackers: readonly RpgTrackerEntry[],
-  conditions: RpgActorVolatile["conditions"],
+  volatileRow: RpgActorVolatile | null,
   hints: Readonly<Record<string, string>>,
 ): string {
   const segs: string[] = [cast.emoji !== "" ? `${cast.emoji} ${cast.name}` : cast.name];
@@ -296,11 +301,12 @@ function castLine(
   for (const entry of trackers) {
     segs.push(trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label);
   }
-  // The conditions ride the ` — ` seg chain (short state, like `mood`) exactly as they do on a party line —
-  // never a continuation line, which is reserved for the guides' unbounded PROSE.
-  const conditionSeg = conditionsSeg(conditions);
-  if (conditionSeg !== null) {
-    segs.push(conditionSeg);
+  // The whole volatile plane rides the ` — ` seg chain (short state, like `mood`) exactly as it does on a
+  // party line — never a continuation line, which is reserved for the guides' unbounded PROSE. Same builder,
+  // same order (hp · wallet · carrying · status · conditions): an NPC the beat wounded, paid or poisoned reads
+  // to the model exactly as a party member would.
+  if (volatileRow !== null) {
+    segs.push(...volatileSegs(volatileRow));
   }
   const head = `- ${segs.join(" — ")}`;
   const guides = guideLines(cast);
@@ -401,7 +407,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
   if (view.cast.length > 0) {
     stateLines.push(castHeader(view.cast));
-    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castConditions[c.key] ?? [], input.features.relationshipHints)));
+    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castVolatile[c.key] ?? null, input.features.relationshipHints)));
   }
   if (view.gameTrackers.length > 0) {
     // "Game trackers" (not the bare "Trackers:" it used to be) — the vocabulary line above now owns that
