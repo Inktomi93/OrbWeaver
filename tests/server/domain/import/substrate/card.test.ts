@@ -86,16 +86,16 @@ describe("parseCardJson", () => {
 });
 
 describe("parseCardPng", () => {
-  test("reads a card embedded in a PNG tEXt chunk → canonical card + tags", () => {
+  test("reads a card embedded in a PNG tEXt chunk → canonical card + tags", async () => {
     const png = writeCardChunk(MINIMAL_PNG, V3_JSON);
-    const parsed = expectParsed(parseCardPng(png, "fallback"));
+    const parsed = expectParsed(await parseCardPng(png, "fallback"));
     expect(parsed.card.name).toBe("Aria");
     expect(parsed.card.greetings).toEqual([{ text: "Hello there!" }, { text: "Well met." }]);
     expect(parsed.tags).toEqual(["bard", "fantasy", "  Bard ", "", "music"]);
   });
 
-  test("returns null for bytes carrying no card chunk", () => {
-    expect(parseCardPng(MINIMAL_PNG, "fallback")).toBeNull();
+  test("returns null for bytes carrying no card chunk", async () => {
+    expect(await parseCardPng(MINIMAL_PNG, "fallback")).toBeNull();
   });
 });
 

@@ -92,7 +92,7 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
     if (exported === null) {
       throw new Error("expected an exported card");
     }
-    const chunk = readCardChunk(exported.bytes, "ccv3");
+    const chunk = await readCardChunk(exported.bytes, "ccv3");
     if (chunk === null) {
       throw new Error("exported PNG carried no ccv3 card chunk");
     }

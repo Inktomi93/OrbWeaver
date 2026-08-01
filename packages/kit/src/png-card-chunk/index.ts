@@ -1,11 +1,16 @@
 // biome-ignore-all lint/suspicious/noBitwiseOperators: a PNG/CRC byte codec is defined in terms of
 // shift/mask/xor — the base64 packer and the CRC-32 are intrinsically bitwise.
 
-// The ONE PNG character-card tEXt codec — a pure string engine shared by import (read) and export
+// The ONE PNG character-card text-chunk codec — a pure string engine shared by import (read) and export
 // (write). Character cards stash their JSON in a PNG `tEXt` chunk, base64-encoded, under a keyword
 // (`ccv3` = V3, `chara` = V2). This module owns the byte surgery — chunk walk, CRC-32, the PNG
 // signature — and nothing else: it takes/returns the card JSON as a STRING, so it never imports the
 // card type and stays layer-cake-clean.
+//
+// READ also accepts `zTXt` (the same keyword+base64 payload, zlib-DEFLATE compressed) because some
+// ecosystem exporters emit it; WRITE stays tEXt-only, which is what SillyTavern and every other
+// importer expects. zTXt is why the read seam is ASYNC: the dependency-free inflate is the WHATWG
+// `DecompressionStream`, and it is stream-shaped.
 //
 // KIT-PURITY NOTE: neo's source used `node:buffer` (`Buffer`) for base64 + UTF-8. kit is isomorphic
 // (tsconfig lib = es2025, types = []), so `Buffer`, `TextEncoder`/`TextDecoder`, and `atob`/`btoa` are
@@ -23,7 +28,13 @@ const CHUNK_OVERHEAD = LENGTH_FIELD_BYTES + TYPE_FIELD_BYTES + CRC_FIELD_BYTES;
 const BIG_ENDIAN = false;
 
 const TEXT_TYPE = "tEXt";
+const ZTEXT_TYPE = "zTXt";
 const IEND_TYPE = "IEND";
+// zTXt body = keyword + NUL + compression-method(1) + the zlib stream; PNG defines method 0 (deflate).
+const ZTEXT_METHOD_BYTES = 1;
+const ZTEXT_DEFLATE_METHOD = 0;
+// WHATWG "deflate" means ZLIB-wrapped deflate (RFC 1950) — precisely what zTXt carries, no header surgery.
+const ZLIB_FORMAT = "deflate";
 const CHARA_KEY = "chara";
 const CCV3_KEY = "ccv3";
 
@@ -36,17 +47,23 @@ export function isPng(data: Uint8Array): boolean {
   return data.length >= SIGNATURE_LENGTH && PNG_SIGNATURE.every((b, i) => data[i] === b);
 }
 
-/** Read a `tEXt` chunk value by keyword (case-insensitive), base64-DECODED to the original UTF-8
- *  string. Bounds-checked so a truncated download fails soft → null. Returns null when the bytes
- *  aren't a PNG, the keyword is absent, or the value doesn't base64/UTF-8-decode. The card-JSON parse
- *  is the caller's job (string in → JSON out lives in the parser, not here). */
-export function readCardChunk(data: Uint8Array, keyword: string): string | null {
+/** Read a `tEXt` (plain) or `zTXt` (zlib-compressed) chunk value by keyword (case-insensitive),
+ *  base64-DECODED to the original UTF-8 string. First matching chunk in file order wins, whichever of
+ *  the two types it is. Bounds-checked so a truncated download fails soft → null. Returns null when
+ *  the bytes aren't a PNG, the keyword is absent, or the value doesn't inflate/base64/UTF-8-decode.
+ *  The card-JSON parse is the caller's job (string in → JSON out lives in the parser, not here).
+ *
+ *  ASYNC because inflating zTXt goes through `DecompressionStream` — kit is isomorphic, so that
+ *  WHATWG global is the only dependency-free inflate available. */
+export async function readCardChunk(data: Uint8Array, keyword: string): Promise<string | null> {
   if (!isPng(data)) {
     return null;
   }
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const want = keyword.toLowerCase();
 
+  // A matched zTXt payload ends the walk and is inflated BELOW, so the one await stays out of the loop.
+  let compressed: Uint8Array | null = null;
   let offset = SIGNATURE_LENGTH;
   while (offset + LENGTH_AND_TYPE <= data.length) {
     const length = view.getUint32(offset, BIG_ENDIAN);
@@ -55,30 +72,64 @@ export function readCardChunk(data: Uint8Array, keyword: string): string | null 
       break; // truncated → stop walking
     }
     const type = latin1Decode(data.subarray(offset + LENGTH_FIELD_BYTES, offset + LENGTH_AND_TYPE));
+    const body = data.subarray(offset + LENGTH_AND_TYPE, offset + LENGTH_AND_TYPE + length);
     if (type === TEXT_TYPE) {
-      const value = readTextValue(data, offset, length, want);
+      const value = readTextValue(body, want);
       if (value !== null) {
         return value;
       }
     }
+    if (type === ZTEXT_TYPE) {
+      compressed = compressedValueFor(body, want);
+      if (compressed !== null) {
+        break;
+      }
+    }
     offset += CHUNK_OVERHEAD + length;
   }
-  return null;
+  return compressed === null ? null : await readCompressedTextValue(compressed);
+}
+
+/** Split a text-chunk body at its NUL separator, returning the lowercased keyword + the bytes after
+ *  it; null when there is no separator (a malformed chunk the walk simply skips). */
+function splitKeyword(body: Uint8Array): { key: string; rest: Uint8Array } | null {
+  const nullIdx = body.indexOf(0);
+  if (nullIdx < 0) {
+    return null;
+  }
+  return { key: latin1Decode(body.subarray(0, nullIdx)).toLowerCase(), rest: body.subarray(nullIdx + 1) };
 }
 
 /** Pull the value of a single `tEXt` chunk if its keyword matches `want`; null otherwise (wrong key,
  *  no null separator, or undecodable base64/UTF-8). */
-function readTextValue(data: Uint8Array, chunkStart: number, length: number, want: string): string | null {
-  const chunk = data.subarray(chunkStart + LENGTH_AND_TYPE, chunkStart + LENGTH_AND_TYPE + length);
-  const nullIdx = chunk.indexOf(0);
-  if (nullIdx < 0) {
+function readTextValue(body: Uint8Array, want: string): string | null {
+  const split = splitKeyword(body);
+  if (split === null || split.key !== want) {
     return null;
   }
-  const key = latin1Decode(chunk.subarray(0, nullIdx)).toLowerCase();
-  if (key !== want) {
+  return decodeBase64Utf8(split.rest);
+}
+
+/** The zlib stream of a `zTXt` chunk whose keyword matches `want`; null otherwise (wrong key, no null
+ *  separator, or a compression method PNG doesn't define). */
+function compressedValueFor(body: Uint8Array, want: string): Uint8Array | null {
+  const split = splitKeyword(body);
+  if (split === null || split.key !== want || split.rest[0] !== ZTEXT_DEFLATE_METHOD) {
     return null;
   }
-  const bytes = base64ToBytes(latin1Decode(chunk.subarray(nullIdx + 1)));
+  return split.rest.subarray(ZTEXT_METHOD_BYTES);
+}
+
+/** Inflate a matched `zTXt` payload, then decode it exactly like a `tEXt` value (base64 → UTF-8). */
+async function readCompressedTextValue(compressed: Uint8Array): Promise<string | null> {
+  const inflated = await inflate(compressed);
+  return inflated === null ? null : decodeBase64Utf8(inflated);
+}
+
+/** Chunk value bytes (ASCII base64) → the original UTF-8 string; null on either decode failing — the
+ *  fail-soft null contract every read path here shares. */
+function decodeBase64Utf8(value: Uint8Array): string | null {
+  const bytes = base64ToBytes(latin1Decode(value));
   if (bytes === null) {
     return null;
   }
@@ -205,6 +256,64 @@ function stripSpecKeys(cardJson: string): string {
   }
   const entries = Object.entries(parsed).filter(([k]) => k !== "spec" && k !== "spec_version");
   return JSON.stringify(Object.fromEntries(entries));
+}
+
+// --- inflate (WHATWG DecompressionStream; no node, no deps) -----------------------------------------
+
+// kit's tsconfig carries no DOM/node lib, so the WHATWG stream globals are untyped here. These local
+// (non-exported) shapes describe the EXACT slice of the API used below — the alternative would be
+// pulling DOM types into an isomorphic package, which the kit-purity gates forbid.
+interface InflateReader {
+  readonly read: () => Promise<{ done: boolean; value?: Uint8Array }>;
+}
+interface InflateWriter {
+  readonly write: (chunk: Uint8Array) => Promise<void>;
+  readonly close: () => Promise<void>;
+}
+interface InflateStream {
+  readonly readable: { readonly getReader: () => InflateReader };
+  readonly writable: { readonly getWriter: () => InflateWriter };
+}
+type InflateStreamCtor = new (format: string) => InflateStream;
+
+const DECOMPRESSION_STREAM_GLOBAL = "DecompressionStream";
+const decompressionStream = (globalThis as Record<string, unknown>)[DECOMPRESSION_STREAM_GLOBAL] as InflateStreamCtor | undefined;
+
+/** Inflate a ZLIB stream (RFC 1950) to bytes; null when the stream is corrupt/truncated — a bad card
+ *  is data, not a crash, matching this module's fail-soft read contract. */
+async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
+  if (decompressionStream === undefined) {
+    return null;
+  }
+  const stream = new decompressionStream(ZLIB_FORMAT);
+  const writer = stream.writable.getWriter();
+  // Deliberately un-awaited: awaiting the write before draining the reader can deadlock on backpressure,
+  // and on a corrupt stream BOTH sides reject — swallowing here leaves the reader as the one error path
+  // (an unhandled rejection would take the process down).
+  void writer.write(compressed).catch(swallow);
+  void writer.close().catch(swallow);
+
+  const reader = stream.readable.getReader();
+  const parts: Uint8Array[] = [];
+  try {
+    for (;;) {
+      // biome-ignore lint/performance/noAwaitInLoops: draining a stream reader IS a sequential read loop.
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value !== undefined) {
+        parts.push(value);
+      }
+    }
+  } catch {
+    return null; // Z_DATA_ERROR &c — corrupt zlib payload
+  }
+  return concatChunks(parts);
+}
+
+function swallow(): void {
+  // intentionally empty — see the un-awaited writer note above
 }
 
 // --- encoding primitives (pure ES2025; no node, no DOM) ---------------------------------------------
