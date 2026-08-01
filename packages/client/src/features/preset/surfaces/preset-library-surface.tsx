@@ -110,10 +110,9 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
     <>
       <LibraryListLayout
         beforeSearch={
-          <Stack gap="field">
-            <Text size="micro" tone="muted" transform="caps">
-              Active for generation
-            </Text>
+          <Stack gap="tight">
+            {/* The `kicker` VOICE (density-pass §2.3) — this labels the control below it. */}
+            <Text voice="kicker">Active for generation</Text>
             <Select
               aria-label="Active preset for generation"
               items={activeItems}
