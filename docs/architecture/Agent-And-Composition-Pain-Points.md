@@ -203,7 +203,7 @@ updated: 2026-07-22
   `owns`/partition + the save-status seam) · S1 appearance → chat/app-shell/character `9d4646d4` ·
   S2 chat-behavior → chat `65f0865c` · S3 workloads + admin → their own features `1eaa962c` ·
   S4 system → user-admin, pane merged into admin `7813dbed` · S5 tags + regex →
-  `features/tag`/`features/regex` `0072e598` · S6 seal (this commit). Every surface named above is
+  `features/tag`/`features/regex` `0072e598` · S6 seal `66a68408`. Every surface named above is
   DELETED or re-homed: no `tags-settings`, `chat-behavior-settings`, `regex-settings`,
   `appearance-settings` or `system-settings` under `features/settings` — the only
   `use-*-form`/`use-*-mutations` pair left is the theme's, which is settings-domain. The pain-point's

@@ -411,7 +411,10 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    - [x] S5 MERGED (`0072e598`): features/tag + features/regex minted (git mv, zero owns —
      surface-mode panes; regex = cited RESERVED in client-structure [UI-only slice, scripts
      persist via UserSettings.regex]; anchors byte-identical; 6-coupled-sites lesson banked).
-   - [ ] S6 SEAL — READY TO DISPATCH (S5 merged): delete SETTINGS_SECTION_ANCHORS + make*Pane
+   - [x] S6 SEAL MERGED (`66a68408`) — **SET-SEAMS COMPLETE S0-S6, D120 MINTED.** Every §8
+     deletion was already landed per-stage (receipted, no manufactured work); the seal's real
+     content = the DEAD GATE ARM found+re-keyed (placeholder arm keyed on the pre-S0 shape —
+     dead-green for six stages) + the new SKIMMER-PURITY arm (probed) + prose sweep. Old row: delete SETTINGS_SECTION_ANCHORS + make*Pane
      factories + emptied shells + OWN_SUBCATEGORIES; gates updated; ALSO sweep the stale prose S4/
      S5 left (pain-points:192 two panes out of date; spec §8 stage-table stamps).
    - (superseded build row below)
