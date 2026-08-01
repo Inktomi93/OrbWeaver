@@ -104,6 +104,41 @@ test("a kicker prints a micro-caps group label above the faces (and is omitted b
   expect(order.kicker).toBeLessThan(order.list);
 });
 
+// The FACE-VERB ambiguity (home side-eye): a clickable character face LAUNCHES a chat everywhere else in
+// the app, and in this strip it FILTERS — one rail click apart, same picture. The selected face therefore
+// paints as a STATE you are in, not as "the one you last touched": the caption joins the ring on the accent
+// (the mock's `.f.on{color:primary}`), which is also the colour the "Filtered: X" chip repeats below it.
+test("the SELECTED face tints its caption to the accent — the filter-state treatment, not just a ring", async ({ mount }) => {
+  const component = await mount(
+    <FaceStrip
+      caption={true}
+      items={[AZARAEL, SERA]}
+      label="Recent characters"
+      onSelect={(): void => undefined}
+      selectedId={AZARAEL.id}
+      verb="Show chats with"
+    />,
+  );
+  // Against the RESOLVED token, never a literal — a retint of the theme must not red this test. A probe
+  // span carries the var so the browser NORMALIZES it the same way it normalizes the caption's own `color`
+  // (the raw custom-property text is `oklch(72% .175 52)`, the computed form `oklch(0.72 0.175 52)`).
+  const resolve = async (token: string): Promise<string> =>
+    await component.evaluate((el, name) => {
+      const probe = el.ownerDocument.createElement("span");
+      probe.style.color = `var(${name})`;
+      el.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }, token);
+  const primary = await resolve("--color-primary");
+  const muted = await resolve("--color-muted-foreground");
+  expect(primary).not.toBe(muted);
+
+  await expect(component.getByText(AZARAEL.name, { exact: true })).toHaveCSS("color", primary);
+  await expect(component.getByText(SERA.name, { exact: true })).toHaveCSS("color", muted);
+});
+
 test("no caption by default (the favorites-strip posture: portraits only)", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[SERA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
   await expect(component.getByText(SERA.name, { exact: true })).toHaveCount(0);

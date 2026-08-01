@@ -400,6 +400,20 @@ test("Arm B: the strip is the pane's FIRST element (above chip + search) and its
     .toEqual({ stripBeforeChip: true, stripBeforeSearch: true });
 });
 
+// The face-verb ambiguity (home side-eye): one rail click away, on home, the same clickable character face
+// LAUNCHES a chat. The strip's kicker is therefore the VERB, not the contents — "Faces" named the picture
+// and left both readings open. It is the only line a sighted user gets BEFORE committing to a click.
+test("Arm B: the strip's kicker names the FILTER verb, so a face here can't read as a launcher", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  const kicker = component.getByText("Filter by face", { exact: true });
+  await expect(kicker).toBeVisible();
+  await expect(kicker).toHaveCSS("text-transform", "uppercase");
+  // The launcher noun is gone — a face in this pane never says only what it is.
+  await expect(component.getByText("Faces", { exact: true })).toHaveCount(0);
+});
+
 test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-current announces)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
 

@@ -46,7 +46,9 @@ export interface FaceStripProps {
   readonly caption?: boolean;
   /** A micro-caps KICKER printed above the faces (the mock's group label). Without it a cold user reads a
    *  bare row of portraits and can't tell it is a control at all — the strip's accessible `label` only
-   *  reaches assistive tech. Omit for a strip whose surrounding copy already names it. */
+   *  reaches assistive tech. Make it name the strip's VERB, not its contents: a clickable portrait means
+   *  "start a chat" everywhere else in the app, so a strip that FILTERS has to say so in the one line a
+   *  sighted user actually reads. Omit for a strip whose surrounding copy already names it. */
   readonly kicker?: string;
 }
 
@@ -82,7 +84,12 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
               // old fixed `w-avatar-lg` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The
               // ceiling is a max, not a width, so short names take exactly their own space and only a long
               // one truncates — with the FULL name still the button's accessible name.
-              <Text className="max-w-avatar-hero truncate text-center" size="micro" tone="muted">
+              //
+              // The selected face tints its caption too (the mock's `.f.on{color:primary}`), not just its
+              // avatar ring: a ring alone reads as "the one you last touched", while name-and-portrait
+              // together reading accent is a STATE you are in — the same primary this strip's "Filtered: X"
+              // chip repeats below it. That is what separates a face that FILTERS from a face that LAUNCHES.
+              <Text className="max-w-avatar-hero truncate text-center" size="micro" tone={selectedId === item.id ? "accent" : "muted"}>
                 {item.name}
               </Text>
             ) : null}
