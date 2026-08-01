@@ -44,7 +44,8 @@ function authorizeAndResolveOwner(ctx: WorkloadServiceContext, params: StartWork
 
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
   async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
-    const input = parseWorkloadInput(ctx.getContributions(), params.input);
+    const contributions = ctx.getContributions();
+    const input = parseWorkloadInput(contributions, params.input);
     const ownerId = authorizeAndResolveOwner(ctx, params, input.kind);
     const id = ctx.newWorkloadId();
     const now = ctx.now();
@@ -54,6 +55,8 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         kind: input.kind,
         mode: params.mode,
         source: resolveWorkloadSource(input.kind, input.params),
+        // The execution lane is the OWNING domain's declaration, stamped here so it survives a restart.
+        lane: contributions[input.kind].lane,
         params: input.params as Record<string, unknown>,
         ownerId,
         dependsOn: params.dependsOn ?? null,

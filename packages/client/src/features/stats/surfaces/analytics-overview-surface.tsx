@@ -16,10 +16,11 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
 import { RhythmFigures } from "../components/rhythm-figures";
+import { useRecomputeStats } from "../hooks/use-recompute-stats";
 import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model";
 
 export function AnalyticsOverviewSurface(): ReactElement {
@@ -60,9 +61,12 @@ function OverviewBody(): ReactElement {
 
   return (
     <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
-      <Text size="micro" tone="muted">
-        {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
-      </Text>
+      <Row align="center" justify="between" gap="row">
+        <Text size="micro" tone="muted">
+          {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
+        </Text>
+        <RecomputeButton />
+      </Row>
 
       <Section heading="Year in review">
         <Stack gap="block">
@@ -125,6 +129,18 @@ function OverviewBody(): ReactElement {
         )}
       </Section>
     </Stack>
+  );
+}
+
+/** Rebuild the caller's rollups from canon, awaited, and re-read the dashboard. The rollups are maintained
+ *  live on the chat write path, so this is the repair affordance for a drifted/imported library — the same
+ *  pass the `reconcile-stats` workload runs, minus the queue round-trip. */
+function RecomputeButton(): ReactElement {
+  const recompute = useRecomputeStats({ trpc: useTRPC(), invalidation: useInvalidation() });
+  return (
+    <Button intent="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>
+      {recompute.isPending ? "Recomputing…" : "Recompute now"}
+    </Button>
   );
 }
 

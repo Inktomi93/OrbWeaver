@@ -1,10 +1,16 @@
 // domain/workloads/persistence/queries — all `workloads`-table access. Claim is idempotent (status-guarded
 // UPDATE; a race loser updates 0 rows). The state machine is linear (terminal transitions are status-guarded
-// and report whether they moved the row — no terminal→terminal). `nextRunnableWorkload` tolerates poison
-// rows (unrecognized kind → failed in place, never starves the queue) and enforces DAG dependsOn ordering
-// (a dep still active → skip; any non-success terminal or absent dep → fail with `dependency_failed`).
+// and report whether they moved the row — no terminal→terminal). `nextRunnableWorkload` is LANE-SCOPED (one
+// poll loop per execution lane, so a long sweep never head-blocks an interactive row), tolerates poison rows
+// (unrecognized kind OR unparseable params → failed in place, never starves the queue) and enforces DAG
+// dependsOn ordering (a dep still active → skip; any non-success terminal or absent dep → fail with
+// `dependency_failed`).
+//
+// The READ path is poison-VISIBLE where the dispatch path is poison-refusing: `toView` surfaces an
+// unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
+// of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
-import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -15,7 +21,7 @@ import { getLog } from "#foundation/observability";
 import type { WorkloadContributions } from "../contract/contribution";
 import type { CancelWorkloadResult } from "../contract/params";
 import type { WorkloadError } from "../contract/workload-error";
-import type { WorkloadRowAnyKind } from "../contract/workload-row";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];
@@ -63,6 +69,8 @@ interface WorkloadInsert {
   readonly kind: WorkloadKind;
   readonly mode: WorkloadMode;
   readonly source: WorkloadSource;
+  /** The execution lane, resolved at the enqueue door from the kind's contribution (never client input). */
+  readonly lane: WorkloadLane;
   readonly params: Record<string, unknown>;
   readonly ownerId: UserId | null;
   readonly dependsOn: readonly WorkloadId[] | null;
@@ -84,34 +92,47 @@ interface WorkloadListFilter {
 
 const isKnownKind = (kind: string): kind is WorkloadKind => (WORKLOAD_KINDS as readonly string[]).includes(kind);
 
-/** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a poison row (unrecognized kind, or a
- *  params blob that fails its kind schema). The one place the JSON columns are narrowed. The per-kind
- *  validator is the OWNING domain's contribution schema — the queue itself spells no domain's vocabulary. */
+/** The lifecycle/queue fields shared by both arms of the view — kind-independent, so they are projected once. */
+function toRowBase(row: WorkloadSelectRow): Omit<WorkloadRowAnyKind, "kind" | "params" | "result" | "poison"> {
+  return {
+    id: row.id,
+    status: row.status,
+    mode: row.mode,
+    lane: row.lane,
+    ownerId: row.ownerId,
+    dependsOn: row.dependsOn ?? null,
+    error: row.error,
+    progress: row.progress ?? null,
+    scheduledAt: row.scheduledAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` when the KIND itself isn't in this build (a
+ *  deploy-skew row that cannot be spelled at all). A known kind whose params blob fails its schema is NOT
+ *  dropped — it surfaces as a POISON row (`params: null, poison: true`) so a broken row is visible and
+ *  actionable instead of vanishing from `list`/`get`. The one place the JSON columns are narrowed; the
+ *  per-kind validator is the OWNING domain's contribution schema — the queue spells no domain's vocabulary. */
 export function toView(contributions: WorkloadContributions, row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
   }
+  const base = toRowBase(row);
   let params: Record<string, unknown>;
   try {
     params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {
-    return null;
+    return { ...base, kind: row.kind, params: null, result: row.result ?? null, poison: true };
   }
-  // TS can't correlate the widened `row.kind` union with the per-kind result — sanctioned cast.
+  // TS can't correlate the widened `row.kind` union with the per-kind params/result — sanctioned cast.
   return {
-    id: row.id,
+    ...base,
     kind: row.kind,
-    status: row.status,
-    mode: row.mode,
     params,
     result: row.result ?? null,
-    ownerId: row.ownerId,
-    dependsOn: row.dependsOn ?? null,
-    error: row.error,
-    scheduledAt: row.scheduledAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  } as WorkloadRowAnyKind;
+    poison: false,
+  } as WorkloadRunnableRow;
 }
 
 /** Insert a fresh `queued` row. The single-active partial unique index may reject it — the caller
@@ -122,6 +143,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     kind: row.kind,
     mode: row.mode,
     source: row.source,
+    lane: row.lane,
     params: row.params,
     ownerId: row.ownerId,
     dependsOn: row.dependsOn,
@@ -141,11 +163,13 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
   return moved.length > 0;
 }
 
-/** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key). */
-export async function heartbeat(db: Db, id: WorkloadId, now: number): Promise<void> {
+/** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key), and — when the run
+ *  has reported one — persist the latest progress snapshot in the SAME UPDATE. One write path: the engine
+ *  throttles both to the lease cadence, so a chatty `report()` never turns into a second write stream. */
+export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: WorkloadProgress): Promise<void> {
   await db
     .update(workloads)
-    .set({ updatedAt: now })
+    .set(progress === undefined ? { updatedAt: now } : { updatedAt: now, progress })
     .where(and(eq(workloads.id, id), inArray(workloads.status, [...IN_FLIGHT_STATUSES])));
 }
 
@@ -216,14 +240,24 @@ export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: 
   return moved.length > 0;
 }
 
-/** Load one typed row by id, or `null` (absent OR poison). */
+/** Load one typed row by id, or `null` (absent, or a kind this build doesn't ship). A row with unparseable
+ *  params comes back POISON — visible, not vanished. */
 export async function loadWorkload(db: Db, contributions: WorkloadContributions, id: WorkloadId): Promise<WorkloadRowAnyKind | null> {
   const rows = await db.select().from(workloads).where(eq(workloads.id, id)).limit(1);
   const row = rows[0];
   return row === undefined ? null : toView(contributions, row);
 }
 
-/** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Poison rows are filtered out. */
+/** The RAW (unparsed) params blob of one row — what `retry` clones for a POISON row, whose typed view carries
+ *  `params: null`. Cloning the blob verbatim is what makes a poison row honestly retryable: the operator's
+ *  original input survives, and a build that fixed the schema re-runs it unchanged. */
+export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Record<string, unknown> | null> {
+  const rows = await db.select({ params: workloads.params }).from(workloads).where(eq(workloads.id, id)).limit(1);
+  return rows[0]?.params ?? null;
+}
+
+/** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Rows of an unknown kind are
+ *  filtered out (deploy skew); a params-poison row is INCLUDED as a visibly-broken row. */
 export async function listWorkloads(db: Db, contributions: WorkloadContributions, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
   const filters: SQL[] = [];
   if (params.kind !== undefined) {
@@ -254,19 +288,21 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   });
 }
 
-/** The next runnable row, or `null`. Windows the queue head and returns the first dispatchable row: a
- *  poison row is failed in place (never thrown, to avoid starving the queue on the same head row); a row
- *  whose `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. */
-export async function nextRunnableWorkload(db: Db, contributions: WorkloadContributions, now: number): Promise<WorkloadRowAnyKind | null> {
+/** The next runnable row IN ONE LANE, or `null`. Windows that lane's queue head and returns the first
+ *  dispatchable row: a poison row (unknown kind, or params that no longer parse — it has nothing runnable to
+ *  run) is failed in place (never thrown, to avoid starving the queue on the same head row); a row whose
+ *  `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. The lane predicate is what keeps a
+ *  20-minute sweep from head-blocking an interactive row — each lane's loop sees only its own queue. */
+export async function nextRunnableWorkload(db: Db, contributions: WorkloadContributions, now: number, lane: WorkloadLane): Promise<WorkloadRunnableRow | null> {
   const head = await db
     .select()
     .from(workloads)
-    .where(eq(workloads.status, "queued"))
+    .where(and(eq(workloads.status, "queued"), eq(workloads.lane, lane)))
     .orderBy(asc(workloads.scheduledAt), asc(workloads.createdAt))
     .limit(QUEUE_HEAD_WINDOW);
   for (const row of head) {
     const view = toView(contributions, row);
-    if (view === null) {
+    if (view === null || view.poison) {
       // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed sequentially before the next valid head row is returned.
       await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
       getLog().warn({ workloadId: row.id, kind: row.kind }, "workloads: failed poison queue row");

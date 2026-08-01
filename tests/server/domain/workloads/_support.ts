@@ -7,7 +7,7 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { WorkloadKind, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -28,6 +28,8 @@ import type {
   WorkloadContributions,
 } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
+import type { WorkloadRunnableRow } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
+import { loadWorkload } from "../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
 import { createReservedWorkloadContributions } from "../../../../packages/server/src/domain/workloads/substrate/reserved-contributions.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -164,6 +166,17 @@ export function makeRunnerDeps(db: Db, contributions: WorkloadContributions, ove
   };
 }
 
+/** Load a row for DISPATCH. The engine takes only a `WorkloadRunnableRow`, so an absent row (or a POISON one
+ *  — params that don't parse) is a broken fixture here, never a case under test: it throws instead of
+ *  silently narrowing away. */
+export async function loadRunnableWorkload(db: Db, contributions: WorkloadContributions, id: WorkloadId): Promise<WorkloadRunnableRow> {
+  const row = await loadWorkload(db, contributions, id);
+  if (row === null || row.poison) {
+    throw new Error(`workload ${id} is missing or poison — the fixture never produced a runnable row`);
+  }
+  return row;
+}
+
 /** Directly insert a workload row (engine/persistence tests need arbitrary start states the verbs can't make
  *  — e.g. a pre-seeded `running`/`failed`/stale row). `status` defaults to `queued`. */
 export async function seedWorkloadRow(
@@ -176,6 +189,9 @@ export async function seedWorkloadRow(
     /** The single-active lock partition (`workloads.source`). Defaults to `none` (the non-index sentinel);
      *  seed a real `text`/`image`/`all` for an `index`-kind row. */
     source?: WorkloadSource;
+    /** The EXECUTION lane (`workloads.lane`) — which worker loop would claim it. Defaults to the column
+     *  default (`sweep`); pass `interactive` to seed the other lane's queue. */
+    lane?: WorkloadLane;
     ownerId?: UserId | null;
     params?: Record<string, unknown>;
     dependsOn?: readonly WorkloadId[] | null;
@@ -191,6 +207,7 @@ export async function seedWorkloadRow(
     status: overrides.status ?? "queued",
     mode: overrides.mode ?? "singular",
     source: overrides.source ?? "none",
+    lane: overrides.lane ?? "sweep",
     params: overrides.params ?? {},
     ownerId: overrides.ownerId ?? null,
     dependsOn: overrides.dependsOn ?? null,

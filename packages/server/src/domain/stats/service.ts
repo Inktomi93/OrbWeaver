@@ -1,7 +1,9 @@
-// domain/stats — COMPOSITION ROOT: wires the 12 read verbs over the DI bundle (zero logic). The tRPC
+// domain/stats — COMPOSITION ROOT: wires the read verbs + the one write verb over the DI bundle (zero
+// logic). The tRPC
 // `stats.*` router's single delegation target, with `ownerId = principal.userId` (never input — §7.1). The
 // rollups are maintained LIVE on the write path (write/apply-delta.ts, injected into chat); the full
-// rebuild (write/rebuild-from-canon.ts) is the reconcile-stats workload — neither is a verb here.
+// rebuild (write/rebuild-from-canon.ts) is reached BOTH ways: the `reconcile` verb (caller-scoped, awaited)
+// and the `reconcile-stats` workload (the all-owners bulk sweep). `applyStatsDelta` is not a verb here.
 
 import type { Db } from "@orb/db";
 import { createStatsContext } from "./context";
@@ -16,12 +18,13 @@ import { createLeaderboard } from "./verbs/leaderboard";
 import { createMomentum } from "./verbs/momentum";
 import { createOverview } from "./verbs/overview";
 import { createPersonaUsage } from "./verbs/persona-usage";
+import { createReconcile } from "./verbs/reconcile";
 import { createTemporal } from "./verbs/temporal";
 import { createTimeseries } from "./verbs/timeseries";
 import { createWrapped } from "./verbs/wrapped";
 
-export function createStatsService(db: Db): StatsService {
-  const ctx = createStatsContext(db);
+export function createStatsService(db: Db, now: () => number): StatsService {
+  const ctx = createStatsContext(db, now);
   return {
     ...createOverview(ctx),
     ...createCharacter(ctx),
@@ -36,5 +39,6 @@ export function createStatsService(db: Db): StatsService {
     ...createMomentum(ctx),
     ...createLatency(ctx),
     ...createEconomics(ctx),
+    ...createReconcile(ctx),
   };
 }

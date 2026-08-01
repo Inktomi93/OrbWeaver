@@ -1,15 +1,20 @@
 // domain/workloads/engine/runner — `runWorkload`: drive ONE claimed row end-to-end (claim → build the
 // per-dispatch runner context → dispatch inside a detached trace span → stamp the terminal → emit the bus
 // event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing.
+//
+// PROGRESS has two destinations and ONE write path: every `report()` emits on the bus immediately (the live
+// tail is cheap and in-process), while the DURABLE snapshot rides the heartbeat's own UPDATE, throttled to
+// the lease cadence — so a run reporting per document costs the same db traffic as one that never reports,
+// and a client that reconnects after the 60s replay ring expired still reads the last known progress.
 
-import type { ReportProgress, WorkloadKind, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadKind, WorkloadParamsByKind, WorkloadProgress, WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WorkloadContribution } from "../contract/contribution";
 import type { WorkloadRunnerDeps } from "../contract/service";
 import type { WorkloadError } from "../contract/workload-error";
-import type { WorkloadRowAnyKind } from "../contract/workload-row";
+import type { WorkloadRunnableRow } from "../contract/workload-row";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries";
 import { emitWorkloadEvent } from "./progress-bus";
 
@@ -29,7 +34,7 @@ const WORKLOAD_FAILED = "WORKLOAD_FAILED";
  */
 function dispatchAndRun(
   deps: WorkloadRunnerDeps,
-  args: { ctx: WorkloadRunContext; row: WorkloadRowAnyKind; report: ReportProgress; signal: AbortSignal },
+  args: { ctx: WorkloadRunContext; row: WorkloadRunnableRow; report: ReportProgress; signal: AbortSignal },
 ): Promise<unknown> {
   const contribution = deps.contributions[args.row.kind] as WorkloadContribution<WorkloadKind>;
   return contribution.run(args.ctx, args.row.params as WorkloadParamsByKind[WorkloadKind], args.report, args.signal);
@@ -37,21 +42,58 @@ function dispatchAndRun(
 
 /** Build the per-dispatch run context — identity + clock ONLY. Anything else a job needs is a dep of its
  *  owning domain's contribution factory, closed over at compose (never a shared per-dispatch bundle). */
-function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind): WorkloadRunContext {
+function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): WorkloadRunContext {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
   return { userId, ownerId: row.ownerId, now: deps.now };
 }
 
+/**
+ * The lease WRITE: one throttled UPDATE carrying both the heartbeat instant and the latest reported progress.
+ * Every progress destination funnels through here — `report()` calls it at most once per heartbeat cadence,
+ * and the heartbeat timer calls it on the same cadence with whatever the run last reported.
+ */
+interface LeaseWriter {
+  /** Record a snapshot + write it if the cadence has elapsed (a cadence of `<= 0` writes every time — the
+   *  deterministic test seam, matching the disabled-timer convention). */
+  readonly report: (progress: WorkloadProgress, at: number) => void;
+  /** The timer arm: write the lease unconditionally, carrying the latest snapshot (if any). */
+  readonly tick: (at: number) => void;
+}
+
+function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow): LeaseWriter {
+  const cadenceMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+  let latest: WorkloadProgress | undefined;
+  let lastWriteAt: number | null = null;
+  const write = (at: number): void => {
+    lastWriteAt = at;
+    void heartbeat(deps.db, row.id, at, latest);
+  };
+  return {
+    report: (progress, at): void => {
+      latest = progress;
+      if (lastWriteAt === null || at - lastWriteAt >= cadenceMs) {
+        write(at);
+      }
+    },
+    tick: write,
+  };
+}
+
 /** Start the single-replica lease timers (heartbeat + DB cancel-poll); `<= 0` cadence DISABLES a timer (the
  *  deterministic test seam). Returns the handles for the `finally` cleanup. */
-function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, controller: AbortController): ReturnType<typeof setInterval>[] {
+function startLeaseTimers(
+  deps: WorkloadRunnerDeps,
+  row: WorkloadRunnableRow,
+  controller: AbortController,
+  lease: LeaseWriter,
+): ReturnType<typeof setInterval>[] {
   const timers: ReturnType<typeof setInterval>[] = [];
   const heartbeatMs = deps.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   const cancelPollMs = deps.cancelPollMs ?? DEFAULT_CANCEL_POLL_MS;
   if (heartbeatMs > 0) {
     timers.push(
       setInterval(() => {
-        void heartbeat(deps.db, row.id, deps.now());
+        lease.tick(deps.now());
       }, heartbeatMs),
     );
   }
@@ -72,7 +114,7 @@ function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, con
 
 /** Pin a (running|cancelling) row to `cancelled` + emit. Returns whether it actually moved (false ⇒ already
  *  terminal — a zombie; the caller writes nothing more). */
-async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, at: number): Promise<boolean> {
+async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, at: number): Promise<boolean> {
   const moved = await markTerminal(deps.db, { id: row.id, status: "cancelled", now: at });
   if (moved) {
     emitWorkloadEvent({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
@@ -82,7 +124,7 @@ async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind
 
 /** Stamp the SUCCESS outcome: cancelled if aborted mid-run (the pin); else succeeded; else cancelling-pin;
  *  else a zombie (row already reaped) → nothing. */
-async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, args: { aborted: boolean; result: unknown }): Promise<void> {
+async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, args: { aborted: boolean; result: unknown }): Promise<void> {
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
@@ -110,7 +152,7 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind
 }
 
 /** Stamp the FAILURE outcome: cancelled if the throw was the abort firing; else failed (runtime). */
-async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, args: { aborted: boolean; err: unknown }): Promise<void> {
+async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, args: { aborted: boolean; err: unknown }): Promise<void> {
   if (args.aborted) {
     await finishCancelled(deps, row, deps.now());
     return;
@@ -151,7 +193,7 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind
  * Claim + run one row to a terminal state. Returns when the row is terminal (or the claim was lost). The
  * worker calls this per dispatched row; it never throws (every outcome is recorded on the row + the bus).
  */
-export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind, signal: AbortSignal): Promise<void> {
+export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal): Promise<void> {
   // Idempotent claim: the loser of a two-worker race updates 0 rows → bail.
   if (!(await markStarted(deps.db, row.id, deps.now()))) {
     return;
@@ -168,18 +210,21 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRowAnyK
     signal.addEventListener("abort", onIncomingAbort, { once: true });
   }
 
+  const lease = createLeaseWriter(deps, row);
   const report: ReportProgress = (progress): void => {
-    void heartbeat(deps.db, row.id, deps.now());
+    const at = deps.now();
+    // The durable half — throttled to the lease cadence, piggybacked on the heartbeat's own UPDATE.
+    lease.report(progress, at);
     emitWorkloadEvent({
       type: "progress",
       workloadId: row.id,
       kind: row.kind,
-      at: deps.now(),
+      at,
       progress,
     });
   };
 
-  const timers = startLeaseTimers(deps, row, controller);
+  const timers = startLeaseTimers(deps, row, controller, lease);
   try {
     const result = await withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
       dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),

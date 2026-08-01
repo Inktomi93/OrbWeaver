@@ -6,6 +6,13 @@
 // An active row mounts the workloads.subscribe tail via ActiveWorkloadRow; progress buffers in row-local
 // state and every state-changing event invalidates workloads.list. Cancel is confirm-gated; Retry clones
 // a fresh queued row (the original stays as audit).
+//
+// PROGRESS has two sources and the live one wins: the SSE tail while it is connected, else the row's DURABLE
+// `progress` column (the reconnect truth — a tab opened 20 minutes into an import shows the real position
+// immediately, instead of an indeterminate bar until the next report).
+//
+// A POISON row (its stored params no longer parse) renders as visibly broken rather than vanishing from the
+// list — the read path's honesty fix needs a face, or the fix is invisible.
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -27,6 +34,7 @@ import type { WorkloadProgressView } from "../lib/workloads-model";
 import {
   isActiveWorkloadStatus,
   isRetryableWorkloadStatus,
+  toProgressView,
   WORKLOAD_KIND_LABELS,
   WORKLOAD_STATUS_INTENT,
   WORKLOAD_STATUS_LABELS,
@@ -90,6 +98,7 @@ function WorkloadRowBody({
         actions={
           <Row align="center" gap="row">
             {workload.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
+            {workload.poison ? <Badge intent="danger">Unreadable</Badge> : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
               <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>{statusLabel}</Badge>
@@ -107,10 +116,9 @@ function WorkloadRowBody({
           </Row>
         }
       />
-      {active && !deferred && !waiting ? (
-        <Progress label={progress?.label ?? WORKLOAD_STATUS_LABELS[workload.status]} showValue={true} value={progress?.pct ?? null} />
-      ) : null}
+      <WorkloadProgressLine workload={workload} live={progress} processing={active && !deferred && !waiting} />
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
+      <WorkloadPoisonDetail workload={workload} />
       {resultPreview === null ? null : (
         <Text size="micro" tone="muted">
           {resultPreview}
@@ -129,6 +137,33 @@ function WorkloadRowBody({
       />
     </Stack>
   );
+}
+
+/** The progress bar of a row that is actually processing. The LIVE tail wins while it is connected; with no
+ *  subscription (a reload, a tab opened mid-import) the row's DURABLE `progress` column carries the position;
+ *  with neither, the bar is indeterminate. */
+function WorkloadProgressLine({
+  workload,
+  live,
+  processing,
+}: {
+  readonly workload: WorkloadItem;
+  readonly live: WorkloadProgressView | null;
+  readonly processing: boolean;
+}): ReactElement | null {
+  if (!processing) {
+    return null;
+  }
+  const shown = live ?? (workload.progress === null ? null : toProgressView(workload.progress));
+  return <Progress label={shown?.label ?? WORKLOAD_STATUS_LABELS[workload.status]} showValue={true} value={shown?.pct ?? null} />;
+}
+
+/** The unreadable-params line: a poison row explains itself in plain words + says what Retry will do. */
+function WorkloadPoisonDetail({ workload }: { readonly workload: WorkloadItem }): ReactElement | null {
+  if (!workload.poison) {
+    return null;
+  }
+  return <Text voice="gloss">This run's saved settings can no longer be read by this version. Retry re-queues it with the same saved settings.</Text>;
 }
 
 /** The queue-state badges next to the status badge. */

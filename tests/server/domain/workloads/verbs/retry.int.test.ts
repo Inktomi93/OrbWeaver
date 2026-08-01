@@ -5,6 +5,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { loadRawWorkloadParams } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
@@ -26,6 +27,44 @@ describe("workloads.retry", () => {
     expect(clone.kind).toBe("compute-themes");
     expect(clone.params).toEqual({ k: 5 });
     expect((await s.get({ id: originalId, caller: null })).status).toBe("failed");
+  });
+
+  // A POISON original (params that no longer parse) is exactly the row the read-path fix made visible —
+  // and retry is the action it exists to offer. The clone carries the RAW blob verbatim, so a build that
+  // fixed the schema re-runs the operator's original input instead of a silently emptied one.
+  test("a POISON row is retryable and its raw params blob survives the clone", async () => {
+    const db = await freshDb();
+    const s = makeService(db);
+    const originalId = await seedWorkloadRow(db, {
+      id: "workload_poison",
+      kind: "compute-themes",
+      status: "failed",
+      params: { k: -5 },
+    });
+    const original = await s.get({ id: originalId, caller: null });
+    expect(original.poison).toBe(true);
+    expect(original.params).toBeNull();
+
+    const { id } = await s.retry({ id: originalId, caller: null });
+    const clone = await s.get({ id, caller: null });
+    expect(clone.status).toBe("queued");
+    expect(clone.poison).toBe(true);
+    // The raw blob is on the row (it is still poison against the current schema — nothing was invented).
+    expect(await loadRawWorkloadParams(db, id)).toEqual({ k: -5 });
+  });
+
+  test("re-stamps the clone's lane from the kind's CURRENT contribution", async () => {
+    const db = await freshDb();
+    const s = makeService(db);
+    // Seeded in the WRONG lane (a row filed before its domain changed its declaration).
+    const originalId = await seedWorkloadRow(db, {
+      id: "workload_stale_lane",
+      kind: "reconcile-stats",
+      status: "failed",
+      lane: "interactive",
+    });
+    const { id } = await s.retry({ id: originalId, caller: null });
+    expect((await s.get({ id, caller: null })).lane).toBe("sweep");
   });
 
   test("a missing row is a DomainNotFoundError", async () => {

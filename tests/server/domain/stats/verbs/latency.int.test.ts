@@ -5,6 +5,9 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
 
+/** A fixed instant for the service's injected clock (only `reconcile` reads it). */
+const STATS_NOW = 1_700_000_000_000;
+
 let db: Db;
 
 beforeEach(async () => {
@@ -23,7 +26,7 @@ describe("stats.latency", () => {
       characterId: ch,
       variants: [{ content: "a", ttftMs: 100, genStartedAt: T0, genFinishedAt: T0 + 200 }],
     });
-    const svc = createStatsService(db);
+    const svc = createStatsService(db, () => STATS_NOW);
     const l = await svc.latency(owner, { kind: "owner" });
     expect(l.avgTtftMs).toBe(100);
     expect(l.avgGenMs).toBe(200);

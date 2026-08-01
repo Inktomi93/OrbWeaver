@@ -2,7 +2,7 @@
 // job; the unit of audit + retry + observability. Rows are NEVER deleted — they accumulate as the
 // historical record.
 //
-// The `kind` + `status` + `mode` + `source` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
+// The `kind` + `status` + `mode` + `source` + `lane` enum columns DERIVE the canonical tuples from `@orb/contracts/workloads`
 // (D34 — the axes were promoted out of `domain/workloads/contract` so `@orb/db` can import them; db deps are
 // kit + contracts + drizzle only). Each column carries both the drizzle `{ enum }` (type-side) AND a
 // CHECK built from the same tuple (SQL-side) — never a re-spelled union. A `.int` test-mirror pins the
@@ -29,12 +29,19 @@
 // singular row with a NULL owner (a rare system/scheduler trigger) does NOT self-lock — SQLite treats NULLs as
 // distinct in a unique index; singular runs are user-triggered (non-null owner) in practice, and runners are
 // idempotent.
+//
+// EXECUTION vs ADMISSION: the indexes above are ADMISSION (who may hold a slot). The `lane` column is
+// EXECUTION — which worker poll loop dispatches the row, so a 20-minute `import-st` sweep never head-blocks
+// a user's `databank-ingest`. It is stamped at enqueue from the OWNING domain's `WorkloadContribution.lane`
+// (a column, not a claim-time derive, so the assignment survives a restart) and never participates in a lock.
 
+import type { WorkloadProgress } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
   NON_INDEX_SOURCE,
   SCHEDULE_CADENCES,
   WORKLOAD_KINDS,
+  WORKLOAD_LANES,
   WORKLOAD_MODES,
   WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
@@ -51,6 +58,9 @@ const DEFAULT_MODE = "singular";
 // The default source lock-partition — the `none` sentinel every NON-`index` kind carries (only the
 // parameterized `index` kind stamps a real text/image/all source; see WORKLOAD_SOURCES).
 const DEFAULT_SOURCE = NON_INDEX_SOURCE;
+// The default execution lane. `sweep` is the conservative floor: a row whose enqueue path forgot to stamp a
+// lane runs on the bulk-maintenance loop and can never squat the latency-sensitive one.
+const DEFAULT_LANE = "sweep" as const satisfies (typeof WORKLOAD_LANES)[number];
 
 // CHECK lists derived from the canonical tuples (NOT re-spelled). A CHECK is static DDL and cannot carry
 // bound parameters, so it is built as a raw fragment from the tuple members (users.ts pattern).
@@ -58,6 +68,7 @@ const KIND_CHECK_LIST = WORKLOAD_KINDS.map((kind) => `'${kind}'`).join(", ");
 const STATUS_CHECK_LIST = WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
 const MODE_CHECK_LIST = WORKLOAD_MODES.map((mode) => `'${mode}'`).join(", ");
 const SOURCE_CHECK_LIST = WORKLOAD_SOURCES.map((source) => `'${source}'`).join(", ");
+const LANE_CHECK_LIST = WORKLOAD_LANES.map((lane) => `'${lane}'`).join(", ");
 // The active-status set the partial unique indexes key on — derived from ACTIVE_WORKLOAD_STATUSES so the
 // index predicate and the named tuple can never drift.
 const ACTIVE_STATUS_LIST = ACTIVE_WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
@@ -80,12 +91,20 @@ export const workloads = sqliteTable(
     // independently (text + image reindex concurrently); every other kind carries the `none` sentinel (a
     // shared bucket → their lock stays per-(kind, owner) / per-(kind), exactly as before this column existed).
     source: text("source", { enum: WORKLOAD_SOURCES }).notNull().default(DEFAULT_SOURCE),
+    // The EXECUTION lane (derives WORKLOAD_LANES; CHECK below mirrors the tuple) — which worker poll loop
+    // dispatches the row. Stamped at enqueue from the owning domain's contribution; NOT a lock dimension.
+    lane: text("lane", { enum: WORKLOAD_LANES }).notNull().default(DEFAULT_LANE),
     // Per-kind params (the ParamsByKind blob; the runner re-parses against its Zod schema at the read
     // seam). Always an object (a tunable-less kind uses `{}`), so notNull with an empty-object default.
     params: text("params", { mode: "json" }).$type<Record<string, unknown>>().notNull().default(sql`'{}'`),
     // The terminal result projection (workload-OWNED ResultByKind, not the wrapped verb's return).
     // Null until the row succeeds.
     result: text("result", { mode: "json" }).$type<unknown>(),
+    // The DURABLE progress snapshot — the latest `WorkloadProgress` a run reported, written by the SAME
+    // UPDATE as the heartbeat (one write path, throttled to the lease cadence). The in-process replay ring
+    // is a 60s live-tail smoother; THIS column is the reconnect truth, so a list row renders progress with
+    // no subscription open. Null until the run reports (and on every row that never reports).
+    progress: text("progress", { mode: "json" }).$type<WorkloadProgress>(),
     // The acting/triggering user (D23 — KEEP: workloads are top-level single-owned). NULLABLE: a
     // scheduler/system-triggered row has no user (the runner maps null → a synthetic "system" id). SET
     // NULL on user delete so the never-deleted audit row outlives the user.
@@ -127,6 +146,7 @@ export const workloads = sqliteTable(
     check("workloads_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("workloads_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
     check("workloads_source_check", sql.raw(`source in (${SOURCE_CHECK_LIST})`)),
+    check("workloads_lane_check", sql.raw(`lane in (${LANE_CHECK_LIST})`)),
   ],
 );
 
