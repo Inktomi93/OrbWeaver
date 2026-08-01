@@ -23,6 +23,10 @@ export interface DraftCarry {
   readonly injections?: NonNullable<DraftConfig["injections"]>[number][];
   /** #40 — the staged "turn on RPG" overlay intent (mints the lite game before the opening turn). */
   readonly startAsGame?: NonNullable<DraftConfig["startAsGame"]>;
+  /** ST "Temporary Chat" (PD-65) — born ephemeral. Rides the SEED, not the draft-config store: it is a
+   *  creation intent the launcher sets, not something the draft panel edits (the column is written only
+   *  at `startChat`). Sparse: absent ⇒ a byte-identical plain new chat. */
+  readonly temporary?: true;
 }
 
 /** A resolved draft commit: the founding cast, the sparse carry, and the `draftKey` to clear on success
@@ -57,6 +61,8 @@ export function resolveDraftCommit(handle: ChatHandle, draftSeed: DraftSeed | un
     ...(config.roomOverrides !== undefined ? { roomOverrides: config.roomOverrides } : {}),
     ...(config.injections !== undefined ? { injections: [...config.injections] } : {}),
     ...(config.startAsGame !== undefined ? { startAsGame: config.startAsGame } : {}),
+    // From the SEED, not the config: the temp-chat launcher stamps it at `startNewChat`.
+    ...(draftSeed?.temporary === true ? { temporary: true as const } : {}),
   };
   return { draftKey, characterIds, carry };
 }

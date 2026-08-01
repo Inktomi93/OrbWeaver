@@ -8,7 +8,8 @@
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DraftAnchorPersonaInput } from "../../../../../packages/client/src/features/chat/lib/draft-commit";
-import { resolveDraftAnchorPersona } from "../../../../../packages/client/src/features/chat/lib/draft-commit";
+import { resolveDraftAnchorPersona, resolveDraftCommit } from "../../../../../packages/client/src/features/chat/lib/draft-commit";
+import { landingChat } from "../../../../../packages/client/src/state/chat-handle";
 import { expect, test } from "../../../../support/fixtures";
 
 const PINNED = castId<PersonaId>("persona_pinned");
@@ -68,4 +69,27 @@ test("a stale/foreign current pointer degrades to the default seed, never to its
 
 test("no rung resolves ⇒ null (the macro atom's own 'User' floor, not a fabricated name)", () => {
   expect(resolveDraftAnchorPersona({ ...NO_SEEDS, currentPersonaId: "persona_deleted", defaultPersonaId: "persona_also_gone" })).toBeNull();
+});
+
+// ── The temp-chat carry (home-section-spec §5) ────────────────────────────────────────────────────
+// The `temporary` flag rides the SEED, not the draft-config store: it is a creation intent the launcher
+// stamps, and `startChat` is the column's only writer. What matters is that it is SPARSE — an untouched
+// draft must commit a byte-identical payload to today's plain new chat, or every existing send changes
+// shape the moment this field exists.
+
+test("a temp-chat seed carries `temporary: true` to startChat", () => {
+  const { carry } = resolveDraftCommit(landingChat(), { temporary: true });
+  expect(carry.temporary).toBe(true);
+});
+
+test("an ordinary draft carries NO `temporary` key at all — sparse, byte-identical to today", () => {
+  const plain = resolveDraftCommit(landingChat(), { characterIds: [] });
+  expect(Object.hasOwn(plain.carry, "temporary")).toBe(false);
+  // …and an absent seed behaves the same as an explicit non-temporary one.
+  expect(resolveDraftCommit(landingChat(), undefined).carry).toEqual(plain.carry);
+});
+
+test("`temporary: false` is NOT carried — only the affirmative intent crosses the wire", () => {
+  const { carry } = resolveDraftCommit(landingChat(), { temporary: false });
+  expect(Object.hasOwn(carry, "temporary")).toBe(false);
 });

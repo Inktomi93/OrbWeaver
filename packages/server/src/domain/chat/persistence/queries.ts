@@ -35,6 +35,8 @@ interface ChatRow {
   title: string | null;
   star: boolean;
   archived: boolean;
+  /** ST "Temporary Chat" (PD-65) — hidden from `listMemberChats`, swept once past the host's TTL. */
+  temporary: boolean;
   parentChatId: ChatId | null;
   forkedAt: number | null;
   anchorPersonaId: PersonaId | null;
@@ -59,6 +61,7 @@ const chatRowSelection = {
   title: chats.title,
   star: chats.star,
   archived: chats.archived,
+  temporary: chats.temporary,
   parentChatId: chats.parentChatId,
   forkedAt: chats.forkedAt,
   anchorPersonaId: chats.anchorPersonaId,

@@ -19,6 +19,7 @@ import {
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
+  chatTempChatTile,
   JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
@@ -89,6 +90,7 @@ import { ChatCastBar } from "../../../../packages/client/src/features/chat/compo
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
+import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section";
@@ -951,6 +953,22 @@ export function ChatRecentsTileStory(): ReactElement {
 
 export function ChatQuickPicksTileStory(): ReactElement {
   return <HomeTileStory tile={chatQuickPicksTile} />;
+}
+
+/** The temp-chat tile PLUS the real chats topbar header — so one CT can drive the launcher and then assert
+ *  the Temporary badge is visible on the DRAFT, before any send (the flag is creation-only). */
+export function ChatTempChatTileStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ActiveSectionProbe />
+      <div data-testid="temp-topbar">
+        <ChatsTopbarHeader />
+      </div>
+      <div style={{ height: 640, width: 720 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatTempChatTile])} />
+      </div>
+    </CtDataProviders>
+  );
 }
 
 // ── New-chat picker story (data layer — character.list stubbed at the network) ────────────────────
