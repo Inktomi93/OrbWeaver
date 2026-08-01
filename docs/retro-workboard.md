@@ -253,10 +253,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      DEAD, driver-proven) · durable progress (mid-run read proof + CT) · poison visible+retryable
      (raw-blob clone; proven-to-fail ×2) · residuals (2 were already done) · Q4 stats.reconcile
      (principal-scoped + Recompute-now button + EXEMPT row)
-   - [ ] STICKLER pass on the diff IN FLIGHT (claim/reap under concurrency, baseline squash,
-     poison leak paths, wake races, stats.reconcile auth) — merge findings on its report
-   - [ ] OWNER CALL flagged: stats.reconcile has NO throttle/in-flight guard (full rebuild-from-
-     canon, spam-clickable; bounded by caller's own corpus) — leave or add per-user guard?
+   - [x] STICKLER DONE (report 2026-08-02-workloads-stage-e.md): stage E itself SOLID — every
+     ledger claim verified; claim/reap/baseline/poison/heartbeat/wake all clean. TWO findings →
+     FIX LANE IN FLIGHT: F1 MEDIUM `scheduledAt` NEVER enforced at dispatch (pre-existing; "Run
+     at" runs immediately; lane test enshrined it — invert + starvation-ordering check) · F2 LOW
+     worker header claims an enqueue wake that doesn't exist (emit at door or correct header).
+   - [x] stats.reconcile guard: A1 assessed acceptable-as-shipped (atomic batch, own-data only,
+     button disables) AND owner ruled single-flight anyway — GUARD LANE IN FLIGHT (wait-not-cancel).
    - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
      side-eye re-pass
    Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
