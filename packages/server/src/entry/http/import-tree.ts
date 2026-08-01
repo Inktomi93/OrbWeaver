@@ -19,10 +19,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import type { StartWorkloadInput, WorkloadService } from "#domain/workloads";
+import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
 import { sniffTreeLayout } from "../import";
 

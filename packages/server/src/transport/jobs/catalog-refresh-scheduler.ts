@@ -6,11 +6,11 @@
 // Boundaries: the scheduler enters only the workloads front door — one feature, zero cross-feature
 // composition. Everything is injected at entry/ — the driver constructs nothing.
 
-import type { WorkloadStatus } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { StartWorkloadInput, WorkloadService } from "#domain/workloads";
+import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "catalog-refresh-scheduler";

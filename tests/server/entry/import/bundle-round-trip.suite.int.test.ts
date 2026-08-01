@@ -302,12 +302,12 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         const res = await importH(makeCtx(target, req));
         expect(res.status).toBe(202);
         const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
-        const row = await loadWorkload(freshDatabase, workloadId);
+        const row = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         if (row === null) {
           throw new Error("import-bundle workload row missing after start");
         }
-        await runWorkload(makeRunnerDeps(freshDatabase, fresh.runnerEnv), row, new AbortController().signal);
-        const done = await loadWorkload(freshDatabase, workloadId);
+        await runWorkload(makeRunnerDeps(freshDatabase, fresh.workloadContributions), row, new AbortController().signal);
+        const done = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         expect(done?.status).toBe("succeeded");
         return done?.result as { imported: number; skipped: number; failed: number };
       };

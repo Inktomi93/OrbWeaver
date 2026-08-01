@@ -55,6 +55,7 @@ export {
 } from "./contract/metadata";
 export type { ImpersonateStreamDelta, RequestTurnOp, TurnMessage, TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
+export type { ChatWorkloadDeps } from "./contract/workloads";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";
@@ -115,3 +116,4 @@ export { setParticipantActivePersona } from "./verbs/roster";
 // The opaque rpg-pointer WRITE op (rpg-design/05 §3.1) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer";
+export { createChatWorkloadContributions } from "./workload-contributions";

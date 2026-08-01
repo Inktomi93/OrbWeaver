@@ -14,7 +14,5 @@ export type { ImageRefAssets } from "./resolve-image-ref";
 export { resolveImageRefToUrl } from "./resolve-image-ref";
 export type { RoleClientsBinderDeps } from "./role-clients";
 export { bindRoleClientsForUser } from "./role-clients";
-export type { RunnerEnvDeps } from "./runner-env";
-export { buildWorkloadRunnerEnv } from "./runner-env";
 export type { ServicesDeps, ServicesResult } from "./services";
 export { createServices } from "./services";
