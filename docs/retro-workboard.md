@@ -89,9 +89,13 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
-**DOCS-ARCHIVE LANE IN FLIGHT** (owner-ordered 08-02): sweep docs outside core/proposed + stickler
-reports — read in full, fully-done programs move to docs/history/ with inbound refs fixed; open
-ladders stay. Merge on its table-of-verdicts report.
+~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
+13 fully-landed docs archived, 11 refs repointed, pain-points annotated in place. Lesson: check a
+report's findings AND its NEXT-list before archiving. **S2 SSE MERGED (`89b0e4c1`)** — P3F1 fixed
+all three arms (per-connection announcedFor epoch + ownership-checked goDark + eviction at
+takeover), P3F2 = bounded retry then surfaced error; 4 surgical probe-bites; 318/318 + CT 40/40 +
+@live/@smoke green. Deliberate non-fix: no server-side barrier timeout (would degrade exactly when
+load-bearing) — belt-and-braces follow-up if wanted. SSE ladder: S0-S2 DONE → S3 next.
 
 **SET-SEAMS S1 LANE IN FLIGHT** (executor, worktree): the appearance 8-way split, AppearanceForm
 deleted, save pins per §9; live drive deferred to the combined side-eye. S2-S4 SERIALIZE after it
@@ -359,6 +363,14 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   (~35 call sites; honest-shape debt from the regen threading).
 
 ### SMALLS / HYGIENE
+
+- **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** w4-my-lane S1 — `fireRpgTurnCompleted`
+  still AFTER the turnCompleted emit (`engine.ts:1238`; report carries the exact patch, option 1) ·
+  join-history ruling #8/F6 — floored fork's variable carry is a hybrid (`fork.ts:383`: clamped
+  forker's runtimeVariables diverge + pre-floor batch VALUES leak into an unreadable chat) ·
+  contracts-audit F6 — `DEFAULT_BLUR_SURFACES` (3 members, zero consumers) vs schema default `[]`
+  (two-line fix; closing it archives that whole audit) · Button wrap/multiline size variant
+  (clears ui-size-via-variant's 2 debt rows).
 
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
   (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
