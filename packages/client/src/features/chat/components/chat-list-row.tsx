@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useStarChat } from "../hooks/use-chat-row-mutations";
+import type { ChatRowPortrait } from "../lib/chat-summary-row";
 import { deriveChatTitle } from "../lib/chat-summary-row";
 import { ChatListRowMenu } from "./chat-list-row-menu";
 import { ChatSummaryRow } from "./chat-summary-row";
@@ -20,11 +21,11 @@ export interface ChatListRowProps {
   readonly selected: boolean;
   readonly onSelect: (chatId: ChatId) => void;
   readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
-  /** The row's resolved participant portrait (F7) — null keeps the initials blob. */
-  readonly portraitHash: string | null;
+  /** The row's resolved character seats (F7/D3) — 1 paints a portrait, 2+ an AvatarStack, 0 the blob. */
+  readonly portraits: readonly ChatRowPortrait[];
 }
 
-export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraitHash }: ChatListRowProps): ReactElement {
+export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits }: ChatListRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // §12.2 — the row's ONE state toggle rides the SAME `useStarChat` mutation the kebab's Star item fires
@@ -34,7 +35,7 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraitH
     <ChatSummaryRow
       chat={chat}
       onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, star: next })}
-      portraitHash={portraitHash}
+      portraits={portraits}
       // `group` roots the row so the kebab's + the star's hover/focus-within reveal (P3) fires on row hover
       // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / ROW_REVEAL.
       className="group"

@@ -59,6 +59,8 @@ const NOT_HERS = chat({ id: "chat_ct_other", title: "Sera alone", seats: [SERA],
 const CHATS = [HER_NEWEST, NOT_HERS, HER_DEPARTED];
 
 const ROW_TITLE = '[data-slot="list-row-title"]';
+const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
+const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 
 function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly Record<string, unknown>[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
@@ -92,6 +94,16 @@ test("a selection SWAPS the same slot to her chats — the rows are exactly the 
   await expect(component.locator(ROW_TITLE)).toHaveText(["Winter court", "The Gilded Ember"]);
   // The picker is GONE — one slot, two roles, not two lists stacked.
   await expect(component.getByRole("button", { name: "Sera", exact: true })).toHaveCount(0);
+});
+
+test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stacks, a 1:1 does not", async ({ mount, page }) => {
+  await routeAll(page, CHATS);
+  const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
+  await expect(component.getByText("Winter court")).toBeVisible();
+
+  // One row anatomy, both surfaces (no fork): the 2-seat room she left stacks, her 1:1 keeps one portrait.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Gilded Ember" }).locator(AVATAR_STACK)).toBeVisible();
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "Winter court" }).locator(AVATAR_STACK)).toHaveCount(0);
 });
 
 test("the band swaps with the pane (D9): back + CHATS · <name> + the New-chat primary", async ({ mount, page }) => {

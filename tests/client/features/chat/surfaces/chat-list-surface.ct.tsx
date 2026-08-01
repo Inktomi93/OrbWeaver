@@ -39,14 +39,25 @@ const GAME = makeChatSummary({
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", star: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
 
+// A 3-seat room — D3: it must lead with an AvatarStack, not borrow one member's portrait.
+const GROUP = makeChatSummary({
+  id: "chat_group",
+  title: "The Crimson Court",
+  participantNames: ["Aria Nightshade", "Sera", "Niko"],
+  participantCharacterIds: ["char_aria", "char_sera", "char_niko"],
+});
+
 // The character library the portrait map resolves against: Aria has a face, the faceless one doesn't.
 const CHARACTERS = {
   items: [
     { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
     { id: "char_faceless", name: "Faceless", avatarHash: null },
+    { id: "char_sera", name: "Sera", avatarHash: null },
+    { id: "char_niko", name: "Niko", avatarHash: null },
   ],
 };
 const AVATAR_IMAGE = '[data-slot="avatar-image"]';
+const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const SUBTITLE = '[data-slot="list-row-subtitle"]';
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
@@ -148,6 +159,25 @@ test("a chat with a portrait-owning participant renders the REAL portrait; the o
   await expect(images).toHaveAttribute("src", ARIA_BLOB_RE);
   // …and the participant-less row still renders (its avatar is the hue-seeded initials fallback, no <img>).
   await expect(page.getByText("Untitled chat")).toBeVisible();
+});
+
+test("D3 a MULTI-SEAT room leads with an AvatarStack (shared, not one member's face); a 1:1 keeps its portrait", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
+  await routeTrpc(page, {
+    "chat.listChats": [GROUP, ADVENTURE],
+    "character.list": CHARACTERS,
+  });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+
+  // Exactly ONE row stacks — the 3-seat room — and the stack names its cast for a screen reader.
+  const stack = component.locator(AVATAR_STACK);
+  await expect(stack).toHaveCount(1);
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "The Crimson Court" }).locator(AVATAR_STACK)).toBeVisible();
+  await expect(stack.getByLabel("Aria Nightshade")).toBeVisible();
+  // The single-seat row is untouched: one plain avatar, no stack.
+  await expect(component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).locator(AVATAR_STACK)).toHaveCount(0);
 });
 
 test("a chat whose participants own no portrait falls back to initials (no broken image element)", async ({ mount, page }) => {

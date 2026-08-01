@@ -3,9 +3,9 @@
 // count + New action live in the LIST chrome band now (`chat-list-header.tsx`, north-star §4 N2), not
 // here. chat.listChats
 // is a plain unpaged array, so this is a bounded useSuspenseQuery, not createCollectionSurface. Search
-// is a client-side useDeferredValue filter — there is no server-side search param. Portraits (F7) resolve
-// HERE, not in the row: one non-blocking `character.list` read builds a characterId→avatarHash map the rows
-// index with their `participantCharacterIds`. Reads its OWN
+// is a client-side useDeferredValue filter — there is no server-side search param. Portraits (F7/D3) resolve
+// HERE, not in the row: one non-blocking `character.list` read builds a characterId→seat map the rows index
+// with their `participantCharacterIds` (one seat = a portrait, two or more = an AvatarStack). Reads its OWN
 // selection (`useActiveChatId`) so the chats-section definition composing it stays a pure data object
 // (the character/preset/world-info library-surface precedent); writes the choice out via
 // onSelect/onNewChat/onDeletedChat.
@@ -27,7 +27,7 @@ import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
-import { chatPortraitHash } from "../lib/chat-summary-row";
+import { chatPortraits } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 
 const SKELETON_ROW_COUNT = 5;
@@ -100,7 +100,7 @@ interface ChatListBodyProps {
 function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
-  const avatarHashById = useChatPortraitMap();
+  const characterById = useChatPortraitMap();
 
   if (chats.length === 0) {
     return (
@@ -159,7 +159,7 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
           key={chat.id}
           onDeletedChat={onDeletedChat}
           onSelect={onSelect}
-          portraitHash={chatPortraitHash(chat.participantCharacterIds, avatarHashById)}
+          portraits={chatPortraits(chat.participantCharacterIds, characterById)}
           selected={chat.id === activeChatId}
         />
       ))}

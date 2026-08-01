@@ -25,7 +25,7 @@ import type { CharacterChatsProjectionView } from "#lib";
 import { chatsWithCharacter } from "#lib";
 import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
-import { chatPortraitHash } from "../lib/chat-summary-row";
+import { chatPortraits } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 import { ChatListRow } from "./chat-list-row";
 
@@ -54,7 +54,7 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
   // The SAME cache entry the chats pane reads — usually already warm here, because the character library
   // beside this pane reads it for its resume map.
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
-  const avatarHashById = useChatPortraitMap();
+  const characterById = useChatPortraitMap();
   const activeChatId = useActiveChatId();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
@@ -105,7 +105,7 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
                 selectChatFromList(chatId);
                 setActiveSection("chats");
               }}
-              portraitHash={chatPortraitHash(chat.participantCharacterIds, avatarHashById)}
+              portraits={chatPortraits(chat.participantCharacterIds, characterById)}
               selected={chat.id === activeChatId}
             />
           ))}
