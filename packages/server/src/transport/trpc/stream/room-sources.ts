@@ -16,6 +16,7 @@
 import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RoomSourceDef } from "./room-source";
+import { chatRoomSource } from "./sources/chat";
 import { rpgRoomSource } from "./sources/rpg";
 import { userRoomSource } from "./sources/user";
 
@@ -30,6 +31,9 @@ const NO_FRAMES: AsyncIterable<StreamDataFrame> = {
  *  that does not exist. Deleted by the commit that moves the generator body in. */
 function refusedUntilFolded<C extends StreamChannel>(channel: C, stage: string): RoomSourceDef<C> {
   return {
+    // Unreachable either way (it refuses at attach), but stated honestly per channel so the table stays
+    // true when the stage lands: `notifications` has a durable inbox, `automation` is ephemeral by design.
+    resumable: channel === "notifications",
     authorizeAttach: () => Promise.reject(new DomainNotFoundError("stream room", `${channel} (folds at ${stage})`)),
     run: () => NO_FRAMES,
   };
@@ -38,8 +42,8 @@ function refusedUntilFolded<C extends StreamChannel>(channel: C, stage: string):
 export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,
   rpg: rpgRoomSource,
+  chat: chatRoomSource,
   notifications: refusedUntilFolded("notifications", "S3"),
-  chat: refusedUntilFolded("chat", "S2"),
   automation: refusedUntilFolded("automation", "S4"),
 };
 

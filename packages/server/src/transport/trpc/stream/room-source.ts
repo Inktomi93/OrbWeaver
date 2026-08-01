@@ -23,6 +23,17 @@ export interface RoomArgs<C extends StreamChannel> {
 }
 
 export interface RoomSourceDef<C extends StreamChannel> {
+  /**
+   * Can this room RESUME — i.e. does its channel have a durable log a pump can replay from a cursor? It is
+   * the same property that makes the queue's `lag` overflow policy legal (a shed is refillable only if the
+   * rows can be re-read), and a contract test pins the two tables against each other.
+   *
+   * It gates the RECONNECT BARRIER (`socket.ts`): a resumable room does not resume delivery on a reconnect
+   * until the client announces where IT got to, because the server's cursor counts frames handed to the
+   * previous socket's writer — ahead of what the client received. A live-only room has no cursor to be wrong
+   * about and must not wait (its client heals with a blanket invalidate).
+   */
+  readonly resumable: boolean;
   /** Runs INSIDE `stream.attach`. THROW to refuse (a `DomainNotFoundError` → the leak-free NOT_FOUND);
    *  return to accept. "Refuse at attach" vs "accept-and-withhold" is preserved PER CHANNEL — that asymmetry
    *  is deliberate (a chat/rpg room is legitimately attachable before it exists; an automation room is not). */

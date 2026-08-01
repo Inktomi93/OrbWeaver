@@ -15,6 +15,8 @@ import { subscribeUserEvents } from "../../user-events-bus";
 import type { RoomSourceDef } from "../room-source";
 
 export const userRoomSource: RoomSourceDef<"user"> = {
+  // LIVE-ONLY: no durable log, no cursor — the client's blanket gap-heal is this room's recovery.
+  resumable: false,
   authorizeAttach: () => Promise.resolve(),
   async *run({ principal, signal }): AsyncGenerator<StreamDataFrame> {
     for await (const event of subscribeUserEvents(principal.userId, signal)) {

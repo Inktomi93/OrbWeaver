@@ -1,53 +1,15 @@
 // transport/trpc/routers/chat — the chat surface (PD-46). Thin: validate → `ctx.services.chat.<verb>`.
-// `streamMessages` is the per-chat SSE subscription (core/Tier-4-Transport.md §5 — the load-bearing
-// stream shape): attach the live listener FIRST (the transport `chat-events-bus` buffers from that
-// instant), replay the durable `chat_events` log on reconnect (`lastEventId` → the member-gated
-// `chat.replayChatEvents`), then drain live — every yield `tracked(String(seq), event)` (uniform
-// envelopes; the seq IS the durable resume cursor, so a reconnect never re-plays delivered events).
 //
-// The DRAFT-TOLERANT membership gate WITHHOLDS-not-throws (Tier-4 §5): a NOT_FOUND from the member-gated
-// probe (`chatEventBounds`) means "no such chat yet / not (any longer) a member" — the stream yields
-// nothing and stays open (a client may subscribe before `chat.start` commits), and the gate runs on
-// EVERY live yield so a kicked member's stream stops within the kick tx (the membership chokepoint
-// covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
-//
-// THE D16 JOIN-HISTORY CLAMP APPLIES TO BOTH HALVES. The durable replay is clamped inside the domain
-// (`chat.replayChatEvents` → `substrate/auth::isBelowHistoryFloor`); the LIVE half is clamped HERE, because
-// the per-chat fan-out is transport state keyed by chatId ONLY — every subscriber of a room sees every
-// event published to it. One emit is BOTH logged and fanned out under ONE `seq`, so the two halves must
-// return the SAME verdict for the same row: otherwise a post-join emit carrying a PRE-join `MessageView`
-// (a host editing / re-voicing an old slot) leaks live to a clamped member while the identical durable row
-// is withheld on their reconnect. The transport does not own the policy — it applies the domain's ONE
-// verdict to the floor `chatEventBounds` handed back for THIS subscriber (their own participant row, never
-// client input). A withheld row does NOT advance the resume cursor (the replay path's rule): it leaves a
-// `seq` gap, so a reconnect neither stalls nor re-offers it. An unclamped caller (`full` / the host / any
-// born-here seat) has floor 0 and the verdict short-circuits — zero per-yield cost. `delta` is clamped
-// PER-ROW like everything else (on the `slotSeq` its emit site stamps), NOT blanket-withheld: a clamped
-// member streams a post-join turn's tokens live and is denied a pre-join slot's.
-//
-// THE §3.6 HIDDEN-SPAN SCRUB IS NOT THIS FILE'S STATE. A `delta`'s member bytes are stamped at the PRODUCER
-// (`domain/chat/bus`) onto `memberText`; this generator only forwards them. It used to own a per-`slotSeq`
-// scrubber map for the subscriber's lifetime, and that was a leak: a subscription that attached — or resumed —
-// while a `<lie …/>` open was still in flight allocated a scrubber that had never seen the opener, found no
-// `<` in the continuation, and forwarded the secret's tail. Any per-subscription mid-stream state
-// reintroduces it; the verdict must stay a stateless read of what the log holds.
-//
-// SUBSCRIPTION-SIDE SYNTHESES (PD-134/PD-135). Two `ChatBusEvent` members are synthesized HERE, per
-// subscription, not published on the bus (no other subscriber sees them) and never logged to `chat_events`:
-//   • `chatOpened` — yielded once at attach after the membership probe admits the subscriber (the ST
-//     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates). PD-134.
-//   • `historyTruncated` — yielded on resume when the cursor predates the retained window (events after it
-//     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first. PD-135.
-// THE SYNTHETIC-ENVELOPE RULE: a synthetic carries the CURRENT resume cursor as its tracked id (never a
-// fresh/durable `seq`), so it does NOT advance or fake `lastEventId` — a reconnect re-sends that same id
-// and replays from the exact same durable point. Only real `chat_events` rows advance the cursor
-// (`resumeId advances only on durable cursor-carrying events`, Tier-4 §5 Esoteric #5). The truncation
-// predicate reads the retained window's floor off the SAME member-gated `chatEventBounds` probe the
-// membership gate already runs (`minSeq` = earliest retained row) — no extra persistence read: an EMPTY
-// replay is NOT the signal (a caught-up cursor also replays empty); truncation is `resumeSeq < minSeq - 1`.
+// THE ROOM STREAM LIVES ELSEWHERE (SSE-1 S2). The per-chat SSE subscription `streamMessages` is GONE: the
+// chat bus is a ROOM on the tab's ONE multiplexed socket, and its generator — the live-first/replay-second
+// body, the per-yield membership + D16 clamp + §3.6 member strip, and the `chatOpened`/`historyTruncated`
+// attach syntheses — moved verbatim to `transport/trpc/stream/sources/chat.ts` (read its header for the
+// stream law). This router keeps exactly ONE subscription: `impersonateStream`, which is permanently exempt
+// from the fold (request-scoped, user-gesture-initiated, at most one at a time — its abort semantics ARE the
+// socket teardown; docs/design/sse-multiplex-spec.md §14 decision 2, enforced by the
+// `single-stream-transport` gate).
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
-import type { ChatBusEvent } from "@orb/contracts/chat";
 import {
   chatInjectionInputSchema,
   groupConfigSchema,
@@ -58,22 +20,18 @@ import {
   seatKnobsSchema,
 } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
-import type { Principal } from "@orb/contracts/identity";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgStatProfileSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
-import type { ChatService, ImpersonateStreamDelta } from "#domain/chat";
-import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, toolRecurseLimitSchema } from "#domain/chat";
-import { notifyChatOpened } from "../automation-chat-open-tap";
-import { subscribeChatEvents } from "../chat-events-bus";
+import type { ImpersonateStreamDelta } from "#domain/chat";
+import { toolRecurseLimitSchema } from "#domain/chat";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
 
@@ -371,12 +329,6 @@ const deleteChatInjectionSchema = z.object({
   injectionId: brandedId<ChatInjectionId>(),
 });
 
-const streamSchema = z.object({
-  chatId: brandedId<ChatId>(),
-  // @orb-gate-ignore no-raw-id lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
-  lastEventId: z.string().nullish(),
-});
-
 // The CHAT-ROW lifecycle cluster (J5 chat-list — the LIST-panel row kebab: rename/star/archive/delete).
 // `updateTitle`/`star`/`archive`/`delete` (domain/chat/verbs/chat-lifecycle.ts) were ALL already fully
 // implemented — HOST-only via `requireHost` (substrate/auth/matrix.ts), DB-backed, bus-emitting
@@ -607,19 +559,6 @@ export const chatRouter = t.router({
       size: input.size,
     }),
   ),
-
-  // The per-chat room-public event stream (PD-46's stream half — see the file header for the shape).
-  streamMessages: authedProcedure.input(streamSchema).subscription(({ ctx, input, signal }) =>
-    withSubscriptionErrors(
-      chatEventStream({
-        service: ctx.services.chat,
-        principal: ctx.auth,
-        chatId: input.chatId,
-        lastEventId: input.lastEventId ?? null,
-        signal,
-      }),
-    ),
-  ),
 });
 
 // Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape
@@ -632,141 +571,4 @@ async function* trackedImpersonationDeltas(source: AsyncIterable<ImpersonateStre
     yield tracked(String(i), delta);
     i += 1;
   }
-}
-
-// The live-first / replay-second per-chat event generator (dedup by monotonic durable `seq`).
-async function* chatEventStream(args: {
-  readonly service: ChatService;
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly lastEventId: string | null;
-  readonly signal: AbortSignal | undefined;
-}): AsyncGenerator<TrackedEnvelope<ChatBusEvent>> {
-  const { service, principal, chatId, lastEventId, signal } = args;
-  const resumeSeq = parseResumeSeq(lastEventId);
-  // Attach the live listener FIRST (`on()` buffers from this point) so the replay→live gap loses nothing.
-  const live = subscribeChatEvents(chatId, signal ?? new AbortController().signal);
-
-  // The attach probe: membership + the retained-window bounds in ONE member-gated read. `null` = the
-  // withhold-not-throw NOT_FOUND (no chat yet / not a member) — synthesize nothing, replay nothing.
-  const bounds = await memberBounds(service, principal, chatId);
-  let maxSeq = resumeSeq ?? 0;
-  if (bounds !== null) {
-    for await (const env of attachSynthesesAndReplay({ service, principal, chatId, resumeSeq, bounds })) {
-      yield env;
-      // Track the highest durable seq for the live-loop dedup; synthetics carry the cursor id, so they
-      // never raise it (only real replay rows do).
-      maxSeq = Math.max(maxSeq, Number(env[0]));
-    }
-  }
-
-  for await (const entry of live) {
-    // Dedup the replay/live overlap (and any out-of-order delivery) by the monotonic `seq`.
-    if (entry.seq <= maxSeq) {
-      continue;
-    }
-    // The per-yield membership gate → D16 clamp → §3.6 member projection, resolved as ONE verdict. `null` =
-    // withhold WITHOUT advancing the cursor (kicked / pre-start / clamped-below-floor / held-delta): a `seq`
-    // gap is correct — a reconnect resumes from the last delivered event and the durable replay re-applies the
-    // identical verdict to the gap, so the stream never stalls and never re-offers a withheld row.
-    const projected = await resolveLiveYield({ service, principal, chatId, event: entry.event });
-    if (projected === null) {
-      continue;
-    }
-    yield tracked(String(entry.seq), projected);
-    maxSeq = entry.seq;
-  }
-}
-
-/** One live event → the bytes THIS subscriber may see, or `null` to withhold. Runs the per-yield membership
- *  gate (a kicked member stops within the kick tx), the D16 join-history clamp, and the §3.6 member projection
- *  (host: verbatim; member: at-commit `view` strip + the `delta`'s producer-stamped `memberText`) — the durable
- *  replay's identical verdict, applied live. The transport OWNS no policy and, since the mid-stream scrub state
- *  is the PRODUCER's (`domain/chat/bus`), it owns no per-subscription state either: a subscription that attaches
- *  or reconnects while a `<lie …/>` open is in flight reads the same stamped bytes as one that watched the whole
- *  slot. It applies the domain's ONE verdict. */
-async function resolveLiveYield(args: {
-  readonly service: ChatService;
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly event: ChatBusEvent;
-}): Promise<ChatBusEvent | null> {
-  const { service, principal, chatId, event } = args;
-  const gate = await memberBounds(service, principal, chatId);
-  if (gate === null || isBelowHistoryFloor(event, gate.historyFloorSeq)) {
-    return null;
-  }
-  if (gate.viewerIsHost) {
-    return event;
-  }
-  // Member: a `delta` forwards only its stamped member bytes (unstamped ⇒ withheld, fail-closed); any other
-  // event at-commit-strips its `view`. P3 (§3.6): `gate.reasoningHostOnly` (the deception-active verdict
-  // resolved at the same per-yield probe) withholds the reasoning channel for a member — reasoning deltas +
-  // `reasoningStreamDone` drop to `null`, `view.reasoning` is nulled.
-  if (event.type === "delta") {
-    return scrubDeltaEventForMember(event, gate.reasoningHostOnly);
-  }
-  return stripChatEventForMember(event, gate.reasoningHostOnly);
-}
-
-/** The attach-time syntheses + reconnect replay (member already admitted). `chatOpened` fires once at
- *  attach; `historyTruncated` fires (before the replay) only when the resume cursor predates the retained
- *  window; the durable replay drains the rows after the cursor. Synthetics carry the CURRENT cursor as
- *  their tracked id so they never advance `lastEventId` (the file-header synthetic-envelope rule). */
-async function* attachSynthesesAndReplay(args: {
-  readonly service: ChatService;
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly resumeSeq: number | null;
-  readonly bounds: ChatEventAttach;
-}): AsyncGenerator<TrackedEnvelope<ChatBusEvent>> {
-  const { service, principal, chatId, resumeSeq, bounds } = args;
-  const cursorId = String(resumeSeq ?? 0);
-  // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates). The
-  // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
-  yield tracked(cursorId, { type: "chatOpened", chatId });
-  notifyChatOpened(chatId, principal.userId);
-
-  // A fresh subscribe (resumeSeq null) drains live only — no replay, no truncation check.
-  if (resumeSeq === null) {
-    return;
-  }
-  // `historyTruncated` (PD-135) — the cursor predates the retained window (`minSeq` = earliest retained
-  // row): events after it were dropped. Empty log (minSeq null) ⇒ no window ⇒ no gap; a caught-up cursor
-  // replays empty but is NOT truncated. Yielded BEFORE the replay (same non-advancing id) so the client
-  // refetches first.
-  if (bounds.minSeq !== null && resumeSeq < bounds.minSeq - 1) {
-    yield tracked(cursorId, { type: "historyTruncated", chatId });
-  }
-  for (const entry of await service.replayChatEvents({ principal, chatId, afterSeq: resumeSeq })) {
-    yield tracked(String(entry.seq), entry.event);
-  }
-}
-
-// The withhold-not-throw membership probe, carrying the retained-window bounds + the caller's D16 floor:
-// NOT_FOUND (no chat / not a member — the leak-free collapse) → `null`; anything else is a real fault and
-// propagates. The returned `{minSeq, maxSeq}` backs the `historyTruncated` predicate (no second read for the
-// truncation check); `historyFloorSeq` backs the per-yield join-history clamp.
-async function memberBounds(service: ChatService, principal: Principal, chatId: ChatId): Promise<ChatEventAttach | null> {
-  try {
-    return await service.chatEventBounds({ principal, chatId });
-  } catch (err) {
-    if (err instanceof DomainNotFoundError) {
-      return null;
-    }
-    throw err;
-  }
-}
-
-/** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new
- *  front-door export; the shape is `{ minSeq, maxSeq, historyFloorSeq }`). */
-type ChatEventAttach = Awaited<ReturnType<ChatService["chatEventBounds"]>>;
-
-// A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id).
-function parseResumeSeq(lastEventId: string | null): number | null {
-  if (lastEventId === null) {
-    return null;
-  }
-  const parsed = Number(lastEventId);
-  return Number.isFinite(parsed) ? parsed : null;
 }

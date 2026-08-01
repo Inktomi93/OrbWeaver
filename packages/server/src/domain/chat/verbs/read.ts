@@ -1065,7 +1065,7 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
 }
 
 /** `chatEventBounds` — the durable bus-log cursor bounds + the caller's own D16 read floor. Also the SSE
- *  attach / per-yield membership gate: the `streamMessages` generator calls this before each live yield so a
+ *  attach / per-yield membership gate: the chat room's pump calls this before each live yield so a
  *  kicked member's stream stops within the kick tx.
  *
  *  D16: it hands back `historyFloorSeq` because the LIVE fan-out needs the same floor the durable replay

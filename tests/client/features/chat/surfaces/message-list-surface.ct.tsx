@@ -1,5 +1,6 @@
 // CT: the keystone surface end-to-end. Drives the PRODUCTION path — listMessages read (routeTrpc) +
-// the live room stream (routeChatStream fulfills a real tRPC SSE body) → useChatBus → applyChatBusEvent
+// the live room stream (routeOrbSocket fulfills a real tRPC SSE body of `chat` FRAMES) → useOrbSocket →
+// the room registry → useChatBus → applyChatBusEvent
 // → the chat-stream store → the invalidation refetch. Asserts: canon renders; a send turn streams a
 // ghost then swaps to the canonical row after turnCompleted refetches listMessages; and a draft handle
 // (no server id) shows the empty state without ever hitting the server (skipToken).
@@ -18,12 +19,12 @@
 // it remains.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { StreamFrame } from "@orb/contracts/stream";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import type { ScriptedStreamEntry } from "../../../../support/ct/route-trpc-subscription";
-import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
 import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
@@ -83,6 +84,16 @@ const ROSTER_STUB = {
   }),
 };
 
+/** Script a `chat`-room frame sequence out of bus events: each event takes the next durable `seq` (1…N),
+ *  exactly as the room source stamps a durable row. An attach SYNTHETIC (`chatOpened`/`historyTruncated`)
+ *  carries an explicit NON-ADVANCING cursor seq instead — see `MARK_THEN_REOPEN`. */
+function chatFrames(events: readonly ChatBusEvent[]): StreamFrame[] {
+  return events.map((event, i) => ({ channel: "chat", chatId: CHAT_ID, seq: i + 1, event }) as const);
+}
+
+/** The room this surface joins — every scripted body waits for its attach before it is served. */
+const CHAT_ROOM = { channel: "chat", chatId: CHAT_ID } as const;
+
 // The scripted turn: start → two text deltas → complete. `targetMessageId: null` (a fresh SEND) → the
 // ghost APPENDS at the tail. Contrast `SWIPE_HEAD` below, where a non-null `targetMessageId` on a `swipe`
 // intent makes the ghost REPLACE its target message in place (one row, no appended second row).
@@ -111,12 +122,12 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
     "chat.listMessages": () => makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeChatStream(page, { events: TURN });
+  await routeOrbSocket(page, { frames: chatFrames(TURN), awaitAttaches: 1 });
 
   // Deterministic-race gate (was the flake under full-suite parallelism): hold the EventSource
   // response — hence the whole scripted turn — until the INITIAL listMessages fetch has resolved
   // and rendered. Registered last, so it runs FIRST per request (Playwright routes are LIFO) and
-  // `route.fallback()`s everything through to routeChatStream/routeTrpc unchanged.
+  // `route.fallback()`s everything through to routeOrbSocket/routeTrpc unchanged.
   //
   // Why this is needed: `turnCompleted` synchronously flips the chat-stream store to "completed"
   // (chat-stream.ts completeTurn), which drops the ghost row on the very next render — independent
@@ -181,7 +192,7 @@ test("pending phase (turnStarted, no deltas yet): the typing dots render with RE
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeChatStream(page, { events: TURN_START_ONLY });
+  await routeOrbSocket(page, { frames: chatFrames(TURN_START_ONLY), awaitAttaches: 1 });
 
   const component = await mount(<MessageListSurfaceStory />);
 
@@ -237,7 +248,7 @@ test("a swipe reroll streams the new variant IN PLACE — one row, the committed
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeChatStream(page, { events: SWIPE_HEAD });
+  await routeOrbSocket(page, { frames: chatFrames(SWIPE_HEAD), awaitAttaches: 1 });
 
   const component = await mount(<MessageListSurfaceStory />);
 
@@ -315,7 +326,7 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeChatStream(page, { events: HEAD_DELTAS });
+  await routeOrbSocket(page, { frames: chatFrames(HEAD_DELTAS), awaitAttaches: 1 });
 
   const component = await mount(<MessageListStoppingStory />);
 
@@ -331,70 +342,70 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
 
 // Bug 1 regression — first-turn streaming race (use-chat-bus.ts replay-cursor seed). A DRAFT surface whose
 // handle flips draft→committed within ONE mount (the real first-send shape; the stable session key means
-// no remount). The just-created chat's subscription must carry `lastEventId:"0"` so the server replays
-// this chat's durable head deltas that raced past the fresh attach.
-test("a just-created chat (draft→committed) seeds lastEventId '0' and streams the head deltas", async ({ mount, page }) => {
+// no remount). The just-created chat's room must attach with `sinceSeq: 0` so the server replays this
+// chat's durable head deltas that raced past the fresh attach.
+test("a just-created chat (draft→committed) attaches its room with sinceSeq 0 and streams the head deltas", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, { ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
-  const stream = await routeChatStream(page, { events: HEAD_DELTAS });
+  const socket = await routeOrbSocket(page, { frames: chatFrames(HEAD_DELTAS), awaitAttaches: 1 });
 
   const component = await mount(<MessageListReplaySeedStory />);
 
-  // Draft: the discriminant gates OUT the read/subscription (skipToken — no committed id).
+  // Draft: the discriminant gates OUT the read/room (no committed id — `useBusRoom(null)`).
   await expect(component.getByText("No messages yet.")).toBeVisible();
 
-  // First send promotes the draft → the surface mounts the SSE subscription for the new chat.
+  // First send promotes the draft → the surface joins the chat room for the new chat.
   await component.getByTestId("commit-draft").click();
 
-  // The scripted head deltas animate the ghost (recovered because the subscription seeded the cursor)...
+  // The scripted head deltas animate the ghost (recovered because the attach requested the replay)...
   await expect(component.getByText("Hello world")).toBeVisible();
-  // ...and the committed subscription carried the replay cursor (bounded to THIS chat's baseline).
-  await expect.poll(() => stream.lastInput(), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, lastEventId: "0" });
+  // ...and that attach carried the replay request, bounded to THIS chat's baseline.
+  await expect.poll(() => socket.attachRequests(), { intervals: [20, 50, 100] }).toContainEqual({ ref: CHAT_ROOM, sinceSeq: 0 });
 });
 
-// The complement: an EXISTING chat opened directly subscribes with NO cursor (never re-replays a finished
-// turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes).
-test("an existing committed chat subscribes with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
+// The complement: an EXISTING chat opened directly attaches with NO replay request (never re-replays a
+// finished turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes) —
+// and the whole tab holds exactly ONE socket, which is the multiplex's own claim.
+test("an existing committed chat attaches its room with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
-  const stream = await routeChatStream(page, { events: [] });
+  const socket = await routeOrbSocket(page, { frames: [] });
 
   const component = await mount(<MessageListSurfaceStory />); // committed=true (default)
 
   await expect(component.getByText("Ping?")).toBeVisible();
-  await expect.poll(() => stream.count(), { intervals: [20, 50, 100] }).toBe(1);
-
-  const input = stream.lastInput() as { chatId: string; lastEventId?: unknown };
-  expect(input.chatId).toBe(CHAT_ID);
-  expect(input.lastEventId).toBeUndefined();
+  await expect.poll(() => socket.attachRequests(), { intervals: [20, 50, 100] }).toContainEqual({ ref: CHAT_ROOM, sinceSeq: null });
+  // ONE EventSource for the tab, no matter how many rooms it carries.
+  expect(socket.connects()).toBe(1);
 });
 
 // REOPEN-CATCH-UP regression (the seq-guard blast-radius fix). `chatOpened`/`historyTruncated` are
-// attach-SYNTHESIZED signals stamped with the NON-advancing resume cursor as their tracked id (a numeric
-// `String(resumeSeq ?? 0)`), and their per-attach re-fire is the SOLE reopen invalidate (staleTime is
+// attach-SYNTHESIZED signals stamped with the NON-advancing resume cursor as their frame `seq` (a numeric
+// `cursor ?? 0`), and their per-attach re-fire is the SOLE reopen invalidate (staleTime is
 // Infinity — the SSE bus is the only freshness path). The monotonic seq guard must NOT run them through the
-// high-water mark: a naive guard would drop `chatOpened("0")` once the chat's durable mark had climbed in an
-// earlier session, swallowing the reopen `chat.getChat` refetch → a stale surface until some new live event.
-// This drives the real path (SSE → useChatBus → seq guard → applyChatBusEvent → invalidate): non-invalidating
-// durable events (turnStarted + deltas, ids 1..3) climb the mark, then a trailing `chatOpened` stamped id "0"
-// — the SOLE getChat invalidator here — must STILL fetch `chat.getChat` a second time (it is exempt by TYPE).
-const MARK_THEN_REOPEN: ScriptedStreamEntry[] = [
-  ...HEAD_DELTAS, // turnStarted + two deltas (ids 1..3) — climb the mark, invalidate nothing.
-  // The reopen re-fire: a synthesized attach signal at the NON-advancing cursor id "0" (mark is now 3).
-  { event: { type: "chatOpened", chatId: CHAT_ID }, id: "0" },
+// high-water mark: a naive guard would drop `chatOpened(seq 0)` once the chat's durable mark had climbed in
+// an earlier session, swallowing the reopen `chat.getChat` refetch → a stale surface until some new live
+// event. This drives the real path (SSE → the room registry → useChatBus → seq guard → applyChatBusEvent →
+// invalidate): non-invalidating durable events (turnStarted + deltas, seqs 1..3) climb the mark, then a
+// trailing `chatOpened` stamped seq 0 — the SOLE getChat invalidator here — must STILL fetch `chat.getChat`
+// a second time (it is exempt by TYPE).
+const MARK_THEN_REOPEN: StreamFrame[] = [
+  ...chatFrames(HEAD_DELTAS), // turnStarted + two deltas (seqs 1..3) — climb the mark, invalidate nothing.
+  // The reopen re-fire: a synthesized attach signal at the NON-advancing cursor seq 0 (mark is now 3).
+  { channel: "chat", chatId: CHAT_ID, seq: 0, event: { type: "chatOpened", chatId: CHAT_ID } },
 ];
 
-test("a chatOpened at a non-advancing cursor id STILL invalidates on reopen (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
+test("a chatOpened at a non-advancing cursor seq STILL invalidates on reopen (the seq guard exempts synthetics by type)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const trpc = await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
     ...ROSTER_STUB,
   });
-  await routeChatStream(page, { events: MARK_THEN_REOPEN });
+  await routeOrbSocket(page, { frames: MARK_THEN_REOPEN, awaitAttaches: 1 });
 
   // Deterministic-race gate (same class as the first test above): hold the EventSource response — hence the
   // whole scripted burst, INCLUDING the trailing `chatOpened("0")` — until the surface's initial mount reads
@@ -469,7 +480,7 @@ test("the divider carries the memory fact + a peek that reveals the compaction s
     ...COMPACTED_PREVIEW_FIT,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
   });
-  await routeChatStream(page, { events: [] });
+  await routeOrbSocket(page, { frames: [] });
 
   const component = await mount(<MessageListSurfaceStory />); // committed=true
 
@@ -509,7 +520,7 @@ test("no memory fact when previewContextFit reports no covering summary (plain c
     }),
     "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
   });
-  await routeChatStream(page, { events: [] });
+  await routeOrbSocket(page, { frames: [] });
 
   const component = await mount(<MessageListSurfaceStory />);
 

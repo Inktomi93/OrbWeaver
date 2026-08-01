@@ -6,7 +6,7 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 import type { ChatBusDeps } from "@orb/client/data";
-import { createInvalidation, QueryBoundary, QueryErrorState, useTRPC } from "@orb/client/data";
+import { createInvalidation, QueryBoundary, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
@@ -83,7 +83,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
@@ -610,6 +610,14 @@ export function SwipeStripStory({ message }: SwipeStripStoryProps = {}): ReactEl
 
 // ── Surface story (data layer + live stream) ────────────────────────────────────────────────────
 
+/** The app-root shape: ONE multiplexed socket, above every room hook (SSE-1). The chat bus JOINS the
+ *  `chat` room on it — since S2 there is no per-chat subscription — so a story that drives the scripted
+ *  stream (`routeOrbSocket`) has to mount the socket for the room to be live at all. */
+function SocketHost({ children }: { readonly children: ReactNode }): ReactElement {
+  useOrbSocket();
+  return <>{children}</>;
+}
+
 interface SurfaceHarnessProps {
   readonly committed: boolean;
 }
@@ -639,7 +647,9 @@ export interface MessageListSurfaceStoryProps {
 export function MessageListSurfaceStory({ committed = true }: MessageListSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
-      <SurfaceHarness committed={committed} />
+      <SocketHost>
+        <SurfaceHarness committed={committed} />
+      </SocketHost>
     </CtDataProviders>
   );
 }
@@ -673,7 +683,9 @@ function ReplaySeedHarness(): ReactElement {
 export function MessageListReplaySeedStory(): ReactElement {
   return (
     <CtDataProviders>
-      <ReplaySeedHarness />
+      <SocketHost>
+        <ReplaySeedHarness />
+      </SocketHost>
     </CtDataProviders>
   );
 }
@@ -704,7 +716,9 @@ function StoppingHarness(): ReactElement {
 export function MessageListStoppingStory(): ReactElement {
   return (
     <CtDataProviders>
-      <StoppingHarness />
+      <SocketHost>
+        <StoppingHarness />
+      </SocketHost>
     </CtDataProviders>
   );
 }
@@ -1113,7 +1127,9 @@ export interface ChatRoomSurfaceStoryProps {
 export function ChatRoomSurfaceStory({ committed = false }: ChatRoomSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
-      <ChatRoomHarness committed={committed} />
+      <SocketHost>
+        <ChatRoomHarness committed={committed} />
+      </SocketHost>
     </CtDataProviders>
   );
 }

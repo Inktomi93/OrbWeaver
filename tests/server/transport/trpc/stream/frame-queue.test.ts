@@ -1,8 +1,9 @@
 // The bounded merge queue (transport/trpc/stream/frame-queue.ts). One socket is one consumer for N
 // producers, so THE question is what happens when it saturates — and the answer must never be "a frame
 // silently disappeared". Each policy is pinned against the healing story that makes it legal:
-//   • `lag`      (chat/notifications) sheds the room's tail and says so, carrying the room's DURABLE cursor
-//                so the client's re-attach replay refills the gap. It sheds ONLY that room.
+//   • `lag`      (chat/notifications) sheds the room's tail and says so, carrying the room's last-DELIVERED
+//                DURABLE cursor, and calls back (`onShed`) so the socket can park that room and resume it
+//                there — the replay from that cursor is what refills the gap. It sheds ONLY that room.
 //   • `collapse` (user/rpg/automation) keeps at most one pending frame per (room, event type) — legal only
 //                because every one of those handlers is a pure invalidation trigger.
 // Plus the two ordering guarantees: FIFO within a room, and control frames never stuck behind a flood.
@@ -68,6 +69,27 @@ describe("the `lag` policy — durable rooms", () => {
 
     const frames = await flush(queue);
     expect(frames).toEqual([otherChatFrame(1), { channel: "control", type: "roomLagged", ref: CHAT_ROOM, cursor: 5 }]);
+  });
+
+  test("EVERY shed calls back (the park), while the NOTICE stays rate-limited — the two are deliberately split", async () => {
+    // `onShed` is the whole legality of `lag`: the shedding pump's high-water mark has passed the dropped
+    // rows, so only the socket parking that room and restarting it from its last-DELIVERED cursor can refill
+    // them. The PARK must fire on every shed — a room that keeps producing into a queue nobody is draining
+    // just sheds its own output, and rows shed in that window can be left with no resume to cover them. The
+    // NOTICE is the rate-limited half: one per burst, so a flood cannot grow the control lane.
+    const shed: StreamRoomRef[] = [];
+    const queue = createFrameQueue({ capacity: 2, cursorFor: () => 3, onShed: (ref) => shed.push(ref) });
+    queue.push(CHAT_ROOM, chatFrame(1));
+    queue.push(CHAT_ROOM, chatFrame(2));
+
+    queue.push(CHAT_ROOM, chatFrame(3)); // over capacity → shed + park + notice
+    queue.push(CHAT_ROOM, chatFrame(4));
+    queue.push(CHAT_ROOM, chatFrame(5));
+    queue.push(CHAT_ROOM, chatFrame(6)); // over capacity again → shed + park; the notice COLLAPSES
+
+    expect(shed).toEqual([CHAT_ROOM, CHAT_ROOM]);
+    // …and only ONE notice reached the wire for the burst (frame 6 rode in after the second shed).
+    expect(await flush(queue)).toEqual([{ channel: "control", type: "roomLagged", ref: CHAT_ROOM, cursor: 3 }, chatFrame(6)]);
   });
 
   test("frames within one room stay FIFO", async () => {

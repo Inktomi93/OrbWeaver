@@ -1,4 +1,4 @@
-// The per-viewer "chat opened" side-channel tap (D81). `chat.streamMessages` synthesizes a `chatOpened`
+// The per-viewer "chat opened" side-channel tap (D81). The `chat` room source synthesizes a `chatOpened`
 // event per viewer at stream-attach — it is NEVER published on the durable per-chat bus (presence is not
 // canon; the frozen bus is never widened for automation — 01 §0). So the automation watcher's bus
 // subscription can't see it. This module is the sanctioned tap: the stream generator calls `notifyChatOpened`

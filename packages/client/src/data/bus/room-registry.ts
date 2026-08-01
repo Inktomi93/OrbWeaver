@@ -14,12 +14,17 @@
 // before it (React commits children first). So joins made before `bindTransport` are recorded and FLUSHED on
 // bind — the client-side twin of the server's order-independent cell.
 //
-// RE-ANNOUNCE ON RECONNECT. Spec §5.3 makes reconnect server-sticky (the cell survives the socket), so
-// re-attaching is not required for correctness. We do it anyway on every live edge AFTER the first, because
-// the cell is reaped 60s after going dark and a laptop that slept for an hour would otherwise reconnect onto
-// an EMPTY cell and go permanently silent with no error anywhere. Attach is idempotent server-side (§5.4),
-// so it costs one batched mutation per reconnect — the same edge that already fires the gap-heal. The FIRST
-// live edge is deliberately excluded: every joined room already announced itself when the transport bound.
+// RE-ANNOUNCE ON RECONNECT — and it carries the room's CURRENT replay request, not its join-time one. Two
+// reasons it is load-bearing rather than belt-and-braces:
+//   • the cell is reaped 60s after going dark, so a laptop that slept for an hour would otherwise reconnect
+//     onto an EMPTY cell and go permanently silent with no error anywhere;
+//   • the server's room cursor counts what it DELIVERED — a frame yielded into a dying socket is behind that
+//     cursor and would never be replayed. A durable room therefore re-attaches at the CLIENT's own
+//     high-water mark (a `sinceSeq` THUNK, re-read here), which is strictly what the client applied; the
+//     server honors the lower value by restarting the pump there and the replay refills the real gap.
+// Attach is idempotent server-side (§5.4) — an equal mark is a no-op — so this costs one batched mutation
+// per reconnect, on the same edge that already fires the gap-heal. The FIRST live edge is deliberately
+// excluded: every joined room already announced itself when the transport bound.
 //
 // THE GAP-HEAL IS A RE-CONNECT INSTRUMENT, NEVER A PAGE-LOAD ONE (BOOT-4X, `46d75eaf`). `onSocketLive` fires
 // for a room only once that room HAS ALREADY BEEN LIVE in this page. The rule was measured, not reasoned:
@@ -44,6 +49,19 @@
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 
+/**
+ * A durable room's replay request. A CONSTANT is a fixed request (`0` = from the beginning); a THUNK is
+ * re-read at every announce, which is what makes a reconnect heal correct: the room re-attaches at the
+ * client's CURRENT high-water mark instead of the one it happened to hold at join time. The server honors a
+ * lower `sinceSeq` by restarting the room's pump there, so the durable replay refills exactly the gap.
+ */
+export type SinceSeqSource = number | null | (() => number | null);
+
+/** Resolve a replay request at announce time. */
+function resolveSinceSeq(source: SinceSeqSource | undefined): number | null {
+  return typeof source === "function" ? source() : (source ?? null);
+}
+
 /** What one subscriber of a room wants. `onEvent` receives the room's DATA frame (its bus event rides
  *  verbatim on `.event`); the other two are the degradation surfaces. */
 export interface RoomSubscriber {
@@ -53,8 +71,9 @@ export interface RoomSubscriber {
   readonly onSocketLive?: (() => void) | undefined;
   /** The room's typed failure (`roomFailed`), or a socket-level fault. The room is detached server-side. */
   readonly onError?: ((message: string) => void) | undefined;
-  /** A durable room's replay request (`0` = from the beginning). Live-only rooms pass nothing. */
-  readonly sinceSeq?: number | null | undefined;
+  /** A durable room's replay request (`0` = from the beginning), constant or re-read per announce. Live-only
+   *  rooms pass nothing. */
+  readonly sinceSeq?: SinceSeqSource | undefined;
 }
 
 /** How the registry reaches the wire. Bound by `useOrbSocket` (which owns the imperative tRPC client). */
@@ -76,7 +95,9 @@ export interface RoomRegistry {
   /** The socket left the live state (drop / reconnecting / idle). The next `socketLive` is a RE-connect for
    *  every attached room, which is exactly what the gap-heal exists for. */
   readonly socketDown: () => void;
-  /** A room lagged — the socket shed its tail. Same healing edge as a reconnect for that ONE room. */
+  /** A room lagged — the socket shed its tail. The DELIVERY gap is healed server-side (the shed restarts
+   *  that room's pump from its last-delivered cursor, `stream/socket.ts`), so this only fans the room's own
+   *  gap-heal for the reads a live-only room has no other way to refresh. */
   readonly lagged: (ref: StreamRoomRef) => void;
   /** A room failed (or the whole socket did, with `ref` omitted): surface it to the affected subscribers. */
   readonly failed: (message: string, ref?: StreamRoomRef) => void;
@@ -89,10 +110,21 @@ interface RoomEntry {
   readonly subscribers: Set<RoomSubscriber>;
 }
 
+/** The announce retry schedule — 3 attempts over ~1s, which covers the realistic failure (a flap that
+ *  outlives the reconnect by a beat, a server restart between the two requests) without holding a room's
+ *  first frames for a human-noticeable time. Hygiene numbers, not load-bearing. */
+const ANNOUNCE_RETRY_FIRST_MS = 250;
+const ANNOUNCE_RETRY_SECOND_MS = 750;
+const ANNOUNCE_RETRY_BACKOFF_MS = [ANNOUNCE_RETRY_FIRST_MS, ANNOUNCE_RETRY_SECOND_MS] as const;
+
+/** What a room whose announce never landed says. The room is genuinely not receiving — the honest thing is
+ *  to say so rather than let a live socket look like a quiet chat. */
+const ANNOUNCE_FAILED_MESSAGE = "Live updates could not be started for this room. Reload to try again.";
+
 function lowestSinceSeq(entry: RoomEntry): number | null {
   let lowest: number | null = null;
   for (const subscriber of entry.subscribers) {
-    const wanted = subscriber.sinceSeq ?? null;
+    const wanted = resolveSinceSeq(subscriber.sinceSeq);
     if (wanted !== null && (lowest === null || wanted < lowest)) {
       lowest = wanted;
     }
@@ -112,15 +144,45 @@ export function createRoomRegistry(): RoomRegistry {
    *  pruned on detach: "this room's cache may predate now" stays true for the rest of the page load. */
   const everLiveRooms = new Set<string>();
 
-  // Attach/detach are fire-and-forget from the caller's view: a refused attach is the room's OWN verdict
-  // (a leak-free NOT_FOUND for a room the viewer may not have), and it must not become an unhandled
-  // rejection or a toast — the room simply never delivers, which is the withhold-not-throw posture the
-  // per-proc streams already had.
+  /**
+   * THE ANNOUNCE IS RETRIED, because the server now WAITS for it. A durable room's re-announce is what lifts
+   * the server's reconnect barrier (`stream/socket.ts`), so a swallowed failure no longer costs just the
+   * rewind — it costs ALL delivery for that room, for the life of the connection: nothing retries, the pump
+   * never runs (so it cannot even shed and self-heal), and the 15s ping keeps the socket alive so no
+   * inactivity reconnect ever comes. Silence with no signal, until the user leaves and re-enters the chat.
+   *
+   * `stream.attach` is idempotent by design, so retrying is free. Exhausting the retries surfaces to the
+   * room's own `onError` rather than staying quiet — a refusal worth seeing (the room/socket caps) reads as
+   * an error, and the leak-free NOT_FOUND for a room the viewer may not have costs three cheap round trips
+   * before saying so. Fire-and-forget from the caller's view either way: never an unhandled rejection.
+   */
   function announce(entry: RoomEntry): void {
-    if (transport === null) {
-      return; // the socket has not mounted yet — bindTransport flushes every joined room
+    attemptAnnounce(entry, 0);
+  }
+
+  /** One attach attempt, re-scheduling itself on failure. A chained timer rather than an await-loop: the
+   *  caller is a synchronous lifecycle edge (join / bind / socketLive), so nothing here may block it. */
+  function attemptAnnounce(entry: RoomEntry, attempt: number): void {
+    const wire = transport;
+    // The socket has not mounted yet (bindTransport flushes every joined room), or this room was left /
+    // replaced mid-retry — either way there is nothing left to announce.
+    if (wire === null || rooms.get(roomKey(entry.ref)) !== entry) {
+      return;
     }
-    void transport.attach(entry.ref, lowestSinceSeq(entry)).catch(() => undefined);
+    // The replay request is re-read per attempt: the client's high-water mark may have advanced while a
+    // previous attempt was in flight.
+    void wire.attach(entry.ref, lowestSinceSeq(entry)).catch(() => retryAnnounce(entry, attempt));
+  }
+
+  function retryAnnounce(entry: RoomEntry, attempt: number): void {
+    const backoff = ANNOUNCE_RETRY_BACKOFF_MS[attempt];
+    if (backoff === undefined) {
+      for (const subscriber of entry.subscribers) {
+        subscriber.onError?.(ANNOUNCE_FAILED_MESSAGE);
+      }
+      return;
+    }
+    setTimeout(() => attemptAnnounce(entry, attempt + 1), backoff);
   }
 
   function retire(entry: RoomEntry): void {

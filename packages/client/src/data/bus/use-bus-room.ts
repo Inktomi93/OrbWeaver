@@ -16,6 +16,7 @@
 import type { StreamChannel, StreamFrameFor, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { useEffect, useRef } from "react";
+import type { SinceSeqSource } from "./room-registry";
 import { roomRegistry } from "./room-registry";
 
 /** What a room's consumer wants, narrowed to that channel's own frame arm. */
@@ -26,8 +27,9 @@ export interface BusRoomHandlers<C extends StreamChannel> {
   readonly onSocketLive?: (() => void) | undefined;
   /** The room's typed failure — the surface each hook's `__subscriptionError` route had. */
   readonly onError?: ((message: string) => void) | undefined;
-  /** A durable room's replay request (`0` = from the beginning). Live-only rooms omit it. */
-  readonly sinceSeq?: number | null | undefined;
+  /** A durable room's replay request (`0` = from the beginning). Live-only rooms omit it. Pass a THUNK for
+   *  a value that must be current at every (re)announce — a reconnect's replay request, e.g. */
+  readonly sinceSeq?: SinceSeqSource | undefined;
 }
 
 /** Attach one room to the tab's socket for as long as this component is mounted and `ref` is non-null. */
@@ -53,7 +55,12 @@ export function useBusRoom<C extends StreamChannel>(ref: Extract<StreamRoomRef, 
       },
       onSocketLive: () => latest.current.handlers.onSocketLive?.(),
       onError: (message) => latest.current.handlers.onError?.(message),
-      sinceSeq: latest.current.handlers.sinceSeq ?? null,
+      // A THUNK over the CURRENT render's handler, so a reconnect re-announce reads today's replay request
+      // (the client's high-water mark), never the one this room happened to join with.
+      sinceSeq: (): number | null => {
+        const wanted = latest.current.handlers.sinceSeq;
+        return typeof wanted === "function" ? wanted() : (wanted ?? null);
+      },
     });
   }, [key]);
 }

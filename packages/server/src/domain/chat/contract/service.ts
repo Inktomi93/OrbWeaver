@@ -183,7 +183,7 @@ export interface ChatService {
   readonly replayStreamEvents: (params: ReplayStreamEventsParams) => Promise<ChatStreamReplayEvent[]>;
   /** The retained stream-log replay-cursor bounds (min/max seq). */
   readonly streamEventBounds: (params: StreamEventBoundsParams) => Promise<StreamEventBounds>;
-  /** Resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE reconnect replay). */
+  /** Resume the durable chat-bus log from a cursor (the chat room's SSE reconnect replay). */
   readonly replayChatEvents: (params: ReplayChatEventsParams) => Promise<ChatBusReplayEvent[]>;
   /** The durable bus-log cursor bounds + the caller's own D16 canon read floor — also the SSE attach /
    *  per-yield membership gate (the ONE member-scoped read the subscription performs). The floor rides on

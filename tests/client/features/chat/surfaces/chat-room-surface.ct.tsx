@@ -17,8 +17,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { routeChatStream } from "../../../../support/ct/route-trpc-subscription";
 import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
@@ -337,11 +337,11 @@ test("a committed send adds NO invalidation of its own — the list refetch is b
   });
   // NO bus turn — isolate the mutation's own contribution (the bus→refetch path is pinned separately in
   // message-list-surface.ct.tsx). With an empty stream, only the mutation could refetch the list.
-  await routeChatStream(page, { events: [] });
+  await routeOrbSocket(page, { frames: [] });
   // Delay the `send` POST so its in-flight (isPending) window is observably long — the disabled→enabled
   // bracket below is what proves onSettled RAN (isPending flips false only after the mutation settles,
   // which is strictly after onSettled's invalidate would have fired). Registered LAST ⇒ runs FIRST (LIFO),
-  // falls through to routeChatStream → routeTrpc for everything it doesn't delay.
+  // falls through to routeOrbSocket → routeTrpc for everything it doesn't delay.
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     if (req.method() === "POST" && req.url().includes("chat.send")) {

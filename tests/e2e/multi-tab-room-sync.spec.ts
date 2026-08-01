@@ -5,7 +5,7 @@
 // SAME chat by clicking its list row, then a mutation in tab A must reach tab B's OPEN ROOM live, with no
 // reload and no user gesture in B.
 //
-// The two tabs are genuinely independent subscribers: each holds its own `chat.streamMessages` SSE and its
+// The two tabs are genuinely independent subscribers: each holds its own multiplexed socket with the chat ROOM attached, and its
 // own QueryClient (staleTime Infinity + refetchOnWindowFocus off — the bus is the ONLY freshness driver),
 // so a passive tab that updates can only have done so off the bus. That is exactly what makes these
 // assertions load-bearing: if the bus fan regresses, multi-device divergence is SILENT.

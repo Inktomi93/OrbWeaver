@@ -65,7 +65,7 @@ export function resolveHistoryFloorSeq(membership: {
 
 /**
  * The per-event verdict applied to BOTH halves of the room-public event stream — the durable `chat_events`
- * replay (`verbs/read::replayChatEvents`) and the live SSE fan-out (the `chat.streamMessages` per-yield
+ * replay (`verbs/read::replayChatEvents`) and the live SSE fan-out (the chat ROOM's per-yield
  * clamp). One emit is logged AND fanned under ONE `seq`, so both halves MUST ask this one function; a laxer
  * live arm would make a row's visibility depend on whether the client happened to be connected.
  *

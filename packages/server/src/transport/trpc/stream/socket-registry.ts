@@ -35,6 +35,23 @@
 // REAPING IS LAZY, not a timer: every registry entry point sweeps cells that have been dark past the window.
 // A `setInterval` in a transport module would keep the process alive and leak into every test; a dark cell is
 // never READ after its window, so a sweep-on-touch is the same guarantee with no scheduler.
+//
+// THE CELL IS SINGLE-OWNER, AND OWNERSHIP TRANSFERS AT `goLive` — NOT at the predecessor's death. A server
+// learns a socket died when a write to it fails: on a clean close that is immediate, but on a HALF-OPEN TCP
+// (NAT rebind, sleep/wake, a silently-dead proxy — §8's whole motivating class) the writes buffer in the
+// kernel and the error surfaces after the retransmission timeout, minutes later. The client meanwhile
+// reconnects at 45s (`reconnectAfterInactivityMs`), so two generators legitimately overlap on one cell. Three
+// things follow, and all three are properties of THIS module:
+//   • `connectionSeq` — bumped by `goLive`, and the epoch a room's announce is recorded against. That makes
+//     the reconnect barrier (`socket.ts`) per-CONNECTION rather than per-teardown: the new generator holds a
+//     resumable room because the room was announced under the PREVIOUS epoch, with no dependence on the
+//     zombie dying on time.
+//   • EVICTION — `goLive` tells the outgoing generator to stop (`onEvicted`) before installing the new one,
+//     so a zombie cannot keep pumping into a dead socket (and advancing shared cursors with it).
+//   • OWNERSHIP-CHECKED TEARDOWN — `goDark` takes the listener that is finishing and no-ops unless it is
+//     still the owner. Without it a zombie's late teardown nulls the LIVE generator's listener (silent rooms
+//     on a live socket), marks a live cell dark (reap-eligible, cursors discarded), and undercounts
+//     `liveSocketCount` (the `/api/_debug` starvation pin).
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
@@ -51,12 +68,34 @@ export const SOCKETS_PER_USER = 8;
 export interface SocketRoom {
   readonly ref: StreamRoomRef;
   cursor: number | null;
+  /**
+   * WHICH CONNECTION the client announced this room for — the RECONNECT BARRIER's state (`socket.ts`). A
+   * resumable room must not resume delivery on a reconnect until the client has said where IT got to,
+   * because the server's cursor counts what it handed the dying socket's writer, which is ahead of what the
+   * client received.
+   *
+   * An epoch rather than a boolean, because the barrier cannot depend on the previous generator's teardown
+   * running on time (a half-open TCP defers it for minutes while the client is already back). An attach
+   * during a LIVE connection counts for that connection; an attach while the cell is DARK counts for the
+   * NEXT one, which is what keeps the announce order-independent against `connect` exactly like the attach
+   * that mints the cell.
+   */
+  announcedFor: number;
 }
 
 /** What a LIVE socket generator registers so room changes reach its pumps in order. */
 export interface SocketListener {
+  /** A room was added, or an existing room's cursor was REWOUND by a lower `sinceSeq` — start/restart its
+   *  pump there. */
   readonly onAttach: (ref: StreamRoomRef, cursor: number | null) => void;
+  /** An IDEMPOTENT re-attach of a room whose cursor did not move — the client saying "I still want this, and
+   *  I am at (or ahead of) where you are". Carries no cursor change and must not restart a running pump; it
+   *  exists so the reconnect barrier can lift on the announce that carries no rewind. */
+  readonly onAnnounce: (ref: StreamRoomRef) => void;
   readonly onDetach: (ref: StreamRoomRef) => void;
+  /** A NEW generator took the cell over: stop producing. Called synchronously by `goLive` on the OUTGOING
+   *  listener, so a socket the server has not yet noticed is dead cannot keep pumping into it. */
+  readonly onEvicted: () => void;
 }
 
 export interface SocketCell {
@@ -67,6 +106,10 @@ export interface SocketCell {
   live: boolean;
   /** Epoch-ms the socket went dark; `null` while live. The reap clock. */
   lastSeenAt: number | null;
+  /** Bumped by every `goLive` — the identity of the CURRENT connection, and what `SocketRoom.announcedFor`
+   *  is measured against. Starts at 0 on a fresh cell, so the attach that mints a room (announcing for the
+   *  next connection, 1) matches the first `goLive`. */
+  connectionSeq: number;
 }
 
 export interface SocketRegistry {
@@ -78,10 +121,12 @@ export interface SocketRegistry {
   readonly attach: (userId: UserId, socketId: SocketId, ref: StreamRoomRef, sinceSeq: number | null) => void;
   /** Drop the room (idempotent — detaching an unattached room is a no-op). */
   readonly detach: (userId: UserId, socketId: SocketId, ref: StreamRoomRef) => void;
-  /** The live generator's lifecycle edges. `goLive` registers the listener; `goDark` starts the reap clock
-   *  and LEAVES the rooms in place so a reconnect re-hydrates them. */
+  /** The live generator's lifecycle edges. `goLive` TAKES OVER the cell: it evicts the outgoing listener,
+   *  bumps `connectionSeq` (re-arming the reconnect barrier), and installs this one. `goDark` starts the
+   *  reap clock and LEAVES the rooms in place so a reconnect re-hydrates them — and no-ops entirely unless
+   *  `listener` is still the owner, so a zombie generator's late teardown cannot touch a live cell. */
   readonly goLive: (cell: SocketCell, listener: SocketListener) => void;
-  readonly goDark: (cell: SocketCell) => void;
+  readonly goDark: (cell: SocketCell, listener: SocketListener) => void;
   /** Observability (`/api/_debug/stream/sockets`): live sockets, all users or one. */
   readonly liveSocketCount: (userId?: UserId) => number;
   /** Sweep cells dark past the window. Called on every entry point; exposed for the reap test. */
@@ -132,7 +177,7 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     if (mine >= SOCKETS_PER_USER) {
       throw new DomainRateLimitError(`Too many open streams (${SOCKETS_PER_USER}). Close a tab and retry.`);
     }
-    const cell: SocketCell = { socketId, userId, rooms: new Map(), listener: null, live: false, lastSeenAt: now() };
+    const cell: SocketCell = { socketId, userId, rooms: new Map(), listener: null, live: false, lastSeenAt: now(), connectionSeq: 0 };
     cells.set(socketId, cell);
     return cell;
   }
@@ -145,16 +190,28 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
       if (cell.rooms.size >= ROOMS_PER_SOCKET) {
         throw new DomainRateLimitError(`Too many attached rooms on one stream (${ROOMS_PER_SOCKET}).`);
       }
-      cell.rooms.set(key, { ref, cursor: sinceSeq });
+      cell.rooms.set(key, { ref, cursor: sinceSeq, announcedFor: announceEpoch(cell) });
       cell.listener?.onAttach(ref, sinceSeq);
       return;
     }
+    // The client has spoken for this room — the reconnect barrier's lift signal, recorded against the
+    // connection it counts for, whether or not the socket is live yet (an announce can beat `connect`,
+    // exactly like the attach that mints the cell can).
+    room.announcedFor = announceEpoch(cell);
     // Idempotent re-attach. Only a LOWER cursor means anything (replay-from-here); anything else leaves the
     // live pump exactly where it is — a re-announce must never skip a room forward past undelivered rows.
     if (sinceSeq !== null && (room.cursor === null || sinceSeq < room.cursor)) {
       room.cursor = sinceSeq;
       cell.listener?.onAttach(ref, sinceSeq);
+      return;
     }
+    cell.listener?.onAnnounce(ref);
+  }
+
+  /** Which connection an announce arriving NOW counts for: the live one, or — while the cell is dark — the
+   *  next one to take over. */
+  function announceEpoch(cell: SocketCell): number {
+    return cell.live ? cell.connectionSeq : cell.connectionSeq + 1;
   }
 
   function detach(userId: UserId, socketId: SocketId, ref: StreamRoomRef): void {
@@ -172,11 +229,21 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
     attach,
     detach,
     goLive: (cell, listener): void => {
+      // TAKEOVER, not merely "a socket connected": evict the outgoing generator first, so a socket the
+      // server has not yet noticed is dead stops producing into it (and stops advancing shared cursors).
+      cell.listener?.onEvicted();
+      // The new connection's identity. Every room announced under an EARLIER epoch is held by the barrier
+      // until the client re-announces it — which is what makes the barrier independent of when (or whether)
+      // the previous generator's teardown ever runs.
+      cell.connectionSeq += 1;
       cell.live = true;
       cell.lastSeenAt = null;
       cell.listener = listener;
     },
-    goDark: (cell): void => {
+    goDark: (cell, listener): void => {
+      if (cell.listener !== listener) {
+        return; // a superseded generator finishing: it owns nothing here any more
+      }
       cell.live = false;
       cell.listener = null;
       cell.lastSeenAt = now();

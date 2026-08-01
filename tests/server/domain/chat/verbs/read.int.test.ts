@@ -652,7 +652,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(hostReplay.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
   });
 
-  // The SSE attach probe is the seam that carries the floor OUT of the domain: `chat.streamMessages` tails an
+  // The SSE attach probe is the seam that carries the floor OUT of the domain: the chat ROOM tails an
   // in-process fan-out keyed by chatId only, so the transport must be handed a per-CALLER floor to clamp the
   // LIVE half with (the durable half is clamped in `replayChatEvents` above). Pinned here at the source —
   // the transport's use of it is pinned in `tests/server/transport/trpc/routers/chat.int.test.ts`.
@@ -1298,7 +1298,7 @@ describe("read — default-deny (membership chokepoint)", () => {
   });
 });
 
-describe("read — durable chat-bus log (the streamMessages SSE resume)", () => {
+describe("read — durable chat-bus log (the chat room SSE resume)", () => {
   test("replayChatEvents resumes after a cursor; chatEventBounds reports min/max; both member-gated", async () => {
     const me = await seedUser(db, "me");
     const stranger = await seedUser(db, "stranger");
