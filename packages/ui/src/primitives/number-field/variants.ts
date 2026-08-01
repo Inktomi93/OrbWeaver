@@ -4,7 +4,7 @@ import { DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING_INSET, tv } from "#li
 // the rounded border.
 export const numberFieldVariants = tv({
   slots: {
-    root: `flex w-full flex-col gap-field ${DISABLED_STATE}`,
+    root: `flex flex-col gap-field ${DISABLED_STATE}`,
     scrubArea: "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
     scrubCursor: "flex text-foreground",
     group: ["flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input", "data-invalid:border-destructive"],
@@ -16,7 +16,7 @@ export const numberFieldVariants = tv({
       "data-readonly:cursor-default",
     ],
     input: [
-      "h-touch-target w-full min-w-0 bg-transparent text-center text-body leading-body text-foreground tabular-nums",
+      "w-full min-w-0 bg-transparent text-foreground tabular-nums",
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       DISABLED_STATE,
@@ -35,4 +35,22 @@ export const numberFieldVariants = tv({
     stepIcon: "group-data-[readonly]:hidden",
     stepReadOnlyIcon: "hidden group-data-[readonly]:block",
   },
+  // The SIZE axis owns the whole box — the field's width and the input's height/type step — because a
+  // control height is a custom token tailwind-merge cannot classify, so a call-site override would resolve
+  // by stylesheet order (the Button `size="wrap"` / TabsTab `layout="stacked"` precedent). Nothing else
+  // here may set a height.
+  //
+  // `md` is the default full-width form field, byte-identical to the pre-axis skin (a 44px stepper-flanked
+  // input with centered body type). `inline` is the knob-row twin (preset-surface-redesign.md §4.1/§13): a
+  // stepper-less mono cell in `--width-number-inline`, right-aligned so a column of knob values reads down
+  // one number edge, at the `code` type step because a slider's number twin is a datum, not prose. Its
+  // input keeps `h-control-sm` — the per-pointer control height (32px fine / 44px coarse), so an
+  // instrument-density knob row still meets the coarse tap floor.
+  variants: {
+    size: {
+      md: { root: "w-full", input: "h-touch-target text-center text-body leading-body" },
+      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code leading-body" },
+    },
+  },
+  defaultVariants: { size: "md" },
 });
