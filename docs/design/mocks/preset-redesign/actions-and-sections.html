@@ -175,7 +175,7 @@ object, one place (the CONTEXT inspector is deleted).</p>
               <div class="fld"><div class="l">DELIVERED AS</div><span class="selectbox" style="width:100%;justify-content:space-between">user — in-chat <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></div>
               <div class="fld"><div class="l"><span class="tip">AT DEPTH</span></div><input class="mono" value="" placeholder="0 — the tail"></div>
             </div>
-            <div class="hintline">the SAME delivery cluster as a section's (one grammar) · assistant = <b>prefill</b> — the reply begins with this text (normalized where the wire lacks prefill)</div>
+            <div class="hintline">the SAME delivery cluster as a section's (one grammar) · <b>tail prefill</b> is a CONFIGURATION mark — shown only for assistant + depth 0 (prefill is a position, not a role; per-wire, normalized where unsupported)</div>
             <div class="frow">
               <span class="pill">{{person}}</span>
               <span class="hintline">first · second · third — picked when you fire</span>
@@ -248,7 +248,7 @@ object, one place (the CONTEXT inspector is deleted).</p>
     <b>responseNudge</b>) live beside their kin. Defaults' bytes stay PROSE-1 slots — when S2 lands
     host-edited defaults, the ghosts follow automatically. <b>This list is a FIXED ENUM</b> — no
     toggles, no drag, no Add (the manageable list is the RACK, prompt-rack.html; §5.0 kills the
-    conflation). Template fields = text + role (assistant = prefill) + depth — the shared delivery
+    conflation). Template fields = text + role + depth (assistant+depth-0 gets the conditional "tail prefill" mark — a position, not a role) — the shared delivery
     cluster; zone/order/triggers/locks are section vocabulary and never appear here. The ST template
     census (spec §6.5) maps every ST slot to its one home. While this view is active, CONTEXT shows
     the DELIVERY PATH + the selected row's resolved preview (context-readouts.html, spec §7).</p>
