@@ -37,7 +37,7 @@
 // pin-blind) × the config arms that gate rendering (`engaged`, `dateMode`, `recentBeatsKeepLast`,
 // `trackersReadOnly`, per-carrier `max` overrides, carriage via grants/revokes).
 
-import type { RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, ChatTurnId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -279,6 +279,10 @@ interface Fixture {
   readonly beat: (extraction: Partial<RpgExtraction>) => Promise<void>;
   /** A HOST hand edit that stamps NO lock (`lockPaths: []`) — the seed door for fields no tool can write. */
   readonly handEdit: (patch: Record<string, unknown>) => Promise<void>;
+  /** The same seed door for the per-ACTOR plane, which is op-shaped (R1 — `editSnapshot` refuses an
+   *  `actorState` image). `autoLock:false` for the same reason `handEdit` passes `lockPaths: []`: these probes
+   *  seed a value and then let the MODEL move it, so a pin would block the very write under test. */
+  readonly handActorOps: (ops: readonly RpgActorOp[]) => Promise<void>;
   /** The reminder the gather would inject on the next turn (the model-facing text, verbatim). */
   readonly reminder: () => Promise<string>;
   /** The ABSOLUTE state block alone (`# Game state` … the next blank line) — what the model is told the world
@@ -343,6 +347,9 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
     handEdit: async (patch: Record<string, unknown>): Promise<void> => {
       await h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] });
     },
+    handActorOps: async (ops: readonly RpgActorOp[]): Promise<void> => {
+      await h.service.patchActor({ principal: HOST, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false });
+    },
     reminder,
     stateBlock: async (): Promise<string> => {
       const content = await reminder();
@@ -355,11 +362,6 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
     },
     macros: async (): Promise<Readonly<Record<string, string>>> => (await gather())?.macros ?? {},
   };
-}
-
-/** The per-actor volatile row a hand edit seeds (total by construction — the write boundary parses it). */
-function volatileRow(carrier: Carrier, over: Record<string, unknown>): Record<string, unknown> {
-  return { actorRef: carrier.actorRef, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over };
 }
 
 /** Put a cast carrier on stage (the ghost guard) — a no-op for a roster carrier. */
@@ -453,7 +455,7 @@ const PROBES: readonly FieldProbe[] = [
       // hp is born null (nullable-honesty) and no tool arm SETS it — the host seeds the track by hand, then
       // the beat moves it (`update_party.hpDelta`, which refuses a null-hp actor).
       await f.beat(openingBeat(f.carrier));
-      await f.handEdit({ actorState: [volatileRow(f.carrier, { hp: { value: 12, max: 20 } })] });
+      await f.handActorOps([{ op: "setHp", hp: { value: 12, max: 20 } }]);
       await f.beat({ party: [{ targetRef: f.carrier.targetRef, hpDelta: -4 }] });
     },
     reminder: (f) => [`${f.carrier.label}`, "HP 8/20"],
@@ -617,7 +619,7 @@ const PROBES: readonly FieldProbe[] = [
     drive: async (f) => {
       await f.beat({ ...openingBeat(f.carrier), party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "mana", value: 4 }] }] });
       // The per-carrier ceiling is HOST-authored (no tool arm carries `max`) — the hand door writes it.
-      await f.handEdit({ actorState: [volatileRow(f.carrier, { trackerValues: { mana: { value: 4, items: null, max: 6 } } })] });
+      await f.handActorOps([{ op: "setTracker", key: "mana", value: { value: 4, max: 6 } }]);
     },
     reminder: () => ["Mana 4/6"],
     absent: () => ["Mana 4/10"],
@@ -1078,7 +1080,7 @@ test("LOCK (D113 #4): a `locked` tracker still RENDERS in full and is ABSENT fro
   const f = await openGame({ carrier: CARRIERS.character, trackers: [locked] });
   // A locked tracker is unwritable by the model, so the host's hand seeds the reading.
   await f.beat(openingBeat(f.carrier));
-  await f.handEdit({ actorState: [volatileRow(f.carrier, { trackerValues: { mana: { value: 7, items: null, max: null } } })] });
+  await f.handActorOps([{ op: "setTracker", key: "mana", value: { value: 7 } }]);
   const reminder = await f.reminder();
   expect(reminder).toContain("Trackers: Mana (fuels spellcasting)");
   expect(reminder).toContain("Mana 7/10");
@@ -1117,11 +1119,9 @@ test("READ-ONLY delivery: a game whose connection can't write state still READS 
   const carrier = CARRIERS.character;
   const { chatId, h } = await seedLiteGame(db, { roster: [...carrier.roster], trackersReadOnly: true });
   await h.service.updateConfig({ principal: HOST, chatId, patch: { trackers: [MANA] } });
-  await h.service.editSnapshot({
-    principal: HOST,
-    chatId,
-    patch: { location: "The Crypt", actorState: [volatileRow(carrier, { trackerValues: { mana: { value: 5, items: null, max: null } } })] },
-  });
+  await h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "The Crypt" } });
+  // The per-actor half rides the op door (R1) — the image left `editSnapshot`'s vocabulary.
+  await h.service.patchActor({ principal: HOST, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   const reminder = out?.injections[0]?.content ?? "";
   // The honest degrade (§4.6): no write path, but the hand-steered values still steer.

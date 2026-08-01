@@ -16,7 +16,7 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { rpgActorRefSchema } from "./actor";
+import { rpgActorOpSchema, rpgActorRefSchema } from "./actor";
 import {
   RPG_DATE_MODES,
   RPG_EXTRACTION_CONTEXTS,
@@ -127,8 +127,12 @@ export const rpgPopulateFromCharacterInputSchema = z.object({
   actorRef: rpgActorRefSchema,
 });
 
-/** `editSnapshot` — the hand-edit door (host any; a member their own actor's volatile). `patch` is a partial
- *  snapshot-state overlay under the [merge-clear] contract — an OPAQUE object the domain validates/locks (the
+/** `editSnapshot` — the hand-edit door for the IMAGE-honest planes (host). `actorState` is NO LONGER one of
+ *  them (R1): the per-actor volatile plane is op-shaped through `rpg.patchActor`/`rpg.dismissActor`, and a
+ *  patch naming it comes back as a refusal that says so (`RPG_OP_SHAPED_PLANES`). What stays here is what a
+ *  client can honestly author whole: the ambient leaves, the `trackerValues` record, `plot`, `recentEvents`,
+ *  `presentCharacters`, `quests`. `patch` is a partial snapshot-state overlay under the [merge-clear]
+ *  contract — an OPAQUE object the domain validates/locks (the
  *  `editSnapshot` verb owns the per-path legality; a bad path is errors-as-data, never a wire reject).
  *  `releaseLocks` (§12.3 lock-release) are dotted lock paths to CLEAR from `fieldLocks` — the host's Release
  *  affordance ("let the model write this again"). Clearing rides the SAME verb (not a null on the lock path):
@@ -141,6 +145,31 @@ export const rpgEditSnapshotInputSchema = z.object({
   patch: z.record(z.string(), z.unknown()),
   releaseLocks: z.array(z.string().min(1)).optional(),
   lockPaths: z.array(z.string().min(1)).optional(),
+});
+
+/** `patchActor` — THE op-shaped hand door for one actor's volatile plane (R1; host any actor, the
+ *  member-own-volatile arm deferred at the verb). `ops` are applied IN ORDER against the TRUE resolved head,
+ *  server-side (read-modify-write) — there is no client-authored image to go stale, so a model flush landing
+ *  between the panel's read and this call survives every field the ops do not name. Each op stamps its own
+ *  FINE lock path (`actorState.<ref>.<field>…`, the #10 pin) — the client no longer names lock paths at all.
+ *  `autoLock:false` is the ONE honest opt-out: a write to a field the MODEL CANNOT REACH (an item's host-picked
+ *  `icon`) has nothing to pin, and stamping a lock there would only hand the host a pin to release. Refusals
+ *  (an op naming an item/condition that isn't there, a merged state the write boundary rejects) are DATA. */
+export const rpgPatchActorInputSchema = z.object({
+  chatId: chatIdField,
+  targetRef: rpgActorRefSchema,
+  ops: z.array(rpgActorOpSchema).min(1),
+  autoLock: z.boolean().optional(),
+});
+
+/** `dismissActor` — THE removal gesture for the actor plane (R1; host). Drops the actor's `actorState` row AND
+ *  its scene-presence row and RELEASES every lock at/below its path (the `deleteQuest` symmetric-lock
+ *  precedent). Until this verb existed nothing could remove an actor at all: the plane is ADDITIVE by policy
+ *  (an unnamed row is ignorance, not intent), so a hallucinated NPC stayed reachable, targetRef-enumerated and
+ *  clone-forwarded forever. This is the "real gesture" that policy always named and never had. */
+export const rpgDismissActorInputSchema = z.object({
+  chatId: chatIdField,
+  targetRef: rpgActorRefSchema,
 });
 
 /** `upsertQuest` — the hand arm of the quest plane (host). `questId` present ⇒ update, absent ⇒ create.

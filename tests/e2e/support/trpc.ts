@@ -800,20 +800,36 @@ export function patchSheet(
   return trpcMutation("rpg.patchSheet", { chatId, actorRef, patch });
 }
 
-/** The hand-edit VOLATILE door (`rpg.editSnapshot` — HOST-only for shared planes). `patch` is a partial
- *  snapshot-state overlay the domain validates + auto-LOCKS (`fieldLocks`), so a hand edit becomes canon and
- *  the delta shows the GM tweak next turn (§2.7). The spec drives every plane through here: ambient
- *  (location/date/clock/weather), presentCharacters (cast + mood + relationship), actorState
- *  (hp/trackerValues/wallet/inventory/conditions/status), recentEvents, trackerValues, plot. */
-export async function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
-  const result = await trpcMutation("rpg.editSnapshot", { chatId, patch });
-  // The verb answers with an ERRORS-AS-DATA verdict (an unknown plane / a value the write boundary refuses),
-  // never a wire reject — so a spec that only awaited the call would drive a whole scene onto writes that
-  // never landed. The live lane fails LOUD instead.
+/** The ERRORS-AS-DATA guard the three hand doors share (`editSnapshot`/`patchActor`/`dismissActor`): each
+ *  answers with a verdict rather than a wire reject, so a spec that only awaited the call would drive a whole
+ *  scene onto writes that never landed. The live lane fails LOUD instead. */
+function assertHandWrote(path: string, result: unknown): unknown {
   if (typeof result === "object" && result !== null && "ok" in result && result.ok === false) {
-    throw new Error(`rpg.editSnapshot refused: ${"reason" in result ? String(result.reason) : "no reason given"}`);
+    throw new Error(`${path} refused: ${"reason" in result ? String(result.reason) : "no reason given"}`);
   }
   return result;
+}
+
+/** The hand-edit door for the IMAGE-honest snapshot planes (`rpg.editSnapshot` — HOST-only). `patch` is a
+ *  partial snapshot-state overlay the domain validates + auto-LOCKS (`fieldLocks`), so a hand edit becomes
+ *  canon and the delta shows the GM tweak next turn (§2.7). The spec drives these planes through here:
+ *  ambient (location/date/clock/weather), presentCharacters (cast + mood + relationship), recentEvents,
+ *  trackerValues, plot. The per-ACTOR plane is NOT one of them (R1) — it rides `patchActor` below, and an
+ *  `actorState` patch here is refused by design. */
+export async function editSnapshot(chatId: string, patch: Record<string, unknown>): Promise<unknown> {
+  return assertHandWrote("rpg.editSnapshot", await trpcMutation("rpg.editSnapshot", { chatId, patch }));
+}
+
+/** The op-shaped per-ACTOR hand door (`rpg.patchActor` — HOST-only). The ops apply IN ORDER against the true
+ *  resolved head, each stamping its own fine lock path; `autoLock:false` opts out for a field no model write
+ *  can reach. This is the ONLY hand door onto hp/trackerValues/conditions/inventory/wallet/status. */
+export async function patchActor(
+  chatId: string,
+  targetRef: Record<string, unknown>,
+  ops: readonly Record<string, unknown>[],
+  opts: { readonly autoLock?: boolean } = {},
+): Promise<unknown> {
+  return assertHandWrote("rpg.patchActor", await trpcMutation("rpg.patchActor", { chatId, targetRef, ops, ...opts }));
 }
 
 /** Upsert a quest (`rpg.upsertQuest` — HOST-only). `questId` absent ⇒ create. The quest-plane HAND door. */

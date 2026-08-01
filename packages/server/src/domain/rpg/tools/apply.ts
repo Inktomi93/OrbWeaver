@@ -33,6 +33,7 @@ import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, 
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { StagedJournalEntry } from "../contract/params";
 import type { RpgStateDelta } from "../contract/service";
+import { emptyActorVolatile } from "../substrate/actor-ops";
 
 /** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
@@ -64,9 +65,11 @@ export function buildRosterRefIndex(roster: readonly { readonly actorRef: RpgAct
   return index;
 }
 
-/** A minimal actor identity keyed by `ref` — either a roster ref (`character`/`user`, F2) or a fresh `cast`. */
+/** A minimal actor identity keyed by `ref` — either a roster ref (`character`/`user`, F2) or a fresh `cast`.
+ *  The zero row is one-homed in `substrate/actor-ops` (the hand door mints the SAME shape — a row's birth
+ *  shape must not depend on which writer got there first). */
 function newActorFor(ref: RpgActorRef): RpgActorVolatile {
-  return { actorRef: ref, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
+  return emptyActorVolatile(ref);
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:

@@ -1,14 +1,17 @@
 // domain/rpg — COMPOSITION ROOT: wires the lite verbs (§4.4) over one shared `RpgContext` (zero logic of its
 // own — see contract/service.ts for the `RpgContext` injected-op seam + the `RpgService` verb contract). The
 // verbs are grouped by concern (game/quest/journal/checkpoint/read) + the single-verb files
-// (patch-sheet/edit-snapshot/roll-dice); each `create<Verb>` factory closes over the ctx and returns its slice.
+// (patch-sheet/edit-snapshot/patch-actor/dismiss-actor/roll-dice); each `create<Verb>` factory closes over the
+// ctx and returns its slice.
 
 import { createRpgContext } from "./context";
 import type { RpgContextDeps, RpgService } from "./contract/service";
 import { createCreateCheckpoint, createListCheckpoints, createRestoreCheckpoint } from "./verbs/checkpoint";
+import { createDismissActor } from "./verbs/dismiss-actor";
 import { createEditSnapshot } from "./verbs/edit-snapshot";
 import { createCreateGame, createDetachDanglingPointer, createPopulateFromCharacter, createResyncFromStory, createUpdateConfig } from "./verbs/game";
 import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry } from "./verbs/journal";
+import { createPatchActor } from "./verbs/patch-actor";
 import { createPatchSheet } from "./verbs/patch-sheet";
 import { createDeleteQuest, createUpsertQuest } from "./verbs/quest";
 import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal, createRevealHidden } from "./verbs/read";
@@ -24,6 +27,8 @@ export function createRpgService(deps: RpgContextDeps): RpgService {
     ...createPopulateFromCharacter(ctx),
     ...createPatchSheet(ctx),
     ...createEditSnapshot(ctx),
+    ...createPatchActor(ctx),
+    ...createDismissActor(ctx),
     ...createUpsertQuest(ctx),
     ...createDeleteQuest(ctx),
     ...createAddJournalEntry(ctx),

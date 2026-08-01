@@ -269,14 +269,20 @@ test("swipe-consistency: selecting a sibling variant re-resolves the delta on th
   expect(swiped).not.toContain("12→16");
 });
 
-test("hand-edit-as-source: a host editSnapshot surfaces as a delta on the next gather", async () => {
+test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gather", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
   // A committed prior beat (HP 12) is the lineage head; there is no newer beat yet.
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
-  // The host hand-edits HP to 18 — editSnapshot clone-forwards onto a fresh committed narrator slot (the head
-  // was committed), which becomes the new current head; the prior beat (HP 12) is now the prev on the lineage.
-  await h.service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [kael(18)] } });
+  // The host hand-edits HP to 18 through the OP door (R1 — the per-actor plane left `editSnapshot`). It
+  // clone-forwards onto a fresh committed narrator slot (the head was committed), which becomes the new
+  // current head; the prior beat (HP 12) is now the prev on the lineage.
+  await h.service.patchActor({
+    principal: principal("host"),
+    chatId,
+    targetRef: { kind: "cast", castKey: "kael" },
+    ops: [{ op: "setHp", hp: { value: 18, max: 20 } }],
+  });
   const text = await reminderText(h, chatId);
   // The GM tweak lands next turn: prev(12)→cur(18) = a +6 delta line (the diff is agnostic to the WRITE source).
   expect(text).toContain("kael HP 12→18 (+6)");

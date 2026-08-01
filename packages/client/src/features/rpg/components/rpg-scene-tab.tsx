@@ -6,10 +6,12 @@
 // until CYOA lands) → last-3 BeatLines ("Just now"). Scene = window; Journal = archive.
 //
 // EDIT-in-place (§3.2), all host-only in v1 (`canEditShared`, which also folds the read-only pill's honest
-// arm): ambient fields + widget values ride `editSnapshot` (whole-array/record overlay under [merge-clear]);
-// goals ride `upsertQuest`. Beats are a log (read-only by nature).
+// arm): ambient fields + game-tracker values + the cast IDENTITY rows ride `editSnapshot` (record/array
+// overlay under [merge-clear]); a cast member's TRACKED VALUES ride `patchActor` (the op door — a cast NPC's
+// values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
+// are a log (read-only by nature).
 
-import type { RpgCastGuideField, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgCastGuideField, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
 import {
   RPG_CAST_GUIDE_FIELDS,
   RPG_TRACKER_VALUE_EMPTY,
@@ -28,10 +30,9 @@ import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#component
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, useResyncFromStory } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, usePatchActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
 import { RELATIONSHIP_GLYPHS, TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
@@ -93,6 +94,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
+  const patchActor = usePatchActor({ trpc, invalidation });
   if (!canEditShared) {
     return {};
   }
@@ -108,28 +110,23 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
       // A cast member's tracked value writes the SAME per-actor plane a roster member's does, under the
       // member's `cast:<key>` ref (one value home for every actor — the unification's whole point). The
       // written value stays TOTAL because the snapshot merge recurses into it.
-      onEditCastTracker: (castKey, def, value, next): void => {
-        const ref = { kind: "cast", castKey } as const;
-        editSnapshot.mutate({
+      onEditCastTracker: (castKey, def, next): void => {
+        patchActor.mutate({
           chatId,
-          patch: actorStatePatch(tracker, ref, (v) => ({
-            ...v,
-            trackerValues: {
-              ...v.trackerValues,
-              [def.key]: {
-                ...RPG_TRACKER_VALUE_EMPTY,
-                ...value,
-                ...(def.shape === "list"
-                  ? {
-                      items: String(next)
-                        .split(",")
-                        .map((x) => x.trim()),
-                    }
-                  : { value: next }),
-              },
-            },
-          })),
-          lockPaths: [`${actorLockBase(ref)}.trackerValues.${def.key}`],
+          targetRef: { kind: "cast", castKey },
+          ops: [
+            def.shape === "list"
+              ? {
+                  op: "setTracker",
+                  key: def.key,
+                  value: {
+                    items: String(next)
+                      .split(",")
+                      .map((x) => x.trim()),
+                  },
+                }
+              : { op: "setTracker", key: def.key, value: { value: next } },
+          ],
         });
       },
     },
@@ -272,8 +269,10 @@ function guideProps(member: RpgTrackerView["cast"][number]): Partial<Record<RpgC
 interface SceneCastEdit {
   readonly onEditCast: (patch: Record<string, unknown>) => void;
   /** Write ONE tracked value on a cast member (the actorState plane — cast NPCs carry their values on the
-   *  SAME per-actor plane roster members use, keyed `cast:<key>`; there is no second cast-value store). */
-  readonly onEditCastTracker: (castKey: string, def: RpgTrackerDef, value: RpgTrackerValue | null, next: string | number) => void;
+   *  SAME per-actor plane roster members use, keyed `cast:<key>`; there is no second cast-value store). The
+   *  CURRENT reading is not passed: `patchActor`'s `setTracker` merges onto whatever the true head carries,
+   *  so the panel never has to hand back a value it read a beat ago. */
+  readonly onEditCastTracker: (castKey: string, def: RpgTrackerDef, next: string | number) => void;
 }
 
 function SceneCast({
@@ -320,7 +319,7 @@ function SceneCast({
                 onEditField: (label: string, next: string): void => {
                   const entry = entries.find((e) => e.def.label === label);
                   if (entry !== undefined) {
-                    edit.onEditCastTracker(member.key, entry.def, entry.value, next);
+                    edit.onEditCastTracker(member.key, entry.def, next);
                   }
                 },
               };
@@ -352,9 +351,7 @@ function SceneCast({
                       // The def's own color, else the ordinal ramp — the SAME derivation the GM-console
                       // definition row and the band orb use (definition and display one system, §3).
                       {...trackColorProps(resolveTrackerColor(m.def.color, i))}
-                      {...(edit === undefined
-                        ? {}
-                        : { onEditValue: (next: number): void => edit.onEditCastTracker(member.key, m.def, m.value, Math.max(0, next)) })}
+                      {...(edit === undefined ? {} : { onEditValue: (next: number): void => edit.onEditCastTracker(member.key, m.def, Math.max(0, next)) })}
                     />
                   )),
                 })}

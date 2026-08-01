@@ -3,6 +3,10 @@
 // ruling) — mints a fresh narrator slot to hold the first committed snapshot. Mutations asserted at the
 // resolved snapshot row (assert-the-mutation-fired).
 //
+// R1: the `actorState` IMAGE left this door (the per-actor plane is op-shaped — `verbs/patch-actor.ts`), so
+// the per-actor lock + additive-plane drives that used to live here moved to `patch-actor.int.test.ts`; what
+// remains is the image-honest planes plus the refusal that redirects an `actorState` patch to its verb.
+//
 // The second describe is the VERB-LEVEL [merge-clear] TRANSITION TEST — the twin of the pure one in
 // `substrate/merge.test.ts`, pinned END-TO-END because the pure merge was always right and the verb lied
 // anyway: `{ambient: null}` (a TRACKER-VIEW grouping, not a state plane) merged into a plain object that the
@@ -73,43 +77,42 @@ describe("editSnapshot on a turnless game", () => {
     await service.editSnapshot({
       principal: principal("host"),
       chatId,
-      patch: { actorState: [actorWithWallet("mari", 10, 5)] },
-      lockPaths: ["actorState.cast:mari.pools.focus"],
+      patch: { trackerValues: { focus: { value: 5, items: null, max: null } } },
+      lockPaths: ["trackerValues.focus"],
     });
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-    // The named fine path is locked; the coarse `actorState` default was NOT stamped.
-    expect(snap?.fieldLocks?.["actorState.cast:mari.pools.focus"]).toBe(true);
-    expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
-  });
-
-  test("a per-actor hand edit never wipes the actors it did not name (the multi-edit clone-forward chain)", async () => {
-    // The e2e-caught defect (rpg-lite-loop SPEC 1): each committed hand edit clones forward onto a fresh
-    // narrator anchor, and the SECOND edit named only `mira` — so the keyed-array merge dropped `thorn`'s
-    // whole volatile row and the panel read back a hero with no HP. A hand editor writes the actors it can
-    // SEE (the client's `actorStatePatch` sends the ROSTER half plus the one `cast:` target it is editing —
-    // never the other scene NPCs), so an unnamed actor is IGNORANCE, never a removal.
-    const { chatId, game, service } = await seedGame();
-    await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("thorn", 45, 3)] } });
-    await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("mira", 0, 4)] } });
-
-    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-    const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "cast" ? a.actorRef.castKey : "", a]));
-    expect(byKey.get("thorn")?.wallet).toEqual([{ name: "gold", amount: 45 }]);
-    expect(byKey.get("thorn")?.trackerValues["focus"]?.value).toBe(3);
-    expect(byKey.get("mira")?.trackerValues["focus"]?.value).toBe(4);
+    // The named fine path is locked; the coarse `trackerValues` default was NOT stamped.
+    expect(snap?.fieldLocks?.["trackerValues.focus"]).toBe(true);
+    expect(snap?.fieldLocks?.["trackerValues"]).toBeUndefined();
   });
 
   test("releaseLocks clears a fine path stamped earlier (release-only call, empty patch)", async () => {
     const { chatId, game, service } = await seedGame();
-    await service.editSnapshot({
-      principal: principal("host"),
-      chatId,
-      patch: { actorState: [actorWithWallet("mari", 10, 5)] },
-      lockPaths: ["actorState.cast:mari.status"],
-    });
-    await service.editSnapshot({ principal: principal("host"), chatId, patch: {}, releaseLocks: ["actorState.cast:mari.status"] });
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: { location: "The Crypt" }, lockPaths: ["location"] });
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: {}, releaseLocks: ["location"] });
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-    expect(snap?.fieldLocks?.["actorState.cast:mari.status"]).toBeUndefined();
+    expect(snap?.fieldLocks?.["location"]).toBeUndefined();
+  });
+
+  // R1 — the `actorState` IMAGE left this door. The plane is op-shaped now, and the refusal has to NAME the
+  // verb that owns it: a hand caller (a host at a keyboard, a console, a seed script) told only "no" just
+  // moves the guess. Nothing is written and no anchor slot is minted.
+  test("an `actorState` image is REFUSED as data, naming rpg.patchActor — no write, no slot, no bus event", async () => {
+    const { chatId, game, service, fakes } = await seedGame();
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: { location: "The Crypt" } });
+    const slotsBefore = fakes.narratorPosts.length;
+    const eventsBefore = fakes.busEvents.length;
+
+    const refused = await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("mari", 10, 5)] } });
+    expect(refused.ok).toBe(false);
+    expect(refused.ok === false && refused.reason).toContain("rpg.patchActor");
+    expect(refused.ok === false && refused.reason).toContain("rpg.dismissActor");
+
+    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+    expect(snap?.actorState ?? []).toHaveLength(0);
+    expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
+    expect(fakes.narratorPosts).toHaveLength(slotsBefore);
+    expect(fakes.busEvents).toHaveLength(eventsBefore);
   });
 });
 
