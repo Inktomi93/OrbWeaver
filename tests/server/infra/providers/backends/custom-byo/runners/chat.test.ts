@@ -316,6 +316,46 @@ describe("createCustomByoBackend — resolveChat unification (EFF-2)", () => {
     expect(wire.read()["temperature"]).toBe(0.15);
     expect(wire.read()["logit_bias"]).toEqual({ "7": -1 });
   });
+
+  // D41, mirroring the OR-4 fix on the OpenRouter runner: `isError` on a tool result has NO slot on this
+  // wire either (the OpenAI `tool` message is role/tool_call_id/content), so the model reads a failed tool
+  // result as an ordinary one. Nothing is invented onto the wire to carry it — the drop is made LOUD.
+  test("a tool-result isError:true drops loudly as `tool_result_error_dropped` (D41)", async () => {
+    const wire = captureBody();
+    const events: Array<{ code?: string; message?: string }> = [];
+    const result = await runTurn(
+      makeRequest({
+        history: [
+          { role: "user", content: [{ type: "text", text: "go" }] },
+          { role: "assistant", content: [{ type: "tool-call", toolCallId: "call_1", name: "tick", arguments: "{}" }] },
+          { role: "tool", content: [{ type: "tool-result", toolCallId: "call_1", content: '{"err":"boom"}', isError: true }] },
+        ],
+        onEvent: (e): void => void events.push("code" in e ? { code: e.code, message: e.message } : {}),
+      }),
+    );
+    const messages = wire.read()["messages"] as Record<string, unknown>[];
+    expect(messages.at(-1)).toEqual({ role: "tool", tool_call_id: "call_1", content: '{"err":"boom"}' });
+    expect(result.events).toContainEqual({
+      kind: "warning",
+      at: FIXED_NOW,
+      code: "tool_result_error_dropped",
+      message: "tool-result isError ignored: the OpenAI-compatible chat-completions wire has no tool-result error field",
+    });
+    expect(events).toContainEqual(expect.objectContaining({ code: "tool_result_error_dropped" }));
+  });
+
+  test("a SUCCESSFUL tool result (no isError) emits NO tool_result_error_dropped warning", async () => {
+    captureBody();
+    const result = await runTurn(
+      makeRequest({
+        history: [
+          { role: "user", content: [{ type: "text", text: "go" }] },
+          { role: "tool", content: [{ type: "tool-result", toolCallId: "call_1", content: '{"ok":true}' }] },
+        ],
+      }),
+    );
+    expect(result.events.filter((e) => e.kind === "warning" && e.code === "tool_result_error_dropped")).toEqual([]);
+  });
 });
 
 describe("createCustomByoBackend — streaming + non-streaming + the user-declared profile", () => {

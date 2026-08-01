@@ -58,6 +58,15 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
  *  draft, firing commits the chat with no auto-opening and the impersonated line IS the first message. */
 export const IMPERSONATE_WAIT_FOR_TURN = "wait for the current reply to finish";
 
+/** IMP-2 — why EVERY guided icon is idled while the impersonate STREAM is filling the composer. The generic
+ *  IMPERSONATE_WAIT_FOR_TURN names a reply that isn't running (nothing is being generated into the
+ *  transcript), so it read as a phantom turn the user couldn't see, find, or stop. This names the real cause
+ *  — and the Stop beside the icons is how it ends. */
+export const IMPERSONATE_IN_FLIGHT = "impersonating: drafting your line (Stop keeps what's written)";
+
+/** The impersonate Stop's accessible name + hover title (it renders only while the stream is live). */
+export const IMPERSONATE_STOP_LABEL = "Stop impersonating";
+
 /** Swipe/Regenerate — needs an assistant reply in the chat to reroll (a draft, or a user-tail chat, has none;
  *  on a fresh draft, use Generate opening or Impersonate to write the first message). */
 export const SWIPE_NEEDS_REPLY = "needs a reply to reroll (try Generate opening or Impersonate first)";
