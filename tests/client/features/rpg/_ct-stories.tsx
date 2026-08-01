@@ -20,6 +20,8 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator";
+import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards";
+import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID } from "../chat/fixtures";
 
@@ -87,4 +89,28 @@ export function RpgFreshnessCheapStory(): ReactElement {
  *  "Live" affordance, never a fake lag label. `pending` is set true to prove it does NOT flip to "Updating…". */
 export function RpgFreshnessFoldedStory(): ReactElement {
   return <RpgFreshnessIndicator extractionMode="folded" pending={true} />;
+}
+
+// The archived-card LIGHTBOX in isolation — a pure component (Dialog + the sandboxed ImmersiveCard, no
+// providers/network), mounted OPEN so the sandbox frame the archive really renders is assertable. The card
+// arrives with its ORIGIN ROW's resolved render policy already stamped (`collectArchivedCards`), which is the
+// fact under test: the archive is a second lens on transcript content, so it must inherit that verdict.
+
+const LIGHTBOX_CARD_KEY = "msg_1-0";
+
+// The lightbox is mounted OPEN and never closed by the CT — dismissal is Dialog's, not this story's job.
+const NOOP = (): void => undefined;
+
+/** One archived card, open in the lightbox, carrying an external `<img>` and the given media verdict. */
+export function RpgCardLightboxStory({ allowExternalMedia }: { readonly allowExternalMedia: boolean }): ReactElement {
+  const card: ArchivedCard = {
+    key: LIGHTBOX_CARD_KEY,
+    messageId: "msg_1",
+    title: "A sealed letter",
+    html: '<p>Read me</p><img src="https://evil.test/tracker.png" alt="">',
+    origin: "fence",
+    createdAt: 1_700_000_000_000,
+    allowExternalMedia,
+  };
+  return <RpgCardLightbox cards={[card]} openKey={LIGHTBOX_CARD_KEY} onOpenChange={NOOP} />;
 }

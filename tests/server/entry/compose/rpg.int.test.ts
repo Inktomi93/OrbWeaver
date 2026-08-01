@@ -621,6 +621,9 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
   const schema = spy.schemas[0] as { properties?: { party?: { items?: { properties?: { removeCondition?: { enum?: string[] } } } } } };
   const enumValues = schema.properties?.party?.items?.properties?.removeCondition?.enum;
   expect(enumValues).toEqual(["Bleeding", "Poisoned"]);
+  // R5b(a) — the PROMPT half of the same fact (`refEnumerationLines`): a backend whose wire can't enforce the
+  // enum still reads the live list in prose, so it can only retire a condition somebody actually carries.
+  expect(spy.systemPrompts[0]).toContain("Currently-active conditions (removeCondition must name EXACTLY one of these): Bleeding, Poisoned.");
 });
 
 // ── F10: a roster character literally named "Player" owns the `player` ref; the token is withheld ───────
