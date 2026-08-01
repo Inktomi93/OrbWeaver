@@ -210,18 +210,23 @@ function reasoningFields(reasoning: ResolvedReasoning): Record<string, unknown> 
 
 const VERBOSITY_DROPPED = "verbosity ignored: the OpenAI-compatible chat-completions wire has no verbosity field";
 const REASONING_BUDGET_DROPPED = "thinkingBudgetTokens ignored: the OpenAI-compatible chat-completions wire has no reasoning-budget field";
+const TOOL_RESULT_ERROR_DROPPED = "tool-result isError ignored: the OpenAI-compatible chat-completions wire has no tool-result error field";
 
-// D41 no-silent-degrade: two knobs survive `resolveChat` (the capability advertises them) but have NO slot on
-// this wire — a resolved verbosity, and a budget-mode reasoning budget. Fold both onto the funnel's own
-// warnings so the drop is observable on the turn, never silent. `customParameters`/`includeBody` remain the
-// user's way to send whatever field their endpoint actually speaks.
-function turnWarnings(resolved: ResolvedChatKnobs): readonly ResolvedWarning[] {
+// D41 no-silent-degrade: three signals survive into this runner but have NO slot on this wire — a resolved
+// verbosity, a budget-mode reasoning budget, and a tool result's `isError` flag (the OpenAI `tool` message is
+// {role,tool_call_id,content} and nothing else, so a failed tool result reads to the model as an ordinary
+// one). Fold all three onto the funnel's own warnings so each drop is observable on the turn, never silent.
+// `customParameters`/`includeBody` remain the user's way to send whatever field their endpoint actually speaks.
+function turnWarnings(resolved: ResolvedChatKnobs, history: readonly ChatHistoryMessage[]): readonly ResolvedWarning[] {
   const warnings = [...resolved.warnings];
   if (resolved.verbosity !== undefined) {
     warnings.push({ code: "verbosity_dropped", message: VERBOSITY_DROPPED });
   }
   if (resolved.reasoning.budgetTokens !== undefined) {
     warnings.push({ code: "sampling_knob_dropped", message: REASONING_BUDGET_DROPPED });
+  }
+  if (history.some((turn) => turn.content.some((part) => part.type === "tool-result" && part.isError === true))) {
+    warnings.push({ code: "tool_result_error_dropped", message: TOOL_RESULT_ERROR_DROPPED });
   }
   return warnings;
 }
@@ -246,6 +251,8 @@ function rawHistoryToolCalls(content: readonly ChatContentPart[]): Record<string
   return calls;
 }
 
+// One `tool` message per tool-result part. The part's `isError` has no field here (this wire's tool message is
+// role/tool_call_id/content and nothing else) — {@link turnWarnings} makes that drop loud (D41).
 function rawToolResultMessages(content: readonly ChatContentPart[]): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
   for (const part of content) {
@@ -505,7 +512,7 @@ export async function runChatTurn(req: ChatRequest, deps: CustomByoRunnerDeps): 
     maxOutputTokens: req.capability.output.maxTokens.max,
     reasoning,
   });
-  const warnings = warningEvents(turnWarnings(resolved), deps.now());
+  const warnings = warningEvents(turnWarnings(resolved, req.history), deps.now());
   for (const event of warnings) {
     req.onEvent?.(event);
   }
