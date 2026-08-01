@@ -128,7 +128,21 @@ claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + acti
 same URLs. Owner's two bars met. MOCK FEEDBACK RULED (08-02, round 3 in flight): output+context tokens =
 KnobRow SLIDERS (typeable, ghost arm, capability-fed ranges) · section editor's fused depth·order
 SPLITS — DEPTH moves to DELIVERY beside SPOKEN-AS ("depth goes near whatever role it goes in as"),
-ORDER stays in Placement. **OWNER APPROVED THE REDESIGN (08-02) — D1-D7 as recommended.** FOUR BUILD-HAZARD REQS added to
+ORDER stays in Placement. **OWNER APPROVED THE REDESIGN (08-02) — D1-D7 as recommended.** **ROUND 3 MERGED (`9cb4e0d1`+`a7ba893c`) — SPEC IS APPROVED-TO-BUILD.** §13 definitive: ZERO
+mints (Slider EXISTS w/ largeStep; NumberField; Tooltip; HighlightedText), 3 variant rows (Slider
+tone=ghost [indicator hardcoded bg-primary — noted] · NumberField size=inline · HighlightedText
+skin=code), 1 composite (KnobRow). All 4 hazards folded: macro honesty (requires-free only;
+tokens+gloss — mock fixed) · lifecycle §16.1 (single-preset door = THIN arm over the LIVE bundle
+descriptor verbs — F8 REFRAMED, they were never dead; importFile delegates to ImportPreset) ·
+freshness §4.4 (writes+seeds+capability invalidate; freshness gate classifies at birth; loop is
+a shipped pin) · form factory §14.1 (createAutosaveEntityForm/D78 mandatory). Depth→Delivery,
+order→Placement; output/context = ghost KnobRow sliders; hints→hover w/ dotted-underline
+convention. Mocks republished (list-pane minted a NEW url: …/dac7aeb4-9c39-4a6a-81e1-552a7e53b166).
+TRIGGERS parity confirmed for owner (contracts:585 injection_trigger ⟷ assemble-gather:279).
+ENGINE PASS: 6/6 arms PASS live (wake ~0.6-1.2s, single-flight proven, hold refuses in 150ms);
+FOUND+FIXED the sleep-verb marker race (marker-first, merged); RESIDUAL owner-authorized: the
+VRAM-refusal drill needs a real GPU hog the sandbox refused — unit-covered, live arm open.
+Earlier note: FOUR BUILD-HAZARD REQS added to
 round 3 (owner): identity macros NEVER fake-resolve editor-side (chat-owned, Ruling B — token +
 "resolves in chat" gloss; fix the Actions mock) · full CRUD+import/export lifecycle table (orb-
 native import DOOR must be designed — F8 says none exists) · FRESHNESS contract (every write +
