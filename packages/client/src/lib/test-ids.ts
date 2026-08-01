@@ -46,6 +46,8 @@ export const TEST_IDS = {
   composerGuidedResponse: "composer-guided-response",
   composerGuidedContinue: "composer-guided-continue",
   composerGuidedGameSteer: "composer-guided-game-steer",
+  // IMP-2 — the impersonate stream's Stop, rendered in the cluster ONLY while the stream fills the composer.
+  composerGuidedStopImpersonate: "composer-guided-stop-impersonate",
   // The ✨ menu's Plot submenu trigger (side-eye P1-B — the six plot steers nest under it) + the ref-triggered
   // Attach images row (side-eye P1-C — the file input is off the row's accessible name).
   composerPlotSteers: "composer-plot-steers",

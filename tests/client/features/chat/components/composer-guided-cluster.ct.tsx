@@ -17,6 +17,8 @@ import {
   GENERATION_FAILED_DETAIL,
   IMPERSONATE_AFTER_COMMIT_FAILED_LEAD,
   IMPERSONATE_FAILED_LEAD,
+  IMPERSONATE_IN_FLIGHT,
+  IMPERSONATE_STOP_LABEL,
   OPENING_AFTER_COMMIT_FAILED_HINT,
   OPENING_AFTER_COMMIT_FAILED_LEAD,
 } from "@orb/client/lib";
@@ -249,8 +251,8 @@ test("Impersonate on a DRAFT with a typed steer threads the steer + person, pres
 /** ABSENCE, proven two ways ([[absence needs two methods]]): a POSITIVE wait for the zombie's next connect that
  *  must TIME OUT (the stub pins the EventSource retry to 200ms, so a live subscription would have re-opened
  *  several times inside the window), plus the stub's own connect counter still reading 1. */
-async function expectNoReconnect(page: Page, sse: { count: () => number }): Promise<void> {
-  await expect(page.waitForRequest(isImpersonateStreamRequest, { timeout: ZOMBIE_WATCH_MS })).rejects.toThrow(WAIT_TIMEOUT);
+async function expectNoReconnect(page: Page, sse: { count: () => number }, watchMs = ZOMBIE_WATCH_MS): Promise<void> {
+  await expect(page.waitForRequest(isImpersonateStreamRequest, { timeout: watchMs })).rejects.toThrow(WAIT_TIMEOUT);
   // ONESHOT-OK: the wait above TIMED OUT, so no stream request reached the page inside the window — the
   // recorder (fed by the route handler, which only runs on such a request) is provably settled at read.
   expect(sse.count()).toBe(1);
@@ -313,6 +315,71 @@ test("a DRAFT whose commit SUCCEEDED then failed to draft says the chat survived
   // ONESHOT-OK: the commit is awaited BEFORE the stream, the failure toast proves the flow settled, and
   // expectNoReconnect proves nothing further is in flight — the recorder cannot move after this point.
   expect(trpc.count("chat.startChat")).toBe(1); // one room, not one per reconnect
+});
+
+// ── IMP-2: the impersonate stream is STOPPABLE, and says so ──────────────────────────────────────────────
+// The stream had a cancel lever (the subscription's unsubscribe) that nothing rendered: a user watching the
+// composer fill could only wait it out, while every guided icon claimed to be waiting on "the current reply"
+// — a turn that does not exist. These two tests are the fix's two halves: the Stop really unsubscribes, and
+// the wait reason is honest.
+//
+// The staged stub's reconnect delay is PINNED here (`STOP_RETRY_MS`) so the inter-delta gap — the window in
+// which the stream is provably still live — is a known quantity: wide enough to click Stop inside, short
+// enough that STOP_WATCH_MS with no reconnect is a real observation.
+const STOP_RETRY_MS = 2000;
+const STOP_WATCH_MS = 2500;
+const PARTIAL = "I step into the tavern, ";
+
+test("Stop appears while impersonating, unsubscribes the stream, and KEEPS the partial fill", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const sse = await routeImpersonateStream(page, [PARTIAL, "cloak dripping."], STOP_RETRY_MS);
+  const component = await mount(<ComposerStory />);
+  const box = component.getByRole("textbox", { name: "Message" });
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+  // Mid-stream: the first delta landed, the second is still pending its staged reconnect.
+  await expect(box).toHaveValue(PARTIAL);
+
+  const stop = component.getByRole("button", { name: IMPERSONATE_STOP_LABEL });
+  await expect(stop).toBeVisible();
+  await stop.click();
+
+  // The UNSUBSCRIBE fired ([[assert-the-mutation-fired]]): the staged reconnect that would have delivered
+  // delta 2 never happens — proven the two ways expectNoReconnect does, over a window LONGER than the pinned
+  // retry (a still-live subscription would have re-opened inside it).
+  await expectNoReconnect(page, sse, STOP_WATCH_MS);
+  // The deliberate divergence from ST (which clears the draft and overwrites per tick): a cancel KEEPS what
+  // was written. And a cancel is not a failure — no toast, and the composer is NOT restored to the old steer.
+  await expect(box).toHaveValue(PARTIAL);
+  await expect(component.getByTestId("composer-notified")).toBeEmpty();
+  // The stream is over: the Stop retires and the cluster comes back to life.
+  await expect(stop).toBeHidden();
+  await expect(component.getByRole("button", { name: "Impersonate" })).toBeEnabled();
+});
+
+test("while impersonating, the guided icons name the STREAM as the wait reason (not a phantom reply)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await routeImpersonateStream(page, [PARTIAL, "cloak dripping."], STOP_RETRY_MS);
+  const component = await mount(<ComposerStory />);
+
+  await component.getByRole("button", { name: "Impersonate" }).click();
+  await page.getByRole("menuitem", { name: "1st person" }).click();
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue(PARTIAL);
+
+  // Every idled icon reads the real cause — including Swipe, whose own phase reason ("needs a reply to
+  // reroll") is true but not why it is off RIGHT NOW, and Response, which has no phase reason at all.
+  // (The drafted line IS composer text, so the icons are in their GUIDED mode — the P3-dualmode names.)
+  await expect(component.getByRole("button", { name: "Swipe with this steering" })).toHaveAttribute(
+    "title",
+    `Swipe with this steering — ${IMPERSONATE_IN_FLIGHT}`,
+  );
+  await expect(component.getByRole("button", { name: "Continue with this steering" })).toHaveAttribute(
+    "title",
+    `Continue with this steering — ${IMPERSONATE_IN_FLIGHT}`,
+  );
+  await expect(component.getByRole("button", { name: RESPONSE_GUIDED })).toHaveAttribute("title", `${RESPONSE} — ${IMPERSONATE_IN_FLIGHT}`);
+  await expect(component.getByRole("button", { name: "Guided impersonate" })).toHaveAttribute("title", `Impersonate — ${IMPERSONATE_IN_FLIGHT}`);
 });
 
 test("Regenerate lives in the ✨ menu and fires a PLAIN reroll of the tail assistant (no steer)", async ({ mount, page }) => {

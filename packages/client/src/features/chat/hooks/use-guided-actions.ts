@@ -144,6 +144,9 @@ export interface UseGuidedActionsResult {
    *  commits the room with no auto-opening (fallback: an empty chat exists even if discarded) then drafts the
    *  opening user line. `input` is the optional steer; `person` picks the 1st/2nd/3rd-person perspective. */
   readonly fireImpersonate: (input: string, person: GuidedImpersonatePerson, onDrafted: (text: string) => void) => void;
+  /** IMP-2 — cancel the LIVE impersonate stream; null when no stream is running (the cluster renders its Stop
+   *  off this). Stopping unsubscribes and settles cleanly: no toast, no steer restore, partial fill KEPT. */
+  readonly stopImpersonation: (() => void) | null;
   readonly fireOpening: (input: string) => void;
 }
 
@@ -161,6 +164,14 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   // The impersonation stream is in flight — idles the cluster (one action at a time) exactly like a pending
   // mutation. Set when the subscription starts, cleared on complete/error.
   const [impersonatePending, setImpersonatePending] = useState(false);
+  // IMP-2 — the live stream's cancel lever: the subscription's own unsubscribe, wrapped so it SETTLES the
+  // flow as a normal completion. Non-null EXACTLY while a stream is filling the composer, which is what the
+  // cluster renders its Stop off (a draft commit that precedes the stream is not cancellable — there is no
+  // subscription yet, and the room is already being written). Cancelling KEEPS the partial fill already in
+  // the composer: a deliberate divergence from ST, which clears the draft at start and overwrites per tick
+  // (docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md) — ours is a review flow, so a half-drafted line
+  // the user stopped BECAUSE they liked its start is the thing they wanted to keep.
+  const [stopImpersonation, setStopImpersonation] = useState<(() => void) | null>(null);
 
   // F3 — the fired-steer side-effects, applied around every committed guided fire: record the steer into
   // the session recovery ring, and on a NON-ABORT failure hand the text back so the wand can restore the
@@ -282,6 +293,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         }
         settled = true;
         close?.();
+        setStopImpersonation(null);
         finish();
       };
       const handle = trpcClient.chat.impersonateStream.subscribe(guided === undefined ? { chatId: targetChatId } : { chatId: targetChatId, guided }, {
@@ -315,6 +327,9 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         },
       });
       close = (): void => handle.unsubscribe();
+      // The user's Stop: unsubscribe + resolve. A cancel is NOT a failure — resolving means no toast fires and
+      // the D57 steer-restore never runs, so the drafted text the user chose to keep survives untouched.
+      setStopImpersonation(() => (): void => settle(resolve));
     });
 
   return {
@@ -417,6 +432,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         })
         .finally(() => setImpersonatePending(false));
     },
+    stopImpersonation,
     fireOpening,
   };
 }
