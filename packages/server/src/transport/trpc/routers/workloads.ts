@@ -16,7 +16,14 @@
 
 import { on } from "node:events";
 import type { Principal } from "@orb/contracts/identity";
-import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "@orb/contracts/workloads";
+import {
+  asStartWorkloadInput,
+  scheduleCadenceSchema,
+  startWorkloadEnvelope,
+  workloadKindSchema,
+  workloadModeSchema,
+  workloadStatusSchema,
+} from "@orb/contracts/workloads";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
@@ -24,7 +31,7 @@ import { tracked } from "@trpc/server";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
 import type { WorkloadEvent, WorkloadService } from "#domain/workloads";
-import { getRecentWorkloadEvents, startWorkloadInput, workloadStreamEmitter } from "#domain/workloads";
+import { getRecentWorkloadEvents, workloadStreamEmitter } from "#domain/workloads";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
 
@@ -36,7 +43,7 @@ export const workloadsRouter = t.router({
   start: authedProcedure
     .input(
       z.object({
-        input: startWorkloadInput,
+        input: startWorkloadEnvelope,
         // The run mode (default singular). A bulk CREATE-kind additionally carries the mint target.
         mode: workloadModeSchema.default("singular"),
         targetOwnerId: brandedId<UserId>().optional(),
@@ -51,7 +58,7 @@ export const workloadsRouter = t.router({
         requireOwner(ctx.auth);
       }
       return ctx.services.workloads.start({
-        input: input.input,
+        input: asStartWorkloadInput(input.input),
         caller: ctx.auth,
         mode: input.mode,
         ownerId: ctx.auth.userId,
@@ -106,7 +113,7 @@ export const workloadsRouter = t.router({
   createSchedule: authedProcedure
     .input(
       z.object({
-        input: startWorkloadInput,
+        input: startWorkloadEnvelope,
         cadence: scheduleCadenceSchema,
         mode: workloadModeSchema.default("singular"),
         enabled: z.boolean().optional(),
@@ -117,7 +124,7 @@ export const workloadsRouter = t.router({
         requireOwner(ctx.auth);
       }
       return ctx.services.workloads.createSchedule({
-        input: input.input,
+        input: asStartWorkloadInput(input.input),
         caller: ctx.auth,
         cadence: input.cadence,
         mode: input.mode,
@@ -130,7 +137,7 @@ export const workloadsRouter = t.router({
     .input(
       z.object({
         id: brandedId<WorkloadScheduleId>(),
-        input: startWorkloadInput.optional(),
+        input: startWorkloadEnvelope.optional(),
         cadence: scheduleCadenceSchema.optional(),
         mode: workloadModeSchema.optional(),
       }),
@@ -142,7 +149,7 @@ export const workloadsRouter = t.router({
       return ctx.services.workloads.updateSchedule({
         id: input.id,
         caller: ctx.auth,
-        ...(input.input !== undefined ? { input: input.input } : {}),
+        ...(input.input !== undefined ? { input: asStartWorkloadInput(input.input) } : {}),
         ...(input.cadence !== undefined ? { cadence: input.cadence } : {}),
         ...(input.mode !== undefined ? { mode: input.mode } : {}),
       });

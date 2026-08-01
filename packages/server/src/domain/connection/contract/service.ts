@@ -151,3 +151,9 @@ export interface ConnectionService {
   /** The settled cost of one OpenRouter generation, read with the caller's billing key. */
   readonly getGenerationCost: (params: GetGenerationCostParams) => Promise<GenerationCost>;
 }
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root
+ *  (`refresh-model-catalog`) — this domain's own catalog verbs, nothing cross-feature. */
+export interface ConnectionWorkloadDeps {
+  readonly connection: Pick<ConnectionService, "refreshCatalog" | "refreshAgentSdkCatalog">;
+}

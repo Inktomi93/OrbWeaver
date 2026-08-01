@@ -14,7 +14,7 @@ import { resolveListOwnerFilter } from "../substrate/authorize";
 export function createList(ctx: WorkloadServiceContext): Pick<WorkloadService, "list"> {
   async function list(params: ListWorkloadsParams): Promise<readonly WorkloadRowAnyKind[]> {
     const ownerId = resolveListOwnerFilter(ctx.isAdmin, params.caller, params.ownerId);
-    return await listWorkloads(ctx.db, {
+    return await listWorkloads(ctx.db, ctx.getContributions(), {
       ...(params.kind !== undefined ? { kind: params.kind } : {}),
       ...(params.status !== undefined ? { status: params.status } : {}),
       ...(ownerId !== undefined ? { ownerId } : {}),

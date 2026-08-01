@@ -199,7 +199,7 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts` — the workloads runner-env adapts these; the
+// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts` — chat's `workload-contributions.ts` folds these; the
 //    workload contract declares its own structurally-identical shapes, never imports chat's). ──
 
 /** One sweep pass's fold: entities visited × rows actually written. */

@@ -100,3 +100,12 @@ export interface AssetsService {
   /** Disaster recovery: re-derive index rows for orphan blobs by walking + hashing the per-user tree. */
   readonly rebuildFromTree: (options: RebuildOptions) => Promise<RebuildResult>;
 }
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root (the three CAS
+ *  maintenance kinds). `db` + `cas` are here because the `assets-backfill` GATHER (the staged-card scan +
+ *  per-row CAS probe) belongs in this domain — it used to run at the entry tier. */
+export interface AssetsWorkloadDeps {
+  readonly db: Db;
+  readonly cas: Cas;
+  readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
+}

@@ -8,9 +8,9 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { startWorkloadInput } from "../contract/workload-params";
 import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries";
 import { assertKindSupportsMode, isVisibleToCaller } from "../substrate/authorize";
+import { parseWorkloadInput } from "../substrate/params";
 
 const ENTITY = "workload_schedule";
 
@@ -30,7 +30,7 @@ function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadSched
   let effectiveKind = existing.kind;
   let effectiveMode = existing.mode;
   if (params.input !== undefined) {
-    const input = startWorkloadInput.parse(params.input);
+    const input = parseWorkloadInput(ctx.getContributions(), params.input);
     effectiveKind = input.kind;
     patch.kind = input.kind;
     patch.params = input.params as Record<string, unknown>;

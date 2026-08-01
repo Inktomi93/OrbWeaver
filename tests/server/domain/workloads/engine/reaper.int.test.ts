@@ -9,7 +9,10 @@ import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain
 import { loadWorkloadStatus } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { seedWorkloadRow, T0 } from "../_support.ts";
+import { fakeContributions, seedWorkloadRow, T0 } from "../_support.ts";
+
+// The row read path narrows params against the contribution registry — the reaper's stale sweep reads rows.
+const CONTRIBUTIONS = fakeContributions();
 
 describe("reapOrphanedWorkloads", () => {
   test("reaps a stale in-flight row, leaves a fresh one, and emits failed(worker_died)", async () => {
@@ -26,7 +29,7 @@ describe("reapOrphanedWorkloads", () => {
       status: "running",
       updatedAt: T0 + 100_000,
     });
-    const reaped = await reapOrphanedWorkloads({ db, now: T0 + 50_000 });
+    const reaped = await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 50_000 });
     expect(reaped).toBe(1);
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_stale"))).toBe("worker_died");
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_fresh"))).toBe("running");
@@ -42,7 +45,7 @@ describe("reapOrphanedWorkloads", () => {
       status: "succeeded",
       updatedAt: T0,
     });
-    expect(await reapOrphanedWorkloads({ db, now: T0 + 100_000 })).toBe(0);
+    expect(await reapOrphanedWorkloads({ db, contributions: CONTRIBUTIONS, now: T0 + 100_000 })).toBe(0);
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("wl_done"))).toBe("succeeded");
   });
 });

@@ -4,11 +4,10 @@
 // their own ownerId unless admin; a bulk schedule requires the box owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params";
-import type { StartWorkloadInput } from "./workload-params";
 
 export interface WorkloadScheduleRow {
   readonly id: WorkloadScheduleId;

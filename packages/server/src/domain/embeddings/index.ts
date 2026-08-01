@@ -14,6 +14,7 @@ export type {
   EmbeddingsIndexerContext,
   EmbeddingsService,
   EmbeddingsServiceDeps,
+  EmbeddingsWorkloadDeps,
   ListCharacterIds,
   ListImageAssetIds,
   LoadAssetBytes,
@@ -22,3 +23,4 @@ export type {
 
 export { createEmbeddingsIndexer } from "./indexer";
 export { createEmbeddingsService } from "./service";
+export { createEmbeddingsWorkloadContributions } from "./workload-contributions";

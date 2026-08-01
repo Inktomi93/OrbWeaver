@@ -9,7 +9,7 @@ export type { LatencyScope, LeaderboardSort } from "./contract/params";
 // input from; deep-importing contract/params is a front-door violation, so they re-export here).
 export { LEADERBOARD_SORTS, latencyScopeSchema } from "./contract/params";
 export type { ReconcileStatsResult } from "./contract/results";
-export type { StatsService } from "./contract/service";
+export type { StatsService, StatsWorkloadDeps } from "./contract/service";
 export type {
   ActivityHeatmap,
   CharacterMomentum,
@@ -25,5 +25,6 @@ export type {
   WrappedSummary,
 } from "./contract/views";
 export { createStatsService } from "./service";
+export { createStatsWorkloadContributions } from "./workload-contributions";
 export { applyStatsDelta } from "./write/apply-delta";
 export { reconcileStats } from "./write/rebuild-from-canon";

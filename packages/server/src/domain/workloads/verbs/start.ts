@@ -1,6 +1,7 @@
-// verb: start — enqueue a `queued` row in a given MODE. Re-parses the `StartWorkloadInput` union (defense in
-// depth — mocked-procedure tests bypass the wire validator). `dependsOn` is persisted here and enforced at
-// dispatch (the DAG scheduler in `persistence/nextRunnableWorkload`) — start just records the edges.
+// verb: start — enqueue a `queued` row in a given MODE. Re-parses the input against the OWNING domain's
+// contribution schema (defense in depth — the wire validates the envelope only, and mocked-procedure tests
+// bypass it entirely). `dependsOn` is persisted here and enforced at dispatch (the DAG scheduler in
+// `persistence/nextRunnableWorkload`) — start just records the edges.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
@@ -8,9 +9,9 @@ import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { resolveWorkloadSource, startWorkloadInput } from "../contract/workload-params";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints";
 import { insertWorkload } from "../persistence/queries";
+import { parseWorkloadInput, resolveWorkloadSource } from "../substrate/params";
 
 /**
  * The MODE gate + the ROW OWNER (= runner enumeration scope) resolution, server-authoritative:
@@ -43,7 +44,7 @@ function authorizeAndResolveOwner(ctx: WorkloadServiceContext, params: StartWork
 
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
   async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
-    const input = startWorkloadInput.parse(params.input);
+    const input = parseWorkloadInput(ctx.getContributions(), params.input);
     const ownerId = authorizeAndResolveOwner(ctx, params, input.kind);
     const id = ctx.newWorkloadId();
     const now = ctx.now();

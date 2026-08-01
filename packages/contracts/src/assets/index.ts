@@ -158,3 +158,13 @@ export const resolveChatBlobRefsParamsSchema = z.object({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
 export type ResolveChatBlobRefsParams = z.infer<typeof resolveChatBlobRefsParamsSchema>;
+
+// ── The `assets-fsck` workload's terminal result (the workloads junk-drawer exit: a workload's result
+//    shape is authored by the OWNING domain). ──
+
+/** The read-only integrity walk's three fault counts — the REPORT is the product of the run. */
+export interface FsckReport {
+  readonly danglingRows: number;
+  readonly corruptBlobs: number;
+  readonly orphanBlobs: number;
+}

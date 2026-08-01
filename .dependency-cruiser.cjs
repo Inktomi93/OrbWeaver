@@ -443,11 +443,11 @@ module.exports = {
     {
       name: "domain-substrate-mediates-subsystems",
       comment:
-        "A feature's verbs + root files reach a NAMED SUBSYSTEM (any subdir that is NOT a fixed slot: contract/verbs/persistence/substrate) ONLY through substrate/. A verb importing ./memory/generate directly bypasses the DI seam, making the dep invisible at the composition root + the subsystem refactor-unsafe. Generic because orbweaver's template is uniform (the fixed-slot set is global — no per-feature map). Type-only exempt (declare an injected shape). service.ts/index.ts/context.ts (composition surfaces) are exempt FROM. (structure.md §4; the orbweaver-clean form of neo's substrate-only-subsystem-access.)",
+        "A feature's verbs + root files reach a NAMED SUBSYSTEM (any subdir that is NOT a fixed slot: contract/verbs/persistence/substrate) ONLY through substrate/. A verb importing ./memory/generate directly bypasses the DI seam, making the dep invisible at the composition root + the subsystem refactor-unsafe. Generic because orbweaver's template is uniform (the fixed-slot set is global — no per-feature map). Type-only exempt (declare an injected shape). service.ts/index.ts/context.ts (composition surfaces) are exempt FROM — and so is workload-contributions.ts, the ratified cross-domain root slot that is itself a composition surface (a compose-built factory over the domain's own ops; the workloads junk-drawer exit). (structure.md §4; the orbweaver-clean form of neo's substrate-only-subsystem-access.)",
       severity: "error",
       from: {
         path: `${SRV}domain/([^/]+)/(verbs/)?[^/]+\\.ts$`,
-        pathNot: `${SRV}domain/[^/]+/(service|index|context)\\.ts$`,
+        pathNot: `${SRV}domain/[^/]+/(service|index|context|workload-contributions)\\.ts$`,
       },
       to: {
         path: `${SRV}domain/([^/]+)/[^/]+/`,

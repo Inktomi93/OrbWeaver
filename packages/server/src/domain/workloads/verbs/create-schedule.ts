@@ -12,13 +12,13 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";
 import type { CreateScheduleParams } from "../contract/schedule";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { startWorkloadInput } from "../contract/workload-params";
 import { insertSchedule } from "../persistence/schedule-queries";
 import { assertKindSupportsMode } from "../substrate/authorize";
+import { parseWorkloadInput } from "../substrate/params";
 
 export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
   async function createSchedule(params: CreateScheduleParams): Promise<{ id: WorkloadScheduleId }> {
-    const input = startWorkloadInput.parse(params.input);
+    const input = parseWorkloadInput(ctx.getContributions(), params.input);
     assertKindSupportsMode(input.kind, params.mode);
     if (params.mode === "bulk" && params.caller !== null) {
       ctx.requireOwner(params.caller);

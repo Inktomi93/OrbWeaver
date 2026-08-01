@@ -18,7 +18,7 @@ describe("workloads-worker claim tick", () => {
 
     const outcome = await claimAndRunNext(deps);
 
-    expect(deps.nextRunnable).toHaveBeenCalledWith(deps.runnerDeps.db, T0);
+    expect(deps.nextRunnable).toHaveBeenCalledWith(deps.runnerDeps.db, deps.runnerDeps.contributions, T0);
     expect(deps.run).toHaveBeenCalledTimes(1);
     // The driver threads its OWN runnerDeps + signal into the run (so a SIGTERM aborts the in-flight row).
     expect(deps.run).toHaveBeenCalledWith(deps.runnerDeps, row, deps.signal);
@@ -78,7 +78,7 @@ describe("workloads-worker reap tick", () => {
 
     const reaped = await reapOnce(deps);
 
-    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, now: T0 });
+    expect(reap).toHaveBeenCalledWith({ db: deps.runnerDeps.db, contributions: deps.runnerDeps.contributions, now: T0 });
     expect(reaped).toBe(3);
   });
 

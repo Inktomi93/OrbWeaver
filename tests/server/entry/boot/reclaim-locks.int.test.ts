@@ -11,8 +11,10 @@ import { reclaimLocksOnBoot } from "@orb/server/entry/boot";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
-import { seedWorkloadRow } from "../../domain/workloads/_support.ts";
+import { fakeContributions, seedWorkloadRow } from "../../domain/workloads/_support.ts";
 
+// The row read path narrows params against the contribution registry (findStaleInFlight builds views).
+const CONTRIBUTIONS = fakeContributions();
 const RUNNING_ID = castId<WorkloadId>("workload_running1");
 const QUEUED_ID = castId<WorkloadId>("workload_queued1");
 const HOLDER = "test-replica";
@@ -28,7 +30,7 @@ test("reaps a running workload to worker_died at boot (threshold 0)", async ({ c
     updatedAt: clock.now() - 1000,
   });
 
-  const reaped = await reclaimLocksOnBoot({ db, now: clock.now, holder: HOLDER });
+  const reaped = await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
 
   expect(reaped).toBe(1);
   const [row] = await db.select().from(workloads).where(eq(workloads.id, RUNNING_ID));
@@ -43,7 +45,7 @@ test("leaves a queued (not in-flight) workload untouched", async ({ clock }) => 
     updatedAt: clock.now() - 1000,
   });
 
-  const reaped = await reclaimLocksOnBoot({ db, now: clock.now, holder: HOLDER });
+  const reaped = await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
 
   expect(reaped).toBe(0);
   const [row] = await db.select().from(workloads).where(eq(workloads.id, QUEUED_ID));
@@ -52,7 +54,7 @@ test("leaves a queued (not in-flight) workload untouched", async ({ clock }) => 
 
 test("an empty queue reaps nothing", async ({ clock }) => {
   const db = await freshDb();
-  const reaped = await reclaimLocksOnBoot({ db, now: clock.now, holder: HOLDER });
+  const reaped = await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
   expect(reaped).toBe(0);
 });
 
@@ -72,7 +74,7 @@ test("reclaims THIS replica's orphaned chat turn-locks (by holder) but spares an
   ]);
 
   // Total = 0 workloads + 1 chat-lock (this holder's only). The other replica's live lock is untouched.
-  const reclaimed = await reclaimLocksOnBoot({ db, now: clock.now, holder: HOLDER });
+  const reclaimed = await reclaimLocksOnBoot({ db, contributions: CONTRIBUTIONS, now: clock.now, holder: HOLDER });
 
   expect(reclaimed).toBe(1);
   const remaining = await db.select().from(chatLocks);
