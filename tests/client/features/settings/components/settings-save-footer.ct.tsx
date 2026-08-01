@@ -39,7 +39,9 @@ test("ERROR: the aggregate flips to the failure, the failing section keeps its O
 
   // Move a world-info knob — its autosave fires and fails.
   await page.getByRole("textbox", { name: "Scan depth" }).focus();
-  await page.getByRole("button", { name: "Increase" }).first().click();
+  // ArrowUp increments the FOCUSED NumberField — a page-wide .first() "Increase" click grabs whatever
+  // field the door renders first (the chat rounds stepper, legitimately disabled when autoContinue is off).
+  await page.keyboard.press("ArrowUp");
 
   const footer = page.locator('[data-slot="settings-save-footer"]');
   await expect(footer).toContainText("failed to save");
@@ -59,7 +61,9 @@ test("ERROR: the aggregate flips to the failure, the failing section keeps its O
 test("ERROR: the footer's locator jumps to the failing section's anchor", async ({ mount, page }) => {
   await openChatBehavior(mount, page, true);
   await page.getByRole("textbox", { name: "Scan depth" }).focus();
-  await page.getByRole("button", { name: "Increase" }).first().click();
+  // ArrowUp increments the FOCUSED NumberField — a page-wide .first() "Increase" click grabs whatever
+  // field the door renders first (the chat rounds stepper, legitimately disabled when autoContinue is off).
+  await page.keyboard.press("ArrowUp");
 
   const footer = page.locator('[data-slot="settings-save-footer"]');
   await expect(footer).toContainText("failed to save");
