@@ -249,14 +249,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 7. **WORKLOADS EXIT — STAGES A-D MERGED (D117); the FULL remaining stage-E ladder (report §3.3+§5-E;
    LANE IN FLIGHT; ALL of it lands BEFORE DATABANK — the interactive lane is what makes
    databank-ingest jump the queue):**
-   - [ ] two-lane worker + workloads.lane column (kills the §2 head-block)
-   - [ ] durable progress column (heartbeat-piggybacked upsert; ring stays)
-   - [ ] poison-row visible surface (toView {params:null, poison:true} + proven-to-fail test)
-   - [ ] residuals: dead subscribeWorkloadEvents export · AGENTS.md:226 indexer drift ·
-     client lane-aware pane grouping
-   - [ ] Q4 (OWNER RULED 08-02: YES) — direct stats mutation + wired client affordance +
-     sweep classification + auth test
-   - [ ] post-merge: STICKLER the stage-E diff (engine + db baseline touch)
+   - [x] ALL LANDED + MERGED (`bea2851c`; D117 amended clauses 9-12): two-lane worker (head-block
+     DEAD, driver-proven) · durable progress (mid-run read proof + CT) · poison visible+retryable
+     (raw-blob clone; proven-to-fail ×2) · residuals (2 were already done) · Q4 stats.reconcile
+     (principal-scoped + Recompute-now button + EXEMPT row)
+   - [ ] STICKLER pass on the diff IN FLIGHT (claim/reap under concurrency, baseline squash,
+     poison leak paths, wake races, stats.reconcile auth) — merge findings on its report
+   - [ ] OWNER CALL flagged: stats.reconcile has NO throttle/in-flight guard (full rebuild-from-
+     canon, spam-clickable; bounded by caller's own corpus) — leave or add per-user guard?
+   - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
+     side-eye re-pass
    Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
    (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
 
