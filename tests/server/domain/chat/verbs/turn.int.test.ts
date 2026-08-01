@@ -953,6 +953,40 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     expect(seenStop).toBeUndefined();
   });
 
+  // IMP-1 layer 2a — the impersonate anti-bleed stop set. Measured need: the voice-lock nudge alone leaves
+  // 28% character-voice bleed on the local 8B (scripts/probes/impersonate). ST stops on every present
+  // member's name for exactly this (script.js:3010-3029); the receive-side truncate is the fallback for
+  // backends that ignore stops.
+  test("impersonate stops on EVERY present cast member's label, riding the host's own custom stops", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "kai"]);
+    let seenStop: readonly string[] | undefined;
+    const h = harness(db, names, {
+      chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>"] },
+      onChatRequest: (req) => {
+        seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
+      },
+    });
+
+    await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
+
+    expect(seenStop).toEqual(["<END>", ...chars.map((id) => `\n${names[id]}:`)]);
+  });
+
+  test("a NON-impersonate turn gains no cast stops (byte-identical to pre-IMP-1)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria", "kai"]);
+    let seenStop: readonly string[] | undefined = ["sentinel"];
+    const h = harness(db, names, {
+      chatBehavior: behaviorOff,
+      onChatRequest: (req) => {
+        seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    expect(seenStop).toBeUndefined();
+  });
+
   test("autoContinue fires ONE continue on a length-capped reply; the slot extends in place", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     let generations = 0;
