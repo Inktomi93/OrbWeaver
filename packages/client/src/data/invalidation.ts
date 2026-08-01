@@ -166,6 +166,10 @@ const BUS_FILTERS: BusFilterMap = {
     // `setUserMacroValues` emits this catch-all. Without the row only the writing tab reconciled — a second
     // member sat on the pre-pick bag forever (staleTime is Infinity; the bus is the only driver).
     trpc.chat.getUserMacroPicks.queryFilter({ chatId: e.chatId }),
+    // `getVariablePicks` — the SAME pane's other knob family, the same argument: its picks half is the room's
+    // `chats.variableValues`, read through its own proc, and `setVariables`/`clearVariables` emit this
+    // catch-all.
+    trpc.chat.getVariablePicks.queryFilter({ chatId: e.chatId }),
   ],
 };
 
@@ -186,13 +190,15 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
   // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
-  // `getUserMacroPicks` rides a preset edit too: its DECLARATIONS half IS the active preset's `userMacros`
-  // (adding/removing a macro input changes which controls the picks pane must render), and no chat-bus event
-  // fires when the preset — a different domain's row — is edited.
+  // `getUserMacroPicks`/`getVariablePicks` ride a preset edit too: their DECLARATIONS halves ARE the active
+  // preset's `userMacros`/`variables` (adding/removing a macro input or a ChoiceBlock changes which controls
+  // the picks pane must render), and no chat-bus event fires when the preset — a different domain's row — is
+  // edited.
   presetsChanged: (_e, trpc) => [
     trpc.preset.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     trpc.chat.getUserMacroPicks.pathFilter(),
+    trpc.chat.getVariablePicks.pathFilter(),
     ...promptPreviewReads(trpc),
   ],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],

@@ -25,7 +25,7 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { UserMacroValues } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, UserMacroValues } from "@orb/contracts/preset";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -237,6 +237,22 @@ interface UserMacroPickDef {
 export interface UserMacroPicksView {
   readonly macros: readonly UserMacroPickDef[];
   readonly values: UserMacroValues;
+}
+
+/** The picks pane's ChoiceBlock read (`getVariablePicks`) — the SECOND knob family in the same pane: the
+ *  active preset's declared `variables` plus the persisted per-chat picks (`chats.variableValues`, written
+ *  by the member-gated `setVariables`). Same member floor, same per-CHAT store, same UNSET semantics as its
+ *  {@link UserMacroPicksView} sibling (an absent key — or an empty string, which `resolveChoiceVariables`
+ *  reads alike — falls back to the declared `defaultValue`, else the first option).
+ *
+ *  PROJECTION: the WHOLE `ChoiceBlockSpec`, deliberately. Unlike a `UserMacroSpec` there is no body/args
+ *  class to withhold — a ChoiceBlock IS its question + its offered values, and every remaining field is
+ *  load-bearing for the picker (`multiSelect`/`separator` decide how a pick is stored, `randomPick` and
+ *  `defaultValue` decide what the pick DOES and what UNSET resolves to). Withholding any of them would make
+ *  the pane lie about the turn, not protect anything. */
+export interface VariablePicksView {
+  readonly variables: readonly ChoiceBlockSpec[];
+  readonly values: ChatVariables;
 }
 
 /** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor

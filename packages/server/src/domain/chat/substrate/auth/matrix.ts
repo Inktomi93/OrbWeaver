@@ -102,6 +102,7 @@ export const CHAT_VERB_AUTHORITY = {
   getStoredVariables: "member",
   setVariables: "member",
   setUserMacroValues: "member", // WAVE MU: user-macro input picks — interactive play state (the setVariables sibling)
+  getVariablePicks: "member", // the picks pane's ChoiceBlock half — the DECLARED variables (question + offered values; a ChoiceBlock has no body class to withhold) + the room's picks. Same member floor as its `setVariables` write.
   getUserMacroPicks: "member", // #24: the picks pane read — the pickable macro DECLARATIONS (identity + inputs; never the body, which is prompt content) + the room's picks. Same member floor as its write.
   clearVariables: "member",
   delete: "host", // host-only

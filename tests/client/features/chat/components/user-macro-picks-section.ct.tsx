@@ -42,9 +42,42 @@ const WEATHER_INPUT = {
 
 const MOOD_MACRO = { name: "mood", description: "The scene's emotional weather.", inputs: [TONE_INPUT, WEATHER_INPUT] };
 
+// The wire shape `chat.getVariablePicks` returns — the pane's OTHER knob family (ChoiceBlock variables,
+// projected WHOLE: a ChoiceBlock has no body class to withhold). Spelled locally for the same reason.
+const POV_VARIABLE = {
+  name: "pov",
+  question: "Narration POV",
+  options: [
+    { label: "First", value: "first person" },
+    { label: "Third", value: "third person" },
+  ],
+  defaultValue: "third person",
+  multiSelect: false,
+  separator: ", ",
+  randomPick: false,
+};
+
+const WEATHER_VARIABLE = {
+  name: "weather",
+  question: "Weather pool",
+  options: [
+    { label: "Storm", value: "storm" },
+    { label: "Clear", value: "clear" },
+  ],
+  multiSelect: true,
+  separator: ", ",
+  randomPick: true,
+};
+
+/** The "this preset declares none of THIS family" arms — the pane mounts BOTH reads, so every test answers
+ *  both procs (an unlisted proc resolves `null`, which is not a view). */
+const NO_VARIABLES = { variables: [], values: {} };
+const NO_MACROS = { macros: [], values: {} };
+
 test("renders the declared macro + one control per typed input, and an UNSET input shows what the default resolves to", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
   });
 
   const component = await mount(<UserMacroPicksSectionStory />);
@@ -63,6 +96,7 @@ test("renders the declared macro + one control per typed input, and an UNSET inp
 test("a stored pick renders as the picked option (not the default)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim", weather: ["storm"] } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
   });
 
   const component = await mount(<UserMacroPicksSectionStory />);
@@ -76,6 +110,7 @@ test("a stored pick renders as the picked option (not the default)", async ({ mo
 test("picking a single-select option fires setUserMacroValues with the rebuilt bag", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
     "chat.setUserMacroValues": () => ({}),
   });
 
@@ -91,6 +126,7 @@ test("picking a single-select option fires setUserMacroValues with the rebuilt b
 test("checking a random-pick option fires the mutation with the ARRAY pool, merged beside the sibling pick", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim" } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
     "chat.setUserMacroValues": () => ({}),
   });
 
@@ -106,6 +142,7 @@ test("checking a random-pick option fires the mutation with the ARRAY pool, merg
 test("Use default UNSETS a stored pick — the select item drops the key, the button drops the array", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim", weather: ["storm"] } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
     "chat.setUserMacroValues": () => ({}),
   });
 
@@ -123,12 +160,106 @@ test("Use default UNSETS a stored pick — the select item drops the key, the bu
   await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: {} });
 });
 
-test("no declared macro inputs ⇒ a teaching empty state, never a blank section", async ({ mount, page }) => {
+test("neither knob family declared ⇒ a teaching empty state, never a blank section", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
+    "chat.getUserMacroPicks": () => NO_MACROS,
+    "chat.getVariablePicks": () => NO_VARIABLES,
   });
 
   const component = await mount(<UserMacroPicksSectionStory />);
 
-  await expect(component.getByText("The preset this chat runs declares no macro inputs.", { exact: false })).toBeVisible();
+  await expect(component.getByText("declares no variables and no macro inputs", { exact: false })).toBeVisible();
+});
+
+// ── The ChoiceBlock family — the SAME pane, the second knob family ────────────────────────────────────
+
+test("declared variables render beside the macro inputs in ONE pane, each showing its unset default", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: {} }),
+    "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE, WEATHER_VARIABLE], values: {} }),
+  });
+
+  const component = await mount(<UserMacroPicksSectionStory />);
+
+  // Both families in the one section — the spec's "one client pane, two knob families".
+  await expect(component.getByText("Variables")).toBeVisible();
+  await expect(component.getByText("{{mood}}")).toBeVisible();
+  // The unset single-pick variable names the fallback the TURN resolves (`defaultValue`), never a fake pick.
+  await expect(page.getByRole("combobox", { name: "Narration POV" })).toHaveText("Use default (third person)");
+  // The unset multi-select+randomPick names its real unpicked behavior (the default string, one part drawn).
+  await expect(component.getByText("Use default (storm) — one part drawn each reply")).toBeVisible();
+});
+
+test("a stored variable pick renders as the picked option; a multi-select splits its joined store", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => NO_MACROS,
+    "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE, WEATHER_VARIABLE], values: { pov: "first person", weather: "storm, clear" } }),
+  });
+
+  const component = await mount(<UserMacroPicksSectionStory />);
+
+  await expect(page.getByRole("combobox", { name: "Narration POV" })).toHaveText("First");
+  await expect(component.getByRole("checkbox", { name: "Storm" })).toBeChecked();
+  await expect(component.getByRole("checkbox", { name: "Clear" })).toBeChecked();
+  await expect(component.getByText("Draws one of the checked options each reply.")).toBeVisible();
+});
+
+test("picking a variable fires setVariables with the rebuilt map — orphan keys survive", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => NO_MACROS,
+    // `retired` is a stored pick the preset no longer declares (the resolver's orphan-preserve arm) — the
+    // pane never renders it, and an edit must not silently drop it from the flushed column.
+    "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE], values: { retired: "kept" } }),
+    "chat.setVariables": () => ({}),
+  });
+
+  await mount(<UserMacroPicksSectionStory />);
+
+  await page.getByRole("combobox", { name: "Narration POV" }).click();
+  await page.getByRole("option", { name: "First", exact: true }).click();
+
+  await expect.poll(() => trpc.count("chat.setVariables")).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: { retired: "kept", pov: "first person" } });
+});
+
+test("a multi-select variable stores its picks SEPARATOR-JOINED, and unchecking the last one unsets the key", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => NO_MACROS,
+    "chat.getVariablePicks": () => ({ variables: [WEATHER_VARIABLE], values: { weather: "storm" } }),
+    "chat.setVariables": () => ({}),
+  });
+
+  const component = await mount(<UserMacroPicksSectionStory />);
+
+  // Checking a second option joins both in the AUTHORED option order (never click order). Each edit builds
+  // on the last: the write is optimistic + bus-reconciled, so the pane's own read carries the running bag.
+  await component.getByRole("checkbox", { name: "Clear" }).click();
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toMatchObject({ values: { weather: "storm, clear" } });
+
+  await component.getByRole("checkbox", { name: "Storm" }).click();
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toMatchObject({ values: { weather: "clear" } });
+
+  // Unchecking the LAST one DROPS the key: a ChoiceBlock stores one string and `""` reads as unpicked, so
+  // "no checkboxes" is the unset arm (no separate "Use default" button, unlike the macro-input array family).
+  await component.getByRole("checkbox", { name: "Clear" }).click();
+  await expect.poll(() => trpc.count("chat.setVariables")).toBe(3);
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: {} });
+});
+
+test("Use default UNSETS a stored variable pick; a value the preset no longer offers still shows", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => NO_MACROS,
+    "chat.getVariablePicks": () => ({ variables: [POV_VARIABLE], values: { pov: "second person" } }),
+    "chat.setVariables": () => ({}),
+  });
+
+  await mount(<UserMacroPicksSectionStory />);
+
+  // The stored pick is not among the authored options any more (the author edited them) — the turn still
+  // resolves it, so the trigger must SAY it rather than render blank.
+  await expect(page.getByRole("combobox", { name: "Narration POV" })).toHaveText("second person (no longer offered)");
+
+  await page.getByRole("combobox", { name: "Narration POV" }).click();
+  await page.getByRole("option", { name: "Use default (third person)", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: {} });
 });

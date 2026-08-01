@@ -341,6 +341,10 @@ export interface GetVariablesParams extends ChatScopedParams {}
 /** `getStoredVariables` — the persisted chats.variableValues flush. */
 export interface GetStoredVariablesParams extends ChatScopedParams {}
 
+/** `getVariablePicks` — the picks pane's ChoiceBlock read: the chat's declared variables + the persisted
+ *  picks `setVariables` writes (the `getUserMacroPicks` sibling — the pane's two knob families). */
+export interface GetVariablePicksParams extends ChatScopedParams {}
+
 /** `setVariables` — flushes a \{\{var\}\}→value map to chats.variableValues. */
 export interface SetVariablesParams extends ChatScopedParams {
   readonly values: Record<string, string>;
