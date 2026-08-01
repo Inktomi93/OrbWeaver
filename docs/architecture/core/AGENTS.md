@@ -309,3 +309,31 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
   [`../history/Grounded-Intelligence-AST-Scan.md`](../history/Grounded-Intelligence-AST-Scan.md).
   Its findings are law only where they were promoted (the gates, the ledger, `Knowledge-Cluster.md`,
   the agent-principal design set, parked in `../proposed/`, for §8.6).
+
+## §L — LANE DISCIPLINE (worktree agents; minted 2026-08-02 from a day of paid tuition)
+
+Every dispatched worktree lane obeys these or its work gets refused at the merge:
+
+1. **`git -C <your-worktree>` on EVERY git call.** Your shell's cwd resets when its directory is
+   deleted or a `cd` leaves the project — three bare-git commands ran against main this way. Never
+   trust cwd for git.
+2. **Prove your own commits.** `git show --stat <sha>` in your report, and `git status --short`
+   must be EMPTY before you report — `git commit -- <pathspec>` silently skips untracked files,
+   and a cited-but-never-committed file is destroyed at worktree teardown (it happened; the file
+   was a deliverable).
+3. **Whole-tree gates are the orchestrator's.** Commit with `-c core.hooksPath=/dev/null` and run
+   the SCOPED equivalents by hand (biome/eslint/tsc on touched files + your suites + the gates
+   your change touches). In a multi-lane session the hook's whole-tree check is a load bomb and a
+   2-minute-timeout trap.
+4. **Merging main into your branch:** same hook rule (`-c core.hooksPath=/dev/null`), then run the
+   scoped gates on the merged tree yourself.
+5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook —
+   `pnpm install --prefer-offline` (~3s) or every gate lies.
+6. **Rendered proof from a worktree:** `:5173` serves MAIN, never your tree. Use
+   `snap --isolated --ref <your-sha>` (a detached worktree of your commit on offset ports) or
+   screenshot from the CT browser.
+7. **Scratch files are lane-unique.** A shared scratchpad name (`msg.txt`) cost a commit that
+   landed with another lane's message. Prefix with your lane's short name.
+8. **Report deviations WITH receipts.** If the spec text is wrong on the tree's evidence, say
+   exactly where and why — spec-letter compliance against a false premise is a defect, and the
+   orchestrator diffs your deviation against the spec before minting law.
