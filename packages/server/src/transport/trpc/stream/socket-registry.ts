@@ -51,11 +51,25 @@ export const SOCKETS_PER_USER = 8;
 export interface SocketRoom {
   readonly ref: StreamRoomRef;
   cursor: number | null;
+  /**
+   * Has the CLIENT announced this room since the socket last went dark? The RECONNECT BARRIER reads it (see
+   * `socket.ts`): a resumable room must not resume delivery on a reconnect until the client has said where
+   * IT got to, because the server's cursor counts what it handed the dying socket's writer, which is ahead
+   * of what the client received. Cleared on `goDark`, set by every `attach` — including one that lands while
+   * the socket is still dark, so the barrier is order-independent exactly like cell creation is.
+   */
+  announced: boolean;
 }
 
 /** What a LIVE socket generator registers so room changes reach its pumps in order. */
 export interface SocketListener {
+  /** A room was added, or an existing room's cursor was REWOUND by a lower `sinceSeq` — start/restart its
+   *  pump there. */
   readonly onAttach: (ref: StreamRoomRef, cursor: number | null) => void;
+  /** An IDEMPOTENT re-attach of a room whose cursor did not move — the client saying "I still want this, and
+   *  I am at (or ahead of) where you are". Carries no cursor change and must not restart a running pump; it
+   *  exists so the reconnect barrier can lift on the announce that carries no rewind. */
+  readonly onAnnounce: (ref: StreamRoomRef) => void;
   readonly onDetach: (ref: StreamRoomRef) => void;
 }
 
@@ -145,16 +159,21 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
       if (cell.rooms.size >= ROOMS_PER_SOCKET) {
         throw new DomainRateLimitError(`Too many attached rooms on one stream (${ROOMS_PER_SOCKET}).`);
       }
-      cell.rooms.set(key, { ref, cursor: sinceSeq });
+      cell.rooms.set(key, { ref, cursor: sinceSeq, announced: true });
       cell.listener?.onAttach(ref, sinceSeq);
       return;
     }
+    // The client has spoken for this room on this connection — the reconnect barrier's lift signal, recorded
+    // whether or not the socket is live yet (an announce can beat `connect`, exactly like an attach can).
+    room.announced = true;
     // Idempotent re-attach. Only a LOWER cursor means anything (replay-from-here); anything else leaves the
     // live pump exactly where it is — a re-announce must never skip a room forward past undelivered rows.
     if (sinceSeq !== null && (room.cursor === null || sinceSeq < room.cursor)) {
       room.cursor = sinceSeq;
       cell.listener?.onAttach(ref, sinceSeq);
+      return;
     }
+    cell.listener?.onAnnounce(ref);
   }
 
   function detach(userId: UserId, socketId: SocketId, ref: StreamRoomRef): void {
@@ -180,6 +199,11 @@ export function createSocketRegistry(now: () => number): SocketRegistry {
       cell.live = false;
       cell.listener = null;
       cell.lastSeenAt = now();
+      // Re-arm the reconnect barrier: the next connection must hear from the client before a resumable room
+      // resumes delivery (the server's cursor counts what it handed a writer, not what arrived).
+      for (const room of cell.rooms.values()) {
+        room.announced = false;
+      }
     },
     liveSocketCount: (userId?: UserId): number => {
       reap();

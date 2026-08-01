@@ -1,10 +1,9 @@
-// The takeover HEADER-BAND host (Context-Panel-Program §4.2/§4.5/§4.11 #3) — resolves the takeover panel
-// state and renders the scene banner + pool orbs into the `.shell-panel-header` BAND slot ABOVE both strips
-// (the W3c header-contributor seam: a `ContextTabDef.header` supplied by the rpg contributor, gated on the
-// same game-ness `when` as the game tabs). Homed as its own component because it calls a hook
-// (`useRpgContextState`) and must therefore BE a component (rules-of-hooks) — the contribution `lib/` module
-// stays a components-free data file (useComponentExportOnlyModules). `null` from the hook (a race where the
-// pointer cleared mid-render) collapses to nothing, letting the band fall back to the neutral default.
+// The HUD's BAND body — resolves the takeover panel state and renders the scene banner + pool orbs. It is
+// mounted by the HUD's own band (`rpg-hud.tsx`), at the TOP of the pane the rpg feature claims (HUD-1 §3.1):
+// pre-HUD this rode the shell's chrome band through a contributor slot rpg did not own; that channel is
+// deleted, and the band now belongs to the composition that draws it. Homed as its own component because it
+// calls a hook (`useRpgContextState`) and must therefore BE a component (rules-of-hooks). `null` from the
+// hook (a race where the pointer cleared mid-render) collapses to nothing.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

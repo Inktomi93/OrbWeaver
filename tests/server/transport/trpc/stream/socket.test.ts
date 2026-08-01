@@ -9,6 +9,7 @@
 // YIELDED. Everything else (the withheld-row gap rule §5.5, the `lag` policy's "the replay refills it" §7,
 // the reconnect story §5.3) is downstream of it.
 
+import { createChatEventSeqGuard } from "@orb/client/data/bus";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
@@ -28,8 +29,9 @@ function nextSocket(): SocketId {
   return castId<SocketId>(`socket_composed_${socketSeq}`);
 }
 
-/** The member-gated attach probe — an unclamped MEMBER (the arm every assertion here is about delivery, not
- *  projection). `maxSeq` is generous so no truncation synthesis fires. */
+/** The member-gated attach probe — an unclamped HOST (`viewerIsHost`, so every event rides verbatim: these
+ *  assertions are about DELIVERY, never projection, and a member's per-event strip would only add noise).
+ *  `maxSeq` is generous so no truncation synthesis fires. */
 const bounds: ChatService["chatEventBounds"] = () =>
   Promise.resolve({ minSeq: 1, maxSeq: 10_000, historyFloorSeq: 0, viewerIsHost: true, reasoningHostOnly: false });
 
@@ -39,6 +41,9 @@ function frameOf(yielded: unknown): StreamFrame {
 function isChatFrame(frame: StreamFrame): frame is Extract<StreamDataFrame, { channel: "chat" }> {
   return frame.channel === "chat";
 }
+
+/** The pump-synthesized attach signals — never durable rows (`chat-event-seq-guard.ts` exempts them by type). */
+const SYNTHETIC_TYPES: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent["type"]>(["chatOpened", "historyTruncated"]);
 
 describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
   test("three rows enqueued, ONE pulled → the cell cursor is the pulled one (the shed/disconnect fence)", async () => {
@@ -159,5 +164,181 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     expect(sawOpened).toBe(true);
     // The cursor ends where delivery ended — the property the whole heal rests on.
     expect(cell.rooms.get(`chat:${chatId}`)?.cursor).toBe(terminalSeq);
+  });
+
+  test("a room re-attached while its lag notice is still pending still gets its shed rows back", async () => {
+    // The park-skip corner: something restarts a parked room's pump BEFORE its notice delivers (a re-attach,
+    // a rewind), so the pump is running again when the notice finally lands. If the resume skipped on
+    // "a pump already exists", every row shed in that window would be orphaned — the running pump's own
+    // high-water mark has passed them, and the one thing that re-reads them just no-op'd. The resume is
+    // therefore unconditional, and the park fires on EVERY shed rather than once per notice.
+    const chatId = castId<ChatId>("chat_park_skip");
+    const rows: { readonly seq: number; readonly event: ChatBusEvent }[] = [];
+    const total = FRAME_QUEUE_CAPACITY + 60;
+    for (let i = 1; i <= total; i++) {
+      rows.push({ seq: i, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: `t${i}` }, memberText: null } });
+    }
+    const replayChatEvents: ChatService["replayChatEvents"] = ({ afterSeq }) => Promise.resolve(rows.filter((r) => r.seq > (afterSeq ?? 0)));
+    const sockets: SocketRegistry = createSocketRegistry(() => 0);
+    const socketId = nextSocket();
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: bounds, replayChatEvents } },
+      sockets,
+    });
+    const call = caller(ctx);
+    await call.stream.attach({ socketId, ref: { channel: "chat", chatId }, sinceSeq: 0 });
+
+    const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const iterator = socket[Symbol.asyncIterator]();
+    await iterator.next(); // start the generator, then STALL so the queue saturates and sheds
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    // …and NOW, with the notice still sitting undelivered in the queue, the client re-attaches the room
+    // (a reconnect's re-announce, or any idempotent re-attach) — which restarts the pump.
+    await call.stream.attach({ socketId, ref: { channel: "chat", chatId } });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    const seqs: number[] = [];
+    let pulls = 0;
+    for (; pulls < 6000 && seqs.at(-1) !== total; pulls++) {
+      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
+      const frame = frameOf((await iterator.next()).value);
+      if (isChatFrame(frame) && frame.event.type !== "chatOpened") {
+        seqs.push(frame.seq);
+      }
+    }
+    await iterator.return?.(undefined);
+
+    expect(pulls).toBeLessThan(6000);
+    // Still the whole log, in order: the re-attach's restart did not orphan the rows shed around it.
+    expect(seqs).toEqual(rows.map((r) => r.seq));
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE RECONNECT BARRIER — the server half of the resume contract, pinned against the REAL client guard.
+// A socket's cursor counts frames handed to its WRITER, so after a mid-turn drop it sits ahead of what the
+// client received. If the reconnected socket resumes from it, the rows it delivers advance the client's own
+// high-water mark PAST the gap — and the rewind attach that follows (carrying the client's true mark) has
+// its entire replay dropped by that same guard. A lost turn TERMINAL then strands the slot forever: the
+// reducer clears a slot only on a terminal, so the composer's Stop sticks with no recovery but a reload.
+// The barrier holds a resumable room's delivery until the client announces, which makes the client's mark
+// the resume truth again — what `Last-Event-ID` did for free before the fold (stickler RF1, 2026-08-02).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("a reconnect resumes from the CLIENT's mark, not the server's delivered cursor", () => {
+  test("rows lost in flight (terminal included) are re-delivered AND applied after the re-announce", async () => {
+    const chatId = castId<ChatId>("chat_reconnect_barrier");
+    // The durable log. Rows 1-3 reach the client; 4 (delta) + 5 (turnCompleted) are yielded into the dying
+    // socket and never arrive; row 6 is another member's write, landing while this client is offline.
+    const log: { readonly seq: number; readonly event: ChatBusEvent }[] = [
+      { seq: 1, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "a" }, memberText: null } },
+      { seq: 2, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "b" }, memberText: null } },
+      { seq: 3, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "c" }, memberText: null } },
+      { seq: 4, event: { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "d" }, memberText: null } },
+      { seq: 5, event: { type: "turnCompleted", chatId, intent: "send", messageId: null } },
+    ];
+    const replayChatEvents: ChatService["replayChatEvents"] = ({ afterSeq }) => Promise.resolve(log.filter((r) => r.seq > (afterSeq ?? 0)));
+    const sockets: SocketRegistry = createSocketRegistry(() => 0);
+    const socketId = nextSocket();
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: bounds, replayChatEvents } },
+      sockets,
+    });
+    const room = { channel: "chat", chatId } as const;
+
+    // THE REAL client guard — the process singleton `use-chat-bus.ts` holds. Its `admit` is what decides
+    // whether a re-offered row ever reaches the reducer, which is the only question this test asks.
+    const guard = createChatEventSeqGuard();
+    const applied: number[] = [];
+    /** One frame arriving at the client: through the guard, then (if admitted) the reducer. */
+    const receive = (frame: StreamFrame): void => {
+      if (!(isChatFrame(frame) && guard.admit(frame.event, String(frame.seq)))) {
+        return;
+      }
+      // The attach synthetics are admitted BY TYPE (they carry a non-advancing cursor) and invalidate
+      // queries rather than touching the turn slot — the durable rows are what this test counts.
+      if (!SYNTHETIC_TYPES.has(frame.event.type)) {
+        applied.push(frame.seq);
+      }
+    };
+
+    // ── socket #1: the server delivers 1..5; the client only ever receives 1..3 ──
+    await caller(ctx).stream.attach({ socketId, ref: room, sinceSeq: 0 });
+    const cell = sockets.adopt(MEMBER, socketId);
+    const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it1 = first[Symbol.asyncIterator]();
+    for (let i = 0; i < 7; i++) {
+      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
+      const frame = frameOf((await it1.next()).value);
+      if (isChatFrame(frame) && frame.seq > 3) {
+        continue; // rows 4,5 died in the dying socket's buffer: yielded by the server, never received
+      }
+      receive(frame);
+    }
+    await it1.return?.(undefined);
+
+    expect(applied).toEqual([1, 2, 3]);
+    expect(cell.rooms.get(`chat:${chatId}`)?.cursor).toBe(5); // the server counted what it handed the writer
+    expect(guard.highWater(chatId)).toBe(3); // …the client counted what it applied
+
+    // ── another member writes while we are offline ──
+    log.push({ seq: 6, event: { type: "chatUpdated", chatId } });
+
+    // ── socket #2: the reconnect. The barrier holds this room until the client announces. ──
+    const second = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it2 = second[Symbol.asyncIterator]();
+    // ONE outstanding pull, raced against a timer and then REUSED below — a `next()` abandoned here would
+    // never settle and `.return()` on a parked generator would hang with it.
+    const parked = it2.next();
+    const held = await Promise.race([parked.then(() => "delivered"), new Promise<string>((resolve) => setTimeout(() => resolve("held"), 60))]);
+    // THE PIN: nothing at all — not the `attached` ack, not row 6 (which the pre-barrier code delivered from
+    // cursor 5, jumping the client's mark to 6 and dooming the rewind's replay).
+    expect(held).toBe("held");
+
+    // ── the client's re-announce, carrying ITS mark (the `sinceSeq` thunk in `use-chat-bus.ts`) ──
+    const mark = guard.highWater(chatId);
+    expect(mark).toBe(3);
+    await caller(ctx).stream.attach({ socketId, ref: room, ...(mark === null ? {} : { sinceSeq: mark }) });
+
+    // The barrier lifts into a rewound pump: `attached` ack, chatOpened(3), then rows 4, 5, 6.
+    receive(frameOf((await parked).value));
+    for (let i = 0; i < 4; i++) {
+      // biome-ignore lint/performance/noAwaitInLoops: reading a stream is inherently sequential.
+      receive(frameOf((await it2.next()).value));
+    }
+    await it2.return?.(undefined);
+
+    // The gap is APPLIED, not merely re-offered: rows 4 and 5 reached the reducer, so the turn's terminal
+    // closes its slot and the composer's Stop clears. Row 6 (written while offline) rides in with them.
+    expect(applied).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  test("a live-only room does NOT wait for the announce — it has no cursor to be wrong about", async () => {
+    // The barrier costs a round trip of freshness, so it is spent only where it buys something. `rpg`/`user`
+    // carry no durable cursor: their recovery is the client's blanket invalidate, which a delay would only
+    // postpone.
+    const chatId = castId<ChatId>("chat_liveonly_barrier");
+    const sockets: SocketRegistry = createSocketRegistry(() => 0);
+    const socketId = nextSocket();
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
+      sockets,
+    });
+    const call = caller(ctx);
+    await call.stream.attach({ socketId, ref: { channel: "rpg", chatId } });
+    const first = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it1 = first[Symbol.asyncIterator]();
+    await it1.next(); // the attached ack
+    await it1.return?.(undefined);
+
+    // RECONNECT with no re-announce at all: the room is pumping immediately.
+    const second = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
+    const it2 = second[Symbol.asyncIterator]();
+    const frame = frameOf((await it2.next()).value);
+    await it2.return?.(undefined);
+
+    expect(frame).toEqual({ channel: "control", type: "attached", ref: { channel: "rpg", chatId } });
   });
 });

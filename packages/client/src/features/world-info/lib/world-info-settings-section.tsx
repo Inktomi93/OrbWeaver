@@ -7,9 +7,14 @@ import type { SettingsSectionContribution } from "#state";
 import { WorldInfoSettingsSection } from "../components/world-info-settings-section";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "./world-info-settings-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "world-info-settings";
+
 export const worldInfoSettingsSection: SettingsSectionContribution = {
-  id: "world-info-settings",
+  id: SECTION_ID,
   anchor: "chat-behavior",
   nav: WORLD_INFO_SETTINGS_SUBCATEGORY,
-  body: () => <WorldInfoSettingsSection />,
+  owns: { tier: "user", section: "worldInfo", keys: ["scanDepth", "tokenBudget"] },
+  body: () => <WorldInfoSettingsSection sectionId={SECTION_ID} />,
 };

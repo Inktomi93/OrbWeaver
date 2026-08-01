@@ -343,17 +343,20 @@
  * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
  * border drop. Rides --color-primary, so a custom/seed theme retints it.
  *
- * The CONTEXT band GROWS to fit a rich header (Context-Panel-Program §4.5 — the takeover's scene banner +
- * pool orbs are two lines): `min-height` (not the fixed `height`) keeps the chrome-row horizon as the FLOOR
- * for a normal chat's one-line band, but lets a game's banner+orbs stack expand. `align-items: stretch` +
- * `block` padding frame the taller content; a normal single-line header still centers via the child's own
- * layout. Scoped to the context side, so the LIST band + topbar keep the exact shared horizon (P1). */
+ * The band's GROWTH exception (`height:auto` + `min-height` + `align-items:stretch` + block padding) is
+ * DELETED at HUD-1 H1: it existed only so the rpg takeover's two-line banner could fit a slot it did not
+ * own. The takeover now CLAIMS the pane and paints its own band, so this one is a one-line label again and
+ * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar (P1). */
 .shell-panel[data-panel-side="context"] .shell-panel-header {
   box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
-  height: auto;
-  min-height: var(--dimension-chrome-row);
-  align-items: stretch;
-  padding-block: var(--spacing-row);
+}
+/* A CLAIMED context pane (HUD-1 §3.1 / §5.2 — D66 A1 SUSPENDED for this one case): the claimant owns the
+ * pane's TOP EDGE, including the 2px ember binding, which it paints itself. `SectionContextHeader` returns
+ * nothing under a claim, so the band element is genuinely childless and collapses out — no empty chrome
+ * row, no doubled ember edge. The LIST band and an UNCLAIMED context band are unaffected (both always have
+ * content: the list's title/action, the context's neutral "Details"). */
+.shell-panel[data-panel-side="context"] .shell-panel-header:empty {
+  display: none;
 }
 /* The context header's content fills the band width and stacks (the takeover header is a vertical Stack;
  * a normal chat's neutral "Details" label is a single line — both lay out from the start edge). */
@@ -450,23 +453,8 @@
     }
   }
 }
-/* 6–7 = the CP-4 bracket safety envelope (Context-Panel-Program §4.11 #5). A takeover GAME strip can carry
- * up to 7 tabs; at the 26rem panel max it is ALWAYS icon-mode, so these thresholds (mirroring the +7rem/tab
- * cadence) only reveal words in a wider game panel or a test container — never in the shell. */
-.ctx-tab-strip[data-tab-count="6"] {
-  @container (min-width: 42rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
-.ctx-tab-strip[data-tab-count="7"] {
-  @container (min-width: 49rem) {
-    [data-slot="tabs-tab"] .ctx-tab-label {
-      display: revert;
-    }
-  }
-}
+/* (The count-6/7 thresholds were DELETED at HUD-1 H1: they were authored for the CP-4 bracket's GAME strip,
+ * which a claimant now draws itself, and they could never fire at any width the shell gives this panel.) */
 
 .shell-panel-body {
   flex: 1 1 auto;

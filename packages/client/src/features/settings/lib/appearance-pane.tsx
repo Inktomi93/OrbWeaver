@@ -1,16 +1,14 @@
 // The Appearance settings pane (client-architecture-lockdown.md §8) — co-located SettingsPaneDefinition
 // wrapping the existing surface. Registered at the door (main.tsx); settings owns this pane (O3).
 //
-// A HOST of the settings-SECTION contribution seam (§6c): a FACTORY over the `appearance`-anchored
-// `SettingsSectionContribution` registry (assembled at the door), threaded into its surface by PROP and
-// with each contribution's `nav` MERGED into its subcategories, so a contributed section (character's
-// library page-size ⑪) is a first-class nav/search citizen. Zero contributions ⇒ byte-identical to the
-// pre-seam pane. The def homes settings-owned; the contributed sections home in their OWNING features.
+// A HOST of the settings-SECTION contribution seam (§6c): the `appearance`-anchored contributions (today
+// character's library page-size ⑪) render inside its surface and their navs are merged in by the settings
+// shell — since SET-SEAMS stage 0 there is ONE door-assembled section registry read through a context, so
+// this def is a plain value again (the factory + its prop threading deleted). Zero contributions ⇒
+// byte-identical. The def homes settings-owned; the contributed sections home in their OWNING features.
 
 import { SunMoon } from "@orb/ui/icons";
-import type { ContributorRegistry } from "#lib";
-import type { SettingsPaneDefinition, SettingsSectionContribution, SettingsSubcategory } from "#state";
-import { settingsSectionNavs } from "#state";
+import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
 import { AppearanceSettingsSurface } from "../surfaces/appearance-settings-surface";
 import { APPEARANCE_SUBCATEGORY_IDS } from "./appearance-nav";
 
@@ -143,18 +141,14 @@ const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
   },
 ];
 
-/** The appearance pane is a settings-section host (§6c). `sectionContributors` is the door-assembled
- *  `appearance`-anchored registry; the pane merges each contribution's `nav` into its subcategory list (so
- *  the section is nav/search-reachable) and threads the whole registry into its surface by prop. */
-export function makeAppearancePane(sectionContributors: ContributorRegistry<SettingsSectionContribution>): SettingsPaneDefinition {
-  const contributedNavs = settingsSectionNavs(sectionContributors, "appearance");
-  return {
-    id: "appearance",
-    group: "user",
-    label: "Appearance",
-    icon: SunMoon,
-    description: "Theme, message style, and display density.",
-    subcategories: [...OWN_SUBCATEGORIES, ...contributedNavs],
-    body: () => <AppearanceSettingsSurface sectionContributors={sectionContributors} />,
-  };
-}
+/** The appearance pane — a settings-section host (§6c). `subcategories` lists only what the pane itself
+ *  renders; the shell appends the `appearance`-anchored contributions' navs. */
+export const appearancePane: SettingsPaneDefinition = {
+  id: "appearance",
+  group: "user",
+  label: "Appearance",
+  icon: SunMoon,
+  description: "Theme, message style, and display density.",
+  subcategories: OWN_SUBCATEGORIES,
+  body: { kind: "surface", render: () => <AppearanceSettingsSurface /> },
+};

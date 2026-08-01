@@ -7,9 +7,14 @@ import type { SettingsSectionContribution } from "#state";
 import { MemoryTuningSection } from "../components/memory-tuning-section";
 import { MEMORY_TUNING_SUBCATEGORY } from "./memory-tuning-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "admin-memory-tuning";
+
 export const memoryTuningSection: SettingsSectionContribution = {
-  id: "admin-memory-tuning",
+  id: SECTION_ID,
   anchor: "admin",
   nav: MEMORY_TUNING_SUBCATEGORY,
-  body: () => <MemoryTuningSection />,
+  owns: { tier: "app", keys: ["memoryDefaults", "memorySummarizer"] },
+  body: () => <MemoryTuningSection sectionId={SECTION_ID} />,
 };

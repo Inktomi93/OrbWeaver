@@ -40,10 +40,12 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
             render={
               <Button className="w-full justify-start" intent="ghost" size="sm">
                 <Icon icon={ChevronDown} size="sm" />
-                <Text as="span" size="micro" tone="muted" transform="caps">
+                {/* The group header is a section NAME + its count: the `kicker` voice, and the count in the
+                    `datum` voice (tabular mono) — density-pass §2.3. */}
+                <Text as="span" voice="kicker">
                   {group.tag === null ? "Uncategorized" : group.tag.name}
                 </Text>
-                <Text as="span" size="micro" tone="muted">
+                <Text as="span" voice="datum">
                   {group.items.length}
                 </Text>
               </Button>

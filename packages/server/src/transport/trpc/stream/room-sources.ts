@@ -31,6 +31,9 @@ const NO_FRAMES: AsyncIterable<StreamDataFrame> = {
  *  that does not exist. Deleted by the commit that moves the generator body in. */
 function refusedUntilFolded<C extends StreamChannel>(channel: C, stage: string): RoomSourceDef<C> {
   return {
+    // Unreachable either way (it refuses at attach), but stated honestly per channel so the table stays
+    // true when the stage lands: `notifications` has a durable inbox, `automation` is ephemeral by design.
+    resumable: channel === "notifications",
     authorizeAttach: () => Promise.reject(new DomainNotFoundError("stream room", `${channel} (folds at ${stage})`)),
     run: () => NO_FRAMES,
   };

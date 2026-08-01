@@ -36,14 +36,10 @@ export const SETTINGS_CATEGORY_IDS = [
 ] as const;
 export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
 
-// The settings-pane anchors that accept contributed SECTIONS (client-architecture-lockdown.md §6c) — SHELL
-// VOCABULARY by the M6.1 test (§5 rule 5): it keys door-assembled contributions spanning features
-// (chat-behavior ← chat/world-info; admin ← user-admin; workloads ← workloads' own tuning section;
-// appearance ← character's library page-size), so it homes HERE beside SETTINGS_CATEGORY_IDS, not in the
-// registry file (re-declaring it would trip `no-parallel-section-map`, the YOU_MODAL_IDS shape).
-// `satisfies readonly SettingsCategoryId[]` keeps anchors a checked SUBSET — an anchor must be a real pane.
-export const SETTINGS_SECTION_ANCHORS = ["chat-behavior", "admin", "workloads", "appearance"] as const satisfies readonly SettingsCategoryId[];
-export type SettingsSectionAnchor = (typeof SETTINGS_SECTION_ANCHORS)[number];
+// A settings-section contribution anchors at a `SettingsCategoryId` — EVERY pane is a host (SET-SEAMS
+// §5.1). The old `SETTINGS_SECTION_ANCHORS` subset tuple retired with stage 0: it existed only because
+// three panes were not yet hosts, and it made "can a section land here?" a second fact that drifted from
+// the pane vocabulary.
 
 /** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
@@ -69,6 +65,10 @@ interface ShellState {
   readonly openOverlayPanel: PanelName | null;
   /** Settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
   readonly settingsCategory: SettingsCategoryId | null;
+  /** SUB-level deep-link target (SET-SEAMS §10 Q4): the `SettingsSubcategory.id` inside
+   *  `settingsCategory` the shell should select + scroll to, or `null` for "the top of the pane". Set by
+   *  `openSettingsTo(category, subId)`; transient, cleared with the category. */
+  readonly settingsSubcategory: string | null;
   /** The shell's viewport regime, published by app-shell (the sole `useIsMobileViewport` home) so
    *  `#state` projections can branch on viewport WITHOUT importing the matchMedia hook
    *  (`no-raw-matchmedia` bars it outside app-shell). Device-transient, never persisted. */
@@ -98,6 +98,7 @@ const DEFAULT_STATE: ShellState = {
   contextTab: null,
   openOverlayPanel: null,
   settingsCategory: null,
+  settingsSubcategory: null,
   mobileViewport: false,
   narrowViewport: false,
 };
@@ -164,6 +165,7 @@ function migrate(persisted: unknown): ShellState {
     contextTab: null,
     openOverlayPanel: null,
     settingsCategory: null,
+    settingsSubcategory: null,
     mobileViewport: false,
     narrowViewport: false,
   };
@@ -200,9 +202,12 @@ export function openModal(id: ModalSlotId): void {
   useShellStore.setState({ openModal: id }, false, "shell/openModal");
 }
 
-/** Open the settings overlay and target a specific category pane. */
-export function openSettingsTo(category: SettingsCategoryId): void {
-  useShellStore.setState({ openModal: "settings", settingsCategory: category }, false, "shell/openSettingsTo");
+/** Open the settings overlay and target a specific category pane — optionally a specific SUBCATEGORY
+ *  inside it (SET-SEAMS §10 Q4: "configure memory" from a chat surface lands ON the memory section, not at
+ *  the top of the pane). The sub id is the `SettingsSubcategory.id`; the shell selects it in the nav and
+ *  scrolls to `settingsAnchorId(category, subId)` once the pane's DOM has it. */
+export function openSettingsTo(category: SettingsCategoryId, subId?: string): void {
+  useShellStore.setState({ openModal: "settings", settingsCategory: category, settingsSubcategory: subId ?? null }, false, "shell/openSettingsTo");
 }
 
 /** Ask the CONTEXT panel to open a specific tab. `null` clears the request. */
@@ -225,7 +230,7 @@ export function revealContextPanel(tab: string): void {
 }
 
 export function closeModal(): void {
-  useShellStore.setState({ openModal: null, settingsCategory: null }, false, "shell/closeModal");
+  useShellStore.setState({ openModal: null, settingsCategory: null, settingsSubcategory: null }, false, "shell/closeModal");
 }
 
 /** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). `null` closes (back to
@@ -330,4 +335,9 @@ export function useOpenOverlayPanel(): PanelName | null {
 /** The settings deep-link target category (`null` = the settings shell's default pane). */
 export function useSettingsTarget(): SettingsCategoryId | null {
   return useShellStore((s) => s.settingsCategory);
+}
+
+/** The SUB-level deep-link target inside `useSettingsTarget()`'s pane, or `null` for "top of the pane". */
+export function useSettingsSubTarget(): string | null {
+  return useShellStore((s) => s.settingsSubcategory);
 }

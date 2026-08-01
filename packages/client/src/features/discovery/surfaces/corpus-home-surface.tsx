@@ -215,7 +215,7 @@ function ThemeGroup({
 
 function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSelection; readonly onDismiss: () => void }): ReactElement {
   return (
-    <Card padding="block">
+    <Card>
       <QueryBoundary
         fallback={<Text tone="muted">Loading theme…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}

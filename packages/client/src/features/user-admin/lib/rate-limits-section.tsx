@@ -6,9 +6,14 @@ import type { SettingsSectionContribution } from "#state";
 import { RateLimitsSection } from "../components/rate-limits-section";
 import { RATE_LIMITS_SUBCATEGORY } from "./rate-limits-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "admin-rate-limits";
+
 export const rateLimitsSection: SettingsSectionContribution = {
-  id: "admin-rate-limits",
+  id: SECTION_ID,
   anchor: "admin",
   nav: RATE_LIMITS_SUBCATEGORY,
-  body: () => <RateLimitsSection />,
+  owns: { tier: "app", keys: ["rateLimits"] },
+  body: () => <RateLimitsSection sectionId={SECTION_ID} />,
 };

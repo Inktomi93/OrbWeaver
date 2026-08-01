@@ -131,16 +131,20 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     debugSpy.mockRestore();
   });
 
-  test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns its seq, and fans the ring", async () => {
+  test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns what it logged, and fans the ring", async () => {
     const chatId = await seedChat(db, "a");
     const bus = createChatBus(makeChatContext(db));
 
-    const seq = await bus.emit(deltaEvent(chatId));
+    const logged = await bus.emit(deltaEvent(chatId));
 
-    expect(seq).toBe(1);
+    // `emit` returns the durable cursor AND the event AS STORED — the §3.6-stamped copy, so the composition
+    // root fans byte-for-byte what a reconnect will replay. A clean tick stamps `memberText: null` ("identical
+    // to `delta.text`"), which is what keeps the durable log from carrying a second copy of every token.
+    const stored = { ...deltaEvent(chatId), memberText: null };
+    expect(logged).toEqual({ seq: 1, event: stored });
     const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId));
     expect(rows.map((r) => r.type)).toEqual(["delta"]);
-    expect(rows[0]?.payload).toEqual(deltaEvent(chatId));
-    expect(bus.readRing(chatId)).toEqual([{ seq: 1, event: deltaEvent(chatId) }]);
+    expect(rows[0]?.payload).toEqual(stored);
+    expect(bus.readRing(chatId)).toEqual([{ seq: 1, event: stored }]);
   });
 });

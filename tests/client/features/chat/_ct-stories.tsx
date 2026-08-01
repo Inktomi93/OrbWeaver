@@ -1961,7 +1961,7 @@ export function MemorySettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <MemorySettingsSection />
+        <MemorySettingsSection sectionId="chat-memory" />
       </div>
     </CtDataProviders>
   );
@@ -1973,7 +1973,7 @@ export function DatabankSettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <DatabankSettingsSection />
+        <DatabankSettingsSection sectionId="chat-databank" />
       </div>
     </CtDataProviders>
   );
@@ -1985,7 +1985,7 @@ export function ImageryTemplatesSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <ImageryTemplatesSection />
+        <ImageryTemplatesSection sectionId="chat-imagery-templates" />
       </div>
     </CtDataProviders>
   );

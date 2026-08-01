@@ -2,6 +2,14 @@ import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
+//
+// DENSITY: a ListRow is the LIST-pane INSTRUMENT island (density-pass-spec.md §3.1 — inset `p-field`,
+// rows `gap-tight`, island pad `p-row`, atom gap `gap-field`, `rounded-control`, NO border box; selection
+// is a bg tint + the left accent bar). Its type rides the four-voice grammar: the title is the `label`
+// voice (13px medium) and the subtitle/meta the `gloss` voice (10.5px muted) — the mock's 12.5/10.5 pair,
+// reachable now that the voices exist. It was body/label (15/13), which made a list of 20 rows read as
+// twenty paragraphs. The voices are spelled here rather than composed from <Text> because the row owns
+// truncation/reveal/flex behaviour on the same nodes.
 export const listRowVariants = tv({
   slots: {
     // `@container/list-row` lets a consumer's `actions` collapse responsively to the row's own width
@@ -10,14 +18,14 @@ export const listRowVariants = tv({
     // a marker living inside the content column can only key on the whole row's hover/focus-within through a
     // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
     // carries the same datum (`ROW_REVEAL_SWAP`) instead of both painting at once.
-    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-row",
+    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-field",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
     // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     body: [
-      "group flex min-w-0 flex-1 items-center gap-row rounded-control border-l-2 border-l-transparent outline-none",
+      "group flex min-w-0 flex-1 items-center gap-field rounded-control border-l-2 border-l-transparent outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       `data-selected:border-l-primary data-selected:bg-primary/10 ${DISABLED_STATE}`,
     ],
@@ -28,18 +36,20 @@ export const listRowVariants = tv({
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex min-w-0 items-baseline gap-field",
-    title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
+    // The `label` VOICE (density-pass §2.3): the name of one datum.
+    title: "block min-w-0 flex-1 truncate text-left text-label font-medium leading-label text-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
-    markers: "flex shrink-0 items-center gap-field",
-    // Trailing title-line meta (e.g. relative-time): mono muted micro, never shrinks.
-    meta: "shrink-0 whitespace-nowrap font-mono text-label leading-label text-muted-foreground",
+    markers: "flex shrink-0 items-center gap-tight",
+    // Trailing title-line meta (e.g. relative-time): the `gloss` voice in mono (a stamp is a quiet DATUM,
+    // so it keeps tabular mono at the micro step), never shrinks.
+    meta: "shrink-0 whitespace-nowrap font-mono text-micro leading-tight tabular-nums text-muted-foreground",
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
-    subtitle: "block text-left text-label leading-label text-muted-foreground",
+    subtitle: "block text-left text-micro leading-tight text-muted-foreground",
     // Hover/focus-within display-swap of the subtitle in the SAME line, so a wide metadata span never
     // contends with the trailing `actions` buttons for width.
-    subtitleReveal: "hidden truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:block group-hover:block",
+    subtitleReveal: "hidden truncate text-left font-mono text-micro leading-tight text-muted-foreground group-focus-within:block group-hover:block",
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     actions: "flex shrink-0 items-center justify-end gap-field",
   },

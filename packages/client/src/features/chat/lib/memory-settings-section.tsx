@@ -7,9 +7,15 @@ import type { SettingsSectionContribution } from "#state";
 import { MemorySettingsSection } from "../components/memory-settings-section";
 import { MEMORY_SETTINGS_SUBCATEGORY } from "./memory-settings-section-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "chat-memory";
+
 export const memorySettingsSection: SettingsSectionContribution = {
-  id: "chat-memory",
+  id: SECTION_ID,
   anchor: "chat-behavior",
   nav: MEMORY_SETTINGS_SUBCATEGORY,
-  body: () => <MemorySettingsSection />,
+  // The whole `memory` namespace is this one switch (S1: the patch names only `enabled`).
+  owns: { tier: "user", section: "memory", keys: ["enabled"] },
+  body: () => <MemorySettingsSection sectionId={SECTION_ID} />,
 };

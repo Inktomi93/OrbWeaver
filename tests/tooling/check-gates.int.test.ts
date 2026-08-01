@@ -246,6 +246,12 @@ function writeFixtures(): void {
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
   // not in ALLOWLIST.
   fx("packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx", 'export const G = <div className="rounded-lg shadow-md" />;\n');
+  // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
+  // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
+  fx(
+    "packages/client/src/features/__g_density/components/__g_density.tsx",
+    'export const G = <div className="rounded-card border border-border bg-card" />;\n',
+  );
   // motion-token-purity: a CSS file with a raw duration + easing in a transition declaration (off-token,
   // not in ALLOWLIST). The gate reads .css via fs.globSync (not ts-morph), so a __g_ CSS fixture in the
   // real src tree is picked up; the __g_ excludes on the OTHER consumers don't reach fs.globSync.

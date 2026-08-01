@@ -72,9 +72,10 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
   expectTypeOf<BusMemberKeys<ChatBusEvent>>().toEqualTypeOf<
     | "type"
     | "chatId"
-    // delta: raw tokens + their canon anchor
+    // delta: raw tokens + their canon anchor + the §3.6 producer-stamped member projection of those tokens
     | "slotSeq"
     | "delta"
+    | "memberText"
     // canon mutations: the id plane + the anchored view carrier
     | "messageId"
     | "messageIds"
@@ -101,8 +102,15 @@ test("ChatBusEvent's key vocabulary is CLOSED (a new member's free-text field is
   >();
 });
 
-test("the ONLY free-text (raw `string`) field on the chat bus is turnStarted.model (D16 anchor allowlist)", () => {
-  expectTypeOf<RawStringKeys<ChatBusEvent>>().toEqualTypeOf<"model">();
+test("free text on the chat bus is turnStarted.model + the ANCHORED delta.memberText (D16 anchor allowlist)", () => {
+  // `memberText` is the second — and only other — raw-string key, admitted deliberately: it is the §3.6
+  // member projection of `delta.text`, stamped by the producer (`domain/chat/bus`) so no reader has to
+  // rebuild the stateful hidden-span scrub and cold-start mid-`<lie …/>`. It rides the SAME union member as
+  // `slotSeq`, so `substrate/auth::canonAnchorSeq` already anchors it — it is free text, but never
+  // UNANCHORED free text, which is the property this pin exists to defend. Adding a THIRD raw-string key
+  // must clear the same bar: name the anchor, or don't ship it.
+  expectTypeOf<RawStringKeys<ChatBusEvent>>().toEqualTypeOf<"model" | "memberText">();
+  expectTypeOf<UnionMemberHasKey<Extract<ChatBusEvent, { memberText?: unknown }>, "slotSeq">>().toEqualTypeOf<true>();
 });
 
 test("the ONLY structured canon carriers are `view` + `delta`, and both are seq-anchored (D16 anchor allowlist)", () => {

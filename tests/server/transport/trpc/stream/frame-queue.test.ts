@@ -71,22 +71,25 @@ describe("the `lag` policy — durable rooms", () => {
     expect(frames).toEqual([otherChatFrame(1), { channel: "control", type: "roomLagged", ref: CHAT_ROOM, cursor: 5 }]);
   });
 
-  test("a shed CALLS BACK once per notice — the socket's hook for parking the room until the client catches up", () => {
+  test("EVERY shed calls back (the park), while the NOTICE stays rate-limited — the two are deliberately split", async () => {
     // `onShed` is the whole legality of `lag`: the shedding pump's high-water mark has passed the dropped
-    // rows, so only the socket restarting that room from its last-DELIVERED cursor can refill them. It must
-    // fire with the shed room's ref, and it must NOT re-fire while a notice is still pending — a flood the
-    // consumer is not draining would otherwise call back on every push.
+    // rows, so only the socket parking that room and restarting it from its last-DELIVERED cursor can refill
+    // them. The PARK must fire on every shed — a room that keeps producing into a queue nobody is draining
+    // just sheds its own output, and rows shed in that window can be left with no resume to cover them. The
+    // NOTICE is the rate-limited half: one per burst, so a flood cannot grow the control lane.
     const shed: StreamRoomRef[] = [];
     const queue = createFrameQueue({ capacity: 2, cursorFor: () => 3, onShed: (ref) => shed.push(ref) });
     queue.push(CHAT_ROOM, chatFrame(1));
     queue.push(CHAT_ROOM, chatFrame(2));
 
-    queue.push(CHAT_ROOM, chatFrame(3)); // over capacity → shed + notice + callback
+    queue.push(CHAT_ROOM, chatFrame(3)); // over capacity → shed + park + notice
     queue.push(CHAT_ROOM, chatFrame(4));
     queue.push(CHAT_ROOM, chatFrame(5));
-    queue.push(CHAT_ROOM, chatFrame(6)); // over capacity again, but the first notice is STILL pending
+    queue.push(CHAT_ROOM, chatFrame(6)); // over capacity again → shed + park; the notice COLLAPSES
 
-    expect(shed).toEqual([CHAT_ROOM]);
+    expect(shed).toEqual([CHAT_ROOM, CHAT_ROOM]);
+    // …and only ONE notice reached the wire for the burst (frame 6 rode in after the second shed).
+    expect(await flush(queue)).toEqual([{ channel: "control", type: "roomLagged", ref: CHAT_ROOM, cursor: 3 }, chatFrame(6)]);
   });
 
   test("frames within one room stay FIFO", async () => {
