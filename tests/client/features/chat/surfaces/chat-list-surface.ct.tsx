@@ -208,8 +208,10 @@ test("§12 the star is the row's state TOGGLE, and clicking it fires the star MU
   // Assert the MUTATION fired (not a UI reaction — the row is bus-driven, so the optimistic repaint is
   // not the thing under test): the click hits `chat.star` with THIS row's id and the flipped value.
   await unstarred.click();
-  await expect.poll(() => recorder.count("chat.star")).toBe(1);
-  expect(recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
+  await expect.poll(() => recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
+  // ONESHOT-OK: settled — the recorded input above proves the request already landed, so the COUNT for that
+  // same procedure is final at this point (a second fire would need another click).
+  expect(recorder.count("chat.star")).toBe(1);
 });
 
 test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {

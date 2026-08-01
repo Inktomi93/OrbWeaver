@@ -11,7 +11,7 @@
 import type { ChatRowPortrait } from "./chat-summary-row";
 
 /** The default strip cap — enough to cover a working cast, short enough to stay one glanceable row. */
-export const RECENT_FACES_CAP = 8;
+const RECENT_FACES_CAP = 8;
 
 /** The chat shape the curation reads (a structural subset of `ChatSummary`), already in recency order. */
 export interface FaceSourceChat {
