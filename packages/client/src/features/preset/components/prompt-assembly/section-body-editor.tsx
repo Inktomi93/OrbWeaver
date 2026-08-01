@@ -16,8 +16,8 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
+import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
 import { headerCopy, isTemplatedMarker, sectionGlyphIcon } from "../../lib/assembly-model";
-import { PRESET_PROMPT_MACROS } from "../../lib/preset-prompt-macros";
 import { MARKER_COPY } from "./marker-copy";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
@@ -67,7 +67,7 @@ function SectionBody({ form, section, index }: Omit<SectionBodyEditorProps, "onB
   if (section.type === "literal") {
     return (
       <form.AppField name={`sections[${index}].content`}>
-        {(field): ReactElement => <field.MacroField label="Text" suggestions={PRESET_PROMPT_MACROS} rows={BODY_ROWS} className={BODY_MIN_H} />}
+        {(field): ReactElement => <field.MacroField label="Text" suggestions={PROMPT_MACRO_SUGGESTIONS} rows={BODY_ROWS} className={BODY_MIN_H} />}
       </form.AppField>
     );
   }
@@ -166,7 +166,7 @@ function TemplateModeBody({ mode, template, marker, factoryDefault, emptyDefault
           aria-label="Template"
           value={template ?? ""}
           onChange={onChange}
-          suggestions={PRESET_PROMPT_MACROS}
+          suggestions={PROMPT_MACRO_SUGGESTIONS}
           rows={BODY_ROWS}
           className={BODY_MIN_H}
         />
@@ -213,7 +213,7 @@ function WorldInfoBody({ form, section }: { readonly form: AssemblyForm; readonl
           <field.MacroField
             label="Entry wrapper"
             description="Wraps each lorebook entry — {{entry}} is the entry text. Shared by both World Info markers; blank uses {{entry}}."
-            suggestions={PRESET_PROMPT_MACROS}
+            suggestions={PROMPT_MACRO_SUGGESTIONS}
             rows={3}
           />
         )}
