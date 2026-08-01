@@ -24,6 +24,15 @@ export type SectionGroup = (typeof SECTION_GROUPS)[number];
  *  the same one-directional way it derives `group` from `SectionGroup` — no second spelling, no cycle. */
 export type MobileCuration = "tab" | "sheet";
 
+// The rail's two chrome zones, in DOM order — the ONE home for the rail-zone axis (state owns shell
+// vocabulary, §5 rule 5). `chrome-registry.ts` DERIVES `CHROME_ZONES` from this tuple (the one-directional
+// direction it already imports in), so the two can never disagree. `rail.brand` is the BRAND CELL at the
+// top of the rail: the Weave glyph, which the HOME section claims as its affordance (home-section-spec
+// §4.1) — that is how app-shell navigates home without ever spelling `"home"`.
+export const RAIL_ZONES = ["rail.nav", "rail.brand"] as const;
+/** Which rail slot a section's affordance renders in. @defaultValue "rail.nav" */
+export type RailZone = (typeof RAIL_ZONES)[number];
+
 /** A section's rail-button identity + mobile-tab curation. */
 export interface RailEntry {
   readonly label: string;
@@ -32,6 +41,19 @@ export interface RailEntry {
   /** The section's bottom-tab-vs-You-sheet fate — an EXPLICIT decision per section: `"tab"` shows it in
    *  the mobile bottom bar, `"sheet"` folds it into the You sheet. */
   readonly mobile: MobileCuration;
+  /** Which rail slot this section's affordance lives in. Absent ⇒ `"rail.nav"` (a normal icon button in
+   *  its `group`). `"rail.brand"` claims the brand cell — at most one section may, and it gets NO nav
+   *  button (one affordance per section, never two). */
+  readonly zone?: RailZone;
+}
+
+/** A section's declared PANEL CAPABILITY — the shell's "this section has no such pane" arm (owner
+ *  decision H3 / arm L-b). Absent ⇒ the section has both panels, exactly as every section does today.
+ *  `"unavailable"` is NOT a fourth `PanelMode`: the panel resolves `collapsed` (its track is already
+ *  zero-width) and the topbar renders NO toggle for it, so the shell can never offer a door onto a
+ *  surface that does not exist ("Home list — this surface isn't wired yet"). */
+export interface SectionPanelAvailability {
+  readonly list?: "unavailable";
 }
 
 /** A section's honest placeholder copy — a distinct (title, description) per section (gate-checked). */
@@ -47,6 +69,8 @@ export interface SectionPlaceholderCopy {
 export interface SectionDefinition {
   readonly id: SectionId;
   readonly rail: RailEntry;
+  /** Which panels this section HAS at all (H3 / arm L-b). Absent ⇒ both, as today. */
+  readonly panels?: SectionPanelAvailability;
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;

@@ -9,18 +9,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { notify } from "#lib";
-import {
-  commitDraft,
-  isLanding,
-  openModal,
-  selectChat,
-  setActiveSection,
-  startNewChat,
-  useActiveChatHandle,
-  useActiveDraftSeed,
-  useActiveSessionKey,
-  useListDocked,
-} from "#state";
+import { commitDraft, isLanding, openModal, selectChat, useActiveChatHandle, useActiveDraftSeed, useActiveSessionKey } from "#state";
 import { turnAbortNotice } from "../lib/turn-abort-notice";
 import { warningNotice } from "../lib/warning-notice";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface";
@@ -57,20 +46,9 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
   const sessionKey = useActiveSessionKey();
   const baseBusDeps = useChatBusDeps();
   const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning };
-  // When the Chats LIST is docked it already is the recents finder, so the landing drops its own
-  // "Recent chats" to avoid duplicating it.
-  const listDocked = useListDocked("chats", "docked");
 
   if (isLanding(handle)) {
-    return (
-      <ChatLandingSurface
-        onBrowseCharacters={(): void => setActiveSection("characters")}
-        onNewChat={(): void => openModal("newChat")}
-        onSelect={selectChat}
-        onStartChat={(characterId): void => startNewChat({ characterIds: [characterId] })}
-        showRecents={!listDocked}
-      />
-    );
+    return <ChatLandingSurface onNewChat={(): void => openModal("newChat")} />;
   }
 
   return (

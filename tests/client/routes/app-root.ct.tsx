@@ -18,6 +18,7 @@ import { makeCharacterSummary } from "../features/character/fixtures";
 import { HomePageStory } from "./_ct-stories";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
+const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
 
 /** The library page (`character.list` is keyset-paged: `{items, nextCursor}`). */
 const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
@@ -42,7 +43,7 @@ const DRAFT_IDENTITY_STUB = {
   }),
 };
 
-test("the default chats section renders the landing surface, not an empty room (J1)", async ({ mount, page }) => {
+test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 via owner decision H1 = D-1)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
     "character.list": NO_CHARACTERS,
@@ -50,10 +51,33 @@ test("the default chats section renders the landing surface, not an empty room (
   });
   const component = await mount(<HomePageStory />);
 
-  // At rest = the landing hero, never a dead composer. An empty DB teaches the first step.
-  await expect(component.getByText("Pick up a thread")).toBeVisible();
+  // The BORN default is the home section — its rail affordance (the brand glyph) reads current…
+  await expect(component.getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
+  // …and its CONTENT is the door-assembled tile grid, not a hero bolted inside chats.
+  await expect(component.locator('[data-home-tile="chat.recents"]')).toBeVisible();
+  await expect(component.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
+  await expect(component.locator('[data-home-tile="home.jump"]')).toBeVisible();
+  // An empty DB still teaches the first step, per tile.
   await expect(component.getByRole("button", { name: "Create your first character" })).toBeVisible();
+  // Home declares no LIST pane, so no toggle offers one.
+  await expect(component.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
   // No chat room / composer is mounted at rest.
+  await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
+});
+
+test("the chats section's own no-selection state is the SLIM one — the launcher lives in exactly one place", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
+  const component = await mount(<HomePageStory />);
+
+  // Scoped to the RAIL: home's jump tile also carries a row named "Chats" (that IS the point of it).
+  await component.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+
+  await expect(component.getByText("No chat selected")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Start a new chat" })).toBeVisible();
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 });
 
@@ -73,10 +97,11 @@ test("picking a character in the library starts a chat with it (the library→ch
 
   const component = await mount(<HomePageStory />);
 
-  // Go to the Characters section (exact — "Characters" is a substring of "Collapse Characters panel").
-  await component.getByRole("button", { name: "Characters", exact: true }).click();
+  // Go to the Characters section, scoped to the RAIL (exact — "Characters" is a substring of "Collapse
+  // Characters panel", and home's jump tile also carries a row of that name).
+  await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
   // Scope to the library row's unique "Chat with X" CTA — the bare name "Aria Nightshade" is now
-  // ambiguous (the landing surface stays mounted with a "Character quick-picks" row of the same name).
+  // ambiguous (home stays mounted with a quick-picks tile row of the same name).
   await expect(page.getByRole("button", { name: "Chat with Aria Nightshade", exact: true })).toBeVisible();
   // On the Characters section the chat composer is NOT mounted (CONTENT is the library).
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);

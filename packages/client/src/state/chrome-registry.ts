@@ -4,16 +4,19 @@
 // SECTION (derived from `SectionDefinition.rail`), a MODAL trigger (derived from `ModalDefinition.trigger`),
 // or a live feature-owned WIDGET a static icon can't express (the bell, the shell's own toggles). Widget
 // bodies render a lens (`"bar"` = the always-mounted bar DOM, `"sheet"` = the You-sheet projection) — both
-// lenses have a consumer (N1 slice shipped, `history/shell-chrome-unification.md`). All three zones are
-// consumed: `rail.nav`/`rail.end` by `features/app-shell/components/rail.tsx`, `topbar.trail` by the shell
-// header, and the sheet lens by `features/app-shell/components/you-sheet.tsx`.
+// lenses have a consumer (N1 slice shipped, `history/shell-chrome-unification.md`). All four zones are
+// consumed: `rail.brand`/`rail.nav`/`rail.end` by `features/app-shell/components/rail.tsx`, `topbar.trail`
+// by the shell header, and the sheet lens by `features/app-shell/components/you-sheet.tsx`.
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { MobileCuration, SectionGroup } from "./section-registry";
+import { RAIL_ZONES } from "./section-registry";
 import type { ModalSlotId, SectionId } from "./shell-store";
 
-export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;
+// The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
+// section-registry.ts) — re-spelling them here would be the parallel map the lockdown kills.
+export const CHROME_ZONES = [...RAIL_ZONES, "rail.end", "topbar.trail"] as const;
 export type ChromeZone = (typeof CHROME_ZONES)[number];
 
 /** A rail entry's mobile fate (`MobileCuration`) is homed in `section-registry.ts` beside the rail's

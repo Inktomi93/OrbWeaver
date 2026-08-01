@@ -23,6 +23,11 @@ export interface DraftSeed {
   readonly characterIds?: readonly CharacterId[] | undefined;
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
+  /** ST "Temporary Chat" (PD-65) — start this room EPHEMERAL: it runs turns normally but never joins the
+   *  chats list, and it is swept once past the user's own TTL. A CREATION intent, not editable config, so
+   *  it rides the seed rather than the draft-config store: `startChat` is the only writer of the column,
+   *  and a fork is born non-temporary. @defaultValue undefined (a plain, permanent new chat). */
+  readonly temporary?: boolean | undefined;
 }
 
 interface ActiveChatState {

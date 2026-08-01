@@ -917,6 +917,8 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       title: "Forked chat",
       star: false,
       archived: false,
+      // A fork is born non-temporary (PD-65 — the flag is set only at `startChat`).
+      temporary: false,
       parentChatId: CHAT,
       forkedAt: 0,
       anchorPersonaId: null,

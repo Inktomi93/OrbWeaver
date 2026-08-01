@@ -147,6 +147,32 @@
   border-block-end: 1px solid var(--color-sidebar-border);
   color: var(--color-muted-foreground);
 }
+/* When a section claims the `rail.brand` zone (home), the brand cell IS that section's rail button — the
+ * same element, so all the .shell-rail-brand chrome-row geometry above still applies and the active tint
+ * spans the full cell. The active skin is the rail's own ember tint plus a leading accent bar (the mock's
+ * brand treatment); the tint/glow pair the nav buttons use would read too heavy at chrome-row height. */
+.shell-rail-brand-button {
+  position: relative;
+  border-radius: 0;
+  color: var(--color-primary);
+}
+.shell-rail-brand-button:hover {
+  background: var(--color-sidebar-accent);
+}
+.shell-rail-brand-button[data-active] {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+}
+.shell-rail-brand-button[data-active]::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--spacing-field);
+  inset-inline-start: 0;
+  /* A 2px accent bar — the hairline-plus rule, same species as the .shell-topbar-divider's 1px. */
+  width: 2px;
+  border-start-end-radius: 2px;
+  border-end-end-radius: 2px;
+  background: var(--color-primary);
+}
 .shell-rail-sections {
   display: flex;
   flex-direction: column;

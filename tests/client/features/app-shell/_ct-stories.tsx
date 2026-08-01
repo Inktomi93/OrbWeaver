@@ -21,7 +21,7 @@
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextTabs, VOID_STATE } from "@orb/client/lib";
-import type { ChromeEntry, SectionDefinition } from "@orb/client/state";
+import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
 import { ChromeRegistryProvider } from "@orb/client/state";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
@@ -33,15 +33,26 @@ import { Rail } from "../../../../packages/client/src/features/app-shell/compone
 import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
-import { openModal } from "../../../../packages/client/src/state/shell-store";
+import { openModal, setActiveSection, useActiveSection } from "../../../../packages/client/src/state/shell-store";
 import "../../../../packages/client/src/styles/globals.css";
 import {
-  CtChatContributorSectionRegistry,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
+  CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "../../../support/ct/ct-data-providers";
+
+/** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
+ *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —
+ *  so they say which section they mean instead of leaning on whatever the default happens to be. The
+ *  default-lands-on-home fact has its own assertions (shell-store.ct.tsx + app-root.ct.tsx). */
+function LandOn({ section }: { readonly section: SectionId }): null {
+  useEffect(() => {
+    setActiveSection(section);
+  }, [section]);
+  return null;
+}
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
@@ -54,27 +65,17 @@ export function AppShellStory(): ReactElement {
             content: <p>chats content pane</p>,
             context: <p>chats context pane</p>,
           },
+          // Characters is a mobile-bar tab (Home · Chats · Characters · You after the H2 curation), so it
+          // carries real content for the bar-navigation CT.
+          characters: { content: <p>characters content pane</p> },
           corpus: { list: <p>corpus list pane</p>, content: <p>corpus content pane</p> },
         }}
       >
+        <LandOn section="chats" />
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
         <AppShell />
       </CtFakeSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The REAL shell + the REAL `chats` section (`ChatContent`, landing by default) — end-to-end proof that
- *  `useListDocked` (chat-content.tsx) agrees with `resolvePanel`'s auto-overlay derivation at every width
- *  (the M10-correction verifier gap): mounting through the real `useShellLayout` viewport-publish effect,
- *  not a hand-fed store write. */
-export function AppShellRealChatsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtChatContributorSectionRegistry>
-        <AppShell />
-      </CtChatContributorSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -97,6 +98,7 @@ export function AppShellWidthProbeStory(): ReactElement {
           },
         }}
       >
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -115,6 +117,7 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <p>chats content pane</p> } }}>
+        <LandOn section="chats" />
         {/* A fake modal registry injects a deliberately-tall body for every id (the inner provider wins
             over CtFakeSectionRegistry's real one), so the scroll invariant is exercised per placement.
             `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to fit
@@ -148,6 +151,7 @@ export function AppShellDropGuardStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry sections={{ chats: { content: <DropZonePane /> } }}>
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -165,6 +169,56 @@ export function RailStory(): ReactElement {
         <Rail activeSection="chats" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
+  );
+}
+
+/** The Rail with the BRAND cell ACTIVE (home-section-spec §4.1) — the glyph is home's rail affordance, so
+ *  it must carry `aria-current="page"` when home is the active section, exactly as any rail button does. */
+export function RailBrandActiveStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <Rail activeSection="home" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+/** The Rail wired to the REAL `setActiveSection` + a probe of the shell store — so the glyph CT asserts
+ *  the STORE ACTION FIRED, never a rendered echo. */
+export function RailBrandNavStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <LandOn section="chats" />
+        <RailWithStore />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
+function RailWithStore(): ReactElement {
+  const activeSection = useActiveSection();
+  return (
+    <>
+      <output>section={activeSection}</output>
+      <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />
+    </>
+  );
+}
+
+/** The REAL shell landed on a caller-chosen section (real registry) — for the LIST-pane CAPABILITY CT
+ *  (home declares `panels.list = "unavailable"`, so its topbar renders NO list toggle; chats still does). */
+export function AppShellOnSectionStory({ section }: { readonly section: SectionId }): ReactElement {
+  useEffect(() => {
+    setActiveSection(section);
+  }, [section]);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <AppShell />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 

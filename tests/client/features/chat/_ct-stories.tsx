@@ -16,17 +16,22 @@ import {
   ChatRoomSurface,
   CommandPaletteSurface,
   Composer,
+  chatQuickPicksTile,
+  chatRecentsTile,
   chatSlashCommands,
+  chatTempChatTile,
   JoinInviteDialog,
   MessageListSurface,
   MessageThreadAnchor,
   NewChatPicker,
 } from "@orb/client/features/chat";
+import { HomeSurface } from "@orb/client/features/home";
 import type {
   ChatContextState,
   ChatSurfaceAnchor,
   ChatSurfaceContribution,
   ContextTabDef,
+  HomeTileContribution,
   MessageRenderContext,
   MessageToolsRenderer,
   SlashCommandContribution,
@@ -51,6 +56,7 @@ import {
   startEditingMessage,
   startNewChat,
   toggleMessageSelected,
+  useActiveSection,
   useDraftConfig,
   useSectionRegistry,
   useTurnPhase,
@@ -84,6 +90,7 @@ import { ChatCastBar } from "../../../../packages/client/src/features/chat/compo
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
+import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section";
@@ -908,38 +915,59 @@ function ChatListInner({ activeChatId }: { readonly activeChatId: string | null 
   );
 }
 
-// ── Landing story (data layer — listChats + character.list stubbed at the network) ────────────────
+// ── Landing + HOME-TILE stories ───────────────────────────────────────────────────────────────────
 
-/** The Chats-section LANDING surface (J1), wired to the real data layer (routeTrpc stubs
- *  `chat.listChats` + `character.list`). Records select / start-chat / new-chat / browse clicks into
- *  visible markers so a CT can assert the write-intent callbacks fire with the right id. */
-export function ChatLandingSurfaceStory({ showRecents }: { readonly showRecents?: boolean } = {}): ReactElement {
+/** The Chats-section NO-SELECTION state after the launcher MOVED to home (owner decision H1 = D-1): a
+ *  slim empty state with the section's own primary. It reads nothing, so there is no data layer here. */
+export function ChatLandingSurfaceStory(): ReactElement {
+  const [newCount, setNewCount] = useState(0);
+  return (
+    <div style={{ height: 640, width: 720 }}>
+      <ChatLandingSurface onNewChat={(): void => setNewCount((n) => n + 1)} />
+      <p data-testid="new-count">{String(newCount)}</p>
+    </div>
+  );
+}
+
+/** ONE chat-contributed HOME tile mounted through the REAL `HomeSurface` — so the per-tile QueryBoundary,
+ *  the kicker frame, and the trailing action are the SHIPPED ones, not a test double. The `<output>`
+ *  publishes the shell store's active section so a row click asserts the STORE ACTION fired. */
+function HomeTileStory({ tile }: { readonly tile: HomeTileContribution }): ReactElement {
   return (
     <CtDataProviders>
-      <ChatLandingInner showRecents={showRecents} />
+      <ActiveSectionProbe />
+      <div style={{ height: 640, width: 720 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [tile])} />
+      </div>
     </CtDataProviders>
   );
 }
 
-function ChatLandingInner({ showRecents }: { readonly showRecents: boolean | undefined }): ReactElement {
-  const [selected, setSelected] = useState("none");
-  const [started, setStarted] = useState("none");
-  const [newCount, setNewCount] = useState(0);
-  const [browsed, setBrowsed] = useState(0);
+function ActiveSectionProbe(): ReactElement {
+  return <output>section={useActiveSection()}</output>;
+}
+
+export function ChatRecentsTileStory(): ReactElement {
+  return <HomeTileStory tile={chatRecentsTile} />;
+}
+
+export function ChatQuickPicksTileStory(): ReactElement {
+  return <HomeTileStory tile={chatQuickPicksTile} />;
+}
+
+/** The temp-chat tile PLUS the real chats topbar header — so one CT can drive the launcher and then assert
+ *  the Temporary badge is visible on the DRAFT, before any send (the flag is creation-only). */
+export function ChatTempChatTileStory(): ReactElement {
   return (
-    <div style={{ height: 640, width: 720 }}>
-      <ChatLandingSurface
-        onBrowseCharacters={(): void => setBrowsed((n) => n + 1)}
-        onNewChat={(): void => setNewCount((n) => n + 1)}
-        onSelect={(id): void => setSelected(id)}
-        onStartChat={(id): void => setStarted(id)}
-        {...(showRecents === undefined ? {} : { showRecents })}
-      />
-      <p data-testid="selected">{selected}</p>
-      <p data-testid="started">{started}</p>
-      <p data-testid="new-count">{String(newCount)}</p>
-      <p data-testid="browsed">{String(browsed)}</p>
-    </div>
+    <CtDataProviders>
+      <ActiveSectionProbe />
+      <div data-testid="temp-topbar">
+        <ChatsTopbarHeader />
+      </div>
+      <div style={{ height: 640, width: 720 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [chatTempChatTile])} />
+      </div>
+    </CtDataProviders>
   );
 }
 

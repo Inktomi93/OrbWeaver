@@ -21,6 +21,9 @@ import { accountModal } from "@orb/client/features/auth";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
   ChatsWithCharacterPane,
+  chatQuickPicksTile,
+  chatRecentsTile,
+  chatTempChatTile,
   commandModal,
   databankSettingsSection,
   makeChatsSection,
@@ -29,6 +32,7 @@ import {
 } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
@@ -47,7 +51,15 @@ import { analyticsSection } from "@orb/client/features/stats";
 import { makeAdminPane, memoryTuningSection, rateLimitsSection } from "@orb/client/features/user-admin";
 import { backupPane, makeWorkloadsPane, workloadsTuningSection } from "@orb/client/features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "@orb/client/features/world-info";
-import type { CharacterDetailContribution, ChatContextState, ChatSurfaceContribution, ContextTabDef, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
+import type {
+  CharacterDetailContribution,
+  ChatContextState,
+  ChatSurfaceContribution,
+  ContextTabDef,
+  ContributorRegistry,
+  HomeTileContribution,
+  ToolRenderer,
+} from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
@@ -105,7 +117,19 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // The per-tool-name renderer seam, empty as at the real door — every tool record falls back to `ToolCallBlock`.
 const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderers", []);
 
+// The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
+// so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  chatRecentsTile,
+  chatQuickPicksTile,
+  chatTempChatTile,
+  sectionJumpTile,
+  buddyDormantTile,
+  automationDormantTile,
+]);
+
 const REAL: Record<SectionId, SectionDefinition> = {
+  home: makeHomeSection(homeTiles),
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, chatToolRenderers),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
@@ -310,6 +334,9 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
   return {
     id,
     rail: real.rail,
+    // The section's declared PANEL CAPABILITY is shell anatomy, not story content — carry it through so a
+    // shell CT sees the real "this section has no LIST pane" arm (home).
+    ...(real.panels === undefined ? {} : { panels: real.panels }),
     panelDefaults: real.panelDefaults,
     placeholder: real.placeholder,
     ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),
