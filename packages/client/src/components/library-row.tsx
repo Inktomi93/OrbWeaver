@@ -42,14 +42,21 @@ export interface LibraryRowProps {
   readonly subtitle?: string;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  /** Leading slot — a status badge (Active/Global) or a lock glyph. */
-  readonly leading?: ReactNode;
+  /**
+   * Rest-visible STATUS markers (Active / Global / a built-in lock) — rendered on the TITLE LINE, never in
+   * the leading slot. A leading status badge is variable-width and only SOME rows have one, so the title
+   * column started at a different x on every row and the list lost its scan column (side-eye P2-6). The
+   * title-line marker is the chats pane's grammar (★ / ⚔ / Archived); one grammar, one column.
+   * Bonus a11y: `ListRow.markers` rides the row's `aria-describedby`, while the leading slot is
+   * `aria-hidden` — the status was silent for a screen reader until it moved here.
+   */
+  readonly markers?: ReactNode;
   /** The trailing actions menu. Omit for a row that can't be renamed/duplicated/deleted (e.g. a built-in). */
   readonly actions?: LibraryRowActions;
 }
 
-/** One entity-library row: leading marker · title/subtitle · Rename/Duplicate/Delete menu. */
-export function LibraryRow({ title, subtitle, selected, onSelect, leading, actions }: LibraryRowProps): ReactElement {
+/** One entity-library row: title/subtitle + title-line status markers · Rename/Duplicate/Delete menu. */
+export function LibraryRow({ title, subtitle, selected, onSelect, markers, actions }: LibraryRowProps): ReactElement {
   return (
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
@@ -62,7 +69,7 @@ export function LibraryRow({ title, subtitle, selected, onSelect, leading, actio
       selected={selected}
       title={title}
       {...(subtitle === undefined ? {} : { subtitle })}
-      {...(leading === undefined ? {} : { leading })}
+      {...(markers === undefined ? {} : { markers })}
       {...(actions === undefined ? {} : { actions: <LibraryRowActionsMenu {...actions} /> })}
     />
   );
