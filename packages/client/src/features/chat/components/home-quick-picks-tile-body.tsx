@@ -13,7 +13,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -50,26 +50,40 @@ export function HomeQuickPicksTileBody(): ReactElement {
   }
 
   return (
+    // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
+    // ListRow's root is a plain div, so the role rides a layout-primitive wrapper (the `import-report-
+    // summary` precedent; a literal <li> would be invalid HTML under a div[role=list]).
     <Stack aria-label="Character quick-picks" gap="row" role="list">
-      {quickPicks.map((character) => (
-        <ListRow
-          clickable={true}
-          key={character.id}
-          leading={
-            <Avatar
-              fallbackDelay={0}
-              hueSeed={character.id}
-              shape="square"
-              size="sm"
-              {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
-            >
-              {initialsFor(character.name)}
-            </Avatar>
-          }
-          onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
-          title={character.name}
-        />
-      ))}
+      {quickPicks.map((character) => {
+        // The SAME honest ladder the character library row uses (character-card.tsx): the distilled pitch →
+        // the visible tag line → the handle. Never invented copy — a name-only row read as an unfinished
+        // list, and the summary this tile already reads carries all three.
+        const tagLine = character.tags
+          .filter((tag) => !tag.isHiddenOnCard)
+          .map((tag) => tag.name)
+          .join(" · ");
+        return (
+          <Row key={character.id} role="listitem">
+            <ListRow
+              clickable={true}
+              leading={
+                <Avatar
+                  fallbackDelay={0}
+                  hueSeed={character.id}
+                  shape="square"
+                  size="sm"
+                  {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
+                >
+                  {initialsFor(character.name)}
+                </Avatar>
+              }
+              onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
+              subtitle={character.elevatorPitch ?? (tagLine === "" ? character.handle : tagLine)}
+              title={character.name}
+            />
+          </Row>
+        );
+      })}
     </Stack>
   );
 }
