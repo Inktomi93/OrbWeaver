@@ -10,9 +10,11 @@
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
 // the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`star`/`archived`; the host becomes the
 // forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
-// only). The compaction checkpoint copies only when covered by the fork point, else reset to null.
+// only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
+// a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
+// (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatBusEvent, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMetadata, ParticipantView, StandaloneVariableDelta } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
@@ -20,6 +22,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
@@ -29,14 +32,7 @@ import type { ForkResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireParticipant } from "../guard";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import {
-  loadChatInjections,
-  loadChatRow,
-  loadMessageSlots,
-  loadStandaloneVariableDeltas,
-  loadStoredVariables,
-  loadVariantsByMessageIds,
-} from "../persistence/queries";
+import { loadChatInjections, loadChatRow, loadMessageSlots, loadStoredVariables, loadVariableDeltas, loadVariantsByMessageIds } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { NO_HISTORY_FLOOR } from "../substrate/auth";
@@ -256,6 +252,69 @@ async function resolveOwnedCharacterSeats(
   return characterSeats.filter((_, i) => cards[i] !== null);
 }
 
+/** D79 ruling #8 — THE FORK'S VARIABLE CARRY. The runtime variable state is DERIVED by folding the seq-ordered
+ *  delta chain (every slot's selected-variant `variable_delta` ∪ every standalone out-of-turn batch), so a fork
+ *  that copies only `seq >= floor` slots must reconstitute the invisible PREFIX or its fold diverges from the
+ *  room's real state at the fork point (F6a: a silent gameplay-state reset). Carrying the pre-floor batches
+ *  VERBATIM instead is the other half of the defect (F6b): a batch value later overwritten is one the forker
+ *  could never read, and it resurfaces in the room they now host once a copied-slot deletion triggers a refold.
+ *
+ *  The fix is the VARIABLES TWIN of the compaction checkpoint the fork already applies to prose: invisible
+ *  history COLLAPSES into one visible present-state marker. Under a floor we emit ONE synthetic standalone
+ *  batch — the FOLD of the whole source chain through the floor boundary, expressed as `set` ops and stamped at
+ *  the floor — then carry only the standalone batches ABOVE it and let the copied (already-floored) slots
+ *  contribute as today. Consequences, all three of the ruling's invariants: the fork's fold is byte-equal to the
+ *  source's real state at the fork point; no pre-floor batch CONTENT survives (superseded values are folded
+ *  away — what remains is the room state as the member walked in at their `joinSeq`, which their unclamped
+ *  `getVariables` already reads); no pre-floor seq stamp survives.
+ *
+ *  BOUNDARY = the floor INCLUSIVE (deltas at `seq <= floor` fold into the baseline). Two reasons, one shape:
+ *  ruling #1's interval algebra makes the row AT `joinSeq` the member's entry context, and the fold's stable
+ *  seq-sort applies a standalone batch AFTER a message at the SAME seq — so a floor-EXCLUSIVE baseline stamped
+ *  at the floor would clobber the copied floor row's own delta on every later refold. The floor row's delta is
+ *  therefore inside the baseline AND on its copied slot; harmless by construction, because the baseline is an
+ *  absolute `set` snapshot that lands after it, never a relative re-application.
+ *
+ *  DEVIATION FROM THE RULING'S LITERAL RECIPE (receipt): ruling #8 says to fold the source at
+ *  `min(throughSeq, head)` — the state at the FORK POINT — and then still replay the above-floor deltas on top.
+ *  `VarOp` is NOT idempotent (`inc`/`dec`/`add` — `@orb/kit/macro::applyVarOp`), so that composition
+ *  double-counts every above-floor `inc`/`add` and breaks the ruling's own stated invariant ("byte-equal to the
+ *  room's real state at the fork point"). The invariant wins over the recipe: the baseline is the fold through
+ *  the FLOOR, which composes with the replayed above-floor deltas to exactly that state for every op kind.
+ *
+ *  An UNFLOORED forker (host, `full`, born-here) is unchanged: no baseline, every standalone batch within the
+ *  fork horizon carries verbatim. A `throughSeq` BELOW the floor selects an empty visible slice — no canon, and
+ *  therefore no variable state either (state as of a seq the forker may not read is exactly F6b). */
+function buildForkStandaloneDeltas(args: {
+  /** The source chat's WHOLE fold source (`loadVariableDeltas`): message deltas (`messageId` set) ∪ standalone
+   *  batches (`messageId` null), message-before-standalone at equal seq — the order `foldChain` relies on. */
+  readonly chain: readonly { readonly seq: number; readonly messageId: MessageId | null; readonly delta: readonly VarOp[] }[];
+  readonly historyFloorSeq: number;
+  readonly throughSeq: number | undefined;
+}): StandaloneVariableDelta[] {
+  const { chain, historyFloorSeq, throughSeq } = args;
+  const inHorizon = (seq: number): boolean => throughSeq === undefined || seq <= throughSeq;
+  const standalone = chain.filter((e) => e.messageId === null);
+  // Standalone batches carry into the fork only up to the fork point — a truncated fork must not claim a delta
+  // stamped past its horizon (mirrors the compaction-checkpoint gate) — and, under a floor, only ABOVE the
+  // baseline that already folded everything at or below it.
+  const carryAbove = (aboveSeq: number): StandaloneVariableDelta[] =>
+    standalone.filter((e) => e.seq > aboveSeq && inHorizon(e.seq)).map((e) => ({ seq: e.seq, delta: [...e.delta] }));
+  if (historyFloorSeq <= NO_HISTORY_FLOOR) {
+    // Unfloored: nothing collapses. `messages.seq` is 1-based, so "above 0" is every batch.
+    return carryAbove(NO_HISTORY_FLOOR);
+  }
+  if (!inHorizon(historyFloorSeq)) {
+    return [];
+  }
+  const baselineFold = foldChain(chain.filter((e) => e.seq <= historyFloorSeq));
+  const baseline: StandaloneVariableDelta[] =
+    Object.keys(baselineFold).length === 0
+      ? []
+      : [{ seq: historyFloorSeq, delta: Object.entries(baselineFold).map(([key, value]) => ({ op: "set" as const, key, value })) }];
+  return [...baseline, ...carryAbove(historyFloorSeq)];
+}
+
 /** `forkChat` — deep copy. Gate the fork (host, OR the sole present human — owner policy 2026-07-28), copy
  *  the chat + cast + canon + injections with fresh ids into a new chat where the forker is host, in one atomic
  *  batch. Emits `chatCreated`.
@@ -358,12 +417,15 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const now = ctx.now();
     const newChatId = ctx.newChatId();
 
-    const [variables, slots, injections, roster, standaloneDeltas] = await Promise.all([
+    // `loadVariableDeltas` is the ACTIVITY plane (seq-stamped variable ops, zero canon bytes — see the
+    // `chat-viewer-plane-canon-reads` gate header), read UNFLOORED on purpose: the floored fork's baseline is a
+    // fold of the whole chain, and folding is what strips the pre-floor history down to present state.
+    const [variables, slots, injections, roster, chainDeltas] = await Promise.all([
       loadStoredVariables(ctx.db, chatId),
       loadMessageSlots(ctx.db, chatId, throughSeq, historyFloorSeq),
       loadChatInjections(ctx.db, chatId),
       loadRoster(ctx.db, chatId),
-      loadStandaloneVariableDeltas(ctx.db, chatId),
+      loadVariableDeltas(ctx.db, chatId),
     ]);
 
     assertForkAllowed(membership.role, roster, chatId);
@@ -378,9 +440,10 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // copy — reachable now only for the solo non-host human arm (belt); a host forker keeps it. See
     // `resolveForkStripReasoning`.
     const stripReasoning = await resolveForkStripReasoning(ctx, chatId, forkerReadsHidden);
-    // Standalone (out-of-turn) variable deltas carry into the fork only up to the fork point — a truncated
-    // fork must not claim a delta stamped past its horizon (mirrors the compaction-checkpoint gate below).
-    const forkStandaloneDeltas = standaloneDeltas.filter((s) => throughSeq === undefined || s.seq <= throughSeq);
+    // The fork's variable delta log: the fork-horizon standalone batches, prefixed under a floor by the ONE
+    // synthetic present-state baseline that stands in for the invisible pre-floor history (D79 ruling #8 — see
+    // `buildForkStandaloneDeltas` for the whole derivation).
+    const forkStandaloneDeltas = buildForkStandaloneDeltas({ chain: chainDeltas, historyFloorSeq, throughSeq });
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, roster);
@@ -396,7 +459,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       source.compactedAtSeq !== null && (throughSeq === undefined || source.compactedAtSeq <= throughSeq) && historyFloorSeq <= NO_HISTORY_FLOOR;
 
     // The fork's runtime cache is the fold of the copied selected-variant chain (recomputed from the
-    // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache).
+    // possibly-truncated `slots` — a partial fork must not claim the source's full-chain cache) ∪ the carried
+    // standalone batches. `foldChain`'s sort is stable and `forkStandaloneDeltas` comes second, so a batch folds
+    // AFTER a slot at the same seq — which is what lands the floored baseline over the floor row's own delta.
     const forkRuntimeCache = foldChain([
       ...slots.map((s) => {
         const selected = variants.find((v) => v.id === s.selectedVariantId);
