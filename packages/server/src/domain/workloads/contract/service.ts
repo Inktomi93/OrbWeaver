@@ -2,15 +2,12 @@
 // the two explicit DI bundles, and the injected-op type aliases; `context.ts` is the builder for these types.
 // workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
 
-import type { RoleClients } from "@orb/contracts/role-clients";
-import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution";
 import type { CancelWorkloadParams, CancelWorkloadResult, GetWorkloadParams, ListWorkloadsParams, RetryWorkloadParams, StartWorkloadParams } from "./params";
-import type { WorkloadRunnerEnv } from "./runner-env";
 import type { WorkloadScheduleService } from "./schedule";
 import type { WorkloadRowAnyKind } from "./workload-row";
 
@@ -54,34 +51,6 @@ export interface WorkloadRunnerDeps {
   readonly now: () => number;
   readonly heartbeatMs?: number;
   readonly cancelPollMs?: number;
-}
-
-/**
- * The per-dispatch bundle a `Runner<K>` closes over. `ownerId` is the RAW row owner (`null` for a BULK
- * all-owners sweep) — the enumeration scope a runner passes to its `env` op. No `db` — a runner reaches
- * persistence only through `env.<feature>.<op>()`.
- *
- * TRANSITIONAL: built by `substrate/shim-contributions.ts` (no longer by the engine), and dies with the
- * `runners/` tree — a contribution receives the domain-free `WorkloadRunContext` instead.
- */
-export interface WorkloadRunnerContext {
-  readonly userId: UserId;
-  readonly ownerId: UserId | null;
-  readonly roleClients: RoleClients;
-  readonly loadUserSettings: () => Promise<UserSettings>;
-  readonly env: WorkloadRunnerEnv;
-  readonly now: () => number;
-}
-
-/**
- * What the TRANSITIONAL contribution shim (`substrate/shim-contributions.ts`) needs to rebuild the OLD
- * per-dispatch runner context the surviving `runners/` read. Dies with `runners/` + `runner-env.ts`.
- */
-export interface ShimContributionDeps {
-  readonly env: WorkloadRunnerEnv;
-  readonly bindRoleClients: (userId: UserId) => Promise<RoleClients>;
-  readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
-  readonly now: () => number;
 }
 
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */

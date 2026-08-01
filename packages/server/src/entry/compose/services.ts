@@ -631,7 +631,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
-  const { portability, runnerEnv } = buildPortabilityRunner({
+  const { portability, importWorkloads } = buildPortabilityRunner({
     db,
     now,
     tagCtx,
@@ -655,8 +655,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bulkImportPersonas,
     resolveOwnerPrincipal,
     workloads,
-    embeddings,
-    databankIngest,
     ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
   });
@@ -670,6 +668,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     discovery,
     connection,
     assets,
+    databankIngest,
+    importWorkloads,
+    purgeDocumentVectors: async (): Promise<void> => {
+      // The purge's row counts are advisory — the sweep's own counts are the workload result.
+      await embeddings.purgeDocumentVectors();
+    },
     backfillMemory: (args) => chatCompose.backfill.memory(args),
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
     purgeMemoryVectors: async (): Promise<void> => {
@@ -677,9 +681,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await embeddings.purgeMemoryVectors();
     },
     loadUserSettings: settings.loadUserSettings,
-    // TRANSITIONAL: what the not-yet-moved kinds' runner shim still reads.
-    env: runnerEnv,
-    bindRoleClients,
   });
 
   const services: Services = {
