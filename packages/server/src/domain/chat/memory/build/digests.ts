@@ -14,7 +14,7 @@ import { resolveCfg } from "../constants";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries";
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types";
 import { parseDigest, renderDigestFacets } from "./substrate/parse";
-import { CONSOLIDATION_SYSTEM_PROMPT, consolidationUserPrompt, DIGEST_SYSTEM_PROMPT, digestUserPrompt } from "./substrate/prompts";
+import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts";
 import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard";
 import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
 import { spanWitnessed } from "./substrate/witnessing";
@@ -125,7 +125,10 @@ async function buildTier0(
 ): Promise<Tier0Counts> {
   const { chatId, scopedCharacterId, isGroup } = args.scope;
   const counts: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
-  const systemPromptTokens = estimateTokens(DIGEST_SYSTEM_PROMPT);
+  // PROSE-1 census 78 — the digest instruction is the ROOM HOST's slot. Resolved ONCE per pass, and the
+  // token guard fits against the RESOLVED text (a longer override must shrink the block, not overflow it).
+  const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
+  const systemPromptTokens = estimateTokens(systemPrompt);
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
     const hash = blockHash(`${scopedCharacterId}:0:${block.blockIdx}`, block.rows);
@@ -140,7 +143,7 @@ async function buildTier0(
     }
     const transcript = renderTranscript(fitted, env.macroNames);
     // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (core/Knowledge-Cluster.md esoteric).
-    const res = await ctx.summarize([{ systemPrompt: DIGEST_SYSTEM_PROMPT, userPrompt: digestUserPrompt(transcript) }], summarizerOpts(ctx));
+    const res = await ctx.summarize([{ systemPrompt, userPrompt: digestUserPrompt(transcript) }], summarizerOpts(ctx));
     const raw = res.items.at(0)?.text ?? "";
     // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.
     if (raw.trim().length === 0) {
@@ -247,6 +250,8 @@ async function writeConsolidations(
   let skipped = 0;
   let skippedEmpty = 0;
   const parentTier = env.tier + 1;
+  // PROSE-1 census 80/81 — the consolidation system prompt + its user-prompt lead, the ROOM HOST's slots.
+  const prose = await ctx.resolveChatProse(scope.chatId);
   for (const [parentBlockIdx, group] of [...env.groups].sort((a, b) => a[0] - b[0])) {
     env.signal?.throwIfAborted();
     if (group.length < cfg.fanOut) {
@@ -266,8 +271,8 @@ async function writeConsolidations(
     const res = await ctx.summarize(
       [
         {
-          systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
-          userPrompt: consolidationUserPrompt(childFacets),
+          systemPrompt: consolidationSystemPrompt(prose),
+          userPrompt: consolidationUserPrompt(prose, childFacets),
         },
       ],
       summarizerOpts(ctx),

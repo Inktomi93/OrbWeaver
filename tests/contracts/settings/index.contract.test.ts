@@ -27,6 +27,7 @@ const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
+const SCHEMA_VERSION_V7 = 7;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -414,30 +415,52 @@ test("v3→v4 lift backfills a DETERMINISTIC entryId on each backgroundLibrary e
   expect(lib[2]?.entryId).toBe("kept_uuid");
 });
 
-test("v4→(v5→v6) lift is a no-op passthrough — databank + imagery sections are additive, absent ⇒ grounded defaults", () => {
+test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + prose sections are additive, absent ⇒ grounded defaults", () => {
   // A v4 row (no databank/imagery keys) lifts through the chain to the current version untouched; the missing
   // sections read back as their prefault defaults (byte-identical — the additive-section precedent). Others survive.
   const storedV4 = { worldInfo: { scanDepth: 12 } };
   const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V6);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
   expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
   expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
   expect(lifted.databank.slotTokenBudget).toBe(4096);
   // v5→v6 imagery additive: every per-mode override absent ⇒ the section reads back empty (⇒ shipped defaults).
   expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
+  // v6→v7 prose additive (PROSE-1 S1): no slot override ⇒ every app-tier prompt is its shipped default.
+  expect(lifted.prose).toEqual({});
 });
 
 test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key reads back the empty override set", () => {
   const storedV5 = { chat: { enterSends: false } };
   const lifted = parseUserSettings(storedV5, SCHEMA_VERSION_V5);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V6);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
   expect(lifted.chat.enterSends).toBe(false); // an existing override survives
   expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
 });
 
-test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v6 (the imagery section, Phase B ⑫)", () => {
+test("v6→v7 lift adds the prose section — a v6 blob with no prose key reads back the empty override set", () => {
+  const storedV6 = { imagery: { templates: { character: "mine" } } };
+  const lifted = parseUserSettings(storedV6, SCHEMA_VERSION_V6);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
+  expect(lifted.imagery.templates.character).toBe("mine"); // an existing override survives
+  expect(lifted.prose).toEqual({});
+});
+
+test("a stored prose override round-trips, and a RETIRED slot id is stripped instead of nuking the section", () => {
+  const parsed = parseUserSettings({
+    schemaVersion: SCHEMA_VERSION_V7,
+    prose: {
+      "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 },
+      // A slot id from a retired feature (§4.4 rung 5) — an enum-keyed record would REJECT it.
+      "chat.retired.slot": { text: "gone", baseVersion: 1 },
+    },
+  });
+  expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
+});
+
+test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v7 (the prose section, PROSE-1 S1)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V6);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V7);
 });
 
 // ── ⑫ imagery templates: default-identity + per-mode override resolution ──

@@ -1,43 +1,73 @@
 // workloads feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
 // stories reach a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
-// precedent) — WorkloadsSettingsSurface/BackupSettingsSurface are mounted by SettingsShell itself, not
-// exported standalone.
+// precedent) — the section bodies and BackupSettingsSurface are mounted by the settings host, not exported
+// standalone.
 
 import { useOrbSocket } from "@orb/client/data";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { SettingsSectionContribution } from "@orb/client/state";
+import { SettingsShell } from "@orb/client/features/settings";
+import { openSettingsTo } from "@orb/client/state";
 import type { ReactElement, ReactNode } from "react";
+import { useState } from "react";
+import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section";
+import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section";
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section";
 import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface";
-import { WorkloadsSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/workloads-settings-surface";
-import { CtDataProviders, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers";
-
-// The tuning section has its OWN story/CT below; this jobs-surface story mounts with zero contributions
-// (the seam's empty case — byte-identical to the pre-seam pane). The surface reads the section registry
-// from CONTEXT now (SET-SEAMS §5.2), so the empty case is an empty registry PROVIDED, not a prop.
-const emptyWorkloadsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-workloads-sections", []);
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no
  *  subscription of its own — it JOINS a `workloads` ROOM on the tab's one socket, so the socket has to be
- *  mounted above the pane for any live tail to exist at all (`routes/app-root.tsx` does this for real). */
+ *  mounted above any surface that shows live rows (`routes/app-root.tsx` does this for real). */
 function SocketHost({ children }: { readonly children: ReactNode }): ReactElement {
   useOrbSocket();
   return <>{children}</>;
 }
 
-/** The real Workloads settings pane (the per-user jobs surface) in isolation — `workloads.list`,
- *  `sessions.me` (the viewer's role for the owner-only bulk affordances + the cross-owner view),
- *  `admin.listUsers` (owner∪admin only — the gated handle map / target picker), the workload verbs,
- *  and the per-row live tail are stubbed per-test via routeTrpc + routeOrbSocket. */
-export function WorkloadsSettingsStory(): ReactElement {
+/** The Jobs SECTION (SET-SEAMS stage 3) in isolation — `workloads.list`, `sessions.me` (the viewer's role
+ *  for the owner-only bulk affordances + the cross-owner view), `admin.listUsers` (owner∪admin only — the
+ *  gated handle map / target picker), the workload verbs, and the per-row live tail are stubbed per-test via
+ *  routeTrpc + routeOrbSocket. The section owns its own suspense boundary now. */
+export function WorkloadsJobsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>
-        <CtSettingsSectionRegistry sections={emptyWorkloadsSections}>
-          <div style={{ height: 900, overflow: "auto", width: 960 }}>
-            <WorkloadsSettingsSurface />
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <WorkloadsJobsSection />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+/** The Schedules SECTION (SET-SEAMS stage 3) in isolation — `workloads.listSchedules`, `sessions.me`, the
+ *  gated `admin.listUsers` handle map, and the schedule verbs are stubbed per-test via routeTrpc. No socket:
+ *  a schedule row has no live tail (only an ACTIVE run does). */
+export function WorkloadsSchedulesSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <SchedulesSection />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL workloads pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 3 made
+ *  it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked (the shell's default active
+ *  category is `appearance`) so it lands cold on workloads with the REAL door-ordered section registry and
+ *  the derived nav — the production path. A tall/wide box: the pane stacks three sections. */
+export function WorkloadsPaneStory(): ReactElement {
+  useState(() => {
+    openSettingsTo("workloads");
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <CtRealSectionRegistry>
+          <div style={{ height: 900, width: 1160 }}>
+            <SettingsShell />
           </div>
-        </CtSettingsSectionRegistry>
+        </CtRealSectionRegistry>
       </SocketHost>
     </CtDataProviders>
   );

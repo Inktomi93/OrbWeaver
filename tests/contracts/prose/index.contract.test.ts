@@ -118,6 +118,75 @@ test("adapted preset slots are byte-identical to the constants the assembler alr
   }
 });
 
+// ── S1: the app-tier cohort's defaults are the PRE-migration constants, byte for byte ───────────────
+// The frozen fixture the spec's §10 default-identity discipline demands: these literals are the bytes each
+// constant had at `9f7345b3`, re-typed independently of the slot table. A drift in either direction REDs,
+// which is what makes "migrating a slot changes nothing until a host types something" a fact, not a claim.
+const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
+  // packages/server/src/domain/chat/assembly/context.ts — ANCHOR_IDENTITY_PREFIX
+  "chat.assembly.anchorIdentity": "The person the character knows as the user is",
+  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT
+  "chat.arbiter.system":
+    "You are a turn director for a multi-character roleplay. Read the recent conversation and the list of " +
+    "characters who may speak next, then choose the single character who should speak next. Respond with " +
+    "ONLY that character's exact name from the list — no punctuation, no explanation.",
+  // packages/server/src/domain/chat/verbs/compaction.ts — COMPACTION_SYSTEM_PROMPT
+  "chat.compaction.system":
+    "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +
+    "that preserves the key facts, character states, decisions, locations, and unresolved threads. Do not " +
+    "invent details and do not add commentary — output only the summary.",
+  // packages/server/src/domain/chat/memory/build/substrate/prompts.ts — DIGEST_SYSTEM_PROMPT
+  "chat.memory.digestSystem": [
+    "You distill a block of roleplay transcript into a retrieval-optimized memory unit.",
+    "Output EXACTLY three parts, in order:",
+    "1. A topic anchor as the MANDATORY first line, in the form: [entities — scene]",
+    "2. Significance-filtered facts — only what will plausibly matter later; drop turn-by-turn small talk.",
+    '3. A final line beginning "keywords:" followed by 15-30 concrete, distinctive keywords',
+    "   (named entities, places, objects, specifics), comma-separated.",
+    "Do not add any commentary, preamble, or markdown headers.",
+  ].join("\n"),
+  // …same file — CONSOLIDATION_SYSTEM_PROMPT
+  "chat.memory.consolidationSystem": [
+    "You consolidate several memory digests from EARLIER in a story into ONE higher-level digest",
+    "capturing the overall arc across them.",
+    "Use the SAME three-part format: a [entities — scene] topic-anchor first line, significance-filtered",
+    'facts, and a final "keywords:" line of 15-30 keywords.',
+    "The prior digests are provided so you do NOT repeat each verbatim — SYNTHESIZE the arc, do not concatenate.",
+  ].join("\n"),
+  // …same file — the `consolidationUserPrompt` lead line (the numbered facets stay data)
+  "chat.memory.consolidationLead": "Prior digests to consolidate (synthesize the arc across these — do not repeat each):",
+  // packages/server/src/domain/imagery/substrate/templates.ts — DEFAULT_NEGATIVE
+  "imagery.negative.base":
+    "text, letters, captions, subtitles, UI, watermark, logo, signature, speech bubble, " +
+    "split screen, panel, collage, grid, duplicated face, extra head, extra person, " +
+    "bad anatomy, low quality",
+  // packages/server/src/domain/automation/engine/arm-executors.ts — buildAutobgPrompt's two authored clauses
+  "automation.autobg.task": "Choose the single background that best fits the current scene.",
+  "automation.autobg.reply": "Reply with ONLY the exact name of the chosen background, nothing else.",
+};
+
+test("S1 app-tier slots resolve, unset, to the exact bytes their pre-PROSE-1 constants shipped", () => {
+  for (const [id, frozen] of Object.entries(S1_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
+    expect(resolveProseText(id, {}), id).toBe(frozen);
+  }
+});
+
+test("every S1 app-tier slot's stored override wins over its shipped default", () => {
+  for (const id of Object.keys(S1_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
+    expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
+  }
+});
+
+test("the S1 cohort ships under the app-tier posture: home=user, macros=none (a `{{…}}` in an override is literal)", () => {
+  for (const id of Object.keys(S1_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    expect(PROSE_SLOTS[id].home, id).toBe("user");
+    // §6.1: a summarizer/arbiter/digest prompt runs over a transcript, not a character context — there is no
+    // registry to resolve against, so the bytes must ship verbatim rather than silently rendering empty.
+    expect(PROSE_SLOTS[id].macros, id).toBe("none");
+  }
+});
+
 test("adapted imagery slots are byte-identical to the shipped catalog", () => {
   for (const [mode, id] of Object.entries(IMAGERY_TEMPLATE_SLOT_IDS)) {
     expect(resolveProseText(id, {})).toBe(DEFAULT_PROMPT_TEMPLATES[mode as keyof typeof DEFAULT_PROMPT_TEMPLATES]);

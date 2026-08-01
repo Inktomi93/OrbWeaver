@@ -89,11 +89,32 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
-**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · SSE S4
-(automation fold, ephemeral room) · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
-side-eye at the combined window AFTER merge) · density S2 (@orb/ui slot conformance + gate arm) ·
-PROSE-1 S1 (app-tier cohort; #8=room host; tool descriptions wait for S5). Merge each on report;
-check after each merge.
+**FIVE LANES IN FLIGHT (08-02 evening):** SET-SEAMS S2 (chat-behavior, S1 template) · ~~SSE S4~~ MERGED (`d2597146`: automation = ephemeral room, resumable:false per §7; proc DELETED;
+NO client consumer existed [§14 sanctioned-dormant doorway — none invented]; last placeholder
+machinery deleted [refusedUntilFolded + NO_FRAMES]; Tier-4 doc row updated) → **SSE S5 LANE IN
+FLIGHT** (workloads fold — event union homes in contracts first; ratchet closes to
+chat.impersonateStream only; close-out D-entry stays with the orchestrator) · **FLAKE-CHASE LANE
+IN FLIGHT**: check-gates "unfired" flaked in TWO sessions (217s contended run; Lockfile gate) —
+suspect shared reports/ contention across concurrent worktree checks; reproduce → structural fix
+or ruled-out writeup · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
+side-eye at the combined window AFTER merge) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
+0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
+[foreign data-slot RED born-sealed; unmapped tiers.css slot RED]; found+fixed the A2 paired-tag
+self-match defect [every paired box was its own ancestor — baseline was inflated]; 176/1080.
+⚠ OWNER EYEBALL: theme radius knob now reaches ELEVATED islands only [clampThemeTokens aliases
+--radius-card alone] — avatars/media/tool-blocks no longer follow it; if the knob should keep its
+reach, alias --radius-base in the clamp) · ~~flake-chase~~ MERGED (`7c1a734c`: NOT a race — pnpm
+11's one-shot install banner scraped as phantom gate "Lockfile" by the unanchored ✓-regex;
+deterministic repro red→green; scrapes anchored + verify-deps-before-run=false on both parsing
+harnesses; reports/-contention hypothesis RULED OUT with receipts) ·
+~~PROSE-1 S1~~ MERGED (`7137235d`: 9 new slots [26 total], room-host resolution via the ONE new
+ChatContext.resolveChatProse op; rows 76/79 ride to S4 [label-only rows — rule: a census row
+yields slots for its substitution-free clauses]; "prose" NOT yet in USER_SETTINGS_SECTIONS —
+CORRECT per D107 arm B: the section tuple is the EDITOR's door, register it in the same commit
+as the S2 Prose settings section; integrator fixed the flagged pre-existing lifecycle healthz
+red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · NumberField =
+embrace textbox, bounds via derived description — SEAL+SWEEP LANE IN FLIGHT. Merge each on
+report; check after each merge.
 
 ~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
 13 fully-landed docs archived, 11 refs repointed, pain-points annotated in place. Lesson: check a
@@ -247,9 +268,26 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      formatting done via biome format --stdin (never wrote; deltas inspected) — owner may want an
      explicit formatter-stdin carve-out ruling · 5 pre-existing sections still carry tone= budgets
      (cheap sweep).
-   - [ ] S2 chat-behavior — two sections → chat; pane → {kind:"sections"}
-   - [ ] S3 workloads + admin panes → sections mode
-   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
+   - [x] S2 chat-behavior MERGED (`65f0865c`): message-handling + streaming sections owned by
+     chat; settings owns ZERO chat knobs; 2 cited gap-arm exemptions (autoContinueRounds,
+     tempChatTtlHours — MERGED `663b956b`: both editors live in message-handling [rounds disabled-
+     not-hidden under the switch it modulates; TTL copy matches the REAL semantic — hard delete,
+     from CREATION, swept on Home mount]; UNCLAIMED rows removed. ⚠ S3-MERGE NOTE: this touched
+     settings-pane-registry.ts — resolve vs the S3 lane at its merge. SWEEP-SMALL flagged: Base UI
+     1.6 NumberField renders a TEXTBOX not spinbutton — 5 existing CTs locate by
+     getByRole("spinbutton") and are either red or on different controls; also an a11y question
+     for the ui NumberField seal [no aria-valuenow/min/max]); S1-miss fixed (the "real door"
+     partition test now mirrors main.tsx — hand-maintained, every stage MUST add its sections);
+     926 CT green.
+   - [x] S3 MERGED (`1eaa962c`): both panes skimmers, surfaces+nav-bags+OWN_SUBCATEGORIES
+     deleted; anchors byte-identical (Ops stayed TWO sections — §7.1 anchor stability beats §6's
+     naming); per-section reads+suspense re-homed (found the blank-render class: a nested
+     suspender with no boundary renders BLANK, silent to tsc/gates — Engines was blocking live
+     status on a config read it didn't need, now scoped). ⚠ STAGE-4 CARRY: Engines declares NO
+     owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
+     launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
+     per-section baselines.
+   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled; LANE IN FLIGHT carrying the Engines claim-split hold)
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
      OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.
@@ -366,8 +404,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   iteration (the probe's fixture set is the harness — long-scene 3/3 reproduces), model choice,
   or a review-UI tell ("this reads like {{char}} — regenerate?") can move it. Folds naturally
   into PROSE-1 (the impersonate nudge becomes editable data there — iterate it against the probe).
-- **IMP-2** — visible Stop/cancel during impersonate (the unsubscribe handle IS the lever, nothing
-  renders it; guided icons show a misleading wait reason meanwhile).
+- ~~IMP-2~~ WAS ALREADY BUILT (`4848306c`, on main — the board row was STALE; audit-lists-are-
+  snapshots strikes again). Audited + verified 08-02: Stop at the cluster's right edge (turn-abort
+  visual precedent), stop = completion not rejection (partial stays, no toast, no D57 restore);
+  honest "impersonating" wait reason; AND the server-stops question answered with a 7-link receipt
+  chain: the provider stream aborts end-to-end on unsubscribe (trpc subscription signal ← fetch req
+  signal ← hono socket close), classified clean {aborted:true}, no token burn into a dead pipe
 - **QUOTE-1 follow-up** — greeting-preview surfaces (greeting studio / facet editor /
   character-greeting-preview) render through the seal but don't get the dialogue tint (need the
   appearance query inside the character feature).
@@ -507,6 +549,31 @@ RESULTS.md's two options. Honest gap: large tool fan-outs vs the ~20-block lookb
 Still open: #16 engine auto-sleep/wake live pass · D22 member-tiers (multi-user stack).
 
 ### DISCUSSION PILE (owner, no build)
+
+☰ **CONFIG-RAIL RIFF (owner, 08-02, explicitly "just riffing" — no build):** presets/tags/
+world-info/regex are COLLECTIONS of editable objects getting modal treatment while characters get
+library treatment — a CONFIGURATION rail glyph (list = the collections + maybe the settings
+categories as singleton-anchor rows; content pane = real per-object editors, no popups) applies
+the library pattern to config objects; one rich glyph beats three anemic ones. COMPOSES with
+in-flight work: SET-SEAMS S6 makes sections portable (relocation = door-assembly edit, not
+migration); S5 mints tag/regex as contributions; projection grammar handles mixed-kind lists.
+BOUNDARY to keep: user-tier config vs room-tier overrides stay distinct surfaces. Sibling of the
+characters+chats rail-merge fork below — same instinct (fewer, richer rail sections). Owner also
+re-stated: "still not set on presets being their own thing." Rule by feel post-SET-SEAMS-seal.
+
+☰ **AGENT-1 — agent-sdk FIRST-CLASS for rpg-lite (owner interest 08-02; scoped, NOT dispatched —
+new scope beyond the databank mandate).** Plumbing is ~complete (terminal tools · stateful tools ·
+session resume w/ seed-frames+divergence · compaction envs · firewall · catalog). Remaining arms:
+(1) knob HONESTY — SDK wire ignores most sampling knobs; EFF-3 applies/ignored rows per preset
+knob · (2) REASONING visibility parity — OWNER FACT (08-02): the model reasons at native depth on BOTH
+arms; max-pro-sub delivers it as ENCRYPTED deltas (hidden by provider), the OR skin delivers it
+readable. So: OR-skin arm = capture into our reasoning channel + strip belts; sub arm = handle
+encrypted deltas HONESTLY (an explicit "reasoning hidden by provider" surface, never an empty/
+broken pane; preserve blocks only as the SDK's own session needs) + a thinking-budget knob where
+the wire honors one · (3) usage/context accounting parity (per-turn DELTA
+semantics; PREV bars must not lie on SDK chats) · (4) THE LIVE DRIVE — full rpg-lite loop on the
+SDK wire scored (beats, extraction parity vs the reachability surfaces, resume hit-rate,
+multi-call terminal capture) · (5) mixed-mode turns only if a need lands. Order: 2→3→1→4.
 
 ☰ **UNSENT-DRAFT RELOAD PERSISTENCE** (from the home side-eye's "temp draft data loss" — NOT a
 bug: nav round-trips keep everything, proven by a composed CT; only a PAGE RELOAD loses an unsent

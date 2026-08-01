@@ -116,6 +116,8 @@ function testChatOps(db: Db): AutomationOps {
       applyVariableOps: async (): Promise<void> => undefined,
       // BG-F set_chat_background arm — inert defaults (only the arm tests exercise these).
       listBackgroundChoices: async (): Promise<readonly never[]> => [],
+      // PROSE-1 — no host override in the shared harness ⇒ the shipped default clauses.
+      resolveChatProse: () => Promise.resolve({}),
       setChatBackground: async (): Promise<void> => undefined,
       // 1.6 trigger_turn arm — inert default (only the arm-executor tests exercise a real requestTurn).
       requestTurn: async (): Promise<{ costUsd: number | null; messageCount: number }> => ({ costUsd: null, messageCount: 0 }),

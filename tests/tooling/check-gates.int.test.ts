@@ -28,8 +28,18 @@ import { expect, test } from "../support/fixtures";
 const ROOT = join(import.meta.dirname, "..", "..");
 // Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name
 // (UI-Gates-and-Lessons.md §8/§11.1), so the capture class allows uppercase too.
-const OK_RE = /✓\s+(?<gate>[a-zA-Z0-9-]+)/gu;
-const FIRED_RE = /✗\s+(?<gate>[a-zA-Z0-9-]+)/gu;
+//
+// Both patterns are ANCHORED to renderPass's EXACT line shapes (`  ✓ <name>` / `  ✗ <name> (<n>)`,
+// scripts/check/render.ts) — two-space indent, whole line. An unanchored `✓\s+(\w+)` scraped ANY ✓ on
+// the child's stdout, and `pnpm exec` interleaves its own: after a deps-state invalidation (a sibling
+// worktree install, a lockfile mtime bump) pnpm 11 runs an implicit install and prints
+// `✓ Lockfile passes supply-chain policies (…)` ONCE, on the next `pnpm` invocation in that tree. If
+// that one landed on the clean run, `Lockfile` entered `registry` as a phantom gate that nothing can
+// ever fire → a one-shot "unfired: [Lockfile]" red that passed on immediate re-run. Anchoring makes the
+// scrape total w.r.t. any ambient child chatter; if renderPass's format ever drifts the registry goes
+// empty and the `registry.size > 8` test below fails LOUD rather than silently.
+const OK_RE = /^ {2}✓ (?<gate>[a-zA-Z0-9-]+)$/gmu;
+const FIRED_RE = /^ {2}✗ (?<gate>[a-zA-Z0-9-]+) \(\d+\)$/gmu;
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist". `__g_*` are THIS suite's
@@ -61,7 +71,12 @@ function cleanFixtures(): void {
 
 function runStructure(): string {
   try {
-    return execFileSync("pnpm", ["exec", "tsx", "scripts/check/report.ts"], {
+    // `--config.verify-deps-before-run=false`: pnpm 11 re-runs an implicit INSTALL whenever the tree's
+    // deps-state is stale (any package.json/lockfile mtime past `lastValidatedTimestamp` — routine when
+    // sibling worktree lanes install concurrently). Inside this suite that install both mutates
+    // node_modules underneath the running vitest process and prepends its banner to the stdout we parse.
+    // The child only needs the already-resolved tsx that vitest itself is running from, so skip it.
+    return execFileSync("pnpm", ["--config.verify-deps-before-run=false", "exec", "tsx", "scripts/check/report.ts"], {
       cwd: ROOT,
       // THIS suite's child runs must SEE the __g_ fixtures it plants — the real-tree entrypoints strip
       // probe-artifact findings by default (a concurrent battery's transient fixtures must not red an

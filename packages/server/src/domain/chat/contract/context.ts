@@ -22,6 +22,7 @@ import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
@@ -199,6 +200,13 @@ export type SummarizeOp = RoleClientsWithSignal["summarize"];
  *  degrades to the system-default params. Consumed by extract-quiet (compaction/quiet-generate/arbiter read
  *  their own analogous injected resolver). */
 type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
+
+/** The chat's app-tier PROSE overrides (PROSE-1 §4.3) — the ROOM HOST's `UserSettings.prose`, resolved at the
+ *  entry root through the SAME `resolveChatHostUserId` seam `resolveChatPresetParams` uses. The host, not the
+ *  triggering member, is the ruled principal (owner-decision 8, option (a)): these are ROOM-level side
+ *  generations, so a chat's digests / director / summary marker must not change voice depending on who spoke.
+ *  A hostless/stale room resolves `{}` ⇒ every slot falls to its shipped default, byte-identical. */
+type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 
 /** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard, the `loadTurnForClassify` precedent). Chat owns the history
@@ -811,6 +819,9 @@ export interface ChatContext {
   /** The chat host's default-preset params (the side-gen sampling ladder's middle rung) — used by the
    *  quiet-generate factory (compaction) and the smart-arbitrate seam. Wired at compose. */
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
+  /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
+   *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
+  readonly resolveChatProse: ResolveChatProseOp;
   /** Null means tool-use isn't wired — byte-identical no-op. */
   readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;

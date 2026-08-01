@@ -678,6 +678,8 @@ async function arbitrate(
       lastSpeaker: args.lastSpeaker,
       rng: deps.prng,
       sampling: arbiterSampling,
+      // PROSE-1 census 75 — the director prompt is the room HOST's slot, resolved beside its sampling.
+      prose: await ctx.resolveChatProse(args.chatId),
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     if (smart.aborted) {

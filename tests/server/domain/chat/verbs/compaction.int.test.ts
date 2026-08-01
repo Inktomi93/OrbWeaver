@@ -7,6 +7,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -85,6 +86,25 @@ describe("compact — the manual lever (host)", () => {
     const userText = quietCalls.at(0)?.userText ?? "";
     expect(userText).toContain("hello");
     expect(userText).toContain("hi there");
+  });
+
+  // PROSE-1 census 77 — the summarizer instruction is a per-USER slot resolved against the ROOM HOST via
+  // `ctx.resolveChatProse`. Unset ⇒ the shipped default (the arm above rides it); set ⇒ the host's bytes.
+  test("the summarizer instruction is the room host's prose slot", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    const shipped = createCompaction(makeChatContext(db), { emit, quietGenerate: quietStub("M"), resolveConnection });
+    await shipped.compact({ principal: principal(host), chatId });
+    expect(quietCalls.at(0)?.systemPrompt).toBe(PROSE_SLOTS["chat.compaction.system"].text);
+
+    // A fresh prompt-eligible turn so the second pass has a non-empty span (an already-covered span no-ops).
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "hi there" });
+    const overridden = createCompaction(
+      makeChatContext(db, { resolveChatProse: () => Promise.resolve({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } }) }),
+      { emit, quietGenerate: quietStub("M"), resolveConnection },
+    );
+    await overridden.compact({ principal: principal(host), chatId });
+    expect(quietCalls.at(1)?.systemPrompt).toBe("Summarize like a ship's log.");
   });
 
   test("a member is refused (not_host)", async () => {

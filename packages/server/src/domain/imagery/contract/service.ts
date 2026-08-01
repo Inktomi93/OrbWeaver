@@ -143,6 +143,12 @@ export interface ImageryContext {
   readonly resolvePromptTemplate: (caller: Principal, mode: ExtractionMode) => Promise<string>;
   /** ⑫ — the caller's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
   readonly resolveCaptionInstruction: (caller: Principal, mode: MultimodalMode) => Promise<string>;
+  /** PROSE-1 census 88 — the caller's negative-prompt BASE: `UserSettings.prose["imagery.negative.base"]`
+   *  override ⊕ the shipped catalog default (unset ⇒ byte-identical). CALLER-scoped, not room-host-scoped,
+   *  matching its `resolvePromptTemplate`/`resolveCaptionInstruction` siblings: an image generation is a
+   *  request one human makes with their own connection, not a room-level side generation. Wired at compose
+   *  off `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
+  readonly resolveNegativeBase: (caller: Principal) => Promise<string>;
   /** The D45/D47-6 vision caption op — the ONE captioner (over `summarize`-with-images at compose; a
    *  §9-reject to duplicate). `instruction` is the multimodal template; the image IS the subject. */
   readonly captionImage: (p: {
