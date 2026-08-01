@@ -25,9 +25,11 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { UserMacroInputDef } from "@orb/kit/macro";
 
 export type {
   AssembledPrompt,
@@ -198,6 +200,31 @@ export interface ChatInjectionView extends ChatInjection {
 /** The per-chat ChoiceBlock variable map (`{{get::<name>}}`) — getVariables (effective, computed-this-turn)
  *  and getStoredVariables (the persisted `chats.variableValues` flush) both return this shape. */
 export type ChatVariables = Record<string, string>;
+
+/** One PICKABLE user macro as the picks pane sees it (#24) — the least-privilege projection of the active
+ *  preset's `UserMacroSpec`: identity + the typed INPUT declarations only. The macro BODY and its declared
+ *  `args` are deliberately NOT projected — the body is prompt content (the same class `previewAssembly`/
+ *  `previewSection` are host-gated for), while this read is member-gated because a picker needs the
+ *  question, not the template. `inputs` is kit's own `UserMacroInputDef` (contracts/preset's authored
+ *  schema is pinned assignable to it), so the pane renders each control off the ONE input vocabulary.
+ *  NON-exported (the `matrix.ts` idiom): its ONE consumer is {@link UserMacroPicksView}, which carries it
+ *  across the wire — a second exported name for the same row would be dead surface (knip RED). */
+interface UserMacroPickDef {
+  readonly name: string;
+  readonly description: string;
+  readonly inputs: readonly UserMacroInputDef[];
+}
+
+/** The MU picks pane read (`getUserMacroPicks`, #24) — the chat's pickable user-macro declarations (the
+ *  resolved preset's `userMacros` that declare at least one input; a macro with no inputs has nothing to
+ *  pick) plus the persisted per-chat picks (`chats.user_macro_values`). Per-CHAT, not per-user: the picks
+ *  are room state every member shares (the owner's Arm-A ruling — the `setVariables` sibling), and the
+ *  WRITE is the member-gated `setUserMacroValues`. A macro/input absent from `values` is UNSET — it
+ *  resolves its per-kind default at turn time (`resolveUserMacroInputs`), which is what the pane shows. */
+export interface UserMacroPicksView {
+  readonly macros: readonly UserMacroPickDef[];
+  readonly values: UserMacroValues;
+}
 
 /** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
  *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */

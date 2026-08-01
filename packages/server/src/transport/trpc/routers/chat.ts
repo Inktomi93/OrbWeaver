@@ -309,6 +309,10 @@ const setUserMacroValuesSchema = z.object({
   values: userMacroValuesSchema,
 });
 
+// #24: the picks pane's read — the pickable user-macro DECLARATIONS + the room's stored picks. Member-gated
+// INSIDE the verb (`requireParticipant`), so a stranger's chatId is a leak-free NOT_FOUND.
+const getUserMacroPicksSchema = z.object({ chatId: brandedId<ChatId>() });
+
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
 const previewAssemblySchema = z.object({
@@ -518,6 +522,9 @@ export const chatRouter = t.router({
   setUserMacroValues: authedProcedure
     .input(setUserMacroValuesSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setUserMacroValues({ principal: ctx.auth, ...input })),
+  getUserMacroPicks: authedProcedure
+    .input(getUserMacroPicksSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getUserMacroPicks({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),

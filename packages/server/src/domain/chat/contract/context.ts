@@ -21,7 +21,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
-import type { ChoiceBlockSpec, UserIntent } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ChatRpgPointer, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
@@ -743,6 +743,13 @@ type GatherDatabankOp = (args: {
  *  means no declared variables (or a hostless/stale room). */
 type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlockSpec[]>;
 
+/** The chat's active preset's authored USER MACROS (#24), resolved under the host's settings — the
+ *  DECLARATION half of the picks pane (`getUserMacroPicks`); the picks themselves live on the chat row.
+ *  The `resolvePromptVariables` sibling, and the same resolution the turn build reads
+ *  (`foreign.promptConfig.userMacros`) minus a feature preset OVERRIDE, which is a per-turn decision no
+ *  read can anticipate. Empty means no authored macros (or a hostless/stale room). */
+type ResolvePromptUserMacrosOp = (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
+
 /** Parses a chat's raw metadata blob → its effective {@link GroupConfig} (default-applied). */
 type GetGroupConfigOp = (rawMetadata: unknown) => GroupConfig;
 /** Parses a chat's raw metadata blob → its effective {@link RoomOverrides} (default-applied). */
@@ -837,6 +844,8 @@ export interface ChatContext {
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;
+  /** The chat's active preset's authored user macros (#24) — the picks pane's declaration half. */
+  readonly resolvePromptUserMacros: ResolvePromptUserMacrosOp;
   /** ⑧(a) — the caller's `UserSettings.chat.tempChatTtlHours`, the per-user temporary-chat reap TTL (the
    *  FOREIGN-inputs seam: chat never reads the settings domain; wired at compose from `loadUserSettings`).
    *  Always resolves (the setting is `.default`ed); `reapTemporaryChats` converts hours→ms for its cutoff. */

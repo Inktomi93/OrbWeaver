@@ -353,6 +353,10 @@ export interface SetUserMacroValuesParams extends ChatScopedParams {
   readonly values: UserMacroValues;
 }
 
+/** `getUserMacroPicks` (#24) — the picks pane's ONE read: the chat's pickable user-macro declarations +
+ *  the persisted picks `setUserMacroValues` writes. */
+export interface GetUserMacroPicksParams extends ChatScopedParams {}
+
 export interface ClearVariablesParams extends ChatScopedParams {}
 
 /** `delete` — deletes the chat (host-only; cascades messages/roster/invites/etc.). */
