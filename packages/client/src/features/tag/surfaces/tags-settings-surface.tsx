@@ -1,6 +1,6 @@
 // The Tags settings surface — the tag-management screen. Lists every owned tag with its usage rollup,
 // each row exposing the full tag domain: rename, colors, folder-type, hide-on-card, merge, delete, plus
-// drag-reorder and a "Prune unused" action. Talks to trpc.tag.* directly (no client tag feature to import).
+// drag-reorder and a "Prune unused" action. Talks to trpc.tag.* — this IS the tag feature (D114).
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";

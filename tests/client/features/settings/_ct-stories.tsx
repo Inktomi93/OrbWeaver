@@ -9,11 +9,6 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
-// The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
-// Rail precedent) — SystemSettingsSurface and friends are mounted by SettingsShell itself, not exported
-// standalone.
-import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
-import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
@@ -133,31 +128,6 @@ export function ChatBehaviorPaneStory(): ReactElement {
           <SettingsShell />
         </div>
       </CtRealSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The real Regex settings pane (owner-global scripts) in isolation — `getUserSettings` (read) and
- *  `updateUserSettingsSection("regex")` (the autosave write) are stubbed per-test via routeTrpc. */
-export function RegexSettingsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 560, overflow: "auto", width: 720 }}>
-        <RegexSettingsSurface />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The real Tags settings pane (Task #65 — the tag-management screen) in isolation — `tag.listTagsWithUsage`
- *  (the read) plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`/`setTagOrder`/`pruneUnusedTags`)
- *  are stubbed per-test via routeTrpc. */
-export function TagsSettingsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <TagsSettingsSurface />
-      </div>
     </CtDataProviders>
   );
 }
