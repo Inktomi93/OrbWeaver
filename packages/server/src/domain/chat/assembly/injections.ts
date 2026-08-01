@@ -6,6 +6,12 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 
+/** "The TOP of the history" as a depth — the splice clamps any depth beyond the history length to that
+ *  length, so this lands an injection before the first canon row whatever the history is. The one home for
+ *  the idiom (both the relative-section walk in `assemble.ts` and the new-chat marker in `context.ts` use
+ *  it), beside the clamp that gives it meaning. */
+export const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
+
 /** The wire role a delivered history row can take. `system` appears ONLY on a depth-0 splice when the
  *  resolved model declares `turns.midConversationSystem` (a real mid-conversation system-authority row);
  *  every other system injection is converted to user-with-framing here. */

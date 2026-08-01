@@ -9,9 +9,11 @@ export type { PackagedPresetKey } from "./contract/packaged";
 export type {
   CreatePresetParams,
   GetPresetParams,
+  ImportPresetFileParams,
   ListPresetsParams,
   RemovePresetParams,
   ResetToDefaultParams,
+  ResolveEffectiveParams,
   UpdatePresetParams,
 } from "./contract/params";
 export type {
@@ -20,8 +22,9 @@ export type {
   PresetExportFile,
   PresetImportOutcome,
 } from "./contract/portability";
-export type { PresetService } from "./contract/service";
-export type { PresetDetail, PresetSummary } from "./contract/views";
+export type { PresetService, ResolveChatCapabilityOp } from "./contract/service";
+export type { EffectiveKnob, EffectiveKnobReading, EffectivePreset, EffectiveProvenance, PresetDetail, PresetSummary, StaleKnob } from "./contract/views";
+export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views";
 export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed";
 export { createPresetService } from "./service";
 export { createExport as createExportPresets } from "./verbs/export";

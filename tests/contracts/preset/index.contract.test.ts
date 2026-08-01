@@ -5,19 +5,26 @@ import {
   buildPresetFile,
   CONFIG_LIFTS,
   customParametersSchema,
+  DEFAULT_FORMAT_STRINGS,
   DEFAULT_GUIDED_ACTIONS,
   DEFAULT_PROMPT_CONFIG,
   GREETING_TRANSFORM_AXES,
   GREETING_TRANSFORMS,
   GUIDED_ACTION_KINDS,
+  guidedActionConfigSchema,
   guidedActionsSchema,
   importStChatCompletionPreset,
+  PRESET_PROSE_SLOTS,
   PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
   parsePresetFile,
   parsePromptConfig,
   promptConfigSchema,
+  promptConfigWriteSchema,
   SIDE_GEN_POSTURES,
+  TEMPLATE_DEF_BY_ID,
+  TEMPLATE_DEFS,
+  TEMPLATE_KINDS,
   THINK_PREFIX_DEFAULT,
   THINK_SUFFIX_DEFAULT,
   userIntentSchema,
@@ -560,4 +567,108 @@ test("userMacroValuesSchema accepts the string | boolean | string[] value union 
   const parsed = userMacroValuesSchema.parse({ m: { pov: "first", grim: true, themes: ["war", "loss"] } });
   expect(parsed).toEqual({ m: { pov: "first", grim: true, themes: ["war", "loss"] } });
   expect(userMacroValuesSchema.safeParse({ m: { bad: { nested: 1 } } }).success).toBe(false);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// PRESET-1 — the template registry (§6.6 / G11), the G9/G10 additions, and the carrier-token write guard.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string (wiFormat excluded by §6.6)", () => {
+  const covered: string[] = TEMPLATE_DEFS.map((def) => def.id);
+  // The module's tsc guard proves NOTHING IS MISSING; this proves nothing EXTRA and nothing DOUBLED — a
+  // duplicate row would silently render two Actions rows for one slot.
+  const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat")];
+  expect([...covered].sort()).toStrictEqual([...expected].sort());
+  expect(new Set(covered).size).toBe(covered.length);
+  // `wiFormat` frames world-info ENTRIES and is edited in the WI marker's body — a row here would mint the
+  // second home the §6.5 census exists to prevent.
+  expect(covered).not.toContain("wiFormat");
+});
+
+test("every TemplateDef points at a REAL prose slot, and its kind is a declared TEMPLATE_KIND", () => {
+  // A typo'd slot id would ghost nothing in that template's drill-in, silently.
+  const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PRESET_PROSE_SLOTS[def.defaultSlot] === undefined);
+  expect(unresolvedSlots).toStrictEqual([]);
+  // `newChatMarker` is the ONE def allowed to carry no slot: it ships blank, and a PROSE-1 slot is authored
+  // bytes. Any other slot-less def would be a default nobody can see.
+  expect(TEMPLATE_DEFS.filter((def) => def.defaultSlot === undefined).map((def) => def.id)).toStrictEqual(["newChatMarker"]);
+  expect(TEMPLATE_DEFS.filter((def) => !TEMPLATE_KINDS.includes(def.kind))).toStrictEqual([]);
+  expect(TEMPLATE_DEFS.filter((def) => def.label.length === 0 || def.fires.length === 0)).toStrictEqual([]);
+});
+
+test("the by-id lookup is total over the registry (the client renders a row without a fallback)", () => {
+  for (const def of TEMPLATE_DEFS) {
+    expect(TEMPLATE_DEF_BY_ID[def.id]).toBe(def);
+  }
+});
+
+test("a guided template declares role + depth; a nudge declares neither (text-only BY DERIVATION)", () => {
+  expect(TEMPLATE_DEF_BY_ID.response.caps.map((cap) => cap.kind)).toStrictEqual(["role", "depth", "tokens"]);
+  expect(TEMPLATE_DEF_BY_ID.continueNudge.caps).toStrictEqual([]);
+  expect(TEMPLATE_DEF_BY_ID.newChatMarker.caps).toStrictEqual([]);
+});
+
+// ── G10: the guided-action `depth` is byte-compatible with every stored blob ───────────────────────
+test("G10: an absent guided `depth` stays ABSENT after parse (today's fixed tail becomes the default)", () => {
+  const parsed = guidedActionsSchema.parse(DEFAULT_GUIDED_ACTIONS);
+  expect("depth" in parsed.response).toBe(false);
+  // The whole DEFAULT config round-trips to the SAME bytes it had before the field existed.
+  expect(JSON.stringify(parsePromptConfig(DEFAULT_PROMPT_CONFIG).guidedActions)).toBe(JSON.stringify(DEFAULT_GUIDED_ACTIONS));
+});
+
+test("G10: an explicit guided `depth` survives the parse and is bounded", () => {
+  const parsed = guidedActionsSchema.parse({ ...DEFAULT_GUIDED_ACTIONS, response: { prompt: "x", role: "user", depth: 3 } });
+  expect(parsed.response.depth).toBe(3);
+  expect(guidedActionConfigSchema.safeParse({ prompt: "x", depth: -1 }).success).toBe(false);
+});
+
+// ── G9: newChatMarker ships BLANK, so nothing changes until a preset sets it ───────────────────────
+test("G9: newChatMarker's shipped default is blank (byte-identical to the pre-G9 assembler behavior)", () => {
+  expect(DEFAULT_FORMAT_STRINGS.newChatMarker).toBe("");
+  expect(DEFAULT_PROMPT_CONFIG.formatStrings?.newChatMarker).toBe("");
+});
+
+test("G9: a stored blob predating the key parses, and the key stays absent (never invented on read)", () => {
+  const parsed = parsePromptConfig({
+    schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
+    sections: [],
+    formatStrings: { wiFormat: "{{entry}}" },
+  });
+  expect(parsed.formatStrings?.newChatMarker).toBeUndefined();
+});
+
+// ── The OWNER GUARD (2026-08-02): a carrier format string may not silently drop its payload ────────
+test("the write boundary REFUSES a wiFormat that dropped {{entry}}, naming the token", () => {
+  const result = promptConfigWriteSchema.safeParse({
+    ...DEFAULT_PROMPT_CONFIG,
+    formatStrings: { wiFormat: "Lore: (nothing here)" },
+  });
+  expect(result.success).toBe(false);
+  const issue = result.error?.issues[0];
+  expect(issue?.path).toStrictEqual(["formatStrings", "wiFormat"]);
+  expect(issue?.message).toContain("{{entry}}");
+});
+
+test("blank-means-default survives the guard: an empty (or absent) wiFormat is accepted", () => {
+  expect(promptConfigWriteSchema.safeParse({ ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "" } }).success).toBe(true);
+  expect(promptConfigWriteSchema.safeParse({ ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "   " } }).success).toBe(true);
+  expect(promptConfigWriteSchema.safeParse({ ...DEFAULT_PROMPT_CONFIG, formatStrings: {} }).success).toBe(true);
+  expect(promptConfigWriteSchema.safeParse({ ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "Lore: {{entry}}" } }).success).toBe(true);
+});
+
+test("the guard is a WRITE boundary only — a stored broken wrapper still LOADS (never degraded to default)", () => {
+  // PROSE-1's `requiredMacros` posture stays a lint, and a read-side refusal would nuke the WHOLE preset
+  // (parsePromptConfig degrades a failed parse to DEFAULT_PROMPT_CONFIG) over one bad field.
+  const stored = { ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "broken" } };
+  const parsed = parsePromptConfig(stored);
+  expect(parsed.formatStrings?.wiFormat).toBe("broken");
+  expect(parsed.sections).toHaveLength(DEFAULT_PROMPT_CONFIG.sections.length);
+});
+
+test("a NUDGE missing its recommended macros is NOT refused (a lint, never a block — PROSE-1 §6.3)", () => {
+  const result = promptConfigWriteSchema.safeParse({
+    ...DEFAULT_PROMPT_CONFIG,
+    formatStrings: { impersonateNudge: "Write as me." },
+  });
+  expect(result.success).toBe(true);
 });
