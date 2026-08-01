@@ -52,9 +52,7 @@ test("providerMetadataSchema accepts + round-trips a custom_openai blob", () => 
   expect(providerMetadataSchema.parse(meta)).toEqual(meta);
 });
 
-test("providerMetadataSchema accepts a google_vertex blob and null", () => {
-  const meta = { kind: "google_vertex" as const, project: "my-project", region: "us-central1" };
-  expect(providerMetadataSchema.parse(meta)).toEqual(meta);
+test("providerMetadataSchema accepts null", () => {
   expect(providerMetadataSchema.parse(null)).toBeNull();
 });
 

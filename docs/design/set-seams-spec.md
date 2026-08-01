@@ -123,6 +123,41 @@ function assertSettingsKeyPartition(
   business. Rationale: `deepMergePlain` recurses, so top-level disjointness already guarantees
   commutativity, and deeper claims would encode form-internals in the contribution.
 
+#### 2.3.1 The APP-tier leaf-claim amendment (SET-SEAMS stage 4, landed `7813dbed`)
+
+Stage 4 (the System pane's decomposition into Admin) resolved the stage-3 `engineLaunch` hold by making
+the APP-tier claim grammar **leaf-aware**, not by re-partitioning the tier into namespaces it doesn't have.
+
+- **Why the user-tier rule above doesn't just carry over:** §2.3's "claim at the TOP-level key" rule is
+  stated for USER-tier *namespaces* (`UserSettings[section]`). The APP tier has no namespaces — the whole
+  `AppSettings` config is ONE object shared by every admin section — so its nested objects
+  (`engineLaunch`, …) are the namespace analogue, and a claim on one of their leaves is a claim between two
+  FEATURES, not an encoding of one form's internals.
+- **The physics that makes it safe:** `deepMergeAppSettings` recurses per key exactly like the user tier's
+  `deepMergePlain` (§2.2), so leaf-disjoint sparse patches commute the same way top-level-disjoint user
+  patches do. The two `engineLaunch` writers are leaf-disjoint by construction — the launch editor writes
+  12 restart-gated argv leaves, `admin-system-tuning` writes the per-request `genPresencePenalty` — so a
+  top-level claim from either would misstate what it owns, and moving the live knob into the restart-gated
+  editor would misdocument it.
+- **The mechanism:** `SettingsKeyClaim`'s `"app"` arm keys on `AppSettingsClaimPath` (a top-level
+  `keyof AppSettings`, or a dotted leaf path `` `${keyof AppSettings}.${string}` `` —
+  `packages/client/src/state/settings-pane-registry.ts`). `assertSettingsKeyPartition` gains a NESTING arm
+  alongside the existing overlap check: a claim that is a dotted-path prefix or suffix of an already-claimed
+  key THROWS, checked in **either declaration order** (parent-claimed-first and child-claimed-first both
+  RED) — `findNestedConflict` in the same file. The rationale is the parent-null-wipes-co-owner hazard: a
+  claim on the whole parent key writes (and CLEARS) the entire nested object on save, silently wiping any
+  leaf a sibling section owns; the nesting arm catches this structurally, at door-assembly time, rather than
+  leaving it as a live lost-update waiting to happen. A name-PREFIX match that isn't a dotted path
+  (`engineLaunchExtra` vs `engineLaunch`) is a sibling key, not a conflict — the dot in the check is
+  load-bearing.
+- **No gap arm on the app tier:** unlike the user tier's per-namespace gap check, the APP tier runs the
+  overlap/nesting arm only. "An AppSettings key with no admin editor" stays `knob-wire-coverage`'s job
+  (D107, arm B2), which reconciles against the WHOLE admin surface with its own cited-deferral registry —
+  restating it here would only duplicate that fact worse, since an AppSettings key can be edited by a
+  non-contributed surface. Two registries of two different facts, deliberately (§10 Q5).
+
+§2.3's user-tier text above is unchanged by this amendment — it is additive to the APP-tier arm only.
+
 ### 2.4 Optimistic state — there isn't any, deliberately
 
 The form IS the optimistic layer: the user's keystrokes live in the `AutosaveSession`, the server confirms,
