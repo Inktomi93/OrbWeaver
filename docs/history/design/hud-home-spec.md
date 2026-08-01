@@ -1,6 +1,6 @@
 ---
 kind: spec
-status: active
+status: closed (BUILT — see D119)
 updated: 2026-08-01
 ---
 
