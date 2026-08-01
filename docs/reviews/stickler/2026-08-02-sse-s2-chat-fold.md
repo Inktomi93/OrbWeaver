@@ -231,3 +231,186 @@ not executed.
 - `roomRegistry.failed()` (roomFailed) leaves the client-side room entry joined while the server
   detached it; recovery relies on the reconnect re-announce. Matches the spec's reconnect story;
   no failure scenario found that a reconnect doesn't cover.
+
+---
+
+# RE-REVIEW 261b728b — the F1/F2 remediation (fix commit on `wt/agent-ae7a23e7ea4435982`)
+
+**Reviewed:** the fix delta `261b728b` in the worktree, every touched file read IN FULL
+(`stream/socket.ts`, `stream/frame-queue.ts`, client `chat-event-seq-guard.ts` / `room-registry.ts` /
+`use-bus-room.ts` / `use-chat-bus.ts` / `use-orb-socket.ts`, the four touched test files,
+`tests/e2e/event-sequence.spec.ts`), plus the unchanged machinery the mechanism composes with
+(`socket-registry.ts`, `sources/chat.ts` / `user.ts` / `rpg.ts`, `routers/stream.ts`,
+`use-user-bus.ts` / `use-rpg-bus.ts`, `apply-chat-bus-event.ts`, `state/chat-stream.ts`) and spec
+§5.3/§5.4/§5.5/§6/§7.
+
+**VERDICT: MERGE-WITH-FIXES.** The shed arm of the heal is correct, well-guarded at its edges, and its
+regression test bites (probe-verified this session). The reconnect arm — the `SinceSeqSource` thunk —
+is defeated end-to-end by the client seq-guard whenever the reconnected socket delivers ANY durable row
+before the rewind `stream.attach` lands, which is the normal case for a mid-stream disconnect. That
+leaves a narrower but still permanent remnant of the exact stuck-Stop class F1 named (RF1 below).
+
+## Findings
+
+### RF1 (HIGH, narrower trigger than F1) — the reconnect thunk heal is a guard-dropped no-op whenever the resumed pump delivers any row before the rewind attach lands; an in-flight-lost turn terminal still strands the slot
+
+`packages/client/src/data/bus/chat-event-seq-guard.ts:71-74` (monotonic admit, not contiguity-aware) ×
+`packages/client/src/data/bus/use-chat-bus.ts:98` (the thunk) ×
+`packages/server/src/transport/trpc/stream/socket.ts:174-177` (reconnect re-hydrates pumps from the
+cell's — too-high — delivered cursor in the pre-await setup slice) ×
+`packages/client/src/data/bus/use-orb-socket.ts:60-62` (the rewind rides a separate HTTP mutation with
+no ordering barrier against SSE frames already flowing).
+
+**The mechanism's hole.** The fix's reconnect story (use-chat-bus.ts header, "a RECONNECT — the
+re-announce below carries this client's high-water mark … so the server restarts the pump there") is
+true server-side and false end-to-end:
+
+1. Server cursor counts frames at YIELD (`socket.ts:186`) — frames handed to a dying socket's writer
+   are counted delivered but never reach the client. Gap = `(client mark, server cursor]`.
+2. On reconnect the cell survives and `runSocket`'s setup slice starts the chat pump at the (too-high)
+   cursor IMMEDIATELY; it replays `cursor+1..tip` and drains live — on the already-open SSE stream.
+3. The client's re-announce (`socketLive` → `announce` → thunk → `stream.attach` POST) needs a full
+   HTTP round trip; nothing orders it before the pump's frames. Any durable row so delivered has
+   `seq > cursor > mark` — the guard ADMITS it and the mark jumps PAST the gap (admit requires only
+   advance, never contiguity).
+4. When the rewind lands, the server does everything promised — honors the lower `sinceSeq`
+   (`socket-registry.ts:152-157`), restarts the pump, re-replays the gap — and the guard drops every
+   re-replayed row `≤ mark`, including the gap. Permanently: no later path re-offers rows below the
+   mark, and the mark never resets (not on `socketDown`, not ever).
+
+**Reproduced this session** — `reports/stickler/scratch/reconnect-thunk-race-repro.ts` (worktree),
+driving the REAL `runSocket` + REAL `createSocketRegistry` + REAL chat room source + REAL
+`createChatEventSeqGuard`; only the two chat-service reads are fakes (the socket.test.ts pattern).
+Client applies rows 1–3; rows 4 (delta) + 5 (`turnCompleted`) are yielded-but-lost (cursor 5, mark 3);
+row 6 (another member's `chatUpdated`) lands while offline; reconnect; the resumed pump delivers row 6
+pre-attach; then the rewind attach at 3 lands:
+
+```
+after socket #1: server cursor = 5 | client mark = 3
+pre-attach delivery applied: 1,2,3,6 | mark now = 6
+  post-attach frame: control:attached
+  post-attach frame: chat seq=3 chatOpened
+  post-attach frame: chat seq=4 delta
+  post-attach frame: chat seq=5 turnCompleted   ← the server re-offers the terminal, as designed
+applied seqs : 1,2,3,6
+guard-dropped: 4,5,6                            ← the guard drops the entire heal
+turn terminal (row 5) applied by the client: false
+```
+
+Client-side ordering does not save it: the thunk resolves at `socketLive` (before any `onData`), so it
+carries the pre-gap mark; and if the announce were delayed until after the new rows, the thunk would
+resolve ABOVE the server cursor and the attach would be an idempotent no-op (`socket-registry.ts:154` —
+no rewind at all). Either ordering loses the gap.
+
+**Concrete failure scenario:** wifi drop / laptop sleep <60s mid-turn (TCP buffers eat the turn's tail,
+terminal included); reconnect inside the reap window; the resumed pump delivers anything — the queued
+backlog above the cursor, or any row another participant produced — before the rewind POST lands (the
+repro shows this is the structural norm, not a race the client can win). Result: the gap rows are
+permanently un-applied. Canon CONTENT self-heals (`chatOpened` is exempt-by-type and invalidates the
+chat's queries), but the chat-stream store does not: a terminal in the gap leaves the slot live
+(`apply-chat-bus-event.ts:52-60` — terminals are the only slot-clear; `chat-stream.ts` has no timeout),
+the composer's Stop sticks, clicking Stop wedges the slot in `stopping` forever — page reload is the
+only single-user recovery. Pre-fold, `Last-Event-ID` resume made the replay part of the SAME ordered
+stream, so this class could not exist; the fix claims parity ("the recovery `Last-Event-ID` used to
+give us for free") and does not deliver it in this arm.
+
+**Not touched by the shed arm:** a shed's gap is `> cursor` (never-yielded rows), which the restart
+replay re-delivers ABOVE the client mark — that arm is genuinely closed (test 2 + the bite probe).
+Only the reconnect/in-flight arm (gap `≤ cursor`) has this hole.
+
+**Safe remediation directions (orchestrator's choice, not implemented):** make the resume request an
+ordering barrier — e.g. the server withholds a durable room's post-reconnect delivery until the first
+(re)announce for that room arrives (the cell already knows the socket went dark), or the guard becomes
+contiguity-aware for durable rows (track `[mark, gap…]` and admit a replayed row that fills a known
+gap), or `socketDown` clears the affected chats' marks (re-replay is then deduped only by content-safe
+means — note a from-zero replay must still be droppable, so plain clearing needs the seed analysis).
+A regression test: the repro's exact timeline through the real ladder, asserting the terminal is
+APPLIED (not merely re-offered on the wire).
+
+## Adversarial edge probe of the claimed mechanism — verified clean
+
+- **Park/resume no-op guards** (`socket.ts:141-147`): detach-while-parked → `cell.rooms` miss → no-op;
+  detach+re-attach-while-parked → fresh room + `startPump`, the stale notice finds `pumps.has(key)` and
+  no-ops; rewind-re-attach-while-parked → same. All traced through `socket-registry.ts::attach/detach`
+  listener wiring.
+- **Socket death while parked:** the pending notice dies with the queue, but `goDark` leaves
+  `cell.rooms` + the last-delivered cursor; reconnect re-hydrates the pump at that cursor and the
+  replay refills the shed (> cursor) rows. The in-flight sub-gap rides RF1's thunk arm.
+- **Second shed racing the resume:** a resume happens only when the notice DELIVERS, which clears the
+  pending-notice collapse — the next overflow pushes a fresh notice and `onShed` fires again
+  (`frame-queue.ts:129-138`). The one skip path needs a re-attach restart while a notice is pending
+  AND the queue held at capacity by a different lag room (see unconfirmed list).
+- **Pre-yield advance vs generator cancellation:** the pre-yield write makes "delivered" = "pulled by
+  the transport", over-counting by at most the in-flight window — exactly what the thunk exists to
+  cover (RF1 is that cover failing, not the pre-yield placement; post-yield placement would only move
+  the same problem). Teardown fabricates no progress (test 1's post-`return` assertion).
+- **Live-only rooms' park/resume:** `user`/`rpg` both wire `onSocketLive` (blanket invalidate), and
+  every resume path reaches a heal: notice delivered → `roomRegistry.lagged` fans the heal
+  (`room-registry.ts:225-230`) with the pump restarted BEFORE the notice was yielded (no listener gap:
+  events between park and resume are lost server-side but predate the invalidate's refetch);
+  death-while-parked → reconnect `socketLive` → `roomWentLive` heal; detach-while-parked → rejoin
+  heal. `automation` has no client hook — but it `refusedUntilFolded` server-side, so unreachable.
+  A collapse-room park does sever in-place payload replacement until resume (a small behavior change
+  from pre-fix at-capacity behavior) — healed by the same invalidate, no correctness loss.
+- **Attach synthesis in the parked window:** a queued-but-shed `chatOpened` is re-synthesized by every
+  restart path (`attachSynthesesAndReplay` runs per pump start); test 2 asserts `sawOpened`. No path
+  loses it.
+- **Cursor regression via stale queued frames after a rewind restart:** stale higher-seq frames
+  deliver first and raise the cursor, the restart's synthetic (seq = rewound cursor) lowers it, the
+  replay re-raises it — transient LOWER cursor only, which errs toward re-delivery (client-deduped),
+  never skip. Safe direction.
+- **`advanceCursorOnDelivery` for a detached room's leftover frames:** `cell.rooms` miss → skip. Safe.
+- **Post-close resume pump leak:** a roomLagged drained after `close()` starts a pump whose pushes are
+  inert (closed-queue check) and which the `finally` teardown aborts (`pumps` map holds it). Bounded.
+
+## Test-reality verification
+
+- **The mandated regression test BITES** — probe this session: removed the `resumeAfterLag` call from
+  the drain loop (cp/mv restore, no git), `socket.test.ts` test 2 times out (shed rows 1–512 never
+  arrive); restored, 2/2 pass. Test 1 pins the exact delivered-cursor value (enqueue-advance would
+  read 7, it asserts 5), including after teardown.
+- **Test 2's contiguous-prefix assertion** (`toEqual(rows.map(r => r.seq))`) catches the loss-direction
+  off-by-one at the park boundary even though its shed lands at K=0 (nothing delivered pre-shed): a
+  resume at `cursor+1` loses row 1 and fails the exact-equality pin; a K>0 boundary is composed from
+  test 1's cursor pin + `replayChatEvents(afterSeq)` semantics; the duplicate-direction off-by-one at
+  K>0 is untested but harmless (client guard dedups; no loss). Acceptable.
+- **`frame-queue.test.ts`** now pins the onShed contract (fires once per emitted notice, ref-correct,
+  rate-limited while a notice is pending) — the composed cursor property correctly moved to
+  `socket.test.ts` (the composition suite the F1 postmortem demanded).
+- **`chat-event-seq-guard.test.ts`** pins `highWater` (applied ≠ offered; synthetics don't move it;
+  per-chat). `room-registry.test.ts` pins the thunk re-read per announce and lowest-wins merging.
+- **F2 re-pin verified by read** (`event-sequence.spec.ts`): asserts a `chat.` GET, exactly ONE
+  `stream.connect`, and a `stream.attach` POST — the multiplex wire, matching the helpers in
+  `tests/e2e/support/chat-room.ts` (`busLive`/`waitForStreamOpen` exist and match). NOT executed this
+  session (needs the e2e stack); the builder's run is claimed green.
+
+## Gates + suites run this session (worktree)
+
+- `pnpm check` × 2 — PASS, all 12 stages, full output read both times (the second run because my bite
+  probe's patch window overlapped the first run's `structure:full`; the clean-tree rerun is the
+  verdict). `git status` clean (scratch lives under gitignored `reports/`).
+- `pnpm vitest run` over `stream/*` (socket, frame-queue, socket-registry, sources/chat unit+int,
+  room-sources test-d), `routers/chat.test.ts`, `routers/stream.test.ts`, `tests/client/data/bus/*` —
+  170/170 pass, 0 type errors.
+- Playwright CT single-file: `message-list-surface.ct.tsx` + `chat-room-surface.ct.tsx` — 31/31 pass.
+- Scratch repro of RF1 (transcript above, script in the worktree's `reports/stickler/scratch/`).
+- `ast-grep` sweeps: `createFrameQueue($$$A)` → ONE production site (socket.ts, `onShed` wired) + the
+  queue's own tests; no other caller silently missing the heal hook.
+
+## Regions NOT read / not run
+
+The `@live` e2e specs and `event-sequence.spec.ts` were reviewed, not executed (need live stacks).
+`apply-chat-bus-event.test.ts` relied on for reducer semantics (ran green; not line-audited this
+pass). Everything else from the base review's NOT-read list stands.
+
+## Unconfirmed suspicions (low priority, not findings)
+
+- **Rate-limiter park skip:** a detach→re-attach (or rewind re-attach) restarts the pump while a
+  roomLagged notice is still pending; if the queue is simultaneously held at capacity by a DIFFERENT
+  lag room, the restarted pump's pushes shed-and-collapse silently (no new notice, no park) and the
+  eventual notice delivery no-ops (`pumps.has` → true), dropping the replayed range with the cursor
+  later jumping past it on live rows. Needs a second flooding lag room + a user re-attaching into a
+  stalled socket; traced in code, not reproduced. Root texture is RF1's (the notice/park state is
+  keyed per room, not per pump instance) — worth one line in whatever RF1's fix touches.
+- socket.test.ts's `bounds` fake comment says "an unclamped MEMBER" while returning
+  `viewerIsHost: true` — comment nit only; the suite is about delivery, not projection.
