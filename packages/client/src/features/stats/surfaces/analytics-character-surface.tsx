@@ -28,7 +28,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsCharacterSurface")}>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading character stats…</Text>}
+        fallback={<Text voice="gloss">Loading character stats…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}
       >
         <CharacterBody characterId={characterId} onBack={onBack} />
@@ -74,14 +74,8 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       </Button>
 
       <Stack gap="field">
-        <Text size="title" weight="semibold">
-          {stats.name}
-        </Text>
-        {stats.lastActivityAt === null ? null : (
-          <Text size="micro" tone="muted">
-            Last active {timeLib.formatRelative(stats.lastActivityAt)}
-          </Text>
-        )}
+        <Text className="text-title leading-title font-semibold">{stats.name}</Text>
+        {stats.lastActivityAt === null ? null : <Text voice="gloss">Last active {timeLib.formatRelative(stats.lastActivityAt)}</Text>}
       </Stack>
 
       <Section heading="Activity">

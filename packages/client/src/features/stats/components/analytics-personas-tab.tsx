@@ -15,7 +15,7 @@ import { formatCompact, personaBarItems } from "../lib/analytics-view-model";
 export function AnalyticsPersonasTab(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading persona usage…</Text>}
+      fallback={<Text voice="gloss">Loading persona usage…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="persona usage" onRetry={retry} />}
     >
       <PersonasBody />
@@ -35,9 +35,7 @@ function PersonasBody(): ReactElement {
 
       <Section heading="Breakdown">
         {personas.length === 0 ? (
-          <Text size="micro" tone="muted">
-            You haven't played as any persona yet.
-          </Text>
+          <Text voice="gloss">You haven't played as any persona yet.</Text>
         ) : (
           <Stack gap="row" role="list">
             {personas.map((persona) => (
@@ -46,7 +44,7 @@ function PersonasBody(): ReactElement {
                 title={persona.name}
                 subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                 actions={
-                  <Text size="micro" tone="muted" className="whitespace-nowrap font-mono">
+                  <Text voice="gloss" className="whitespace-nowrap font-mono">
                     {formatCompact(persona.tokensOut)} tok
                   </Text>
                 }

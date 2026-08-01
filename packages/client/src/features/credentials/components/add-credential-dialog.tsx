@@ -183,9 +183,7 @@ function AddCredentialFormBody({
             }
           </form.Subscribe>
 
-          <Text size="micro" tone="muted">
-            Stored securely on this deployment; it is sent only to the provider you chose.
-          </Text>
+          <Text voice="gloss">Stored securely on this deployment; it is sent only to the provider you chose.</Text>
 
           <Row gap="field" justify="end">
             <DialogClose render={<Button intent="ghost">Cancel</Button>} />
@@ -237,7 +235,7 @@ function DraftFetchModelsCheck({
         Fetch models
       </Button>
       {checked ? (
-        <Text size="micro" tone={count !== null && count > 0 ? "success" : "warning"}>
+        <Text voice="gloss" className={count !== null && count > 0 ? "text-success" : "text-warning"}>
           {count !== null && count > 0 ? `reachable — ${count} model${count === 1 ? "" : "s"}` : "unreachable or no /models"}
         </Text>
       ) : null}

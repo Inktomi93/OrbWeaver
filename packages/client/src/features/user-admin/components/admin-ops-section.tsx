@@ -27,9 +27,7 @@ export function AdminCatalogSection(): ReactElement {
   return (
     <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_CATALOG_SUBCATEGORY.id)}>
       <Stack gap="row">
-        <Text size="micro" tone="muted">
-          Re-fetch the model catalogs the role pickers browse. Each runs live against its provider.
-        </Text>
+        <Text voice="gloss">Re-fetch the model catalogs the role pickers browse. Each runs live against its provider.</Text>
         <Row gap="field" align="center" className="flex-wrap">
           <Button intent="secondary" size="sm" disabled={refreshCatalog.isPending} onClick={(): void => refreshCatalog.mutate()}>
             Refresh model catalog
@@ -66,9 +64,7 @@ export function AdminEmbedCardSection(): ReactElement {
   return (
     <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_EMBEDDINGS_SUBCATEGORY.id)}>
       <Stack gap="row">
-        <Text size="micro" tone="muted">
-          Embed one character card into the vector index by its id (the inline path; the bulk path is the background index workload).
-        </Text>
+        <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index workload).</Text>
         <Row gap="field" align="center" className="flex-wrap">
           <Input
             aria-label="Character id"
@@ -84,7 +80,7 @@ export function AdminEmbedCardSection(): ReactElement {
           </Button>
         </Row>
         {done ? (
-          <Text size="micro" tone="muted" role="status">
+          <Text voice="gloss" role="status">
             Card embedded.
           </Text>
         ) : null}

@@ -28,9 +28,7 @@ export function ParamSelect({
 }): ReactElement {
   return (
     <Stack gap="field">
-      <Text size="micro" weight="semibold" tone="muted" transform="caps">
-        {label}
-      </Text>
+      <Text voice="kicker">{label}</Text>
       <Select
         items={items}
         value={value}
@@ -62,9 +60,7 @@ export function ParamToggle({
 }): ReactElement {
   return (
     <Row align="center" gap="field" className="flex-wrap">
-      <Text size="micro" weight="semibold" tone="muted" transform="caps">
-        {label}
-      </Text>
+      <Text voice="kicker">{label}</Text>
       <ToggleGroup
         aria-label={label}
         value={[value]}

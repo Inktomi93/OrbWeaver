@@ -75,7 +75,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         </form.AppField>
       ) : null}
       {createUser.error === null ? null : (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Couldn't create the user — that handle may already be taken.
         </Text>
       )}

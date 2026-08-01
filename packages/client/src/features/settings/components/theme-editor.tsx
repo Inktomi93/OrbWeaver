@@ -158,12 +158,10 @@ function CssEditorField({ value, onChange }: { readonly value: string; readonly 
 function ThemeableVarsReference(): ReactElement {
   return (
     <Stack gap="field">
-      <Text size="micro" tone="muted" transform="caps">
-        Themeable variables
-      </Text>
+      <Text voice="kicker">Themeable variables</Text>
       <Row gap="field" className="flex-wrap">
         {THEME_SCOPE_EMIT_VARS.map((name) => (
-          <Text key={name} as="span" size="code" tone="muted" className="rounded-control bg-muted px-field font-mono">
+          <Text key={name} as="span" voice="datum" className="rounded-control bg-muted px-field text-muted-foreground">
             {name}
           </Text>
         ))}
@@ -177,11 +175,11 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
   return (
     <Stack gap="block">
       <ThemeScope tokens={themeOverrideFromForm(values)}>
-        <Stack gap="row" className="rounded-card border border-border bg-background p-block">
-          <Text size="label" weight="medium" className="text-speaker">
+        <Stack gap="row" className="rounded-base border border-border bg-background p-block">
+          <Text voice="label" className="text-speaker">
             Aria
           </Text>
-          <Stack gap="field" className="rounded-card bg-ai-bubble p-block">
+          <Stack gap="field" className="rounded-base bg-ai-bubble p-block">
             <Text as="span" className="text-dialogue">
               “Welcome to the archive,” she said.
             </Text>{" "}
@@ -192,7 +190,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
               Everything here has a story.
             </Text>
           </Stack>
-          <Stack gap="field" className="self-end rounded-card bg-user-bubble p-block">
+          <Stack gap="field" className="self-end rounded-base bg-user-bubble p-block">
             <Text as="span">Show me the oldest one.</Text>
           </Stack>
         </Stack>
@@ -229,10 +227,8 @@ function ContrastBadge({ label, color, against }: { readonly label: string; read
   const rounded = ratio.toFixed(1);
   return (
     <Row gap="field" align="center">
-      <Text size="micro" tone="muted" transform="caps">
-        {label}
-      </Text>
-      <Text size="micro" tone={passes ? "muted" : "warning"}>
+      <Text voice="kicker">{label}</Text>
+      <Text voice="gloss" className={passes ? undefined : "text-warning"}>
         {passes ? `${rounded}:1` : `${rounded}:1 — hard to read`}
       </Text>
     </Row>

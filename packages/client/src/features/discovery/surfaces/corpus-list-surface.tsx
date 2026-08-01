@@ -105,7 +105,7 @@ function CorpusRestState({ targetId }: { readonly targetId: string }): ReactElem
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
-      <Text tone="muted">{CORPUS_TARGET_REST_HINTS[resolveSearchTarget(targetId).id]}</Text>
+      <Text>{CORPUS_TARGET_REST_HINTS[resolveSearchTarget(targetId).id]}</Text>
     </Stack>
   );
 }

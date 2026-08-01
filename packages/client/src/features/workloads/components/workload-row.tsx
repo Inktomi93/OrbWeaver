@@ -119,11 +119,7 @@ function WorkloadRowBody({
       <WorkloadProgressLine workload={workload} live={progress} processing={active && !deferred && !waiting} />
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       <WorkloadPoisonDetail workload={workload} />
-      {resultPreview === null ? null : (
-        <Text size="micro" tone="muted">
-          {resultPreview}
-        </Text>
-      )}
+      {resultPreview === null ? null : <Text voice="gloss">{resultPreview}</Text>}
       <WorkloadFailureDetail workload={workload} />
 
       <ConfirmDialog
@@ -194,16 +190,8 @@ function WorkloadWaitDetail({
   }
   return (
     <>
-      {deferred ? (
-        <Text size="micro" tone="muted">
-          {`Scheduled for ${timeLib.formatRelative(workload.scheduledAt)}`}
-        </Text>
-      ) : null}
-      {waiting ? (
-        <Text size="micro" tone="muted">
-          {dependencyWaitLabel(workload.dependsOn?.length ?? 0)}
-        </Text>
-      ) : null}
+      {deferred ? <Text voice="gloss">{`Scheduled for ${timeLib.formatRelative(workload.scheduledAt)}`}</Text> : null}
+      {waiting ? <Text voice="gloss">{dependencyWaitLabel(workload.dependsOn?.length ?? 0)}</Text> : null}
     </>
   );
 }
@@ -217,20 +205,18 @@ function WorkloadFailureDetail({ workload }: { readonly workload: WorkloadItem }
   const friendlyError = friendlyWorkloadError(rawError);
   return (
     <Stack gap="field">
-      <Text size="micro" tone="destructive">
+      <Text voice="gloss" className="text-destructive">
         {friendlyError ?? rawError}
       </Text>
       {friendlyError === null ? null : (
         <Collapsible>
           <CollapsibleTrigger>
-            <Text as="span" size="micro" tone="muted">
+            <Text as="span" voice="gloss">
               Technical details
             </Text>
           </CollapsibleTrigger>
           <CollapsiblePanel>
-            <Text size="micro" tone="muted">
-              {rawError}
-            </Text>
+            <Text voice="gloss">{rawError}</Text>
           </CollapsiblePanel>
         </Collapsible>
       )}
