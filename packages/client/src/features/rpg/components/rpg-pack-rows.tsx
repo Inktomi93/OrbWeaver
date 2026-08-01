@@ -84,7 +84,7 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
   return (
     <>
       {QUEST_TYPE_RE.test(item.type) ? (
-        // The ember quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on the tile
+        // The accent quest-bound dot (§3 voice: primary = the game's pulse); the `type` text on the tile
         // title carries the datum (never color-alone).
         <Text as="span" voice="gloss" aria-hidden={true} className="absolute top-field right-field text-primary" title="quest item">
           ●

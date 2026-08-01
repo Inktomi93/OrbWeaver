@@ -71,7 +71,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
       </form.AppField>
       {viewerIsOwner ? (
         <form.AppField name="role">
-          {(field): ReactElement => <field.SelectField label="Role" description="Admins manage users, workloads, and system settings." items={ROLE_ITEMS} />}
+          {(field): ReactElement => <field.SelectField label="Role" description="Admins manage users, jobs, and system settings." items={ROLE_ITEMS} />}
         </form.AppField>
       ) : null}
       {createUser.error === null ? null : (

@@ -64,7 +64,7 @@ export function AdminEmbedCardSection(): ReactElement {
   return (
     <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_EMBEDDINGS_SUBCATEGORY.id)}>
       <Stack gap="row">
-        <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index workload).</Text>
+        <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index job).</Text>
         <Row gap="field" align="center" className="flex-wrap">
           <Input
             aria-label="Character id"
