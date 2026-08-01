@@ -14,11 +14,26 @@ import { securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context";
 import { classifyDomainError, domainReason } from "./error-mapping";
 
+// SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
+// `initTRPC.create` is the ONE home for it. tRPC ships ping DISABLED by default and no client inactivity
+// timeout, which is survivable while a tab holds N independent streams (one dead socket costs one lane) and
+// NOT survivable under the multiplex, where a silently-dead socket is a TOTAL freshness blackout. The ping
+// keeps intermediaries (Caddy, the dev proxy) from idling an otherwise-quiet stream; `reconnectAfterInactivityMs`
+// at 3× the interval is what makes the CLIENT notice a socket that stopped without closing. Both keys
+// verified against @trpc/server 11.18 (`SSEPingOptions` / `SSEClientOptions`). Strictly an improvement for
+// the per-proc streams too, which is why it lands before any of them fold.
+const SSE_PING_MS = 15_000;
+const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
+
 // The error formatter rides the honest domain reason code on `data.reason` (only a DomainOperationError
 // carries one — see domainReason). Additive: `data.reason` is typed `string | undefined` end-to-end, so
 // the inferred client error shape gains the optional field; a codeless error serialises without the key.
 export const t = initTRPC.context<Context>().create({
   errorFormatter: ({ shape, error }) => ({ ...shape, data: { ...shape.data, reason: domainReason(error) } }),
+  sse: {
+    ping: { enabled: true, intervalMs: SSE_PING_MS },
+    client: { reconnectAfterInactivityMs: SSE_RECONNECT_AFTER_INACTIVITY_MS },
+  },
 });
 
 // One span per procedure. A typed domain error resolves the span to OK (the error is data, badged as an

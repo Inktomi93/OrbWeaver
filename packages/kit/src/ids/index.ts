@@ -180,6 +180,14 @@ export type WorkloadScheduleId = TypeIdOf<"workload_schedule">;
 // --- Notifications (the per-user durable inbox) ------------------------
 export type NotificationId = TypeIdOf<"notification">;
 
+// --- Transport (ephemeral, never persisted) ----------------------------------
+/** One browser tab's multiplexed SSE socket (SSE-1, `@orb/contracts/stream`). CLIENT-MINTED
+ *  (`crypto.randomUUID()` per document) and NOT a capability — the server's registry cell is owned by the
+ *  minting principal and a foreign id collapses to a leak-free NOT_FOUND. No table, no TypeID prefix: it is
+ *  transport state with a document's lifetime (the `SessionToken` precedent — branded so it can never be
+ *  confused with an entity id). */
+export type SocketId = Branded<"SocketId">;
+
 // --- Cross-cutting -----------------------------------------------------------
 export type AuditLogId = TypeIdOf<"audit_log">;
 

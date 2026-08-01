@@ -1,19 +1,8 @@
-// domain/notifications/contract/views — the read-model the caller receives for one stored notification.
-// InboxView pairs the closed NotificationEvent wire union with the durable inbox columns the client needs
-// to render + page.
+// domain/notifications/contract/views — the DOOR onto the read-model the caller receives for one stored
+// notification. `InboxView` itself declares in `@orb/contracts/notifications` (one home): it is a
+// cross-boundary shape on TWO wires now — the `notifications.list` query result AND the `notifications`
+// room frame of the multiplexed socket (`@orb/contracts/stream`, SSE-1 §3.2) — and `contracts` sits below
+// `server` in the cake, so it cannot reach up here for it. This file stays as the domain-relative import
+// path its verbs/service already use.
 
-import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
-import type { NotificationId } from "@orb/kit/ids";
-
-export interface InboxView {
-  readonly id: NotificationId;
-  readonly type: NotificationType;
-  readonly payload: NotificationEvent;
-  /** The monotonic per-recipient cursor — the stable paging / stream-resume key. */
-  readonly seq: number;
-  /** null = unread; epoch-ms when the recipient first read it (idempotent — set once). */
-  readonly readAt: number | null;
-  /** null = active in the inbox; epoch-ms when the recipient dismissed it (idempotent — set once). */
-  readonly dismissedAt: number | null;
-  readonly createdAt: number;
-}
+export type { InboxView } from "@orb/contracts/notifications";
