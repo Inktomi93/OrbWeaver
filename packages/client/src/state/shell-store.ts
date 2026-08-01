@@ -8,8 +8,9 @@ import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
-/** The rail's navigable sections. */
-export const SECTION_IDS = ["chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
+/** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
+ *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order. */
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
@@ -85,8 +86,13 @@ interface PersistedShellState {
   readonly panelOverrides: PanelOverrides;
 }
 
+// The BORN default is HOME (owner decision H1 = D-1 — ONE coupled ruling with the chat landing slimming
+// to a no-selection state): the app opens on the landing that HAS a launcher instead of on a section
+// whose content is "nothing selected". `activeSection` is persisted, so this only ever affects a fresh
+// install / cleared storage — an existing user keeps their last section, and `isSectionId` already
+// validates the stored value against the tuple, so no persist-version bump is needed.
 const DEFAULT_STATE: ShellState = {
-  activeSection: "chats",
+  activeSection: "home",
   panelOverrides: {},
   openModal: null,
   contextTab: null,

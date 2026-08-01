@@ -20,6 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results";
+import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -789,5 +790,26 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
     expect(rows).toHaveLength(1);
     expect(rows[0]?.content).toBe("stay in character");
     expect(rows[0]?.depth).toBe(2);
+  });
+});
+
+describe("startChat — PD-65 temporary rooms are HIDDEN from the library", () => {
+  // The flag landing on the row is covered above; what the client half depends on — and what nobody had
+  // asserted — is that a temporary room never appears in `listChats`. That exclusion is the ENTIRE reason
+  // the launcher can offer a temp room without polluting the chats list, and it must hold in BOTH branches
+  // of listMemberChats (an `includeArchived` caller must not lift it either).
+  test("a temporary room is absent from listChats — with AND without includeArchived", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    const temp = await startChat({ principal: principal(host), characterIds: [aria], temporary: true, opening: "none" });
+    const permanent = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+
+    expect((await listMemberChats(db, host)).map((c) => c.id)).toEqual([permanent.chat.id]);
+    expect((await listMemberChats(db, host, true)).map((c) => c.id)).toEqual([permanent.chat.id]);
+    // The row really does exist — it is hidden, not un-created (turns have to be able to run in it).
+    expect(await db.select().from(chats).where(eq(chats.id, temp.chat.id))).toHaveLength(1);
   });
 });

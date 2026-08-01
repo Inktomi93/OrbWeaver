@@ -21,7 +21,10 @@ import { CorpusListSurface } from "../surfaces/corpus-list-surface";
 
 export const corpusSection: SectionDefinition = {
   id: "corpus",
-  rail: { label: "Corpus", icon: Library, group: "primary", mobile: "tab" },
+  // Corpus folds into the You sheet on mobile (owner decision H2): the bottom bar is a thumb-reach budget
+  // of four, and home took a tab. Corpus is a deliberate search entry — reachable from the You sheet and
+  // ⌘K — not something you tap by accident on the way somewhere else.
+  rail: { label: "Corpus", icon: Library, group: "primary", mobile: "sheet" },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Corpus",

@@ -19,6 +19,9 @@ export interface ShellTopbarProps {
   /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets), rendered as-is. */
   readonly trail: ReactNode;
   readonly listMode: PanelMode;
+  /** Does the active section HAVE a LIST pane? `false` ⇒ NO toggle renders (home-section-spec §4.4 / arm
+   *  L-b) — a reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
+  readonly listAvailable: boolean;
   readonly onToggleList: () => void;
 }
 
@@ -56,17 +59,19 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick }: To
   );
 }
 
-export function ShellTopbar({ title, header, trail, listMode, onToggleList }: ShellTopbarProps): ReactElement {
+export function ShellTopbar({ title, header, trail, listMode, listAvailable, onToggleList }: ShellTopbarProps): ReactElement {
   const listCollapsed = listMode === "collapsed";
   return (
     <header className="shell-topbar">
       <div className="shell-topbar-lead">
-        <TopbarIconButton
-          label={listCollapsed ? "Show list panel" : "Hide list panel"}
-          icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
-          expanded={!listCollapsed}
-          onClick={onToggleList}
-        />
+        {listAvailable ? (
+          <TopbarIconButton
+            label={listCollapsed ? "Show list panel" : "Hide list panel"}
+            icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
+            expanded={!listCollapsed}
+            onClick={onToggleList}
+          />
+        ) : null}
         {header ??
           (listCollapsed ? (
             <Text size="title" weight="semibold">

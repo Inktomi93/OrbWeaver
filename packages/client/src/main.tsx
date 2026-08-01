@@ -25,7 +25,10 @@ import { characterSlashCommands, librarySettingsSection, makeCharactersSection }
 import {
   ChatsWithCharacterPane,
   chatOptionsChrome,
+  chatQuickPicksTile,
+  chatRecentsTile,
   chatSlashCommands,
+  chatTempChatTile,
   commandModal,
   databankSettingsSection,
   imageryTemplatesSection,
@@ -35,6 +38,7 @@ import {
 } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
@@ -50,6 +54,7 @@ import type {
   ChatContextState,
   ChatSurfaceContribution,
   ContextTabDef,
+  HomeTileContribution,
   MessageToolsRenderer,
   SlashCommandContribution,
   ToolRenderer,
@@ -145,9 +150,24 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
+// The HOME-TILE contributor seam (§6c / home-section-spec §3.2) — the SIXTH contributor registry, and the
+// whole point of the home section: a feature raises a tile, home skims it. Adding "future stuff" to home is
+// ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
+// `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, the dormant
+// doorways at 80/90). Home consumes the registry BLIND through `makeHomeSection`.
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  chatRecentsTile,
+  chatQuickPicksTile,
+  chatTempChatTile,
+  sectionJumpTile,
+  buddyDormantTile,
+  automationDormantTile,
+]);
+
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
+  home: makeHomeSection(homeTiles),
   chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, toolRenderers),
   // The characters LIST pane is MODAL (list-pane-projection Arm A): its projection half is chat-owned row
   // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside

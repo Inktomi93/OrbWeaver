@@ -15,7 +15,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterSummary } from "../../character/fixtures";
 import { makeChatSummary } from "../../chat/fixtures";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
-import { AppShellDropGuardStory, AppShellRealChatsStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
+import { AppShellDropGuardStory, AppShellOnSectionStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
@@ -297,10 +297,12 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
 
-  // The four thumb-reach tabs render as named buttons.
-  await Promise.all(["Chats", "Characters", "Corpus", "You"].map((name) => expect(shell.getByRole("button", { name, exact: true })).toBeVisible()));
+  // The four thumb-reach tabs render as named buttons (owner decision H2: Home · Chats · Characters ·
+  // You — home rides the bar as a `mobileOnly` tab because the desktop brand cell is display:none here).
+  await Promise.all(["Home", "Chats", "Characters", "You"].map((name) => expect(shell.getByRole("button", { name, exact: true })).toBeVisible()));
   // The overflow sections + the desktop footer triggers are NOT on the bar (they live in the You sheet).
   // display:none on the desktop block removes them from the a11y tree entirely.
+  await expect(page.getByRole("button", { name: "Corpus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
@@ -325,8 +327,8 @@ test("mobile: you land on CONTENT — the list panel is collapsed, not an open s
 test("mobile: a tab click switches the section", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Corpus", exact: true }).click();
-  await expect(page.getByText("corpus content pane")).toBeVisible();
+  await shell.getByRole("button", { name: "Characters", exact: true }).click();
+  await expect(page.getByText("characters content pane")).toBeVisible();
   // Same <Activity> pane-keeping as desktop: chats CONTENT stays mounted-but-hidden across the switch.
   await expect(page.getByText("chats content pane")).toBeHidden();
 });
@@ -462,28 +464,24 @@ test("resolvePanel: the auto-overlay derivation never mutates the persisted pane
   expect(afterRewiden).toEqual(before);
 });
 
-test("the REAL chats landing at 900px (48-64rem): useListDocked agrees with resolvePanel's auto-overlay, so the landing shows its own Recent chats finder", async ({
-  mount,
-  page,
-}) => {
-  // The verifier's M10-correction gap: a hand-copied `useListDocked` mirror read only `mobileViewport`
-  // and disagreed with `resolvePanel` in this exact regime, wrongly hiding "Recent chats" (bug #13
-  // inverted). Mounts the REAL shell + REAL chats section so the viewport→#state publish effect
-  // (`useShellLayout`) runs for real, not a hand-fed store write.
+test("at 900px (48-64rem) the recents FINDER is still reachable — it moved to home, which has no LIST at all", async ({ mount, page }) => {
+  // SUPERSEDED FORM of the M10-correction CT. That test guarded the chat landing's `showRecents` flag: at
+  // this width the LIST auto-overlays CLOSED, so the landing had to show its own recents finder. The
+  // launcher has since MOVED to home (owner decision H1 = D-1) and `showRecents` is gone with it — but the
+  // USER-FACING guarantee it protected is unchanged and still worth a wall: at the auto-overlay width you
+  // can still find a recent chat without hunting for a hidden panel. Home is now that finder, and home
+  // declares NO list pane, so there is nothing to auto-overlay away.
   await routeTrpc(page, {
     "chat.listChats": [makeChatSummary({ id: "chat_recent_900", title: "A grand adventure" })],
     "character.list": { items: [makeCharacterSummary()], nextCursor: null },
   });
   await page.setViewportSize(NARROW_DESKTOP);
-  const shell = await mount(<AppShellRealChatsStory />);
+  const shell = await mount(<AppShellOnSectionStory section="home" />);
 
-  // The LIST auto-overlays CLOSED at this width (§4.1) — not docked, not visible — so the landing must
-  // show its own recents finder instead of relying on the (absent) docked LIST. Scoped to the landing's
-  // own `aria-label="Recent chats"` list — the collapsed LIST panel is still in the DOM (off-screen) and
-  // renders the same chat row, so an unscoped getByText is a strict-mode double-match.
   const recents = shell.getByRole("list", { name: "Recent chats" });
   await expect(recents).toBeVisible();
   await expect(recents.getByText("A grand adventure")).toBeVisible();
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "collapsed");
 });
 
 test("the topbar toggle OPENS a narrow-auto-overlayed panel (slide-over + scrim) without occluding the toggle, and closes it again — never writing panelOverrides", async ({
