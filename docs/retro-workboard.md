@@ -534,6 +534,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   the runtime no-terminal-channel arm is post-turn-only — such a room still reads "Live".
   Same-ruling closures: card-note mute stays DEAD (no replacement knob until missed in play) ·
   ST export stays ONE-WAY (no note_prompt heuristic) · snippet search LANDED (`86f172e0`).
+- **INLINE-TEMPLATE SCOUT (08-02, owner-ordered, both-methods receipts):** 26 slots + marker
+  templates verified HOMED by content-match. SIX inline stragglers, dispositioned:
+  (a) GENUINE GAPS — new slots owed: group format strings (`assemble.ts:162-169` [Also present /
+  X's scenario / X's example dialogue] + `round.ts:47` group-round nudge) · injection wrappers
+  (`injections.ts:44-46` [Note from system/user:]) · **discovery's THREE full system prompts
+  entirely outside the catalog** (`analyze.ts` COMPARE/ASK + `distill.ts` DISTILL — no
+  resolveProseText import at all). Dispatch as a PROSE S1-style migration small.
+  (b) ALREADY-RULED S4 territory (template-shaped, cite the ladder): arbiter user-frame
+  (`smart-arbitrate.ts:131`) · compaction lead-ins (`compaction.ts:73-77`).
+  Not covered: non-suspect domains beyond grep, client-side dupes, byte-audit of slot sources.
 - **PROSE-1 — S0 MACHINERY LANDED** (`174bbad2`: prose-slot/prose contracts split [depcruise
   type-only cycles], two-rung resolver, prose-baseline.json with BOTH refusal arms probed live,
   17 slots incl. the impersonate nudge as editable data with the IMP-1 probe named as its
