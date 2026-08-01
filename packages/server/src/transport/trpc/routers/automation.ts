@@ -10,24 +10,15 @@
 // trigger, so the wire omits it (the verb's `sampleEvent?` absent path). The A3 per-user global-variable verbs
 // are NOT exposed here (the §A8 pane is rule-scoped; globals are a later settings surface). Result shapes flow
 // to the client via tRPC `inferOutput` — no domain result type (RuleView/FireView/TestRunResult) duplicated.
+// THE LIVE FEED IS NOT HERE: the per-chat automation bus folded onto the multiplexed socket at SSE-1 S4 and
+// is now the `automation` ROOM (`transport/trpc/stream/sources/automation.ts`) — this router is request/
+// response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
 
-import type { AutomationBusEvent } from "@orb/contracts/automation";
 import { automationActionsSchema, automationTriggerSchema } from "@orb/contracts/automation";
-import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import type { TrackedEnvelope } from "@trpc/server";
-import { tracked } from "@trpc/server";
 import { z } from "zod";
-import type { AutomationService } from "#domain/automation";
-import { subscribeAutomation } from "../automation-bus";
-import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
-
-/** The one MEMBER-visible automation-bus event (04 §5) — the transient quick-reply chips. Every OTHER event
- *  (ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged) is the host's hidden hand, filtered out below for a
- *  `member`-tier subscriber. */
-const MEMBER_VISIBLE_EVENT: AutomationBusEvent["type"] = "quickReplySurfaced";
 
 // The editable rule fields shared by create + update (the PUT-style replace — updateRule re-runs the same
 // validation). The trigger + action shapes ride the contract vocabulary; the scalars are wire wrappers. `name`
@@ -131,38 +122,4 @@ export const automationRouter = t.router({
   getBudgets: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.automation.getBudgets({ principal: ctx.auth, chatId: input.chatId })),
-
-  // The per-chat automation feedback bus (04 §5; the rpg/crew `stream` precedent) — the member-facing home
-  // of the transient `surface_quick_reply` chips + (host-only) the rule fire/error/disable events. ONE
-  // procedure projecting by caller authority: `resolveStreamAuthority` is the visibility gate (a non-present
-  // member throws AutomationChatNotFound → NOT_FOUND before any tail attaches — a user never receives another
-  // chat's automation events) AND tells us the tier (`member` sees only the chips; `host` sees everything).
-  // No durable resume (the bus is the ephemeral live feed; the chips are transient by design), so events yield
-  // with a per-stream ordinal only. `withSubscriptionErrors` converts a thrown domain error into a typed frame.
-  stream: authedProcedure.input(z.object({ chatId: brandedId<ChatId>() })).subscription(({ ctx, input, signal }) => {
-    const sig = signal ?? new AbortController().signal;
-    return withSubscriptionErrors(automationStream(ctx.services.automation, ctx.auth, input.chatId, sig));
-  }),
 });
-
-/** Resolve the subscriber's authority via `resolveStreamAuthority` (which GATES — a non-member throws
- *  NOT_FOUND) then tail the chat's bus, eliding the host-only events for a `member`-tier subscriber (04 §5). */
-async function* automationStream(
-  service: AutomationService,
-  principal: Principal,
-  chatId: ChatId,
-  signal: AbortSignal,
-): AsyncGenerator<TrackedEnvelope<AutomationBusEvent>> {
-  const authority = await service.resolveStreamAuthority({ principal, chatId });
-  const isHost = authority === "host";
-  let seq = 0;
-  for await (const event of subscribeAutomation(chatId, signal)) {
-    // A `member`-tier subscriber receives ONLY the room-visible chips; every other event is the host's hidden
-    // hand (rule fire/error/disable/config-change), filtered out here per subscriber.
-    if (!isHost && event.type !== MEMBER_VISIBLE_EVENT) {
-      continue;
-    }
-    seq += 1;
-    yield tracked(String(seq), event);
-  }
-}
