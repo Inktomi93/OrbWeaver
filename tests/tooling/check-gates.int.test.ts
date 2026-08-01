@@ -277,6 +277,12 @@ function writeFixtures(): void {
     `${D}/chat/verbs/__g_vpcr.ts`,
     'import type { ChatService } from "../contract/service";\nimport { loadCanonHistory } from "../persistence/queries";\n\nexport function createGVpcr(): ChatService["listMessages"] {\n  return (async (a: never) => await loadCanonHistory(a, a)) as never;\n}\n',
   );
+  // single-stream-transport: a `.subscription(` on a router that is neither stream.ts nor in the gate's
+  // cited `<router>.<proc>` EXEMPT fold ledger — a second always-on SSE socket per tab (spec §11).
+  fx(
+    "packages/server/src/transport/trpc/routers/__g_substream.ts",
+    "export const gSubstreamRouter = {\n  live: authedProcedure.subscription(() => source()),\n};\n",
+  );
   // firehose-import-allowlist: the unclamped all-chats firehose imported outside entry/compose (D79).
   fx("packages/server/src/transport/trpc/__g_firehose.ts", 'import { subscribeAllChatEvents } from "./index";\nexport const f = subscribeAllChatEvents;\n');
   // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).

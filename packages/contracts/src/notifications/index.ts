@@ -6,7 +6,7 @@
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
 
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -96,6 +96,24 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationType = NotificationEvent["type"];
+
+/** One stored notification as its recipient reads it — the closed `NotificationEvent` wire union paired with
+ *  the durable inbox columns the client needs to render + page. A cross-boundary READ MODEL (it is what the
+ *  `notifications.list` query returns AND what the multiplexed socket's `notifications` room frame nests, so
+ *  `@orb/contracts/stream` must be able to name it), which is why it homes here rather than in the
+ *  `notifications` domain's server-only `contract/` — that file is now a door onto this declaration. */
+export interface InboxView {
+  readonly id: NotificationId;
+  readonly type: NotificationType;
+  readonly payload: NotificationEvent;
+  /** The monotonic per-recipient cursor — the stable paging / stream-resume key. */
+  readonly seq: number;
+  /** null = unread; epoch-ms when the recipient first read it (idempotent — set once). */
+  readonly readAt: number | null;
+  /** null = active in the inbox; epoch-ms when the recipient dismissed it (idempotent — set once). */
+  readonly dismissedAt: number | null;
+  readonly createdAt: number;
+}
 
 /** The per-user presence shape transport derives from the live SSE connection ref-count. A read-model
  *  view, not an inbound wire schema — presence is never client-asserted (a spoofable heartbeat would be
