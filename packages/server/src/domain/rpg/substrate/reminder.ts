@@ -27,6 +27,16 @@
 // value. LOCKED trackers read here in full (D113 #4: the reminder is the model's KNOWLEDGE, the tools are its
 // permissions — the lock filter belongs at the write-schema assembly and nowhere in this path).
 //
+// THIS FILE IS THE ONE HOME OF THE STATE-LINE GRAMMAR (the third-surface parity fix, 2026-08-01). The macro /
+// CEL feed (`chat-ops/macro-view.ts`) is a SECOND model-facing consumer of the same lines — `{{rpgSceneState}}`
+// / `{{rpgCast}}` / `{{rpgQuests}}` — and it carried its OWN cast/actor/ambient/quest builders, which had
+// silently drifted into a strict subset: no volatile plane on any carrier (hp · wallet · carrying · status ·
+// conditions), none of the standing guides, no attribute readings, no sheet flavor, no game-subject readings,
+// no quest status/description, no time-of-day, no weather description. Every one of those is a field the host
+// or the model can WRITE that reached that surface nowhere — the exact class the reachability suite exists to
+// kill. The line builders below are therefore EXPORTED and the feed composes them; a new seg lands on both
+// surfaces at once, and the suite's macro column reds if a third builder is ever re-grown.
+//
 // The license + state-block prose are ARGUED NO-KNOB v1 (§4.11 #4): `steeringNote` IS the designed tuning slot
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
@@ -120,8 +130,13 @@ export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
- *  it. Time-of-day stays in BOTH modes (structured + functional — it drives the Waystone). */
-function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
+ *  it. Time-of-day stays in BOTH modes (structured + functional — it drives the Waystone).
+ *
+ *  EXPORTED for the macro feed's `{{rpgSceneState}}` Scene line ({@link plotLine}'s precedent — one line
+ *  grammar, two model-facing consumers). Its own builder printed `day N` unconditionally and carried neither
+ *  the time-of-day nor the weather `description`, so the host's dateMode ruling and two written planes died on
+ *  that surface (the reachability class). */
+export function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
   const parts: string[] = [];
   if (ambient.location !== "") {
     parts.push(ambient.location);
@@ -181,6 +196,34 @@ function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | nul
   return conditions.length === 0 ? null : `conditions: ${conditions.map((c) => c.name).join(", ")}`;
 }
 
+/** The per-item ANNOTATION cap, in characters. The carrying line is a ROLL-CALL the model re-reads on EVERY
+ *  turn, for every carrier, so an item's prose rides it TRUNCATED at a word boundary (`…`) rather than
+ *  multiplying a party's inventory prose into the state block — the exact cost that kept `description` off the
+ *  read surfaces until the owner ruled it on (2026-08-01). */
+const RPG_ITEM_NOTE_MAX = 60;
+
+/** Trim + hard-cap one item annotation at the nearest word boundary under {@link RPG_ITEM_NOTE_MAX}. */
+function itemNote(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= RPG_ITEM_NOTE_MAX) {
+    return trimmed;
+  }
+  const cut = trimmed.slice(0, RPG_ITEM_NOTE_MAX);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
+/** ONE carried item — `rope ×2 (the pack: forty feet of hemp)`: the name, its quantity when it stacks, then the
+ *  host/model annotation in ONE parenthetical (`location: description`, either alone when the other is empty).
+ *  Both arms are model-writable (`update_inventory.add[].location`/`.description`) and reached NO model-facing
+ *  surface until the owner ruled them on — the panel had shown both all along. The parenthetical (never a ` — `
+ *  seg) keeps the comma-joined roll-call unambiguous, and {@link itemNote} caps the prose. */
+function itemSeg(item: RpgActorVolatile["inventory"][number]): string {
+  const head = item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name;
+  const notes = [item.location, item.description].map(itemNote).filter((note) => note !== "");
+  return notes.length === 0 ? head : `${head} (${notes.join(": ")})`;
+}
+
 /** An actor's volatile-plane segments (hp/wallet/inventory/status/conditions) — hoisted out of `actorLine`
  *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
  *  The TRACKER segs are NOT here: an actor carries its trackers whether or not a snapshot ever wrote it a
@@ -200,7 +243,7 @@ function volatileSegs(v: RpgActorVolatile): string[] {
     segs.push(v.wallet.map((w) => `${w.amount} ${w.name}`).join(", "));
   }
   if (v.inventory.length > 0) {
-    segs.push(`carrying: ${v.inventory.map((i) => (i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name)).join(", ")}`);
+    segs.push(`carrying: ${v.inventory.map(itemSeg).join(", ")}`);
   }
   if (v.status !== "") {
     segs.push(v.status);
@@ -212,7 +255,12 @@ function volatileSegs(v: RpgActorVolatile): string[] {
   return segs;
 }
 
-function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly RpgStatAttributeDef[]): string {
+/** ONE roster actor's whole line — identity (name/class/level/attribute readings), the trackers it CARRIES,
+ *  its volatile plane, and the sheet's flavor continuation. EXPORTED for `{{rpgCast}}`'s Party block: the macro
+ *  feed's own actor builder carried name/class/level/HP and nothing else, so wallet, inventory, status,
+ *  conditions, the attribute readings and the flavor prose reached that surface NOWHERE. One builder cannot
+ *  drift from itself. */
+export function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly RpgStatAttributeDef[]): string {
   const segs: string[] = [actor.name];
   if (actor.sheet.className !== "") {
     segs.push(`(${actor.sheet.className})`);
@@ -277,12 +325,17 @@ function guideLines(cast: RpgTrackerView["cast"][number]): string[] {
 
 /** The `Present:` header — the guide TEACH only when a guide actually exists, so a game whose cast carries
  *  none gets the byte-identical bare label it always had (the no-phantom-teaching rule the feature-gated
- *  teaching blocks follow). */
-function castHeader(cast: RpgTrackerView["cast"]): string {
+ *  teaching blocks follow). EXPORTED with {@link castLine}: the teach and the guides travel TOGETHER, so no
+ *  surface can print a member's unspoken `thoughts` without the line that says never to voice them. */
+export function castHeader(cast: RpgTrackerView["cast"]): string {
   return cast.some((c) => guideLines(c).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
 }
 
-function castLine(
+/** ONE scene-cast member's whole line — identity (emoji/name/mood/relationship), carried trackers, the volatile
+ *  plane, and the standing guides as continuation lines. EXPORTED for `{{rpgCast}}`/`{{rpgSceneState}}`, whose
+ *  own cast builder carried name/mood/relationship/trackers only: an NPC the beat had wounded, robbed, poisoned
+ *  or described reached those macros NOWHERE. */
+export function castLine(
   cast: RpgTrackerView["cast"][number],
   trackers: readonly RpgTrackerEntry[],
   volatileRow: RpgActorVolatile | null,
@@ -314,8 +367,11 @@ function castLine(
 }
 
 /** A GAME-subject tracker's line — the SAME reading every other tracker surface renders. A tracker with no
- *  reading yet still lists (bare label): the model should know the game HAS an Alarm before it moves it. */
-function gameTrackerLine(entry: RpgTrackerEntry): string {
+ *  reading yet still lists (bare label): the model should know the game HAS an Alarm before it moves it.
+ *  EXPORTED for `{{rpgSceneState}}`'s Game-trackers block, which the macro feed carried nowhere at all — a
+ *  game-subject reading (the retired custom widgets) belongs to no actor, so it fell through the cast/party
+ *  split entirely. */
+export function gameTrackerLine(entry: RpgTrackerEntry): string {
   return `- ${trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label}`;
 }
 
@@ -338,8 +394,9 @@ export function plotLine(plot: NonNullable<RpgTrackerView["plot"]>): string {
 
 /** One active quest — the goal line + its open objectives. The `description` rides the head line when the
  *  host wrote one (it is an EDITABLE panel field whose prose reached the model nowhere — the same
- *  filled-but-unread class as the tracker hint). */
-function questLine(quest: RpgTrackerView["quests"][number]): string {
+ *  filled-but-unread class as the tracker hint). EXPORTED for `{{rpgQuests}}`, whose own builder printed the
+ *  bare name (no status, no description). */
+export function questLine(quest: RpgTrackerView["quests"][number]): string {
   const open = quest.objectives.filter((o) => !o.completed);
   const head = quest.description === "" ? `- ${quest.name} [${quest.status}]` : `- ${quest.name} [${quest.status}] — ${quest.description}`;
   if (open.length === 0) {
