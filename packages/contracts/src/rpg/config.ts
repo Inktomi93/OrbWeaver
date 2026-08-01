@@ -20,6 +20,11 @@ export const RPG_STEERING_NOTE_MAX = 500;
  *  budget/cache. `0` = keep none (the reminder drops the "Recent beats" block); the durable log is untouched. */
 export const RPG_RECENT_BEATS_KEEP_DEFAULT = 8;
 
+/** The immersive-card keep-last-X default (M2, §3.5): `0` = every stored card collapses to its `[card: title]`
+ *  stub on the wire — the cache-stable, budget-honest posture. Named so the host editor can state the effective
+ *  default in its empty state instead of re-spelling the literal. */
+export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
+
 /** The per-game FEATURE knobs (parity-plus §9 — the create-time options + advanced config). Additive defaulted
  *  fields on the JSON blob, self-healing at the parse seam (no version stamp — rpg tables carry no versioned
  *  column).
@@ -55,7 +60,7 @@ export const rpgGameFeaturesSchema = z.object({
   immersiveHtmlInteractive: z.boolean().default(true),
   // M2 — the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
   // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture — §3.5).
-  cardKeepLastX: z.number().int().min(0).default(0),
+  cardKeepLastX: z.number().int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
   // P5 — CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
   // model ends turns with a clickable choice set. Default OFF (a strong play-style many tables don't want);
   // the wand's one-shot "Offer choices" covers the this-turn-only ask regardless of the knob. The render is
@@ -110,6 +115,29 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
  *  (`persistence/games.ts`), which is the ONLY place that knows the mode axis ever had a third member. */
 export const RPG_EXTRACTION_MODES = ["folded", "cheap"] as const;
 export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
+
+/** WHY a `folded` game did not fold (D112 (3)) — the TOTAL cause vocabulary, homed here (contracts) because
+ *  BOTH ends read it: the flush derives it per turn for `rpg.extraction.path`, and `RpgGameView` carries it to
+ *  the panel so the freshness surface can say WHY it is rounding instead of claiming "Live" (EFF-3).
+ *    • `no-terminal-channel`     — the wire cannot carry terminal tools at all (an unliftable mount, a
+ *      tools-incapable model): the channel came back `null`. Only a COMPLETED turn knows this.
+ *    • `local-engine-fold-guard` — the wire CAN carry them but goes mute when they ride
+ *      (`coEmitsProseWithTools` false — the measured local vLLM fact), so the mount is withheld ON PURPOSE,
+ *      pre-commit, off the room connection's capability. Knowable BEFORE a turn runs. */
+export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard"] as const;
+export type RpgFoldFallbackReason = (typeof RPG_FOLD_FALLBACK_REASONS)[number];
+
+/** The VEHICLE that produces a turn's state delta — the delivery axis as it actually LANDS, distinct from the
+ *  `extractionMode` KNOB that asks for it (D112 (3): a `folded` game does not always fold). One home for the
+ *  words so the flush's observability line and the panel's freshness surface cannot drift:
+ *    • `folded`     — the character turn co-emitted its own state; ZERO extra model calls, state lands AT commit.
+ *    • `tool-round` — a dedicated post-commit model call writes this beat's state (the host's `cheap` choice, or
+ *      a `folded` game that could not fold — `fallbackReason` names which).
+ *    • `none`       — NO state round runs at all: the resolved connection has no model write path for this game
+ *      (`deriveTrackersReadOnly`), so the flush returns before any vehicle. A ROOM-level verdict only — a flush
+ *      that reports a path has already passed that gate, so its own field excludes this member. */
+export const RPG_DELIVERY_PATHS = ["folded", "tool-round", "none"] as const;
+export type RpgDeliveryPath = (typeof RPG_DELIVERY_PATHS)[number];
 
 /** The extraction-CONTEXT knob (the crunchy-cluster redesign §1.3) — how much of the turn's OWN story the
  *  post-narration state round reads as evidence. The round rides the character turn's already-loaded canon

@@ -30,7 +30,8 @@ function gameChat(): unknown {
 }
 
 // A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate) + the delivery-model
-// knob (the freshness-indicator driver). Defaults `cheap` (the two-call arm — the lagging label) unless overridden.
+// knob and its EFFECTIVE resolution (the freshness-indicator driver since EFF-3). Defaults `cheap` (the
+// two-call arm — the lagging label) unless overridden.
 function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "cheap"): unknown {
   return {
     id: GAME_ID,
@@ -41,6 +42,11 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
     // The born-state round's own capability verdict (`hasStructuredWriter`) — a real `getGame` always carries it.
     canPopulate: true,
     extractionMode,
+    // What the knob RESOLVES to on this room's connection — the server derives it (`deriveEffectiveDelivery`);
+    // the stub mirrors the un-degraded arm of that derivation, plus the readonly case's no-vehicle verdict.
+    effectiveDelivery: trackersReadOnly
+      ? { path: "none", fallbackReason: null }
+      : { path: extractionMode === "folded" ? "folded" : "tool-round", fallbackReason: null },
     publicConfig: {
       statProfile: {
         attributes: [],
@@ -193,6 +199,10 @@ function configView(): unknown {
     omniscience: false,
     hiddenContentReveal: true,
     recentBeatsKeepLast: 6,
+    // The §1.3 extraction-depth trio the scalar form now edits (`toGmConsoleForm` reads all three).
+    extractionContext: "window",
+    extractionWindowTokens: 4096,
+    reconcileEveryBeats: 10,
     // The P4/P5 knobs the scalar form projects (`toGmConsoleForm`).
     immersiveHtml: false,
     immersiveHtmlInteractive: false,
@@ -933,6 +943,7 @@ function d20Game(): unknown {
     trackersReadOnly: false,
     canPopulate: true,
     extractionMode: "cheap",
+    effectiveDelivery: { path: "tool-round", fallbackReason: null },
     publicConfig: {
       statProfile: {
         attributes: [{ key: "str", label: "STR", hint: "raw physical power" }],
@@ -1268,6 +1279,74 @@ test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is D
   await interactive.click();
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(2);
   await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { immersiveHtml: true, immersiveHtmlInteractive: true } });
+});
+
+// R4c — `journalTypeHints` was stored, READ (the extraction prompt renders each gloss into the tool
+// descriptions the model sees) and unauthorable: a host could define a custom beat type and had no way to say
+// what it meant. The editor is the relationship-hints block, second instance.
+test("the Game tab adds and glosses a CUSTOM JOURNAL TYPE — each write fires the ONE config door", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // The stub carries NO journal-type hints — the empty state has to say what an empty map MEANS, not just
+  // render nothing (an absent section reads as "unbuilt").
+  const tab = component.locator('[data-slot="rpg-game-tab"]');
+  await expect(tab).toContainText("No custom journal types glossed yet");
+
+  // ADD — the shared AddRow: a name is required first, Enter commits it, and the row is born gloss-less.
+  const draft = tab.getByRole("textbox", { name: "New journal type" });
+  await draft.fill("omen");
+  await draft.press("Enter");
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig"), { intervals: [20, 50, 100] }).toMatchObject({ patch: { journalTypeHints: { omen: "" } } });
+
+  // GLOSS the relationship label that IS in the stub — the same block, the same gesture, its own patch field
+  // (the write must land on `relationshipHints`, never leak into the journal map they share a component with).
+  await tab.getByRole("button", { name: "debtor hint" }).click();
+  const hint = tab.getByRole("textbox", { name: "debtor hint" });
+  await hint.fill("owes the party blood, not coin");
+  await hint.blur();
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(2);
+  await expect
+    .poll(() => trpc.lastInput("rpg.updateConfig"), { intervals: [20, 50, 100] })
+    .toMatchObject({ patch: { relationshipHints: { debtor: "owes the party blood, not coin" } } });
+});
+
+// The §1.3 depth/budget NUMBERS were stored + wired (the reminder slice, the state round's evidence window,
+// the reconcile cadence) with no editor — the D107 dead-switch class. The stepper writes through the SAME
+// autosave form the toggles use, so its patch carries the whole scalar bag.
+test("the Game tab's numeric knobs write through the config door — the reminder slice and the extraction window", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // The field shows the game's CURRENT value honestly (the stub's 6, not the schema default 8) — and its
+  // placeholder still names the default, so a cleared box reads as configured-by-default, not broken.
+  const beats = component.getByRole("textbox", { name: "Recent beats in the reminder" });
+  await expect(beats).toHaveValue("6");
+  await expect(beats).toHaveAttribute("placeholder", "8 (default)");
+  // Step it (the stepper's keyboard arm — one deterministic decrement, no fill-vs-caret ambiguity).
+  await beats.click();
+  await beats.press("ArrowDown");
+  await expect(beats).toHaveValue("5");
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { recentBeatsKeepLast: 5 } });
+
+  // The window budget is APPLICABILITY-bound to the `window` context arm (the stub's) — and the extraction
+  // trio rides the same door, so an unrelated depth edit must not disturb the beats value just written.
+  const windowBudget = component.getByRole("textbox", { name: "Window budget (tokens)" });
+  // The stepper renders its number grouped for reading (4,096) and steps by the contract's own granularity.
+  await expect(windowBudget).toHaveValue("4,096");
+  await windowBudget.click();
+  await windowBudget.press("ArrowUp");
+  await expect(windowBudget).toHaveValue("4,608");
+  await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [50, 100, 200] }).toBe(2);
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { extractionWindowTokens: 4608, recentBeatsKeepLast: 5 } });
+
+  // `beat` has no window to budget — the field is ABSENT, never a disabled twin ([no-separate-reduced-modes]).
+  await component.getByRole("button", { name: "beat", exact: true }).click();
+  await expect(component.getByRole("textbox", { name: "Window budget (tokens)" })).toHaveCount(0);
 });
 
 test("a MEMBER's grid tile is a card, not a door (PERMISSION-omit, never a disabled twin)", async ({ mount, page }) => {

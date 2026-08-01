@@ -51,6 +51,43 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.features.journalTypeHints).toEqual({ ritual: "a binding performed aloud" });
   });
 
+  test("M4 hiddenContentReveal: the host can turn their OWN reveal eye off, and an unrelated edit never turns it back on", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    expect((await findGameByChat(db, chatId))?.config.features.hiddenContentReveal).toBe(true);
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { hiddenContentReveal: false } });
+    expect((await findGameByChat(db, chatId))?.config.features.hiddenContentReveal).toBe(false);
+    // The knob's whole point is a PURE-hidden posture the host chose; a steeringNote edit silently restoring
+    // the eye would hand them back the peek they deliberately gave up.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "blind too" } });
+    expect((await findGameByChat(db, chatId))?.config.features.hiddenContentReveal).toBe(false);
+  });
+
+  test("§1.3 extraction-depth trio: context/window budget/reconcile cadence all land, and each survives an unrelated edit", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    // Born defaults (the ratified round-1 owner values).
+    let game = await findGameByChat(db, chatId);
+    expect(game?.config.extractionContext).toBe("window");
+    expect(game?.config.extractionWindowTokens).toBe(4096);
+    expect(game?.config.reconcileEveryBeats).toBe(10);
+    await h.service.updateConfig({
+      principal: principal("host"),
+      chatId,
+      patch: { extractionContext: "full", extractionWindowTokens: 8192, reconcileEveryBeats: 0 },
+    });
+    game = await findGameByChat(db, chatId);
+    expect(game?.config.extractionContext).toBe("full");
+    expect(game?.config.extractionWindowTokens).toBe(8192);
+    expect(game?.config.reconcileEveryBeats).toBe(0);
+    // Keep-on-omit ([versioned-config-lift-drops-overrides]): `reconcileEveryBeats: 0` is the trap value — a
+    // merge written with `??` on a falsy-check instead of an undefined-check would silently restore the
+    // every-10-beats cadence (and its cost) on the next unrelated write.
+    await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "unrelated" } });
+    game = await findGameByChat(db, chatId);
+    expect(game?.config.extractionContext).toBe("full");
+    expect(game?.config.extractionWindowTokens).toBe(8192);
+    expect(game?.config.reconcileEveryBeats).toBe(0);
+  });
+
   test("#40 engaged toggle: OFF disengages + re-writes the pointer mirror; survives an unrelated edit; ON restores", async () => {
     const { chatId, h } = await seedLiteGame(db);
     // Born engaged (the createGame pointer carries engaged:true).

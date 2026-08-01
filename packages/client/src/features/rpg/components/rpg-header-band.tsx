@@ -76,7 +76,7 @@ export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | nu
       trackerOrbs={state.tracker.trackerOrbs}
       viewerUserId={state.viewerUserId}
       trackersReadOnly={state.tracker.trackersReadOnly}
-      extractionMode={state.game.extractionMode}
+      delivery={state.game.effectiveDelivery}
       dateMode={state.game.publicConfig.dateMode}
       freshnessPending={turnLive}
       // The host-only veiled count on the cues row (§2/§6 P3) — PERMISSION-omit for a member.

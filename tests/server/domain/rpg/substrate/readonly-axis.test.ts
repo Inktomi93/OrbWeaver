@@ -4,7 +4,7 @@
 // keyed by capability alone (`hasStructuredWriter`). NO silent downgrade.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import { deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis";
+import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis";
 import { expect, test } from "../../../../support/fixtures";
 
 /** A minimal capability with the two write-relevant axes toggleable. */
@@ -36,6 +36,36 @@ test("the STRUCTURED write path (resync / the agent-sdk degrade) keys on structu
   expect(hasStructuredWriter(capability({ tools: true, structured: false }))).toBe(false);
   // …and the per-turn modes do not inherit it: tools are their vehicle, structured output is not.
   expect(deriveTrackersReadOnly("cheap", capability({ structured: true, tools: false }))).toBe(true);
+});
+
+// EFF-3 — the EFFECTIVE delivery the panel's freshness pill renders. The bug it closes: the pill keyed on the
+// MODE, so every `folded` game claimed "Live", including the ones the fold guard silently downgraded to the
+// post-commit round (D112 (4)'s KNOWN GAP).
+
+test("EFF-3: a folded game that folds is `folded` with no downgrade cause", () => {
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: false })).toEqual({ path: "folded", fallbackReason: null });
+});
+
+test("EFF-3: a FOLD-GUARDED folded game reports the round it actually runs, and NAMES the cause", () => {
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true })).toEqual({
+    path: "tool-round",
+    fallbackReason: "local-engine-fold-guard",
+  });
+});
+
+test("EFF-3: an EXPLICIT cheap game rounds with NO cause — the host got what they asked for, nothing was downgraded", () => {
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: false })).toEqual({ path: "tool-round", fallbackReason: null });
+  // The guard governs only where `folded` lands (D112 as amended): it must never re-label an explicit choice
+  // as a degrade, or the panel would blame the model for the host's own knob.
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: true })).toEqual({ path: "tool-round", fallbackReason: null });
+});
+
+test("EFF-3: no model write path ⇒ `none` — no vehicle runs, so neither freshness claim is true", () => {
+  // The readonly verdict WINS over both other inputs: the flush's F2 gate returns before any round, so a
+  // "one beat behind" label would be as false as "Live". Every input combination collapses to the same answer.
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: false })).toEqual({ path: "none", fallbackReason: null });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: true })).toEqual({ path: "none", fallbackReason: null });
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: true, foldGuarded: false })).toEqual({ path: "none", fallbackReason: null });
 });
 
 test("R1: folded keys on tools too — it mounts the SAME tools, just on the character turn", () => {
