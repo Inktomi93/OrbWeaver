@@ -32,7 +32,7 @@ import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChat
 import { ChatListRow } from "../components/chat-list-row";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
 import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { chatPortraits } from "../lib/chat-summary-row";
+import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 import { recentFaces } from "../lib/recent-faces";
 
@@ -110,9 +110,19 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
     setChatListCharacterFilter({ id: castId<CharacterId>(id), name: face.name });
   };
   // Captions on: this strip is a NAMED shortcut list (the library's favorites strip stays portraits-only),
-  // so a face you haven't opened in a week is still identifiable without hovering it.
+  // so a face you haven't opened in a week is still identifiable without hovering it. The kicker is the
+  // mock's group label (side-eye P2b) — without it the row of portraits reads as decoration, and a cold user
+  // never learns that tapping one scopes the list below.
   return (
-    <FaceStrip caption={true} items={faces} label="Recent characters" onSelect={scopeToFace} selectedId={characterFilter?.id ?? null} verb="Show chats with" />
+    <FaceStrip
+      caption={true}
+      items={faces}
+      kicker="Faces"
+      label="Recent characters"
+      onSelect={scopeToFace}
+      selectedId={characterFilter?.id ?? null}
+      verb="Show chats with"
+    />
   );
 }
 
@@ -236,15 +246,19 @@ function ChatRows({
       />
     );
   }
+  // The action-name disambiguators, resolved across the WHOLE rendered list (side-eye P2c): rows that share
+  // a title AND a shown stamp escalate to a longer one, so no two rows announce the same action name.
+  const qualifiers = chatRowQualifiers(filtered);
   return (
     <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
-      {filtered.map((chat) => (
+      {filtered.map((chat, index) => (
         <ChatListRow
           chat={chat}
           key={chat.id}
           onDeletedChat={onDeletedChat}
           onSelect={onSelect}
           portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+          qualifier={qualifiers[index]}
           selected={chat.id === activeChatId}
         />
       ))}

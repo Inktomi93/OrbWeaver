@@ -44,14 +44,18 @@ export interface FaceStripProps {
   readonly verb?: string;
   /** Print each face's name under it. Off by default (the favorites strip is portraits only). */
   readonly caption?: boolean;
+  /** A micro-caps KICKER printed above the faces (the mock's group label). Without it a cold user reads a
+   *  bare row of portraits and can't tell it is a control at all — the strip's accessible `label` only
+   *  reaches assistive tech. Omit for a strip whose surrounding copy already names it. */
+  readonly kicker?: string;
 }
 
 /** A scrolling row of clickable faces; renders nothing when there are none. */
-export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", caption = false }: FaceStripProps): ReactElement | null {
+export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", caption = false, kicker }: FaceStripProps): ReactElement | null {
   if (items.length === 0) {
     return null;
   }
-  return (
+  const faces = (
     <Row aria-label={label} className="overflow-x-auto" gap="field" role="list">
       {items.map((item) => (
         <Button
@@ -74,9 +78,11 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
               {initialsFor(item.name)}
             </Avatar>
             {caption ? (
-              // Capped on a display token (~6ch at micro) so a long name can't warp the strip's rhythm;
-              // the FULL name stays the button's accessible name, so nothing is lost to the truncation.
-              <Text className="w-avatar-lg truncate text-center" size="micro" tone="muted">
+              // NATURAL width up to a generous ceiling (side-eye P2a): the mock prints full names, and the
+              // old fixed `w-avatar-lg` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The
+              // ceiling is a max, not a width, so short names take exactly their own space and only a long
+              // one truncates — with the FULL name still the button's accessible name.
+              <Text className="max-w-avatar-hero truncate text-center" size="micro" tone="muted">
                 {item.name}
               </Text>
             ) : null}
@@ -84,5 +90,16 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
         </Button>
       ))}
     </Row>
+  );
+  if (kicker === undefined) {
+    return faces;
+  }
+  return (
+    <Stack gap="field">
+      <Text size="micro" tone="muted" transform="caps" weight="semibold">
+        {kicker}
+      </Text>
+      {faces}
+    </Stack>
   );
 }

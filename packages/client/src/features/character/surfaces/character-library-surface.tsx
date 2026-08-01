@@ -22,6 +22,7 @@ import { useFocusOnMount } from "#lib";
 import {
   clearCharacterSelection,
   selectCharacter,
+  selectCharacterFromPicker,
   selectChat,
   setActiveSection,
   startNewChat,
@@ -121,7 +122,9 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
     [items, deferredQuery, favoritesOnly, showArchived, tagFilter],
   );
 
-  const openEditor = (id: string): void => selectCharacter(castId<CharacterId>(id));
+  // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
+  // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
+  const openEditor = (id: string): void => selectCharacterFromPicker(castId<CharacterId>(id));
   const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { starred: next } });
   const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: castId<CharacterId>(id), input: { archived: next } });
   const toggleBulk = (id: string): void => collection.selection.toggle(id);

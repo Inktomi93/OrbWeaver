@@ -19,6 +19,15 @@ export interface ListRowProps {
    */
   meta?: string;
   /**
+   * Rest-VISIBLE state markers (a game glyph, a pressed star, an "Archived" badge) — rendered on the TITLE
+   * LINE beside `meta`, inside the content column. That is what lets a row whose CONTROLS are all
+   * hover-revealed float its whole `actions` cluster (`actionsFloat`) unconditionally: markers earn their
+   * width where the text already is, instead of pinning an in-flow trailing cluster the controls hide in.
+   * Their labels ride the row's `aria-describedby` (like `subtitle`/`meta`), so the datum survives for a
+   * screen reader even though the body's accessible NAME stays the `title` alone. Glyph-scale content only.
+   */
+  markers?: ReactNode;
+  /**
    * Optional hover/:focus-within reveal that display-swaps the `subtitle` on the same content-
    * column line. Lives in the content column (never `actions`), so it truncates within the
    * column rather than contending with trailing buttons for width. Requires `subtitle` to swap against.
@@ -72,11 +81,13 @@ export interface ListRowProps {
  */
 type Slots = ReturnType<typeof listRowVariants>;
 
-/** The DOM ids of the row's describing spans (subtitle · meta), for the body's `aria-describedby`.
- *  Undefined-when-absent so callers space-join only the present ones (empty string ⇒ omit the attr). */
+/** The DOM ids of the row's describing spans (subtitle · meta · markers), for the body's
+ *  `aria-describedby`. Undefined-when-absent so callers space-join only the present ones (empty string ⇒
+ *  omit the attr). */
 interface ListRowDescriptors {
   subtitleId: string | undefined;
   metaId: string | undefined;
+  markersId: string | undefined;
 }
 
 /** The body's inner content — strictly phrasing content so it's valid inside the clickable button. The
@@ -90,6 +101,7 @@ function ListRowContent({
   subtitle,
   subtitleReveal,
   meta,
+  markers,
   ids,
 }: {
   slots: Slots;
@@ -98,6 +110,7 @@ function ListRowContent({
   subtitle: string | undefined;
   subtitleReveal: string | undefined;
   meta: string | undefined;
+  markers: ReactNode;
   ids: ListRowDescriptors;
 }): ReactElement {
   // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
@@ -116,6 +129,11 @@ function ListRowContent({
           <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={title}>
             {title}
           </span>
+          {markers === undefined ? null : (
+            <span className={slots.markers()} data-slot="list-row-markers" id={ids.markersId}>
+              {markers}
+            </span>
+          )}
           {meta === undefined ? null : (
             <span className={slots.meta()} data-slot="list-row-meta" id={ids.metaId}>
               {meta}
@@ -218,6 +236,7 @@ export function ListRow({
   subtitle,
   subtitleReveal,
   meta,
+  markers,
   actions,
   renderActions,
   collapseBelow,
@@ -237,7 +256,8 @@ export function ListRow({
   const baseId = useId();
   const subtitleId = subtitle === undefined ? undefined : `${baseId}-subtitle`;
   const metaId = meta === undefined ? undefined : `${baseId}-meta`;
-  const describedBy = [subtitleId, metaId].filter((id) => id !== undefined).join(" ") || undefined;
+  const markersId = markers === undefined ? undefined : `${baseId}-markers`;
+  const describedBy = [subtitleId, metaId, markersId].filter((id) => id !== undefined).join(" ") || undefined;
   return (
     <div className={slots.root({ className })} data-slot="list-row-root" ref={rootRef}>
       <ListRowBody
@@ -250,8 +270,9 @@ export function ListRow({
         slots={slots}
       >
         <ListRowContent
-          ids={{ subtitleId, metaId }}
+          ids={{ subtitleId, metaId, markersId }}
           leading={leading}
+          markers={markers}
           meta={meta}
           slots={slots}
           subtitle={subtitle}

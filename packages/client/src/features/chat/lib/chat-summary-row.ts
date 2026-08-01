@@ -5,6 +5,7 @@
 // components/chat-summary-row.tsx (biome forbids a component + a plain export in one module).
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
+import { rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 
@@ -51,6 +52,18 @@ export function chatPortraits(participantCharacterIds: readonly string[], charac
  *  ALREADY shows in its meta slot, so what is announced matches what is on screen. */
 export function chatRowActionName(title: string, stamp: string): string {
   return `"${title}" · ${stamp}`;
+}
+
+/** The per-row disambiguators for ONE rendered chats list, in list order (`rowQualifiers`, side-eye P2c).
+ *  The row's own stamp is the discriminator until it collides — which it does on exactly the list this
+ *  projection produces (N rows titled "Azarael", the newest few all "2h") — and then it escalates. Both
+ *  chats panes call THIS, so the two lists disambiguate identically. */
+export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly string[] {
+  return rowQualifiers(
+    chats.map((chat) => ({ name: deriveChatTitle(chat.title, chat.participantNames), at: chat.lastMessageAt ?? chat.updatedAt })),
+    timeLib.formatRelativeCompact,
+    timeLib.formatDateTime,
+  );
 }
 
 /** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when

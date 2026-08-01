@@ -72,7 +72,11 @@ export interface ChatSummary {
    *  rpg-table-blind: no join, no cross-domain read; a detached/healed pointer, or a game toggled OFF, is
    *  `false` — a disengaged game shows no panel, so it shows no marker). */
   readonly isGame: boolean;
-  /** The resolved present cast for the list-card avatars (names only — the heavy roster is `getChat`). */
+  /** The resolved present cast for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
+   *  the VIEWER'S OWN seat is suppressed while any other seat remains, so an untitled row reads "Niko", not
+   *  "You, Niko" (side-eye NR4 — the viewer is in every chat they can list, so their own name is a constant
+   *  prefix that carries nothing and costs title width). A solo/self chat keeps its name, so the row never
+   *  falls through to "Untitled chat". */
   readonly participantNames: readonly string[];
   /** The character-SEAT ids in this chat — the reverse "which chats include character X" read backing the
    *  FINAL-Character §7 Activity tab (every chat you've had with a character) + the §4.4/§9c resume-or-new

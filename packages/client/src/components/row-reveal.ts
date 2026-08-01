@@ -10,3 +10,10 @@
 // Every arm that restores the opacity restores the hit-testing with it.
 export const ROW_REVEAL =
   "pointer-events-none opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100";
+
+/** ROW_REVEAL's other half — for the rest-visible MARKER whose datum the revealed control also carries (a
+ *  starred row's title-line ★ and the star toggle in the floated cluster are one concept). The marker shows
+ *  exactly when the cluster is hidden and hides exactly when it reveals, so the row never paints the same
+ *  state twice. Keyed on `group/row` (the `@orb/ui` ListRow root) rather than the consumer's bare `group`,
+ *  because a marker on the title line sits INSIDE the row body, which is its own unnamed group. */
+export const ROW_REVEAL_SWAP = "group-hover/row:hidden group-focus-within/row:hidden pointer-coarse:hidden";

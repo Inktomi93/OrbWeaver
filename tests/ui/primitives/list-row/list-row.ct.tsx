@@ -108,6 +108,37 @@ test("meta (timestamp) is inside the accessible content — part of the descript
   await expect(page.locator('[data-slot="list-row-body"] [data-slot="list-row-meta"]')).toHaveText("18m ago");
 });
 
+// The `markers` slot: rest-visible STATE on the title line (the ⚔/★/Archived cluster a chats row shows),
+// so a row whose controls are all hover-revealed can float its whole `actions` cluster. Same a11y contract
+// as `meta` — the marker labels are a DESCRIPTION, never part of the row's name.
+test("markers ride the title line and join the description — never the accessible name", async ({ mount, page }) => {
+  await mount(
+    <ListRow
+      clickable={true}
+      markers={
+        <span aria-label="Starred" role="img">
+          ★
+        </span>
+      }
+      meta="18m ago"
+      subtitle="You, Mara"
+      title="Group UX review"
+    />,
+  );
+  const row = page.getByRole("button");
+  await expect(row).toHaveAccessibleName("Group UX review");
+  await expect(row).toHaveAccessibleDescription("You, Mara 18m ago Starred");
+  // In the TITLE ROW (the text column), not a trailing `actions` sibling — that placement is the whole
+  // point: markers spend width where the text already is, leaving the cluster free to float.
+  await expect(page.locator('[data-slot="list-row-title-row"] [data-slot="list-row-markers"]')).toHaveCount(1);
+});
+
+test("no markers ⇒ no marker slot at all (a data-driven zone, never a reserved empty box)", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} meta="18m ago" title="Group UX review" />);
+  await expect(page.locator('[data-slot="list-row-markers"]')).toHaveCount(0);
+  await expect(page.getByRole("button")).toHaveAccessibleDescription("18m ago");
+});
+
 test("selected reads via a 2px left ember bar (rides --color-primary) + aria-current", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} selected={true} title="Elara" />);
   const row = page.getByRole("button", { name: "Elara" });

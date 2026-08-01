@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { useFocusOnMount } from "#lib";
+import { rowQualifiers, timeLib, useFocusOnMount } from "#lib";
 import { selectPreset, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row";
 import { PresetRenameDialog } from "../components/preset-rename-dialog";
@@ -100,6 +100,11 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
   };
 
   const renamePreset = presets.find((p) => p.id === renameId) ?? null;
+  const qualifiers = rowQualifiers(
+    filtered.map((preset) => ({ name: preset.name, at: preset.updatedAt })),
+    timeLib.formatRelative,
+    timeLib.formatDateTime,
+  );
 
   return (
     <>
@@ -137,7 +142,7 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         searchPlaceholder="Search presets"
         searchValue={query}
       >
-        {filtered.map((preset) => (
+        {filtered.map((preset, index) => (
           <PresetLibraryRow
             active={preset.id === activeId}
             key={preset.id}
@@ -146,6 +151,10 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
             onRename={(id): void => setRenameId(id)}
             onSelect={onSelectPreset}
             preset={preset}
+            // The action-name disambiguator, resolved across the WHOLE list (side-eye P2c): the fork
+            // workflow mints rows that share a name exactly, and eight minted in the same hour also share
+            // "9h ago" — the per-row stamp then produced eight identical accessible names.
+            qualifier={qualifiers[index] ?? ""}
             selected={preset.id === selectedId}
           />
         ))}

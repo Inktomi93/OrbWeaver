@@ -6,15 +6,17 @@
 // Instrument tier (§6): `p-row` pad, `rounded-base`, NO border box — the identity row is a read-only
 // kicker-weight header, not a card (CD1).
 //
-// A11y: entering the projection is a pane SWAP, so focus moves to this container (`tabIndex={-1}`) — a
-// swap that drops focus to `<body>` is a defect, not a polish item. The first Tab from here lands on the
-// band's back affordance.
+// A11y: entering the projection FROM THE PICKER is a pane SWAP, so focus moves to this container
+// (`tabIndex={-1}`) — a swap that drops focus to `<body>` is a defect, not a polish item. The first Tab from
+// here lands on the band's back affordance.
 //
-// The focus is UNCONDITIONAL, NOT `useFocusOnMount` (side-eye P1-1): the click that selects a character
-// unmounts the picker row the user just pressed, so by the time a mount effect runs `document.activeElement`
-// is ALREADY `<body>` — the hook's initial-page-load guard reads that as a cold load and skips, and the swap
-// silently drops focus. This surface only ever mounts on a selection (a user action), so it has no cold-load
-// case to guard against; the hook's guard stays right for its other callers, which mount on first paint.
+// The owner is a DECISION, not a race (side-eye P1, round 2). `useFocusOnMount` can't decide it: the click
+// that selects a character unmounts the picker row the user pressed, so `document.activeElement` is already
+// `<body>` and the hook's cold-load guard skips. But focusing UNCONDITIONALLY (round 1) was an own-goal — it
+// un-jams the CONTENT editor's copy of that same guard, and the editor, mounting after its query lands,
+// takes the focus straight back. So the INTENT that wrote the selection carries the owner
+// (`listProjectionOwnsFocus`, state/character-selection-store.ts): a pick from the LIST PICKER lands here; a
+// deep link / agent nav / fresh create leaves focus with the editor, which keeps its own behavior.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
@@ -28,6 +30,7 @@ import { useEffect, useRef } from "react";
 import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { chatsWithCharacter, timeLib } from "#lib";
+import { listProjectionOwnsFocus } from "#state";
 import { CHARACTER_CHATS_PROJECTION_SLOT, startChatWithCharacter } from "../lib/character-chat-intents";
 
 export interface CharacterChatsProjectionShellProps {
@@ -38,10 +41,12 @@ export interface CharacterChatsProjectionShellProps {
 
 export function CharacterChatsProjectionShell({ characterId, chatsProjection }: CharacterChatsProjectionShellProps): ReactElement {
   const paneRef = useRef<HTMLDivElement>(null);
-  // Mount = the swap just happened (see the header): take focus, no activeElement precondition.
+  // The swap's focus owner, decided by the selection intent (see the header) — read once, at mount.
   useEffect(() => {
-    paneRef.current?.focus();
-  }, []);
+    if (listProjectionOwnsFocus(characterId)) {
+      paneRef.current?.focus();
+    }
+  }, [characterId]);
   const trpc = useTRPC();
   const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const name = data?.name ?? "";
@@ -63,8 +68,12 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   );
 }
 
-/** Portrait · name · the gloss census (`7 chats · last 2h ago`). The count rides the ONE projection
- *  predicate, so the gloss, the hero's "N chats" and the rows below can never disagree. */
+/** Portrait · name · the RECENCY gloss (`last 2h ago`).
+ *
+ *  NOT a census (side-eye NR5/NR2): the pane directly below this row IS the census — printing "7 chats"
+ *  over seven visible rows, or "no chats yet" over an empty state that says exactly that, is the same
+ *  statement twice. Recency is the one thing the rows don't state at a glance, so it is what survives; the
+ *  editor hero's "N chats ›" keeps the count, which is CONTENT tier and has no list under it. */
 function IdentityRow({
   characterId,
   name,
@@ -78,10 +87,7 @@ function IdentityRow({
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
   const projected = chatsWithCharacter(chats ?? [], characterId);
   const newest = projected[0];
-  const gloss =
-    projected.length === 0
-      ? "no chats yet"
-      : `${projected.length} ${projected.length === 1 ? "chat" : "chats"} · last ${timeLib.formatRelative(newest?.lastMessageAt ?? newest?.updatedAt ?? 0)}`;
+  const gloss = newest === undefined ? null : `last ${timeLib.formatRelative(newest.lastMessageAt ?? newest.updatedAt)}`;
   const avatarSrc = avatarHash === null ? {} : { src: blobUrl(avatarHash) };
 
   return (
@@ -96,9 +102,11 @@ function IdentityRow({
         <Text className="truncate" size="title" weight="semibold">
           {name}
         </Text>
-        <Text className="font-mono" size="micro" tone="muted">
-          {gloss}
-        </Text>
+        {gloss === null ? null : (
+          <Text className="font-mono" size="micro" tone="muted">
+            {gloss}
+          </Text>
+        )}
       </Stack>
     </Row>
   );
