@@ -41,6 +41,11 @@ export interface ContextTabDef<S> {
   /** Rail membership for a CLAIMED pane (HUD-1 §4). Absent ⇒ `"meta"` (administration), so an untouched
    *  section never has to think about it. */
   readonly strip?: ContextTabStrip;
+  /** HOST-ONLY affordance (HUD-1 §4): a claimant paints this cell's glyph crown-gold at rest. Declared by
+   *  the tab's OWNER for {@link strip}'s reason (owner decision 5) — the alternative is a claimant carrying
+   *  a list of foreign tab ids, i.e. rpg knowing chat's vocabulary. PRESENTATION only, never a gate: the
+   *  host-only-ness is enforced by `when` (PERMISSION-omit). Absent ⇒ false. */
+  readonly crown?: boolean;
   /** A changed-since-viewed marker (§4.6): a truthy boolean ⇒ a corner dot; a number \> 0 ⇒ a count. `null`
    *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
    *  the active tab (the strip suppresses it). */
@@ -66,6 +71,8 @@ export interface ResolvedContextTab {
   readonly icon?: LucideIcon;
   readonly node: ReactNode;
   readonly strip: ContextTabStrip;
+  /** RESOLVED host-only marker (HUD-1 §4), defaulted to `false` — the renderer never sees an absent field. */
+  readonly crown: boolean;
   readonly badge: number | boolean | null;
   readonly disabledReason: string | null;
   /** RESOLVED preferred-default flag (Context-Panel-Program §4.1): `true` ⇒ the panel lands here when no
@@ -164,6 +171,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
     label: tab.label,
     node: tab.body(state),
     strip: tab.strip ?? "meta",
+    crown: tab.crown ?? false,
     badge: tab.badge?.(state) ?? null,
     disabledReason: tab.disabledReason?.(state) ?? null,
     defaultTab: tab.defaultTab?.(state) ?? false,

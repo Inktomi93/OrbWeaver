@@ -175,9 +175,30 @@ export const waystoneVariants = tv({
     // The steps are CONTAINER breakpoints off the `--container-*` scale (sm = 24rem, xs = 20rem), never
     // viewport ones (§4b axis-1). The previous `@max-lg`/`@max-md` (32rem/28rem) were both ABOVE the panel's
     // 30rem ceiling, so even a maxed-out panel could only ever have reached the smallest step.
-    root: "block size-30 @max-sm:size-24 @max-xs:size-19",
+    root: "block",
     track: "text-muted",
   },
+  variants: {
+    // THE UNSET STONE IS ONE STEP SMALLER AT EVERY CONTAINER STEP (HUD-1 §7.3 — the band's compressed
+    // form). The size exists so the LAYERS read: the interpolated sky, the walking celestial, the stars,
+    // the weather, the hand. With no clock there is none of that — no treatment resolves at all — so the
+    // stone is a PROMISE of a reading rather than a reading, and paying the focal element's footprint for
+    // an empty disc is exactly the vertical budget F6 measured being burned (a ~140px band saying "No
+    // ambient set").
+    //
+    // DERIVED FROM THE DATUM, NOT PASSED IN. §7.3 sketched this as a `compact` boolean on the caller, and
+    // that spelling is RED here: `no-layout-context-props` (D42/D43) bans `compact`/`density`/`inDrawer`
+    // props precisely because a parent telling a child how to look is the anti-pattern the container model
+    // replaced. Reading it off `clock === null` is the stronger form of what that flag was for — the caller
+    // spells no size and makes no size decision, and this file stays the ONE sizing home (side-eye F16).
+    unset: {
+      false: { root: "size-30 @max-sm:size-24 @max-xs:size-19" },
+      // The globals.css SIZE-GATING has a matching `[data-phase="unset"]` arm, so the sub-pixel layers drop
+      // at the container step where the SMALLER stone gets too small, never one step late.
+      true: { root: "size-24 @max-sm:size-19 @max-xs:size-15" },
+    },
+  },
+  defaultVariants: { unset: false },
 });
 
 export const ringGaugeVariants = tv({

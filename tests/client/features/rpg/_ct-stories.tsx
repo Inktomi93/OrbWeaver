@@ -28,7 +28,7 @@ import { CHAT_ID } from "../chat/fixtures";
 /** Mounts the chats section's CONTEXT through the real host, with BOTH rpg contributions merged in — the tab
  *  contributors AND the whole-pane HUD region claim — built here with the CT's own trpc/queryClient (the
  *  door-injection both factories take). Bounded height so the band + two rails + viewport have real room. */
-function RpgTakeoverHarness(): ReactElement {
+function RpgTakeoverHarness({ width, height }: { readonly width: number; readonly height: number }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const contributors = useMemo(
@@ -41,12 +41,12 @@ function RpgTakeoverHarness(): ReactElement {
   );
   return (
     <CtChatContributorSectionRegistry contextContributors={contributors} contextRegions={regions}>
-      <RpgTakeoverInner />
+      <RpgTakeoverInner width={width} height={height} />
     </CtChatContributorSectionRegistry>
   );
 }
 
-function RpgTakeoverInner(): ReactElement {
+function RpgTakeoverInner({ width, height }: { readonly width: number; readonly height: number }): ReactElement {
   const registry = useSectionRegistry();
   const definition = registry.get("chats");
   // Mirror the REAL CONTEXT panel anatomy (app-shell.tsx + PanelChrome): the `.shell-panel` aside, its
@@ -58,7 +58,7 @@ function RpgTakeoverInner(): ReactElement {
   // its own band inside the body — so keeping the slot here is deliberate: the CT proves it stays empty
   // rather than assuming it was never mounted.
   return (
-    <div style={{ height: 640, width: 320, display: "flex", flexDirection: "column" }}>
+    <div style={{ height, width, display: "flex", flexDirection: "column" }}>
       <aside className="shell-panel" data-panel-mode="docked" data-panel-side="context" style={{ flex: "1 1 auto", minHeight: 0 }}>
         <header className="shell-panel-header">
           <SectionContextHeader key="chats-header" definition={definition} />
@@ -81,7 +81,22 @@ export function RpgTakeoverStory(): ReactElement {
   }, []);
   return (
     <CtDataProviders>
-      <RpgTakeoverHarness />
+      <RpgTakeoverHarness width={320} height={640} />
+    </CtDataProviders>
+  );
+}
+
+/** The SAME takeover at HUD-1 §7.1's stated budget reference — a 30rem × 900px docked context panel (the
+ *  panel's `clamp(17rem, 30vw, 30rem)` ceiling, at a full-height desktop window). The vertical-budget rule
+ *  is written against exactly this geometry, so the CT that pins it must mount exactly this geometry: a
+ *  ratio measured in the 320×640 story would be answering a different question. */
+export function RpgTakeoverReferenceStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <RpgTakeoverHarness width={480} height={900} />
     </CtDataProviders>
   );
 }

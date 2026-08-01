@@ -87,6 +87,9 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     id: "preview",
     label: "Preview",
     icon: Eye,
+    // HOST-ONLY (HUD-1 §4): `when` already omits it for a member; `crown` is how a CLAIMANT paints that
+    // fact — the crown-gold glyph that reads "host-only" without spending a word on it.
+    crown: true,
     when: (s) => s.phase === "committed" && s.isHost,
     body: (s) => (s.phase === "committed" ? <AssemblyPreviewPanel chatId={s.chatId} /> : null),
   },
