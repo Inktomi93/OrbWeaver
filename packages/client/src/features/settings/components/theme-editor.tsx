@@ -18,9 +18,12 @@ import type { ReactElement } from "react";
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
 import { lazy, Suspense } from "react";
 import { useInvalidation, useTRPC } from "#data";
+// The two THEME-shaped appearance tables. They used to ride the settings feature's own
+// `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
+// so the pair three features render homes at the `#lib` shared-vocabulary floor.
+import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "#lib";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
-import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "../lib/appearance-select-items";
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
 import { themeFormFromEntity, themeInputFromForm, themeOverrideFromForm } from "../lib/theme-editor-model";

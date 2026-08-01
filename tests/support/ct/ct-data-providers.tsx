@@ -16,10 +16,21 @@
 // page across tests, the per-mount reset belongs HERE.
 
 import { createTrpcClient, TRPCProvider } from "@orb/client/data";
-import { contextToggleChrome, fullscreenChrome, youModal } from "@orb/client/features/app-shell";
+import {
+  appearanceBackgroundSection,
+  appearanceEffectsSection,
+  appearanceReadingSection,
+  appearanceSizingSection,
+  contextToggleChrome,
+  fullscreenChrome,
+  youModal,
+} from "@orb/client/features/app-shell";
 import { accountModal } from "@orb/client/features/auth";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
+  appearanceAvatarsSection,
+  appearanceMessageDetailsSection,
+  appearanceMessageStyleSection,
   ChatsWithCharacterPane,
   chatQuickPicksTile,
   chatRecentsTile,
@@ -163,6 +174,14 @@ const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = c
   memoryTuningSection,
   rateLimitsSection,
   workloadsTuningSection,
+  // appearance ← the DECOMPOSED pane (SET-SEAMS stage 1), in the door's render order.
+  appearanceMessageStyleSection,
+  appearanceAvatarsSection,
+  appearanceSizingSection,
+  appearanceMessageDetailsSection,
+  appearanceBackgroundSection,
+  appearanceReadingSection,
+  appearanceEffectsSection,
   librarySettingsSection,
 ]);
 

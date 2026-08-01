@@ -2,7 +2,6 @@
 // settings shell comes through the feature front door, wrapped in the real data layer (`routeTrpc` stubs
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
-import { librarySettingsSection } from "@orb/client/features/character";
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsCategoryId, SettingsSectionContribution } from "@orb/client/state";
@@ -12,9 +11,8 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
-// Rail precedent) — AppearanceSettingsSurface + SystemSettingsSurface are mounted by SettingsShell itself,
-// not exported standalone.
-import { AppearanceSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/appearance-settings-surface";
+// Rail precedent) — SystemSettingsSurface and friends are mounted by SettingsShell itself, not exported
+// standalone.
 import { ChatBehaviorSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/chat-behavior-settings-surface";
 import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
@@ -104,41 +102,24 @@ export function ThemePickerStory(): ReactElement {
   );
 }
 
-// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②, library ⑪); the
-// chat-behavior story below pins that pane's native fields, so it mounts with zero contributions (the
-// door's empty case — byte-identical to the pre-seam pane).
+// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②, library ⑪, and
+// the seven decomposed appearance sections); the chat-behavior story below pins that pane's native fields,
+// so it mounts with zero contributions (the door's empty case — byte-identical to the pre-seam pane).
 const emptySettingsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-settings-sections", []);
 
-// Mirrors main.tsx's door: the appearance pane hosts the `appearance`-anchored settings-section seam, whose
-// one contribution today is character's library page-size (⑪) — so the isolated pane story renders the
-// contributed section exactly as the shell does.
-const realAppearanceSections = createContributorRegistry<SettingsSectionContribution>("ct-appearance-settings-sections", [librarySettingsSection]);
-
-/** The real appearance settings pane (D44 §12.1 #31) in isolation — `getUserSettings` (read) and
- *  `updateUserSettingsSection` (the autosave write) are stubbed per-test via routeTrpc. A tall scrolling
- *  box: the surface stacks many sections and would clip in a short fixed box. */
-export function AppearanceSettingsStory(): ReactElement {
+/** The REAL appearance pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 1
+ *  made it a `{kind:"sections"}` skimmer with no surface of its own. `appearance` is the shell's default
+ *  active category, so this lands on it cold, with the REAL door-ordered section registry, the shell's
+ *  aggregate save-status footer (`SaveStatusHostContext`) and the derived nav — the production path.
+ *  A tall/wide box: the pane stacks eight sections and would clip in a short one. */
+export function AppearancePaneStory(): ReactElement {
   return (
     <CtDataProviders>
-      <CtSettingsSectionRegistry sections={realAppearanceSections}>
-        <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AppearanceSettingsSurface />
+      <CtRealSectionRegistry>
+        <div style={{ height: 900, width: 1160 }}>
+          <SettingsShell />
         </div>
-      </CtSettingsSectionRegistry>
-    </CtDataProviders>
-  );
-}
-
-/** The appearance pane with ZERO contributions — the door's empty case, pinning that a contribution-free
- *  registry renders no extra nodes (the `editor-sections` byte-identical posture). */
-export function AppearanceSettingsNoContributionsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtSettingsSectionRegistry sections={emptySettingsSections}>
-        <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AppearanceSettingsSurface />
-        </div>
-      </CtSettingsSectionRegistry>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -165,21 +146,6 @@ export function RegexSettingsStory(): ReactElement {
       <div style={{ height: 560, overflow: "auto", width: 720 }}>
         <RegexSettingsSurface />
       </div>
-    </CtDataProviders>
-  );
-}
-
-/** The appearance pane at a NARROW container width (a phone-width settings modal) — proves the horizontal
- *  row grammar's fixed ~200px control column can't starve the label block to 0 (the Wave-1 in-flow-squeeze
- *  class); it stacks the row so the label keeps full width. */
-export function AppearanceSettingsNarrowStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <CtSettingsSectionRegistry sections={realAppearanceSections}>
-        <div style={{ height: 900, overflow: "auto", width: 300 }}>
-          <AppearanceSettingsSurface />
-        </div>
-      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }

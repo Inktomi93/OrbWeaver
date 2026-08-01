@@ -225,7 +225,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 5. **SET-SEAMS — S0 MERGED; the FULL remaining ladder (spec §8; S1-S4 SERIALIZE on main.tsx;
    ALL of it lands BEFORE DATABANK):**
    - [x] S0 mechanism (registry, owns+partition pin, save-status seam, body union)
-   - [ ] S1 appearance — 8-way split, AppearanceForm deleted (LANE IN FLIGHT)
+   - [x] S1 appearance MERGED (`9d4646d4`): pure skimmer, 41-key exact partition, zero cited
+     gaps; per-section Pick-typed patches (full-blob patch = tsc error; new kit pickKeys); two
+     subs ABSORBED with receipts (motion→sizing, message-actions→details — one reader one owner);
+     shared THEME tables → lib/theme-appearance-items (3-feature floor); container-query context
+     re-established per Section (@container — split had silently killed narrow stacking); latent
+     settings-shell CT red root-caused (unstubbed resolveChatCapability). RIDERS: pane IA visibly
+     changed (7 rows, renamed groups) → §10 Q3 owner-eyeball in the COMBINED side-eye ·
+     formatting done via biome format --stdin (never wrote; deltas inspected) — owner may want an
+     explicit formatter-stdin carve-out ruling · 5 pre-existing sections still carry tone= budgets
+     (cheap sweep).
    - [ ] S2 chat-behavior — two sections → chat; pane → {kind:"sections"}
    - [ ] S3 workloads + admin panes → sections mode
    - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
