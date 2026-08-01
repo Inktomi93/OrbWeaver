@@ -87,6 +87,26 @@ test("display: relative picks the largest sensible unit, both directions", () =>
   expect(lib.formatRelative(NOW_MS - 30_000)).toBe("30s ago");
 });
 
+// The LIST-ROW stamp form (list-pane-projection side-eye P1-2): same instant, tense dropped, so a 307px
+// pane spends 2-3 characters on recency. The unit ladder must never skip a step (a 25h span is "1d", not
+// "25h") and must stay honest at the edges — sub-minute and future both read "now".
+test("display: the compact stamp picks the coarsest filled unit", () => {
+  expect(lib.formatRelativeCompact(NOW_MS - 2 * HOUR_MS)).toBe("2h");
+  expect(lib.formatRelativeCompact(NOW_MS - 25 * HOUR_MS)).toBe("1d");
+  expect(lib.formatRelativeCompact(NOW_MS - 3 * MINUTE_MS)).toBe("3m");
+  expect(lib.formatRelativeCompact(NOW_MS - 21 * DAY_MS)).toBe("3w");
+  // Past the 7-day relative horizon the compact form keeps counting — the stamp column never becomes a date.
+  expect(lib.formatRelativeCompact(NOW_MS - 9 * DAY_MS)).toBe("1w");
+  expect(lib.formatRelativeCompact(NOW_MS - 400 * DAY_MS)).toBe("1y");
+});
+
+test('display: the compact stamp reads "now" for a sub-minute span and for a FUTURE instant', () => {
+  expect(lib.formatRelativeCompact(NOW_MS - 30_000)).toBe("now");
+  expect(lib.formatRelativeCompact(NOW_MS)).toBe("now");
+  // Clock skew / an imported timestamp: a list stamp has no future tense, so it does not invent one.
+  expect(lib.formatRelativeCompact(NOW_MS + 2 * HOUR_MS)).toBe("now");
+});
+
 test("display: past the ~7-day horizon relative falls back to the absolute date", () => {
   const nineDaysAgo = NOW_MS - 9 * DAY_MS;
   expect(lib.formatRelative(nineDaysAgo)).toBe(lib.formatDate(nineDaysAgo));
