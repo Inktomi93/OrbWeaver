@@ -93,6 +93,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     db,
     resolveViewerVisibility: deps.resolveViewerVisibility,
     applyVariableOps: chatCompose.applyVariableOps,
+    // PROSE-1 census 91 — the /autobg pick reads the ROOM HOST's prose, through chat's one host resolver.
+    resolveChatProse: chatCompose.resolveChatProse,
     // The `trigger_turn` arm's autonomous turn → chat's `requestTurn`. `initiator:"automation"` is HARDCODED
     // here (automation cannot forge a different origin); the funder = the rule author (chat resolves the funding
     // host from the room + runs the engine's consent + per-member turn RATE belt — the loop-safety guard).

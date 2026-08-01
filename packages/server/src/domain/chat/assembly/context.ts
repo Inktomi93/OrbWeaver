@@ -8,6 +8,7 @@ import type { AssembleCharacter, AssembleContext, AssemblePersona, AssembleWorld
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScript } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
@@ -507,10 +508,6 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   return { candidates: [guidedInjectionCandidate(resolved, placement.role)] };
 }
 
-/** The anchor persona's card-context lead-in, marking its description as the established identity the
- *  character's card relationships refer to. */
-const ANCHOR_IDENTITY_PREFIX = "The person the character knows as the user is";
-
 /** The active persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't
  *  inject at depth. Resolved against the active persona itself to avoid cross-contaminating another persona's
  *  macros; unframed so a no-swap turn stays byte-identical to single-persona output. */
@@ -537,7 +534,7 @@ function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePerso
  *  swap still reaches the model with who the character's card relationships refer to, even though the
  *  active speaker differs. Ignores the anchor's own descriptionPosition (that's its prompt-time preference
  *  for when it IS active, not this role). Null when opted out or empty. */
-function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePersona, registry: MacroRegistry): InjectionCandidate | null {
+function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePersona, registry: MacroRegistry, prose: ProseOverrides): InjectionCandidate | null {
   if (anchor.placement?.kind === "none") {
     return null;
   }
@@ -545,7 +542,9 @@ function anchorPersonaCardCandidate(ctx: AssembleContext, anchor: AssemblePerson
   if (resolved.trim().length === 0) {
     return null;
   }
-  const content = `[${ANCHOR_IDENTITY_PREFIX} ${anchor.name}: ${resolved}]`;
+  // The lead-in clause is a PROSE-1 slot (census row 74, per-USER under the ROOM HOST); the brackets, the
+  // anchor's name and its rendered description are the injection's GRAMMAR and stay authored here.
+  const content = `[${resolveProseText("chat.assembly.anchorIdentity", prose)} ${anchor.name}: ${resolved}]`;
   return {
     injection: { position: "in_static", depth: 0, role: "system", content, origin: "persona", originLabel: anchor.name },
     tokens: estimateTokens(content),
@@ -565,14 +564,19 @@ function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): bo
 /** Resolves the distinct personas in play for `{{user}}` into injection candidates: active per its own
  *  descriptionPosition (unframed); anchor as a fixed card-context block, only on a real swap. Deduped so a
  *  no-swap turn's output is byte-identical to the active-only injection. */
-function resolvePersonaDescriptionCandidates(ctx: AssembleContext, personas: ResolvedPersonas, registry: MacroRegistry): InjectionCandidate[] {
+function resolvePersonaDescriptionCandidates(
+  ctx: AssembleContext,
+  personas: ResolvedPersonas,
+  registry: MacroRegistry,
+  prose: ProseOverrides,
+): InjectionCandidate[] {
   const candidates: InjectionCandidate[] = [];
   const active = activePersonaDepthCandidate(ctx, personas.active, registry);
   if (active !== null) {
     candidates.push(active);
   }
   if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active)) {
-    const anchor = anchorPersonaCardCandidate(ctx, personas.anchor, registry);
+    const anchor = anchorPersonaCardCandidate(ctx, personas.anchor, registry, prose);
     if (anchor !== null) {
       candidates.push(anchor);
     }
@@ -654,6 +658,11 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const cast = present.map((p) => toAssembleCharacter(p.card));
   const castMembers: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
   const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
+
+  // The room host's app-tier prose overrides (PROSE-1 S1) — resolved from the chatId, not threaded through
+  // the input literal, so the ~50 hand-built assemble inputs stay honest: a caller cannot forget it, and a
+  // hostless room degrades to `{}` ⇒ the shipped defaults.
+  const prose = await ctx.resolveChatProse(input.chatId);
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
   const pool = await loadWorldInfoPool(ctx.db, {
@@ -747,7 +756,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     entryId: `user:${idx}`,
     bucket: null,
   }));
-  const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas, reg);
+  const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas, reg, prose);
   // Appended after persona so a same-depth tie orders persona-then-note deterministically.
   const authorsNote = authorsNoteCandidates(base, reg);
   const { kept, dropped } = budgetInjections(

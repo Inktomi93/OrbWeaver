@@ -65,6 +65,7 @@ function depthOps(db: Awaited<ReturnType<typeof freshDb>>, depth: number): Autom
       resolveViewerVisibility: createResolveViewerVisibility({ db }),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
+      resolveChatProse: () => Promise.resolve({}),
       applyVariableOps: () => Promise.resolve(),
       listBackgroundChoices: () => Promise.resolve([]),
       setChatBackground: () => Promise.resolve(),

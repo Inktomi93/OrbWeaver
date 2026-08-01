@@ -23,6 +23,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import { chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
@@ -63,11 +64,6 @@ interface CompactionDeps {
   /** Resolve the chat's connection for the MANUAL lever (the engine hook passes its own `prep.connection`). */
   readonly resolveConnection: (args: { readonly runAsUserId: UserId; readonly chatId: ChatId }) => Promise<ResolvedConnection>;
 }
-
-const COMPACTION_SYSTEM_PROMPT =
-  "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +
-  "that preserves the key facts, character states, decisions, locations, and unresolved threads. Do not " +
-  "invent details and do not add commentary — output only the summary.";
 
 /** Build the marker generation's user prompt from the prior marker (folded in so the new marker supersedes it),
  *  the new transcript span, and any caller guidance. */
@@ -111,7 +107,9 @@ async function buildMarker(
   const result = await quietGenerate({
     chatId: env.chatId,
     connection: env.connection,
-    systemPrompt: COMPACTION_SYSTEM_PROMPT,
+    // PROSE-1 census 77 — the summarizer instruction is the ROOM HOST's slot (a chat's markers keep one
+    // voice regardless of who triggered the pass). Empty overrides ⇒ the shipped default, byte-identical.
+    systemPrompt: resolveProseText("chat.compaction.system", await ctx.resolveChatProse(env.chatId)),
     userText,
     intent: COMPACTION_INTENT,
     ...(env.signal !== undefined ? { signal: env.signal } : {}),

@@ -17,6 +17,8 @@
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { VarOp } from "@orb/kit/macro";
 import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops";
 import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads";
@@ -236,15 +238,17 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
  *  quiet prompt. */
 const AUTOBG_SCENE_MAX = 1200;
 /** Build the model-facing pick prompt: the (capped) scene + the candidate NAMES + an optional rendered
- *  instruction, with a strict "reply with only the name" contract so the returned text matches a choice. */
-function buildAutobgPrompt(sceneText: string, names: readonly string[], instruction: string): string {
+ *  instruction, framed by the two authored PROSE-1 clauses (census 91) — the task lead and the strict
+ *  "reply with only the name" contract the name-match depends on. The `Scene:`/`Available backgrounds:`/
+ *  `Guidance:` labels are the prompt's grammar (spec §2.11) and stay here. */
+function buildAutobgPrompt(prose: ProseOverrides, sceneText: string, names: readonly string[], instruction: string): string {
   const scene = sceneText.slice(0, AUTOBG_SCENE_MAX).trim();
   const lines = [
-    "Choose the single background that best fits the current scene.",
+    resolveProseText("automation.autobg.task", prose),
     scene.length > 0 ? `Scene:\n${scene}` : "Scene: (no recent text)",
     `Available backgrounds: ${names.join(", ")}`,
     instruction.length > 0 ? `Guidance: ${instruction}` : "",
-    "Reply with ONLY the exact name of the chosen background, nothing else.",
+    resolveProseText("automation.autobg.reply", prose),
   ];
   return lines.filter((line) => line.length > 0).join("\n\n");
 }
@@ -269,6 +273,7 @@ async function runSetChatBackground(
   }
   const sceneText = frame.fact.message === undefined ? "" : frame.fact.message.content;
   const prompt = buildAutobgPrompt(
+    await deps.ops.chat.resolveChatProse(frame.chatId),
     sceneText,
     choices.map((c) => c.name),
     instruction,

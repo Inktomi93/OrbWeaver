@@ -3,8 +3,10 @@
 // the multimodal vision-caption instructions (no macros — the image IS the subject). Each carries a load-bearing
 // "Begin your reply with: <prefix>," so the LLM opens the keyword list with the composition the size defaults
 // assume; REQUIRED_PREFIXES + ensurePrefix are the drift belt (doc 02 §1 step 4) when the LLM drops it.
-// DEFAULT_NEGATIVE is marinara's deduped generic defect-suppression core (doc 02 §6) — appended-to, never
-// replaced. Modernized from ST's promptTemplates (index.js:174): the "Ignore previous instructions" jailbreak
+// The negative-prompt BASE is marinara's deduped generic defect-suppression core (doc 02 §6) — appended-to,
+// never replaced — and since PROSE-1 S1 it is a slot in the `@orb/contracts/imagery` catalog like its template
+// siblings, so `composeNegative` takes the resolved base rather than owning the bytes.
+// Modernized from ST's promptTemplates (index.js:174): the "Ignore previous instructions" jailbreak
 // preamble is REPLACED by an explicit "Pause the roleplay" task frame (we control the system prompt, ST didn't).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
@@ -31,19 +33,14 @@ const REQUIRED_PREFIXES: Record<Exclude<PromptTemplateMode, "free">, string> = {
 };
 // biome-ignore-end lint/style/useNamingConvention: end the mode-literal-keyed prefix map.
 
-/** One shared default (marinara's verified negative lists, deduped to the generic core — rpg-design/08 §2
- *  carries the game-tuned variants verbatim; cite, don't fork). User `negative` APPENDS to this (doc 02 §6),
- *  never replaces. Consumed by the request build once I2 widens the domain mirror (doc 05 FORK 2). */
-const DEFAULT_NEGATIVE =
-  "text, letters, captions, subtitles, UI, watermark, logo, signature, speech bubble, " +
-  "split screen, panel, collage, grid, duplicated face, extra head, extra person, " +
-  "bad anatomy, low quality";
-
-/** The composed negative for a generation (doc 02 §5–6): `DEFAULT_NEGATIVE` with the user's `negative`
- *  APPENDED (comma-joined), never replaced — the default is defect-suppression every generation wants. */
-export function composeNegative(userNegative: string | undefined): string {
+/** The composed negative for a generation (doc 02 §5–6): the resolved BASE with the user's per-request
+ *  `negative` APPENDED (comma-joined), never replaced — the base is defect-suppression every generation wants.
+ *  PROSE-1 census 88: the base is the `imagery.negative.base` slot (marinara's verified lists, deduped to the
+ *  generic core — rpg-design/08 §2 carries the game-tuned variants verbatim; cite, don't fork), resolved by the
+ *  caller off the requesting user's `UserSettings.prose`. Empty overrides ⇒ the shipped bytes. */
+export function composeNegative(base: string, userNegative: string | undefined): string {
   const extra = userNegative?.trim() ?? "";
-  return extra.length > 0 ? `${DEFAULT_NEGATIVE}, ${extra}` : DEFAULT_NEGATIVE;
+  return extra.length > 0 ? `${base}, ${extra}` : base;
 }
 
 /** Prepend the mode's required prefix unless the resolved keywords already open with it (case-insensitive) —

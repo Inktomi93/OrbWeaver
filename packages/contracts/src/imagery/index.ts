@@ -160,7 +160,28 @@ export const IMAGERY_PROSE_SLOTS = {
     title: "Face caption instruction",
     fires: "The vision op, captioning a subject's avatar in `face_multimodal` mode.",
   },
+  // Census row 88 (PROSE-1 S1). marinara's verified negative lists, deduped to the generic defect-suppression
+  // core — homed here with its template siblings (it was a server-substrate const). The user's `negative`
+  // request field still APPENDS to whatever this resolves to (never replaces): the two are different things —
+  // this is the standing house floor, that is the per-generation addition.
+  "imagery.negative.base": {
+    id: "imagery.negative.base",
+    home: "user",
+    version: 1,
+    text:
+      "text, letters, captions, subtitles, UI, watermark, logo, signature, speech bubble, " +
+      "split screen, panel, collage, grid, duplicated face, extra head, extra person, " +
+      "bad anatomy, low quality",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Negative-prompt base",
+    fires: "Every image generation — the standing defect-suppression list the request's negative opens with.",
+  },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
+
+/** The negative-prompt base slot — the ONE id both the resolver and the editor read. */
+export const IMAGERY_NEGATIVE_SLOT_ID: ProseSlotId = "imagery.negative.base";
 
 /** Slot id per extraction mode — the ONE map both the resolver and the editor read (never a re-spelled id). */
 export const IMAGERY_TEMPLATE_SLOT_IDS: Record<ExtractionMode, ProseSlotId> = {
