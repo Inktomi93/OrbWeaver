@@ -17,7 +17,7 @@
 //   • stream-open is observed via the DEV `window.__orb.bus().live` count (agent-bridge.ts) — vite serves
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
@@ -80,10 +80,18 @@ export async function waitForStreamOpen(page: Page): Promise<void> {
   await expect.poll(async (): Promise<number> => busLive(page), { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
 }
 
+/** The RAIL's "Characters" nav button, scoped to the Primary navigation. The scoping is load-bearing: the
+ *  HOME landing renders its OWN "Characters" list-row tile with the same accessible name, so an unscoped
+ *  role+name lookup is a strict-mode violation on any DB whose landing shows the tiles — it went red the day
+ *  the e2e stack stopped inheriting the dev DB's data. `exact` also keeps "Collapse Characters panel" out. */
+export function charactersRailButton(page: Page): Locator {
+  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Characters", exact: true });
+}
+
 /** Drive the real library→draft→send flow to CREATE one committed chat (one real turn). Returns once the
  *  user's row has committed durably (the chat row exists in the DB from that point). */
 async function createChatViaSend(page: Page): Promise<void> {
-  const charactersNav = page.getByRole("button", { name: "Characters", exact: true });
+  const charactersNav = charactersRailButton(page);
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
