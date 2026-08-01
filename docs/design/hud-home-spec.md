@@ -1,12 +1,15 @@
 ---
 kind: spec
-status: draft
+status: active
 updated: 2026-08-01
 ---
 
 # HUD-HOME — the context panel IS the HUD (HUD-1)
 
-**Status:** SPEC — DRAFT, not built, nothing here is implemented. Owner-ruled 2026-08-01
+**Status:** BUILT — H0 (`9923438e`) · H1 (`bf50477d`, side-eye `66cdf997`, doc amendments `1390d6e5`) ·
+H2+H3 (`bda7ae4b`); H4 close-out is this pass (the §8 arms are LIVE and probe-proven, the §5.2 amendments
+are applied — the ledger D-entry + the workboard close remain the orchestrator's). The stage table (§9)
+carries the per-stage receipts. Owner-ruled 2026-08-01
 (`docs/retro-workboard.md` §THE QUEUE item 3): *"the pre-HUD chrome seams in the CONTEXT panel get
 YEETED — the context panel (where the rpg game lives in lite mode) IS the HUD's home."* Owner steer
 mid-draft, same day: *"maybe just making our current context panel the HUD honestly"* — so the primary
@@ -438,6 +441,15 @@ arms today), extending costs one file + fixtures, and a new gate costs four coup
 ([[new-gate-four-coupled-sites]]). The Enforcement-Active-Gates row for it gets its arm list updated; the
 gate count is unchanged.
 
+**LIVE as of H1 (`bf50477d`), verified at H4.** All four arms are in `scripts/check/gates/context-definition-shape.ts`
+with `mustFlag` fixtures at BOTH a shallow and a deep path and `mustPass` false-positive fixtures (the legal
+single mint, the ONE region host, a COMMENT naming the chrome classes, app-shell painting them legally). The
+doc rows are updated in `Core-Enforcement-Active-Gates.md` and `client-architecture-lockdown.md` §16 G3; the
+gate count is unchanged (no new gate). H4 probe receipts: four planted violations (a hand-rolled
+`{claims,render}`; a second `defineContextRegion(`; `className="ctx-tab-strip"` in `features/rpg/**`; a second
+`data-context-region` writer) each turned the gate RED at the exact planted site, and the tree returned to
+`single-pass: clean` on removal.
+
 **Declared blind spot** (write it in the gate header): arms 5–8 read literal shapes. A claim assembled
 through a variable, a re-export, or a computed property is invisible ([[gate-probe-literal-shapes]]) —
 the CTs in §10 are the required second lens, not a nice-to-have.
@@ -448,11 +460,11 @@ the CTs in §10 are the required second lens, not a nice-to-have.
 
 | stage | lands | ships green as | verified by |
 | - | - | - | - |
-| **H0** | the seam, vacuous: `ContextRegionDef` + `defineContextRegion` + `ContextRegionView` + `ResolvedContextTabs.region` + `ContextRegionHost` + the extracted shared selection hook. `main.tsx` assembles an EMPTY-but-typed `regions` registry (the M8 precedent, lockdown §6c) | zero visual delta anywhere | unit (resolve) + CT with a FAKE claimant + the no-claimant regression CT |
-| **H1** | the HUD claims: rpg mints `rpgHudRegion` composing band + game strip + viewport + admin rail from the handed tabs. SAME commit: every §5.1 deletion, the band suppression, the §7.1 viewport rule | the takeover renders from its own composition; generic panel simplified | CT (region + no-region) · snap geometry probes · side-eye |
-| **H2** | the voice pass: admin-rail tab grammar + kicker, host-only crown treatment, non-owning-strip recede, band selection echo (F6 defects 1 + 3) | polish-only, no seam change | snap `--contrast`/`--map` · side-eye (authority — every finding fixed before close, [[side-eye-fix-all-findings]]) |
-| **H3** | the band's compressed form (`Waystone compact`) + the vertical-budget CT (F6 defect 4's second half) | polish-only | computed-value CT (band ratio) · snap on an ambient-less game |
-| **H4** | close-out: gate arms live with fixtures, the §5.2 amendments applied to CP-doc + lockdown, workboard HUD-HOME closed, ledger D-entry (orchestrator) | — | `pnpm check` on a quiesced tree (orchestrator) |
+| **H0** LANDED `9923438e` | the seam, vacuous: `ContextRegionDef` + `defineContextRegion` + `ContextRegionView` + `ResolvedContextTabs.region` + `ContextRegionHost` + the extracted shared selection hook. `main.tsx` assembles an EMPTY-but-typed `regions` registry (the M8 precedent, lockdown §6c) | zero visual delta anywhere | unit (resolve) + CT with a FAKE claimant + the no-claimant regression CT |
+| **H1** LANDED `bf50477d` (+ side-eye `66cdf997`) | the HUD claims: rpg mints `rpgHudRegion` composing band + game strip + viewport + admin rail from the handed tabs. SAME commit: every §5.1 deletion, the band suppression, the §7.1 viewport rule | the takeover renders from its own composition; generic panel simplified | CT (region + no-region) · snap geometry probes · side-eye |
+| **H2** LANDED `bda7ae4b` | the voice pass: admin-rail tab grammar + kicker, host-only crown treatment, non-owning-strip recede, band selection echo (F6 defects 1 + 3) | polish-only, no seam change | snap `--contrast`/`--map` · side-eye (authority — every finding fixed before close, [[side-eye-fix-all-findings]]) |
+| **H3** LANDED `bda7ae4b` | the band's compressed form (`Waystone compact`) + the vertical-budget CT (F6 defect 4's second half) | polish-only | computed-value CT (band ratio) · snap on an ambient-less game |
+| **H4** | close-out: the §8 gate arms LIVE with fixtures (arms 5–8 landed with H1, `bf50477d`; probe-proven at H4 — planted violation ⇒ RED at the exact site ⇒ removed ⇒ clean), the §5.2 amendments applied to CP-doc + lockdown + density-spec, workboard HUD-HOME closed, ledger D-entry (orchestrator) | — | `check-gates.int` + `gate-conformance.int` green · `pnpm check` on a quiesced tree (orchestrator) |
 
 H2 and H3 are strictly polish over H1's structure — either can slip a day without leaving a half-built
 seam. H1 is not partially shippable (a claimant landing while the rented seams survive is exactly the
