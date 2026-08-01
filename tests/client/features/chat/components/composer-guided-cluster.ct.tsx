@@ -462,6 +462,34 @@ async function expectPopupSettled(popup: Locator): Promise<void> {
   await expect(popup).toHaveCSS("opacity", "1");
 }
 
+const SUBMENU_OPEN_RETRIES = 3;
+const SUBMENU_OPEN_ATTEMPT_TIMEOUT_MS = 500;
+
+/**
+ * Hover a `MenuSubmenuTrigger` open, with a bounded retry — Base UI's `openOnHover` runs on a 100ms
+ * hover-intent timer, and Playwright's synthetic hover occasionally lands+leaves inside that window
+ * (board-diagnosed: menu open + submenu collapsed screenshots, NOT a slow-machine timeout). A miss
+ * never opens the submenu at all, so re-hovering (not waiting longer) is the fix; each attempt gates
+ * on the popup's rendered-settled state via `expectPopupSettled`.
+ */
+async function hoverOpenSubmenu(trigger: Locator, submenu: Locator): Promise<void> {
+  for (let attempt = 1; attempt <= SUBMENU_OPEN_RETRIES; attempt++) {
+    // biome-ignore lint/performance/noAwaitInLoops: each retry must observe the prior hover's outcome before re-hovering.
+    await trigger.hover();
+    try {
+      await expect(submenu).toBeVisible({ timeout: SUBMENU_OPEN_ATTEMPT_TIMEOUT_MS });
+      await expectPopupSettled(submenu);
+      return;
+    } catch (error) {
+      if (attempt === SUBMENU_OPEN_RETRIES) {
+        throw error;
+      }
+      // Reset hover-intent state before the next attempt.
+      await trigger.page().mouse.move(0, 0);
+    }
+  }
+}
+
 test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a gameSteer KIND on a game chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": () => GAME_CHAT,
@@ -477,8 +505,7 @@ test("game steers live in the ✨ menu (Plot submenu + Offer choices) and fire a
   // wires `ignoreMouse` to `openOnHover`, so a mouse click on it is a deliberate no-op — the pointer landing
   // on the row (100ms hover intent) is the only mouse-driven open.
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeVisible();
-  await page.getByRole("menuitem", { name: "Plot" }).hover();
-  await expectPopupSettled(page.getByRole("menu", { name: "Plot" }));
+  await hoverOpenSubmenu(page.getByRole("menuitem", { name: "Plot" }), page.getByRole("menu", { name: "Plot" }));
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);

@@ -34,8 +34,9 @@ import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutatio
 import { RenameChatDialog } from "./rename-chat-dialog";
 
 // The #40 GAME front-door mutations — the ⋯ menu's start/pause/resume rides the rpg procs DIRECTLY
-// ([workloads.subscribe cross-feature] — a feature rides another domain's tRPC procedure, never its
-// client). Both repaint `chat.getChat` (the pointer MIRROR the takeover gate + this menu read).
+// (lockdown §12 — a feature rides another domain's tRPC procedure directly, never its client; the rpg
+// feature's own direct `trpc.chat.listMessages` read, `rpg-choice-echo.tsx`, is the live precedent). Both
+// repaint `chat.getChat` (the pointer MIRROR the takeover gate + this menu read).
 const useStartGame = createEntityMutation<inferInput<Trpc["rpg"]["createGame"]>, unknown>({
   options: (trpc) => trpc.rpg.createGame.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
