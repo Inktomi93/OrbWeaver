@@ -253,7 +253,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      formatting done via biome format --stdin (never wrote; deltas inspected) — owner may want an
      explicit formatter-stdin carve-out ruling · 5 pre-existing sections still carry tone= budgets
      (cheap sweep).
-   - [ ] S2 chat-behavior — two sections → chat; pane → {kind:"sections"}
+   - [x] S2 chat-behavior MERGED (`65f0865c`): message-handling + streaming sections owned by
+     chat; settings owns ZERO chat knobs; 2 cited gap-arm exemptions (autoContinueRounds,
+     tempChatTtlHours — server-honored, never had editors); S1-miss fixed (the "real door"
+     partition test now mirrors main.tsx — hand-maintained, every stage MUST add its sections);
+     926 CT green.
    - [ ] S3 workloads + admin panes → sections mode
    - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
