@@ -351,7 +351,14 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
      launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
      per-section baselines.
-   - [ ] S4 BUILT (`7813dbed`) — RECONCILE ROUND IN FLIGHT (semantic conflict vs numeric-
+   - [x] S4 MERGED (`723ea15d` reconcile + `7813dbed`): System pane DELETED, 12 admin
+     contributions, footnote dead; leaf-aware app claims + nesting arm; floorValue:number|null
+     union (Switch/Select keep string floors — receipted); rate-limits/system-tuning honesty bug
+     FIXED (override no longer echoes as default); unbounded-floor arm; clearNumber helper; all 3
+     save-status CTs green on main.
+   - [ ] S5 tag/regex mint — LANE IN FLIGHT (O3/D114; full new-feature checklist in prompt)
+   - (superseded build row below)
+   - [ ] S4-old-row (`7813dbed`) — RECONCILE ROUND IN FLIGHT (semantic conflict vs numeric-
      unification's AdminOverrideField NumberField+floorValue rework; union = floorValue:number|null
      [null=env-unknowable arm]; lane merging main into its branch). S4 content: System pane DELETED
      (12 admin contributions, footnote dead); Engines hold RESOLVED via LEAF-AWARE app claims
