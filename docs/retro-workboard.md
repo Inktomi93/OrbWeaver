@@ -192,6 +192,19 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+**SIDE-EYE #1 DELIVERED → FIVE FIX LANES IN FLIGHT (fix-all law):** SE-A mobile-settings P0
+(push-detail) + aria-current/spy/parent-row · SE-B rpg cluster (band budget fork + F8 kicker +
+D-1 split + LYING METERS em-dash + crown recede + scene names + dead class + ghost tile +
+duplicate orbs + caption wrap) · SE-C ui (TabsPanel FOCUS_RING + Button inline arm ×13 + icon
+tiles + bubble single-home + dialogue hue via D71 pipeline) · SE-D workloads (CTA one-home + CD3
++ JSON renderers + attach dedupe + side-eye fixtures) · SE-E editSnapshot merge-clear honesty
+(null=clear or loud errors-as-data; unlocks the live compact-arm verify). CONFIRMED-GOOD: HUD H2
+voice pass, chat rows, character editor F1-F3, STREAM-JANK closed, sockets 1/2/0, narrow-480
+HUD. UNREACHED (next side-eye round, fixtures owed): waystone-compact live · impersonate +1 ·
+scene-lightbox · Status max-edit · F9/F10 · stats-Recompute render. PERF P1 (CLS 0.24, 11 long
+frames, panel-mounts-after-content suspect) — PROFILE LANE OWED next slot. Dev-db note: the
+side-eye found the dev DB re-minted TODAY (zero chats, new owner principal) — owner's live games
+GONE from dev; seeded-data caveat applies to its tracker findings.
 **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
 folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
 SET-SEAMS specs + 4 resolved stickler reports → history, refs repointed, verify-then-move) ·
