@@ -31,6 +31,22 @@ still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + 
 commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
 fully-polished tree; engines adopt-only.
 
+**▶▶▶ LIVE STATE (08-02 midday — compact-safety snapshot):** main @ `13963039`+ (SET-SEAMS S0 +
+HUD-1 ledger amendments merged; ~190 commits past origin `24989143`, NO pushes). **IN FLIGHT:**
+HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · density-S5
+fix-all (centerpiece: make tiers.css load-bearing — the tier declarations were INERT on list
+panes) · **SSE S2 branch READY FOR STICKLER RE-RUN** (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
+— F1 fixed STRUCTURALLY: cursor advances at DELIVERY pre-yield; shed PARKS the pump, delivering
+roomLagged resumes it from last-delivered; reconnect re-announce carries a sinceSeq THUNK reading
+the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
+stacks — re-review the delta then merge) · the scrub mid-slot-reconnect verification
+(security-executor) · the exhaustive reminder/delta reachability suite (owner-ordered; schema-
+derived inventory) · workloads junk-drawer exit. **THEN:** re-verify both fix-alls → SSE S3-S5 +
+close-out ledger → HUD H2-H3 → SET-SEAMS S1-seal → PROSE-1 S1+ (app-tier; after SET-SEAMS S1
+merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone**.
+Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
+resolved); the E2E_LIVE specs on the next push window.
+
 **STANDING MANDATE (owner, 08-02 morning): BURN THE BOARD DOWN until DATABANK is the ONLY item
 remaining** — keep dispatching queue stages as lanes drain (SSE S3→S5, HUD-HOME H2→close-out,
 density S2/S6 + S3-after-HUD, SET-SEAMS S1→seal, PROSE-1 S2+, remaining smalls/probes), full-auto
