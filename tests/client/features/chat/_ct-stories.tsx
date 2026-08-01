@@ -122,6 +122,7 @@ import { MessageMetadataRow } from "../../../../packages/client/src/features/cha
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { MessageSelectionBar } from "../../../../packages/client/src/features/chat/components/message-selection-bar";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls";
+import { ProseSettingsSection } from "../../../../packages/client/src/features/chat/components/prose-settings-section";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { RewriteDialog } from "../../../../packages/client/src/features/chat/components/rewrite-dialog";
 import { RoomOverridesForm } from "../../../../packages/client/src/features/chat/components/room-overrides-form";
@@ -2028,6 +2029,18 @@ export function ImageryTemplatesSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
         <ImageryTemplatesSection sectionId="chat-imagery-templates" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Prose settings SECTION (PROSE-1 S2) over the real data layer — getUserSettings +
+ *  updateUserSettingsSection("prose") stubbed in the `.ct.tsx`. Proves the per-slot override write path. */
+export function ProseSettingsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <ProseSettingsSection sectionId="chat-prose" />
       </div>
     </CtDataProviders>
   );
