@@ -42,7 +42,9 @@ the two Claude-runtime skins share one backend) = no terminal channel → LOUD f
 local vLLM × folded = prose-silenced (0/36) → the LOUD `local-engine-fold-guard` arm runs the cheap
 round · **cheap = the local champion** (grammar-bound via `tool_choice:"required"`; §4f: only
 that and `response_format:json_schema` bind — `"auto"` buys NO grammar on vLLM+hermes) · reliable
-CONTRADICTED by measurement (0/12 hpDelta — field-routing failure). Sonnet card "reluctance" was OUR
+was CONTRADICTED by measurement (0/12 hpDelta) and **DELETED 2026-08-01** (owner ruling; axis is
+`["folded","cheap"]`, stored values heal to folded, D112 amended, structured machinery survives for
+the agent-sdk degrade + resync via `hasStructuredWriter`). Sonnet card "reluctance" was OUR
 tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ## ═══ ▶▶▶ THE QUEUE ═══
@@ -62,7 +64,17 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    → S4 automation → S5 workloads. Kills the invisible-retry class structurally (SSE-1b —
    ProviderError→typed-terminal mapping — folds into its room sources; also retires the
    fragile-by-accident `connectionsChanged` coverage) + the connection-cap class.
-3. **W-H FULL SIDE-EYE** — after multiplex S1-ish, needs a MODEL-POPULATED game ([[RV-15 posture|
+3. **HUD-HOME** (owner-ruled 2026-08-01, from the stickler visual audit F6,
+   `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): **the pre-HUD chrome seams in the
+   CONTEXT panel get YEETED — the context panel (where the rpg game lives in lite mode) IS the
+   HUD's home** (its own takeover-region contract, not rented shell seams; owner corrected
+   "content"→"context" 2026-08-01). Spec-first: the takeover contract, the fate of the meta tabs
+   under HUD ownership (lean: they fold into the HUD's own grammar as its admin voice — F6's
+   state-vs-admin split is real), the bracket strips' replacement, the reclaimed ~400px dead zone,
+   waystone breathing room. Fixes F6's four legibility defects at the seam level instead of
+   polishing rented chrome. Sequencing: spec can start now; build coordinates with density S3
+   (same surfaces).
+4. **W-H FULL SIDE-EYE** — after multiplex S1-ish, needs a MODEL-POPULATED game ([[RV-15 posture|
    seeded-data-never-verification]]). The accumulated list: panel-beauty §4.2 · context-panel
    fidelity re-verify (`docs/design/context-panel-fidelity-findings.md`) · CT-harness band/kicker
    overlap vs the real shell · panel synthesizes `0/max` for UNSET meters (the panel is the lying
@@ -70,41 +82,58 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    streaming) · inventory-grid tile design vs mock (owner eyeball) · QUOTE-1 hue taste check (new
    amber/apricot/ink dialogue colors) · scene-cards lightbox lacks a render policy (external images
    paint in transcript, not archive) · Status max-edit UX · icon-only meta-tabs at narrow widths.
-4. **SET-SEAMS** — approved-to-build; §10 fully ruled (features/tag + features/regex = **D114** ·
+5. **SET-SEAMS** — approved-to-build; §10 fully ruled (features/tag + features/regex = **D114** ·
    system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as recommended). Stage 0
    mechanism is the hard barrier.
-5. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
+6. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
    Card.padding retirement). S0 computed-value probe FIRST; S3 waits for the panel to stop moving.
-6. **WORKLOADS JUNK-DRAWER EXIT** — investigation ready
+7. **WORKLOADS JUNK-DRAWER EXIT** — investigation ready
    (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`).
 
-### OWNER DECISIONS PENDING (small)
+### OWNER DECISIONS — ALL RULED (2026-08-01 evening; none pending)
 
-- **`reliable` mode's fate post-§4g** — it measured WORST on the field its guardrail was supposed to
-  secure (0/12 hpDelta). Options: delete it (~6 tsc-total sites + UI) · keep with honest picker copy
-  ("cheap = local champion") · wait for launch data. The earlier "keep all three" leaned on
-  pre-measurement R3; the data has since flipped.
-- **POPULATE-FROM-CHARACTER button** (owner-proposed, shape not yet ruled): a host-invoked one-shot
-  extraction round over the character card + opening that fills born state (level/title/wallet/
-  inventory/background-implied quests) — the ONLY sanctioned doorway for hand-only fields the model
-  can't write. Lean: per-character button on the roster card/takeover, button-only (no auto-run).
-- **RV-11 dead write plane**: `presentCharacters.appearance/outfit/thoughts` are demanded by the
-  extraction prompt EVERY TURN, richly filled in the DB, and read by NOTHING. Build the readers
-  (panel + `thoughts` likely earns a reminder slot) or stop demanding the writes. `sheet.flavor`
-  same class.
-- Partial-abort persistence: aborts persist NOTHING today (pinned) — persist-what-streamed is a
-  product change if ever wanted.
-- CSP layering: per-character can opt INTO external media above a blocking deployment (labeled in
-  UI); rule tighten-only if wanted.
-- Cast-NPC per-actor tracker grants asymmetry (explicit-list-only — spec-accepted; revisit on want).
+- **`reliable` mode: DELETED** ("reliable can get yeeted") — lane dispatched; stored values coerce
+  to `folded` (NO-LEGACY pre-launch), picker copy refreshed (folded=default, cheap=local champion).
+- **POPULATE-FROM-CHARACTER: per-character button** on the roster card/takeover, button-only, never
+  auto-runs. Build item below.
+- **RV-11: the writes are INTENTIONAL — build the readers** (owner: appearance/outfit/thoughts are
+  persistent per-character guides, extracted every turn). Design receipts: proposed
+  `03-state-and-schema.md:175` ("visible in tracker") + `11-client-ui.md:279-282` (cast row lists
+  outfit/thoughts). Lane dispatched: reminder renders them back per cast member (today mood-only,
+  `reminder.ts:223` — the model was re-inventing its own guides) + Scene-tab cast card renders them +
+  `sheet.flavor` gloss line.
+- **Partial-abort persistence: KEEP the pin** — abort persists nothing. Closed.
+- **CSP layering: TIGHTEN-ONLY** — deployment block is absolute; lower tiers only restrict. Lane
+  dispatched (security-executor): one resolver seam, per-character toggle honest-disabled when
+  deployment-blocked.
+- **Cast-NPC tracker grants: KEEP explicit-list-only.** Closed.
 
 ### BUILD ITEMS QUEUED
 
+- **STICKLER-AUDIT FIX LANES** (owner 2026-08-01: ALL findings, not just top —
+  `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): Lane A character surface (F1 crushed
+  search input · F2 portrait-over-label + 34px target · F3 pills→quiet chips, CD3 · F4 panel opens
+  populated/overview card) · Lane B list scent (F5 preset subtitles; the "Default (edited)"×9 was the
+  FIXED autosave-fork bug's debris — owner-confirmed — so mint numbering is hygiene not fix ·
+  F7 chat rows: resolved portraits, star, game marker, receded archived) · Lane C smalls
+  (F9 swatch grid · F10 landing glow clip). Dispatch worktree-isolated after the 08-01-evening
+  commits. F6→HUD-HOME (queue 3) · F8→density S3 receipt. Residue: ChatSummary last-message
+  snippet field (build small) · transcript 1920 gutter verify (may be reading-measure by design) ·
+  roster placeholders re-check post-merge · Members tab capture needs the multi-user e2e stack.
+- **POPULATE-FROM-CHARACTER** (shape ruled: per-character button, roster card/takeover, button-only) —
+  host-invoked one-shot extraction round over the character card + opening filling born state
+  (level/title/wallet/inventory/background-implied quests); the ONLY sanctioned doorway for
+  hand-only fields. Dispatch AFTER the reliable-deletion lane lands (extraction-pipeline overlap).
 - **agent-sdk terminal tools** — the fold on the everyday Claude-runtime wire (OR×auto×Claude +
   max-pro-sub currently run the loud fallback EVERY turn). The real fix; raises EFF-3 urgency.
 - **EFF-3** — degrade-warnings client surface + effective-delivery freshness (the D112 (4) "Live
   while rounding" gap is now the DEFAULT-path experience on both guarded wires) + GM-tab
   recommend-don't-force notes (thinking-off; "cheap recommended for local models").
+- **Per-actor tracker grant/revoke EDITOR** (`sheet.trackerGrants`/`trackerRevokes` — RV re-audit
+  2026-08-01): the fields exist and gate NPC tracker applicability, but NO client editor exists
+  (`rpg-game-tab.tsx:42-44` documents the gap). The "keep explicit-list-only" NPC-grants ruling
+  DEPENDS on hosts being able to edit the list — without this editor the ruling is a dead letter.
+  Home: the takeover/sheet view beside the other per-actor editing (TRK stage-2 primitives).
 - **KNOB EDITORS batch** — `journalTypeHints` (cheapest — HintEditor sibling) · `hiddenContentReveal`
   · `recentBeatsKeepLast` · `cardKeepLastX` · extraction-depth trio (`extractionContext` /
   `extractionWindowTokens` / `reconcileEveryBeats`) · `config.userMacros` is UNWRITABLE (not in the
@@ -141,6 +170,9 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+- Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
+  (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
+  to bind cast guides via celBindings? If yes, thread them; if no, note the asymmetry in the file.
 - BUS-FLAP: chat open does subscribe→unsubscribe→subscribe on the chat bus (live-observed).
 - BOOT-4X: user-bus connect gap-heal double-fetches 4 roots on every page load ("by design" — evaluate).
 - VERIFY-BURST: re-drive the invalidation lane's 3 recorded snap commands against merged code,
@@ -152,9 +184,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   `assets.listOwned` (the raw multipart upload seam invalidates nothing).
 - Scout: `connection.getCatalog`/`getAgentSdkCatalog` appear in admin `invalidates` with zero literal
   consumers — aliased reads or dead rows.
-- SERIAL_INT for `tests/server/entry/compose/rpg.int.test.ts` (repeatedly flaked 5s/20s timeouts
-  under fork contention) · `composer-guided-cluster.ct` whole-file 30s timeout (own small) ·
-  `blurSurfaces` consuming selector unconfirmed (low).
+- `composer-guided-cluster.ct` 30s timeouts — DIAGNOSE, don't knob: verified 2026-08-01 there is NO
+  per-file timeout idiom anywhere in the CT surface (no setTimeout/describe.configure/config
+  override — 30s Playwright default repo-wide), so the fix is finding why the tests bust 30s
+  (likely stub/flush, cf [[ct-sse-stub-replayable-every-connect]]), not minting a timeout override.
+- `blurSurfaces` consuming selector unconfirmed (low).
 - `staging.ensure` residual: first-write-wins seeded from HEAD — dormant unless rpg tools ever mount
   as REGISTRY tools again (D112 keeps `tools: []`); reroll accumulation would return via that seam.
 - R5b(a) verify: `refEnumerationLines` (non-enforcing-backend prompt fallback) should enumerate
@@ -171,7 +205,12 @@ verification (needs the multi-user e2e stack).
 
 ### DISCUSSION PILE (owner, no build)
 
-☰ chat-options placement (D111 clause OPEN, breaks nothing) · persona=character design pass
+☰ **RV-13 second half — branch-and-save game modes**: the ruling (freeform demoted, d20-in-lite is
+the direction) is doctrine, but the BUILD — "branch off + save your own game mode derived from the
+prebuilt d20" — was never queued. **SEQUENCING (owner, 2026-08-01): deliberately AFTER the
+hardcoded-constants-become-user-slots work** (PROSE-1 + knob editors + tracker-def editors) — a mode
+fork is only as useful as what's overridable in it; build the slots first, then the fork model has
+real payload (tracker defs, teaches, steering prose, extraction knobs). Spec then. · chat-options placement (D111 clause OPEN, breaks nothing) · persona=character design pass
 ([[persona-pin-prompt-resolution]]) · Meteocons artwork fork (~8 icons, MIT) · grimstone theme
 (parked) · flakes/facelift micro-ledgers.
 
