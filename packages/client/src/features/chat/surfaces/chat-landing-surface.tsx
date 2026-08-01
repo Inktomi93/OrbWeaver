@@ -38,7 +38,9 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
             </Button>
           }
           decoration={<WeaveGlyph size={WEAVE_SIZE} />}
-          description="Pick a thread on the left, or start a new one."
+          // SIDE-AGNOSTIC: the list pane is a docked column on wide, a slide-over on narrow/mobile, and
+          // collapsed in focus mode — "on the left" is wrong in three of the four states.
+          description="Pick a thread from your chats, or start a new one."
           title="No chat selected"
         />
       </Stack>

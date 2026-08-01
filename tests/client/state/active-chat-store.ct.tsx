@@ -137,3 +137,21 @@ test("chatDeletedFromList is a no-op unless the deleted chat IS the active one",
   await probe.getByRole("button", { name: "delete active chat" }).click();
   await expect(state).toContainText("handle=landing");
 });
+
+test("openNewChatPicker PRESETS the shared picker instead of minting a draft — and the preset is cleared, never left armed", async ({ mount, page }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+  const intent = page.getByTestId("new-chat-preset");
+
+  await expect(intent).toHaveText("modal=none preset=none");
+
+  // ONE creation ceremony: a creation-only intent (the home temp tile's `temporary`) opens the SHARED
+  // new-chat modal carrying its preset — it does NOT start a chat behind the picker's back.
+  await probe.getByRole("button", { name: "open picker temp" }).click();
+  await expect(intent).toHaveText("modal=newChat preset=true");
+  await expect(state).toContainText("handle=landing");
+
+  // The picker clears the preset when it unmounts, so a later plain "New chat" cannot inherit the intent.
+  await probe.getByRole("button", { name: "clear preset" }).click();
+  await expect(intent).toHaveText("modal=newChat preset=none");
+});

@@ -95,7 +95,9 @@ function RailBrand({
             intent="ghost"
             onClick={(): void => onSelectSection(sectionId)}
           >
-            <WeaveGlyph size={BRAND_GLYPH_SIZE} />
+            {/* The BUTTON carries the name (`aria-label`), so the glyph inside it is decoration — a nested
+                role="img" would announce a second, competing name for one control. */}
+            <WeaveGlyph decorative={true} size={BRAND_GLYPH_SIZE} />
           </Button>
         }
       />

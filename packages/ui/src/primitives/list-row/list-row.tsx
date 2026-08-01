@@ -13,6 +13,12 @@ export interface ListRowProps {
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /**
+   * Lets a GLOSS subtitle wrap to two clamped lines instead of truncating to one. For rows whose
+   * subtitle is a sentence (the home jump grid's per-section teaching copy); leave it off for dense
+   * list panes, where one scannable line per row is the point.
+   */
+  subtitleWrap?: boolean;
+  /**
    * Optional trailing meta on the title line (e.g. a relative-time stamp) — rendered INSIDE the row's
    * accessible content so screen readers keep it, unlike a stamp stranded in the `actions` sibling. Part
    * of the row's `aria-describedby`, never its name (the name stays the `title` alone).
@@ -235,6 +241,7 @@ export function ListRow({
   title,
   subtitle,
   subtitleReveal,
+  subtitleWrap = false,
   meta,
   markers,
   actions,
@@ -248,7 +255,7 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap });
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;

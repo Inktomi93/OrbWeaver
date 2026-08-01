@@ -34,7 +34,9 @@ export const listRowVariants = tv({
     markers: "flex shrink-0 items-center gap-field",
     // Trailing title-line meta (e.g. relative-time): mono muted micro, never shrinks.
     meta: "shrink-0 whitespace-nowrap font-mono text-label leading-label text-muted-foreground",
-    subtitle: "block truncate text-left text-label leading-label text-muted-foreground",
+    // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
+    // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
+    subtitle: "block text-left text-label leading-label text-muted-foreground",
     // Hover/focus-within display-swap of the subtitle in the SAME line, so a wide metadata span never
     // contends with the trailing `actions` buttons for width.
     subtitleReveal: "hidden truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:block group-hover:block",
@@ -61,6 +63,13 @@ export const listRowVariants = tv({
       },
       false: {},
     },
+    // A one-line dense row TRUNCATES (the default — a list pane scans by column). A row whose subtitle is
+    // a SENTENCE (the home jump grid's per-section teaching gloss) clamps to two lines instead: a nowrap
+    // ellipsis eats the second half of every sentence, which is the whole content of that row.
+    subtitleWrap: {
+      true: { subtitle: "line-clamp-2" },
+      false: { subtitle: "truncate" },
+    },
     density: {
       default: { body: "min-h-control-md px-row py-field" },
       compact: { body: "min-h-control-sm px-field py-field" },
@@ -72,5 +81,5 @@ export const listRowVariants = tv({
       false: {},
     },
   },
-  defaultVariants: { density: "default", clickable: false, float: false },
+  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false },
 });

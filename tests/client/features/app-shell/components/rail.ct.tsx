@@ -55,6 +55,26 @@ test("the ACTIVE brand paints — the ember tint and accent bar resolve, not jus
   expect(glyphBox).toBeGreaterThan(0);
 });
 
+test("the brand's icon COLOUR carries the state, like every nav sibling — no always-ember glyph", async ({ mount }) => {
+  // side-eye F5: the glyph painted `--color-primary` unconditionally, so it advertised "you are home"
+  // from every other section and the active state had no delta at all. It now takes the nav zone's
+  // grammar: muted at rest, ember when active.
+  const readGlyphColor = (el: SVGElement | HTMLElement): string => globalThis.getComputedStyle(el).color;
+
+  // RailStory's active section is chats: the brand rests, a nav sibling is active.
+  const resting = await mount(<RailStory />);
+  const restColor = await resting.getByRole("button", { name: "Home" }).evaluate(readGlyphColor);
+  const navActiveColor = await resting.getByRole("button", { name: "Chats" }).evaluate(readGlyphColor);
+  await resting.unmount();
+
+  const active = await mount(<RailBrandActiveStory />);
+  const activeColor = await active.getByRole("button", { name: "Home" }).evaluate(readGlyphColor);
+
+  expect(restColor).not.toBe(activeColor);
+  // PARITY: the active brand resolves to the same ember the active nav buttons use — one state grammar.
+  expect(activeColor).toBe(navActiveColor);
+});
+
 test("clicking the glyph fires setActiveSection('home') — assert the STORE, not a rendered echo", async ({ mount }) => {
   const rail = await mount(<RailBrandNavStory />);
   const probe = rail.locator("output");

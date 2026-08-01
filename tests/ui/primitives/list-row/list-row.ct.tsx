@@ -179,6 +179,25 @@ test("title and subtitle truncate with the full text recoverable via the title a
   await expect(page.getByText(longSubtitle)).toHaveAttribute("title", longSubtitle);
 });
 
+test("subtitleWrap clamps a GLOSS subtitle to two lines instead of truncating a sentence to one", async ({ mount, page }) => {
+  const sentence = "Your world books live here — pick one to edit its keyword-triggered lore and where it attaches.";
+  await mount(
+    <div style={{ width: 280 }}>
+      <ListRow subtitle={sentence} subtitleWrap={true} title="World Info" />
+    </div>,
+  );
+  const subtitle = page.locator('[data-slot="list-row-subtitle"]');
+  const style = await subtitle.evaluate((el) => {
+    const s = globalThis.getComputedStyle(el);
+    return { clamp: s.webkitLineClamp, whitespace: s.whiteSpace, height: el.getBoundingClientRect().height };
+  });
+  expect(style.clamp).toBe("2");
+  expect(style.whitespace).not.toBe("nowrap");
+  // RENDERED: the clamped block is genuinely two lines tall at this width, not one ellipsised line.
+  const oneLine = await page.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().height);
+  expect(style.height).toBeGreaterThan(oneLine);
+});
+
 test("subtitleReveal display-swaps the subtitle on :focus-within (in the content column, not actions)", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} subtitle="the pitch" subtitleReveal="handle · 42" title="Elara" />);
   const subtitle = page.locator('[data-slot="list-row-subtitle"]');

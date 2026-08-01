@@ -52,7 +52,10 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
             title="Nothing on your home yet"
           />
         ) : (
-          <Grid cols="wide" data-home-grid={true} gap="block">
+          // `items-start` (mock `.grid{align-items:start}`): grid's default `stretch` made every tile in a
+          // row as tall as its tallest sibling, so the short temp-chat tile grew a band of dead space under
+          // its gloss. A tile is as tall as its own content.
+          <Grid className="items-start" cols="wide" data-home-grid={true} gap="block">
             {list.map((tile) => (
               <HomeTile key={tile.id} tile={tile} />
             ))}

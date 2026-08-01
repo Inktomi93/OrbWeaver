@@ -7,14 +7,16 @@
 // closeModal).
 
 import type { CharacterId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { CommandGroup, CommandItem } from "@orb/ui/command";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CharacterPicker } from "#components";
 import { useFocusOnMount } from "#lib";
-import { closeModal, setActiveSection, startNewChat } from "#state";
+import { clearNewChatPreset, closeModal, setActiveSection, startNewChat, useNewChatPreset } from "#state";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -23,6 +25,10 @@ export function NewChatPicker(): ReactElement {
   useFocusOnMount(surfaceRef);
 
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
+  // The seed this open was PRESET with (the home temp-chat tile's `temporary: true`). Cleared when the
+  // modal unmounts — dismissing the picker must not leave the intent armed for the next plain New chat.
+  const preset = useNewChatPreset();
+  useEffect(() => clearNewChatPreset, []);
 
   const toggle = (id: CharacterId): void => {
     setSelected((prev) => {
@@ -37,7 +43,8 @@ export function NewChatPicker(): ReactElement {
   };
 
   const found = (characterIds: readonly CharacterId[]): void => {
-    startNewChat(characterIds.length > 0 ? { characterIds } : undefined);
+    const seed = { ...preset, ...(characterIds.length > 0 ? { characterIds } : {}) };
+    startNewChat(Object.keys(seed).length > 0 ? seed : undefined);
     setActiveSection("chats");
     closeModal();
   };
@@ -46,6 +53,18 @@ export function NewChatPicker(): ReactElement {
 
   return (
     <Stack ref={surfaceRef} className="outline-none" tabIndex={-1}>
+      {/* The preset is a CREATION-ONLY flag the user can't change later, so the picker states it up front
+          rather than surprising them in the room (temp tile → this modal → a room born Temporary). */}
+      {preset?.temporary === true ? (
+        <Row align="center" gap="field" padding="block">
+          <Badge intent="neutral" tone="soft">
+            Temporary
+          </Badge>
+          <Text size="label" tone="muted">
+            This room won't join your chats list, and you can't switch it later.
+          </Text>
+        </Row>
+      ) : null}
       <CharacterPicker
         emptyText="No characters match."
         isSelected={(id): boolean => selected.has(id)}

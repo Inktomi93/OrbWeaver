@@ -35,6 +35,10 @@ export function SectionJumpGrid(): ReactElement {
           leading={<Icon className="text-muted-foreground" icon={def.rail.icon} size="sm" />}
           onClick={(): void => setActiveSection(def.id)}
           subtitle={def.placeholder.description}
+          // The gloss IS the row's content — a sentence of section-teaching copy. One nowrap line clipped
+          // most of it ("Your world books live here — pick one to edit its keyword-…"); the mock clamps to
+          // two (`.jump .why`, -webkit-line-clamp:2).
+          subtitleWrap={true}
           title={def.rail.label}
         />
       ))}

@@ -13,6 +13,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatTempChatTileStory } from "../_ct-stories";
 
+/** The creation-only teaching, in the user's own terms — the gloss line that replaced the sample Badge. */
+const CREATION_ONLY_TEACHING_RE = /Marked Temporary from the moment it opens/u;
+
 /** A settings blob with a caller-chosen temp-chat TTL. */
 function settingsWithTtl(tempChatTtlHours: number): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } {
   return {
@@ -33,22 +36,33 @@ test("the gloss renders the user's OWN TTL, never a hardcoded 24h", async ({ mou
   await expect(tile.getByText("72h")).toBeVisible();
 });
 
-test("starting a temp chat moves the rail to chats AND the draft says Temporary BEFORE any send", async ({ mount, page }) => {
+test("the launcher opens the SHARED new-chat picker with the temporary flag preset — it never mints its own seed", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": settingsWithTtl(24), "chat.reapTemporaryChats": { reaped: 0 } });
 
   const home = await mount(<ChatTempChatTileStory />);
-  // Scoped to the TOPBAR: the tile's own gloss carries a sample chip showing what the badge looks like.
-  const topbar = home.getByTestId("temp-topbar");
+  const intent = home.getByTestId("new-chat-intent");
   const start = home.getByRole("button", { name: "Start a temp chat" });
   await expect(start).toBeVisible();
-  // Nothing started yet ⇒ the topbar marks nothing.
-  await expect(topbar.getByText("Temporary")).toHaveCount(0);
+  // Nothing started yet: no modal, no preset, and no chat room anywhere.
+  await expect(intent).toHaveText("modal=none temporary=false");
+  await expect(home.getByTestId("temp-topbar").getByText("Temporary")).toHaveCount(0);
 
   await start.click();
 
-  await expect(home.locator("output")).toHaveText("section=chats");
-  // The topbar now marks the DRAFT — pre-send, the only window in which it matters.
-  await expect(topbar.getByText("Temporary")).toBeVisible();
+  // ONE creation ceremony: the tile hands the cast pick to the same modal every "New chat" opens, with
+  // the creation-only flag preset — it does NOT bypass the picker with a seed of its own. (The rest of
+  // the ceremony — picker → seeded room → Temporary on the draft pre-send — is the app-root route CT.)
+  await expect(intent).toHaveText("modal=newChat temporary=true");
+});
+
+test("the teaching about the creation-only flag rides the GLOSS — never a sample Badge (a picture of a badge is not a state)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": settingsWithTtl(24), "chat.reapTemporaryChats": { reaped: 0 } });
+
+  const home = await mount(<ChatTempChatTileStory />);
+  const tile = home.locator('[data-home-tile="chat.tempChat"]');
+
+  await expect(tile.getByText(CREATION_ONLY_TEACHING_RE)).toBeVisible();
+  await expect(tile.locator('[data-slot="badge"]')).toHaveCount(0);
 });
 
 test("the reaper FIRES on mount — assert the mutation reached the wire", async ({ mount, page }) => {

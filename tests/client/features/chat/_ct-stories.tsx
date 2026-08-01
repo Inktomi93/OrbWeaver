@@ -58,6 +58,8 @@ import {
   toggleMessageSelected,
   useActiveSection,
   useDraftConfig,
+  useNewChatPreset,
+  useOpenModal,
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
@@ -950,6 +952,17 @@ function ActiveSectionProbe(): ReactElement {
   return <output>section={useActiveSection()}</output>;
 }
 
+/** Publishes the NEW-CHAT INTENT the launcher wrote: which modal the shell opened, and whether the
+ *  picker was preset with the creation-only temporary flag. The behavioral end of the ceremony (picker →
+ *  seeded room → Temporary on the draft) is the app-root route CT, over the whole composed shell. */
+function NewChatIntentProbe(): ReactElement {
+  return (
+    <output data-testid="new-chat-intent">
+      modal={useOpenModal() ?? "none"} temporary={String(useNewChatPreset()?.temporary === true)}
+    </output>
+  );
+}
+
 export function ChatRecentsTileStory(): ReactElement {
   return <HomeTileStory tile={chatRecentsTile} />;
 }
@@ -958,12 +971,13 @@ export function ChatQuickPicksTileStory(): ReactElement {
   return <HomeTileStory tile={chatQuickPicksTile} />;
 }
 
-/** The temp-chat tile PLUS the real chats topbar header — so one CT can drive the launcher and then assert
- *  the Temporary badge is visible on the DRAFT, before any send (the flag is creation-only). */
+/** The temp-chat tile PLUS the real chats topbar header + the new-chat intent probe — so one CT can drive
+ *  the launcher and assert what it wrote: the shared picker opened with the creation-only flag preset. */
 export function ChatTempChatTileStory(): ReactElement {
   return (
     <CtDataProviders>
       <ActiveSectionProbe />
+      <NewChatIntentProbe />
       <div data-testid="temp-topbar">
         <ChatsTopbarHeader />
       </div>
