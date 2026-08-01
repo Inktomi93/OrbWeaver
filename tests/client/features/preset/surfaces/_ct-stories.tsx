@@ -100,6 +100,29 @@ export function PresetForkOnceStory(): ReactElement {
   );
 }
 
+/** The FORK-CHOICE harness: the fork-once story PLUS the live library list, because the choice is only
+ *  legible against the rows it is choosing between — "keep editing <fork>" must land on the fork already in
+ *  the list, and "start a new fork" must produce a SECOND row that reads "forked from Default" there. Same
+ *  selection-store mount as production (the retarget IS a `selectPreset` write). */
+export function PresetForkChoiceStory(): ReactElement {
+  const selectedId = useSelectedPresetId();
+  useEffect(() => {
+    selectPreset(BUILT_IN);
+    return (): void => clearPresetSelection();
+  }, []);
+  return (
+    <CtDataProviders>
+      <output>{`selected=${selectedId ?? "none"}`}</output>
+      <div style={{ display: "flex", height: 720, width: 1040 }}>
+        <div style={{ width: 320 }}>
+          <PresetLibrarySurface />
+        </div>
+        <div style={{ width: 720 }}>{selectedId === null ? null : <PresetEditorSurface presetId={selectedId} />}</div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The A↔B switch harness (the SWITCH pin) — a button flips `presetId`, exactly the prop change the rail
  *  makes when the user picks another preset while the editor stays mounted. */
 export function PresetEditorSwitchStory(): ReactElement {

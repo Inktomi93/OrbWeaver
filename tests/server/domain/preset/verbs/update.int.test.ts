@@ -72,7 +72,8 @@ describe("update (copy-on-write of the system default)", () => {
     expect(forked.forkedFrom).toBe(SYSTEM_DEFAULT_PRESET_ID);
     // A DISTINCT fork action carrying the provenance (never a plain preset.create).
     const fork = h.audits.find((a) => a.entry.action === "preset.fork");
-    expect(fork?.entry.metadata).toEqual({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false });
+    // The audit carries the INTENT that produced the row — an absent intent is the historical `converge`.
+    expect(fork?.entry.metadata).toEqual({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false, intent: "converge" });
     expect(h.audits.map((a) => a.entry.action)).not.toContain("preset.create");
 
     // The system default row is untouched (still present, still the default).
@@ -124,9 +125,9 @@ describe("update (copy-on-write of the system default)", () => {
     expect(rows.filter((s) => s.forkedFrom === SYSTEM_DEFAULT_PRESET_ID).map((s) => s.id)).toEqual([first.id]);
     // Every COW audits preset.fork; only the first one actually minted a row.
     expect(h.audits.filter((a) => a.entry.action === "preset.fork").map((a) => a.entry.metadata)).toEqual([
-      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false },
-      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true },
-      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true },
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false, intent: "converge" },
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true, intent: "converge" },
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true, intent: "converge" },
     ]);
   });
 
@@ -156,5 +157,96 @@ describe("update (copy-on-write of the system default)", () => {
     expect((await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).id).toBe(older);
     expect((await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).id).toBe(older);
     expect((await svc.list({ userId: owner })).length).toBe(3);
+  });
+});
+
+// The `fork` INTENT arms (owner ruling): the client asks the owner where a built-in edit goes once they
+// already have a fork, and sends the answer. Absent/`converge` is the historical silent behavior (pinned
+// above and left untouched — it stays the back-compat + race backstop); `new` is the explicit second fork.
+describe("update (the fork intent)", () => {
+  test("intent 'new' MINTS a second fork under the given name instead of converging", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+
+    const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab A" });
+    const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Default fork 2" } });
+
+    expect(second.id).not.toBe(first.id);
+    expect(second.name).toBe("Default fork 2");
+    // Both rows carry the lineage — the list surface prints "forked from Default" on each.
+    const rows = await svc.list({ userId: owner });
+    expect(
+      rows
+        .filter((s) => s.forkedFrom === SYSTEM_DEFAULT_PRESET_ID)
+        .map((s) => s.id)
+        .sort(),
+    ).toEqual([first.id, second.id].sort());
+    expect(rows.length).toBe(3);
+    // The mint audits the intent that produced it.
+    expect(h.audits.filter((a) => a.entry.action === "preset.fork").at(-1)?.entry.metadata).toEqual({
+      forkedFrom: SYSTEM_DEFAULT_PRESET_ID,
+      converged: false,
+      intent: "new",
+    });
+  });
+
+  test("a 'new' fork carries the SUBMITTED config, and the existing fork is untouched", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+
+    const existing = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    const edited = { ...DEFAULT_PROMPT_CONFIG, params: { quality: "deep" as const } };
+    const minted = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, config: edited, fork: { mode: "new", name: "Deep run" } });
+
+    expect(minted.config.params.quality).toBe("deep");
+    expect((await svc.get({ userId: owner, id: existing.id })).config.params.quality).toBeUndefined();
+  });
+
+  test("a 'new' fork's name is DE-COLLIDED at the write (never merged into the same-named row)", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    const taken = await seedPreset(db, { id: castId<PresetId>("preset_taken"), ownerId: owner, name: "Default fork 2" });
+
+    const minted = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Default fork 2" } });
+
+    expect(minted.id).not.toBe(taken);
+    expect(minted.name).toBe("Default fork 2 2");
+    // The same-named row is NOT the import verb's merge target here — it keeps its own lineage (none).
+    expect((await svc.get({ userId: owner, id: taken })).forkedFrom).toBeNull();
+  });
+
+  test("two concurrent 'new' intents produce TWO forks — deliberate, the (owner_id, forked_from) index is non-unique", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+
+    const [a, b] = await Promise.all([
+      svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Race" } }),
+      svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Race" } }),
+    ]);
+
+    expect(a.id).not.toBe(b.id);
+    expect((await svc.list({ userId: owner })).filter((s) => s.forkedFrom === SYSTEM_DEFAULT_PRESET_ID).length).toBe(2);
+  });
+
+  test("an explicit 'converge' intent is the same behavior as an absent one", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+
+    const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "converge" } });
+    const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "converge" }, name: "Same row" });
+
+    expect(second.id).toBe(first.id);
+    expect((await svc.list({ userId: owner })).length).toBe(2);
   });
 });

@@ -441,6 +441,13 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
   list) prints no lineage at all. Nothing is derived from name-matching heuristics. The same column is the
   copy-on-write CONVERGENCE key: a second COW of the built-in retargets the owner's existing fork instead
   of minting "Default (edited) 2" (residual + why it is not a UNIQUE index: `domain/preset/verbs/update.ts`).
+- **The fork CHOICE — LANDED** (owner ruling). Convergence is right only while the owner has nothing to
+  forget: the FIRST edit of the built-in still COWs silently, but once they already have a fork the editor
+  asks BEFORE the write — "keep editing &lt;fork&gt;" (the primary; the convergence pick, named) or "start a
+  new fork" (a name step, pre-filled "&lt;source&gt; fork N"). The write is PARKED on the answer at the one
+  place a built-in edit enters the mutation path (`use-preset-autosave.ts`); the server takes the answer as
+  an explicit `fork` intent (`{mode:"converge"|"new"}` — absent stays the back-compat + race backstop, and
+  N forks per source are legal because `(owner_id, forked_from)` is deliberately NON-unique).
 - The band (`PresetListHeader` — title/count/New/Import) is landed and stands.
 
 ## 10. Gap-close register (small, named, each independently landable)
