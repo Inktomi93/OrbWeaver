@@ -335,7 +335,9 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
 
   // Point both humans' chat role at the local vLLM gen so the best-effort seeded turns run through the real
   // chat path against the deterministic fake engine (a write-path smoke). Absent this, a send fail-closes.
-  const chatRoleDefault = { source: "vllm" as const, api: "chat-completions" as const, model: env.VLLM_GEN_MODEL };
+  // model deliberately "" — vllm is a config-derived source and the coherence guard REFUSES a pin
+  // (routing-coherence.ts): the resolver derives the engine's own model live, which is the truth.
+  const chatRoleDefault = { source: "vllm" as const, api: "chat-completions" as const, model: "" };
   for (const p of [owner, second]) {
     // biome-ignore lint/performance/noAwaitInLoops: two principals, ordered settings writes — serial is clearer than a race.
     await services.settings.updateUserSettingsSection({ principal: p, input: { section: "routing", patch: { roleDefaults: { chat: chatRoleDefault } } } });
