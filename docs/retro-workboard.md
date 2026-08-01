@@ -100,8 +100,21 @@ or ruled-out writeup · ~~HUD H2+H3~~ MERGED (`bda7ae4b` + baseline regen 174/10
 selection echo; host-only crown [NEEDS RATIFICATION: additive ContextTabDef.crown field — shaped
 like strip, decision-5 argument]; waystone compact DERIVED from clock===null [no compact prop —
 gate-RED; meter unset variant instead, strictly stronger]; band 54.9% of chrome vs F6's 68%,
-chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET
-REDESIGN STICKLER DISPATCHED** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
+chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET REDESIGN DELIVERED** (spec docs/design/preset-surface-redesign.md + 3 mocks in
+docs/design/mocks/preset-redesign/ — landed; lane forgot to commit, orchestrator copied+committed).
+DIAGNOSIS: ST-crunchy = slider+editable-number-twin, zero nav depth, token counts, WYSIWYS; ours =
+2-level tabs (5 acts to temperature), unset knobs HIDE the datum, the quality→knobs→clamp funnel
+resolves server-side UNSHOWN, SIX schema knobs have NO editor anywhere (stop, topA, maxBudgetUsd,
+providerContextCompression, compaction.verbatimTail, responseNudge) + preset.export has zero
+client consumers. REDESIGN: 5 flat views · KnobRow grammar (label·slider·mono-number·reset;
+unset = GHOSTED effective value with provenance) · ONE new read preset.resolveEffective ·
+CONTEXT becomes the assembly readout (per-section token bars) · list = ratified projection +
+inline activate RowToggleAction · zero new primitives (2 variant rows + 1 local composite).
+OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
+ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
+GATE FOLLOW-UP flagged: knob-wire-coverage should grow a preset-editor reader arm (the F8
+minted-but-editor-less class). Mocks NOT yet artifact-published (context-critical session tail)
+— publish on request. **~~PRESET REDESIGN STICKLER DISPATCHED~~** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
 spec draft + HTML mocks + primitives inventory; composes-with-config-rail-riff stated, not
 decided; mockup-first loop) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
 0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
