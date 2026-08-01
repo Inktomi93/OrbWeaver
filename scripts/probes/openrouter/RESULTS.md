@@ -48,6 +48,29 @@ breakpoint), leaving the tool descriptions/schemas static per game config. Worth
 tool round's system block is already per-turn volatile before spending anything on (b) — if the prefix
 never caches on that path today, this changes nothing.
 
+**LANDED 2026-08-01 — option (b), on the FOLDED vehicle only.** The precondition splits by vehicle, and the
+recommendation above was half-wrong about the cause:
+
+- *The dedicated `cheap` round is already lost, so it was left alone.* Its own system block re-renders the same
+  refs every call (`toolRoundSystem` → `composePlaneTeaching` + `refEnumerationLines(refs, …)`,
+  `compose/rpg.ts`), its whole history is ONE per-turn user prompt, and it passes no
+  `historyCacheBreakpointFromEnd`. De-volatilizing its tools would buy nothing — and it is the vehicle whose
+  backend (local vLLM under `tool_choice:"required"`) actually grammar-enforces the enums, so it keeps them.
+- *The FOLDED turn's prefix DOES cache, and the tools were the only volatile thing in it.* Those tools ride the
+  CHARACTER turn's `tools[]` (`pipeline.ts:attachTerminalTools`), upstream of a system block whose static half
+  carries the `cache_control` breakpoint; rpg's volatile state block is an `in_chat` **depth-0** injection, which
+  `computeHistoryBreakpoint` keeps BELOW the rolling breakpoint. So every new NPC / gained condition was
+  re-billing the whole story prefix.
+- *The descriptions were never the leak.* `buildRpgToolDescriptions` takes `refs` but reads only `config` — the
+  volatility was entirely `constrainExtractionSchema`'s ref enums.
+
+The fix is `cacheStableExtractionRefs` (`@orb/contracts/rpg/extraction`), bound at `buildFoldedTurnBuilder`: the
+config-derived constraints ride on (tracker key enums, locked-tracker prevention, game-tracker plane pruning,
+establish-when-unset), the scene-derived ones (`actorRefs`, `conditionNames`, the per-actor `oneOf` split) drop —
+they are advisory on that wire anyway (wire tools are sent WITHOUT `strict`), the depth-0 state block already
+enumerates the cast + conditions in prose, and the R5 ghost guard drops an unreachable `targetRef` at apply.
+Residual, deliberate: `establishScene` still moves (once per fresh game, and on each reconcile beat).
+
 ## F4a — does an `effort` change bust the OR cache?
 
 `results/f4a.jsonl` · one variable: the effort string. No tools; identical 11.4k-token prefix throughout.

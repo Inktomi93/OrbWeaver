@@ -5,8 +5,10 @@
 
 import type { ExtractionRefs, RpgGameConfig, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import {
+  actorTrackerWriteKeys,
   buildRpgToolDescriptions,
   buildTrackerWriteGroups,
+  cacheStableExtractionRefs,
   composePlaneTeaching,
   composePopulateTeaching,
   constrainExtractionSchema,
@@ -296,6 +298,87 @@ test("establish-when-unset: an already-SET scene stays OPTIONAL (ongoing turn ke
   // Once the scene is established, nothing is forced — the model patches only what the beat moves.
   expect(refEnum(constrained, ["required"])).not.toContain("scene");
   expect(refEnum(constrained, ["properties", "scene", "properties", "presentUpsert", "minItems"])).toBeUndefined();
+});
+
+// ── cacheStableExtractionRefs (F4 — the folded turn's tool payload is prompt-cache-key bytes) ───────────
+// RESULTS.md F4 measured that ANY byte change in the `tools` payload drops `cached_tokens` to zero and re-bills
+// the WHOLE prefix. The folded vehicle mounts these tools on the character turn, so the schema they carry must
+// not move when the SCENE moves — while every config-derived constraint must survive intact.
+
+const STABLE_DEFS = [MANA, TRUST, SEALED];
+
+/** The projected+constrained schema for one live ref bundle, through the cache-stable projection. */
+function stableSchema(refs: ExtractionRefs): Record<string, unknown> {
+  return constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), cacheStableExtractionRefs(refs, STABLE_DEFS));
+}
+
+test("PROMPT-CACHE (probe F4): gaining an actor AND a condition leaves the folded tool payload BYTE-IDENTICAL (the cache-key property)", () => {
+  const before: ExtractionRefs = {
+    ...BARE_REFS,
+    actorRefs: ["Kael"],
+    trackerWriteGroups: buildTrackerWriteGroups(STABLE_DEFS, [carrier("Kael", "party")]),
+  };
+  // One beat later: an NPC walked on stage (a second carrier ⇒ a SECOND write group under the live bundle) and
+  // somebody picked up a condition — the exact churn that was re-billing the whole story prefix.
+  const after: ExtractionRefs = {
+    ...before,
+    actorRefs: ["Kael", "Mira"],
+    trackerWriteGroups: buildTrackerWriteGroups(STABLE_DEFS, [carrier("Kael", "party"), carrier("Mira", "npcs")]),
+    conditionNames: ["Bleeding"],
+  };
+  // The LIVE bundles genuinely differ (this test would be vacuous if the two schemas were equal anyway).
+  expect(JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), before))).not.toEqual(
+    JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), after)),
+  );
+  expect(JSON.stringify(stableSchema(after))).toEqual(JSON.stringify(stableSchema(before)));
+});
+
+test("PROMPT-CACHE (probe F4): the stable projection KEEPS the config-derived enforcement (tracker keys, locked prevention, establish)", () => {
+  const constrained = stableSchema({
+    ...BARE_REFS,
+    actorRefs: ["Kael"],
+    trackerWriteGroups: buildTrackerWriteGroups(STABLE_DEFS, [carrier("Kael", "party")]),
+    gameTrackerKeys: { deltaKeys: [], setKeys: ["alarm"] },
+    establishScene: { location: true, timeOfDay: true, presentCast: true },
+  });
+  const item = ["properties", "party", "items"] as const;
+  // Both write arms survive (an empty group list would have PRUNED them — losing the write surface itself), and
+  // each key enum is the GAME's own unlocked actor trackers, not the live carrier split.
+  expect(refEnum(constrained, [...item, "properties", "trackerDeltas", "items", "properties", "key", "enum"])).toEqual(["mana"]);
+  expect(refEnum(constrained, [...item, "properties", "trackerSets", "items", "properties", "key", "enum"])).toEqual(["trust"]);
+  // The LOCKED tracker stays unrepresentable — prevent-at-schema is not what got traded away.
+  expect(JSON.stringify(constrained)).not.toContain("sealed");
+  // Game-subject keys + establish-when-unset ride on untouched.
+  expect(refEnum(constrained, ["properties", "trackers", "items", "properties", "key", "enum"])).toEqual(["alarm"]);
+  expect(refEnum(constrained, ["properties", "scene", "required"])).toEqual(expect.arrayContaining(["location", "timeOfDay", "presentUpsert"]));
+});
+
+test("PROMPT-CACHE (probe F4): only the SCENE-derived enums are dropped (targetRef/presentRemove/removeCondition go unconstrained)", () => {
+  const constrained = stableSchema({ ...BARE_REFS, actorRefs: ["Kael", "Mira"], conditionNames: ["Bleeding"] });
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "enum"])).toBeUndefined();
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "removeCondition", "enum"])).toBeUndefined();
+  expect(refEnum(constrained, ["properties", "inventory", "items", "properties", "targetRef", "enum"])).toBeUndefined();
+  expect(refEnum(constrained, ["properties", "scene", "properties", "presentRemove", "items", "enum"])).toBeUndefined();
+  // …and the fields themselves are still WRITABLE (dropped constraint, never a dropped plane).
+  expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
+});
+
+test("PROMPT-CACHE (probe F4): a game with NO actor trackers keeps a targetable party plane (both arms pruned, hp/status intact)", () => {
+  const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), cacheStableExtractionRefs({ ...BARE_REFS, actorRefs: ["Kael"] }, []));
+  const props = refEnum(constrained, ["properties", "party", "items", "properties"]) as Record<string, unknown>;
+  expect(props["trackerDeltas"]).toBeUndefined();
+  expect(props["trackerSets"]).toBeUndefined();
+  expect(props["hpDelta"]).toBeDefined();
+  expect(props["addCondition"]).toBeDefined();
+});
+
+test("PROMPT-CACHE (probe F4): actorTrackerWriteKeys is the config-only superset — unlocked actor trackers, split by write axis", () => {
+  expect(actorTrackerWriteKeys(STABLE_DEFS)).toEqual({ deltaKeys: ["mana"], setKeys: ["trust"] });
+  // Game-subject trackers belong to the OTHER surface and never leak in.
+  expect(actorTrackerWriteKeys([tracker({ key: "alarm", label: "Alarm", shape: "meter", write: "set", subject: "game" })])).toEqual({
+    deltaKeys: [],
+    setKeys: [],
+  });
 });
 
 // ── toolCallsToExtraction (the cheap TOOL ROUND fold — parallel tool calls → an RpgExtraction) ──────────
