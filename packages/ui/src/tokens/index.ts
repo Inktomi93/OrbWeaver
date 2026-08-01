@@ -142,6 +142,7 @@ export const TOKENS = {
   "width.dialog-xl": { cssVar: "--width-dialog-xl", value: "65rem" },
   "width.sidebar-sm": { cssVar: "--width-sidebar-sm", value: "13.75rem" },
   "width.control-col": { cssVar: "--width-control-col", value: "12.5rem" },
+  "width.number-inline": { cssVar: "--width-number-inline", value: "5rem" },
   "z.base": { cssVar: "--z-base", value: "0" },
   "z.raised": { cssVar: "--z-raised", value: "10" },
   "z.overlay": { cssVar: "--z-overlay", value: "40" },

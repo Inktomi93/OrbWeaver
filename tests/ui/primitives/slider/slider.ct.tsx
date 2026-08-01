@@ -138,3 +138,70 @@ test("a bare slider (no Field wrapper) shows a visible ring on keyboard focus", 
   await page.getByRole("slider").focus();
   await expect(thumbEl).not.toHaveCSS("box-shadow", "none");
 });
+
+// The `tone` axis (preset-surface-redesign.md §4.1/§13 — the KnobRow's inherited-vs-explicit grammar).
+// Asserted by RESOLVED color, never by class: the ghost arm's whole job is to read as "not yours yet"
+// in the browser, and a class assertion would stay green if the token behind it moved.
+const INDICATOR = '[data-slot="slider-indicator"]';
+const THUMB = '[data-slot="slider-thumb"]';
+/** The ghost fill's alpha, as the browser serializes a 30% token mix. Asserting the ALPHA (not just
+ *  "different from default") is what makes the check non-vacuous: a dropped/misspelled utility resolves
+ *  fully transparent, which would satisfy every not-equal assertion while painting no fill at all. */
+const GHOST_FILL_ALPHA = "0.3";
+
+test("tone: default is the ember fill + full-weight thumb; ghost drops both onto the neutral ramp", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Slider defaultValue={50} label="Explicit" />
+      <Slider defaultValue={50} label="Inherited" tone="ghost" />
+    </>,
+  );
+  const indicators = page.locator(INDICATOR);
+  const thumbs = page.locator(THUMB);
+  await expect(indicators).toHaveCount(2);
+
+  // DEFAULT — byte-identical to the pre-axis skin.
+  await expect(indicators.nth(0)).toHaveCSS("background-color", resolvedTokenColor("color.primary"));
+  await expect(thumbs.nth(0)).toHaveCSS("background-color", resolvedTokenColor("color.foreground"));
+
+  // GHOST — the thumb is the muted ramp (still solid: the datum stays legible), the fill is off the accent
+  // AND quieter than the default's own resolved fill.
+  await expect(thumbs.nth(1)).toHaveCSS("background-color", resolvedTokenColor("color.muted-foreground"));
+  const [defaultFill, ghostFill] = await Promise.all([
+    indicators.nth(0).evaluate((el) => getComputedStyle(el).backgroundColor),
+    indicators.nth(1).evaluate((el) => getComputedStyle(el).backgroundColor),
+  ]);
+  expect(ghostFill).not.toBe(defaultFill);
+  expect(ghostFill).not.toBe(resolvedTokenColor("color.primary"));
+  expect(ghostFill).toContain(GHOST_FILL_ALPHA);
+});
+
+// `tone` is COLOR ONLY — a seven-row knob deck mixes both arms in one column, so a tone that moved the box
+// would make the rows jitter as values are promoted from inherited to explicit.
+test("tone leaves the box alone: ghost and default measure identically", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 300 }}>
+      <Slider defaultValue={50} label="Explicit" />
+      <Slider defaultValue={50} label="Inherited" tone="ghost" />
+    </div>,
+  );
+  const controls = page.locator('[data-slot="slider-control"]');
+  const thumbs = page.locator(THUMB);
+  const [defaultControl, ghostControl, defaultThumb, ghostThumb] = await Promise.all([
+    controls.nth(0).boundingBox(),
+    controls.nth(1).boundingBox(),
+    thumbs.nth(0).boundingBox(),
+    thumbs.nth(1).boundingBox(),
+  ]);
+  expect(ghostControl?.height).toBe(defaultControl?.height);
+  expect(ghostControl?.width).toBe(defaultControl?.width);
+  expect(ghostThumb?.height).toBe(defaultThumb?.height);
+  expect(ghostThumb?.width).toBe(defaultThumb?.width);
+});
+
+test("a ghost slider is still fully operable — the inherited value is editable, not disabled", async ({ mount, page }) => {
+  await mount(<Slider defaultValue={50} label="Top-P" max={100} min={0} tone="ghost" />);
+  const thumb = page.getByRole("slider");
+  await thumb.press("ArrowRight");
+  await expect(thumb).toHaveAttribute("aria-valuenow", "51");
+});
