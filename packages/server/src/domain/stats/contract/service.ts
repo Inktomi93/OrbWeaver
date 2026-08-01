@@ -1,6 +1,8 @@
 // The typed API surface: `StatsService` is the authoritative verb listing, `StatsContext` the DI bundle.
-// Read-only: the rollups are maintained live on the chat write-path (`applyStatsDelta`); the full rebuild is
-// `reconcileStats`, driven by the admin `reconcile-stats` workload — neither write path is a verb here.
+// Read-first: the rollups are maintained live on the chat write-path (`applyStatsDelta`, injected into chat —
+// NOT a verb here). The ONE write verb is `reconcile`: the caller-scoped, awaited rebuild-from-canon, the
+// direct twin of the `reconcile-stats` workload's singular arm (the all-owners BULK sweep stays on the queue,
+// which is what the single-active lock + run history are for).
 // `ownerId` is always `principal.userId`. Verbs return data or `null`/empty for an absent rollup — no typed
 // error.
 
@@ -8,6 +10,7 @@ import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LatencyScope, LeaderboardOpts, TimeseriesOpts } from "./params";
+import type { ReconcileStatsResult } from "./results";
 import type {
   ActivityHeatmap,
   CharacterMomentum,
@@ -23,9 +26,10 @@ import type {
   WrappedSummary,
 } from "./views";
 
-/** The DI bundle every verb closes over. Stats is read-only, so the bundle is just the libSQL handle. */
+/** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {
   db: Db;
+  now: () => number;
 }
 
 export interface StatsService {
@@ -67,6 +71,10 @@ export interface StatsService {
   /** Per-(character, model) selected-variant economics, owner-scoped — discovery's `modelRouting` re-groups
    *  by the character's distilled genre. */
   characterModelEconomics: (ownerId: UserId) => Promise<CharacterModelEconomics[]>;
+
+  /** Rebuild THIS owner's rollups from canon, awaited (the instant "recompute my stats"). The bulk
+   *  all-owners sweep stays the `reconcile-stats` workload. */
+  reconcile: (ownerId: UserId) => Promise<ReconcileStatsResult>;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (`reconcile-stats`). */

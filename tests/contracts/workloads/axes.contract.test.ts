@@ -1,4 +1,4 @@
-import type { WorkloadKind, WorkloadModePolicy, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadLane, WorkloadModePolicy, WorkloadResumePolicy, WorkloadStatus } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
   INDEX_SOURCES,
@@ -6,7 +6,9 @@ import {
   NON_INDEX_SOURCE,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
+  WORKLOAD_LANES,
   WORKLOAD_MODES,
+  WORKLOAD_RESUME_POLICIES,
   WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
   workloadKindSchema,
@@ -134,6 +136,31 @@ const STATUS_SEEN: Record<WorkloadStatus, true> = {
 };
 test("WorkloadStatus has no member beyond the tuple", () => {
   expect(Object.keys(STATUS_SEEN).sort()).toEqual([...WORKLOAD_STATUSES].sort());
+});
+
+// ── The EXECUTION axes (lane + resume) — the tuples `@orb/db`'s `workloads.lane` column/CHECK and the
+//    client's lane grouping derive from (D34). Pinned here because a member added or reordered silently
+//    changes which worker loop a row lands on. ───────────────────────────────────────────────────────────
+test("WORKLOAD_LANES is exactly [interactive, sweep] (the two worker poll loops)", () => {
+  expect(WORKLOAD_LANES).toEqual(["interactive", "sweep"]);
+});
+
+test("WORKLOAD_RESUME_POLICIES is exactly [idempotent-restart, checkpointed, none]", () => {
+  expect(WORKLOAD_RESUME_POLICIES).toEqual(["idempotent-restart", "checkpointed", "none"]);
+});
+
+const LANE_SEEN: Record<WorkloadLane, true> = { interactive: true, sweep: true };
+test("WorkloadLane has no member beyond the tuple", () => {
+  expect(Object.keys(LANE_SEEN).sort()).toEqual([...WORKLOAD_LANES].sort());
+});
+
+const RESUME_SEEN: Record<WorkloadResumePolicy, true> = {
+  "idempotent-restart": true,
+  checkpointed: true,
+  none: true,
+};
+test("WorkloadResumePolicy has no member beyond the tuple", () => {
+  expect(Object.keys(RESUME_SEEN).sort()).toEqual([...WORKLOAD_RESUME_POLICIES].sort());
 });
 
 // ── The WorkloadMode axis + the per-kind MODE POLICY map (WORKLOAD_KIND_MODES) — the ONE declarative home ─

@@ -5,11 +5,19 @@
 // status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). Real libSQL
 // :memory: via freshDb (FK ON).
 
-import { ACTIVE_WORKLOAD_STATUSES, SCHEDULE_CADENCES, WORKLOAD_KINDS, WORKLOAD_MODES, WORKLOAD_SOURCES, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import {
+  ACTIVE_WORKLOAD_STATUSES,
+  SCHEDULE_CADENCES,
+  WORKLOAD_KINDS,
+  WORKLOAD_LANES,
+  WORKLOAD_MODES,
+  WORKLOAD_SOURCES,
+  WORKLOAD_STATUSES,
+} from "@orb/contracts/workloads";
 import { isConstraintViolation, users, workloadSchedules, workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
 
@@ -28,6 +36,37 @@ test("workloads.mode enum mirrors WORKLOAD_MODES (db derives the contracts tuple
 
 test("workloads.source enum mirrors WORKLOAD_SOURCES (db derives the contracts tuple)", () => {
   expect(workloads.source.enumValues).toEqual([...WORKLOAD_SOURCES]);
+});
+
+test("workloads.lane enum mirrors WORKLOAD_LANES (db derives the contracts tuple)", () => {
+  expect(workloads.lane.enumValues).toEqual([...WORKLOAD_LANES]);
+});
+
+// The lane is EXECUTION, and the CHECK is what keeps a bad writer out of a lane that has no worker loop.
+test("workloads.lane defaults to `sweep` and its CHECK refuses a non-member lane", async () => {
+  const db = await freshDb();
+  const id = castId<WorkloadId>("workload_lane_default");
+  await db.insert(workloads).values({ id, kind: "reconcile-stats" });
+  const rows = await db.select().from(workloads).where(eq(workloads.id, id));
+  expect(rows[0]?.lane).toBe("sweep");
+  expect(rows[0]?.progress).toBeNull();
+
+  let caught: unknown;
+  try {
+    await db.run(sql`insert into workloads (id, kind, lane) values ('workload_bad_lane', 'reconcile-stats', 'express')`);
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)).toMatchObject({ kind: "check" });
+});
+
+// The durable progress snapshot round-trips as JSON (the reconnect truth the pane reads off `list`).
+test("workloads.progress round-trips the WorkloadProgress JSON blob", async () => {
+  const db = await freshDb();
+  const id = castId<WorkloadId>("workload_progress_rt");
+  await db.insert(workloads).values({ id, kind: "import-st", progress: { message: "importing", current: 4, total: 9, pct: 44 } });
+  const rows = await db.select().from(workloads).where(eq(workloads.id, id));
+  expect(rows[0]?.progress).toEqual({ message: "importing", current: 4, total: 9, pct: 44 });
 });
 
 // ── workload_schedules (the TIME dimension) — the enum columns derive the contracts tuples too ──────────

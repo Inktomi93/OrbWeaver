@@ -24,7 +24,7 @@ export type {
 export type { WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service";
 export type { WorkloadError } from "./contract/workload-error";
 export type { WorkloadEvent } from "./contract/workload-events";
-export type { WorkloadRowAnyKind } from "./contract/workload-row";
+export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,

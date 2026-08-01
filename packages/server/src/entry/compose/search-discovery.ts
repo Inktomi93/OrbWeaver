@@ -209,7 +209,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
   const preset = createPresetService(presetCtx);
-  const stats = createStatsService(db);
+  const stats = createStatsService(db, now);
   // `resolveActiveDocumentIds` is databank's ONE scope-union home (05 §3.2) injected into search — the
   // documents lens never re-derives which documents a scope may see.
   const search = createSearchService({ db, roleClients, now, resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope) });

@@ -971,6 +971,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "stats.activityHeatmap": "self-scoped by principal.userId",
   "stats.momentum": "self-scoped by principal.userId",
   "stats.latency": "self-scoped by principal.userId",
+  // The one WRITE on the stats surface: no id input at all — the rebuild scope IS principal.userId, so a
+  // stranger can only ever rebuild its own rollups (the owner-scoping is unit-tested at the verb mirror).
+  "stats.reconcile": "self-scoped WRITE: rebuild scope is principal.userId, no id input",
   // Admin-gated (LAYER-1 role gate): a plain-user stranger is refused FORBIDDEN at the ladder BEFORE any
   // resource lookup — the role gate is the authz surface, tested by the admin-gate matrix, not IDOR.
   "admin.listUsers": "admin-gated: role gate (not IDOR)",

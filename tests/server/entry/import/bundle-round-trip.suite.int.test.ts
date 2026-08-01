@@ -37,7 +37,7 @@ import { freshDb } from "../../../support/db.ts";
 import { seedCharacter } from "../../../support/factories/character.ts";
 import { seedUser } from "../../../support/factories/user.ts";
 import { expect, test } from "../../../support/fixtures";
-import { makeRunnerDeps } from "../../domain/workloads/_support.ts";
+import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // This suite builds TWO full service graphs (source `app` fixture + a fresh target box) and drives a real
 // workload — it passes warm in ~2-3 s but exceeds vitest's 5 s default under parallel CPU contention. A
@@ -302,10 +302,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         const res = await importH(makeCtx(target, req));
         expect(res.status).toBe(202);
         const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
-        const row = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
-        if (row === null) {
-          throw new Error("import-bundle workload row missing after start");
-        }
+        const row = await loadRunnableWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         await runWorkload(makeRunnerDeps(freshDatabase, fresh.workloadContributions), row, new AbortController().signal);
         const done = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
         expect(done?.status).toBe("succeeded");
