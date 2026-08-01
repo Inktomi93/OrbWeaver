@@ -166,3 +166,18 @@ test("bulk mode: the row body toggles selection (not open-editor) and shows a ch
   await expect(component.getByTestId("bulk-id")).toHaveText("char_ct_story");
   await expect(component.getByTestId("selected-id")).toHaveText("");
 });
+
+// The lifecycle one-home ruling: card EXPORT homes on this row's kebab (import is the band's ghost; the
+// editor carries no lifecycle chrome). It is a plain download LINK to the owner-gated export route — a
+// non-owner's GET 404s at the verb, so the item can't reach a card the viewer doesn't own.
+test("§12 the kebab carries Export card as a download link to the owner-gated route", async ({ mount, page }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+
+  const exportItem = page.getByRole("menuitem", { name: "Export card" });
+  await expect(exportItem).toHaveAttribute("href", "/api/export/character/char_ct_story");
+  await expect(exportItem).toHaveAttribute("download", "");
+  // The rare/destructive cluster the ruling puts it in — the same menu, not a second home.
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+});

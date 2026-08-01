@@ -95,6 +95,7 @@ import { ChatMessageHandlingSection } from "../../../../packages/client/src/feat
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
+import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
 import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header";
@@ -1689,6 +1690,42 @@ export function ChatOptionsMenuStory({ committed = true, withCast = false }: Cha
           title="Test chat"
           characters={withCast ? CT_OPTIONS_CAST : []}
         />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The chats-band transcript IMPORT dialog (chat-import-dialog.tsx) — the one home for getting a `.jsonl`
+ *  into the library. Opens immediately (the band's ghost button is the only way in, and it has no other
+ *  state), and records the two observable outcomes: whether the dialog asked to CLOSE (the "something
+ *  landed" signal) and the NOTICE the dialog fired. The notice needs `bindNotify` here because the toast
+ *  impl binds at the composition root (main.tsx) — unbound, `notify` writes to the console and no CT could
+ *  see the derived message at all. */
+export function ChatImportDialogStory(): ReactElement {
+  const [open, setOpen] = useState(true);
+  const [closes, setCloses] = useState(0);
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    bindNotify({
+      info: (message): void => setNotice(`info: ${message}`),
+      success: (message): void => setNotice(`success: ${message}`),
+      error: (message): void => setNotice(`error: ${message}`),
+    });
+  }, []);
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatImportDialog
+          onOpenChange={(next): void => {
+            setOpen(next);
+            if (!next) {
+              setCloses((n) => n + 1);
+            }
+          }}
+          open={open}
+        />
+        <p data-testid="import-closes">{String(closes)}</p>
+        <p data-testid="import-notice">{notice}</p>
       </div>
     </CtDataProviders>
   );

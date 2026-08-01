@@ -4,6 +4,7 @@
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
@@ -29,6 +30,20 @@ function mapped(err: Error): NonNullable<ReturnType<typeof classifyDomainError>>
 }
 
 const FROZEN_NOW = 1_750_000_000_000;
+
+// The registry must carry the CHAT descriptor: `POST /api/import/chat` is a thin arm over it and resolves it
+// at REGISTRATION, refusing to mount without one (a composition bug has to be loud, not a dead route). This
+// slice never drives the import leg, so both halves are inert — the descriptor's presence is the point.
+const inertChatPortability: PortableEntity = {
+  kind: "chat",
+  dir: "chats/",
+  ext: ".jsonl",
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async *exportAll(): AsyncIterable<PortableFile> {
+    // inert: assembly tests never stream an export.
+  },
+  importFile: () => Promise.resolve({ ok: false, error: "inert in the app-assembly slice" }),
+};
 
 // The auth middleware now reads the raw TCP peer address via `@hono/node-server/conninfo`'s `getConnInfo`,
 // which reads `c.env.incoming.socket.*` and THROWS without it. `app.fetch(req)` in a unit test supplies no
@@ -100,7 +115,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     cas: stub,
     character: stub,
     exportService: stub,
-    portability: [],
+    portability: [inertChatPortability],
     importWorldInfo: stub,
     sessions: stub,
     isShuttingDown: (): boolean => false,

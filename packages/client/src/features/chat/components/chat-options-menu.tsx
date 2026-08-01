@@ -13,14 +13,14 @@
 // hover reason that NAMES the unlock condition (send the first message). A draft CAN do the actions that
 // don't need canon (open its Settings/Injections context tabs, start a fresh chat with the same cast,
 // browse a founding character's gallery), so those stay live; everything else (turn steering, membership,
-// rename/download/delete of a row not yet created) is disabled-with-reason. `title` on a MenuItem surfaces
+// rename/delete of a row not yet created) is disabled-with-reason. `title` on a MenuItem surfaces
 // on hover because Base UI renders a div[role=menuitem] aria-disabled (not native-disabled), so a disabled
 // item still receives pointer/hover — verified in chat-options-menu.ct.tsx.
 
 import { isRpgEngaged, RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Download, Icon, Images, MessagesSquare, Pencil, Swords, Trash2, X } from "@orb/ui/icons";
-import { MenuItem, MenuLinkItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
+import { Icon, Images, MessagesSquare, Pencil, Swords, Trash2, X } from "@orb/ui/icons";
+import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -261,7 +261,7 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, d
         </MenuItem>
 
         <MenuSeparator />
-        <TrailingItems committed={committed} chatId={chatId} reason={draftReason} onRename={openRename} />
+        <TrailingItems committed={committed} reason={draftReason} onRename={openRename} />
       </RowActionsMenu>
 
       <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
@@ -284,34 +284,24 @@ export function ChatOptionsMenu({ chatId, committed = true, title, characters, d
 
 interface TrailingItemsProps {
   readonly committed: boolean;
-  readonly chatId: ChatId | undefined;
   readonly reason: string | undefined;
   readonly onRename: () => void;
 }
 
-/** The trailing group — Rename / Download transcript / Close chat, plus (draft only) a DISABLED "Delete
- *  chat" twin. Extracted so the parent menu stays under the complexity ceiling. Rename + Download disable
- *  on a draft (with a reason); Download is a real download LINK only when committed (a draft has no href
- *  referent, so it renders a disabled MenuItem instead). Delete is the confirm-wired `destructive` slot
- *  when committed — a draft renders it here, disabled, so the item is never hidden (owner ruling). */
-function TrailingItems({ committed, chatId, reason, onRename }: TrailingItemsProps): ReactElement {
+/** The trailing group — Rename / Close chat, plus (draft only) a DISABLED "Delete chat" twin. Extracted so
+ *  the parent menu stays under the complexity ceiling. Rename disables on a draft (with a reason). Delete is
+ *  the confirm-wired `destructive` slot when committed — a draft renders it here, disabled, so the item is
+ *  never hidden (owner ruling).
+ *
+ *  EXPORT IS DELIBERATELY ABSENT: transcript download homes on the chats-LIST row kebab, its ONE home
+ *  (the ratified lifecycle placement — the room carries no import/export chrome). */
+function TrailingItems({ committed, reason, onRename }: TrailingItemsProps): ReactElement {
   return (
     <>
       <MenuItem disabled={!committed} title={reason} onClick={onRename}>
         <Icon icon={Pencil} size="sm" />
         Rename
       </MenuItem>
-      {committed && chatId !== undefined ? (
-        <MenuLinkItem href={`/api/export/chat/${chatId}`} download={true}>
-          <Icon icon={Download} size="sm" />
-          Download transcript
-        </MenuLinkItem>
-      ) : (
-        <MenuItem disabled={true} title={reason}>
-          <Icon icon={Download} size="sm" />
-          Download transcript
-        </MenuItem>
-      )}
       <MenuItem onClick={goToLanding}>
         <Icon icon={X} size="sm" />
         Close chat

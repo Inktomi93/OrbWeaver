@@ -26,6 +26,8 @@ export { registerHealthz } from "./healthz";
 
 export type { ImportBundleDeps } from "./import";
 export { registerImportBundle } from "./import";
+export type { ChatImportResult, ImportChatDeps } from "./import-chat";
+export { registerImportChat } from "./import-chat";
 export type { ImportTreeDeps } from "./import-tree";
 export { registerImportTree } from "./import-tree";
 export type { JoinDeps } from "./join";

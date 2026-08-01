@@ -9,29 +9,46 @@
 // with the list surface below, so no extra fetch): the title + New render immediately and stay put while the
 // count settles, instead of the whole band suspending. New opens the `newChat` modal — the same handler the
 // surface's empty-state News use.
+//
+// Import sits beside New as a GHOST icon — the ratified band anatomy (the presets band's landed precedent):
+// a secondary entry into the same "get a chat" job, and the ONE home for transcript import (the room's ⋯
+// menu carries no lifecycle chrome). Export is its opposite number on the row kebab.
 
 import { Button } from "@orb/ui/button";
-import { Icon, Plus } from "@orb/ui/icons";
+import { Icon, Plus, Upload } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 import { openModal } from "#state";
+import { ChatImportDialog } from "./chat-import-dialog";
 
 export function ChatListHeader(): ReactElement {
   const trpc = useTRPC();
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
-    <ListPaneHeader
-      action={
-        <Button intent="primary" onClick={(): void => openModal("newChat")} size="sm">
-          <Icon icon={Plus} size="sm" />
-          New
-        </Button>
-      }
-      count={chats?.length ?? 0}
-      title="Chats"
-    />
+    <>
+      <ListPaneHeader
+        action={
+          // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
+          <Row align="center" gap="field">
+            <Button aria-label="Import a chat transcript" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+              <Icon icon={Upload} size="sm" />
+            </Button>
+            <Button intent="primary" onClick={(): void => openModal("newChat")} size="sm">
+              <Icon icon={Plus} size="sm" />
+              New
+            </Button>
+          </Row>
+        }
+        count={chats?.length ?? 0}
+        title="Chats"
+      />
+      <ChatImportDialog onOpenChange={setImportOpen} open={importOpen} />
+    </>
   );
 }

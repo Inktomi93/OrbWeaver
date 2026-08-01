@@ -1,8 +1,14 @@
-// The chat-LIST row kebab (J5 · UIP-301) — the per-row overflow menu wiring the four host-only lifecycle
-// verbs (Rename · Star · Archive · Delete) exposed by J5's router pass-throughs, over the shared
-// `RowActionsMenu` composite (⋯ trigger → items → the ConfirmDialog-wired destructive Delete). A leaf
-// component: it owns the rename Dialog state + drives the mutation hooks; the row select never fires when
-// the kebab is clicked (ListRow renders `actions` as a SIBLING outside the clickable body).
+// The chat-LIST row kebab (J5 · UIP-301) — the per-row overflow menu wiring the host-only lifecycle verbs
+// (Rename · Star · Archive · Export · Delete) over the shared `RowActionsMenu` composite (⋯ trigger → items
+// → the ConfirmDialog-wired destructive Delete). A leaf component: it owns the rename Dialog state + drives
+// the mutation hooks; the row select never fires when the kebab is clicked (ListRow renders `actions` as a
+// SIBLING outside the clickable body).
+//
+// EXPORT lives HERE and nowhere else (the ratified lifecycle placement: import on the list band, export on
+// the row kebab; the chat room carries no lifecycle chrome). It is a plain download LINK to the host-gated
+// `GET /api/export/chat/:id` — a non-host member's request 404s at the verb, so the item cannot leak a
+// visibility plane the requester can't already see. The two formats the route serves are two link items in
+// one submenu (`.jsonl` round-trips back through the band's Import; `.txt` is a read-only reading copy).
 //
 // REVERSIBILITY (DESIGN.md §9): rename/star/archive are quiet in-place edits; DELETE cascades hard
 // (messages/roster/events, FK) — NOT reversible — so it sits behind RowActionsMenu's ConfirmDialog
@@ -10,14 +16,17 @@
 // stays controlled + Zod" carve-out — NOT a form factory).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Archive, Icon, Pencil, Star } from "@orb/ui/icons";
-import { MenuItem } from "@orb/ui/menu";
+import { Archive, Download, Icon, Pencil, Star } from "@orb/ui/icons";
+import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useArchiveChat, useDeleteChat, useStarChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { RenameChatDialog } from "./rename-chat-dialog";
+
+/** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
+const EXPORT_CHAT_PATH = "/api/export/chat/";
 
 export interface ChatListRowMenuProps {
   readonly chatId: ChatId;
@@ -88,6 +97,20 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
           <Icon icon={Archive} size="sm" />
           {archived ? "Unarchive" : "Archive"}
         </MenuItem>
+        <MenuSubmenuRoot>
+          <MenuSubmenuTrigger>
+            <Icon icon={Download} size="sm" />
+            Export transcript
+          </MenuSubmenuTrigger>
+          <MenuPopup>
+            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}`}>
+              Chat file (.jsonl)
+            </MenuLinkItem>
+            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}?format=txt`}>
+              Plain text (.txt)
+            </MenuLinkItem>
+          </MenuPopup>
+        </MenuSubmenuRoot>
       </RowActionsMenu>
 
       {/* Rename — a single controlled input (the §13.4 single-rename carve-out, not a form factory). */}

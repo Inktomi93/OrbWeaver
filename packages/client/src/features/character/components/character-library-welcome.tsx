@@ -5,13 +5,13 @@
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { CharacterCreateMenu } from "./character-create-menu";
+import { CharacterCreateButton } from "./character-create-actions";
 
 /** The Characters CONTENT teaching hero (§5) — shown when no character is selected. */
 export function CharacterLibraryWelcome(): ReactElement {
   return (
     <EmptyState
-      action={<CharacterCreateMenu />}
+      action={<CharacterCreateButton />}
       className="h-full justify-center"
       description="Pick someone from the list, or make someone new."
       icon={<Icon icon={Users} size="lg" />}
