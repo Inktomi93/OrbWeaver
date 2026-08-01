@@ -60,6 +60,11 @@ async function compareCharactersDeep(
   // The system prompt is a PROSE-1 slot resolved on the SAME caller rung as the sampling above — the library
   // being compared is this user's own. No override ⇒ the shipped prompt, byte for byte.
   const system = resolveProseText("discovery.compare.system", await ctx.resolveUserProse(args.userId));
+  // NO RETRY DRIFT: `prompt`/`system`/`sampleOpts` are all resolved ABOVE and merely CLOSED OVER, so
+  // `runStructuredTurn`'s bounded second attempt sends the same pass the first did — only the appended
+  // `correction` differs. Resolving any of them INSIDE this closure would re-read the settings/preset rung
+  // mid-turn and let the retry drift (the `DistillPass` bundle, 49616a67, is the same invariant where the
+  // retry is a separate function).
   const run = async (correction?: string): Promise<string> => {
     const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
@@ -108,6 +113,8 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
     ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId))),
   };
   const system = resolveProseText("discovery.ask.system", await ctx.resolveUserProse(userId));
+  // NO RETRY DRIFT — the compare-narrative invariant above, same shape: everything the retry sends is
+  // resolved once, outside this closure.
   const run = async (correction?: string): Promise<string> => {
     const result = await ctx.summarize([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);
     return result.items[0]?.text ?? "";
