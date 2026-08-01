@@ -38,6 +38,14 @@ export interface ListRowProps {
   /** The row width (px) at/below which `renderActions` receives `collapsed=true`. */
   collapseBelow?: number;
   /**
+   * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
+   * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
+   * trailing controls are ALL hover-revealed; a rest-VISIBLE marker (a pressed star, a badge) belongs in
+   * flow, where it can't sit on top of the text. Requires the row root to carry `group` (the reveal +
+   * this slot's backdrop both key on it).
+   */
+  actionsFloat?: boolean;
+  /**
    * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
    * nothing interactive nests inside it. The body's children are all phrasing content, so a
    * native `<button>` is valid.
@@ -213,6 +221,7 @@ export function ListRow({
   actions,
   renderActions,
   collapseBelow,
+  actionsFloat = false,
   clickable = false,
   selected = false,
   disabled = false,
@@ -220,7 +229,7 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat });
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;

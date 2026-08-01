@@ -13,7 +13,9 @@ export interface EmptyStateProps {
   className?: string;
 }
 
-/** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's. */
+/** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's.
+ *  The VOICE scales itself to the surface it lands in (a container query on the root — see variants.ts):
+ *  CONTENT-tier by default, one type step down inside a narrow LIST pane. No prop, nothing to remember. */
 export function EmptyState({ decoration, icon, title, description, action, className }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants();
   let head: ReactElement | null = null;
