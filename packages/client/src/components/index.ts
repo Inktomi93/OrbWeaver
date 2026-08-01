@@ -54,3 +54,5 @@ export {
   TrackerChip,
   TrackerValue,
 } from "./tracker-blocks";
+export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog";
+export { UserMacroEditorDialog } from "./user-macro-editor-dialog";

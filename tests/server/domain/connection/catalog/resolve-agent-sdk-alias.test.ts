@@ -93,14 +93,34 @@ describe("agent-sdk alias resolution", () => {
     expect(resolveAgentSdkAlias("preview", [headless])).toBeUndefined();
   });
 
-  test("an UNCURATED resolved version falls back to the Claude-family bounds — and claims no structured output", () => {
+  test("an UNCURATED resolved version falls back to the Claude-family bounds — and INHERITS the family floor", () => {
     const future: AgentSdkModel = { ...SONNET, alias: "sonnet", resolvedModel: "claude-sonnet-9" };
     const r = resolved("sonnet", [future]);
     expect(r.resolvedModel).toBe("claude-sonnet-9");
     expect(r.capability.output.maxTokens.max).toBe(64_000);
     expect(r.capability.context).toEqual({ window: 200_000, supports1M: false });
-    // The synthesized fallback carries NO `structured` flag (only a curated entry asserts it) — a shortlist that
-    // trails the daemon therefore reads a brand-new Claude as structured-output-less.
+    // A version the shortlist doesn't carry is a NEWER Claude — resolving it as tool-less +
+    // structured-output-less would read newer as LESS capable and drop an rpg game to trackers-readonly.
+    expect(r.capability.output.structured).toBe(true);
+    expect(r.capability.tools).toEqual({ parallel: true });
+    expect(r.capability.input).toEqual({ vision: true });
+  });
+
+  test("a CURATED resolved version carries that entry's own axes (the alias path keeps tools/vision too)", () => {
+    const r = resolved("opus"); // → claude-opus-4-8, curated
+    expect(r.capability.tools).toEqual({ parallel: true });
+    expect(r.capability.input).toEqual({ vision: true });
+    expect(r.capability.output.structured).toBe(true);
+  });
+
+  test("a resolved id the anthropic anchor does NOT recognize claims nothing (conservative synthesis)", () => {
+    // The daemon's own rows are Claude, but the floor is granted on RECOGNITION, never on the source: a
+    // third-party id that merely contains "claude" (`detectModelFamily` → `other`) gets no capability claim.
+    const fork: AgentSdkModel = { ...SONNET, alias: "sonnet", resolvedModel: "some-org/claude-fork-9" };
+    const r = resolved("sonnet", [fork]);
+    expect(r.resolvedModel).toBe("some-org/claude-fork-9");
     expect(r.capability.output.structured).toBeUndefined();
+    expect(r.capability.tools).toBeUndefined();
+    expect(r.capability.input).toBeUndefined();
   });
 });

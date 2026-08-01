@@ -1062,6 +1062,8 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
     resolvePresetOwned: deps.resolvePresetOwned,
+    // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
+    resolvePresetUserMacros: deps.rpgChatOps.resolvePromptUserMacros,
     resolveStateDelivery: buildResolveStateDelivery(deps),
     runToolRound: buildRunToolRound(deps),
     // R1 (`folded` mode) — the two halves of the ONE-CALL exchange: the gather's tool mount + the flush's fold.
