@@ -48,7 +48,13 @@
 
 /* Ambient accent aura behind the empty-state brand glyph — a static low-alpha radial glow tinted
  * from --color-primary. Scoped to the brand/hero decoration slot only, never the muted empty-state
- * icon chrome or message prose (reading-surface rule). */
+ * icon chrome or message prose (reading-surface rule).
+ *
+ * `closest-side` + a CENTERED origin is load-bearing, not a style preference: a radial origin on the
+ * box edge (the former `at 50% 0%`) puts the gradient's PEAK alpha on that edge, so the aura is sliced
+ * in half and paints a hard-edged horizontal smudge above the glyph — no container clipping needed to
+ * produce it. closest-side ends the ramp exactly at the nearest edge, so the aura reaches zero alpha
+ * before the box ends on every side. */
 [data-slot="empty-state-decoration"] {
   position: relative;
   isolation: isolate;
@@ -59,7 +65,7 @@
   z-index: -1;
   inset: -60% -40%;
   pointer-events: none;
-  background: radial-gradient(60% 50% at 50% 0%, oklch(from var(--color-primary) l c h / 0.14), transparent 70%);
+  background: radial-gradient(closest-side at 50% 50%, oklch(from var(--color-primary) l c h / 0.14), transparent);
 }
 
 /* Gradient border ring on accent surfaces (CTA / selected media cell): a ::after overlay (dual
