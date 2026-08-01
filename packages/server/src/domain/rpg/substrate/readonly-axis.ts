@@ -17,7 +17,7 @@
 // on this verdict; the derivation itself is silent truth.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import type { RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgEffectiveDelivery, RpgExtractionMode } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
@@ -32,6 +32,32 @@ const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapab
  *  write path exists. */
 export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: ModelCapability | null): boolean {
   return capability === null || !HAS_WRITE_PATH[mode](capability);
+}
+
+/** EFF-3 — derive the room's EFFECTIVE state delivery from the knob + the SAME two verdicts the flush and the
+ *  gather already gate on. This is the honest twin of the flush's `foldFallbackReason`: that one reads the
+ *  COMPLETED turn's own wire, this one reads the room connection the next turn will resolve to — and for the
+ *  `local-engine-fold-guard` arm they are the SAME fact by construction, because the gather's pre-commit mount
+ *  decision gates on exactly this `foldGuarded` bit (D112 as amended). So the panel states what the room does,
+ *  never a guess at what the model will do.
+ *
+ *  What it deliberately does NOT claim: `no-terminal-channel`. That arm is only knowable AFTER a turn hands back
+ *  a `null` channel (an unbuildable mount / a hook miss) and nothing persists it, so it stays a log-only fact —
+ *  a room in that state reads `folded` here and its WARN line is the trail. Surfacing a maybe here would trade
+ *  one lie for another. */
+export function deriveEffectiveDelivery(
+  mode: RpgExtractionMode,
+  verdicts: { readonly trackersReadOnly: boolean; readonly foldGuarded: boolean },
+): RpgEffectiveDelivery {
+  if (verdicts.trackersReadOnly) {
+    // No model write path at all — the flush returns before any vehicle runs (the F2 gate). Neither "Live" nor
+    // "one beat behind" is true of a game nothing writes; the read-only pill is the honest label there.
+    return { path: "none", fallbackReason: null };
+  }
+  if (mode === "folded" && verdicts.foldGuarded) {
+    return { path: "tool-round", fallbackReason: "local-engine-fold-guard" };
+  }
+  return { path: mode === "folded" ? "folded" : "tool-round", fallbackReason: null };
 }
 
 /** Does this connection have the STRUCTURED-OUTPUT write path? The gate for the two vehicles that are NOT a

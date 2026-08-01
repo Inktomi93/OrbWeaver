@@ -10,10 +10,10 @@
 // band text shows the model's free `weather.label` when it wrote one.
 // Orb color rides the ONE `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
-// The cues row = freshness (extractionMode, honest) + the host-only `veiledCue` slot (§6 P3 — the band's
+// The cues row = freshness (the EFFECTIVE delivery, honest — EFF-3) + the host-only `veiledCue` slot (§6 P3 — the band's
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
-import type { RpgClockTime, RpgDateMode, RpgExtractionMode, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgClockTime, RpgDateMode, RpgEffectiveDelivery, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
@@ -80,8 +80,9 @@ export interface RpgTakeoverHeaderProps {
   readonly trackerOrbs: readonly RpgTrackerOrb[];
   readonly viewerUserId: string;
   readonly trackersReadOnly: boolean;
-  /** The game's delivery-model knob — drives the freshness indicator's honest posture (§4.5, the ruling). */
-  readonly extractionMode: RpgExtractionMode;
+  /** The room's EFFECTIVE state delivery (EFF-3) — drives the freshness indicator's honest posture (§4.5, the
+   *  ruling). NOT the raw `extractionMode` knob: a folded game that cannot fold must not read "Live". */
+  readonly delivery: RpgEffectiveDelivery;
   /** The #9 ambient-date mode — `narrated` leads with the date string (no day counter); `structured` keeps it. */
   readonly dateMode: RpgDateMode;
   /** Reliable-mode transient: a character turn is live, so this beat's extraction hasn't flushed yet. */
@@ -98,7 +99,7 @@ export function RpgTakeoverHeader({
   trackerOrbs,
   viewerUserId,
   trackersReadOnly,
-  extractionMode,
+  delivery,
   dateMode,
   freshnessPending,
   veiledCue,
@@ -136,7 +137,7 @@ export function RpgTakeoverHeader({
             </Text>
           )}
           <Row gap="field" align="center" className="flex-wrap">
-            <RpgFreshnessIndicator extractionMode={extractionMode} pending={freshnessPending} />
+            <RpgFreshnessIndicator delivery={delivery} pending={freshnessPending} />
             {veiledCue}
             {trackersReadOnly ? (
               <Badge tone="soft" size="sm" title="This model can't update trackers — they still steer the story; edit them by hand.">
