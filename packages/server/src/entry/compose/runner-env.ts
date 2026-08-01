@@ -10,18 +10,14 @@ import type { IngestRunResult } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
-import { characters } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import type { AssetsService } from "#domain/assets";
+import type { UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { BulkImportPersonas } from "#domain/persona";
 import { reconcileStats } from "#domain/stats";
-import type { WorkloadCharacterEnv, WorkloadMemoryEnv, WorkloadRunnerEnv } from "#domain/workloads";
-import type { Cas } from "#infra/storage";
+import type { WorkloadRunnerEnv } from "#domain/workloads";
 import { stageDirectory } from "#infra/storage";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import";
 import {
@@ -34,25 +30,18 @@ import {
 } from "../import";
 
 type StatsOut = Awaited<ReturnType<WorkloadRunnerEnv["stats"]["reconcileStats"]>>;
-type MaintCountsOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["collectGarbage"]>>;
-type FsckOut = Awaited<ReturnType<WorkloadRunnerEnv["assets"]["fsck"]>>;
 
 /** What the runner-env builder needs from the composition root. */
 export interface RunnerEnvDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly cas: Cas;
 
-  /** Only the PURGE ops survive here — the `index` kind's embed passes moved to
-   *  `domain/embeddings/workload-contributions.ts`. The purges are fired by the memory-backfill +
-   *  databank-reindex runners, which have not moved yet. */
-  readonly embeddings: Pick<EmbeddingsService, "purgeMemoryVectors" | "purgeDocumentVectors">;
+  /** Only the DOCUMENT purge survives here — every other embeddings op moved to its owning domain's
+   *  contribution factory. It is fired by the
+   *  databank-reindex runner, which has not moved yet. */
+  readonly embeddings: Pick<EmbeddingsService, "purgeDocumentVectors">;
   /** The databank ingest subsystem (chunk→embed→prune) — the databank-ingest/reindex runners' backing ops. */
   readonly databankIngest: DatabankIngest;
-  readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
-  /** Chat's corpus sweeps, bound over the chat ctx at the root (built after chat). */
-  readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
-  readonly groupCharacterBackfill: WorkloadCharacterEnv["backfillGroupCharacters"];
   /** Accessed lazily — the registry is assembled after this env is built, so this derefs at run time.
    *  Do NOT eager-capture the registry (it doesn't exist yet when this runs). */
   readonly getPortabilityRegistry: () => PortabilityRegistry;
@@ -154,41 +143,6 @@ function bindImportAll(
 /** Repo-root ST profile snapshot (gitignored) — the `importAll` default when no `stProfileDir` is set. */
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
-/** Bind the `assets-backfill` op. The workload seam is count-only, so the root gathers the staged cards:
- *  characters with a recorded card but no linked avatar whose card blob is still in the CAS. */
-function bindBackfillAvatars(db: Db, cas: Cas, assets: Pick<AssetsService, "backfillAvatars">): WorkloadRunnerEnv["assets"]["backfillAvatars"] {
-  return async ({ ownerId, dryRun }) => {
-    const scope =
-      ownerId === null
-        ? and(isNull(characters.avatarAssetId), isNotNull(characters.importHash))
-        : and(eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId), isNotNull(characters.importHash));
-    const rows = await db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
-
-    const byOwner = new Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>();
-    for (const row of rows) {
-      const importHash = row.importHash;
-      // biome-ignore lint/performance/noAwaitInLoops: per-character CAS probe during a maintenance-time gather — not a hot path.
-      if (importHash === null || !(await cas.exists(row.ownerId, importHash))) {
-        continue;
-      }
-      const bytes = await cas.read(row.ownerId, importHash);
-      const cards = byOwner.get(row.ownerId) ?? [];
-      cards.push({ characterId: row.id, bytes, importHash });
-      byOwner.set(row.ownerId, cards);
-    }
-
-    let scanned = 0;
-    let changed = 0;
-    for (const [owner, cards] of byOwner) {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential per-owner backfill fan-out (the verb is per-owner) — maintenance-time, not a hot path.
-      const result = await assets.backfillAvatars({ ownerId: owner, cards, dryRun });
-      scanned += result.scanned;
-      changed += result.linked;
-    }
-    return { scanned, changed };
-  };
-}
-
 /** Bind the `import-bundle` workload op. `resolveStagedPath` resolves the staged upload to a PROPER STRICT
  *  DESCENDANT of the staging root (throws on any traversal attempt, before any fs read or rm). `source: "zip"`
  *  (default) reads the single archive through `runBundleImport` (its own extract belts); `source: "dir"` walks
@@ -231,11 +185,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   const stProfileDir = deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR;
   return {
     embeddings: {
-      // PD-139(b): the chat-memory old-space reclaim; the runner gates it to the bulk, non-aborted pass. The
-      // purge's row counts are advisory — the runner discards them (the sweep's own counts are the result).
-      purgeMemoryVectors: async (): Promise<void> => {
-        await deps.embeddings.purgeMemoryVectors();
-      },
       // PD-139(c): the document old-space reclaim; the databank-reindex runner gates it to the bulk,
       // non-aborted pass (same guard as purgeMemoryVectors). Counts discarded.
       purgeDocumentVectors: async (): Promise<void> => {
@@ -250,21 +199,6 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
       importAll: bindImportAll(stProfileDir, stagingRoot, deps.now, deps.profileImport),
       importBundle: bindImportBundle(deps.getPortabilityRegistry, stagingRoot),
     },
-    assets: {
-      backfillAvatars: bindBackfillAvatars(deps.db, deps.cas, deps.assets),
-      collectGarbage: async ({ dryRun, signal }): Promise<MaintCountsOut> => {
-        const r = await deps.assets.collectGarbage({ dryRun, signal });
-        return { scanned: r.scanned, changed: r.reclaimed };
-      },
-      fsck: async ({ signal }): Promise<FsckOut> => {
-        const r = await deps.assets.fsck({ signal });
-        return {
-          danglingRows: r.danglingRows,
-          corruptBlobs: r.corruptBlobs,
-          orphanBlobs: r.orphanBlobs,
-        };
-      },
-    },
     stats: {
       reconcileStats: async ({ ownerId, signal }): Promise<StatsOut> => {
         const r = await reconcileStats(deps.db, {
@@ -275,9 +209,5 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         return { owners: r.owners, characters: r.characters };
       },
     },
-    memory: { backfill: deps.memoryBackfill },
-    character: { backfillGroupCharacters: deps.groupCharacterBackfill },
-
-    cas: deps.cas,
   };
 }

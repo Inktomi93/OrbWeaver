@@ -1,8 +1,7 @@
-// Composition seam for the portability registry (the zip-bundle export/import descriptors) + the workloads
-// runner-env (the per-user execution env the workloads worker resolves per job) + the two shared import
-// after-effects (memory-backfill enqueue + stats reconcile). Built LAST — the memory/group-character sweeps are
-// chat-ctx-bound ops off the chat compose product, and `import.importAll` composes the profile-dir importer's
-// cross-feature slice. Owns no business logic.
+// Composition seam for the portability registry (the zip-bundle export/import descriptors) + what is LEFT
+// of the workloads runner-env + the two shared import after-effects (memory-backfill enqueue + stats
+// reconcile). Built LAST — `import.importAll` composes the profile-dir importer's cross-feature slice.
+// Owns no business logic.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -23,23 +22,12 @@ import type { WorkloadRunnerEnv, WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import type { ImportWorldInfoPort } from "../import";
 import { buildPortabilityRegistry } from "./portability";
-import type { RunnerEnvDeps } from "./runner-env";
 import { buildWorkloadRunnerEnv } from "./runner-env";
-
-/** The chat compose product's slices the runner-env consumes (memory/group-character sweeps) — typed off
- *  `RunnerEnvDeps` so it stays in lockstep with the runner-env's expected backfill op shapes. */
-interface PortabilityChatSlice {
-  readonly backfill: {
-    readonly memory: RunnerEnvDeps["memoryBackfill"];
-    readonly groupCharacters: RunnerEnvDeps["groupCharacterBackfill"];
-  };
-}
 
 /** What the portability+runner seam needs from the composition root. */
 export interface PortabilityRunnerComposeDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly cas: Parameters<typeof buildWorkloadRunnerEnv>[0]["cas"];
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
   readonly presetCtx: PresetContext;
@@ -59,7 +47,6 @@ export interface PortabilityRunnerComposeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly embeddings: EmbeddingsService;
   readonly databankIngest: DatabankIngest;
-  readonly chat: PortabilityChatSlice;
   readonly importStagingDir?: string | undefined;
   readonly stProfileDir?: string | undefined;
 }
@@ -115,12 +102,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const runnerEnv = buildWorkloadRunnerEnv({
     db,
     now,
-    cas: deps.cas,
     embeddings: deps.embeddings,
     databankIngest: deps.databankIngest,
-    assets: deps.assets,
-    memoryBackfill: deps.chat.backfill.memory,
-    groupCharacterBackfill: deps.chat.backfill.groupCharacters,
     // Lazy: this thunk derefs the registry at run time (it's already assembled just above, but the bundle op
     // reads it lazily by contract).
     getPortabilityRegistry: () => portability,

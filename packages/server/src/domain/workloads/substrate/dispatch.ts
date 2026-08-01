@@ -7,25 +7,15 @@
 
 import type { Runner, ShimmedKind } from "../contract/runner";
 
-import { assetsBackfillRunner } from "../runners/assets-backfill";
-import { assetsFsckRunner } from "../runners/assets-fsck";
-import { assetsGcRunner } from "../runners/assets-gc";
 import { databankIngestRunner } from "../runners/databank-ingest";
 import { databankReindexRunner } from "../runners/databank-reindex";
-import { groupCharacterBackfillRunner } from "../runners/group-character-backfill";
 import { importBundleRunner } from "../runners/import-bundle";
 import { importStRunner } from "../runners/import-st";
-import { memoryBackfillRunner } from "../runners/memory-backfill";
 import { reconcileWorldStateRunner } from "../runners/reconcile-world-state";
 
 /** The kinds whose ownership move has NOT landed yet — this map shrinks to nothing and is deleted with
  *  `runners/`. A moved kind is absent here and present as a `WorkloadContribution` in its owning domain. */
 export const RUNNERS = {
-  "memory-backfill": memoryBackfillRunner,
-  "group-character-backfill": groupCharacterBackfillRunner,
-  "assets-backfill": assetsBackfillRunner,
-  "assets-gc": assetsGcRunner,
-  "assets-fsck": assetsFsckRunner,
   "import-st": importStRunner,
   "import-bundle": importBundleRunner,
   "reconcile-world-state": reconcileWorldStateRunner,

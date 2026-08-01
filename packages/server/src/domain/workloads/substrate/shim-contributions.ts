@@ -15,7 +15,6 @@ import {
   emptyWorkloadParams,
   importBundleWorkloadParams,
   importStWorkloadParams,
-  maintenanceWorkloadParams,
 } from "@orb/contracts/workloads";
 import type { z } from "zod";
 import type { AnyWorkloadContribution, WorkloadContribution } from "../contract/contribution";
@@ -53,11 +52,6 @@ const empty = emptyWorkloadParams as z.ZodType<Record<string, never>>;
 /** The still-unmoved kinds, adapted onto the seam. Shrinks to nothing as the ownership moves land. */
 export function buildShimContributions(deps: ShimContributionDeps): readonly AnyWorkloadContribution[] {
   return [
-    shim(deps, "memory-backfill", empty),
-    shim(deps, "group-character-backfill", empty),
-    shim(deps, "assets-backfill", maintenanceWorkloadParams),
-    shim(deps, "assets-gc", maintenanceWorkloadParams),
-    shim(deps, "assets-fsck", empty),
     shim(deps, "import-st", importStWorkloadParams),
     shim(deps, "import-bundle", importBundleWorkloadParams),
     shim(deps, "reconcile-world-state", empty),

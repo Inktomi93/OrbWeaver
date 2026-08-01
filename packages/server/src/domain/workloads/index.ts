@@ -12,16 +12,7 @@ export type {
 } from "./contract/params";
 export type { Runner } from "./contract/runner";
 
-export type {
-  WorkloadAssetsEnv,
-  WorkloadCharacterEnv,
-  WorkloadDatabankEnv,
-  WorkloadEmbeddingsEnv,
-  WorkloadImportEnv,
-  WorkloadMemoryEnv,
-  WorkloadRunnerEnv,
-  WorkloadStatsEnv,
-} from "./contract/runner-env";
+export type { WorkloadDatabankEnv, WorkloadEmbeddingsEnv, WorkloadImportEnv, WorkloadRunnerEnv, WorkloadStatsEnv } from "./contract/runner-env";
 export type {
   CreateScheduleParams,
   DeleteScheduleParams,

@@ -42,12 +42,4 @@ export {
   maintenanceWorkloadParams,
   startWorkloadEnvelope,
 } from "./params";
-export type {
-  BackfillPassResult,
-  BundleImportWorkloadResult,
-  DeferredResult,
-  FsckReport,
-  MaintenanceResult,
-  MemoryBackfillResult,
-  WorkloadResultByKind,
-} from "./result";
+export type { BundleImportWorkloadResult, DeferredResult, MaintenanceResult, WorkloadResultByKind } from "./result";
