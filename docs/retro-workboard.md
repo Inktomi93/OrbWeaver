@@ -279,7 +279,14 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      for the ui NumberField seal [no aria-valuenow/min/max]); S1-miss fixed (the "real door"
      partition test now mirrors main.tsx — hand-maintained, every stage MUST add its sections);
      926 CT green.
-   - [ ] S3 workloads + admin panes → sections mode (LANE IN FLIGHT — S2 lessons in prompt)
+   - [x] S3 MERGED (`1eaa962c`): both panes skimmers, surfaces+nav-bags+OWN_SUBCATEGORIES
+     deleted; anchors byte-identical (Ops stayed TWO sections — §7.1 anchor stability beats §6's
+     naming); per-section reads+suspense re-homed (found the blank-render class: a nested
+     suspender with no boundary renders BLANK, silent to tsc/gates — Engines was blocking live
+     status on a config read it didn't need, now scoped). ⚠ STAGE-4 CARRY: Engines declares NO
+     owns — cited hold; engineLaunch is claimed by admin-system-tuning at top-level while the
+     launch editor writes leaf-disjoint keys; the claim SPLIT lands with stage 4's app-tier
+     per-section baselines.
    - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
