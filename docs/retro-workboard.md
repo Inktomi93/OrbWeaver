@@ -766,6 +766,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+- **VOCAB: "ember" is a THEME, not a design constant (owner 08-02)** — the default theme's value
+  for the accent tokens. Design/spec/CT language says ACCENT/PRIMARY; sweep the strays (a HUD CT
+  named "ember state colour"; any spec prose) in the next docs/test-touching lane. Code already
+  token-clean (D71 pipeline); mock-local --ember-tint = drawing shorthand, fine.
+
 - **WORKLOADS-PANE VOCAB + JOBS CTA (owner 08-02: "I don't even know the difference between jobs
   and workloads"):** the pane says Workloads, its section says Jobs — same concept, two nouns;
   pick ONE user-facing word (lean: "Jobs" for humans, workloads stays the system/code name) and
