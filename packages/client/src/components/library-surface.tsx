@@ -13,7 +13,7 @@
 // homing precedent).
 
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
+import { Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
@@ -67,18 +67,23 @@ export function LibraryListLayout({
   children,
 }: LibraryListLayoutProps): ReactElement {
   return (
-    <Stack className="h-full" gap="block">
-      {beforeSearch}
+    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes) — presets and world-info books are scanned
+    // lists, not forms. Declared once here, so both consuming surfaces get identical density by
+    // construction instead of each picking steps by taste.
+    <Surface tier="instrument">
+      <Stack className="h-full" gap="row">
+        {beforeSearch}
 
-      <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
+        <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
 
-      {isEmpty ? (
-        empty
-      ) : (
-        <Stack className="min-h-0 flex-1 overflow-y-auto" gap="field">
-          {children}
-        </Stack>
-      )}
-    </Stack>
+        {isEmpty ? (
+          empty
+        ) : (
+          <Stack className="min-h-0 flex-1 overflow-y-auto" gap="tight">
+            {children}
+          </Stack>
+        )}
+      </Stack>
+    </Surface>
   );
 }

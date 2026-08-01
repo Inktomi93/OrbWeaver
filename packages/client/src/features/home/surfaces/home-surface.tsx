@@ -15,7 +15,7 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
-import { Container, Grid, Stack } from "@orb/ui/layout";
+import { Container, Grid, Stack, Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry, HomeTileContribution } from "#lib";
@@ -37,31 +37,37 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const list = orderHomeTiles(tiles.list());
 
   return (
-    <Stack align="center" className="h-full min-h-0 overflow-y-auto outline-none" padding="section" ref={surfaceRef} tabIndex={-1}>
-      <Container className="w-full" size="lg">
-        {list.length === 0 ? (
-          <EmptyState
-            action={
-              <Button intent="primary" onClick={onNewChat}>
-                <Icon icon={Plus} size="sm" />
-                New chat
-              </Button>
-            }
-            decoration={<WeaveGlyph anim={true} size={WEAVE_SIZE} />}
-            description="Start a thread and your recents land here."
-            title="Nothing on your home yet"
-          />
-        ) : (
-          // `items-start` (mock `.grid{align-items:start}`): grid's default `stretch` made every tile in a
-          // row as tall as its tallest sibling, so the short temp-chat tile grew a band of dead space under
-          // its gloss. A tile is as tall as its own content.
-          <Grid className="items-start" cols="wide" data-home-grid={true} gap="block">
-            {list.map((tile) => (
-              <HomeTile key={tile.id} tile={tile} />
-            ))}
-          </Grid>
-        )}
-      </Container>
-    </Stack>
+    // FORM tier (density-pass-spec.md §3.1 "library grid cards"): each tile is an interactive island you
+    // land on and act from, not a row you scan — so its Card resolves the airy steps (p-block, the
+    // floating-island radius) instead of the instrument ones. Declared here rather than in HomeTile so the
+    // grid's own rhythm and its cells agree by construction.
+    <Surface tier="form">
+      <Stack align="center" className="h-full min-h-0 overflow-y-auto outline-none" padding="section" ref={surfaceRef} tabIndex={-1}>
+        <Container className="w-full" size="lg">
+          {list.length === 0 ? (
+            <EmptyState
+              action={
+                <Button intent="primary" onClick={onNewChat}>
+                  <Icon icon={Plus} size="sm" />
+                  New chat
+                </Button>
+              }
+              decoration={<WeaveGlyph anim={true} size={WEAVE_SIZE} />}
+              description="Start a thread and your recents land here."
+              title="Nothing on your home yet"
+            />
+          ) : (
+            // `items-start` (mock `.grid{align-items:start}`): grid's default `stretch` made every tile in a
+            // row as tall as its tallest sibling, so the short temp-chat tile grew a band of dead space under
+            // its gloss. A tile is as tall as its own content.
+            <Grid className="items-start" cols="wide" data-home-grid={true} gap="block">
+              {list.map((tile) => (
+                <HomeTile key={tile.id} tile={tile} />
+              ))}
+            </Grid>
+          )}
+        </Container>
+      </Stack>
+    </Surface>
   );
 }

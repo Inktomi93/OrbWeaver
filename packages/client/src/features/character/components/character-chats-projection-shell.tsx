@@ -56,7 +56,7 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
       aria-label={name === "" ? "Chats" : `Chats with ${name}`}
       className="h-full min-h-0 outline-none"
       data-slot={CHARACTER_CHATS_PROJECTION_SLOT}
-      gap="block"
+      gap="row"
       ref={paneRef}
       tabIndex={-1}
     >
@@ -103,7 +103,9 @@ function IdentityRow({
           {name}
         </Text>
         {gloss === null ? null : (
-          <Text className="font-mono" size="micro" tone="muted">
+          // The `gloss` VOICE (density-pass §2.3), kept mono — a recency stamp is a quiet reading of the
+          // clock, so it stays on the tabular face the row stamps below it use.
+          <Text className="font-mono" voice="gloss">
             {gloss}
           </Text>
         )}

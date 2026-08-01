@@ -17,7 +17,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -56,32 +56,37 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   useFocusOnMount(surfaceRef);
 
   return (
-    <Stack className="h-full min-h-0 outline-none" gap="block" ref={surfaceRef} tabIndex={-1}>
-      {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
+    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes): the pane is scanned, not operated, so its
+    // islands resolve the dense steps. `<Surface>` is display:contents — it declares the tier for the
+    // subtree without adding a box to the height chain.
+    <Surface tier="instrument">
+      <Stack className="h-full min-h-0 outline-none" gap="row" ref={surfaceRef} tabIndex={-1}>
+        {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
           shortcut you arrive for, and burying them under the search box made them read as a filter widget.
           The strip lives HERE rather than in the suspending body so it can sit above the chip; it reads the
           SAME `chat.listChats` cache entry non-suspensefully (no new key, no second truth) and renders
           nothing until it lands, which is its own empty posture anyway. */}
-      <FacesStrip characterFilter={characterFilter} />
-      {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
-      <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
-      <Stack className="min-h-0 flex-1">
-        <QueryBoundary
-          fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your chats" onRetry={retry} />}
-        >
-          <ChatListBody
-            activeChatId={activeChatId}
-            characterFilter={characterFilter}
-            onClearSearch={clearSearch}
-            onDeletedChat={onDeletedChat}
-            onNewChat={onNewChat}
-            onSelect={onSelect}
-            query={deferredQuery}
-          />
-        </QueryBoundary>
+        <FacesStrip characterFilter={characterFilter} />
+        {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
+        <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
+        <Stack className="min-h-0 flex-1">
+          <QueryBoundary
+            fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="your chats" onRetry={retry} />}
+          >
+            <ChatListBody
+              activeChatId={activeChatId}
+              characterFilter={characterFilter}
+              onClearSearch={clearSearch}
+              onDeletedChat={onDeletedChat}
+              onNewChat={onNewChat}
+              onSelect={onSelect}
+              query={deferredQuery}
+            />
+          </QueryBoundary>
+        </Stack>
       </Stack>
-    </Stack>
+    </Surface>
   );
 }
 
@@ -134,9 +139,7 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
 function FilterChip({ filter }: { readonly filter: ChatListCharacterFilter }): ReactElement {
   return (
     <Row align="center" gap="field">
-      <Text size="micro" tone="muted" transform="caps">
-        Filtered:
-      </Text>
+      <Text voice="kicker">Filtered:</Text>
       <Badge intent="info" size="sm" tone="soft">
         {filter.name}
       </Badge>
@@ -255,7 +258,7 @@ function ChatRows({
   // a title AND a shown stamp escalate to a longer one, so no two rows announce the same action name.
   const qualifiers = chatRowQualifiers(filtered);
   return (
-    <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
+    <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="tight" role="list">
       {filtered.map((chat, index) => (
         <ChatListRow
           chat={chat}
