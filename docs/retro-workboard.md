@@ -139,7 +139,12 @@ size=inline · HighlightedText skin=code; default arms byte-identical) · B2 ser
 w/ G9/G10/G11 · single-preset import/export thin arms · OWNER GUARD: format strings refuse
 without their required token [wiFormat needs {{entry}}] + reset-to-default everywhere ghosted) ·
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
-S4-ruled rows untouched). **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
+S4-ruled rows untouched). **CHARACTERS+CHATS LIFECYCLE AUDIT LANE (owner-ordered 08-02):** full CRUD + single-entity
+import/export tables for both rail sections (verb+affordance+classification per row, both-ends
+verified); cheap gaps CLOSED in-lane (thin arms over the live portability descriptors, row-action
+grammar affordances); non-thin gaps tabled w/ estimates; chat export gated on the member-strip
+visibility plane (flag-not-build if the bundle doesn't already handle it — SECURITY).
+**CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
 folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
 SET-SEAMS specs + 4 resolved stickler reports → history, refs repointed, verify-then-move) ·
 w4 F5 pointer → security-executor one-liner · E2E_LIVE=1 pnpm e2e RUNNING (the owed live specs,
