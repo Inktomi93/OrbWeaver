@@ -51,6 +51,7 @@
     "tests/client/state/settings-pane-registry.test.ts",
     "tests/support/ct/drop-files.ts",
     "tests/support/ct/settings-geometry.ts",
+    "tests/support/ct/tier-liveness.ts",
     "tests/ui/charts/meter/waystone-treatment.test.ts",
     "tests/e2e/**/*.ts"
   ]
