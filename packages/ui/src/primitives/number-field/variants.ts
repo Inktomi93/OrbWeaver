@@ -29,6 +29,9 @@ export const numberFieldVariants = tv({
       `${DISABLED_STATE_NATIVE} ${DISABLED_STATE}`,
       "data-readonly:cursor-default",
     ],
+    // The bounds sentence is SR-only: it replaces the aria-valuemin/max a textbox can't carry, and the
+    // visible range affordance is the field's own `<Field description>` copy, not a second line here.
+    boundsDescription: "sr-only",
     stepIcon: "group-data-[readonly]:hidden",
     stepReadOnlyIcon: "hidden group-data-[readonly]:block",
   },
