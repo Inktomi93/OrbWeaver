@@ -32,9 +32,16 @@ test("Effects renders switch rows; toggling a surface patches blurSurfaces key-m
   // Not a toggle-group option (the old ugly control) — a proper switch.
   await expect(page.getByRole("switch", { name: "Prose shadow" })).toBeVisible();
 
+  // Blur ships ON for panels/composer/modals (owner ruling 2026-08-02) — the click REMOVES panels.
   await panels.click();
-  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("panels");
+  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).not.toContain("panels");
+  expect(lastPatch(trpc)?.["blurSurfaces"]).toContain("composer");
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+
+  // And the OFF→ON direction on a surface the default excludes.
+  const messages = page.getByRole("switch", { name: "Messages" });
+  await messages.click();
+  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("messages");
 });
 
 test("the surface-texture select patches surfaceTexture, still key-minimal", async ({ mount, page }) => {
