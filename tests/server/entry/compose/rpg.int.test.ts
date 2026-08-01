@@ -262,10 +262,17 @@ function buildCannedRpgWithText(args: {
           spy.systemPrompts.push(req.systemPrompt.static);
           spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
         }
-        // Only `reply` (the extraction) and `toolCalls` (a cheap tool round) are read; the rest of the
-        // ~18-field ChatResult is inert, so a full construction would be noise.
-        // FABRICATION-OK: minimal ChatResult double — the two fields the two arms read; the others never run.
-        return Promise.resolve({ reply: cannedText, ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }) } as unknown as ChatResult);
+        // `reply` (the extraction), `toolCalls` (a cheap tool round) and `usage`/`finishReason`/`durationApiMs`
+        // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a
+        // full construction would be noise.
+        // FABRICATION-OK: minimal ChatResult double — only the fields the arms actually read; the others never run.
+        return Promise.resolve({
+          reply: cannedText,
+          ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }),
+          usage: { model: "fake-chat-model", tokensIn: 1200, tokensOut: 90, cacheReadTokens: 800, cacheWriteTokens: 0, reasoningTokens: null, costUsd: 0.0042 },
+          durationApiMs: 310,
+          finishReason: "stop",
+        } as unknown as ChatResult);
       },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
@@ -648,6 +655,41 @@ test("F10: a roster character named 'Player' is enum-able and the semantic 'play
   expect(enumVals).not.toContain("player"); // the semantic token is withheld — the char owns the ref (F10)
   // The prompt does NOT emit the misleading `"player" = the human` explainer when the token isn't offered.
   expect(spy.systemPrompts[0]).not.toContain('"player" = the human');
+});
+
+// §10.1a — the DEDICATED tool round's economics record. That vehicle rides the CHAT role on a stateless
+// backend, which emits neither `provider.structured-item` (the structured arms' per-item log) nor
+// `provider.turn` (agent-sdk's): before this line the round's tokens and cost left NO record at all, so
+// §10.1a's "recorded in the provider-observability plane" was false exactly here.
+test("§10.1a: the cheap TOOL ROUND logs its usage (tokens + cost) — the vehicle no provider log covers", async ({ app, db }) => {
+  const infoSpy = vi.spyOn(logger, "info");
+  const { chatId, hostId } = await seedHostGameChat(db, "toolround-usage");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ location: "the obsidian tower" }) }],
+  });
+
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const line = infoSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.toolround.usage")?.[0] as Record<string, unknown> | undefined;
+  expect(line).toBeDefined();
+  expect(line).toMatchObject({
+    chatId,
+    api: "chat-completions",
+    model: "fake-chat-model",
+    tokensIn: 1200,
+    tokensOut: 90,
+    costUsd: 0.0042,
+    finishReason: "stop",
+  });
 });
 
 // ── R3: visibility — a zero-renderable extraction + a phantom cast mint both LOG ────────────────────────
