@@ -9,7 +9,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
-import type { ChoiceBlockSpec, PromptConfig, UserIntent } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { BatchStmt, Db } from "@orb/db";
@@ -566,6 +566,20 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.variables;
   };
 
+  // The chat's active preset's authored USER MACROS (#24) — the picks pane's declaration half, resolved
+  // under the chat's host exactly like `resolvePromptVariables` (its ChoiceBlock sibling). A feature preset
+  // OVERRIDE is deliberately not applied: it is a per-turn redirect (the rpg GM voice) no pane read can
+  // anticipate. Hostless/stale room ⇒ no declared macros.
+  const resolvePromptUserMacros = async (chatId: ChatId): Promise<readonly UserMacroSpec[]> => {
+    const hostUserId = await resolveChatHostUserId(chatId);
+    if (hostUserId === null) {
+      return [];
+    }
+    const us = await input.settings.loadUserSettings(hostUserId);
+    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    return config.userMacros;
+  };
+
   // The side-gen sampling ladder's MIDDLE rung for chat-scoped side-gen (quiet-generate/compaction + arbiter):
   // the chat HOST's active-preset generation params. One home with `resolvePromptVariables` (same host + config
   // resolution — a hostless/stale room degrades to the system-default params, never a throw).
@@ -899,6 +913,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // ⑧(a) — the caller's temporary-chat reap TTL (hours), from the settings domain via the FOREIGN op.
     resolveTempChatTtlHours: async (userId) => (await input.settings.loadUserSettings(userId)).chat.tempChatTtlHours,
     resolvePromptVariables,
+    resolvePromptUserMacros,
     // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The E3 classify hook fires
     // fire-and-forget after a variant commits (expressions-design/02 §0).
     expressions: input.expressions ?? null,

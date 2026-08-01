@@ -26,6 +26,7 @@ import type {
   DeleteChatInjectionParams,
   DeleteChatParams,
   GetStoredVariablesParams,
+  GetUserMacroPicksParams,
   GetVariablesParams,
   ListChatInjectionsParams,
   ReapTemporaryChatsParams,
@@ -38,9 +39,9 @@ import type {
 } from "../contract/params";
 import type { ReapResult, VariablesResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
-import type { ChatInjectionView } from "../contract/views";
+import type { ChatInjectionView, UserMacroPicksView } from "../contract/views";
 import { requireHost, requireParticipant } from "../guard";
-import { loadChatInjections, loadStoredVariables } from "../persistence/queries";
+import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { resolveChoiceVariables } from "../substrate/variables";
 
@@ -65,6 +66,7 @@ type ChatLifecycleVerbs = Pick<
   | "reapTemporaryChats"
   | "getVariables"
   | "getStoredVariables"
+  | "getUserMacroPicks"
   | "setVariables"
   | "setUserMacroValues"
   | "clearVariables"
@@ -257,6 +259,20 @@ function createSetUserMacroValues(ctx: ChatContext, emit: EmitChatEvent): ChatSe
   };
 }
 
+/** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the active preset's PICKABLE user macros
+ *  (those declaring ≥1 typed input — a macro with none has nothing to pick) projected to identity + inputs,
+ *  plus the persisted per-chat picks. The projection is deliberate least-privilege: the macro BODY is prompt
+ *  content (host-gated everywhere else), the picker only needs the questions. An absent macro/input entry in
+ *  `values` is UNSET — the turn resolves its per-kind default, which is what the pane renders. */
+function createGetUserMacroPicks(ctx: ChatContext): ChatService["getUserMacroPicks"] {
+  return async ({ principal, chatId }: GetUserMacroPicksParams): Promise<UserMacroPicksView> => {
+    await requireParticipant(ctx, principal, chatId);
+    const [values, defs] = await Promise.all([loadStoredUserMacroValues(ctx.db, chatId), ctx.resolvePromptUserMacros(chatId)]);
+    const macros = defs.filter((def) => def.inputs.length > 0).map((def) => ({ name: def.name, description: def.description, inputs: def.inputs }));
+    return { macros, values };
+  };
+}
+
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
 function createClearVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
@@ -343,6 +359,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     getStoredVariables: createGetStoredVariables(ctx),
     setVariables: createSetVariables(ctx, emit),
     setUserMacroValues: createSetUserMacroValues(ctx, emit),
+    getUserMacroPicks: createGetUserMacroPicks(ctx),
     clearVariables: createClearVariables(ctx, emit),
     setChatInjection: createSetChatInjection(ctx, emit),
     listChatInjections: createListChatInjections(ctx),

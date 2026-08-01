@@ -449,6 +449,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // D46 config plane — default "no declared ChoiceBlock variables" so `getVariables` collapses to the raw
     // stored picks (orphan-preserve); a variables test overrides with the preset's declared specs.
     resolvePromptVariables: () => Promise.resolve([]),
+    // #24 — default "the host's preset declares no user macros" so `getUserMacroPicks` returns the empty
+    // pane; a picks test overrides with the declarations it wants rendered.
+    resolvePromptUserMacros: () => Promise.resolve([]),
   };
   return { ...base, ...overrides };
 }

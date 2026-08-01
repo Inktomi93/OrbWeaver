@@ -107,9 +107,11 @@ export interface ResolvedUserMacroInputs {
   readonly draws: Record<string, string>;
 }
 
-// The `{{if}}` truthiness vocabulary applied to a boolean-toggle's `defaultValue` — one semantics for
-// "does this string mean on?" (empty/false/off/0 ⇒ off).
-function truthy(value: string): boolean {
+/** The `{{if}}` truthiness vocabulary applied to a boolean-toggle's `defaultValue` — one semantics for
+ *  "does this string mean on?" (empty/false/off/0 ⇒ off). EXPORTED because the picks pane (#24) must
+ *  SHOW an unpicked toggle's resolved state ("Use default (On)") — that label has to read the same
+ *  vocabulary the turn resolves against, never a client re-spelling of it. */
+export function userMacroToggleDefaultsOn(value: string): boolean {
   const v = value.trim().toLowerCase();
   return v !== "" && v !== "false" && v !== "off" && v !== "0";
 }
@@ -136,7 +138,7 @@ function resolveStaticInput(input: UserMacroInputDef, value: UserMacroInputValue
     return input.defaultValue.length > 0 ? input.defaultValue : (input.options[0]?.value ?? "");
   }
   if (input.kind === "boolean-toggle") {
-    const on = typeof value === "boolean" ? value : truthy(input.defaultValue);
+    const on = typeof value === "boolean" ? value : userMacroToggleDefaultsOn(input.defaultValue);
     return on ? input.onValue : input.offValue;
   }
   // multi-select: an explicit [] is a real "none" pick (renders empty); absent/mistyped ⇒ the
