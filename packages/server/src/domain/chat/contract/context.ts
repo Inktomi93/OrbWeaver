@@ -540,7 +540,9 @@ export interface RpgTurnContext {
   readonly transcript: readonly RpgTurnTranscriptMessage[];
   /** The TERMINAL tool calls this turn's completion co-emitted alongside its prose (the R1 fold), or `null`
    *  when terminal tools did NOT ride this turn — because the contributor mounted none, or because the
-   *  connection could not carry wire `tools[]` (the stateful agent-sdk wire / a tools-incapable model). The
+   *  connection could not carry them at all (a tools-incapable model; a wire whose backend could not build the
+   *  declaration). Note the DELIVERY is per-wire and is not an eligibility question: the array wires carry them
+   *  in `tools[]`, the stateful agent-sdk wire mounts them as a deny-on-use MCP server (D112 R1). The
    *  distinction is load-bearing and must stay TOTAL: `null` means "the fold did not happen — run your own
    *  post-commit round", while an EMPTY ARRAY means "the fold ran and the model chose to record nothing"
    *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are

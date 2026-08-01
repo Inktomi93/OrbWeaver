@@ -123,6 +123,10 @@ const baseCtx = { model: MODEL, resumed: false, now: (): number => FIXED_NOW };
 /** The wired chat-turn fn (the backend always sets it; the cast drops the contract's `| undefined`). */
 type ChatTurn = (req: ChatRequest) => Promise<ChatResult>;
 
+/** An SDK hook callback as the captured options carry it — the tests INVOKE it (a hook that only exists in the
+ *  options map proves nothing about what it answers). Typed to the fields the runner's hooks read. */
+type HookFn = (input: { hook_event_name: string; tool_name?: string; tool_input?: unknown }) => Promise<unknown>;
+
 describe("consumeTurnStream", () => {
   test("reduces a success stream to a ChatResult and reports the session id once", async () => {
     const onSessionId = vi.fn();
@@ -997,6 +1001,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
     maxTurns?: number;
     outputFormat?: { type: string; schema: Record<string, unknown> };
     disallowedTools?: string[];
+    hooks?: { PreToolUse?: { hooks: HookFn[] }[]; UserPromptSubmit?: { hooks: HookFn[] }[] };
   }
   function backendWith(fakeQuery: ReturnType<typeof vi.fn>): ChatTurn {
     const backend = createAgentSdkBackend({
@@ -1061,5 +1066,210 @@ describe("the chat runner's stateful tool + structured channels", () => {
     // The Anthropic wire refuses bound keywords — sanitize strips `minimum` (D93); zod re-imposes post-parse.
     expect(opts?.outputFormat?.schema).toEqual({ type: "object", properties: { hp: { type: "number" } } });
     expect(opts?.maxTurns).toBe(2);
+  });
+});
+
+// ── D112 R1: the TERMINAL-tool channel (declare + capture, never execute) ────────────────────────────────
+// The agent-sdk wire reads no `tools[]`, so a folded turn's state tools ride their OWN in-process MCP mount
+// and are stopped dead at the PreToolUse seam: declared to the model, DENIED on use, captured off the ONE
+// completion's assistant frame. The proof that matters is the ROUND COUNT — a folded turn must cost exactly
+// one model call, which is the whole point of the fold (the fallback round it replaces cost a second).
+
+/** A tool's PARAMETERS as the rpg fold projects them — including the `anyOf` cell (`trackerSets[].value` is
+ *  number-or-string), the construct that must lift for the mount to happen at all. */
+const TERMINAL_TOOL_SCHEMA = {
+  type: "object",
+  properties: {
+    targetRef: { type: "string", enum: ["user:1", "char:2"] },
+    value: { anyOf: [{ type: "number" }, { type: "string" }] },
+  },
+  required: ["targetRef"],
+  additionalProperties: false,
+};
+const TERMINAL_TOOLS = [
+  { name: "update_scene", description: "record the scene", parameters: TERMINAL_TOOL_SCHEMA },
+  { name: "no_changes", description: "nothing changed", parameters: { type: "object", properties: {}, additionalProperties: false } },
+];
+const TERMINAL_NS = "orbstate";
+const TERMINAL_PREFIX = `mcp__${TERMINAL_NS}__`;
+
+/** An assistant frame that co-emits prose AND terminal tool calls in ONE completion (the fold's premise). */
+function foldedAssistant(calls: readonly { name: string; id: string; input: unknown }[]): unknown {
+  return {
+    type: "assistant",
+    session_id: SESSION_ID,
+    message: {
+      content: [{ type: "text", text: "She steps into the rain." }, ...calls.map((c) => ({ type: "tool_use", id: c.id, name: c.name, input: c.input }))],
+      stop_reason: "tool_use",
+    },
+  };
+}
+
+describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
+  interface TerminalOptions {
+    mcpServers?: Record<string, unknown>;
+    allowedTools?: string[];
+    maxTurns?: number;
+    hooks?: { PreToolUse?: { hooks: HookFn[] }[]; UserPromptSubmit?: { hooks: HookFn[] }[] };
+  }
+  function runWith(fakeQuery: ReturnType<typeof vi.fn>): ChatTurn {
+    const backend = createAgentSdkBackend({
+      now: () => 0,
+      query: fakeQuery as never,
+      refreshHostSubToken: () => Promise.resolve(false),
+    });
+    return backend.runChatTurn as ChatTurn;
+  }
+  function terminalReq(chatId: string): AgentSdkChatRequest {
+    return {
+      api: "agent-sdk",
+      prompt: "hi",
+      credential: AGENT_CRED,
+      model: castId<ModelId>(MODEL),
+      capability: CAPABILITY,
+      params: {},
+      systemPrompt: { static: "", dynamic: "" },
+      orSkinTierModels: { opus: "o", sonnet: "s", haiku: "h" },
+      chatId,
+      terminalTools: TERMINAL_TOOLS,
+    };
+  }
+  const optionsOf = (fakeQuery: ReturnType<typeof vi.fn>): TerminalOptions | undefined =>
+    (fakeQuery.mock.calls[0]?.[0] as { options?: TerminalOptions } | undefined)?.options;
+
+  test("mounts its OWN MCP namespace, is never allow-listed, and floors maxTurns at the degrade budget", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    await runWith(fakeQuery)(terminalReq("chat-terminal"));
+    const opts = optionsOf(fakeQuery);
+    expect(Object.keys(opts?.mcpServers ?? {})).toEqual([TERMINAL_NS]);
+    // NOT allow-listed, deliberately: an allow-listed tool resolves to `allow` BEFORE the deny hook can end
+    // the turn, so it would execute and earn the second call the fold exists to delete.
+    expect(opts?.allowedTools).toBeUndefined();
+    // 2, not 1: the deny hook ends the turn at depth 0, and the spare turn is the DEGRADE BUDGET — if that
+    // stop ever failed, a ceiling of 1 would answer error_max_turns and take the NARRATIVE down with it.
+    expect(opts?.maxTurns).toBe(2);
+    expect(opts?.hooks?.PreToolUse).toHaveLength(1);
+  });
+
+  test("the PreToolUse hook DENIES + stops the turn for a terminal call, and waves every other tool through", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    await runWith(fakeQuery)(terminalReq("chat-hook"));
+    const preToolUse = optionsOf(fakeQuery)?.hooks?.PreToolUse ?? [];
+    const hook = preToolUse[0]?.hooks[0];
+    expect(hook).toBeDefined();
+    // The PAIR the runtime turns into `hook_stopped_continuation` → the query loop returns
+    // {reason:"hook_stopped"}: `continue:false` alone leaves the loop running, and a deny alone just feeds an
+    // error tool_result back to the model — which IS a second model call.
+    const stopped = (await hook?.({ hook_event_name: "PreToolUse", tool_name: `${TERMINAL_PREFIX}update_scene`, tool_input: {} })) as {
+      continue?: boolean;
+      stopReason?: string;
+      hookSpecificOutput?: { permissionDecision?: string };
+    };
+    expect(stopped.continue).toBe(false);
+    expect(stopped.stopReason).toBeTruthy();
+    expect(stopped.hookSpecificOutput?.permissionDecision).toBe("deny");
+    // A REGISTRY tool call is none of this hook's business — it keeps its own SDK-run loop.
+    expect(await hook?.({ hook_event_name: "PreToolUse", tool_name: "mcp__orbweaver__tick_clock", tool_input: {} })).toEqual({});
+  });
+
+  test("captures the co-emitted calls off the ONE completion — bare names, JSON args, no second call", async () => {
+    const fakeQuery = vi.fn(() =>
+      streamOf([
+        initMsg,
+        foldedAssistant([
+          { id: "toolu_1", name: `${TERMINAL_PREFIX}update_scene`, input: { targetRef: "user:1", value: "rain" } },
+          { id: "toolu_2", name: `${TERMINAL_PREFIX}no_changes`, input: {} },
+        ]),
+        { ...successResult, stop_reason: "tool_use" },
+      ]),
+    );
+    const result = await runWith(fakeQuery)(terminalReq("chat-fold"));
+    // THE assertion: ONE query, one completion, carrying both the prose and the state (the fold's whole win).
+    expect(fakeQuery).toHaveBeenCalledOnce();
+    expect(result.reply).toBe("She steps into the rain.");
+    // The namespace prefix is stripped: the fold matches on the names the game DECLARED, not on SDK vocab.
+    expect(result.toolCalls).toEqual([
+      { toolCallId: "toolu_1", name: "update_scene", arguments: '{"targetRef":"user:1","value":"rain"}' },
+      { toolCallId: "toolu_2", name: "no_changes", arguments: "{}" },
+    ]);
+    expect(result.finishReason).toBe("tool");
+  });
+
+  test("a mounted channel the model never called reports an EMPTY array — a quiet beat, never a missing channel", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const result = await runWith(fakeQuery)(terminalReq("chat-quiet"));
+    expect(result.toolCalls).toEqual([]);
+  });
+
+  test("no terminal tools ⇒ a byte-identical tool-less turn AND an ABSENT channel (the fold falls back)", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const { terminalTools: _dropped, ...plain } = terminalReq("chat-plain-terminal");
+    const result = await runWith(fakeQuery)(plain);
+    expect(optionsOf(fakeQuery)?.mcpServers).toEqual({});
+    expect(optionsOf(fakeQuery)?.maxTurns).toBe(1);
+    expect(result.toolCalls).toBeUndefined();
+  });
+
+  test("a schema outside the liftable subset mounts NOTHING and reports an absent channel (the loud degrade)", async () => {
+    const warn = vi.spyOn(logger, "warn");
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const result = await runWith(fakeQuery)({
+      ...terminalReq("chat-unliftable"),
+      // `format` is outside the liftable subset — one bad tool withholds the WHOLE mount (a half-mounted state
+      // surface would silently lose a plane the model can no longer write).
+      terminalTools: [{ name: "update_scene", description: "d", parameters: { type: "object", properties: { at: { type: "string", format: "date" } } } }],
+    });
+    expect(optionsOf(fakeQuery)?.mcpServers).toEqual({});
+    expect(result.toolCalls).toBeUndefined();
+    const lines = providerLines(warn, "provider.terminal_tools");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ mounted: false, unliftable: { tool: "update_scene", construct: "format" } });
+  });
+
+  test("a TERMINAL denial is the mechanism, not a leak — the firewall tripwire stays silent (a real leak still fires)", async () => {
+    const fakeQuery = vi.fn(() =>
+      streamOf([initMsg, assistantMsg, { ...successResult, permission_denials: [{ tool_name: `${TERMINAL_PREFIX}update_scene`, tool_use_id: "t1" }] }]),
+    );
+    const quiet = await runWith(fakeQuery)(terminalReq("chat-denial"));
+    expect(quiet.events.filter((e) => e.kind === "permission_leak")).toEqual([]);
+
+    const leaky = vi.fn(() =>
+      streamOf([
+        initMsg,
+        assistantMsg,
+        {
+          ...successResult,
+          permission_denials: [
+            { tool_name: `${TERMINAL_PREFIX}update_scene`, tool_use_id: "t1" },
+            { tool_name: "Bash", tool_use_id: "t2" },
+          ],
+        },
+      ]),
+    );
+    const leaked = await runWith(leaky)(terminalReq("chat-leak"));
+    expect(leaked.events.filter((e) => e.kind === "permission_leak")).toEqual([{ kind: "permission_leak", at: 0, toolNames: ["Bash"] }]);
+  });
+
+  test("rides ALONGSIDE the registry mount + the dynamic-context hook — both mounts and both hooks survive", async () => {
+    // The merge is load-bearing: spreading the option fragments would let one `hooks`/`mcpServers` map DELETE
+    // the other, silently dropping either the mid-conversation system channel or a whole tool mount.
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const registry = { marker: "registry-mcp" };
+    await runWith(fakeQuery)({
+      ...terminalReq("chat-both"),
+      capability: MID_CONV_CAPABILITY,
+      systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
+      params: { advanced: { dynamicContext: "hook" } },
+      toolServer: registry,
+      toolTurnLimit: 3,
+    });
+    const opts = optionsOf(fakeQuery);
+    expect(opts?.mcpServers).toEqual({ orbweaver: registry, [TERMINAL_NS]: expect.anything() });
+    // Only the REGISTRY namespace is allow-listed (the terminal one must stay deniable).
+    expect(opts?.allowedTools).toEqual(["mcp__orbweaver__*"]);
+    expect(opts?.hooks?.UserPromptSubmit).toHaveLength(1);
+    expect(opts?.hooks?.PreToolUse).toHaveLength(1);
+    // The registry loop's ceiling wins over the terminal floor (rounds + the final reply).
+    expect(opts?.maxTurns).toBe(4);
   });
 });

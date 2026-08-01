@@ -74,6 +74,18 @@ export function logProviderLeak(entry: { readonly model: string; readonly toolNa
   providerLog(BACKEND, "error", "provider.leak", { ...entry });
 }
 
+/** `provider.terminal_tools` — the TERMINAL (D112 fold) mount decision for one turn. `mounted:false` is the
+ *  loud degrade: a schema outside the liftable subset means NO terminal channel, so the contributor's own
+ *  post-commit round runs instead of the fold (never a silent state drop). Tool NAMES only. */
+export function logProviderTerminalTools(entry: {
+  readonly turnId: string;
+  readonly mounted: boolean;
+  readonly toolNames: readonly string[];
+  readonly unliftable?: { readonly tool: string; readonly construct: string; readonly path: string };
+}): void {
+  providerLog(BACKEND, entry.mounted ? "debug" : "warn", "provider.terminal_tools", { ...entry });
+}
+
 /** `provider.compaction` — emitted only when context compaction FAILED. */
 export function logProviderCompaction(fields: Record<string, unknown>): void {
   providerLog(BACKEND, "warn", "provider.compaction", fields);
