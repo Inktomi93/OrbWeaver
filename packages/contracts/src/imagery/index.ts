@@ -9,6 +9,7 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
 /** The committed prompt-template modes. `free` = the user's prompt verbatim — the
  *  only mode the Phase-5 chat caller drives; the rest are the Phase-7 extraction/caption modes. A new mode
@@ -78,6 +79,103 @@ export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string>
     "skin, head accessories. Only visual terms, no prose. Begin with: close up facial portrait,",
 };
 // biome-ignore-end lint/style/useNamingConvention: see start marker
+
+// ── The PROSE-1 slot table (census rows 82-87) — adapted IN PLACE ────────────────────────────────────
+// The catalog above already IS the shipped-default home; these rows give it the registry metadata every
+// prose slot carries (version + macro mode + required tokens + editor copy). The override STORAGE is
+// unchanged — still `UserSettings.imagery.templates/.captions` (PROSE-1 §4.6: adapt, never duplicate) —
+// and `resolveImageryTemplate`/`resolveImageryCaption` funnel through `resolveProse` so precedence and
+// staleness come from ONE place.
+//
+// `requiredTokens` mirrors `REQUIRED_PREFIXES` (server `imagery/substrate/templates.ts`): a host who drops
+// the "Begin your reply with:" prefix from an override is warned, because `ensurePrefix` will re-assert it
+// and the resulting prompt will read twice. The prefix belt itself stays code — it is a defense, not a voice.
+// The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports THIS module at runtime to compose
+// `PROSE_SLOTS`, so importing it here would close a `no-circular` cycle.
+
+export const IMAGERY_PROSE_SLOTS = {
+  "imagery.template.character": {
+    id: "imagery.template.character",
+    home: "user",
+    version: 1,
+    text: DEFAULT_PROMPT_TEMPLATES.character,
+    macros: "full",
+    requiredMacros: ["{{char}}"],
+    requiredTokens: ["full body portrait,"],
+    title: "Full-body portrait prompt",
+    fires: "The quiet shaper, when an image is requested in `character` mode.",
+  },
+  "imagery.template.face": {
+    id: "imagery.template.face",
+    home: "user",
+    version: 1,
+    text: DEFAULT_PROMPT_TEMPLATES.face,
+    macros: "full",
+    requiredMacros: ["{{char}}"],
+    requiredTokens: ["close up facial portrait,"],
+    title: "Face portrait prompt",
+    fires: "The quiet shaper, when an image is requested in `face` mode.",
+  },
+  "imagery.template.scenario": {
+    id: "imagery.template.scenario",
+    home: "user",
+    version: 1,
+    text: DEFAULT_PROMPT_TEMPLATES.scenario,
+    macros: "full",
+    requiredMacros: [],
+    requiredTokens: ["scene,"],
+    title: "Scene prompt",
+    fires: "The quiet shaper, when an image is requested in `scenario` mode.",
+  },
+  "imagery.template.background": {
+    id: "imagery.template.background",
+    home: "user",
+    version: 1,
+    text: DEFAULT_PROMPT_TEMPLATES.background,
+    macros: "full",
+    requiredMacros: [],
+    requiredTokens: ["background,"],
+    title: "Background prompt",
+    fires: "The quiet shaper, when an image is requested in `background` mode.",
+  },
+  "imagery.caption.characterMultimodal": {
+    id: "imagery.caption.characterMultimodal",
+    home: "user",
+    version: 1,
+    text: DEFAULT_CAPTION_INSTRUCTIONS.character_multimodal,
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: ["full body portrait,"],
+    title: "Full-body caption instruction",
+    fires: "The vision op, captioning a subject's avatar in `character_multimodal` mode.",
+  },
+  "imagery.caption.faceMultimodal": {
+    id: "imagery.caption.faceMultimodal",
+    home: "user",
+    version: 1,
+    text: DEFAULT_CAPTION_INSTRUCTIONS.face_multimodal,
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: ["close up facial portrait,"],
+    title: "Face caption instruction",
+    fires: "The vision op, captioning a subject's avatar in `face_multimodal` mode.",
+  },
+} as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
+
+/** Slot id per extraction mode — the ONE map both the resolver and the editor read (never a re-spelled id). */
+export const IMAGERY_TEMPLATE_SLOT_IDS: Record<ExtractionMode, ProseSlotId> = {
+  character: "imagery.template.character",
+  face: "imagery.template.face",
+  scenario: "imagery.template.scenario",
+  background: "imagery.template.background",
+};
+
+/** Slot id per multimodal caption mode. Computed-key form (the `DEFAULT_MARKER_TEMPLATES` precedent) — the
+ *  keys ARE the snake_case `PROMPT_TEMPLATE_MODES` literals, and a rename would fork the wire vocabulary. */
+export const IMAGERY_CAPTION_SLOT_IDS: Record<MultimodalCaptionMode, ProseSlotId> = {
+  ["character_multimodal"]: "imagery.caption.characterMultimodal",
+  ["face_multimodal"]: "imagery.caption.faceMultimodal",
+};
 
 /** The semantic size presets (imagery-design/02 §6 — gpt-image-1's published set; every hosted model snaps
  *  arbitrary dimensions to its own buckets anyway, so optimizing for the strictest wire wins). The concrete
