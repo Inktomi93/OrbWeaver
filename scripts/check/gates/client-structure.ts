@@ -19,7 +19,11 @@ const SHELL_EXTRA = new Set(["registry", "store"]);
 // home: the landing rail SECTION (home-section-spec) — a shell-tier surface whose CONTENT is a grid of
 // door-assembled tiles from OTHER features. It owns no server domain by design (it holds no data of its
 // own; every tile's data belongs to the feature that raised it), so no `domain/home` mirror is expected.
-const RESERVED = new Set(["app-shell", "auth", "home", "refinery", "user-admin"]);
+// regex: the owner-global find/replace script LIBRARY (D114 / SET-SEAMS stage 5). It owns a real product
+// surface but no server domain by construction — the scripts PERSIST as a `UserSettings.regex` section
+// (domain/settings) and RUN through the @orb/kit/regex engine, so a `domain/regex` mirror would be a
+// third home for one concept. Minted as its own slice because neither settings nor chat READS it.
+const RESERVED = new Set(["app-shell", "auth", "home", "refinery", "regex", "user-admin"]);
 // Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
 // The bare modal ROOT tag only (`<Dialog>`/`<Dialog `), not `<DialogTrigger`/`<DialogPopup`/`<ConfirmDialog`

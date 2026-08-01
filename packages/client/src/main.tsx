@@ -57,9 +57,11 @@ import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
+import { regexPane } from "#features/regex";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, tagsPane, themeModal } from "#features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
+import { tagsPane } from "#features/tag";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,
