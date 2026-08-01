@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
 import { ChatListSurfaceStory } from "../_ct-stories";
 import { makeChatSummary } from "../fixtures";
 
@@ -260,6 +261,13 @@ test("starred and archived rows say so in ACCESSIBLE content, and the archived r
   await expect(archivedRow).toHaveClass(RECEDED_RE);
   const plainRow = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
   await expect(plainRow).not.toHaveClass(RECEDED_RE);
+});
+
+test("the chats pane's INSTRUMENT tier is LIVE — its rows resolve the mapped step, not the tier-less default", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE], "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+  await expectInstrumentTierLive(component);
 });
 
 // side-eye P1 (round 2): the round-1 float gate (`actionsFloat={!restVisible}`) was inert on a real chats
