@@ -10,7 +10,7 @@
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
  *  minted by the INJECTED minters (determinism — no ambient `mintTypeId()` in the write). */
@@ -23,6 +23,9 @@ export interface ChatImportContext {
   readonly newMessageVariantId: () => MessageVariantId;
   readonly newMessageAssetId: () => MessageAssetId;
   readonly newParticipantId: () => ChatParticipantId;
+  /** The ST `note_prompt` lands as a `chat_injections` row (the ONE per-chat prose door since the
+   *  room-override author's note was retired — owner ruling 2026-08-01), so the write mints injection ids. */
+  readonly newChatInjectionId: () => ChatInjectionId;
   /** #67 — the subset of `assetIds` that EXIST for `ownerId` on the target box (owner-scoped; wired from
    *  `assets.resolveOwnedAssetRefs`). Import re-creates a `message_assets` retaining row ONLY for an inline
    *  `asset:<id>` body ref whose asset actually landed (the bundle's `assets` entity imports FIRST, so a

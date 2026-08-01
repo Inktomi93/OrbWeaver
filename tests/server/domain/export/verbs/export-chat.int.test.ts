@@ -1,7 +1,8 @@
 // verb: exportChat (PD-42) — the transcript OUT against a real db. Load-bearing pins: the D29 HOST gate
 // (non-host / non-member / missing chat all collapse to null); the D26 mapping (content from the SELECTED
 // variant; the full variant set = the swipe array); the D28 primary-character name + anchor-persona name;
-// the roomOverrides.authorsNote → note_prompt + parentChatId → main_chat round-trip; the txt format.
+// the parentChatId → main_chat round-trip (note_prompt is one-way now — the room author's-note override was
+// retired 2026-08-01); the txt format.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -163,7 +164,6 @@ describe("exportChat — the D26/D28 assembly", () => {
       title: "Noir Night",
       anchorPersonaId: personaId,
       parentChatId: parentId,
-      metadata: { roomOverrides: { authorsNote: "keep it noir" } },
     });
     await seedMember(chatId, "h", { userId: host, role: "host" });
     await seedMember(chatId, "c", { characterId: aria });
@@ -185,11 +185,11 @@ describe("exportChat — the D26/D28 assembly", () => {
     const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
     expect(header["character_name"]).toBe("Aria");
     expect(header["user_name"]).toBe("Nate");
+    // No `note_prompt`: the room author's-note override was retired (owner ruling 2026-08-01) — per-chat
+    // prose is a `chat_injections` LIST, which has no unambiguous inverse into ST's single note slot.
     expect(header["chat_metadata"]).toEqual({
       // biome-ignore lint/style/useNamingConvention: the ST wire keys are snake_case by format.
       main_chat: "origin.jsonl",
-      // biome-ignore lint/style/useNamingConvention: the ST wire keys are snake_case by format.
-      note_prompt: "keep it noir",
     });
     const userLine = JSON.parse(lines[1] ?? "") as Record<string, unknown>;
     expect(userLine["name"]).toBe("Nate");
@@ -201,28 +201,6 @@ describe("exportChat — the D26/D28 assembly", () => {
     expect(assistantLine["mes"]).toBe("take two");
     expect(assistantLine["swipes"]).toEqual(["take one", "take two"]);
     expect(assistantLine["swipe_id"]).toBe(1);
-  });
-
-  test("jsonl: a task-#22 {prompt, depth, role} authorsNote directive exports its prompt as note_prompt", async () => {
-    const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
-    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
-    const chatId = await seedChatRow("a", {
-      title: "Noir Night",
-      // The widened room note is the injection directive; export reads the prompt text off either shape.
-      metadata: {
-        roomOverrides: { authorsNote: { prompt: "keep it tense", depth: 2, role: "user" } },
-      },
-    });
-    await seedMember(chatId, "h", { userId: host, role: "host" });
-    await seedMember(chatId, "c", { characterId: aria });
-    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
-
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
-    expect(out).not.toBeNull();
-    const header = JSON.parse((out?.text ?? "").trim().split("\n")[0] ?? "") as Record<string, unknown>;
-    // biome-ignore lint/style/useNamingConvention: the ST wire key is snake_case by format.
-    expect(header["chat_metadata"]).toMatchObject({ note_prompt: "keep it tense" });
   });
 
   test("txt: active-variant transcript with author labels", async () => {

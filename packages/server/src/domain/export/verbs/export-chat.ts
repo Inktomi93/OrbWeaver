@@ -166,10 +166,6 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     }
 
     const { characterName, userName, parentRef } = await loadExportMeta(ctx, chat);
-    // The author's note lives at `roomOverrides.authorsNote`; a legacy value may be a bare string while a
-    // widened one is `{prompt, depth?, role?}` — take the prompt text from either shape.
-    const rawNote = chat.metadata?.roomOverrides?.authorsNote;
-    const notePrompt = typeof rawNote === "string" ? rawNote : (rawNote?.prompt ?? null);
     const parsedMessages = await loadParsedMessages(ctx, chatId, { characterName, userName });
 
     const parsedChat: ParsedChat = {
@@ -178,7 +174,10 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       createDate: chat.createdAt,
       isBranch: parentRef !== null,
       parentRef,
-      notePrompt,
+      // ALWAYS null: the room author's-note override was retired (owner ruling 2026-08-01) — per-chat prose
+      // is a `chat_injections` LIST now, and ST's single `note_prompt` slot has no unambiguous inverse for a
+      // list. Import still lands an inbound `note_prompt` as an injection; the export leg is one-way.
+      notePrompt: null,
       bucket: classifyChat(parsedMessages),
       sourceMetadata: null,
       messages: parsedMessages,

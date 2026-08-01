@@ -357,8 +357,9 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 - **De-densify Overrides:** per-field helper sentences (now the field `description`s in
   `room-overrides-form.tsx`) collapse to ONE intro line at tab top (muted chip + `info` glyph:
   "Empty fields inherit from the character or preset. Saved automatically.") + a `?` Tooltip per
-  field label. `Depth` (`authorsNoteDepth`) + `Role` (`authorsNoteRole`) share one row. Every
-  field = `Field` primitive.
+  field label. Every field = `Field` primitive. (The author's-note field + its `Depth`/`Role` row are
+  GONE — owner ruling 2026-08-01 collapsed the per-chat note into the Injections section beside it, one
+  concept one home; Overrides is three section-text fields.)
 - **Done when:** Overrides has one helper line total; header names the chat; the ember edge renders
   over glass and under a light custom theme.
 

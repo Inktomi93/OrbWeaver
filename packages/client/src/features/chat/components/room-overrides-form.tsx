@@ -1,16 +1,18 @@
 // The room-overrides editor (task #28 — the CONTEXT panel's "This chat" tab, Field-overrides section).
-// The per-chat four-field host allowlist (`RoomOverrides`: mainPrompt · postHistory · scenario ·
-// authorsNote) as an autosave form (§13.4 — "flip it and it saves"), the same wiring shape as
+// The per-chat THREE-field host allowlist (`RoomOverrides`: mainPrompt · postHistory · scenario) as an
+// autosave form (§13.4 — "flip it and it saves"), the same wiring shape as
 // `appearance-settings-surface.tsx`.
+//
+// NO author's-note field (owner ruling 2026-08-01): it was a SECOND home for the concept the Injections
+// section beside this one already owns — both landed as the identical `in_chat` at-depth splice, so a
+// system injection at depth 4 IS the author's note. These three fields are section-TEXT overrides only.
 //
 // COLLAPSE-UNTIL-NEEDED (panel-redesign): the default per-chat state is zero overrides, so each field is a
 // COMPACT collapse row (`Collapsible`) — muted "inheriting" when empty — rather than a wall of empty
 // textareas. Clicking a row expands it into its editor; a SET field carries an ember left-edge accent + a
-// one-line snippet + a Clear affordance so an override is legible at a glance while collapsed. `authorsNote`
-// is the shared at-depth injection directive (task #22): its expanded editor gains a depth (NumberField) +
-// role (SelectField, all three `MessageRole`s) beside it, with the assistant@depth-0 prefill warning (the
-// server `roomAuthorsNoteSchema` guard is the enforcer). Empty ⇒ inherit (the map seam in
-// `room-overrides-form-model.ts` omits empty fields on save; D108 merge-clear).
+// one-line snippet + a Clear affordance so an override is legible at a glance while collapsed.
+// Empty ⇒ inherit (the map seam in `room-overrides-form-model.ts` omits empty fields on save; D108
+// merge-clear).
 //
 // SOURCE-AGNOSTIC (dual-mode, J2/J3): this editor owns the FORM + the form↔wire mapping, but NOT the
 // read or the persist target — the surface supplies `roomOverrides` (the value) + `save` (the persist
@@ -34,9 +36,8 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
-import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
-import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, isAuthorsNotePrefill, toRoomOverridesForm } from "../lib/room-overrides-form-model";
+import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model";
 
 // The session-boundary autosave form (D78 L3). Built at MODULE scope (stable component identity, §13.1) —
 // the boundary OWNS the entity key: it keys its private Session by `entityId`, so a chat switch with the
@@ -66,12 +67,10 @@ interface OverrideCollapseCardProps {
   readonly onClear: () => void;
   /** No `save` seam (member / read-only): fields render disabled and the Clear affordance is omitted. */
   readonly disabled: boolean;
-  /** Extra controls rendered in the panel footer beside Clear (author's-note depth + role). */
-  readonly footer?: ReactNode;
   readonly children: ReactNode;
 }
 
-function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, footer, children }: OverrideCollapseCardProps): ReactElement {
+function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, children }: OverrideCollapseCardProps): ReactElement {
   return (
     // padding="none" on the Card so the block padding lives on the trigger instead — the whole ~49px row is
     // then one tap target (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel
@@ -95,7 +94,6 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
           <Stack gap="field" className="px-block pb-block">
             {children}
             <Row align="center" gap="field">
-              {footer}
               {disabled ? null : (
                 <Button intent="ghost" size="sm" onClick={onClear}>
                   <Icon icon={Eraser} size="xs" />
@@ -153,66 +151,6 @@ function OverrideRow({ form, name, label, rows, disabled }: OverrideRowProps): R
   );
 }
 
-interface AuthorsNoteRowProps {
-  readonly form: RoomOverridesFormApi;
-  readonly disabled: boolean;
-}
-
-// The author's-note override — a textarea PLUS the at-depth directive controls (depth + role) and the
-// assistant@depth-0 prefill warning, all inside the expanded panel.
-function AuthorsNoteRow({ form, disabled }: AuthorsNoteRowProps): ReactElement {
-  const [open, setOpen] = useState(false);
-  return (
-    <form.Subscribe selector={(state): string => state.values.authorsNote}>
-      {(value): ReactElement => (
-        <OverrideCollapseCard
-          label="Author's note"
-          isSet={value.trim() !== ""}
-          snippet={value}
-          open={open}
-          onOpenChange={setOpen}
-          onClear={(): void => form.setFieldValue("authorsNote", "")}
-          disabled={disabled}
-          footer={
-            <>
-              <form.AppField name="authorsNoteDepth">
-                {(field): ReactElement => (
-                  <field.NumberField label="Depth" hint="0 = at the tail (just before the new turn); higher = further back." min={0} disabled={disabled} />
-                )}
-              </form.AppField>
-              <form.AppField name="authorsNoteRole">
-                {(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} disabled={disabled} />}
-              </form.AppField>
-            </>
-          }
-        >
-          <form.AppField name="authorsNote">
-            {(field): ReactElement => (
-              <Textarea
-                aria-label="Author's note"
-                value={field.state.value}
-                onChange={(e): void => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-                rows={2}
-                disabled={disabled}
-              />
-            )}
-          </form.AppField>
-          <form.Subscribe selector={(state): boolean => isAuthorsNotePrefill(state.values)}>
-            {(prefill): ReactElement | null =>
-              prefill ? (
-                <Text size="micro" tone="warning">
-                  {ASSISTANT_PREFILL_WARNING}
-                </Text>
-              ) : null
-            }
-          </form.Subscribe>
-        </OverrideCollapseCard>
-      )}
-    </form.Subscribe>
-  );
-}
-
 export interface RoomOverridesFormProps {
   /** The form's stable identity for seed/remount (committed → `room-overrides:${chatId}`; draft →
    *  `room-overrides:draft:${draftKey}`). */
@@ -264,7 +202,6 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
           <OverrideRow form={form} name="mainPrompt" label="Main prompt" rows={4} disabled={!isHost} />
           <OverrideRow form={form} name="postHistory" label="Post-history" rows={3} disabled={!isHost} />
           <OverrideRow form={form} name="scenario" label="Scenario" rows={3} disabled={!isHost} />
-          <AuthorsNoteRow form={form} disabled={!isHost} />
         </Stack>
       )}
     </RoomOverridesFormBoundary>

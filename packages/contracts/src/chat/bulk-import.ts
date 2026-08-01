@@ -40,8 +40,10 @@ export interface BulkImportMessageInput {
  *  (plain ST is the lossy subset: orb-only fields arrive empty). `importHash` is the per-chat dedup oracle
  *  (`chats.importHash`); `updatedAt` is the ST last-activity (import computes `Math.max(send_dates)`, not
  *  `now`); `parentRef` is the branch parent's source filename (resolved character-wide by the op);
- *  `authorsNote` is the ST `note_prompt` → `chats.metadata.roomOverrides.authorsNote` (the typed home export
- *  reads back); `isRealConversation` gates the memory-backfill enqueue (PD-78). */
+ *  `authorsNote` is the ST `note_prompt`, landed as a `chat_injections` row — the ONE per-chat prose door
+ *  since the room-override twin was retired (owner ruling 2026-08-01), so it does NOT round-trip back out
+ *  (export has no unambiguous inverse from a LIST of injections into ST's single `note_prompt` slot);
+ *  `isRealConversation` gates the memory-backfill enqueue (PD-78). */
 export interface BulkImportChatInput {
   readonly title: string;
   readonly importedFrom: string;
