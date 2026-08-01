@@ -4,5 +4,7 @@
 // M6.2 de-god move) — a real feature imports no other feature; cross-domain reads ride trpc.*.
 
 export { backupPane } from "./lib/backup-pane";
+export { workloadsJobsSection } from "./lib/workloads-jobs-section";
 export { workloadsPane } from "./lib/workloads-pane";
+export { workloadsSchedulesSection } from "./lib/workloads-schedules-section";
 export { workloadsTuningSection } from "./lib/workloads-tuning-section";

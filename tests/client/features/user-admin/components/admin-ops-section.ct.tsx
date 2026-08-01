@@ -1,0 +1,40 @@
+// CT: the two admin OPS SECTIONS (Settings → Admin → Model catalog / Card embeddings). They became
+// first-class settings-section contributions in SET-SEAMS stage 3, so each now stamps its own anchor and
+// owns its own verbs — this pins both, which the pane-surface era never covered.
+
+import { expect, test } from "@playwright/experimental-ct-react";
+import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { AdminOpsSectionsStory } from "../_ct-stories";
+
+test("each ops section stamps its OWN admin anchor (the ids the nav + search jump to)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<AdminOpsSectionsStory />);
+
+  await expect(page.locator("#settings-anchor-admin-model-catalog")).toBeVisible();
+  await expect(page.locator("#settings-anchor-admin-card-embeddings")).toBeVisible();
+});
+
+test("the catalog refreshers fire their admin-gated verbs", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "connection.refreshCatalog": () => ({ ok: true }),
+    "connection.refreshAgentSdkCatalog": () => ({ ok: true }),
+  });
+  const component = await mount(<AdminOpsSectionsStory />);
+
+  await component.getByRole("button", { name: "Refresh model catalog" }).click();
+  await expect.poll(() => trpc.count("connection.refreshCatalog"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("the inline card embed is gated on a non-empty id and sends it verbatim", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "admin.embedCharacterCard": () => ({ ok: true }) });
+  const component = await mount(<AdminOpsSectionsStory />);
+
+  const embed = component.getByRole("button", { name: "Embed card" });
+  // No id typed → the affordance that would 400 is disabled, not offered.
+  await expect(embed).toBeDisabled();
+
+  await component.getByRole("textbox", { name: "Character id" }).fill("char_ct_1");
+  await embed.click();
+  await expect.poll(() => trpc.lastInput("admin.embedCharacterCard"), { intervals: [20, 50, 100] }).toEqual({ characterId: "char_ct_1" });
+  await expect(component.getByText("Card embedded.")).toBeVisible();
+});
