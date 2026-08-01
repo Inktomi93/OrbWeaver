@@ -145,6 +145,12 @@ export interface RpgTrackerView {
   /** Per scene-cast member (by cast `key`), the trackers that member carries paired with its readings —
    *  resolved server-side through the ONE carrier predicate, so the Scene tab never re-derives carriage. */
   readonly castTrackers: Readonly<Record<string, readonly RpgTrackerEntry[]>>;
+  /** Per scene-cast member (by cast `key`), the ACTIVE conditions on that member's `cast:<key>` volatile row —
+   *  the SAME per-actor plane a roster member's conditions live on (one value home, D108 #2). Projected
+   *  SEPARATELY because `cast` is the scene-IDENTITY row (`RpgPresentCharacter`: name/mood/relationship/guides)
+   *  and carries no volatile plane at all: without this the conditions a tool round applies to an NPC reach NO
+   *  reader, so the steering reminder could neither state one nor let the model play it off. */
+  readonly castConditions: Readonly<Record<string, RpgActorVolatile["conditions"]>>;
   /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];
   readonly quests: readonly RpgQuestView[];

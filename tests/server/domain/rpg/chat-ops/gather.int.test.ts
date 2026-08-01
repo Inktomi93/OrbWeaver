@@ -175,6 +175,35 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
   expect(reminder).toContain("{{setvar::x::1}}"); // variable — NOT executed
 });
 
+// The WHOLE path (snapshot → tracker view → injection) for an NPC's affliction. `update_party` writes conditions
+// onto a cast NPC's `cast:<key>` row exactly as it does a roster member's, but the reminder rendered
+// `conditions:` for ROSTER actors only — so a poisoned NPC was model-INVISIBLE and the model could neither play
+// the affliction nor retire it (the reminder is the model's knowledge, D113 #4).
+test("a scene-cast NPC's CONDITIONS reach the reminder injection (snapshot → view → wire)", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db);
+  const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await db.insert(rpgSnapshots).values({
+    ...target({ gameId, chatId, seq: 1, variantId, key: "castcond" }),
+    ...emptyState(),
+    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "Mari" },
+        hp: null,
+        trackerValues: {},
+        conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
+        inventory: [],
+        wallet: [],
+        status: "",
+      },
+    ],
+    fieldLocks: null,
+    committed: 1,
+  });
+  expect(await reminderText(h, chatId)).toContain("- Mari — wary — conditions: poisoned");
+});
+
 test("a BORN game's char turn carries no registry tools + no write guidance (the state round writes, not the reminder)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db); // born folded — its write surface is the terminal channel, never `tools`

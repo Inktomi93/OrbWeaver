@@ -32,6 +32,7 @@
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
 import type {
+  RpgActorVolatile,
   RpgDateMode,
   RpgRelationship,
   RpgStatAttributeDef,
@@ -169,6 +170,17 @@ function trackerVocabularyLine(defs: readonly RpgTrackerDef[]): string {
   return `Trackers: ${sortTrackers(defs).map(trackerVocabulary).join(" · ")}`;
 }
 
+/** THE ONE conditions reading — `conditions: poisoned, bleeding`, or null when the carrier has none. Read by
+ *  BOTH carrier surfaces (a roster actor's volatile segs AND the cast line), because a cast NPC's conditions
+ *  reached the model NOWHERE: the reminder rendered them for roster actors only, and the accidental channel
+ *  they used to leak through (the pre-F4 constraint enums, which enumerated every live condition name) is
+ *  correctly gone. An affliction the tool round had just applied to an NPC was therefore invisible to the very
+ *  turn that had to play it — and unremovable, since the model could not know it existed (D113 #4: the
+ *  reminder is the model's KNOWLEDGE). */
+function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | null {
+  return conditions.length === 0 ? null : `conditions: ${conditions.map((c) => c.name).join(", ")}`;
+}
+
 /** An actor's volatile-plane segments (hp/wallet/inventory/status/conditions) — hoisted out of `actorLine`
  *  so the identity-plane additions (className/level/attributes) stay under the cognitive-complexity gate.
  *  The TRACKER segs are NOT here: an actor carries its trackers whether or not a snapshot ever wrote it a
@@ -188,8 +200,9 @@ function volatileSegs(v: NonNullable<RpgTrackerView["actors"][number]["volatile"
   if (v.status !== "") {
     segs.push(v.status);
   }
-  if (v.conditions.length > 0) {
-    segs.push(`conditions: ${v.conditions.map((c) => c.name).join(", ")}`);
+  const conditions = conditionsSeg(v.conditions);
+  if (conditions !== null) {
+    segs.push(conditions);
   }
   return segs;
 }
@@ -264,7 +277,12 @@ function castHeader(cast: RpgTrackerView["cast"]): string {
   return cast.some((c) => guideLines(c).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
 }
 
-function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTrackerEntry[], hints: Readonly<Record<string, string>>): string {
+function castLine(
+  cast: RpgTrackerView["cast"][number],
+  trackers: readonly RpgTrackerEntry[],
+  conditions: RpgActorVolatile["conditions"],
+  hints: Readonly<Record<string, string>>,
+): string {
   const segs: string[] = [cast.emoji !== "" ? `${cast.emoji} ${cast.name}` : cast.name];
   if (cast.mood !== "") {
     segs.push(cast.mood);
@@ -277,6 +295,12 @@ function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTr
   // bare label — the same rule the party lines and the game-subject block follow.
   for (const entry of trackers) {
     segs.push(trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label);
+  }
+  // The conditions ride the ` — ` seg chain (short state, like `mood`) exactly as they do on a party line —
+  // never a continuation line, which is reserved for the guides' unbounded PROSE.
+  const conditionSeg = conditionsSeg(conditions);
+  if (conditionSeg !== null) {
+    segs.push(conditionSeg);
   }
   const head = `- ${segs.join(" — ")}`;
   const guides = guideLines(cast);
@@ -377,7 +401,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
   if (view.cast.length > 0) {
     stateLines.push(castHeader(view.cast));
-    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], input.features.relationshipHints)));
+    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castConditions[c.key] ?? [], input.features.relationshipHints)));
   }
   if (view.gameTrackers.length > 0) {
     // "Game trackers" (not the bare "Trackers:" it used to be) — the vocabulary line above now owns that
