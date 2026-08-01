@@ -192,6 +192,17 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+~~SE-E~~ MERGED (`ad60f455`) — deeper than the P3: `ambient` is a VIEW key not a state plane;
+the verb merged it, toColumns dropped it, stamped a JUNK fieldLock, emitted the event, and minted
+a BLANK anchor slot — all silently. PLUS the hand path had NO F1 write-boundary parse (latent
+canon-corruption hole D108 assumed closed). Fixed: derived plane vocabulary
+(RPG_SNAPSHOT_STATE_PLANES off the schema shape) + errors-as-data refusals + F1 parse BEFORE the
+anchor mint; null-clears work at the real leaves — the compact waystone arm is now REACHABLE and
+pinned. FOLLOW-UPS boarded: client {ok:false} seam (side-eye-scoped when an editor can refuse) ·
+**NO host affordance clears ambient** (weather/clock/date pickers lack "none" arms — the UI gap
+behind the unreachable compact arm; queue AFTER SE-B + cast-edit merge, same scene-tab file).
+LESSON: view-shaped keys ≠ state-shaped keys — any opaque-patch door needs a schema-derived plane
+vocabulary + the write parse, or it no-ops forever.
 **⚠→✅ PLANE LOSS: REAL, LIVE, FIXED (`b962df48` merged).** The four-hop harness diff (owner's
 call) named the write merge: mergeKeyedArray treated every authored keyed array as the WHOLE
 plane — a host editing ONE party member's hp deleted EVERY scene NPC's tracked state (the client
