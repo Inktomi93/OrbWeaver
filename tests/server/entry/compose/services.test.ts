@@ -83,7 +83,7 @@ test("createServices builds the full graph: every Services key + the boot handle
   expect(result.assets).toBeDefined();
   expect(result.exportService).toBeDefined();
   expect(result.eventBus).toBeDefined();
-  expect(result.runnerEnv).toBeDefined();
+  expect(result.workloadContributions).toBeDefined();
   expect(result.roleClients).toBeDefined();
   expect(result.bindRoleClients).toBeInstanceOf(Function);
   expect(result.effectiveConfig).toBeDefined();

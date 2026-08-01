@@ -1,6 +1,7 @@
 // domain/workloads — front door: the only legal external import. Runners are not exported (reached only
 // via engine/dispatch internally). Kind/status tuples live in @orb/contracts/workloads, not here.
 
+export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution";
 export type {
   CancelWorkloadParams,
   CancelWorkloadResult,
@@ -34,6 +35,7 @@ export type {
   WorkloadScheduleService,
 } from "./contract/schedule";
 export type {
+  ShimContributionDeps,
   WorkloadRunnerContext,
   WorkloadRunnerDeps,
   WorkloadService,
@@ -41,11 +43,7 @@ export type {
 } from "./contract/service";
 export type { WorkloadError } from "./contract/workload-error";
 export type { WorkloadEvent } from "./contract/workload-events";
-export type { ParamsByKind, StartWorkloadInput } from "./contract/workload-params";
-export { startWorkloadInput } from "./contract/workload-params";
-export type { ResultByKind } from "./contract/workload-result";
 export type { WorkloadRowAnyKind } from "./contract/workload-row";
-export type { WorkloadProgress } from "./contract/workload-state";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
@@ -58,3 +56,4 @@ export { runWorkload } from "./engine/runner";
 export { tickWorkloadSchedules } from "./engine/schedule-tick";
 export { loadWorkload, nextRunnableWorkload } from "./persistence/queries";
 export { createWorkloadService } from "./service";
+export { buildShimContributions } from "./substrate/shim-contributions";

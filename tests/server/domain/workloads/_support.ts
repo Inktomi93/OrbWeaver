@@ -16,9 +16,11 @@ import type { DocumentId, Handle, UserId, WorkloadId, WorkloadScheduleId } from 
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
+import type { WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
 import type { WorkloadRunnerContext, WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
+import { buildShimContributions } from "../../../../packages/server/src/domain/workloads/substrate/shim-contributions.ts";
 import type { Cas } from "../../../../packages/server/src/infra/storage/index.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -28,8 +30,21 @@ export const T0 = 1_700_000_000_000;
 /** The default enumeration owner a runner context carries (the SINGULAR scope a runner threads to its op). */
 export const RUNNER_OWNER_ID = castId<UserId>("user_owner");
 
+/** The kind-keyed contribution registry a test drives the engine/verbs through. TRANSITIONAL: built by the
+ *  shim adapter over the fake env until every kind's ownership move lands (then this builds from the owning
+ *  domains' real factories). It is the params VALIDATOR the verbs + the row read path use, so every test that
+ *  touches a workload row needs one. */
+export function fakeContributions(env: WorkloadRunnerEnv = fakeEnv()): WorkloadContributions {
+  return buildShimContributions({
+    env,
+    bindRoleClients: () => Promise.resolve({} as RoleClients),
+    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+    now: () => T0,
+  });
+}
+
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
-export function makeService(db: Db): WorkloadService {
+export function makeService(db: Db, contributions: WorkloadContributions = fakeContributions()): WorkloadService {
   let n = 0;
   const newWorkloadId = (): WorkloadId => {
     n += 1;
@@ -42,6 +57,7 @@ export function makeService(db: Db): WorkloadService {
   };
   return createWorkloadService({
     db,
+    getContributions: () => contributions,
     now: () => T0,
     newWorkloadId,
     newScheduleId,
@@ -204,12 +220,10 @@ export function makeRunnerContext(env: WorkloadRunnerEnv, overrides: Partial<Wor
 
 /** The base runner deps the engine builds a per-dispatch context from. Timers DISABLED (`*Ms: 0`) so the
  *  engine runs synchronously with no wall-clock poll (the deterministic test seam). */
-export function makeRunnerDeps(db: Db, env: WorkloadRunnerEnv, overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
+export function makeRunnerDeps(db: Db, contributions: WorkloadContributions, overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
   return {
     db,
-    env,
-    bindRoleClients: () => Promise.resolve({} as RoleClients),
-    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+    contributions,
     audit: () => Promise.resolve(),
     now: () => T0,
     heartbeatMs: 0,

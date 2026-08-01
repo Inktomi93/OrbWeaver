@@ -39,7 +39,7 @@ import type { SettingsService } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
-import type { WorkloadService } from "#domain/workloads";
+import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
@@ -75,6 +75,9 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
   /** ON ⇒ subscribe the indexer to the bus (embed-on-write); OFF ⇒ built-but-not-subscribed. */
   readonly corpusAutoindex: boolean;
+  /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
+   *  verbs deref it per call as their per-kind params validator. */
+  readonly getContributions: () => WorkloadContributions;
 }
 
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
@@ -248,6 +251,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
   const workloads = createWorkloadService({
     db,
+    getContributions: deps.getContributions,
     now,
     newWorkloadId: minter(ID_PREFIX.workload),
     newScheduleId: minter(ID_PREFIX.workloadSchedule),

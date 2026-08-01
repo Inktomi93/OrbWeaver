@@ -35,6 +35,7 @@ import { createResolveViewerVisibility } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
+import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { PresetNotFoundError } from "#domain/preset";
@@ -45,7 +46,7 @@ import { createSettingsContext, createSettingsService } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
-import type { WorkloadRunnerEnv } from "#domain/workloads";
+import type { WorkloadContributions } from "#domain/workloads";
 import { createImportStandaloneLorebook } from "#domain/world-info";
 import type { EnginesPosture } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
@@ -95,6 +96,7 @@ import type { RpgComposeResult } from "./rpg";
 import { buildRpg } from "./rpg";
 import { buildSearchDiscovery } from "./search-discovery";
 import { buildSideGenParams } from "./side-gen-params";
+import { buildWorkloadContributions } from "./workload-contributions";
 import { buildWorldInfo } from "./world-info";
 
 /** Reconstruct the effective engine POSTURE from the two boot facts compose receives (lossless: lifecycle
@@ -187,7 +189,12 @@ export interface ServicesResult {
   readonly portability: PortabilityRegistry;
   readonly importWorldInfo: ImportWorldInfoPort;
   readonly eventBus: DomainEventBus;
-  readonly runnerEnv: WorkloadRunnerEnv;
+  /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
+   *  driver dispatches through it. */
+  readonly workloadContributions: WorkloadContributions;
+  /** The databank ingest subsystem — surfaced so the seed script can run ONE document's ingest inline
+   *  (the same op the `databank-ingest` contribution drives off the queue). */
+  readonly databankIngest: DatabankIngest;
   readonly roleClients: RoleClientsWithSignal;
   /** The per-owner `RoleClients` binder, pre-bound to the connection service + the executor. The workloads
    *  worker's `bindRoleClients` is wired from this; entry never touches the raw executor. */
@@ -250,6 +257,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     onEmbedModelChanged: () => enqueueEmbedReindex(),
     materializeBackground,
     newBackgroundEntryId: () => randomUUID(),
+  };
+  // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
+  // the workloads SERVICE is built mid-graph and needs it as its params validator — so the service holds this
+  // late-bound thunk, derefed per verb call, exactly like portability's `getPortabilityRegistry`.
+  let workloadContributions: WorkloadContributions | null = null;
+  const getWorkloadContributions = (): WorkloadContributions => {
+    if (workloadContributions === null) {
+      throw new Error("compose: workload contributions derefed before the registry was assembled");
+    }
+    return workloadContributions;
   };
   const settings = createSettingsService(settingsDeps);
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
@@ -430,6 +447,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getEffectiveConfig: () => effectiveConfig.getEffectiveConfig(),
     emitChatEvent,
     corpusAutoindex: resolved.corpusAutoindex,
+    getContributions: getWorkloadContributions,
   });
   const { embeddings, indexer, persona, presetCtx, preset, stats, search, discovery, notifications, workloads } = searchDiscovery;
   // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
@@ -647,6 +665,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
   });
 
+  // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
+  workloadContributions = buildWorkloadContributions({
+    env: runnerEnv,
+    bindRoleClients,
+    loadUserSettings: settings.loadUserSettings,
+    now,
+  });
+
   const services: Services = {
     admin,
     assets,
@@ -685,7 +711,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     portability,
     importWorldInfo,
     eventBus,
-    runnerEnv,
+    workloadContributions,
+    databankIngest,
 
     roleClients,
     bindRoleClients,

@@ -4,14 +4,12 @@
 // claim/dispatch/decision with zero ambient time or I/O. The loop tests drive shutdown via a real
 // AbortController.
 
-import type { RoleClients } from "@orb/contracts/role-clients";
-import type { UserSettings } from "@orb/contracts/settings";
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
+import type { WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import type { WorkloadRowAnyKind } from "../../../../packages/server/src/domain/workloads/contract/workload-row.ts";
 import type { CatalogRefreshSchedulerDeps } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
@@ -46,9 +44,7 @@ export function makeRow(overrides: { id?: WorkloadId; status?: WorkloadStatus; o
 function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
   return {
     db: {} as Db,
-    env: {} as WorkloadRunnerEnv,
-    bindRoleClients: () => Promise.resolve({} as RoleClients),
-    loadUserSettings: () => Promise.resolve({} as UserSettings),
+    contributions: {} as WorkloadContributions,
     audit: () => Promise.resolve(),
     now: () => T0,
     ...overrides,
@@ -61,10 +57,10 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
   return {
     runnerDeps: makeRunnerDeps(),
     signal: new AbortController().signal,
-    nextRunnable: vi.fn((_db: Db, _now: number) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
+    nextRunnable: vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRowAnyKind, _signal: AbortSignal) => Promise.resolve()),
-    reap: vi.fn((_args: { db: Db; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
-    load: vi.fn((_db: Db, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
+    reap: vi.fn((_args: { db: Db; contributions: WorkloadContributions; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
+    load: vi.fn((_db: Db, _contributions: WorkloadContributions, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     subscribeWake: vi.fn((_listener: () => void) => () => undefined),
     scheduleInterval: vi.fn((_fn: () => void, _ms: number) => () => undefined),
     scheduleTimeout: vi.fn((_fn: () => void, _ms: number) => () => undefined),

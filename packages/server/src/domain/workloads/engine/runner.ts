@@ -2,18 +2,15 @@
 // per-dispatch runner context → dispatch inside a detached trace span → stamp the terminal → emit the bus
 // event). Every terminal stamp is status-guarded — a zombie whose row was already reaped writes nothing.
 
-import type { WorkloadKind } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadKind, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import type { Runner } from "../contract/runner";
-import type { WorkloadRunnerContext, WorkloadRunnerDeps } from "../contract/service";
+import type { WorkloadContribution } from "../contract/contribution";
+import type { WorkloadRunnerDeps } from "../contract/service";
 import type { WorkloadError } from "../contract/workload-error";
-import type { ParamsByKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
-import type { ReportProgress } from "../contract/workload-state";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries";
-import { RUNNERS } from "../substrate/dispatch";
 import { emitWorkloadEvent } from "./progress-bus";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
@@ -25,26 +22,24 @@ const DEFAULT_CANCEL_POLL_MS = 5000;
 const WORKLOAD_FAILED = "WORKLOAD_FAILED";
 
 /**
- * The two-cast bridge — the ONE sanctioned escape where the static `{ [K]: Runner<K> }` guarantee meets the
- * runtime row. Indexing `RUNNERS` by the row's union-typed `kind` yields a union of runners TS can't call,
- * and the per-kind params correlation is lost across the union; both casts are contained HERE (do not spread).
+ * The two-cast bridge — the ONE sanctioned escape where the injected `{ [K]: WorkloadContribution<K> }`
+ * guarantee meets the runtime row. Indexing the registry by the row's union-typed `kind` yields a union of
+ * run bodies TS can't call, and the per-kind params correlation is lost across the union; both casts are
+ * contained HERE (do not spread).
  */
-function dispatchAndRun(ctx: WorkloadRunnerContext, row: WorkloadRowAnyKind, report: ReportProgress, signal: AbortSignal): Promise<unknown> {
-  const runner = RUNNERS[row.kind] as Runner<WorkloadKind>;
-  return runner(ctx, row.params as ParamsByKind[WorkloadKind], report, signal);
+function dispatchAndRun(
+  deps: WorkloadRunnerDeps,
+  args: { ctx: WorkloadRunContext; row: WorkloadRowAnyKind; report: ReportProgress; signal: AbortSignal },
+): Promise<unknown> {
+  const contribution = deps.contributions[args.row.kind] as WorkloadContribution<WorkloadKind>;
+  return contribution.run(args.ctx, args.row.params as WorkloadParamsByKind[WorkloadKind], args.report, args.signal);
 }
 
-/** Build the per-dispatch runner context — roleClients PRE-BOUND for the row's acting user (or the synthetic system id). */
-async function buildRunnerContext(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind): Promise<WorkloadRunnerContext> {
+/** Build the per-dispatch run context — identity + clock ONLY. Anything else a job needs is a dep of its
+ *  owning domain's contribution factory, closed over at compose (never a shared per-dispatch bundle). */
+function buildRunContext(deps: WorkloadRunnerDeps, row: WorkloadRowAnyKind): WorkloadRunContext {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
-  return {
-    userId,
-    ownerId: row.ownerId,
-    roleClients: await deps.bindRoleClients(userId),
-    loadUserSettings: () => deps.loadUserSettings(userId),
-    env: deps.env,
-    now: deps.now,
-  };
+  return { userId, ownerId: row.ownerId, now: deps.now };
 }
 
 /** Start the single-replica lease timers (heartbeat + DB cancel-poll); `<= 0` cadence DISABLES a timer (the
@@ -163,7 +158,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRowAnyK
   }
   emitWorkloadEvent({ type: "started", workloadId: row.id, kind: row.kind, at: deps.now() });
 
-  const ctx = await buildRunnerContext(deps, row);
+  const ctx = buildRunContext(deps, row);
 
   const controller = new AbortController();
   const onIncomingAbort = (): void => controller.abort();
@@ -186,7 +181,9 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRowAnyK
 
   const timers = startLeaseTimers(deps, row, controller);
   try {
-    const result = await withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () => dispatchAndRun(ctx, row, report, controller.signal));
+    const result = await withRequestSpan(`workload:${row.id}`, "workload.run", { kind: row.kind }, () =>
+      dispatchAndRun(deps, { ctx, row, report, signal: controller.signal }),
+    );
     await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result });
   } catch (err) {
     await finalizeFailure(deps, row, { aborted: controller.signal.aborted, err });

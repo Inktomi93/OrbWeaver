@@ -4,9 +4,8 @@
 // unless admin. The row's stamped ownerId derives from the caller, or the explicit ownerId for a system trigger.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
+import type { StartWorkloadInput, WorkloadKind, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
-import type { StartWorkloadInput } from "./workload-params";
 
 /** mode: "bulk" requires the box owner and either sweeps all owners or mints into targetOwnerId; caller:
  *  null bypasses the gate and stamps the explicit ownerId. */
