@@ -152,7 +152,8 @@ function RpgHudCell({ tab, isActive, edge }: { readonly tab: ResolvedContextTab;
       {...(disabled ? { "aria-disabled": true } : {})}
     >
       {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" /> : null}
-      <Text as="span" size="micro" weight="medium" className="max-w-full truncate">
+      {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active ember) wins. */}
+      <Text as="span" voice="gloss" className="max-w-full truncate text-inherit">
         {tab.label}
       </Text>
       {disabled ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute right-0 top-0 text-muted-foreground" /> : null}
