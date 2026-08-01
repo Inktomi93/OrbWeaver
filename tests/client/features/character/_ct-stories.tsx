@@ -20,12 +20,12 @@ import {
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import { selectCharacter, useSectionRegistry } from "@orb/client/state";
+import { clearCharacterSelection, selectCharacter, useActiveDraftSeed, useActiveSection, useSectionRegistry } from "@orb/client/state";
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtCharacterContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 // The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
 // main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
@@ -202,17 +202,28 @@ export interface CharacterLibrarySurfaceStoryProps {
   readonly width?: number;
 }
 
-/** The library surface wrapped in its anchor + the real data layer (`routeTrpc` stubs the network). */
+/** The library surface wrapped in its anchor + the real data layer (`routeTrpc` stubs the network), with
+ *  the section's real LIST chrome band above it — the title + create/import menu live THERE now
+ *  (list-pane-projection L1 / D66 A1), so a surface mounted without the band is not the production pane. */
 export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div style={width === undefined ? { height: 480 } : { height: 480, width }}>
-        <CharacterLibraryAnchor>
-          <CharacterLibrarySurface />
-        </CharacterLibraryAnchor>
-      </div>
+      <CtRealSectionRegistry>
+        <div style={width === undefined ? { height: 480 } : { height: 480, width }}>
+          <CharactersListBand />
+          <CharacterLibraryAnchor>
+            <CharacterLibrarySurface />
+          </CharacterLibraryAnchor>
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The characters section's own `listHeader` closure, rendered where the shell's PanelChrome renders it. */
+function CharactersListBand(): ReactElement {
+  const registry = useSectionRegistry();
+  return <div data-testid="list-band">{registry.get("characters").listHeader?.()}</div>;
 }
 
 // ── The CONTEXT Field tab (§6c) — the panel body the shell renders beside the editor ────────────────
@@ -244,6 +255,55 @@ export function CharacterBulkBarStory(): ReactElement {
       <div data-testid="bulk-panel" style={{ width: 337 }}>
         <BulkBarInner />
       </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Arm A: the MODAL LIST pane (list-pane-projection §3) ───────────────────────────────────────────
+// Mounted through the REAL section registry (`registry.get("characters").list()` / `.listHeader()`) — the
+// same calls the shell's list region + PanelChrome make — so these drive the PRODUCTION path end to end:
+// the `makeCharactersSection` door param, the chat-owned projection body threaded in at the door, and the
+// selection-driven swap. A bespoke mount of the pane component would prove none of that.
+
+/** Mirrors the shell's two LIST mount points: the chrome band + the pane, in one box. */
+function CharactersListHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const definition = registry.get("characters");
+  const list = definition.list;
+  if (typeof list !== "function") {
+    throw new Error("ct-stories: the characters section has no list pane");
+  }
+  const activeSection = useActiveSection();
+  const draftSeed = useActiveDraftSeed();
+  return (
+    <div style={{ height: 560, width: 320 }}>
+      <div data-testid="list-band">{definition.listHeader?.()}</div>
+      {list()}
+      {/* Probes for the cross-section WRITES the pane fires (assert the store action, not a UI echo). */}
+      <p data-testid="active-section">{activeSection}</p>
+      <p data-testid="draft-cast">{(draftSeed?.characterIds ?? []).join(",")}</p>
+    </div>
+  );
+}
+
+export interface CharactersListPaneStoryProps {
+  /** Pre-select a character (the PROJECTION role); omitted mounts the PICKER role. */
+  readonly selectedCharacterId?: string;
+}
+
+/** The characters LIST band + pane over the real registry and the real data layer. */
+export function CharactersListPaneStory({ selectedCharacterId }: CharactersListPaneStoryProps = {}): ReactElement {
+  useEffect(() => {
+    if (selectedCharacterId !== undefined) {
+      selectCharacter(castId<CharacterId>(selectedCharacterId));
+    }
+    return (): void => clearCharacterSelection();
+  }, [selectedCharacterId]);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <CharactersListHarness />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

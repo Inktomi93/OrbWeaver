@@ -2,6 +2,10 @@
 // → handle), the archived badge, the isHiddenOnCard tag suppression, the native-button select body +
 // aria-current, the sibling star + Chat actions (disjoint from the body — no nested interactive), and the
 // §4.6 bulk-mode checkbox that toggles selection instead of opening the editor.
+//
+// The star is now the shared `RowToggleAction` under owner ruling D11 (list-pane-projection §12): it
+// announces as a toggle (`aria-pressed`), and its REST posture reverses what this card shipped —
+// pressed keeps its pixels, unpressed rests hidden and reveals with the row.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterCardTileStory } from "../_ct-stories";
@@ -80,6 +84,26 @@ test("the star chip fires onToggleStar (immediate flag toggle)", async ({ mount 
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} />);
   await component.getByRole("button", { name: "Star Aria Nightshade", exact: true }).click();
   await expect(component.getByTestId("starred-id")).toHaveText("char_ct_story");
+});
+
+test("D11 retrofit: the star announces as a TOGGLE (aria-pressed), not a command", async ({ mount }) => {
+  const off = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} />);
+  await expect(off.getByRole("button", { name: "Star Aria Nightshade", exact: true })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("D11 retrofit: an UNSTARRED star rests hidden (revealed on hover/focus), reversing the shipped always-on posture", async ({ mount }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} />);
+  const star = component.getByRole("button", { name: "Star Aria Nightshade", exact: true });
+  await expect(star).toHaveCSS("opacity", "0");
+  await expect(star).toHaveClass(REVEAL_ON_HOVER);
+  await expect(star).toHaveClass(REVEAL_ON_FOCUS);
+});
+
+test("D11 retrofit: a STARRED star keeps its rest pixels — the marker earns them by carrying state", async ({ mount }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={true} />);
+  const star = component.getByRole("button", { name: "Unstar Aria Nightshade", exact: true });
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  await expect(star).toHaveCSS("opacity", "1");
 });
 
 test("§4.4 progressive disclosure: the Chat CTA rests hidden, wired to reveal on hover + focus-within", async ({ mount }) => {

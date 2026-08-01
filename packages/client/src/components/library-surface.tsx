@@ -1,16 +1,20 @@
-// The library-surface scaffold (clone-audit item 2): the search-input + row-list + empty-state + header-band
-// shell shared by preset-library-surface ↔ world-info-library-surface. TWO layout composites (not one rigid
-// component — the surfaces diverge on query hooks, an Import affordance, and the preset active-for-generation
-// Select): `LibrarySurfaceShell` (focus-on-mount + QueryBoundary + load/error copy) wraps the querying list;
-// `LibraryListLayout` (micro-caps header band + trailing actions + search + empty-or-rows body) is the body.
+// The library-surface scaffold (clone-audit item 2): the search-input + row-list + empty-state shell shared
+// by preset-library-surface ↔ world-info-library-surface. TWO layout composites (not one rigid component —
+// the surfaces diverge on query hooks and the preset active-for-generation Select): `LibrarySurfaceShell`
+// (focus-on-mount + QueryBoundary + load/error copy) wraps the querying list; `LibraryListLayout`
+// (pre-search block + search + empty-or-rows body) is the body.
 //
-// OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#lib client seams; the ConfirmDialog homing
-// precedent). Behavior-preserving: the header band is the CURRENT micro-caps Row (the north-star A1/N2 chrome
-// migration to shell-panel-header is a separate lane — this consolidation does not fork or pre-empt it).
+// The in-pane micro-caps TITLE + actions row this used to carry is GONE (list-pane-projection L4): both
+// consumers now supply a `listHeader` and their title/create live in the `.shell-panel-header` band, like
+// every other section's (D66 A1/A2). The A1/N2 migration this file once deferred to "a separate lane" IS
+// that lane.
+//
+// OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#lib client seams; the ConfirmDialog
+// homing precedent).
 
 import { Input } from "@orb/ui/input";
-import { Row, Stack } from "@orb/ui/layout";
-import { Heading, Text } from "@orb/ui/text";
+import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
 
@@ -37,11 +41,7 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, children }: Libr
 }
 
 export interface LibraryListLayoutProps {
-  /** Micro-caps section title (the header band's label). */
-  readonly title: string;
-  /** The header band's trailing actions (New, Import…). */
-  readonly actions: ReactNode;
-  /** Optional block between the header band and the search (e.g. the preset active-for-generation Select). */
+  /** Optional block above the search (e.g. the preset active-for-generation Select). */
   readonly beforeSearch?: ReactNode;
   readonly searchValue: string;
   readonly onSearchChange: (value: string) => void;
@@ -55,10 +55,8 @@ export interface LibraryListLayoutProps {
   readonly children: ReactNode;
 }
 
-/** The library list body: micro-caps header band + trailing actions, a search input, then empty-or-rows. */
+/** The library list body: an optional pre-search block, a search input, then empty-or-rows. */
 export function LibraryListLayout({
-  title,
-  actions,
   beforeSearch,
   searchValue,
   onSearchChange,
@@ -70,15 +68,6 @@ export function LibraryListLayout({
 }: LibraryListLayoutProps): ReactElement {
   return (
     <Stack className="h-full" gap="block">
-      <Row align="center" gap="field" justify="between">
-        <Heading level={2} size="micro" tone="muted" transform="caps">
-          {title}
-        </Heading>
-        <Row align="center" gap="field">
-          {actions}
-        </Row>
-      </Row>
-
       {beforeSearch}
 
       <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />

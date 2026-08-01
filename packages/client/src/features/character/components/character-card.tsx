@@ -17,7 +17,7 @@ import { Archive, Copy, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { ROW_REVEAL, RowActionsMenu } from "#components";
+import { ROW_REVEAL, RowActionsMenu, RowToggleAction } from "#components";
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -112,8 +112,9 @@ export function CharacterCardTile({
   );
 }
 
-/** The normal-mode trailing actions: the always-visible Star + dual-purpose Chat CTA (§4.4/§9c —
- *  the 1-click core loop, hover-revealed on fine pointers, always-on for coarse) + the ⋯ overflow. */
+/** The normal-mode trailing actions: the Star state-toggle (D11 rest posture — pressed always, unpressed
+ *  revealed) + the dual-purpose Chat CTA (§4.4/§9c — the 1-click core loop, hover-revealed on fine pointers,
+ *  always-on for coarse) + the ⋯ overflow. */
 function NormalRowActions({
   character,
   onChat,
@@ -136,16 +137,16 @@ function NormalRowActions({
           Archived
         </Badge>
       ) : null}
-      <Button
-        aria-label={character.starred ? `Unstar ${character.name}` : `Star ${character.name}`}
-        {...(character.starred ? { className: "text-warning" } : {})}
-        intent="ghost"
-        onClick={(): void => onToggleStar(character.id, !character.starred)}
-        size="icon"
-        type="button"
-      >
-        <Icon icon={Star} size="sm" />
-      </Button>
+      {/* D11 retrofit: the star was always-visible in BOTH states; it now rests hidden while unpressed and
+          stays put while pressed — the one grammar every list pane shares (§12.2). */}
+      <RowToggleAction
+        icon={Star}
+        labelOff={`Star ${character.name}`}
+        labelOn={`Unstar ${character.name}`}
+        onToggle={(): void => onToggleStar(character.id, !character.starred)}
+        pressed={character.starred}
+        pressedClassName="text-warning"
+      />
       <Button
         aria-label={`Chat with ${character.name}`}
         className={ROW_REVEAL}

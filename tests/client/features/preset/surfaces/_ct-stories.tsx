@@ -10,12 +10,12 @@
 
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface } from "@orb/client/features/preset";
-import { clearPresetSelection, selectPreset, useSelectedPresetId } from "@orb/client/state";
+import { clearPresetSelection, selectPreset, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders } from "../../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/ct/ct-data-providers";
 
 // The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT
 // mirrors these literals for its save-spy filters). BUILT_IN is the real seeded system-default id.
@@ -65,11 +65,21 @@ export function PresetEditorCapabilityFreshnessStory(): ReactElement {
 export function PresetLibrarySurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 720, width: 420 }}>
-        <PresetLibrarySurface />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ height: 720, width: 420 }}>
+          <PresetListBand />
+          <PresetLibrarySurface />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The section's own `listHeader` closure, rendered where the shell's PanelChrome renders it — the title,
+ *  the count and the create verbs live THERE now (list-pane-projection L4). */
+function PresetListBand(): ReactElement {
+  const registry = useSectionRegistry();
+  return <div data-testid="list-band">{registry.get("presets").listHeader?.()}</div>;
 }
 
 /** The FORK-ONCE harness: the editor mounted exactly the way production mounts it — off the SELECTION STORE

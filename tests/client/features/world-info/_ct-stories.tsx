@@ -4,6 +4,7 @@
 // over the routeTrpc-stubbed network).
 
 import { WorldInfoEditorSurface, WorldInfoLibrarySurface } from "@orb/client/features/world-info";
+import { useSectionRegistry } from "@orb/client/state";
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -11,7 +12,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor";
 import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's
@@ -26,15 +27,26 @@ export function WorldInfoSettingsSectionStory(): ReactElement {
   );
 }
 
-/** The World Info LIST surface over the real data layer (listBooks/listGlobal stubbed in the `.ct.tsx`). */
+/** The World Info LIST band + surface over the real data layer (listBooks/listGlobal stubbed in the
+ *  `.ct.tsx`). The band comes from the REAL section definition's `listHeader` closure — the title and the
+ *  ONE primary (New) live THERE now (list-pane-projection L4), so a surface mounted alone is not the pane. */
 export function WorldInfoLibrarySurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ width: 360, height: 640, padding: 16 }}>
-        <WorldInfoLibrarySurface />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ width: 360, height: 640, padding: 16 }}>
+          <WorldInfoListBand />
+          <WorldInfoLibrarySurface />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The section's own `listHeader` closure, rendered where the shell's PanelChrome renders it. */
+function WorldInfoListBand(): ReactElement {
+  const registry = useSectionRegistry();
+  return <div data-testid="list-band">{registry.get("worldInfo").listHeader?.()}</div>;
 }
 
 /** A fully-populated entry (keyword scope + `position:after` + an UNKNOWN metadata key to prove the save
