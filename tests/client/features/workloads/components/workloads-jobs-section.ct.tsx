@@ -3,12 +3,23 @@
 // QueryBoundary (SET-SEAMS stage 3 — it used to ride the retired pane surface's batch); the filter tabs
 // slice client-side; the run dialog fires the real `workloads.start` wire (singular default; owner-only bulk
 // + `targetOwnerId`); Cancel is confirm-gated (AlertDialog) and Retry fires on failure terminals; the live
-// `workloads.subscribe` SSE tail (a scripted `text/event-stream` body — the notification-bell local pattern)
-// drives the progress bar and the terminal-state refetch without a refresh. A PLAIN user's section must
+// tail drives the progress bar and the terminal-state refetch without a refresh. A PLAIN user's section must
 // never fire the adminProcedure `admin.listUsers` read (the skipToken gate).
+//
+// THE TAIL IS A ROOM ON THE ONE SOCKET (SSE-1 S5). This file used to stub `workloads.subscribe` — one
+// `text/event-stream` response per open row. That procedure is gone: every row ATTACHES a
+// `{ channel: "workloads", workloadId }` room to the tab's single `stream.connect`, so the stub is the
+// shared `routeOrbSocket` (frames authored as `{ channel, workloadId, event }`) and the lifecycle is
+// directly assertable — see the socket-budget test at the bottom, which is the S5 claim: N watched runs,
+// ONE connection. The story mounts the socket above the section, as `routes/app-root.tsx` does.
 
+import type { WorkloadEvent } from "@orb/contracts/workloads";
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { WorkloadsJobsSectionStory } from "../_ct-stories";
 
@@ -63,34 +74,13 @@ function workloadRow(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
-/** SSE frames in the tRPC tracked wire shape (the routeOrbSocket format, local here
- *  because that helper types its events as `ChatBusEvent`). */
-function sseBody(events: readonly Record<string, unknown>[]): string {
-  const frames = ["event: connected\ndata: {}\n\n"];
-  for (const [i, event] of events.entries()) {
-    frames.push(`data: ${JSON.stringify(event)}\nid: ${String(i + 1)}\n\n`);
-  }
-  return frames.join("");
-}
-
-/** Serve `workloads.subscribe` a scripted stream; everything else falls through to routeTrpc.
- *  Register AFTER routeTrpc (later routes run first; non-SSE requests fall through). */
-async function routeWorkloadStream(page: Page, events: readonly Record<string, unknown>[]): Promise<void> {
-  let served = false;
-  await page.route("**/api/trpc/**", async (route) => {
-    const accept = route.request().headers()["accept"] ?? "";
-    if (!accept.includes("text/event-stream")) {
-      await route.fallback();
-      return;
-    }
-    // First subscribe gets the script; a reconnect gets a bare connected frame (no replay).
-    const body = served ? sseBody([]) : sseBody(events);
-    served = true;
-    await route.fulfill({
-      status: 200,
-      headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-      body,
-    });
+/** The tab's ONE socket, scripted with this run's frames. A row's tail is a ROOM on it, so the stub holds
+ *  the stream open until that room has attached — a frame for an unjoined room is dropped by the registry,
+ *  exactly as the real server never sends one. Register AFTER routeTrpc: later routes run first. */
+function routeWorkloadStream(page: Page, events: readonly WorkloadEvent[]): Promise<OrbSocketRecorder> {
+  return routeOrbSocket(page, {
+    frames: events.map((event) => ({ channel: "workloads", workloadId: event.workloadId, event })),
+    awaitAttaches: events.length === 0 ? 0 : 1,
   });
 }
 
@@ -334,7 +324,7 @@ test("a LIVE progress event drives the row's determinate progress bar (row-local
   await routeWorkloadStream(page, [
     {
       type: "progress",
-      workloadId: "workload_ct_1",
+      workloadId: castId<WorkloadId>("workload_ct_1"),
       kind: "index",
       at: 1_750_000_001_000,
       progress: { pct: 40, message: "Embedding corpus rows" },
@@ -535,7 +525,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
   await routeWorkloadStream(page, [
     {
       type: "succeeded",
-      workloadId: "workload_ct_1",
+      workloadId: castId<WorkloadId>("workload_ct_1"),
       kind: "index",
       at: 1_750_000_002_000,
       result: { embedded: 12 },
@@ -547,4 +537,62 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
   await expect(page.getByText("Succeeded", { exact: true })).toBeVisible();
   await expect(page.getByText('{"embedded":12}')).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel — Index (embeddings)" })).toHaveCount(0);
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE S5 CLAIM. Before the fold this pane opened ONE BROWSER CONNECTION PER ACTIVE ROW, on top of the
+// tab's standing chat/rpg/user streams — three watched runs plus a second tab sat at the browser's
+// ~6-per-origin ceiling with the user doing nothing unusual (the 2026-08-01 starvation incident,
+// docs/design/sse-multiplex-spec.md §1). Rooms cost attach round-trips; connections stay at one.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+test("THREE active rows attach THREE rooms over exactly ONE socket; a finished run gives its room back", async ({ mount, page }) => {
+  let listCalls = 0;
+  await routeTrpc(page, {
+    "workloads.list": () => {
+      listCalls += 1;
+      const first = listCalls === 1 ? workloadRow() : workloadRow({ status: "succeeded", result: { embedded: 12 } });
+      return [
+        first,
+        workloadRow({ id: "workload_ct_2", kind: "compute-themes", params: {} }),
+        workloadRow({ id: "workload_ct_3", kind: "distill-characters", params: {} }),
+      ];
+    },
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+  });
+  const socket = await routeOrbSocket(page, {
+    // Serve the terminal only once all three rooms are attached — the registry drops a frame for a room
+    // nobody joined, exactly as the real server never sends one.
+    awaitAttaches: 3,
+    frames: [
+      {
+        channel: "workloads",
+        workloadId: castId<WorkloadId>("workload_ct_1"),
+        event: {
+          type: "succeeded",
+          workloadId: castId<WorkloadId>("workload_ct_1"),
+          kind: "index",
+          at: 1_750_000_002_000,
+          result: { embedded: 12 },
+        },
+      },
+    ],
+  });
+
+  await mount(<WorkloadsJobsSectionStory />);
+  await expect(page.getByRole("tabpanel", { name: "All" }).getByText("Compute themes")).toBeVisible();
+
+  // One room per running row, each keyed by its own workloadId…
+  await expect.poll(() => [...socket.attachedChannels()].sort()).toEqual(["workloads:workload_ct_1", "workloads:workload_ct_2", "workloads:workload_ct_3"]);
+  // …over ONE EventSource. That number used to be three, on top of the tab's standing streams.
+  expect(socket.connects()).toBe(1);
+  // Live-only: no room asks for a replay — the durable `progress` column + `workloads.list` are the truth a
+  // reconnect reads (D117 (10)), so there is no cursor to rewind to.
+  expect(socket.attachRequests().every(({ sinceSeq }) => sinceSeq === null)).toBe(true);
+
+  // The terminal event invalidates the list; the row leaves the ACTIVE set, so its room is given back —
+  // and ONLY its room. The socket and the other two tails are untouched.
+  await expect(page.getByText("Succeeded", { exact: true })).toBeVisible();
+  await expect.poll(() => socket.detaches().map((ref) => ("workloadId" in ref ? ref.workloadId : ref.channel))).toEqual(["workload_ct_1"]);
+  expect(socket.connects()).toBe(1);
 });

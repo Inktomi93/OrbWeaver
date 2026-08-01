@@ -1,5 +1,5 @@
 // The Workloads pane's mutations, one createEntityMutation per verb. None are busDriven: the workload
-// verbs emit on the workloads progress bus (SSE workloads.subscribe), not either mapped invalidation
+// verbs emit on the workloads progress bus (the `workloads` ROOM on the tab's one socket), not either mapped invalidation
 // bus, so each self-invalidates the workloads.list read on settle.
 
 import type { inferInput } from "@trpc/tanstack-react-query";

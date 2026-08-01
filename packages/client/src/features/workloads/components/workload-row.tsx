@@ -3,7 +3,7 @@
 // progress bar for active rows, a compact result preview for succeeded, the persisted error reason for
 // failure terminals.
 //
-// An active row mounts the workloads.subscribe tail via ActiveWorkloadRow; progress buffers in row-local
+// An active row mounts its live-tail ROOM via ActiveWorkloadRow; progress buffers in row-local
 // state and every state-changing event invalidates workloads.list. Cancel is confirm-gated; Retry clones
 // a fresh queued row (the original stays as audit).
 //

@@ -46,6 +46,9 @@ export const OVERFLOW_POLICIES: Record<StreamChannel, OverflowPolicy> = {
   rpg: "collapse",
   /** ephemeral chips by design — no durable row */
   automation: "collapse",
+  /** the durable `progress` COLUMN is the truth a `workloads.list` read re-renders (D117 (10)) — a live frame
+   *  is a redraw trigger, and a progress snapshot is absolute, so the newest of a type is the whole story */
+  workloads: "collapse",
 };
 
 interface QueuedFrame {

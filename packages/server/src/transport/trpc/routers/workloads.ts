@@ -4,18 +4,16 @@
 //   • `start` — a BULK run requires the BOX OWNER (LAYER-1 gate HERE on the payload's `mode`; the verb
 //     re-checks as LAYER-2 + validates the kind supports the mode); a SINGULAR run is any authed caller and
 //     stamps `ownerId = caller`. A bulk CREATE-kind carries a `targetOwnerId` (the mint destination).
-//   • `list`/`get`/`cancel`/`retry`/`subscribe` — IDOR-scoped in the verb to the caller's own `ownerId`
+//   • `list`/`get`/`cancel`/`retry` — IDOR-scoped in the verb to the caller's own `ownerId`
 //     (a non-admin), or across ALL owners (owner∪admin = the deployment-wide view). A foreign/absent id →
 //     leak-free NOT_FOUND. The `caller` Principal (`ctx.auth`, resolved once at the edge) is threaded in.
 // Thin: validate → LAYER-1 owner gate for bulk → enter the front door → map errors.
 //
-// `subscribe` mirrors the SSE replay-then-live shape: the generator's existence check is the OWNER-scoped
-// `get` (a stranger's foreign id throws NOT_FOUND, mapped to a typed frame by `withSubscriptionErrors`), then
-// replay the in-memory progress ring (`getRecentWorkloadEvents`, 60s TTL — overlap is idempotent on the
-// client) and live-tail the per-process `workloadStreamEmitter`, filtered to the one `workloadId`.
+// LIVE TAILING IS NOT HERE ANY MORE (SSE-1 S5). The deleted `subscribe` proc is the `workloads` ROOM on the
+// tab's ONE socket (`transport/trpc/stream/sources/workloads.ts`), which is where its owner gate, its 60s
+// replay ring and its per-`workloadId` filter moved verbatim. A user watching three runs now pays three
+// attach round-trips instead of three browser connections; `single-stream-transport` keeps it that way.
 
-import { on } from "node:events";
-import type { Principal } from "@orb/contracts/identity";
 import {
   asStartWorkloadInput,
   scheduleCadenceSchema,
@@ -26,18 +24,9 @@ import {
 } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import type { TrackedEnvelope } from "@trpc/server";
-import { tracked } from "@trpc/server";
 import { z } from "zod";
 import { requireOwner } from "#domain/admin";
-import type { WorkloadEvent, WorkloadService } from "#domain/workloads";
-import { getRecentWorkloadEvents, workloadStreamEmitter } from "#domain/workloads";
-import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
-
-// The (unexported) bus channel `emitWorkloadEvent` publishes on — mirrored here so the live tail listens
-// on the same channel. The progress-bus is single-process (single-replica) by design.
-const WORKLOAD_EVENT_CHANNEL = "workload";
 
 export const workloadsRouter = t.router({
   start: authedProcedure
@@ -102,10 +91,6 @@ export const workloadsRouter = t.router({
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
       }),
     ),
-
-  subscribe: authedProcedure
-    .input(z.object({ workloadId: brandedId<WorkloadId>() }))
-    .subscription(({ ctx, input, signal }) => withSubscriptionErrors(workloadEvents(ctx.services.workloads, ctx.auth, input.workloadId, signal))),
 
   // ── Schedules (the TIME dimension) — recurring auto-enqueue. Owner-scoped like the workload verbs: a
   //    SINGULAR schedule is any authed caller; a BULK schedule is BOX-OWNER-only (LAYER-1 gate here, re-checked
@@ -174,30 +159,3 @@ export const workloadsRouter = t.router({
     }),
   ),
 });
-
-async function* workloadEvents(
-  service: WorkloadService,
-  caller: Principal,
-  workloadId: WorkloadId,
-  signal: AbortSignal | undefined,
-): AsyncGenerator<TrackedEnvelope<WorkloadEvent>> {
-  // Existence + OWNER-scoped check — throws `DomainNotFoundError` for a bad id OR a foreign workload (a
-  // stranger can't tail someone else's run), which the wrapper converts to a typed frame (NOT a 500).
-  await service.get({ id: workloadId, caller });
-
-  let seq = 0;
-  for (const event of getRecentWorkloadEvents(workloadId)) {
-    yield tracked(String(seq++), event);
-  }
-
-  const live = on(workloadStreamEmitter, WORKLOAD_EVENT_CHANNEL, {
-    signal: signal ?? new AbortController().signal,
-  });
-  for await (const args of live) {
-    const event = args[0] as WorkloadEvent;
-    if (event.workloadId !== workloadId) {
-      continue;
-    }
-    yield tracked(String(seq++), event);
-  }
-}
