@@ -356,7 +356,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
         onEditCoin: (name: string, next: number): void =>
           editSnapshot.mutate({
             chatId,
-            patch: actorStatePatch(tracker.actors, actor.actorRef, (v) => ({
+            patch: actorStatePatch(tracker, actor.actorRef, (v) => ({
               ...v,
               wallet: v.wallet.map((w) => (w.name === name ? { ...w, amount: next } : w)),
             })),

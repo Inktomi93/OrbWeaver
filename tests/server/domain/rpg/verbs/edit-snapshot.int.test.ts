@@ -79,8 +79,8 @@ describe("editSnapshot on a turnless game", () => {
     // The e2e-caught defect (rpg-lite-loop SPEC 1): each committed hand edit clones forward onto a fresh
     // narrator anchor, and the SECOND edit named only `mira` — so the keyed-array merge dropped `thorn`'s
     // whole volatile row and the panel read back a hero with no HP. A hand editor writes the actors it can
-    // SEE (the client's `actorStatePatch` builds off the roster-only tracker view, which carries no `cast:`
-    // rows at all), so an unnamed actor is IGNORANCE, never a removal.
+    // SEE (the client's `actorStatePatch` sends the ROSTER half plus the one `cast:` target it is editing —
+    // never the other scene NPCs), so an unnamed actor is IGNORANCE, never a removal.
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("thorn", 45, 3)] } });
     await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("mira", 0, 4)] } });
