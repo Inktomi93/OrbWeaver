@@ -3,10 +3,13 @@
 // (DI bundle), and contract/ + verbs/ dirs. persistence/ and substrate/ are per-feature (export has
 // no persistence/; chat/workloads have no substrate/), so they are NOT required here.
 //
-// Two documented exceptions to "only index/service/context at root":
+// Documented exceptions to "only index/service/context at root":
 // - `guard.ts` is a ratified, cross-domain 9th slot (Core-Laws-and-Precedents.md "Committed decisions" —
 //   the `can()` authority seam: `requireAdmin` lives in `domain/admin/guard.ts`). It's an I/O-touching,
 //   non-verb gate primitive — can't live in zero-I/O `substrate/`, isn't a verb. Allowed at ANY domain root.
+// - `workload-contributions.ts` is the ratified, cross-domain 10th slot (the workloads junk-drawer exit):
+//   the domain's OWN background-work contributions, compose-built over its own verbs. Same shape of
+//   exception as guard.ts — I/O-touching, not a verb, and cross-domain by construction.
 // - A handful of domain-specific root singletons, each individually justified inline below
 //   (`DOMAIN_SPECIFIC_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
 import { existsSync, readdirSync, statSync } from "node:fs";
@@ -18,9 +21,15 @@ const DOMAIN_REL = "packages/server/src/domain";
 const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;
 const REQUIRED_DIRS = ["contract", "verbs"] as const;
 
-/** `guard.ts` — the ratified `can()` authority-seam pattern (Core-Laws-and-Precedents.md, Identity/auth/
- *  permission "Committed decisions"). Allowed at any domain root, not just admin's. */
-const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
+/** Cross-domain ratified root slots, allowed at ANY domain root:
+ *  - `guard.ts` — the ratified `can()` authority-seam pattern (Core-Laws-and-Precedents.md,
+ *    Identity/auth/permission "Committed decisions").
+ *  - `workload-contributions.ts` — the ONE home of a domain's background-work contributions (the
+ *    workloads junk-drawer exit: domains raise seams, the worker skims them). A compose-built factory
+ *    over the domain's OWN verbs, so it can't live in zero-I/O `substrate/` and it isn't a verb; naming
+ *    it as a cross-domain slot is what makes "where does this domain's queued work live?" answerable
+ *    without reading the queue. */
+const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as const;
 
 /** Domain-specific root singletons — each justified here, since this allowlist IS the source of truth:
  *  - chat: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set) —

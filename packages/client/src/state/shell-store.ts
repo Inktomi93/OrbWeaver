@@ -269,8 +269,13 @@ export function usePanelOverride(section: SectionId, panel: PanelName): PanelMod
  *  mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
  *  narrow-desktop `docked` DEFAULT auto-downgrades to a CLOSED slide-over (`collapsed`), opening to
  *  `overlay` only when `openOverlayPanel` names it (§4.1: overlay is zero-width closed by default, slides
- *  over on demand); an explicit `collapsed`/`overlay` override passes through unchanged in every regime;
- *  wide resolves the raw override-or-default untouched. */
+ *  over on demand); wide resolves the raw override-or-default untouched.
+ *
+ *  BEING NAMED BY `openOverlayPanel` WINS OVER A STORED `collapsed` in the narrow regime (2026-08-01 fix).
+ *  It read as a dead control: `chats` defaults its CONTEXT pane `collapsed`, so at ≤64rem the toggle wrote a
+ *  `docked` override that this function immediately re-collapsed — the user's click produced no pixel, and
+ *  only a SECOND click (now on a `docked` default) reached the overlay arm. A persisted collapse is a WIDE
+ *  dock preference; it cannot outvote a live "open it now" in a regime where docking is impossible. */
 export function resolvePanelMode(
   panel: PanelName,
   resolved: PanelMode,
@@ -283,8 +288,11 @@ export function resolvePanelMode(
   if (regime.isMobile) {
     return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
   }
-  if (regime.isNarrow && resolved === "docked") {
-    return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
+  if (regime.isNarrow) {
+    if (regime.openOverlayPanel === panel) {
+      return "overlay";
+    }
+    return resolved === "docked" ? "collapsed" : resolved;
   }
   return resolved;
 }

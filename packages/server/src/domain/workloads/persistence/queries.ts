@@ -12,9 +12,9 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
+import type { WorkloadContributions } from "../contract/contribution";
 import type { CancelWorkloadResult } from "../contract/params";
 import type { WorkloadError } from "../contract/workload-error";
-import { parseParamsForKind } from "../contract/workload-params";
 import type { WorkloadRowAnyKind } from "../contract/workload-row";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
@@ -85,14 +85,15 @@ interface WorkloadListFilter {
 const isKnownKind = (kind: string): kind is WorkloadKind => (WORKLOAD_KINDS as readonly string[]).includes(kind);
 
 /** Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a poison row (unrecognized kind, or a
- *  params blob that fails its kind schema). The one place the JSON columns are narrowed. */
-export function toView(row: WorkloadSelectRow): WorkloadRowAnyKind | null {
+ *  params blob that fails its kind schema). The one place the JSON columns are narrowed. The per-kind
+ *  validator is the OWNING domain's contribution schema — the queue itself spells no domain's vocabulary. */
+export function toView(contributions: WorkloadContributions, row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
     return null;
   }
   let params: Record<string, unknown>;
   try {
-    params = parseParamsForKind(row.kind, row.params) as Record<string, unknown>;
+    params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {
     return null;
   }
@@ -216,14 +217,14 @@ export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: 
 }
 
 /** Load one typed row by id, or `null` (absent OR poison). */
-export async function loadWorkload(db: Db, id: WorkloadId): Promise<WorkloadRowAnyKind | null> {
+export async function loadWorkload(db: Db, contributions: WorkloadContributions, id: WorkloadId): Promise<WorkloadRowAnyKind | null> {
   const rows = await db.select().from(workloads).where(eq(workloads.id, id)).limit(1);
   const row = rows[0];
-  return row === undefined ? null : toView(row);
+  return row === undefined ? null : toView(contributions, row);
 }
 
 /** Filtered list (kind/status/owner/since), newest-first, hard-capped 500. Poison rows are filtered out. */
-export async function listWorkloads(db: Db, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
+export async function listWorkloads(db: Db, contributions: WorkloadContributions, params: WorkloadListFilter): Promise<WorkloadRowAnyKind[]> {
   const filters: SQL[] = [];
   if (params.kind !== undefined) {
     filters.push(eq(workloads.kind, params.kind));
@@ -248,7 +249,7 @@ export async function listWorkloads(db: Db, params: WorkloadListFilter): Promise
     .orderBy(desc(workloads.createdAt))
     .limit(limit);
   return rows.flatMap((row) => {
-    const view = toView(row);
+    const view = toView(contributions, row);
     return view === null ? [] : [view];
   });
 }
@@ -256,7 +257,7 @@ export async function listWorkloads(db: Db, params: WorkloadListFilter): Promise
 /** The next runnable row, or `null`. Windows the queue head and returns the first dispatchable row: a
  *  poison row is failed in place (never thrown, to avoid starving the queue on the same head row); a row
  *  whose `dependsOn` gate is `waiting` is skipped, `failed` is failed in place. */
-export async function nextRunnableWorkload(db: Db, now: number): Promise<WorkloadRowAnyKind | null> {
+export async function nextRunnableWorkload(db: Db, contributions: WorkloadContributions, now: number): Promise<WorkloadRowAnyKind | null> {
   const head = await db
     .select()
     .from(workloads)
@@ -264,7 +265,7 @@ export async function nextRunnableWorkload(db: Db, now: number): Promise<Workloa
     .orderBy(asc(workloads.scheduledAt), asc(workloads.createdAt))
     .limit(QUEUE_HEAD_WINDOW);
   for (const row of head) {
-    const view = toView(row);
+    const view = toView(contributions, row);
     if (view === null) {
       // biome-ignore lint/performance/noAwaitInLoops: poison rows are rare; each must be failed sequentially before the next valid head row is returned.
       await failQueuedRow(db, row.id, `unrecognized or malformed workload kind: ${row.kind}`, now);
@@ -292,13 +293,13 @@ export async function nextRunnableWorkload(db: Db, now: number): Promise<Workloa
 }
 
 /** In-flight rows whose lease went stale (`updatedAt < staleBefore`) — the reaper's sweep input. */
-export async function findStaleInFlight(db: Db, staleBefore: number): Promise<WorkloadRowAnyKind[]> {
+export async function findStaleInFlight(db: Db, contributions: WorkloadContributions, staleBefore: number): Promise<WorkloadRowAnyKind[]> {
   const rows = await db
     .select()
     .from(workloads)
     .where(and(inArray(workloads.status, [...IN_FLIGHT_STATUSES]), lt(workloads.updatedAt, staleBefore)));
   return rows.flatMap((row) => {
-    const view = toView(row);
+    const view = toView(contributions, row);
     return view === null ? [] : [view];
   });
 }

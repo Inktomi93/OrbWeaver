@@ -179,3 +179,11 @@ export interface DatabankIngest {
   /** Re-run the derived layer for one document or every document of an owner (`null` = box-wide). */
   readonly reindex: (args: { ownerId: UserId | null; scope: ReindexScope; mode: ReindexMode; signal: AbortSignal }) => Promise<IngestRunResult>;
 }
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root (the two RAG kinds).
+ *  `purgeDocumentVectors` is the ONE cross-domain reach — the PD-139(c) old-embed-space reclaim, whose
+ *  DELETE lives in embeddings/persistence (the ONE vector write path), injected here as a typed op. */
+export interface DatabankWorkloadDeps {
+  readonly databankIngest: DatabankIngest;
+  readonly purgeDocumentVectors: () => Promise<void>;
+}

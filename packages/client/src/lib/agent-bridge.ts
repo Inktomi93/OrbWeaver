@@ -98,8 +98,10 @@ export interface OrbNavHandle {
   readonly openSettings: (category: string) => NavResult;
   /** Ask the active content's context surface to open a named tab (opaque string; always ok). */
   readonly contextTab: (name: string) => NavResult;
-  /** Make an existing chat active by chat id OR exact display title — resolves against the chat-list
-   *  query cache (fetching it first if not loaded). Rejects loudly on no match OR an ambiguous title. */
+  /** Switch to the Chats section + make an existing chat active by chat id OR exact display title —
+   *  resolves against the chat-list query cache (fetching it first if not loaded). Rejects loudly on no
+   *  match OR an ambiguous title. The section switch is part of the arm: reporting `ok` for a selection
+   *  nothing on screen reflects is a lie a caller cannot detect. */
   readonly openChat: (idOrTitle: string) => Promise<NavResult>;
   /** Switch to the Characters section + select a character by id OR name — resolves against the character
    *  list query. Rejects loudly on no match OR an ambiguous name. */

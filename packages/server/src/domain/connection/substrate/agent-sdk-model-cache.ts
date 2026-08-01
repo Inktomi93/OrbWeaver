@@ -4,7 +4,7 @@
 // module-scope, per-process (the persisted KV snapshot is the durable truth + single-replica seam).
 //
 // TTL invariant: the cache is a mirror, NOT a freshness gate. The durable snapshot's freshness is owned by
-// the refresh-agent-sdk-catalog workload (daily cadence — the same runner-env refresh that re-seeds OR)
+// the refresh-model-catalog workload (daily cadence — the same contribution refresh that re-seeds OR)
 // which re-seeds on every write, plus the boot-seed (entry reads the persisted snapshot on startup via
 // getAgentSdkCatalog, warming this cache across a restart). The daemon's alias→version map + reasoning flags
 // are stable for far longer than a day, so a day-old snapshot is fully serviceable — the bug was a 1h TTL

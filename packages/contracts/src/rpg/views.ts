@@ -145,12 +145,17 @@ export interface RpgTrackerView {
   /** Per scene-cast member (by cast `key`), the trackers that member carries paired with its readings —
    *  resolved server-side through the ONE carrier predicate, so the Scene tab never re-derives carriage. */
   readonly castTrackers: Readonly<Record<string, readonly RpgTrackerEntry[]>>;
-  /** Per scene-cast member (by cast `key`), the ACTIVE conditions on that member's `cast:<key>` volatile row —
-   *  the SAME per-actor plane a roster member's conditions live on (one value home, D108 #2). Projected
-   *  SEPARATELY because `cast` is the scene-IDENTITY row (`RpgPresentCharacter`: name/mood/relationship/guides)
-   *  and carries no volatile plane at all: without this the conditions a tool round applies to an NPC reach NO
-   *  reader, so the steering reminder could neither state one nor let the model play it off. */
-  readonly castConditions: Readonly<Record<string, RpgActorVolatile["conditions"]>>;
+  /** Per scene-cast member (by cast `key`), that member's WHOLE `cast:<key>` volatile row — the SAME per-actor
+   *  plane a roster member's `volatile` carries (one value home, D108 #2), `null` until a snapshot writes one.
+   *  Projected SEPARATELY because `cast` is the scene-IDENTITY row (`RpgPresentCharacter`:
+   *  name/mood/relationship/guides) and carries no volatile plane at all.
+   *
+   *  THE WHOLE ROW, not a hand-picked slice (the reachability suite's finding): `update_party` /
+   *  `update_inventory` write hp, status, conditions, inventory and wallet onto a cast NPC exactly as they do
+   *  onto a roster member, and every one of those except `conditions` used to reach NO reader — an NPC the tool
+   *  round had just robbed, wounded or poisoned was invisible to the very turn that had to play it. A slice is
+   *  how that gap comes back; the row is what the panel and the reminder both read. */
+  readonly castVolatile: Readonly<Record<string, RpgActorVolatile | null>>;
   /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];
   readonly quests: readonly RpgQuestView[];

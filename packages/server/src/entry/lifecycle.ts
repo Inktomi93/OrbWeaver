@@ -193,7 +193,7 @@ export function createLifecycle(): Lifecycle {
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
-    await reclaimLocksOnBoot({ db, now, holder });
+    await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
     // re-validated in-lock) or is dropped. Fire-and-forget — the drain does real generation, so it must
@@ -243,9 +243,7 @@ export function createLifecycle(): Lifecycle {
     void startWorkloadsWorker({
       runnerDeps: {
         db,
-        env: built.runnerEnv,
-        bindRoleClients: built.bindRoleClients,
-        loadUserSettings: built.services.settings.loadUserSettings,
+        contributions: built.workloadContributions,
         audit: built.audit,
         now,
       },

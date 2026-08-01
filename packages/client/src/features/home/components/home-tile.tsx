@@ -68,12 +68,14 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
         <Icon className="text-muted-foreground" icon={tile.icon} size="md" />
       </Row>
       <Stack gap="field" className="min-w-0">
-        {/* The `label` VOICE — the teaser is the doorway's one real statement, so it keeps the datum-name
-            step; the dashed frame + the Dormant badge carry "not built yet", not a whisper-quiet type. */}
-        <Text voice="label">{doorway.teaser}</Text>
+        {/* The `gloss` VOICE (mock `.dorm .teaser`: 11px, muted). The `label` step made the two DORMANT
+            tiles the brightest prose on home — full-foreground text on the two things you cannot use
+            (side-eye P1-2). The dashed frame + the Dormant badge carry "not built yet"; the copy recedes. */}
+        <Text voice="gloss">{doorway.teaser}</Text>
         {/* FOOTNOTE (mock: 9px mono at .75 alpha): the tracked reason is developer citation under a
-            user-facing teaser, so it sits a step BELOW it — the `gloss` voice, plus mono + the alpha this
-            tier of footnote has always carried. */}
+            user-facing teaser. Same `gloss` step as the teaser above it — the scale has no step between
+            micro and nothing — so the separation is carried by mono + the alpha this footnote tier has
+            always had, which is the mock's own distinction (9px mono .75 vs 11px sans). */}
         <Text className="font-mono opacity-60" voice="gloss">
           waiting on: {doorway.reason}
         </Text>

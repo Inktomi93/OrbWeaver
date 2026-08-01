@@ -7,16 +7,16 @@ import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import type { RetryWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { resolveWorkloadSource } from "../contract/workload-params";
 import { isActiveKindUniqueViolation } from "../persistence/constraints";
 import { insertWorkload, loadWorkload } from "../persistence/queries";
 import { isVisibleToCaller } from "../substrate/authorize";
+import { resolveWorkloadSource } from "../substrate/params";
 
 const ENTITY = "workload";
 
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
   async function retry(params: RetryWorkloadParams): Promise<{ id: WorkloadId }> {
-    const original = await loadWorkload(ctx.db, params.id);
+    const original = await loadWorkload(ctx.db, ctx.getContributions(), params.id);
     if (original === null || !isVisibleToCaller(ctx.isAdmin, params.caller, original.ownerId)) {
       throw new DomainNotFoundError(ENTITY, params.id);
     }

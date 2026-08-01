@@ -33,13 +33,6 @@ export function getRecentWorkloadEvents(workloadId: WorkloadId): readonly Worklo
   return replay.snapshot(workloadId);
 }
 
-export function subscribeWorkloadEvents(listener: (event: WorkloadEvent) => void): () => void {
-  workloadStreamEmitter.on(WORKLOAD_EVENT_CHANNEL, listener);
-  return () => {
-    workloadStreamEmitter.off(WORKLOAD_EVENT_CHANNEL, listener);
-  };
-}
-
 /** Fires on every workload event (the worker re-polls the queue on any lifecycle change). */
 export function subscribeWorkloadWake(listener: () => void): () => void {
   workloadStreamEmitter.on(WORKLOAD_EVENT_CHANNEL, listener);

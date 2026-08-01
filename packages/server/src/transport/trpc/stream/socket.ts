@@ -50,7 +50,7 @@ import type { Services } from "../context";
 import { classifyDomainError } from "../error-mapping";
 import { createFrameQueue } from "./frame-queue";
 import { roomSourceFor } from "./room-sources";
-import type { SocketCell, SocketRegistry, SocketRoom } from "./socket-registry";
+import type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./socket-registry";
 
 /** What a room's fault becomes on the wire. A DOMAIN error keeps its classified code + message (the same
  *  typed-terminal-frame contract `withSubscriptionErrors` gives a whole stream today); anything else is a
@@ -166,7 +166,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
    * invalidate that the delay would only postpone.
    */
   function startOrHoldPump(room: SocketRoom): void {
-    if (room.announced || !roomSourceFor(room.ref).resumable) {
+    if (room.announcedFor === cell.connectionSeq || !roomSourceFor(room.ref).resumable) {
       startPump(room.ref, room.cursor);
     }
   }
@@ -206,31 +206,44 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   }
 
   // ── the atomic setup slice (no `await` until the drain loop) ──────────────────────────────────────────
-  registry.goLive(cell, { onAttach: startPump, onAnnounce: liftBarrier, onDetach: stopPump });
+  // The listener object IS this generator's identity on the cell: `goLive` evicts whoever held it before,
+  // and every shared-state write below is gated on still being the holder.
+  const listener: SocketListener = { onAttach: startPump, onAnnounce: liftBarrier, onDetach: stopPump, onEvicted: teardown };
+  registry.goLive(cell, listener);
   for (const room of cell.rooms.values()) {
     startOrHoldPump(room);
   }
   signal.addEventListener("abort", teardown, { once: true });
 
+  /** Is this generator still the cell's owner? A socket the server has not yet noticed is dead can be
+   *  superseded at any moment (§8's half-open class), and everything it writes after that belongs to
+   *  someone else's connection. */
+  const owns = (): boolean => cell.listener === listener;
+
   let ordinal = 0;
   try {
     for await (const frame of queue.drain()) {
-      // DELIVERY, not enqueue (see `advanceCursorOnDelivery`) — and BEFORE the yield, because the yield is
-      // where this generator parks: a cursor written after it would not exist for a frame the consumer
-      // pulled and then dropped the socket on.
-      advanceCursorOnDelivery(frame);
-      if (frame.channel === "control" && frame.type === "roomLagged") {
-        // The consumer is draining again — resume the room the shed parked, from what it has now received.
-        resumeAfterLag(frame.ref);
+      // Evicted mid-drain: the frames already buffered still go out to this (dead) socket, but they must not
+      // touch the CELL — the cursor and the room lifecycle now belong to the connection that took over.
+      if (owns()) {
+        // DELIVERY, not enqueue (see `advanceCursorOnDelivery`) — and BEFORE the yield, because the yield is
+        // where this generator parks: a cursor written after it would not exist for a frame the consumer
+        // pulled and then dropped the socket on.
+        advanceCursorOnDelivery(frame);
+        if (frame.channel === "control" && frame.type === "roomLagged") {
+          // The consumer is draining again — resume the room the shed parked, from what it has now received.
+          resumeAfterLag(frame.ref);
+        }
       }
       ordinal += 1;
       yield tracked(String(ordinal), frame);
     }
   } finally {
-    // Reached on client-gone, server shutdown, AND the consumer's `.return()`. The room set is LEFT IN
-    // PLACE for the reap window — that is what makes a reconnect server-sticky.
+    // Reached on client-gone, server shutdown, eviction by a successor, AND the consumer's `.return()`. The
+    // room set is LEFT IN PLACE for the reap window — that is what makes a reconnect server-sticky — and
+    // `goDark` no-ops unless this generator is still the owner, so a late teardown cannot dark a live cell.
     signal.removeEventListener("abort", teardown);
     teardown();
-    registry.goDark(cell);
+    registry.goDark(cell, listener);
   }
 }

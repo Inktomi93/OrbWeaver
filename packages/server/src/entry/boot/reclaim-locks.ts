@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { reclaimChatLocksOnBoot } from "#domain/chat";
+import type { WorkloadContributions } from "#domain/workloads";
 import { reapOrphanedWorkloads } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
@@ -11,6 +12,8 @@ const BOOT_STALE_THRESHOLD_MS = 0;
 
 export interface ReclaimLocksDeps {
   readonly db: Db;
+  /** The contribution registry the row read path validates params against (poison tolerance). */
+  readonly contributions: WorkloadContributions;
   readonly now: () => number;
   /** This replica's stable lock-holder tag — MUST match the tag chat acquires turn-locks under. */
   readonly holder: string;
@@ -20,6 +23,7 @@ export interface ReclaimLocksDeps {
 export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number> {
   const reaped = await reapOrphanedWorkloads({
     db: deps.db,
+    contributions: deps.contributions,
     now: deps.now(),
     staleThresholdMs: BOOT_STALE_THRESHOLD_MS,
   });

@@ -45,6 +45,16 @@ function isSettingsCategory(id: string): id is SettingsCategoryId {
   return (SETTINGS_CATEGORY_IDS as readonly string[]).includes(id);
 }
 
+/** Select a chat AND put the shell where that chat is visible — the exact pair a chat-row click performs.
+ *  Selecting alone reported `{ok:true}` while nothing on screen changed whenever the rail sat on another
+ *  section (2026-08-01: `openChat` "succeeded" from the characters section and the caller went on to probe a
+ *  pane that was never rendered). An arm that cannot take effect must compose what it needs or refuse; this
+ *  one composes, exactly like its `openCharacter` sibling. */
+function openChatIn(chatId: ChatId): void {
+  setActiveSection("chats");
+  selectChat(chatId);
+}
+
 /** Build the `__orb.nav` handle. Called from the composition root under IS_DEV; `trpc` + `queryClient`
  *  are the same singletons the app renders through, so `openChat`'s title resolution reads the very
  *  cache the chat list populates. */
@@ -89,7 +99,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       }
       const byId = chats.find((c) => c.id === idOrTitle);
       if (byId) {
-        selectChat(byId.id);
+        openChatIn(byId.id);
         return OK;
       }
       // Fall back to an EXACT display-title match (the same derivation the list rows render), so a caller
@@ -102,7 +112,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       }
       const singleTitle = byTitle[0];
       if (singleTitle !== undefined) {
-        selectChat(singleTitle.id as ChatId);
+        openChatIn(singleTitle.id as ChatId);
         return OK;
       }
       return { ok: false, reason: `no chat matches id-or-title "${idOrTitle}" (${chats.length} chat(s) in list)` };

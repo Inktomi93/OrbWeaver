@@ -470,6 +470,17 @@
   padding-inline: var(--spacing-row);
   padding-block: var(--spacing-row);
 }
+/* A CLAIMED context pane owns the pane's EDGES, not just its content (HUD-1 §5.2 — "the claimant owns the
+ * pane's TOP EDGE, including the 2px ember content↔context binding, which it must paint"). With this
+ * padding in place the claimant's ember edge painted 8px down and 8px shy of the panel's inline edges,
+ * while the generic band's inset one paints flush at row 0 across the full width — the same binding, two
+ * geometries (2026-08-01 side-eye, measured). `:has()` keys off the single-writer `data-context-region`
+ * attribute, so nothing new has to be plumbed and an unclaimed pane is untouched. The claimant re-pays the
+ * padding on its own viewport, so tab BODIES are unchanged. */
+.shell-panel[data-panel-side="context"] .shell-panel-body:has([data-context-region]) {
+  padding-inline: 0;
+  padding-block: 0;
+}
 
 .shell-main {
   grid-column: 3;

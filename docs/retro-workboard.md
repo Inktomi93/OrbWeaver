@@ -43,19 +43,101 @@ same class of fix IF ever wired.
 
 **▶▶▶ LIVE STATE (08-02 midday — compact-safety snapshot):** main @ `13963039`+ (SET-SEAMS S0 +
 HUD-1 ledger amendments merged; ~190 commits past origin `24989143`, NO pushes). **IN FLIGHT:**
-HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · density-S5
-fix-all (centerpiece: make tiers.css load-bearing — the tier declarations were INERT on list
-panes) · **SSE S2 branch IN FINAL ROUND** (re-review verdict MERGE-WITH-FIXES: RF1 HIGH — the reconnect thunk heal is guard-dropped by any pre-attach durable row [monotonic guard + out-of-band resume don't compose; repro in the report]; lane is fixing RF1 [ordering-barrier lean] + reconciling the cold-scrubber producer-stamp merge + the park-skip corner; merges on its report) (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
+HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · ~~density-S5 fix-all~~ MERGED (tiers.css now LOAD-BEARING with strip-attribute liveness CTs;
+all findings incl. one-rhythm 32px avatars, marker-slot title columns, weight 600, inset focus
+ring; honest deviations recorded: padding/radius deliberately un-mapped, no 9.5px token invented,
+home kicker cited to the mock). Dev stack :5173 had a STALE-VITE break (missing-export ghost) —
+restart launched detached; verify it serves before the next side-eye · **SSE S2 branch IN FINAL ROUND** (re-review verdict MERGE-WITH-FIXES: RF1 HIGH — the reconnect thunk heal is guard-dropped by any pre-attach durable row [monotonic guard + out-of-band resume don't compose; repro in the report]; lane is fixing RF1 [ordering-barrier lean] + reconciling the cold-scrubber producer-stamp merge + the park-skip corner; merges on its report) (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
 — F1 fixed STRUCTURALLY: cursor advances at DELIVERY pre-yield; shed PARKS the pump, delivering
 roomLagged resumes it from last-delivered; reconnect re-announce carries a sinceSeq THUNK reading
 the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
 stacks — re-review the delta then merge) · the scrub mid-slot-reconnect verification
-(security-executor) · the exhaustive reminder/delta reachability suite (owner-ordered; schema-
-derived inventory) · workloads junk-drawer exit. **THEN:** re-verify both fix-alls → SSE S3-S5 +
+(security-executor) · ~~reachability suite~~ LANDED (`b5c1d9ff` merged: 80 leaves/60 tests, cast-volatile parity FIXED
+via castVolatile+one volatileSegs; healthz test assertion fixed post-merge) · ~~workloads junk-drawer exit~~ MERGED (58→30 files; 8 owner-domain contribution factories;
+D117 minted; full battery green pre-merge). DEFERRED into D117, each independently landable:
+two-lane worker + workloads.lane column (the head-blocking defect stands) · durable progress
+column · poison-row visible surface. Q4 (reconcile-stats direct mutation) deferred as additive
+surface. **NEW OWNER QUESTIONS (cited in the suite):** inventory item `description`/`location` are
+model-writable but read by NEITHER surface — render-capped, or make unwritable? **FOLLOW-ON
+QUEUED: the macro/CEL feed is a THIRD model-facing surface** (macro-view.ts carries NO volatile
+state for any carrier — same drift class; extend the suite's matrix to it + fix, ~a lane). **THEN:** re-verify both fix-alls → SSE S3-S5 +
 close-out ledger → HUD H2-H3 → SET-SEAMS S1-seal → PROSE-1 S1+ (app-tier; after SET-SEAMS S1
-merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone**.
+merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone — HARD PRECONDITIONS: SET-SEAMS through S6 + workloads stage-E complete (owner, 08-02)**.
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
 resolved); the E2E_LIVE specs on the next push window.
+
+**═══ COMPACTION HANDOFF (08-02, written at the owner's invitation) ═══**
+
+**IN FLIGHT at compaction (resume via SendMessage to these, results arrive as task notifications):**
+· ~~macro parity~~ MERGED (`231e7653`: one-builder grammar exported from reminder.ts, macro-view
+  composes it — 47 proven/26 cited matching the reminder path-for-path; inventory ruling applied
+  all three surfaces, notes capped 60; delta cite now STRUCTURAL [no inventory edit arm — re-open
+  if one lands]). EYEBALL ITEM: {{rpgSceneState}}/{{rpgCast}} are materially LONGER now (correct
+  parity, real token cost) — look at a live render if a preset places them.
+· `ae7a23e7ea4435982` — SSE S2 FINAL round on branch `wt/agent-ae7a23e7ea4435982`: RF1 fix
+  (ordering-barrier lean) + cold-scrubber producer-stamp reconcile (its pump-scrubber machinery
+  DELETES) + park-skip corner. MERGE PROTOCOL: read its report → merge its branch → a THIRD
+  stickler pass ONLY if the fix is structural in a new direction. Spec close-out (ledger D-entry
+  for the multiplex + workboard SSE-1 close) happens at S5, not before.
+· ~~HUD-H1 fix-all~~ MERGED (all 14 findings; Tabs `layout` variant; the void is now the HUD's
+  GROUND; the ≤1024px dead toggle was TWO coupled shell bugs, both fixed; locked-Map RULING taken:
+  activatable one-story, aria-disabled dropped — SPEC AMENDED IN PLACE, needs owner ratification
+  + the generic panel still speaks the OLD lock vocabulary, follow-up ruling if another
+  contributor ships disabledReason). NEXT: the COMBINED side-eye re-pass (HUD+S5 surfaces, one
+  stage cycle) then HUD H2.
+· S2 branch @ `ddfd76ca` — RF1 fixed via the RESUMABLE ORDERING BARRIER + scrub reconcile +
+  park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
+  (scoped to the barrier); MERGE on its verdict.
+
+**DOCS-ARCHIVE LANE IN FLIGHT** (owner-ordered 08-02): sweep docs outside core/proposed + stickler
+reports — read in full, fully-done programs move to docs/history/ with inbound refs fixed; open
+ladders stay. Merge on its table-of-verdicts report.
+
+**SET-SEAMS S1 LANE IN FLIGHT** (executor, worktree): the appearance 8-way split, AppearanceForm
+deleted, save pins per §9; live drive deferred to the combined side-eye. S2-S4 SERIALIZE after it
+(main.tsx contention). S2 STICKLER PASS-3 VERDICT: MERGE-WITH-FIXES — P3F1 HIGH (dual-generator
+cell takeover bypasses the barrier; RF1's half-open-TCP trigger) + P3F2 (fire-and-forget re-announce
+= silent frozen room) ROUTED back to the warm S2 lane; merge on its green report. Q4 RULED (owner):
+direct stats mutation = YES — riding the stage-E lane (mutation + wired client affordance + sweep
+classification + auth test).
+
+**WORKLOADS STAGE-E LANE IN FLIGHT (`a2a645ca3abb5a1c6`, normal executor — owner asked 08-02:
+finish workloads cleanly):** two-lane worker + `workloads.lane` column (kills the §2 head-blocking
+defect — prerequisite value for databank's `interactive` lane) · durable `progress` column ·
+poison-row visible surface · residuals (dead export, AGENTS.md:226 indexer drift, client lane
+grouping). Q4 (direct stats mutation) EXCLUDED — still an owner fork. Spec = exit report §3.3+§5-E;
+serde verified CLEAN in §4 (import entanglement died in stage D — no serde work remains). Merge on
+its report; run the lane-scoping + poison-visibility probes' receipts past the eyeball; stickler
+the diff after merge (db baseline + engine touch).
+
+~~GATES LANE~~ **MERGED (`b9db4f92`, post-merge check ok)** — all three gates live + probed:
+`ui-size-via-variant` (structural UNSIZED_BOX exemption; 3 allowlisted w-auto Selects; 2-file
+DEBT_BASELINE ratchet awaiting a Button wrap/multiline variant — SMALL QUEUED) · `pre-merge-commit`
+lefthook sibling (scratch-repo probe: red merge refused, clean merge lands; ACTIVE from now on —
+merges no longer skip checks) · `scrubber-home` (standalone security gate; ed2aafc5 cited;
+scrubStreamReplayForMember exemption recorded). Lesson: lefthook coverage is PER-HOOK-NAME.
+Follow-up small: Button wrap/multiline size variant clears the 2 debt rows. Rendered-clip audit
+(CT/snap lane) proposed, undispatched — owner call.
+
+**ORCHESTRATION GOTCHAS THIS SESSION PAID FOR (obey):** pass `isolation:"worktree"` on EVERY
+concurrent Agent dispatch (never implied) · the snap stage is a GLOBAL port singleton — exactly
+ONE lane holds it at a time (two side-eyes double-booked once; one must wait) · merge commits SKIP
+the pre-commit hook — run `pnpm check` on main after every merge (cross-lane gate fallout is the
+NORM: a lane based before a new gate trips it at merge — the rpg-hud voice, the SET-SEAMS footer,
+the seed coherence, the healthz assertion were all this class) · lanes correct SPECS with receipts
+regularly — read reconciliation sections, don't assume spec-letter compliance · side-eye/stickler
+loops go 2-3 rounds; the re-verify pass catches fixes that create regressions (the focus race) ·
+schema-derived exhaustive suites + strip-the-attribute liveness CTs are the two proof patterns
+that caught what review missed.
+
+**OWED TO THE OWNER:** `verify:push` on the quiesced tree (his run hit contention + a stale port,
+both resolved — 14/14 expected) then say PUSH-READY; the word is his · `E2E_LIVE=1 pnpm e2e` on
+that window · the dev stack was RESTARTED (stale-vite ghost export) — confirm :5173 serves before
+telling him to look · artifact links for his review: mock-vs-rendered
+claude.ai/code/artifact/a93f422d-40fa-4df9-aad7-4ad690f2e556 · home mock …/83605063-99da-4a1a-b64e-0bd58ef3bf77
+· projection mocks …/eeb9fdbe-2b37-4dc1-b11d-00a5c8e79ec7 + …/36f3dd88-2145-46ff-a2b3-c0031dce75d9
+· databank mocks …/9dac56bf-b773-4192-a75c-385aae024c1a + …/db0ec6ad-1aca-43aa-bf14-12ea9cdf1ca6.
+No open owner questions — the last two (inventory fields) were ruled + routed.
 
 **STANDING MANDATE (owner, 08-02 morning): BURN THE BOARD DOWN until DATABANK is the ONLY item
 remaining** — keep dispatching queue stages as lanes drain (SSE S3→S5, HUD-HOME H2→close-out,
@@ -136,9 +218,18 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    streaming) · inventory-grid tile design vs mock (owner eyeball) · QUOTE-1 hue taste check (new
    amber/apricot/ink dialogue colors) · scene-cards lightbox lacks a render policy (external images
    paint in transcript, not archive) · Status max-edit UX · icon-only meta-tabs at narrow widths.
-5. **SET-SEAMS** — approved-to-build; §10 fully ruled (features/tag + features/regex = **D114** ·
-   system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as recommended). Stage 0
-   mechanism is the hard barrier.
+5. **SET-SEAMS — S0 MERGED; the FULL remaining ladder (spec §8; S1-S4 SERIALIZE on main.tsx;
+   ALL of it lands BEFORE DATABANK):**
+   - [x] S0 mechanism (registry, owns+partition pin, save-status seam, body union)
+   - [ ] S1 appearance — 8-way split, AppearanceForm deleted (LANE IN FLIGHT)
+   - [ ] S2 chat-behavior — two sections → chat; pane → {kind:"sections"}
+   - [ ] S3 workloads + admin panes → sections mode
+   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
+   - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
+   - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
+     OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.
+   §10 fully ruled (system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as
+   recommended).
 6. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
    Card.padding retirement). **QUEUE-ORDER TENSION (side-eye, 08-01 overnight): the projection
    pane's mock look is UNREACHABLE until density S5 retunes ListRow's instrument scale** (title
@@ -151,8 +242,19 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    and the smallest spacing token (field=6px). S1's `--spacing-tight` (4px) + `--radius-inset`
    make mock-tight chips ON-TOKEN — fold chip tightening into the S1/S3 sweep, don't pre-solve.
    Card.padding retirement). S0 computed-value probe FIRST; S3 waits for the panel to stop moving.
-7. **WORKLOADS JUNK-DRAWER EXIT** — investigation ready
-   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`).
+7. **WORKLOADS EXIT — STAGES A-D MERGED (D117); the FULL remaining stage-E ladder (report §3.3+§5-E;
+   LANE IN FLIGHT; ALL of it lands BEFORE DATABANK — the interactive lane is what makes
+   databank-ingest jump the queue):**
+   - [ ] two-lane worker + workloads.lane column (kills the §2 head-block)
+   - [ ] durable progress column (heartbeat-piggybacked upsert; ring stays)
+   - [ ] poison-row visible surface (toView {params:null, poison:true} + proven-to-fail test)
+   - [ ] residuals: dead subscribeWorkloadEvents export · AGENTS.md:226 indexer drift ·
+     client lane-aware pane grouping
+   - [ ] Q4 (OWNER RULED 08-02: YES) — direct stats mutation + wired client affordance +
+     sweep classification + auth test
+   - [ ] post-merge: STICKLER the stage-E diff (engine + db baseline touch)
+   Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
+   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
 
 ### OWNER DECISIONS — ALL RULED (2026-08-01 evening; none pending)
 

@@ -7,6 +7,7 @@ import type {
 } from "@base-ui/react/tabs";
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { tabsVariants } from "./variants";
 
@@ -18,7 +19,7 @@ export interface TabsListProps extends BaseTabsListProps {
   className?: string;
 }
 
-export interface TabsTabProps extends BaseTabsTabProps {
+export interface TabsTabProps extends BaseTabsTabProps, VariantProps<typeof tabsVariants> {
   className?: string;
 }
 
@@ -39,8 +40,10 @@ export function TabsList({ className, ...rest }: TabsListProps): ReactElement {
   return <BaseTabs.List activateOnFocus={true} className={cn(tabsVariants().list(), className)} data-slot="tabs-list" {...rest} />;
 }
 
-export function TabsTab({ className, ...rest }: TabsTabProps): ReactElement {
-  return <BaseTabs.Tab className={cn(tabsVariants().tab(), className)} data-slot="tabs-tab" {...rest} />;
+// `layout="stacked"` is the glyph-over-caption cell (the rpg HUD's rails): the ONE home for a tab whose
+// height must follow its content — a caller cannot get there with `className` (see variants.ts).
+export function TabsTab({ className, layout, ...rest }: TabsTabProps): ReactElement {
+  return <BaseTabs.Tab className={cn(tabsVariants({ layout }).tab(), className)} data-slot="tabs-tab" {...rest} />;
 }
 
 export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {

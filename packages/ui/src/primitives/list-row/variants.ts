@@ -1,15 +1,18 @@
-import { DISABLED_STATE, FOCUS_RING, tv } from "#lib";
+import { DISABLED_STATE, FOCUS_RING_INSET, tv } from "#lib";
 
 // `body` is the ONE clickable/selected/disabled surface (a `group` parent so title/subtitle can flip
 // color off `data-selected`); `actions` is a plain sibling slot that never inherits those states.
 //
-// DENSITY: a ListRow is the LIST-pane INSTRUMENT island (density-pass-spec.md §3.1 — inset `p-field`,
-// rows `gap-tight`, island pad `p-row`, atom gap `gap-field`, `rounded-control`, NO border box; selection
-// is a bg tint + the left accent bar). Its type rides the four-voice grammar: the title is the `label`
-// voice (13px medium) and the subtitle/meta the `gloss` voice (10.5px muted) — the mock's 12.5/10.5 pair,
-// reachable now that the voices exist. It was body/label (15/13), which made a list of 20 rows read as
-// twenty paragraphs. The voices are spelled here rather than composed from <Text> because the row owns
-// truncation/reveal/flex behaviour on the same nodes.
+// DENSITY — WHAT LIVES HERE AND WHAT DOES NOT: every class below is the TIER-LESS default (= the `form`
+// step). The dense LIST-pane instrument steps — the row/atom gaps and the title/subtitle/meta type — are
+// mapped in `styles/tiers.css` off `[data-surface-tier="instrument"]`, NOT spelled here. S5 shipped that
+// retune in these variants and it was global by construction: the settings modal's nav rows went 15px →
+// 13px without any surface ever declaring a tier (side-eye P1-3). A value that differs by tier belongs to
+// the tier map; a value that is the same in both belongs here (the row box: `px-row py-field`,
+// `rounded-control`, the min-heights, the truncation/reveal behaviour).
+//
+// The voices are spelled as classes rather than composed from <Text> because the row owns truncation,
+// the hover reveal and the flex behaviour on the same nodes.
 export const listRowVariants = tv({
   slots: {
     // `@container/list-row` lets a consumer's `actions` collapse responsively to the row's own width
@@ -18,14 +21,14 @@ export const listRowVariants = tv({
     // a marker living inside the content column can only key on the whole row's hover/focus-within through a
     // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
     // carries the same datum (`ROW_REVEAL_SWAP`) instead of both painting at once.
-    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-field",
+    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-row",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
     // narrow panel; north-star N2). Selected reads as a 2px left ember bar + a 10% `--color-primary` tint
     // (rides the accent, so custom themes retint it), not a flat `--color-accent` fill (north-star §4 N2).
     body: [
-      "group flex min-w-0 flex-1 items-center gap-field rounded-control border-l-2 border-l-transparent outline-none",
+      "group flex min-w-0 flex-1 items-center gap-row rounded-control border-l-2 border-l-transparent outline-none",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       `data-selected:border-l-primary data-selected:bg-primary/10 ${DISABLED_STATE}`,
     ],
@@ -36,20 +39,21 @@ export const listRowVariants = tv({
     // The title line: the truncating title, plus an optional trailing meta (relative-time) pinned to the
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex min-w-0 items-baseline gap-field",
-    // The `label` VOICE (density-pass §2.3): the name of one datum.
-    title: "block min-w-0 flex-1 truncate text-left text-label font-medium leading-label text-foreground",
+    // The tier-less title step (`body`); the tier map drops it to the `label` voice at 600 under an
+    // instrument surface, which is where the mock's 12.5px/600 row name lives.
+    title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
-    markers: "flex shrink-0 items-center gap-tight",
-    // Trailing title-line meta (e.g. relative-time): the `gloss` voice in mono (a stamp is a quiet DATUM,
-    // so it keeps tabular mono at the micro step), never shrinks.
-    meta: "shrink-0 whitespace-nowrap font-mono text-micro leading-tight tabular-nums text-muted-foreground",
+    markers: "flex shrink-0 items-center gap-field",
+    // Trailing title-line meta (e.g. relative-time): a quiet mono DATUM (tabular so a column of stamps
+    // aligns), never shrinks. The tier map takes it to the `gloss` step under an instrument surface.
+    meta: "shrink-0 whitespace-nowrap font-mono text-label leading-label tabular-nums text-muted-foreground",
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
-    subtitle: "block text-left text-micro leading-tight text-muted-foreground",
+    subtitle: "block text-left text-label leading-label text-muted-foreground",
     // Hover/focus-within display-swap of the subtitle in the SAME line, so a wide metadata span never
     // contends with the trailing `actions` buttons for width.
-    subtitleReveal: "hidden truncate text-left font-mono text-micro leading-tight text-muted-foreground group-focus-within:block group-hover:block",
+    subtitleReveal: "hidden truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:block group-hover:block",
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     actions: "flex shrink-0 items-center justify-end gap-field",
   },
@@ -83,7 +87,10 @@ export const listRowVariants = tv({
     // a SENTENCE (the home jump grid's per-section teaching gloss) clamps to two lines instead: a nowrap
     // ellipsis eats the second half of every sentence, which is the whole content of that row.
     subtitleWrap: {
-      true: { subtitle: "line-clamp-2" },
+      // The wrapping arm raises the leading: a two-line clamped sentence at the one-line step (1.25) has
+      // its descenders nearly touching the next line's caps (side-eye P2-7). This is the one type property
+      // the tier map deliberately leaves to the variants — an unlayered tier rule would outrank it.
+      true: { subtitle: "line-clamp-2 leading-body" },
       false: { subtitle: "truncate" },
     },
     density: {
@@ -92,7 +99,11 @@ export const listRowVariants = tv({
     },
     clickable: {
       true: {
-        body: `cursor-pointer hover:bg-accent active:bg-accent/80 ${FOCUS_RING}`,
+        // FOCUS_RING_INSET, not FOCUS_RING: the offset form paints 4px OUTSIDE the row box (2px moat + 2px
+        // ring), and a dense list stacks rows 4px apart (`gap-tight`) — the focused row's ring landed on
+        // its neighbours (side-eye P3-9). The inset ring hugs the row's own edge, so the clearance is
+        // structural instead of depending on the pane's row gap.
+        body: `cursor-pointer hover:bg-accent active:bg-accent/80 ${FOCUS_RING_INSET}`,
       },
       false: {},
     },

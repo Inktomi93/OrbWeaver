@@ -11,149 +11,81 @@
 //     `{{expr::rpg.scene.location}}` / `{{expr::rpg.quests.filter(q, q.status == "active").size()}}` evaluate.
 //     A non-game chat stages NO `rpg` binding ⇒ `{{expr::rpg.…}}` errors-to-"" (the built CEL degrade).
 //
-// The string projections mirror the reminder's line grammar (compact, label-as-mini-prompt) but stand alone here:
-// the reminder is a monolith (all planes + the license) — a preset placing `{{rpgSceneState}}` wants JUST the
-// scene, so these are per-plane. Kept in step with `substrate/reminder.ts` by design (both read the tracker view).
+// THE STRING PROJECTIONS ARE THE REMINDER'S LINES (the third-surface parity fix, 2026-08-01) — this file
+// COMPOSES `substrate/reminder.ts`'s exported builders (`ambientLine`/`actorLine`/`castHeader`/`castLine`/
+// `gameTrackerLine`/`questLine`/`plotLine`) rather than carrying its own. It used to carry its own, and they
+// had drifted into a strict subset of the reminder's: no volatile plane on ANY carrier (hp · wallet · carrying ·
+// status · conditions), none of the standing guides, no attribute readings, no sheet flavor, no game-subject
+// readings, no quest status/description, no time-of-day, no weather description. Each of those is a field the
+// host or the model can WRITE that reached this surface nowhere — the reachability class. What stays per-plane
+// is the ASSEMBLY (which blocks a given macro carries), never the line grammar.
+//
+// WHAT THIS SURFACE DELIBERATELY DOES NOT STAGE: the two VOCABULARY lines (`Trackers: …`/`Attributes: …`) and
+// the steering license. They are the reminder's once-per-turn teach and the reminder ships on EVERY game turn
+// regardless of what a preset places, so repeating them inside a per-plane fragment would re-multiply exactly
+// the prose the vocabulary split exists to collapse. The tracker HINT still reaches a preset author through
+// `{{rpgDelta}}` (the delta line glosses each reading).
 
-import type { RpgPresentCharacter, RpgQuestView, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
-import { rpgWeatherText, trackerReading } from "@orb/contracts/rpg";
+import type { RpgDateMode, RpgPresentCharacter, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta";
 import type { RpgMacroFeed } from "../contract/params";
 import { buildDeltaBlock } from "../substrate/delta";
-import { plotLine } from "../substrate/reminder";
+import { actorLine, ambientLine, castHeader, castLine, gameTrackerLine, plotLine, questLine } from "../substrate/reminder";
 
-/** The steering display of a present character's relationship (§2.1) — the bare kind, or a custom `label`.
- *  Mirrors the reminder's `relationshipSeg` (a neutral default carries no steering signal ⇒ ""). */
-function relationshipText(cast: RpgPresentCharacter): string {
-  if (cast.relationship.kind === "custom") {
-    return cast.relationship.label !== "" ? cast.relationship.label : "custom";
-  }
-  return cast.relationship.kind === "neutral" ? "" : cast.relationship.kind;
+/** The `Present:` block both string macros carry — the guide-teaching header + one whole {@link castLine} per
+ *  member (identity · carried trackers · the volatile plane · the standing guides). */
+function castBlock(view: RpgTrackerView, relationshipHints: Readonly<Record<string, string>>): string[] {
+  return [castHeader(view.cast), ...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castVolatile[c.key] ?? null, relationshipHints))];
 }
 
-/** A carrier's tracker segments for the `{{rpgCast}}`/`{{rpgSceneState}}` prose forms — the BARE readings
- *  (`trackerReading`, no hint gloss): a macro a preset author places in their own prompt shape wants the datum,
- *  where the steering reminder wants the datum PLUS its meaning. One reading builder, two glosses. */
-function trackerSegs(entries: readonly RpgTrackerEntry[]): string[] {
-  const segs: string[] = [];
-  for (const entry of entries) {
-    const reading = trackerReading(entry.def, entry.value ?? undefined);
-    if (reading !== null) {
-      segs.push(reading);
-    }
-  }
-  return segs;
-}
-
-/** The ambient one-liner (`Scene: <location> · <date> · day N · <weather>`), or "" when every plane is empty. */
-function ambientLine(ambient: RpgTrackerView["ambient"]): string {
-  if (ambient === null) {
-    return "";
-  }
-  const parts: string[] = [];
-  if (ambient.location !== "") {
-    parts.push(ambient.location);
-  }
-  if (ambient.calendarDate !== null) {
-    parts.push(ambient.calendarDate);
-  }
-  if (ambient.clock !== null) {
-    parts.push(`day ${ambient.clock.day}`);
-  }
-  if (ambient.weather !== null) {
-    parts.push(rpgWeatherText(ambient.weather));
-  }
-  return parts.length > 0 ? `Scene: ${parts.join(" · ")}` : "";
-}
-
-/** One present-cast line — `<emoji> <name> — <mood> — <relationship> — <fields…>`. `withEmoji` drops the emoji
- *  prefix (the `{{rpgCast}}` form leads with the bare name; `{{rpgSceneState}}` leads with the emoji). */
-function castMemberLine(c: RpgPresentCharacter, trackers: readonly RpgTrackerEntry[], withEmoji: boolean): string {
-  const head = withEmoji && c.emoji !== "" ? `${c.emoji} ${c.name}` : c.name;
-  const segs: string[] = [head];
-  if (c.mood !== "") {
-    segs.push(c.mood);
-  }
-  const rel = relationshipText(c);
-  if (rel !== "") {
-    segs.push(rel);
-  }
-  segs.push(...trackerSegs(trackers));
-  return `- ${segs.join(" — ")}`;
-}
-
-/** One party actor's sheet+volatile line — `<name> — <class> — Lv N — HP v/m — <trackers>`. */
-function actorLine(a: RpgTrackerView["actors"][number]): string {
-  const segs: string[] = [a.name];
-  if (a.sheet.className !== "") {
-    segs.push(a.sheet.className);
-  }
-  if (a.sheet.level !== null) {
-    segs.push(`Lv ${a.sheet.level}`);
-  }
-  const v = a.volatile;
-  if (v !== null) {
-    if (v.hp !== null) {
-      segs.push(`HP ${v.hp.value}/${v.hp.max}`);
-    }
-    segs.push(...trackerSegs(a.trackers.map((def) => ({ def, value: v.trackerValues[def.key] ?? null }))));
-  }
-  return `- ${segs.join(" — ")}`;
-}
-
-/** `{{rpgSceneState}}` — the ambient line + present cast + recent beats (the scene the reminder renders, minus the
- *  party sheets which are `{{rpgCast}}`'s job). Empty planes are omitted; a wholly-empty scene returns "". */
-function sceneStateString(view: RpgTrackerView): string {
+/** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present cast · the GAME-subject tracker
+ *  readings (which belong to no actor, so they fall through the party/cast split unless this block carries
+ *  them) · recent beats. The party sheets are `{{rpgCast}}`'s job. Empty planes are omitted; a wholly-empty
+ *  scene returns "". */
+function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, relationshipHints: Readonly<Record<string, string>>): string {
   const lines: string[] = [];
-  const ambient = ambientLine(view.ambient);
-  if (ambient !== "") {
-    lines.push(ambient);
+  if (view.ambient !== null) {
+    const ambient = ambientLine(view.ambient, dateMode);
+    if (ambient !== "") {
+      lines.push(`Scene: ${ambient}`);
+    }
   }
   // The P5 plot spine (same line grammar as the reminder's Story line — one helper, two consumers).
   if (view.plot !== null) {
     lines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.cast.length > 0) {
-    lines.push("Present:");
-    lines.push(...view.cast.map((c) => castMemberLine(c, view.castTrackers[c.key] ?? [], true)));
+    lines.push(...castBlock(view, relationshipHints));
+  }
+  if (view.gameTrackers.length > 0) {
+    lines.push("Game trackers:", ...view.gameTrackers.map(gameTrackerLine));
   }
   if (view.recentBeats.length > 0) {
-    lines.push("Recent beats:");
-    lines.push(...view.recentBeats.map((b) => `- ${b}`));
+    lines.push("Recent beats:", ...view.recentBeats.map((b) => `- ${b}`));
   }
   return lines.join("\n");
 }
 
-/** `{{rpgCast}}` — the party actor sheets (name/class/level/HP/trackers) + the present cast with relationship +
- *  custom fields. The identity+volatile planes the panel's Party + Present tabs render. */
-function castString(view: RpgTrackerView): string {
+/** `{{rpgCast}}` — the people: the party actors' whole lines (identity · attribute readings · carried trackers ·
+ *  the volatile plane · the sheet's flavor continuation) + the present cast. The identity+volatile planes the
+ *  panel's Party + Present tabs render. */
+function castString(view: RpgTrackerView, statProfile: RpgStatProfile, relationshipHints: Readonly<Record<string, string>>): string {
   const lines: string[] = [];
   if (view.actors.length > 0) {
-    lines.push("Party:");
-    lines.push(...view.actors.map(actorLine));
+    lines.push("Party:", ...view.actors.map((a) => actorLine(a, statProfile.attributes)));
   }
   if (view.cast.length > 0) {
-    lines.push("Present:");
-    lines.push(...view.cast.map((c) => castMemberLine(c, view.castTrackers[c.key] ?? [], false)));
+    lines.push(...castBlock(view, relationshipHints));
   }
   return lines.join("\n");
 }
 
-/** `{{rpgQuests}}` — the ACTIVE quests + their open objectives (the reminder's active-quests block). */
+/** `{{rpgQuests}}` — the ACTIVE quests, each as the reminder's whole quest line (name · status · description ·
+ *  its open objectives). */
 function questsString(quests: readonly RpgQuestView[]): string {
   const active = quests.filter((q) => q.status === "active");
-  if (active.length === 0) {
-    return "";
-  }
-  const lines: string[] = [];
-  for (const q of active) {
-    lines.push(`- ${q.name}`);
-    for (const o of q.objectives.filter((obj) => !obj.completed)) {
-      lines.push(`  ○ ${o.text}`);
-    }
-  }
-  return lines.join("\n");
+  return active.map(questLine).join("\n");
 }
 
 /** The `rpg` CEL tree (§12) — the tracker view shaped as a data-only `CelValue` map so `{{expr::rpg.…}}` reads it.
@@ -195,8 +127,9 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
 }
 
 /** The relationship value a `{{expr}}` predicate reads — the custom `label` (or "custom" if unlabelled) for a
- *  custom kind, the bare kind token otherwise. Distinct from `relationshipText` (which blanks a neutral default
- *  for the steering PROSE); CEL wants the literal kind so `c.relationship == "neutral"` is reachable. */
+ *  custom kind, the bare kind token otherwise. Distinct from the reminder's `relationshipSeg` (which blanks a
+ *  neutral default and glosses a custom label with its host hint, for the steering PROSE); CEL wants the literal
+ *  kind so `c.relationship == "neutral"` is reachable. */
 function celRelationship(c: RpgPresentCharacter): string {
   if (c.relationship.kind !== "custom") {
     return c.relationship.kind;
@@ -207,20 +140,27 @@ function celRelationship(c: RpgPresentCharacter): string {
 /** Build the macro + CEL feed from the resolved tracker view + the delta lineage (§12). PURE — the gather resolves
  *  the view + hands in the delta context (the same `rosterNames`/`trackerDefs`/`relationshipHints` the reminder
  *  uses). Only lite-relevant string macros are staged (full-mode keys stay absent ⇒ ""); the CEL `rpg` tree
- *  carries the whole scene/cast/quests/delta read surface. */
+ *  carries the whole scene/cast/quests/delta read surface.
+ *
+ *  `dateMode` + `statProfile` are the two config reads the composed reminder lines need — the SAME two the
+ *  gather hands `buildLiteReminder`, so the host's date ruling and attribute vocabulary govern both surfaces
+ *  identically. The custom-relationship hints ride `deltaContext` (already the game's one hint map). */
 export function buildRpgMacroFeed(args: {
   readonly view: RpgTrackerView;
   readonly prevSnapshot: RpgSnapshotState | null;
   readonly curSnapshot: RpgSnapshotState;
   readonly deltaContext: DeltaContext;
+  readonly dateMode: RpgDateMode;
+  readonly statProfile: RpgStatProfile;
 }): RpgMacroFeed {
   // The §2.7 delta line, reachable as a macro so a preset can place it (and as `rpg.delta.text` for `{{expr}}`).
   // null (no-change / non-game-empty) ⇒ "" — the byte-stable quiet-turn signal (never a "no changes" line).
   const deltaText = buildDeltaBlock(args.prevSnapshot, args.curSnapshot, args.deltaContext) ?? "";
+  const hints = args.deltaContext.relationshipHints;
   return {
     macros: {
-      rpgSceneState: sceneStateString(args.view),
-      rpgCast: castString(args.view),
+      rpgSceneState: sceneStateString(args.view, args.dateMode, hints),
+      rpgCast: castString(args.view, args.statProfile, hints),
       rpgQuests: questsString(args.view.quests),
       rpgDelta: deltaText,
     },

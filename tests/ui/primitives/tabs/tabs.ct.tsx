@@ -61,6 +61,69 @@ test("the indicator is a 2px primary UNDERLINE and the list is a bordered track,
   await expect(list).toHaveCSS("border-bottom-width", "1px");
 });
 
+// `layout="stacked"` exists because a call-site `h-auto` CANNOT beat the sealed `h-control-sm`
+// (custom-token heights are opaque to tailwind-merge ⇒ stylesheet order decides), which clipped the rpg
+// HUD's rail captions to a ~5px sliver. So the assertion is the COMPUTED box, never the class string:
+// the cell's content box must actually HOLD the glyph and the caption stacked, and the caption must sit
+// inside it. `done ≠ rendered` — a class-string test passed the whole time the pixels were wrong.
+test("layout=stacked sizes the cell to its stacked content (glyph OVER caption), and the caption is not clipped", async ({ mount, page }) => {
+  await mount(
+    <Tabs defaultValue="one">
+      <TabsList>
+        <TabsTab layout="stacked" value="one">
+          <svg aria-hidden={true} data-testid="glyph" height="16" width="16" />
+          <span data-testid="caption">Inventory</span>
+        </TabsTab>
+        <TabsTab layout="stacked" value="two">
+          Two
+        </TabsTab>
+      </TabsList>
+      <TabsPanel value="one">First panel</TabsPanel>
+      <TabsPanel value="two">Second panel</TabsPanel>
+    </Tabs>,
+  );
+
+  const tab = page.getByRole("tab", { name: "Inventory" });
+  const glyph = page.getByTestId("glyph");
+  const caption = page.getByTestId("caption");
+  const [tabBox, glyphBox, captionBox] = await Promise.all([tab.boundingBox(), glyph.boundingBox(), caption.boundingBox()]);
+  if (tabBox === null || glyphBox === null || captionBox === null) {
+    throw new Error("expected the stacked tab, its glyph and its caption to be laid out");
+  }
+  // The cell's own resolved block padding (read, never assumed) + the two stacked children fit INSIDE it.
+  const padding = await tab.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return Number.parseFloat(style.paddingBlockStart) + Number.parseFloat(style.paddingBlockEnd);
+  });
+  // A fixed-height cell does not OVERFLOW here — it CRUSHES its children (the shipped defect measured a 6px
+  // glyph over a 5px sliver of an 11px word), so the children are checked against what they are: the glyph
+  // stays square and the caption owns its whole line-box.
+  const lineHeight = await caption.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  expect(glyphBox.height).toBeCloseTo(glyphBox.width, 0);
+  expect(captionBox.height).toBeGreaterThanOrEqual(lineHeight - 0.5);
+  expect(tabBox.height).toBeGreaterThanOrEqual(padding + glyphBox.height + captionBox.height);
+  // The caption is BELOW the glyph (stacked, not a row) and wholly within the cell — the clipped-sliver bug.
+  expect(captionBox.y).toBeGreaterThanOrEqual(glyphBox.y + glyphBox.height);
+  expect(captionBox.y + captionBox.height).toBeLessThanOrEqual(tabBox.y + tabBox.height);
+  expect(captionBox.height).toBeGreaterThan(0);
+});
+
+test("the default (inline) layout keeps the sealed control height — the stacked arm is opt-in only", async ({ mount, page }) => {
+  await mount(fixture());
+  const box = await page.getByRole("tab", { name: "One" }).boundingBox();
+  // Resolved against the TOKEN, never a hardcoded px: a probe element wearing the same custom property
+  // reports what `h-control-sm` actually paints in this browser/pointer regime.
+  const control = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.height = "var(--spacing-control-sm)";
+    document.body.append(probe);
+    const height = probe.getBoundingClientRect().height;
+    probe.remove();
+    return height;
+  });
+  expect(box?.height ?? 0).toBeCloseTo(control, 1);
+});
+
 test("Home/End jump to the first/last tab", async ({ mount, page }) => {
   await mount(
     <Tabs defaultValue="one">
