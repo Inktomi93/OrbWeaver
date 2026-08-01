@@ -47,6 +47,22 @@ test("soft tone swaps the fill for a tinted background + intent-colored text + a
   expect(softBg).not.toBe(solidBg);
 });
 
+test("ghost tone drops the fill entirely, keeping the hairline outline + muted text", async ({ mount }) => {
+  // The quietest tone: no background at ALL (soft still paints a 15% tint), so a dozen of them can rest
+  // on a surface without competing with its one filled focal element. The fill is asserted as the
+  // computed ALPHA (§4.2 clause 5 bans a color literal in a CT — and a token can't spell "no color").
+  const ghost = await mount(
+    <Badge intent="neutral" tone="ghost">
+      noir
+    </Badge>,
+  );
+  const alpha = await ghost.evaluate((el) => Number.parseFloat(getComputedStyle(el).backgroundColor.split(",")[3] ?? "1"));
+  expect(alpha).toBe(0);
+  await expect(ghost).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
+  const borderWidth = await ghost.evaluate((el) => getComputedStyle(el).borderTopWidth);
+  expect(Number.parseFloat(borderWidth)).toBeGreaterThan(0);
+});
+
 test("md size carries more horizontal padding than sm", async ({ mount }) => {
   const small = await mount(<Badge size="sm">Tag</Badge>);
   const smallPad = await small.evaluate((el) => getComputedStyle(el).paddingLeft);

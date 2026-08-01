@@ -263,11 +263,14 @@ test("F2 the portrait trigger's box IS the portrait — no overflow past its own
 });
 
 // F3 — twelve `intent="info"` pills were the loudest thing on the editor (density-pass-spec §3.2 CD3:
-// one focal element per surface). The strip is now muted `soft` chips, capped at five with a disclosure.
+// one focal element per surface). The strip is now GHOST chips: EVERY suggestion renders (owner ruling
+// 2026-08-01 — the read surface shows everything, D113 (4b)) and weight, not count, carries the quiet —
+// no fill at all, muted text. Fill stays reserved for the ACCEPTED tags in the row above.
 const SUGGESTION_NAMES = ["noir", "detective", "mystery", "urban", "gritty", "1920s", "rain", "jazz", "smoke", "crime", "femme", "whiskey"];
 const FIRST_SUGGESTION = "noir";
-const COLLAPSED_CHIPS = 5;
 const ACCEPT_BUTTON_RE = /^Accept /;
+const MORE_BUTTON_RE = /more$/;
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
 const TOKEN_TOTAL_RE = /\d+ total/;
 const TOKEN_PERMANENT_RE = /permanent — sent every turn/;
 const INSPECT_HINT_RE = /to inspect it here/;
@@ -277,36 +280,46 @@ function suggestionFixtures(): readonly unknown[] {
   return SUGGESTION_NAMES.map((name, index) => ({ ...makeTagFixture({ id: `tag_sug_${index}`, name }), characterId: "char_ct_1" }));
 }
 
+/** The same card, carrying ONE accepted tag — the accepted chip is the fill this strip must stay under. */
+const SUGGESTIONS_CARD = makeCharacterDetail({
+  name: "Aria Nightshade",
+  handle: "aria",
+  greetings: [{ text: GREETING_0 }],
+  tags: [makeTagFixture({ id: "tag_accepted", name: "rpg" })],
+});
+
 async function routeSuggestions(page: Page): Promise<void> {
   await routeTrpc(page, {
-    "character.get": () => CARD,
+    "character.get": () => SUGGESTIONS_CARD,
     "chat.listChats": () => [],
     "tag.listPendingSuggestions": () => suggestionFixtures(),
   });
 }
 
-test("F3 suggestions render as quiet muted chips — never info blue", async ({ mount, page }) => {
+test("F3 suggestions render as ghost chips — muted, unfilled, never info blue (the accepted tag keeps the fill)", async ({ mount, page }) => {
   await routeSuggestions(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
   const chip = component.locator('[data-slot="character-tag-suggestions"] [data-slot="badge"]').first();
   await expect(chip).toBeVisible();
-  // The muted `soft` voice: the intent's own text color, NOT the info pair the surface uses nowhere else.
+  // The muted voice: the intent's own text color, NOT the info pair the surface uses nowhere else.
   await expect(chip).toHaveCSS("color", resolvedTokenColor("color.muted-foreground"));
   const background = await chip.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor);
   expect(background).not.toBe(resolvedTokenColor("color.info"));
+  // GHOST weight — a resting suggestion paints NO fill at all; the accepted tag beside it still does.
+  expect(background).toBe(TRANSPARENT);
+  const accepted = component.locator('[data-slot="character-tags"] [data-slot="badge"]').first();
+  const acceptedBackground = await accepted.evaluate((node: Element): string => globalThis.getComputedStyle(node).backgroundColor);
+  expect(acceptedBackground).not.toBe(TRANSPARENT);
 });
 
-test("F3 the strip caps at five chips with a '+N more' disclosure that expands", async ({ mount, page }) => {
+test("F3 every pending suggestion renders at rest — no cap, no disclosure", async ({ mount, page }) => {
   await routeSuggestions(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  const accepts = component.getByRole("button", { name: ACCEPT_BUTTON_RE });
-  await expect(accepts).toHaveCount(COLLAPSED_CHIPS);
-
-  // The overflow is reachable, never dropped — accept/dismiss survive the demotion.
-  await component.getByRole("button", { name: `+${SUGGESTION_NAMES.length - COLLAPSED_CHIPS} more` }).click();
-  await expect(accepts).toHaveCount(SUGGESTION_NAMES.length);
+  // All twelve, visible without a click: the read surface shows everything (D113 (4b)).
+  await expect(component.getByRole("button", { name: ACCEPT_BUTTON_RE })).toHaveCount(SUGGESTION_NAMES.length);
+  await expect(component.getByRole("button", { name: MORE_BUTTON_RE })).toHaveCount(0);
   await expect(component.getByRole("button", { name: `Dismiss ${FIRST_SUGGESTION}` })).toBeVisible();
 });
 
