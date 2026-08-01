@@ -38,4 +38,21 @@ describe("create", () => {
     const detail = await svc.create({ userId: owner, name: "Bare", kind: "roleplay" });
     expect(detail.config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
   });
+
+  test("a name already in the owner's library is NUMBERED at mint time — Duplicate can't stack twins (F5)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
+    const owner = await seedUser(db);
+
+    const first = await svc.create({ userId: owner, name: "Copy of Roleplay", kind: "roleplay" });
+    const second = await svc.create({ userId: owner, name: "Copy of Roleplay", kind: "roleplay" });
+
+    expect(first.name).toBe("Copy of Roleplay");
+    expect(second.name).toBe("Copy of Roleplay 2");
+    // The audit records the name actually MINTED, not the submitted one (an audit that lies about the row's
+    // name is worse than no audit).
+    const names = h.audits.filter((a) => a.entry.action === "preset.create").map((a) => (a.entry.metadata as { name: string }).name);
+    expect(names).toEqual(["Copy of Roleplay", "Copy of Roleplay 2"]);
+  });
 });

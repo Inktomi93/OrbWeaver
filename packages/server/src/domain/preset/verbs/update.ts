@@ -7,7 +7,8 @@ import { PresetNotFoundError } from "../contract/errors";
 import type { UpdatePresetParams } from "../contract/params";
 import type { PresetService } from "../contract/service";
 import type { PresetDetail } from "../contract/views";
-import { insertPreset, readablePreset, updatePresetRow } from "../persistence/queries";
+import { insertPreset, listOwnedPresetNames, readablePreset, updatePresetRow } from "../persistence/queries";
+import { uniquePresetName } from "../substrate/names";
 import { toPresetDetail } from "../substrate/views";
 
 // verb: update — patch an OWNED preset, or copy-on-write the system default. When the target is
@@ -38,7 +39,9 @@ function buildPatch(
 }
 
 /** COW: mint a new OWNED fork of the system default carrying the submission (omitted fields fall back to
- *  the system default's own). Returns the new fork's detail (its NEW id signals the client to navigate). */
+ *  the system default's own). Returns the new fork's detail (its NEW id signals the client to navigate).
+ *  The DERIVED name ("<base> (edited)") is de-collided against the owner's library — every fork of the same
+ *  base derives the SAME name, which is exactly how a library ends up with nine identical rows (F5). */
 async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: number): Promise<PresetDetail> {
   const base = await readablePreset(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID);
   if (base === undefined) {
@@ -46,10 +49,11 @@ async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: numb
   }
   const config = params.config ?? parsePromptConfig(base.config);
   const forkId = ctx.newPresetId();
+  const name = uniquePresetName(params.name ?? `${base.name} (edited)`, await listOwnedPresetNames(ctx.db, params.userId));
   const row = {
     id: forkId,
     ownerId: params.userId,
-    name: params.name ?? `${base.name} (edited)`,
+    name,
     kind: params.kind ?? base.kind,
     config,
     schemaVersion: config.schemaVersion,
