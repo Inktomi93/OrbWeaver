@@ -192,6 +192,17 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+**⚠→✅ PLANE LOSS: REAL, LIVE, FIXED (`b962df48` merged).** The four-hop harness diff (owner's
+call) named the write merge: mergeKeyedArray treated every authored keyed array as the WHOLE
+plane — a host editing ONE party member's hp deleted EVERY scene NPC's tracked state (the client
+overlay builds from the roster half; cast rows live under castVolatile which no client file
+reads). Fix = per-plane omissionRemoves policy, actorState alone additive, contrast test pins
+the others. Two masked stale-spec arms also unmasked+fixed (trackers whole-list-replace; #39
+goal echo). ADJACENT LIVE DEFECT → FIX LANE IN FLIGHT: onEditCastTracker mints emptyVolatile for
+cast NPCs — any tracker edit AUTHORS hp:null + wipes inventory/wallet (overlay must seed from
+castVolatile + existing row). LESSONS: locks:null (hand-always-wins) also disabled the removal
+DEFENSE — two jobs one flag · an early-failing long e2e spec hides a QUEUE of masked staleness,
+each unmask needs its own real-vs-stale verdict.
 **DEV-DB WIPE EXPLAINED + THE 155GB CLEANED (08-02):** the overnight "wipe" = stage-E's baseline
 squash hitting the next boot's migrator — the sanctioned pre-launch re-mint, WITH backup (the
 08:56 data-bearing snapshot kept: orbweaver.db.backup-1785596196756). REAL FINDING: boot/migrate
