@@ -141,8 +141,10 @@ without their required token [wiFormat needs {{entry}}] + reset-to-default every
 B3 prose stragglers (group formats · injection wrappers · discovery's 3 system prompts → slots;
 S4-ruled rows untouched). **CHARACTERS+CHATS LIFECYCLE AUDIT LANE (owner-ordered 08-02):** full CRUD + single-entity
 import/export tables for both rail sections (verb+affordance+classification per row, both-ends
-verified); cheap gaps CLOSED in-lane (thin arms over the live portability descriptors, row-action
-grammar affordances); non-thin gaps tabled w/ estimates; chat export gated on the member-strip
+verified); ALL client gaps done IN FULL (owner overruled shims: full projection-grammar adoption
+wherever wiring touches an unadopted pane — band anatomy + §12 row-actions + scent; tabling
+reserved ONLY for non-thin SERVER serde/schema work); placement RULED list-side one-home
+(band=Import, kebab=Export, rooms/editors carry zero lifecycle chrome); chat export gated on the member-strip
 visibility plane (flag-not-build if the bundle doesn't already handle it — SECURITY).
 **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
 folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
