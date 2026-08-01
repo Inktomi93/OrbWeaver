@@ -1,8 +1,11 @@
-// The §4.1 LIST header + the §4.5 sort / §4.3 view controls: the micro-caps "CHARACTERS" title, the `+`
-// create/import picker, a §4.6 bulk-mode pencil, a persistent search input (a returning user just starts
-// typing — rule 6), the nine-sort `@orb/ui/select`, and the flat⇄categorized view toggle. Reads/writes the
-// library view-prefs store directly (a feature component may read its own store); search stays a controlled
-// value owned by the surface (it feeds `useDeferredValue`).
+// The library pane's VIEW controls: a persistent search input (a returning user just starts typing —
+// rule 6), the nine-sort `@orb/ui/select`, the flat⇄categorized view toggle, and the §4.6 bulk-mode pencil.
+// Reads/writes the library view-prefs store directly (a feature component may read its own store); search
+// stays a controlled value owned by the surface (it feeds `useDeferredValue`).
+//
+// The micro-caps "CHARACTERS" title + the create/import picker are NOT here any more: they moved into the
+// LIST chrome band (`characters-list-header.tsx`, D66 A1/A2 — the north-star N2 migration the other
+// sections had already made).
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
@@ -10,11 +13,9 @@ import { Icon, Pencil } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
-import { Heading } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBulkMode, useCharacterSortMode, useCharacterViewMode } from "#state";
-import { CharacterCreateMenu } from "./character-create-menu";
 
 /** The §4.5 sort labels — a TOTAL Record over `CHARACTER_LIST_SORTS` (a new sort member fails `tsc`;
  *  Spine §5.5). The `random`/`name-desc` drops never appear because the tuple is the one home. */
@@ -44,17 +45,8 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
   const bulkMode = useCharacterBulkMode();
   return (
     <Stack gap="field">
-      <Row align="center" justify="between">
-        <Heading level={2} size="micro" tone="muted" transform="caps">
-          Characters
-        </Heading>
-        <Row align="center" gap="field">
-          <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
-            <Icon icon={Pencil} size="sm" />
-          </Toggle>
-          <CharacterCreateMenu />
-        </Row>
-      </Row>
+      {/* The title + create MOVED to the LIST chrome band (`characters-list-header.tsx`, D66 A1/A2 — the
+          A1/N2 gap this section was the last to carry). What stays is the pane's own view machinery. */}
       <Row align="center" gap="field">
         <Input aria-label="Search characters" className="flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
         {/* `w-auto` beats the trigger's own `w-full` (FIELD_CONTROL): as a flex sibling of a `flex-1` Input a
@@ -79,6 +71,10 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
           size="sm"
         >
           Group
+        </Toggle>
+        {/* Bulk mode joins the view controls now that the band owns the title row it used to sit in. */}
+        <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
+          <Icon icon={Pencil} size="sm" />
         </Toggle>
       </Row>
     </Stack>
