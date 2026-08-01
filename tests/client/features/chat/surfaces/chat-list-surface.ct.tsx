@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
 import { ChatListSurfaceStory } from "../_ct-stories";
 import { makeChatSummary } from "../fixtures";
 
@@ -64,6 +65,9 @@ const MARKERS = '[data-slot="list-row-markers"]';
 const CONTENT = '[data-slot="list-row-content"]';
 /** A real LIST pane width — the row's width budget is only observable at one. */
 const PANE_WIDTH = 290;
+/** What the row's LEADING zone legitimately costs the text column: the 32px portrait + the row's gap + its
+ *  inline padding + the selection bar. Everything else belongs to the title/subtitle at rest. */
+const LEADING_BUDGET_PX = 60;
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
@@ -259,6 +263,13 @@ test("starred and archived rows say so in ACCESSIBLE content, and the archived r
   await expect(plainRow).not.toHaveClass(RECEDED_RE);
 });
 
+test("the chats pane's INSTRUMENT tier is LIVE — its rows resolve the mapped step, not the tier-less default", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE], "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+  await expectInstrumentTierLive(component);
+});
+
 // side-eye P1 (round 2): the round-1 float gate (`actionsFloat={!restVisible}`) was inert on a real chats
 // list — a game / starred / archived row is the NORM, so the hover-only cluster kept reserving ~76px of the
 // title column on essentially every row. The trailing zone is split now: the rest-visible markers live on
@@ -273,7 +284,11 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
     // The state rows are exactly the ones the round-1 gate excluded — measure THEM.
     const rested = await component.locator(CONTENT).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
     expect(rested).toHaveLength(4);
-    expect(Math.min(...rested)).toBeGreaterThanOrEqual(240);
+    // The text column keeps everything the row's leading portrait and its gaps don't take — a cluster that
+    // is HIDDEN at rest must spend ZERO width. Stated as "the pane minus the leading budget" rather than a
+    // bare number so the row's portrait step (side-eye P2-5 unified the panes on the mock's one 32px
+    // avatar) is what it tracks; the regression it guards is the ~76px an in-flow control cluster eats.
+    expect(Math.min(...rested)).toBeGreaterThanOrEqual(PANE_WIDTH - LEADING_BUDGET_PX);
 
     // …and the reveal reflows nothing: the truncation point does not move mid-read.
     const starredRow = component.locator(LIST_ROW_ROOT, { hasText: "A pinned thread" });

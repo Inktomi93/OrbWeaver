@@ -80,6 +80,10 @@
     // page (a `page.evaluate` callback reads `document` + `getBoundingClientRect`), so its body needs
     // lib.dom. Home: tsconfig.tests-dom.json.
     "tests/support/ct/settings-geometry.ts",
+    // Same exception, density-tier flavor: the per-pane tier-liveness probe reads computed font-size off a
+    // list row INSIDE the page (a `locator.evaluate` callback: `getComputedStyle` + a throwaway probe node
+    // for the token), so its body needs lib.dom. Home: tsconfig.tests-dom.json.
+    "tests/support/ct/tier-liveness.ts",
     // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
     // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
     // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That

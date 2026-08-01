@@ -132,18 +132,40 @@ test("a DORMANT tile's frame is DASHED — the doorway reads as not-built-yet fr
   expect(Number.parseFloat(style.width)).toBeGreaterThan(0);
 });
 
-test("the dev-citation 'waiting on:' line is a FOOTNOTE — mono, and smaller than the teaser it annotates", async ({ mount }) => {
+test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/faded footnote under it", async ({ mount }) => {
+  // The mock's dormant body is quiet twice over (`.dorm .teaser` 11px muted, `.dorm .reason` 9px mono at
+  // .75 alpha) because these are the two tiles you CANNOT use. At the `label` voice the teaser was
+  // full-foreground and became the brightest prose on home (side-eye P1-2), so the assertion here is the
+  // one that catches that: the teaser's COLOR is the muted step, not the foreground.
+  //
+  // The footnote's separation from it is mono + alpha, NOT size: the type scale's smallest step is `micro`
+  // and both land on it (there is no step below, and one is not invented for a footnote). So this asserts
+  // "never LARGER than the teaser" — the honest relation — instead of a size gap the scale cannot express.
   const dormant = await mount(<HomeDormantTileStory />);
   const tile = dormant.locator('[data-home-tile="dormant"]');
 
-  const teaser = await tile.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
+  const teaser = await tile.getByText(TEASER_RE).evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const probe = el.ownerDocument.createElement("span");
+    probe.style.color = "var(--color-muted-foreground)";
+    el.ownerDocument.body.append(probe);
+    const muted = globalThis.getComputedStyle(probe).color;
+    const foreground = ((): string => {
+      probe.style.color = "var(--color-foreground)";
+      return globalThis.getComputedStyle(probe).color;
+    })();
+    probe.remove();
+    return { size: Number.parseFloat(style.fontSize), color: style.color, muted, foreground };
+  });
   const reason = await tile.getByText(REASON_RE).evaluate((el) => ({
     size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
     family: globalThis.getComputedStyle(el).fontFamily,
     alpha: globalThis.getComputedStyle(el).opacity,
   }));
 
-  expect(reason.size).toBeLessThan(teaser);
+  expect(teaser.color).toBe(teaser.muted);
+  expect(teaser.color).not.toBe(teaser.foreground);
+  expect(reason.size).toBeLessThanOrEqual(teaser.size);
   expect(reason.family.toLowerCase()).toContain("mono");
   expect(Number.parseFloat(reason.alpha)).toBeLessThan(1);
 });

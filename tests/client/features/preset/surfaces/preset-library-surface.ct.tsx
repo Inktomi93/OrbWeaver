@@ -17,6 +17,7 @@ import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../../support/clock";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
 import { PresetLibrarySurfaceStory } from "./_ct-stories";
 
 const BUILT_IN = "preset_00000000000000000000000000";
@@ -39,6 +40,8 @@ const MINUTE_MS = 60_000;
 const EDITED_ONE_AT = FROZEN_NOW - 5 * MINUTE_MS;
 const EDITED_TWO_AT = FROZEN_NOW - 40 * MINUTE_MS;
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
+const TITLE_ROW = '[data-slot="list-row-title-row"]';
+const TITLE = '[data-slot="list-row-title"]';
 
 // Action names carry the row's own edit stamp after the name (side-eye P3a): nine forks share the name
 // "Default (edited)", so `Actions for Default (edited)` was nine identical accessible names. These matchers
@@ -105,6 +108,21 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   await expect(band.getByRole("button", { name: "Import a SillyTavern preset", exact: true })).toBeVisible();
   // The in-pane title is retired, not doubled.
   await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
+});
+
+test("the shared LIST layout's INSTRUMENT tier is LIVE, and the ACTIVE marker rides the title line", async ({ mount, page }) => {
+  // `LibraryListLayout` is the ONE tier declaration behind both presets and world-info, so this covers both
+  // panes' rows. side-eye P2-6: the marker moved out of the leading slot, which is what un-raggeds the
+  // title column — asserted as x-alignment, the thing the eye actually complained about.
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.locator(TITLE).first()).toBeVisible();
+  await expectInstrumentTierLive(component);
+
+  await expect(component.locator(TITLE_ROW).getByText("Active", { exact: true })).toHaveCount(1);
+  const lefts = await component.locator(TITLE).evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)));
+  expect(lefts).toHaveLength(PRESETS.length);
+  expect(new Set(lefts).size, "every row's title starts at the same x — no leading status slot widens it").toBe(1);
 });
 
 test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offers no delete at all", async ({ mount, page }) => {

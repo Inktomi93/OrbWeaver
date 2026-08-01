@@ -17,6 +17,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { FROZEN_AT_MS } from "../../../../support/clock";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
 import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures";
 
@@ -67,6 +68,7 @@ const CHATS = [HER_NEWEST, NOT_HERS, HER_DEPARTED];
 const ROW_TITLE = '[data-slot="list-row-title"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
+const LEADING = '[data-slot="list-row-leading"]';
 /** Every per-row kebab, by the shape of its name ("Chat actions for <subject>"). */
 const ANY_ROW_MENU = /^Chat actions for /;
 /** The identity gloss's two shapes: the RECENCY line that survived, and the census that must not return. */
@@ -110,6 +112,31 @@ test("a selection SWAPS the same slot to her chats — the rows are exactly the 
   await expect(component.locator(ROW_TITLE)).toHaveText(["Winter court", "The Gilded Ember"]);
   // The picker is GONE — one slot, two roles, not two lists stacked.
   await expect(component.getByRole("button", { name: "Sera", exact: true })).toHaveCount(0);
+});
+
+test("BOTH modes of the pane declare the INSTRUMENT tier, and both scan at the same 32px row rhythm", async ({ mount, page }) => {
+  // Two of the four LIST-pane tier declarations live in this one slot (the character library and the
+  // chats-with-character projection), and the pane's whole point is that they are the SAME list surface —
+  // so a tier that resolved in one and not the other, or two portrait sizes (side-eye P2-5: the library ran
+  // 40px against the chats panes' 24px), is exactly what this catches. Computed values, one mount each.
+  await routeAll(page, CHATS);
+  const picker = await mount(<CharactersListPaneStory />);
+  await expect(picker.getByText("Azarael", { exact: true })).toBeVisible();
+  await expectInstrumentTierLive(picker);
+  const portrait = await picker
+    .locator(LEADING)
+    .first()
+    .evaluate((el) => Math.round(el.getBoundingClientRect().height));
+
+  await picker.update(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
+  await expect(picker.getByText("Winter court")).toBeVisible();
+  await expectInstrumentTierLive(picker);
+  const projected = await picker
+    .locator(LEADING)
+    .first()
+    .evaluate((el) => Math.round(el.getBoundingClientRect().height));
+
+  expect(portrait).toBe(projected);
 });
 
 test("D3 the projection INHERITS the shared row upgrade: a multi-seat room stacks, a 1:1 does not", async ({ mount, page }) => {
