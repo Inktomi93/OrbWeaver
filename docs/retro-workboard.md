@@ -95,7 +95,7 @@ report's findings AND its NEXT-list before archiving. **S2 SSE MERGED (`89b0e4c1
 all three arms (per-connection announcedFor epoch + ownership-checked goDark + eviction at
 takeover), P3F2 = bounded retry then surfaced error; 4 surgical probe-bites; 318/318 + CT 40/40 +
 @live/@smoke green. Deliberate non-fix: no server-side barrier timeout (would degrade exactly when
-load-bearing) — belt-and-braces follow-up if wanted. SSE ladder: S0-S2 DONE → S3 next.
+load-bearing) — belt-and-braces follow-up if wanted. SSE ladder: S0-S2 DONE → **S3 LANE IN FLIGHT** (notifications+presence fold; typed-error-frame handling folded in; merge on report). Rendered-clip CT audit: owner declined — dropped.
 
 **SET-SEAMS S1 LANE IN FLIGHT** (executor, worktree): the appearance 8-way split, AppearanceForm
 deleted, save pins per §9; live drive deferred to the combined side-eye. S2-S4 SERIALIZE after it
