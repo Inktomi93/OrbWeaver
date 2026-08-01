@@ -1132,6 +1132,29 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
     expect(anchorInj?.content).toBe("[Your operator is Nate: Nate is a knight]");
   });
 
+  // The host's prose must reach the DOWNSTREAM stages too (the merged co-speaker headings in the BUILD walk,
+  // the note frames in the SHAPE splice, the round nudge in the driver) — all of which read it off the ONE
+  // immutable ctx rather than re-resolving the host. This pins the carry + the system-block frame together.
+  test("the resolved host prose is CARRIED on the ctx, and already frames the system-block injections", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const prose = { "chat.injection.userNote": { text: "((table note: {{note}}))", baseVersion: 1 } };
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")), resolveChatProse: () => Promise.resolve(prose) });
+
+    const out = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], {
+        userInjections: [{ position: "in_prompt", depth: 0, role: "user", content: "keep it short" }],
+        injectionTokenBudget: 64,
+      }),
+    );
+
+    expect(out.prose).toStrictEqual(prose);
+    const framed = (out.chatInjections ?? []).find((i) => i.position === "in_prompt");
+    expect(framed?.content).toBe("((table note: keep it short))");
+  });
+
   test("swap with anchor descriptionPosition='none': the anchor is NOT injected in either role", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");

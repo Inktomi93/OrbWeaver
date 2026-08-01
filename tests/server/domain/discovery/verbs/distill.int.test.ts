@@ -9,6 +9,7 @@
 //   • IDEMPOTENT / NO-DOWNGRADE: a re-run refreshes the summary in place and never flips an ACCEPTED tag
 //     back to pending. SYNTHETIC group characters are excluded.
 
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import { characterSummaries, characterTags, tags as tagsTable } from "@orb/db";
 import type { TagId } from "@orb/kit/ids";
@@ -193,6 +194,68 @@ describe("distillCharacters", () => {
       .where(eq(characterTags.characterId, character));
     // The staged tags are the SWAPPED client's output — proving nothing is hard-wired.
     expect(staged.map((r) => r.name).sort()).toEqual(["dread", "eldritch", "isolation"]);
+  });
+
+  // ── PROSE-1 `discovery.distill.system` ────────────────────────────────────────────────────────────
+  /** A summarize probe recording the SYSTEM prompt of every call. Call 1 (the batch) replies with a payload
+   *  that parses as JSON but fails the schema, so the bounded per-card RETRY fires — which is the second
+   *  call site the resolved prose has to reach (a retry on a different system prompt is a silent drift). */
+  function makeSystemProbe(): { readonly op: DiscoveryContext["summarize"]; readonly systems: string[] } {
+    const systems: string[] = [];
+    let calls = 0;
+    const usage = { tokensIn: null, tokensOut: null, costUsd: null };
+    const op: DiscoveryContext["summarize"] = (inputs: SummarizeInput[], _opts?: SummarizeOptions) => {
+      calls += 1;
+      for (const i of inputs) {
+        systems.push(i.systemPrompt);
+      }
+      const text = calls === 1 ? SCHEMA_FAIL_REPLY : DISTILL_REPLY;
+      return Promise.resolve({ items: inputs.map(() => ({ text, usage })), model: "probe" });
+    };
+    return { op, systems };
+  }
+
+  test("an owner-narrowed run reads that owner's PROSE override — on the batch call AND the retry", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const character = await seedCharacter(db, { id: "character_z", ownerId: owner, name: "Z", description: "Z the zookeeper." });
+    const probe = makeSystemProbe();
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db, {
+        resolveUserProse: () => Promise.resolve({ "discovery.distill.system": { text: "Summarize this card as JSON.", baseVersion: 1 } }),
+      }).ctx,
+      summarize: probe.op,
+    });
+
+    await svc.distillCharacters({ characterId: character, ownerId: owner });
+
+    // Both the batch and the retry fired, and BOTH carried the host's bytes — one resolution, no drift.
+    expect(probe.systems.length).toBeGreaterThanOrEqual(2);
+    expect([...new Set(probe.systems)]).toStrictEqual(["Summarize this card as JSON."]);
+  });
+
+  test("the OWNERLESS whole-library batch resolves no prose at all — the shipped prompt stands", async () => {
+    // Same rule the sampling rung already follows: a mixed-owner run has no single host to read, so it must
+    // not silently pick one. `resolveUserProse` is never called and every card gets the default prompt.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedCharacter(db, { id: "character_q", ownerId: owner, name: "Q", description: "Q the quartermaster." });
+    const probe = makeSystemProbe();
+    let proseReads = 0;
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db, {
+        resolveUserProse: () => {
+          proseReads += 1;
+          return Promise.resolve({ "discovery.distill.system": { text: "never reached", baseVersion: 1 } });
+        },
+      }).ctx,
+      summarize: probe.op,
+    });
+
+    await svc.distillCharacters({});
+
+    expect(proseReads).toBe(0);
+    expect([...new Set(probe.systems)]).toStrictEqual([PROSE_SLOTS["discovery.distill.system"].text]);
   });
 
   test("a re-run never downgrades an ACCEPTED tag back to pending (idempotent no-downgrade)", async () => {

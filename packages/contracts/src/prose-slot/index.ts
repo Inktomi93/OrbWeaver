@@ -28,7 +28,10 @@ export interface ProseSlotDef {
   /** The shipped default. An absent override resolves to these exact bytes. */
   readonly text: string;
   readonly macros: ProseMacroMode;
-  /** Macros whose ABSENCE from an override is a lint in the editor — never a block (PROSE-1 §6.3). */
+  /** Macros whose ABSENCE from an override is a lint in the editor — never a block (PROSE-1 §6.3). A
+   *  `macros:"none"` slot may still list one: `resolveProseText`'s optional PRE-SUBSTITUTION tokens are
+   *  spliced by the CALLER (the `{{person}}`/`{{base}}` guided precedent — a plain string replace, never the
+   *  macro engine), and an override that drops the token drops the value it carried. */
   readonly requiredMacros: readonly string[];
   /** Literal tokens (not macros) an override must keep or the downstream renderer stops recognising the
    *  output — the `:::card` / composition-prefix class. Same warn-never-block posture. */
@@ -71,9 +74,20 @@ export const PROSE_SLOT_IDS = [
   "chat.memory.digestSystem",
   "chat.memory.consolidationSystem",
   "chat.memory.consolidationLead",
+  // ── per-USER: the group-round + injection FRAMING prose (the S1b inline stragglers) ──
+  "chat.group.alsoPresent",
+  "chat.group.scenarioHeading",
+  "chat.group.exampleHeading",
+  "chat.group.roundNudge",
+  "chat.injection.systemNote",
+  "chat.injection.userNote",
   // ── per-USER: the automation quiet-pick prompts (census 91) ──
   "automation.autobg.task",
   "automation.autobg.reply",
+  // ── per-USER: discovery's three whole side-generation system prompts (S1b) ──
+  "discovery.compare.system",
+  "discovery.ask.system",
+  "discovery.distill.system",
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 
