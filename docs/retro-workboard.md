@@ -258,7 +258,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      tempChatTtlHours — server-honored, never had editors); S1-miss fixed (the "real door"
      partition test now mirrors main.tsx — hand-maintained, every stage MUST add its sections);
      926 CT green.
-   - [ ] S3 workloads + admin panes → sections mode
+   - [ ] S3 workloads + admin panes → sections mode (LANE IN FLIGHT — S2 lessons in prompt)
    - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
    - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
    - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
