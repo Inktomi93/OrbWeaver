@@ -70,7 +70,11 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as c
  *    `flush-barrier.ts` (the per-chat in-flight-flush BARRIER singleton — an in-memory Map the post-turn flush
  *    registers into + the next turn's gather awaits, so a fast re-send reads the just-committed state, not stale
  *    state; the `staging.ts`/`bus.ts` in-memory-singleton precedent; the dedicated state round made the flush a
- *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment). */
+ *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment).
+ *  - stats: `reconcile-in-flight.ts` (the per-USER single-flight gate for the awaited `stats.reconcile` verb —
+ *    an in-memory Set the verb claims/releases around the rebuild, so a second concurrent recompute is refused
+ *    with CONFLICT instead of racing the first over the same rollup rows; the `chat/active-turns.ts`
+ *    in-memory-registry precedent, owner ruling 2026-08-02). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
   crew: ["bus.ts"],
@@ -78,6 +82,7 @@ const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = 
   preset: ["constants.ts", "seed.ts"],
   "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],
+  stats: ["reconcile-in-flight.ts"],
 };
 
 function isAllowedRootFile(feature: string, fileName: string): boolean {
