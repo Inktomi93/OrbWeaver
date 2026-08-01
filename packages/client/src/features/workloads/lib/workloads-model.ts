@@ -142,10 +142,10 @@ export const WORKLOAD_FILTER_LABELS: Record<(typeof WORKLOAD_FILTERS)[number], s
 
 /** Per-filter empty copy — distinct per tab. */
 export const WORKLOAD_FILTER_EMPTY_COPY: Record<(typeof WORKLOAD_FILTERS)[number], string> = {
-  all: "No workloads yet. Background jobs you run appear here.",
+  all: "No jobs yet. Background jobs you run appear here.",
   running: "Nothing is running right now.",
-  recent: "No finished workloads yet.",
-  failed: "No failed workloads. Good.",
+  recent: "No finished jobs yet.",
+  failed: "No failed jobs. Good.",
 };
 
 const RECENT_STATUSES = ["succeeded", "cancelled"] as const satisfies readonly WorkloadStatus[];

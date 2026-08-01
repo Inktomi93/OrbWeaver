@@ -119,7 +119,7 @@ test("with rows the header owns the create action, and the empty state is gone",
 
   await expect(section.getByTestId("schedule-create-button")).toHaveCount(1);
   await expect(section.getByText("No schedules yet", { exact: false })).toHaveCount(0);
-  // CD3 — the pane's one accent at rest belongs to Jobs' "Run a workload…", so this button is SECONDARY.
+  // CD3 — the pane's one accent at rest belongs to Jobs' "Run a job…", so this button is SECONDARY.
   // Asserted on the COMPUTED fill (an intent prop is not a pixel): secondary is `bg-transparent`.
   const fill = await section.getByTestId("schedule-create-button").evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(fill).toBe("rgba(0, 0, 0, 0)");
@@ -169,7 +169,7 @@ test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a 
 
   // The owner picker is GROUPED — the Maintenance group is present; the default sweep kind (index) shows
   // the owner-only Bulk toggle.
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await expect(page.getByText("Maintenance (all deployments)")).toBeVisible();
   await page.getByRole("option", { name: "Index (embeddings)" }).click();
   await page.getByRole("switch", { name: "Bulk mode" }).click();
@@ -195,7 +195,7 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
   await mount(<WorkloadsSchedulesSectionStory />);
 
   await page.getByTestId("schedule-create-button").click();
-  await page.getByRole("combobox", { name: "Workload" }).click();
+  await page.getByRole("combobox", { name: "Job" }).click();
   await page.getByRole("option", { name: "Refresh model catalog" }).click();
 
   // Bulk BY FORCE — the maintenance note shows, no toggle.

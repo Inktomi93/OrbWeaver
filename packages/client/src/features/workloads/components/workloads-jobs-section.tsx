@@ -47,8 +47,8 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
 export function WorkloadsJobsSection(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="gloss">Loading workloads…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your workloads" onRetry={retry} />}
+      fallback={<Text voice="gloss">Loading jobs…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your jobs" onRetry={retry} />}
     >
       <WorkloadsJobsBody />
     </QueryBoundary>
@@ -95,7 +95,7 @@ function WorkloadsJobsBody(): ReactElement {
         >
           <Stack gap="block">
             <Row align="center" justify="between" gap="row">
-              <TabsList aria-label="Filter workloads">
+              <TabsList aria-label="Filter jobs">
                 {WORKLOAD_FILTERS.map((id) => (
                   <TabsTab key={id} value={id}>
                     {WORKLOAD_FILTER_LABELS[id]}
@@ -103,7 +103,7 @@ function WorkloadsJobsBody(): ReactElement {
                 ))}
               </TabsList>
               <Button intent="primary" data-testid={testId("workloadsRunButton")} onClick={(): void => setRunOpen(true)}>
-                Run a workload…
+                Run a job…
               </Button>
             </Row>
             {WORKLOAD_FILTERS.map((id) => {
@@ -111,12 +111,17 @@ function WorkloadsJobsBody(): ReactElement {
               return (
                 <TabsPanel key={id} value={id}>
                   {rows.length === 0 ? (
+                    // The CTA is the ALL tab's only (SE-D): on a FILTERED tab "nothing failed" / "nothing is
+                    // running" is a state to read, not a dead end — and the header's "Run a job…" is already
+                    // on screen right above it, so a second home for the same verb is the two-CTA shape.
                     <EmptyState
                       title={WORKLOAD_FILTER_EMPTY_COPY[id]}
                       action={
-                        <Button intent="secondary" onClick={(): void => setRunOpen(true)}>
-                          Run a workload
-                        </Button>
+                        id === "all" ? (
+                          <Button intent="secondary" onClick={(): void => setRunOpen(true)}>
+                            Run a job
+                          </Button>
+                        ) : undefined
                       }
                     />
                   ) : (

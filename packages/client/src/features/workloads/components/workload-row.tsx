@@ -124,12 +124,12 @@ function WorkloadRowBody({
 
       <ConfirmDialog
         cancelLabel="Keep running"
-        confirmLabel="Cancel workload"
+        confirmLabel="Cancel job"
         description={`Stops the ${kindLabel} run. Progress so far may be kept where the pass is resumable; you can start it again any time.`}
         onConfirm={onCancel}
         onOpenChange={setConfirmCancel}
         open={confirmCancel}
-        title="Cancel this workload?"
+        title="Cancel this job?"
       />
     </Stack>
   );

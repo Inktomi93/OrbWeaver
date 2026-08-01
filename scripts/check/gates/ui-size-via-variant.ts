@@ -16,10 +16,15 @@
 // and the UNSIZED-BOX modules (`UNSIZED_BOX_SPECIFIERS` — layout kit / Skeleton / ThemeScope /
 // CrossfadeImage), whose geometry is the call site's datum by design.
 //
+// IN SCOPE since 2026-08-02: the Tailwind IMPORTANT modifier, BOTH spellings (`!size-6` and `size-6!`) —
+// see `IMPORTANT_MODIFIER_RE`. It was the gate's one live escape hatch, and the escape is the worse form of
+// the incident (an `!important` override wins by force instead of by stylesheet order).
+//
 // Survivor mechanism (2026-08-01 founding sweep — 14 hits triaged): `ALLOWLIST` holds the SANCTIONED
 // files (reason-cited, both-ways stale ratchet); `DEBT_BASELINE` holds the incident-class debt under a
-// per-file count ratchet (over budget RED, under budget stale RED — terminal state `{}`, REACHED
-// 2026-08-01 when the two choice-button sites moved onto Button's `size="wrap"`).
+// per-file count ratchet (over budget RED, under budget stale RED). It reached `{}` on 2026-08-01 and was
+// re-opened on 2026-08-02 by the `!` arm, which revealed 14 pre-existing rpg icon-button hits the gate had
+// never been able to see (the rows carry the reasoning).
 //
 // DECLARED BLIND SPOT (literal-shape): only a literal `className="…"` / `className={"…"}` /
 // no-substitution template is read — a computed/conditional className (cn(...), a template with
@@ -55,11 +60,30 @@ const ALLOWLIST: Record<string, string> = {
 /** Incident-class DEBT under ratchet: file → the count of banned size tokens it may still carry. Over
  *  budget = RED; UNDER budget = stale RED (ratchet the row down / delete it).
  *
- *  TERMINAL — the founding sweep's two rows (the `h-auto min-h-touch-target py-field` choice buttons in
- *  chat/message-choices-block + rpg/rpg-choice-echo) were PAID 2026-08-01: they now ride Button's
- *  `size="wrap"` (packages/ui/src/primitives/button/variants.ts — the `media`/F2 precedent). The map
- *  stays as the ratchet mechanism; it must never grow again — a new hit is a variant to add, not a row. */
-const DEBT_BASELINE: Record<string, number> = {};
+ *  The founding sweep's two rows (the `h-auto min-h-touch-target py-field` choice buttons in
+ *  chat/message-choices-block + rpg/rpg-choice-echo) were PAID 2026-08-01 onto Button's `size="wrap"`, and
+ *  the map was declared TERMINAL. That claim was false — terminal only because the gate could not SEE an
+ *  `!important` size utility. Teaching the `!` arm (2026-08-02) surfaced 14 PRE-EXISTING hits of ONE shape,
+ *  every one in features/rpg: `<Button intent="ghost" size="sm" className="!size-N !p-0">` wrapping an
+ *  `<Icon size="xs">` — a square icon-only micro-button forcing its box below Button's `sm` control height
+ *  at four scales (4/5/6/8), plus one `!w-block` on a TrackBar. Nothing NEW was written; the debt was always
+ *  there, just invisible. Baselined rather than paid because the honest fix is ONE new Button size variant
+ *  (a square glyph box, the `media`/`wrap` precedent) + a sweep of all 14 with COMPUTED-geometry proof —
+ *  a UI change with its own review, not a gate-lane edit.
+ *
+ *  ZERO-GROW: these budgets may only shrink. A NEW hit is a variant to add, never a row to add or widen. */
+const DEBT_BASELINE: Record<string, number> = {
+  "packages/client/src/features/rpg/components/rpg-actor-trackers.tsx": 1,
+  "packages/client/src/features/rpg/components/rpg-beat-row.tsx": 1,
+  "packages/client/src/features/rpg/components/rpg-field-lock.tsx": 1,
+  // 3 × the `!size-6 !p-0` icon Button + the one `!w-block` TrackBar (a bar forced to a fixed track width).
+  "packages/client/src/features/rpg/components/rpg-game-tab.tsx": 4,
+  "packages/client/src/features/rpg/components/rpg-hint-map-editor.tsx": 1,
+  "packages/client/src/features/rpg/components/rpg-inventory-tab.tsx": 1,
+  "packages/client/src/features/rpg/components/rpg-pack-rows.tsx": 2,
+  "packages/client/src/features/rpg/components/rpg-quests-tab.tsx": 2,
+  "packages/client/src/features/rpg/components/rpg-stat-profile-editor.tsx": 1,
+};
 
 const MESSAGE =
   "sizes come from variants — tailwind-merge can't classify custom-token utilities, so a call-site " +
@@ -71,6 +95,15 @@ const STALE_ENTRY_MESSAGE_PREFIX =
   "onto a variant (ratchet down): delete the stale row in ui-size-via-variant.ts: ";
 
 const UI_SPECIFIER_RE = /^@orb\/ui(?:\/|$)/u;
+/** The Tailwind IMPORTANT modifier, stripped before classification. BOTH spellings the v4.3 engine actually
+ *  registers — probed, not assumed (`compile('@import "tailwindcss"').build([...])`: `!size-6`, `size-6!`,
+ *  `!h-auto` and `h-auto!` all emit a rule, all with `!important`): the v3-era PREFIX and v4's canonical
+ *  SUFFIX. Untaught, this was the gate's live escape hatch — the 13 `!h-auto min-h-0 !py-0` inline-button
+ *  sites (`packages/ui/src/primitives/button/variants.ts`, the `inline` arm) and the `!h-auto !px-field`
+ *  inline-input sites walked straight past it. An `!important` size utility is not a lesser version of the
+ *  incident, it is the WORSE one: the plain form resolves by stylesheet order (a coin flip), the `!` form
+ *  wins by force and makes the primitive's variant unreachable. */
+const IMPORTANT_MODIFIER_RE = /^!|!$/gu;
 /** The scoped box utilities (terminal segment): h / min-h / size / w with a plain (non-bracket) value. */
 const SIZE_UTILITY_RE = /^(?<util>h|min-h|size|w)-(?<val>[a-z0-9./]+)$/u;
 /** Values that are LAYOUT decisions, not box sizes — never flagged. Viewport units + intrinsic keywords. */
@@ -80,9 +113,11 @@ const NUMERIC_VALUE_RE = /^(?:\d+(?:\.\d+)?|px)$/u;
 const CUSTOM_TOKEN_VALUE_RE = /^[a-z][a-z0-9-]*$/u;
 const WHITESPACE_RE = /\s+/u;
 
-/** Is this whitespace-split class token a banned size utility (terminal segment)? */
+/** Is this whitespace-split class token a banned size utility (terminal segment)? The variant chain is
+ *  dropped first (`focus:h-9` → `h-9`), then the important modifier on whichever side it sits
+ *  (`focus:!h-9` / `focus:h-9!` → `h-9`) — Tailwind puts `!` on the UTILITY, never before the variants. */
 function isBannedSizeToken(token: string): boolean {
-  const terminal = token.split(":").at(-1) ?? token;
+  const terminal = (token.split(":").at(-1) ?? token).replace(IMPORTANT_MODIFIER_RE, "");
   const match = SIZE_UTILITY_RE.exec(terminal);
   if (match?.groups === undefined) {
     return false;
@@ -299,6 +334,21 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/x/variantpfx.tsx",
       why: "a variant-prefixed size utility (focus:h-9) — the terminal segment still flags",
     },
+    {
+      files: 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="!size-6 !p-0">x</Button>;\n',
+      at: "packages/client/src/features/x/bangpfx.tsx",
+      why: "the v3-era `!` PREFIX (`!size-6`) — the escape hatch the 13 inline-button sites used; `!p-0` is out of scope (padding), so exactly ONE finding",
+    },
+    {
+      files: 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="h-auto!">x</Button>;\n',
+      at: "packages/client/src/features/x/bangsfx.tsx",
+      why: "v4's canonical `!` SUFFIX (`h-auto!`) — the same important modifier on the other side, equally registered by the v4.3 engine",
+    },
+    {
+      files: 'import { Input } from "@orb/ui/input";\nexport const G = <Input className="focus:!h-9" />;\n',
+      at: "packages/client/src/features/x/bangvariant.tsx",
+      why: "important + a variant chain (focus:!h-9) — Tailwind puts `!` on the utility, so stripping happens AFTER the `:` split",
+    },
   ],
   mustPass: [
     {
@@ -331,6 +381,11 @@ export const gate: GateDescriptor = {
         'import { Skeleton } from "@orb/ui/skeleton";\nimport { Stack } from "@orb/ui/layout";\nexport const G = <Stack className="size-9"><Skeleton className="h-3 w-40" /></Stack>;\n',
       at: "packages/client/src/features/x/unsized.tsx",
       why: "UNSIZED-BOX modules (layout kit, Skeleton) — no size of their own, geometry IS the call site's datum, exempt",
+    },
+    {
+      files: 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="!w-full !min-h-0 !p-0 !shrink-0">x</Button>;\n',
+      at: "packages/client/src/features/x/bangfence.tsx",
+      why: "the `!` strip does NOT widen the fence — an important keyword/proportional value (!w-full), the min-h-0 release and non-size utilities all still pass",
     },
   ],
 };

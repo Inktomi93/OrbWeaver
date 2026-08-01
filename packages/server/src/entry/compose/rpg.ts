@@ -85,7 +85,7 @@ import {
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
-import type { ProviderExecutor } from "#infra/providers";
+import type { ChatResult, ProviderExecutor } from "#infra/providers";
 import type { ChatComposeResult } from "./chat";
 import { minter } from "./minter";
 
@@ -628,6 +628,36 @@ function logMalformedCalls(args: {
   );
 }
 
+/** The DEDICATED state round's economics record (spec §10.1a). That section's claim — "the state round's
+ *  economics ARE recorded, in the provider-observability plane" — was only true for the STRUCTURED vehicles:
+ *  `runStructuredTurn`'s surfaces emit `provider.structured-item` per item, and the agent-sdk arm emits
+ *  `provider.turn`. The cheap tool round rides the CHAT role on a stateless backend (vLLM / OpenRouter),
+ *  which emits NEITHER — so its tokens and cost left no record at all unless a wire capture happened to be
+ *  armed. This is that record: same fields as the `provider.*-item` precedent (model + tokens + duration +
+ *  finishReason) plus the cost the `ChatUsage` carries, emitted from the round's own vehicle so the event
+ *  name says which one billed. Metadata only — never prompt/reply/extraction text. The FAILURE arm is
+ *  already named by `rpg.toolround.failed` (a throw has no usage to report). */
+function logToolRoundUsage(args: { readonly chatId: ChatId; readonly api: string; readonly result: ChatResult }): void {
+  const { usage } = args.result;
+  logger.info(
+    {
+      event: "rpg.toolround.usage",
+      chatId: args.chatId,
+      api: args.api,
+      model: usage.model,
+      tokensIn: usage.tokensIn,
+      tokensOut: usage.tokensOut,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
+      reasoningTokens: usage.reasoningTokens,
+      costUsd: usage.costUsd,
+      durationMs: args.result.durationApiMs,
+      finishReason: args.result.finishReason,
+    },
+    "rpg cheap tool round billed",
+  );
+}
+
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 function safeJson(text: string): unknown {
   try {
@@ -728,9 +758,10 @@ function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): {
  *  shared-plane). On any backend throw / no calls it returns the EMPTY delta (errors-as-data — never corrupts
  *  canon).
  *
- *  State-round economics: same posture as `runExtraction` (no `ToolCallRecord`, no stats delta — see spec §10.1a), but note this vehicle
- *  rides the CHAT role: a non-agent-sdk backend emits no per-item usage log and the result's `usage` is dropped here, so the wire capture
- *  is what the round leaves behind. The degraded agent-sdk arm rides `runExtraction`'s per-item record. */
+ *  State-round economics: same posture as `runExtraction` (no `ToolCallRecord`, no stats delta — see spec §10.1a). This vehicle rides the
+ *  CHAT role, so no backend emits a per-item usage log for it; `logToolRoundUsage` is its economics record (`rpg.toolround.usage`), which
+ *  is what makes §10.1a's "recorded in the provider-observability plane" true here. The degraded agent-sdk arm rides `runExtraction`'s
+ *  per-item record instead. */
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {
@@ -758,6 +789,8 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
         ownerConsented: turnConnection.ownerConsented,
       });
+      // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
+      logToolRoundUsage({ chatId, api: conn.api, result });
       calls = result.toolCalls ?? [];
     } catch (err) {
       logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
