@@ -46,7 +46,9 @@ test("no author's-note field — the section is exactly the three text overrides
   await expect(component.getByRole("button", { name: "Scenario" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Author's note" })).toHaveCount(0);
   await expect(component.getByRole("textbox", { name: "Author's note" })).toHaveCount(0);
-  await expect(component.getByRole("spinbutton", { name: "Depth" })).toHaveCount(0);
+  // Role-agnostic: keyed to `spinbutton`, this absence check would go blind if the depth control ever came
+  // back as an @orb/ui NumberField (Base UI renders those as a TEXTBOX, never a spinbutton).
+  await expect(component.getByLabel("Depth")).toHaveCount(0);
   await expect(component.getByRole("combobox", { name: "Role" })).toHaveCount(0);
 });
 
