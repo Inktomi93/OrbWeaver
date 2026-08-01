@@ -8,11 +8,13 @@
 // OWNER RULING: lives client-shared (NOT @orb/ui — a domain-agnostic composite over ListRow +
 // RowActionsMenu, the ConfirmDialog homing precedent).
 
+import { Button } from "@orb/ui/button";
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { RowActionsMenu } from "./row-actions-menu";
+import { ROW_REVEAL } from "./row-reveal";
 
 /** The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row). */
 export interface LibraryRowActions {
@@ -23,6 +25,11 @@ export interface LibraryRowActions {
   readonly onDelete: () => void;
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). */
   readonly deleteDescription: ReactNode;
+  /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a
+   *  `ROW_REVEAL` ghost icon (rest hidden, revealed on the row's hover/focus-within, always-on for coarse).
+   *  The kebab KEEPS the same item (N3 mirror parity — inline is a shortcut, never the only path).
+   *  Omitted ⇒ kebab-only, the world-info posture (books are low-churn; no frequency evidence). */
+  readonly inlineVerb?: "duplicate";
 }
 
 export interface LibraryRowProps {
@@ -40,6 +47,8 @@ export interface LibraryRowProps {
 export function LibraryRow({ title, subtitle, selected, onSelect, leading, actions }: LibraryRowProps): ReactElement {
   return (
     <ListRow
+      // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
+      className="group"
       clickable={true}
       onClick={onSelect}
       selected={selected}
@@ -51,7 +60,22 @@ export function LibraryRow({ title, subtitle, selected, onSelect, leading, actio
   );
 }
 
-function LibraryRowActionsMenu({ name, onRename, onDuplicate, onDelete, deleteDescription }: LibraryRowActions): ReactElement {
+function LibraryRowActionsMenu({ name, onRename, onDuplicate, onDelete, deleteDescription, inlineVerb }: LibraryRowActions): ReactElement {
+  return (
+    <>
+      {inlineVerb === undefined ? null : (
+        <Button aria-label={`Duplicate ${name}`} className={ROW_REVEAL} intent="ghost" onClick={onDuplicate} size="icon" type="button">
+          <Icon icon={Copy} size="sm" />
+        </Button>
+      )}
+      <LibraryRowMenu deleteDescription={deleteDescription} name={name} onDelete={onDelete} onDuplicate={onDuplicate} onRename={onRename} />
+    </>
+  );
+}
+
+/** The ⋯ overflow — it retains EVERY action including an inlined one (N3 mirror parity), and is the ONLY
+ *  home for the destructive Delete + the dialog-opening Rename. */
+function LibraryRowMenu({ name, onRename, onDuplicate, onDelete, deleteDescription }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
   return (
     <RowActionsMenu
       label={`Actions for ${name}`}
