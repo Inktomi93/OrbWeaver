@@ -355,7 +355,7 @@ as law:
 | inject depth | **YES (owner, round 4b)** — `depth` joins the contract (G10; absent = 0/tail, the current behavior) | YES (Delivery, beside role — round-3 ruling) | both are in-chat delivery; ONE `DeliveryCluster` composite serves the TWO drill-ins (section §5.2 · template §6.1) — one composite, one grammar, one home each (§13) |
 | splice order | NO | YES (Placement) | within-depth tiebreak is assembly vocabulary |
 | zone | NO | YES | zones are pivot-relative arrangement |
-| triggers | **NO — the BUTTON is the trigger** | YES (normal / continue / swipe / …) | a guided template's firing condition is the user's click |
+| triggers / fires-on | **DESCRIPTIVE TEXT ONLY** — the registry's `fires` gloss on the row + drill-in; NO control, NO toggle, NO trigger chips anywhere in Actions (owner, verbatim: *"the triggers and fires-on for a template is just informational — we wouldn't want to disable something we shouldn't; the actual trigger thingy is in prompts"*) | **EDITABLE GATE** — the trigger chips live EXCLUSIVELY in the section drill-in | a template's firing condition is the user's click; a section's is assembly state |
 | enable / off | **NO — an action always resolves SOME template** (empty = the default rides; the fixed enum cannot be "off") | YES (rack toggle + drilled header echo) | turning Impersonate's template "off" would leave the button firing nothing |
 | reorder | **NO — there is no order among button templates** | YES (drag + Move echo) | assembly order is meaning; a button set has none |
 | create / delete / name | **NO — `GUIDED_ACTION_KINDS` is a fixed product enum** | literals: full CRUD; markers: no-delete (§5.2) | the action set is product surface; sections are user arrangement |
@@ -510,8 +510,9 @@ receipt), with the per-wire normalization gloss.
 Zone / splice order / triggers / locks are ARRANGEMENT vocabulary and never render here (the button
 is the trigger). Nudge editors are text-only (a `formatStrings` slot has no role or depth).
 
-Row anatomy (every cell REGISTRY-derived, §6.6): label (`label` voice) · fires-when `gloss` · the
-KIND chip (info hue — the registry's `kind`) · Default/Customized state chip · a one-line mono
+Row anatomy (every cell REGISTRY-derived, §6.6): label (`label` voice) · fires-when `gloss` —
+INFORMATIONAL ONLY, never a control (the editable Triggers vocabulary exists exclusively in the
+section drill-in, §5.0) · the KIND chip (info hue — the registry's `kind`) · Default/Customized state chip · a one-line mono
 template preview (truncated; the ghosted default when unset). The list renders one group per kind
 (kicker headers in `TEMPLATE_KINDS` order); the role badge moved into the drill-in with the
 `DeliveryCluster` (the row's delivery scent is the kind + preview). **The DRILL-IN is the template's ONE editing home (owner defect report + refinement, round
@@ -590,23 +591,36 @@ DERIVES everything — groups, rows, kind badges, drill-in fields — from ONE d
     readonly id: GuidedActionKind | FormatStringKey;   // WHICH slot this edits (guidedActions.* or formatStrings.*)
     readonly kind: TemplateKind;                       // the GROUP header AND the row badge — one vocabulary
     readonly label: string;                            // the row title
-    readonly fires: string;                            // the fires-on gloss
-    readonly caps: {                                   // field capabilities — the drill-in renders EXACTLY these
-      readonly role: boolean;                          // guided actions yes; formatStrings no
-      readonly depth: boolean;                         // guided actions yes (G10); formatStrings no
-      readonly tokens: readonly string[];              // the substitution vocabulary ({{input}}, {{person}}, {{base}}, {{lastChatMessage}}…)
-    };
+    readonly fires: string;                            // the fires-on gloss — DESCRIPTIVE ONLY, never a control (owner-ratified)
+    /** The EXTENSIBLE axis (owner-ratified): capabilities are a GROWABLE union, not a fixed struct. */
+    readonly caps: readonly TemplateCapability[];
     readonly defaultSlot: keyof typeof PRESET_PROSE_SLOTS;  // the ghost's byte source — the PROSE-1 one-home
   }
+  /** One declared capability. A FUTURE richer template = a NEW union member + its renderer row —
+   *  never a fork of the editor ([[lock-the-extensible-shape]]). */
+  export type TemplateCapability =
+    | { readonly kind: "role" }                                   // renders the role half of DeliveryCluster
+    | { readonly kind: "depth" }                                  // renders the depth half (G10)
+    | { readonly kind: "tokens"; readonly tokens: readonly string[] }  // the substitution vocabulary chips + lints ({{input}}, {{person}}, {{base}}, {{lastChatMessage}}…)
+    /* future members join here */;
   export const TEMPLATE_DEFS: readonly TemplateDef[] = [ /* the §6.5 set */ ];
   ```
+
+- **The drill-in is CAPABILITY-DRIVEN, not a hardcoded field layout (owner-ratified: "flexible and
+  extendable so it's not a bitch and a half" — including templates needing MORE than a standard one):**
+  the editor maps the def's `caps` through an exhaustive
+  `Record<TemplateCapability["kind"], CapabilityRenderer>` (the house Record-not-switch dispatch) —
+  a new capability KIND fails `tsc` at the Record until its renderer exists, and every template's
+  editor is the template body + the mapped capability fields, nothing else. Adding a richer template
+  = one enum member + one def row (+ one capability member + renderer IF it needs a genuinely new
+  field class) — the D117 registration-cost shape, one level deeper.
 
 - **The registration cost is the D117 workloads shape** (the house new-kind pattern): a NEW template =
   one enum member + one `TemplateDef` row; the client's exhaustive `Record`s (`GUIDED_ACTION_COPY`
   dies INTO the registry — the labels/fires copy migrates to `TEMPLATE_DEFS` and the client map is
-  retired in the same commit) and the schema's keyed map tsc-force every other site. The `caps` field
-  is what keeps the drill-in honest BY DERIVATION: a formatString row renders text-only because its
-  caps say so, not because a component branches on a name.
+  retired in the same commit) and the schema's keyed map tsc-force every other site. The `caps` LIST
+  is what keeps the drill-in honest BY DERIVATION: a formatString row renders text-only because it
+  declares no capabilities, not because a component branches on a name.
 - **The G9/G10 additions land THROUGH the registry**: `newChatMarker` = one `format`-kind def row;
   `depth` = the caps flag the drill-in reads. The §6.5 census's ADD verdicts become def rows, never
   bespoke editors.
