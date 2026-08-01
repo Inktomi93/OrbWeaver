@@ -8,9 +8,10 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { timeLib } from "#lib";
 import { useStarChat } from "../hooks/use-chat-row-mutations";
 import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { deriveChatTitle } from "../lib/chat-summary-row";
+import { chatRowActionName, deriveChatTitle } from "../lib/chat-summary-row";
 import { ChatListRowMenu } from "./chat-list-row-menu";
 import { ChatSummaryRow } from "./chat-summary-row";
 
@@ -41,13 +42,15 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
       className="group"
       // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
       // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).
+      // The title alone is NOT enough on a per-character projection (N rows all titled "Azarael"), so the
+      // name carries the row's own stamp too — the same one the row shows (side-eye P3a).
       // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.
       menu={
         <ChatListRowMenu
           archived={chat.archived}
           chatId={chat.id}
-          displayTitle={deriveChatTitle(chat.title, chat.participantNames)}
           onDeleted={onDeletedChat}
+          rowName={chatRowActionName(deriveChatTitle(chat.title, chat.participantNames), timeLib.formatRelativeCompact(chat.lastMessageAt ?? chat.updatedAt))}
           starred={chat.star}
           title={chat.title}
         />

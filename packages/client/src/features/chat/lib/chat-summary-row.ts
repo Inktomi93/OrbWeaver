@@ -45,6 +45,14 @@ export function chatPortraits(participantCharacterIds: readonly string[], charac
   return resolved;
 }
 
+/** The SUBJECT a row action names ("Star …", "Chat actions for …"). The title alone is not unique on a
+ *  chats list — the character projection is N rows all titled "Azarael", and N identical accessible names
+ *  make a screen-reader/agent walk of the list ambiguous. The disambiguator is the recency stamp the row
+ *  ALREADY shows in its meta slot, so what is announced matches what is on screen. */
+export function chatRowActionName(title: string, stamp: string): string {
+  return `"${title}" · ${stamp}`;
+}
+
 /** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when
  *  the server resolved one (`lastMessagePreview` — the newest message this caller may see, already stripped +
  *  flattened + capped server-side): a chat with history says what was last said, which is what the row is for.

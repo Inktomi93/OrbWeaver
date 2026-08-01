@@ -87,13 +87,16 @@ async function createChatViaSend(page: Page): Promise<void> {
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  // The first row's "Chat with <name>" CTA — the resume-or-new library→chat seam (the exemplar path). It's
-  // hover-revealed visually but always in the a11y tree, so a role/name click lands it (Playwright hovers
-  // before clicking, which also fires the visual reveal). `toBeAttached` (not `toBeVisible`) mirrors the
-  // exemplar: the button is in the tree before its hover-driven paint settles.
-  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
-  await expect(chatCta).toBeAttached({ timeout: 30_000 });
-  await chatCta.click();
+  // The first row's "Chat with <name>" CTA — the resume-or-new library→chat seam (the exemplar path). It is
+  // always in the a11y tree, but while hidden it is INERT to the pointer (an invisible control must not be
+  // hit-testable), so the ROW is hovered first — a bare click would hang on the actionability check.
+  const chatRow = page
+    .locator('[data-slot="list-row-root"]')
+    .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
+    .first();
+  await expect(chatRow).toBeVisible({ timeout: 30_000 });
+  await chatRow.hover();
+  await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
 
   const composer = page.getByRole("textbox", { name: "Message" });
   await expect(composer).toBeVisible();

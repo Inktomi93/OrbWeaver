@@ -40,12 +40,17 @@ test("pick a character, send a message, and the assistant streams a reply", {
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
-  // The first character row's "Chat with <name>" CTA (§4.4 — the 1-click core loop; hover-revealed on
-  // fine pointers, and Playwright's click hovers first, so the reveal fires). The row kebab carries only
-  // Archive/Duplicate/Delete in this client — chat is the dedicated CTA, not a menu item.
-  const chatCta = page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).first();
-  await expect(chatCta).toBeAttached({ timeout: 30_000 });
-  await chatCta.click();
+  // The first character row's "Chat with <name>" CTA (§4.4 — the 1-click core loop). The row kebab carries
+  // only Archive/Duplicate/Delete in this client — chat is the dedicated CTA, not a menu item. The revealed
+  // cluster is now INERT while hidden (an invisible control must not be hit-testable), so hover the ROW
+  // first — a bare `.click()` would wait forever on the "receives pointer events" actionability check.
+  const chatRow = page
+    .locator('[data-slot="list-row-root"]')
+    .filter({ has: page.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }) })
+    .first();
+  await expect(chatRow).toBeVisible({ timeout: 30_000 });
+  await chatRow.hover();
+  await chatRow.getByRole("button", { name: CHARACTER_ROW_CHAT_CTA }).click();
 
   // The store seam flipped CONTENT back to the Chats section with a fresh, character-seeded draft: the
   // composer is live.

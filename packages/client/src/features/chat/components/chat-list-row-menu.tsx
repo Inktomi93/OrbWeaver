@@ -23,9 +23,10 @@ export interface ChatListRowMenuProps {
   readonly chatId: ChatId;
   /** The row's current AUTHORED title (seeds the rename input) — null renders as an empty field. */
   readonly title: string | null;
-  /** The row's DERIVED display title (never blank) — names the kebab trigger so the per-row menus are
-   *  distinguishable ("Chat actions for <displayTitle>"), not N identical "Chat actions" (finding #4). */
-  readonly displayTitle: string;
+  /** The row's DISAMBIGUATED name (`chatRowActionName` — derived display title + the stamp the row shows) —
+   *  names the kebab trigger so the per-row menus are distinguishable, not N identical "Chat actions"
+   *  (finding #4), and not N identical "Chat actions for Azarael" in her projection (side-eye P3a). */
+  readonly rowName: string;
   readonly starred: boolean;
   readonly archived: boolean;
   /** Fired after a successful delete so the route can leave the room if it was the active one (J1). */
@@ -33,7 +34,7 @@ export interface ChatListRowMenuProps {
 }
 
 /** The kebab menu + its rename/delete overlays for one chat-list row. */
-export function ChatListRowMenu({ chatId, title, displayTitle, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
+export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -67,7 +68,7 @@ export function ChatListRowMenu({ chatId, title, displayTitle, starred, archived
   return (
     <>
       <RowActionsMenu
-        label={`Chat actions for ${displayTitle}`}
+        label={`Chat actions for ${rowName}`}
         reveal={true}
         destructive={{
           title: "Delete this chat?",
