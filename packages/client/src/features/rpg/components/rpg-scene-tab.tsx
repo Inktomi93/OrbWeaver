@@ -69,7 +69,7 @@ export interface RpgSceneTabProps {
 /** The ambient field → snapshot lock-path map (§12.3) — the domain knowledge that lives in the feature,
  *  not the shared AmbientStrip. A hand edit of `date` locks the `calendarDate` path, `timeOfDay` locks
  *  `clock`; `location`/`weather` are their own paths. */
-const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", string>> = {
+const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", keyof typeof LOCK_PATH_NAME>> = {
   location: "location",
   date: "calendarDate",
   timeOfDay: "clock",
@@ -146,14 +146,24 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   };
 }
 
-/** The section-scoped hand-lock pin (§12.3): `editSnapshot` stamps TOP-LEVEL patch paths
- *  (`presentCharacters`, `trackerValues`), so one lock ⇒ one pin ⇒ one Release, rendered beside the
- *  section label. `null` unless the path is locked AND the viewer owns the release (host). */
-function sectionLockPin(locked: ReadonlySet<string>, path: string, onReleaseLock: ((path: string) => void) | undefined): ReactNode {
+/** Every lock path this tab can pin → the plane's name in the reader's words (side-eye 08-01: five pins on
+ *  one tab all announced the same sentence). ONE map: a new lockable path fails `tsc` here, never ships mute. */
+const LOCK_PATH_NAME = {
+  presentCharacters: "the cast on stage",
+  trackerValues: "the game trackers",
+  location: "the location",
+  calendarDate: "the date",
+  clock: "the time of day",
+  weather: "the weather",
+} as const;
+
+/** The section-scoped hand-lock pin (§12.3): `editSnapshot` stamps TOP-LEVEL patch paths, so one lock ⇒ one
+ *  pin ⇒ one Release beside the section label, NAMED off the map above. `null` unless locked AND host. */
+function sectionLockPin(locked: ReadonlySet<string>, path: keyof typeof LOCK_PATH_NAME, onReleaseLock: ((path: string) => void) | undefined): ReactNode {
   if (onReleaseLock === undefined || !locked.has(path)) {
     return null;
   }
-  return <RpgFieldLock onRelease={(): void => onReleaseLock(path)} />;
+  return <RpgFieldLock field={LOCK_PATH_NAME[path]} onRelease={(): void => onReleaseLock(path)} />;
 }
 
 /** The ambient card's props — the field values (nullable-honest), the edit callback, and the per-field
@@ -333,9 +343,12 @@ function SceneCast({
                     <MeterRow
                       key={m.def.key}
                       label={m.def.label}
-                      value={trackerNumber(m.value ?? undefined) ?? 0}
+                      // WHOSE meter — two cast cards on one tab otherwise offer two "Vitality value" buttons.
+                      subject={member.name}
+                      // NULL stays null (side-eye 08-01): `?? 0` published "0/0" as this NPC's reading.
+                      value={trackerNumber(m.value ?? undefined)}
                       // The EFFECTIVE ceiling (this carrier's override, else the def default) — one resolver.
-                      max={trackerCeiling(m.def, m.value ?? undefined) ?? 0}
+                      max={trackerCeiling(m.def, m.value ?? undefined)}
                       // The def's own color, else the ordinal ramp — the SAME derivation the GM-console
                       // definition row and the band orb use (definition and display one system, §3).
                       {...trackColorProps(resolveTrackerColor(m.def.color, i))}
@@ -405,8 +418,9 @@ function SceneGameTrackers({
         <MeterRow
           key={entry.def.key}
           label={entry.def.label}
-          value={trackerNumber(entry.value ?? undefined) ?? 0}
-          max={trackerCeiling(entry.def, entry.value ?? undefined) ?? 0}
+          // Unset stays unset (side-eye 08-01) — the em-dash arm, never a synthesized `0/0`.
+          value={trackerNumber(entry.value ?? undefined)}
+          max={trackerCeiling(entry.def, entry.value ?? undefined)}
           // The tracker SHAPE glyph leads the row (the §12.5.5 closed-vocab Record — aria-hidden decoration;
           // the label stays the datum).
           leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" className="shrink-0 text-muted-foreground" />}

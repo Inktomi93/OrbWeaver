@@ -24,6 +24,33 @@ test("MeterRow read-only: renders label + value/max as the text datum (no edit f
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
 });
 
+test("MeterRow UNSET: an unwritten reading is an em dash over an EMPTY rail — never a synthesized 0 (side-eye 08-01)", async ({ mount, page }) => {
+  // The kit's own arm of the lying-meter fix: `value === null` means the story has written nothing, and the
+  // block may not publish a measurement for it. The CEILING is still a real fact, so it still reads.
+  // ONE mount, both arms (the CT harness allows a single React root per test).
+  const component = await mount(
+    <Stack gap="row">
+      <MeterRow label="Vitality" value={null} max={30} color={1} />
+      <MeterRow label="Grit" value={null} max={null} color={1} />
+    </Stack>,
+  );
+  const ceilinged = component.locator("[data-slot=meter-row]").first();
+  await expect(ceilinged).toContainText("—/30");
+  await expect(component.getByText("0/30")).toHaveCount(0);
+  await expect(ceilinged).toHaveAttribute("data-unset", "true");
+  // The decoration agrees with the text: nothing filled.
+  const fill = await page
+    .locator("[data-slot=track-bar-fill]")
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  expect(fill).toBe(0);
+
+  // No ceiling either (a poolless tracker) ⇒ no `/max` half at all, rather than a fabricated `/0`.
+  const poolless = component.locator("[data-slot=meter-row]").nth(1);
+  await expect(poolless).toContainText("—");
+  await expect(poolless).not.toContainText("/");
+});
+
 test("MeterRow editable: display-at-rest → click reveals the inline field; commit fires with the parsed number", async ({ mount, page }) => {
   let committed = -1;
   await mount(
@@ -284,8 +311,10 @@ test("CastCard editable: clicking a field's rest value reveals the editor; onEdi
       }}
     />,
   );
-  await page.getByRole("button", { name: "Trust value" }).click();
-  const field = page.getByRole("textbox", { name: "Trust value" });
+  // The chip's control is named by WHOSE reading it is (side-eye 08-01): two cards on one tab otherwise
+  // offer two identical "Trust value" buttons.
+  await page.getByRole("button", { name: "Sera Trust" }).click();
+  const field = page.getByRole("textbox", { name: "Sera Trust" });
   await field.fill("high");
   await field.blur();
   expect(captured).toEqual(["Trust", "high"]);

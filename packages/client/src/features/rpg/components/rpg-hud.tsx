@@ -207,6 +207,29 @@ const CELL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
   receded: "",
 };
 
+/** THE CROWN INHERITS THE RECEDE (side-eye 08-01). Crown gold marks a host-only cell (§4), but it was
+ *  painted as an absolute `text-highlight` on the glyph — so a RECEDED admin rail's brightest pixel was its
+ *  crown, and the quiet strip announced itself louder than the strip holding the selection. The gold is a
+ *  treatment WITHIN a rail's own voice, so it steps with that voice: full gold while the rail owns, the
+ *  cell's inherited (muted) colour while it recedes. Stated as the same one-map idiom the two ownership
+ *  treatments above use, so the two states can never be tuned apart. */
+const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
+  owning: "text-highlight",
+  receded: "text-inherit",
+};
+
+/** The narrow-panel WRAP (side-eye 08-01, measured at the panel's 17rem/272px floor): six cells on one
+ *  `auto-cols-fr` row give ~44px each, and four of the six captions clipped to ~3 characters — a rail of
+ *  three-letter stubs is the icon-only defect (F6 #2) wearing text. Below the `xs` container step (20rem —
+ *  the SAME `--container-*` scale the waystone's size mapping steps on, never a viewport query) a rail of
+ *  more than four cells lays out as ROWS of three instead, which buys each caption ~85px and keeps every
+ *  word whole. A short rail (the admin rail's 3-4 cells) never wraps: it already fits.
+ *
+ *  The threshold is the `xs` step and not something tighter because the clipping starts THERE, not only at
+ *  the floor: measured in CT at a 320px pane, "Inventory" wants 48px of caption inside a 36px cell. */
+const RAIL_WRAP_CLASS = "@max-xs:grid-flow-row @max-xs:grid-cols-3";
+const RAIL_WRAP_MIN_CELLS = 5;
+
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a
  *  solid frame rather than bitsy buttons bunched left (the 2026-07-28 owner ruling, carried over).
  *
@@ -248,7 +271,10 @@ function RpgHudRail({
         </Row>
       )}
       <Row align="center" gap="row" className="min-w-0">
-        <TabsList aria-label={ariaLabel} className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${track} ${RAIL_OWNERSHIP_CLASSES[ownership]}`}>
+        <TabsList
+          aria-label={ariaLabel}
+          className={`grid min-w-0 w-full auto-cols-fr grid-flow-col gap-field ${tabs.length >= RAIL_WRAP_MIN_CELLS ? RAIL_WRAP_CLASS : ""} ${track} ${RAIL_OWNERSHIP_CLASSES[ownership]}`}
+        >
           {tabs.map((tab) => (
             <RpgHudCell key={tab.id} tab={tab} isActive={tab.id === activeTab} edge={edge} ownership={ownership} />
           ))}
@@ -291,7 +317,8 @@ function RpgHudCell({
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   // CROWN GOLD AT REST (§4): the host-only cells (`preview`, the crown GM console) read as host-only
   // without spending a word on it. AT REST only — once the cell is active the ember state colour is the
-  // answer to "where am I", and a gold glyph inside an ember cell would argue with it.
+  // answer to "where am I", and a gold glyph inside an ember cell would argue with it. And at rest the gold
+  // rides its RAIL'S ownership voice (`CROWN_OWNERSHIP_CLASSES`), so a receded strip's crown recedes with it.
   const crowned = tab.crown && !isActive;
   return (
     <TabsTab
@@ -303,9 +330,9 @@ function RpgHudCell({
       className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}
     >
-      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? "text-highlight" : ""} /> : null}
+      {tab.icon !== undefined ? <Icon icon={tab.icon} size="sm" className={crowned ? CROWN_OWNERSHIP_CLASSES[ownership] : ""} /> : null}
       {/* voice=gloss for the grammar; text-inherit so the cell's own state color (data-active ember) wins. */}
-      <Text as="span" voice="gloss" className="max-w-full truncate text-inherit">
+      <Text as="span" voice="gloss" data-slot="rpg-hud-cell-caption" className="max-w-full truncate text-inherit">
         {tab.label}
       </Text>
       {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} className="absolute right-0 top-0 text-muted-foreground" /> : null}

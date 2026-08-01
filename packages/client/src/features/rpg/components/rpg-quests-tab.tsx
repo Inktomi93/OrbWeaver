@@ -125,7 +125,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
               edit.onAddObjective(quest, trimmed);
             }
           }}
-          className="w-control-col"
+          className="w-(--width-control-col)"
         />
       ) : null}
     </Stack>

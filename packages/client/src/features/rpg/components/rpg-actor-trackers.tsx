@@ -76,9 +76,12 @@ function ActorTrackerMeter({
   readonly ordinal: number;
   readonly edit?: ActorEdit;
 }): ReactElement {
-  const reading = trackerNumber(value) ?? 0;
-  const ceiling = trackerCeiling(def, value);
-  const max = ceiling ?? Math.max(reading, 1);
+  // NULLABLE ALL THE WAY DOWN (side-eye 08-01): a tracker the story has never written has no reading, and
+  // `?? 0` published one — "0/40" beside an empty bar, announced as fact. The row draws the em-dash arm
+  // instead. The CEILING stays whatever the resolver says (`value.max ?? def.max`), null included: a
+  // poolless tracker has no `/max` half rather than a fabricated one.
+  const reading = trackerNumber(value);
+  const max = trackerCeiling(def, value);
   const [note, setNote] = useState<string | null>(null);
   // Clear a stale note when the server value/max changes under us (a fresh render = the drag landed).
   const [seen, setSeen] = useState(`${reading}/${max}`);
@@ -102,10 +105,10 @@ function ActorTrackerMeter({
       label={def.label}
       value={reading}
       max={max}
-      valueWarning={reading > max}
+      valueWarning={reading !== null && max !== null && reading > max}
       {...(def.hint === "" ? {} : { labelTitle: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
-      {...(release === undefined ? {} : { leading: <RpgFieldLock onRelease={release} /> })}
+      {...(release === undefined ? {} : { leading: <RpgFieldLock field={def.label} onRelease={release} /> })}
       {...(edit === undefined
         ? {}
         : {
@@ -198,13 +201,15 @@ export function StatusLine({ status, edit }: { readonly status: string; readonly
       <TrackerValue
         ariaLabel="Status line"
         display={status}
-        placeholder="status…"
+        // No placeholder ⇒ TrackerValue's em dash (side-eye 08-01): the old "status…" sat in the datum slot
+        // and read as a written reading ("the story says: status…"). An unwritten line is a dash, like every
+        // other unset value on the card; the `title` ("Click to edit") carries the affordance.
         tone="muted"
         size="micro"
         onEdit={edit.onEditStatus}
         className="!w-auto min-w-0 max-w-full field-sizing-content"
       />
-      {edit.isLocked(".status") ? <RpgFieldLock onRelease={(): void => edit.onRelease(".status")} /> : null}
+      {edit.isLocked(".status") ? <RpgFieldLock field="the status line" onRelease={(): void => edit.onRelease(".status")} /> : null}
     </Row>
   );
 }
@@ -228,7 +233,9 @@ export function ConditionChips({
   }
   return (
     <Row gap="field" className="flex-wrap" data-slot="rpg-conditions">
-      {edit === undefined || !edit.isLocked(".conditions") ? null : <RpgFieldLock onRelease={(): void => edit.onRelease(".conditions")} />}
+      {edit === undefined || !edit.isLocked(".conditions") ? null : (
+        <RpgFieldLock field="the conditions" onRelease={(): void => edit.onRelease(".conditions")} />
+      )}
       {conditions.map((cond) => (
         <Badge key={cond.name} tone="soft" size="sm" intent="danger">
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
@@ -251,7 +258,7 @@ export function ConditionChips({
               onAdd(trimmed);
             }
           }}
-          className="w-control-col"
+          className="w-(--width-control-col)"
         />
       )}
     </Row>

@@ -101,7 +101,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
               className="!w-auto min-w-0 max-w-full field-sizing-content"
               restClassName="min-w-0 text-highlight"
             />
-            {pinned === undefined || pinned === null ? null : <RpgFieldLock onRelease={(): void => edit.onRelease(pinned)} />}
+            {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
           </Row>
         )}
         {plot.title === "" ? null : (

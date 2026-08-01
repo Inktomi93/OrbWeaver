@@ -380,6 +380,24 @@ stands. On a tall body the ground measures ZERO, so the rail does not move betwe
 **Budget rule:** at the 30rem × 900px docked reference, band + both strips ≤ 30% of the pane height, so
 the viewport always owns the majority of the panel. Asserted as a RATIO in CT, never as px.
 
+**AMENDED 2026-08-01 (side-eye lane B, P1 — the budget is TWO arms, ledger D119a).** The flat ≤30% was
+written, measured and CT-pinned against the AMBIENT-UNSET arm alone (the budget CT stubs `ambientLess`),
+which left the arm a scene-set game actually lands on — the DEFAULT — unguarded at **41.2%**. That arm
+cannot reach 30% without deleting the composite this spec's own §7.3 calls "the signature element … not the
+problem": at the reference the two rails cost 116.4px of the 270px ceiling, leaving 153.6px for a band whose
+floor is ~159px with ZERO satellites (18px padding + the 120px stone row + 8px + the 13px echo). The only
+lever left is stepping the waystone below the size F16 grew it to, which re-breaks the defect that ruling
+fixed. So the law is stated honestly instead of aspirationally:
+
+| arm | ceiling | measured |
+| - | - | - |
+| ambient UNSET (the compressed band, §7.3) | ≤ 30% | 28.7% |
+| ambient SET (the full composite) | ≤ 45% | 41.2% |
+| **both, always** | **< 50% — the viewport owns the majority** | 41.2% worst |
+
+The invariant that survives both arms is the one the rule was FOR: the body is never the minority tenant of
+its own pane. Each arm has its own computed-value CT (§10.8).
+
 ### 7.2 Strip form
 
 - Every cell: glyph + caption, always both. The caption is the accessible name AND visible (this deletes
@@ -529,7 +547,9 @@ before the stage closes.
    SHORT body AND on a TALL one (pinned, no layout jump between them) and the viewport scrolls; the band's
    ember edge sits at the pane's row 0, full-bleed; a stacked cell's box holds glyph over caption (the
    children measured against their own line-box/aspect — a crushed cell does not overflow); band + strips
-   ≤ 30% of region height. All ratios/relations against resolved token values, never hardcoded px.
+   within the §7.1 budget — BOTH arms (ambient-unset ≤ 30%, ambient-SET ≤ 45%, < 50% either way; the
+   2026-08-01 amendment — the set arm was the unpinned default). All ratios/relations against resolved
+   token values, never hardcoded px.
 9. a11y: two tab groups with their labels ("Game state" / "Chat" — the game rail's name may not collide
    with the admin rail's crown "Game" TAB), arrow-key roving focus inside each, the active tabpanel named
    by its cell (`aria-labelledby`), the PHASE-locked Map cell reachable and activatable from BOTH mouse and
