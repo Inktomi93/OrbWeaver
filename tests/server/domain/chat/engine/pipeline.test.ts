@@ -1621,17 +1621,29 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.terminalToolCalls).toBeNull();
   });
 
-  test("the STATEFUL agent-sdk wire cannot carry terminal tools — dropped, NULL channel (no MCP mount)", async () => {
+  test("the STATEFUL agent-sdk wire carries them on ITS OWN field — same declarations, one call, a LIVE channel", async () => {
+    // The wire cannot read an OpenAI `tools[]`, so the SAME `WireTool[]` rides `agentTerminalTools` and its
+    // backend mounts them as a deny-on-use MCP server. Eligibility is a CAPABILITY question (this connection
+    // co-emits), never a wire one — the fold must NOT be pushed onto its fallback round here.
     const requests: TurnRequest[] = [];
     const { args } = baseArgs({
       connection: { ...TOOL_CONNECTION, api: "agent-sdk" },
       terminalTools: RPG_TERMINAL_TOOLS,
-      runChatTurn: scriptedDepths([[doneFinal("hi")]], requests),
+      runChatTurn: scriptedDepths(
+        [[toolFinal("She draws her blade and steps into the rain.", [{ id: "c1", name: "update_scene", args: '{"weather":"rain"}' }])]],
+        requests,
+      ),
     });
     const result = await runTurnPipeline(args);
+    expect(requests).toHaveLength(1); // one model call — the fallback round is deleted on this wire too
+    expect(requests[0]?.agentTerminalTools?.map((t) => t.name)).toEqual(["update_scene", "no_changes"]);
+    // No array-wire spill: `tools`/`toolChoice` stay absent (the SDK owns the body and would ignore them), and
+    // nothing was resolved into a registry tool server.
     expect(requests[0]?.tools).toBeUndefined();
+    expect(requests[0]?.toolChoice).toBeUndefined();
     expect(requests[0]?.agentToolServer).toBeUndefined();
-    expect(result.terminalToolCalls).toBeNull();
+    expect(result.terminalToolCalls?.map((c) => c.name)).toEqual(["update_scene"]);
+    expect(result.toolRecords).toEqual([]);
   });
 
   test("a wire that SILENCES prose under tool attachment gets none — the narrative call is tool-less (D112 fold guard)", async () => {

@@ -95,8 +95,8 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
 
 /** THE DELIVERY FORK (R1). `folded` mode takes the character turn's OWN co-emitted tool calls and folds them
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
- *  terminal tools at all, or whose wire would go MUTE if they rode (`terminalToolCalls === null`: the stateful
- *  agent-sdk wire, a tools-incapable model, or the fold-guarded local engine) — runs its dedicated post-commit
+ *  terminal tools at all, or whose wire would go MUTE if they rode (`terminalToolCalls === null`: a
+ *  tools-incapable model, an unbuildable mount, or the fold-guarded local engine) — runs its dedicated post-commit
  *  round exactly as before. An EMPTY call array is NOT a fallback: the fold ran and the model recorded nothing,
  *  which is a legitimate quiet beat the fold op logs as such.
  *

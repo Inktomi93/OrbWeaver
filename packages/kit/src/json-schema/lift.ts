@@ -23,6 +23,11 @@ export const LIFTABLE_JSON_SCHEMA = {
   types: ["object", "array", "string", "number", "integer", "boolean"],
   /** Keywords honored on ANY node. */
   common: ["type", "description", "enum", "const"],
+  /** The COMPOSITE keyword: a `type`-less node that is a UNION of member schemas, each lifted exactly
+   *  (`z.union`). It is exactly what `projectJsonSchema` emits for a zod union, so it round-trips. It stands
+   *  ALONE (any sibling but `description` is refused) and needs ≥2 members — a 1-member `anyOf` is degenerate
+   *  and the projection never emits one, so conservative-or-refuse rejects it rather than guessing. */
+  union: ["anyOf"],
   /** Per-type constraint keywords honored. */
   object: ["properties", "required", "additionalProperties"],
   string: ["minLength", "maxLength", "pattern"],
@@ -38,7 +43,7 @@ export class JsonSchemaLiftError extends Error {
   public readonly path: string;
   constructor(construct: string, path: string, options?: { readonly cause?: unknown }) {
     super(
-      `unsupported JSON Schema construct "${construct}" at ${path} — the liftable subset is object/array/string/number/integer/boolean with the documented per-type keywords (LIFTABLE_JSON_SCHEMA)`,
+      `unsupported JSON Schema construct "${construct}" at ${path} — the liftable subset is object/array/string/number/integer/boolean (plus a type-less \`anyOf\` union) with the documented per-type keywords (LIFTABLE_JSON_SCHEMA)`,
       options,
     );
     this.construct = construct;
@@ -146,6 +151,31 @@ function liftConst(value: unknown, path: string): z.ZodType {
   throw new JsonSchemaLiftError("const (non-primitive)", path);
 }
 
+/** The only keys legal beside `anyOf` — the union node carries no `type` and no per-type constraints. */
+const UNION_KEYS: ReadonlySet<string> = new Set<string>([...LIFTABLE_JSON_SCHEMA.union, "description"]);
+
+/** Lift a `type`-less `anyOf` node into `z.union`. Each member is lifted through the SAME recursion (so an
+ *  unsupported construct inside a member still refuses), and a sibling keyword is refused rather than ignored. */
+function liftUnion(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
+  for (const key of Object.keys(node)) {
+    if (!UNION_KEYS.has(key)) {
+      throw new JsonSchemaLiftError(key, path);
+    }
+  }
+  const members = node["anyOf"];
+  if (!Array.isArray(members) || members.length < 2) {
+    throw new JsonSchemaLiftError("anyOf (fewer than two members)", path);
+  }
+  const lifted = members.map((member, index) => {
+    const memberPath = `${path}/anyOf/${index}`;
+    if (!isRecord(member)) {
+      throw new JsonSchemaLiftError("anyOf (non-object member)", memberPath);
+    }
+    return liftNode(member, memberPath, depth + 1);
+  });
+  return z.union(lifted);
+}
+
 function liftArray(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
   const items = node["items"];
   if (items === undefined) {
@@ -194,12 +224,17 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
   return z.object(shape);
 }
 
-/** Lift one JSON Schema node into zod. A node with no `type` but an `enum`/`const` lifts by those; otherwise a
- *  missing/unknown `type` is refused. */
+/** Lift one JSON Schema node into zod. A node with no `type` but an `anyOf`/`enum`/`const` lifts by those;
+ *  otherwise a missing/unknown `type` is refused. */
 function liftNode(node: Record<string, unknown>, path: string, depth: number): z.ZodType {
   // Refuse an over-deep guest schema with a TYPED error BEFORE the recursion blows the host V8 stack (INFO-3).
   if (depth > MAX_LIFT_DEPTH) {
     throw new JsonSchemaLiftError("max-depth-exceeded", path);
+  }
+  // `anyOf` is checked FIRST and stands alone: a node carrying it plus a `type`/constraint is ambiguous, and
+  // refusing beats silently honoring one half of it.
+  if ("anyOf" in node) {
+    return liftUnion(node, path, depth);
   }
   if ("const" in node) {
     // const stands alone; reject any sibling constraint to avoid a silent-ignored keyword.

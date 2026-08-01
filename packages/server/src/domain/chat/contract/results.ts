@@ -141,6 +141,11 @@ export interface TurnRequest {
   /** The stateful arm's tool-loop round ceiling (mirrors `toolRecurseLimit`; the SDK owns the loop).
    *  Present only alongside `agentToolServer`. */
   readonly agentToolTurnLimit?: number | undefined;
+  /** The STATEFUL arm's TERMINAL tools (D112 R1) — the same declarations the array wires carry in `tools` with
+   *  `toolChoice:"auto"`; only the DELIVERY differs (the SDK reads no tools array, so its backend mounts them as
+   *  a deny-on-use MCP server). Set by the same request-builder gate, which picks the field by wire and never by
+   *  eligibility: a wire that cannot co-emit gets NEITHER. Absent on every other turn. */
+  readonly agentTerminalTools?: readonly WireTool[] | undefined;
   /** The structured-output request for this turn (D79) — set by the request-builder gate only when the model
    *  supports it; the runChatTurn translator maps it onto the wire arm's `responseFormat`. */
   readonly responseFormat?: ResponseFormat | undefined;

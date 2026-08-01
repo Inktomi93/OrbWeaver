@@ -23,6 +23,11 @@ const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTri
 /** The in-process MCP server namespace — the ONE name both the agent runner's `mcpServers` mount and the
  *  chat runner's tool mount key on (`allowedTools: mcp__<ns>__*`). */
 export const MCP_NAMESPACE = "orbweaver";
+/** The TERMINAL-tool mount's own MCP namespace (D112 R1) — deliberately NOT {@link MCP_NAMESPACE}: the
+ *  registry mount is allow-listed (`mcp__orbweaver__*`, the SDK executes it), while a terminal tool must be
+ *  DENIED at the permission seam so it never executes and never earns a second model call. One namespace per
+ *  fate keeps the allowlist, the deny hook, and the capture filter reading the same name. */
+export const TERMINAL_MCP_NAMESPACE = "orbstate";
 const PCT_SCALE = 100;
 
 // Env-free discipline shape shared by disciplineOptions and the mode-1 model-discovery spawn (catalog.ts).

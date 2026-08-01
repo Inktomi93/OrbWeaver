@@ -58,6 +58,34 @@ test("round-trip: a const literal survives", () => {
   expect(roundTrip(input)).toEqual(input);
 });
 
+test("round-trip: a type-less anyOf union survives (the shape a zod union projects to)", () => {
+  // The construct the rpg state tools actually carry (`trackerSets[].value`: a number-or-string cell) — the
+  // agent-sdk terminal mount lifts these schemas back to zod to DECLARE them, so a refusal here would cost the
+  // whole D112 fold on that wire.
+  const input = {
+    type: "object",
+    properties: { value: { anyOf: [{ type: "number" }, { type: "string" }] } },
+    required: ["value"],
+    additionalProperties: false,
+  };
+  expect(roundTrip(input)).toEqual(input);
+});
+
+test("trust boundary: a lifted union accepts ONLY its member types", () => {
+  const lifted = liftJsonSchema({
+    type: "object",
+    properties: { value: { anyOf: [{ type: "number" }, { type: "string", minLength: 2 }] } },
+    required: ["value"],
+    additionalProperties: false,
+  });
+  expect(lifted.safeParse({ value: 3 }).success).toBe(true);
+  expect(lifted.safeParse({ value: "ok" }).success).toBe(true);
+  // A member's OWN constraint still bites inside the union.
+  expect(lifted.safeParse({ value: "x" }).success).toBe(false);
+  // A type outside every member is refused.
+  expect(lifted.safeParse({ value: true }).success).toBe(false);
+});
+
 test("trust boundary: the lifted zod ENFORCES the guest constraints (accept valid, reject over-permitted)", () => {
   const lifted = liftJsonSchema({
     type: "object",
@@ -92,7 +120,9 @@ test("trust boundary: the lifted zod ENFORCES the guest constraints (accept vali
 // CONSERVATIVE-OR-REFUSE: each unsupported construct is a typed refusal citing the construct — never a lift.
 const REFUSALS: ReadonlyArray<{ readonly why: string; readonly schema: Record<string, unknown> }> = [
   { why: "non-object root", schema: { type: "string" } },
-  { why: "anyOf combinator", schema: { type: "object", properties: { x: { anyOf: [{ type: "string" }, { type: "number" }] } } } },
+  { why: "anyOf with a sibling type (ambiguous)", schema: { type: "object", properties: { x: { type: "string", anyOf: [{ type: "string" }] } } } },
+  { why: "anyOf with one member (degenerate)", schema: { type: "object", properties: { x: { anyOf: [{ type: "string" }] } } } },
+  { why: "anyOf carrying an unsupported member", schema: { type: "object", properties: { x: { anyOf: [{ type: "string" }, { type: "null" }] } } } },
   { why: "$ref", schema: { type: "object", properties: { x: { $ref: "#/$defs/Foo" } } } },
   { why: "oneOf", schema: { type: "object", properties: { x: { oneOf: [{ type: "string" }] } } } },
   { why: "allOf", schema: { type: "object", properties: { x: { allOf: [{ type: "string" }] } } } },
