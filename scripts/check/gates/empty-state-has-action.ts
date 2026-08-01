@@ -20,6 +20,10 @@ const ALLOWLIST: Record<string, string> = {
     'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
     "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
     "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
+  "packages/client/src/features/world-info/components/world-info-welcome.tsx":
+    "the World Info CONTENT teaching state — the exact twin of preset-library-welcome.tsx above: the " +
+    "sibling LIST (on screen whenever this is) carries both the band's New primary and its own empty-state " +
+    "CTA, so a third create button in the middle of CONTENT was the third simultaneous home for one verb.",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
     'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
   "packages/client/src/features/chat/components/member-card-viewer.tsx":
