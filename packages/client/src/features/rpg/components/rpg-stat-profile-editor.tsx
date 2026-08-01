@@ -27,7 +27,7 @@ import { Kicker } from "./rpg-kicker";
 
 /** The def-row surface — one bordered instrument row per definition, shared with the tracker rows so the
  *  console reads as ONE list grammar. */
-export const DEF_ROW_CLASS = "rounded-card border border-border bg-card px-block py-row";
+export const DEF_ROW_CLASS = "rounded-base border border-border bg-card px-block py-row";
 
 /** One attribute's row: rename · its minted key · remove, over the steering hint. */
 function AttributeRow({
@@ -80,7 +80,7 @@ function AttributeRow({
 function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; readonly onCommit: (next: RpgStatProfile) => void }): ReactElement {
   return (
     <Row gap="field" align="center">
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         Values run
       </Text>
       <TrackerValue
@@ -96,7 +96,7 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
         className="!w-avatar-lg px-field text-right tabular-nums"
         restClassName="tabular-nums"
       />
-      <Text as="span" size="micro" tone="muted" aria-hidden={true}>
+      <Text as="span" voice="gloss" aria-hidden={true}>
         –
       </Text>
       <TrackerValue
@@ -112,7 +112,7 @@ function RangeRow({ profile, onCommit }: { readonly profile: RpgStatProfile; rea
         className="!w-avatar-lg px-field text-right tabular-nums"
         restClassName="tabular-nums"
       />
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         on every sheet
       </Text>
     </Row>

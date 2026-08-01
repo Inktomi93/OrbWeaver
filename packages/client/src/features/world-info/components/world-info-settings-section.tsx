@@ -41,7 +41,7 @@ const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unk
 export function WorldInfoSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your world-info settings…</Text>}
+      fallback={<Text voice="gloss">Loading your world-info settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world-info settings" onRetry={retry} />}
     >
       <WorldInfoSettingsFormBody sectionId={sectionId} />

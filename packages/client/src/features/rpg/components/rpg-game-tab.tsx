@@ -95,7 +95,7 @@ function TrackerRow({
         />
         {def.shape === "meter" ? (
           <Row gap="field" align="baseline" className="shrink-0">
-            <Text as="span" size="micro" tone="muted">
+            <Text as="span" voice="gloss">
               default max
             </Text>
             <TrackerValue
@@ -203,7 +203,7 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
   return (
     <Stack gap="field" data-slot="rpg-trackers-editor">
       <Kicker>Trackers</Kicker>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         A tracker is one labelled value the story keeps — on the roster, on the scene's characters, or on the game itself. Defined once here; read and edited on
         the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
@@ -280,7 +280,7 @@ function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; r
       hints={config.journalTypeHints}
       onCommit={(next): void => updateConfig.mutate({ chatId, patch: { journalTypeHints: next } })}
     >
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         A beat the story records as your own type carries only its bare label unless you say what it means. The gloss rides the same instruction that teaches
         the built-in types.
       </Text>
@@ -299,7 +299,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   return (
     <Stack gap="field">
       <Kicker>Resync from story</Kicker>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         Re-reads the recent story and rebuilds the tracked panel — the escape hatch when the state has drifted. Runs one model call (a few seconds); your
         hand-locked fields are never overwritten.
       </Text>
@@ -321,7 +321,7 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
     <Stack gap="section" data-slot="rpg-game-tab">
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" className="text-highlight" />
-        <Text size="micro" transform="caps" weight="semibold" className="tracking-micro text-highlight">
+        <Text voice="kicker" className="tracking-micro text-highlight">
           GM console — host only
         </Text>
       </Row>
@@ -352,7 +352,7 @@ export interface RpgGameTabProps {
 export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading the console…</Text>}
+      fallback={<Text voice="gloss">Loading the console…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the GM console" onRetry={retry} />}
     >
       <GmConsole state={state} />

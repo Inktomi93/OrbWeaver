@@ -78,7 +78,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       >
         {initialsFor(row.displayName)}
       </Avatar>
-      <Text as="span" size="label" weight="medium" tone={row.kind === "cast" && row.disabled ? "muted" : undefined} className="min-w-0 truncate">
+      <Text as="span" voice="label" className={row.kind === "cast" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
         {row.displayName}
         {row.kind === "person" && row.handle !== null ? ` · ${row.handle}` : ""}
       </Text>
@@ -86,7 +86,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       {responding ? (
         <>
           {/* Visual mark aria-hidden; the state rides the accessible DESCRIPTION (no aria-live). */}
-          <Text as="span" size="micro" tone="muted" aria-hidden={true} className="animate-pulse">
+          <Text as="span" voice="gloss" aria-hidden={true} className="animate-pulse">
             responding…
           </Text>
           <Text as="span" id={descriptionId} className="sr-only">

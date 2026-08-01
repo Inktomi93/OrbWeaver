@@ -17,11 +17,7 @@ import type { ReactElement, ReactNode } from "react";
 /** The instrument's section voice (the mock's `.kicker`): micro-caps, muted — a panel-width heading, never the
  *  `Section` default title size, which at the 17rem floor shouts louder than the data it labels. */
 function Kicker({ children }: { readonly children: ReactNode }): ReactElement {
-  return (
-    <Text size="micro" tone="muted" transform="caps" weight="semibold">
-      {children}
-    </Text>
-  );
+  return <Text voice="kicker">{children}</Text>;
 }
 
 export function AssemblyPreviewDiagnostics({
@@ -36,9 +32,7 @@ export function AssemblyPreviewDiagnostics({
   return (
     <Collapsible>
       <CollapsibleTrigger className="w-full">
-        <Text size="label" tone="muted">
-          Diagnostics
-        </Text>
+        <Text voice="label">Diagnostics</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="section">
@@ -48,11 +42,11 @@ export function AssemblyPreviewDiagnostics({
               <Stack gap="row">
                 {injections.map((injection, index) => (
                   <Text
+                    voice="datum"
                     // The afterHistory entries are positional + contentful, with no stable id on the wire;
                     // the index is the stable key within one immutable preview render.
                     // biome-ignore lint/suspicious/noArrayIndexKey: afterHistory entries are positional + id-less; the index is stable within one immutable preview render.
                     key={index}
-                    size="code"
                     className="whitespace-pre-wrap"
                   >
                     [{injection.role} @ depth {injection.depth}] {injection.content}
@@ -90,10 +84,8 @@ function OverrideSources({ sources }: { readonly sources: AssembleTrace["overrid
       <Stack gap="field">
         {present.map((row) => (
           <Row key={row.label} gap="block" justify="between" align="center">
-            <Text size="label" tone="muted">
-              {row.label}
-            </Text>
-            <Text size="label">{row.source}</Text>
+            <Text voice="label">{row.label}</Text>
+            <Text voice="datum">{row.source}</Text>
           </Row>
         ))}
       </Stack>
@@ -140,15 +132,13 @@ function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["
   return (
     <Section heading={<Kicker>{`World info — ${activated.length} activated`}</Kicker>}>
       {activated.length === 0 ? (
-        <Text tone="muted">No world-info entries activated.</Text>
+        <Text>No world-info entries activated.</Text>
       ) : (
         <Stack gap="field">
           {activated.map((entry) => (
             <Row key={entry.id} gap="block" justify="between" align="center">
-              <Text size="label">{entry.id}</Text>
-              <Text size="label" tone="muted">
-                {entry.keys.length === 0 ? "always" : entry.keys.join(", ")}
-              </Text>
+              <Text voice="datum">{entry.id}</Text>
+              <Text voice="gloss">{entry.keys.length === 0 ? "always" : entry.keys.join(", ")}</Text>
             </Row>
           ))}
         </Stack>
@@ -177,9 +167,7 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
   return (
     <Section heading={<Kicker>Shape (wire history)</Kicker>}>
       <Stack gap="field">
-        <Text size="micro" tone="muted">
-          How the canon shaped into the next turn's wire history — row counts only, no content.
-        </Text>
+        <Text voice="gloss">How the canon shaped into the next turn's wire history — row counts only, no content.</Text>
         <TraceLine label="Stages (tail → inject → squash → name)" value={`${withTail} → ${injected} → ${squashed} → ${named}`} />
         <TraceLine label="Same-role merges" value={String(trace.squashMerges)} />
         <TraceLine label="Cache breakpoint" value={breakpoint} />
@@ -196,11 +184,11 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
 function TraceLine({ label, value }: { readonly label: string; readonly value: ReactNode }): ReactElement {
   return (
     <Row gap="block" justify="between" align="start">
-      <Text className="shrink-0" size="label" tone="muted">
+      <Text className="shrink-0" voice="label">
         {label}
       </Text>
       {/* A section list / key list can be long — wrap it inside the panel rather than overflow its edge. */}
-      <Text className="min-w-0 text-end break-words" size="label">
+      <Text className="min-w-0 text-end break-words" voice="datum">
         {value}
       </Text>
     </Row>

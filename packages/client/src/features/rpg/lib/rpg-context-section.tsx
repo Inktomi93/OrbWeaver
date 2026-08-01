@@ -59,7 +59,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     (s: ChatContextState): ReactNode =>
       isGameChat(s) ? (
         <QueryBoundary
-          fallback={<Text tone="muted">{`Loading ${label.toLowerCase()}…`}</Text>}
+          fallback={<Text voice="gloss">{`Loading ${label.toLowerCase()}…`}</Text>}
           // The ONE consolidated, ANNOUNCED error surface (FIX 3): the game-tab body owns it; the header BAND
           // collapses to nothing on error (below) so a failed read is a single `role="alert"` region, never two
           // fragmented unannounced blocks. Scene-named copy + a ≥44px Retry live in `RpgErrorState`. A NOT_FOUND
@@ -154,7 +154,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
         }
         return (
           <QueryBoundary
-            fallback={<Text tone="muted">Loading…</Text>}
+            fallback={<Text voice="gloss">Loading…</Text>}
             // The Game-DOOR boundary (host-committed, non-game / paused chat). A host reaches it, so a dangling
             // pointer here surfaces the host detach heal exactly like the tab bodies (§3.3).
             renderError={(error, retry): ReactElement => <RpgErrorState chatId={s.chatId} isHost={true} error={error} onRetry={retry} />}

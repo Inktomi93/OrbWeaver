@@ -184,7 +184,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
           {showPeople ? (
             <Stack gap="row" data-slot="members-people">
               <Row gap="field" align="center" justify="between">
-                <Text as="span" size="micro" tone="muted" transform="caps">
+                <Text as="span" voice="kicker">
                   People
                 </Text>
                 {onInvitePeople === undefined ? null : (
@@ -194,13 +194,13 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                   </Button>
                 )}
               </Row>
-              {people.length === 0 ? <Text tone="muted">No one else is here yet — share an invite.</Text> : people.map(rowProps)}
+              {people.length === 0 ? <Text>No one else is here yet — share an invite.</Text> : people.map(rowProps)}
             </Stack>
           ) : null}
 
           {cast.length > 0 ? (
             <Stack gap="row" data-slot="members-cast">
-              <Text as="span" size="micro" tone="muted" transform="caps">
+              <Text as="span" voice="kicker">
                 Cast
               </Text>
               {cast.map(rowProps)}
