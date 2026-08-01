@@ -20,10 +20,21 @@ import type { ReactElement } from "react";
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider } from "#data";
-import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
+import {
+  appearanceBackgroundSection,
+  appearanceEffectsSection,
+  appearanceReadingSection,
+  appearanceSizingSection,
+  contextToggleChrome,
+  fullscreenChrome,
+  youModal,
+} from "#features/app-shell";
 import { accountModal } from "#features/auth";
 import { characterSlashCommands, librarySettingsSection, makeCharactersSection } from "#features/character";
 import {
+  appearanceAvatarsSection,
+  appearanceMessageDetailsSection,
+  appearanceMessageStyleSection,
   ChatsWithCharacterPane,
   chatOptionsChrome,
   chatQuickPicksTile,
@@ -236,7 +247,17 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   systemTuningSection,
   // workloads ← the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction).
   workloadsTuningSection,
-  // appearance ← the library-list page size, owned by the feature that READS it (character).
+  // appearance ← the DECOMPOSED appearance pane (SET-SEAMS stage 1). Order here IS render order down the
+  // pane, and it reproduces the pre-split pane exactly. Each section is owned by the feature that READS its
+  // knobs (§6): chat renders the message chrome, app-shell paints sizing/reading/effects/background, and
+  // character reads the library page size.
+  appearanceMessageStyleSection,
+  appearanceAvatarsSection,
+  appearanceSizingSection,
+  appearanceMessageDetailsSection,
+  appearanceBackgroundSection,
+  appearanceReadingSection,
+  appearanceEffectsSection,
   librarySettingsSection,
 ]);
 

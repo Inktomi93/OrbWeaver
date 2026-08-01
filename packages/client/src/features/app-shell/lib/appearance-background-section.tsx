@@ -1,0 +1,17 @@
+// The Background appearance settings-SECTION CONTRIBUTION (SET-SEAMS stage 1) — the co-located definition
+// app-shell exports on its front door; the composition root assembles it into the ONE settings-section
+// registry and the appearance skimmer pane renders it at its anchor.
+
+import type { SettingsSectionContribution } from "#state";
+import { AppearanceBackgroundSection } from "../components/appearance-background-section";
+import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "./appearance-background-model";
+
+const SECTION_ID = "appearance-background";
+
+export const appearanceBackgroundSection: SettingsSectionContribution = {
+  id: SECTION_ID,
+  anchor: "appearance",
+  nav: APPEARANCE_BACKGROUND_SUBCATEGORY,
+  owns: { tier: "user", section: "appearance", keys: APPEARANCE_BACKGROUND_KEYS },
+  body: () => <AppearanceBackgroundSection sectionId={SECTION_ID} />,
+};

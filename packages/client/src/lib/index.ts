@@ -63,6 +63,7 @@ export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trus
 export { resolveRowRenderPolicy } from "./render-trust";
 export { rowQualifiers } from "./row-qualifiers";
 export { TEST_IDS, testId } from "./test-ids";
+export { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "./theme-appearance-items";
 export type { ThemeColorFields } from "./theme-override-form";
 export { assignThemeColorFields } from "./theme-override-form";
 export { timeLib } from "./time";

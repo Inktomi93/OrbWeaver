@@ -87,6 +87,9 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
+import { AppearanceAvatarsSection } from "../../../../packages/client/src/features/chat/components/appearance-avatars-section";
+import { AppearanceMessageDetailsSection } from "../../../../packages/client/src/features/chat/components/appearance-message-details-section";
+import { AppearanceMessageStyleSection } from "../../../../packages/client/src/features/chat/components/appearance-message-style-section";
 import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/chat/components/assembly-preview-panel";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
@@ -1988,6 +1991,59 @@ export function MacroPicksSectionStory(): ReactElement {
         >
           <MacroPicksSection chatId={CHAT_ID} />
         </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── The three CHAT-owned appearance SECTIONS (SET-SEAMS stage 1) ──────────────────────────────────
+// Each is a self-owned settings section at the `appearance` anchor: its own cache-first read, its own
+// autosave form session and its own KEY-MINIMAL `updateUserSettingsSection("appearance")` write. Mounted
+// bare (no `SaveStatusHostContext`) so the DEGRADED save-status arm renders inline — the pane-level story
+// in the settings module drives the hosted arm.
+
+/** The Message-style appearance section — `getUserSettings` + the appearance section-patch are stubbed
+ *  per-test via routeTrpc. */
+export function AppearanceMessageStyleSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceMessageStyleSection sectionId="appearance-message-style" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Message-style section at a NARROW container width (a phone-width settings modal) — proves the
+ *  horizontal row grammar's fixed ~200px control column can't starve the label block to 0 (the Wave-1
+ *  in-flow-squeeze class); it stacks the row so the label keeps full width. */
+export function AppearanceMessageStyleNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 300, padding: 16 }}>
+        <AppearanceMessageStyleSection sectionId="appearance-message-style" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Avatars appearance section. */
+export function AppearanceAvatarsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceAvatarsSection sectionId="appearance-avatars" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Message details & actions appearance section. */
+export function AppearanceMessageDetailsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceMessageDetailsSection sectionId="appearance-message-details" />
       </div>
     </CtDataProviders>
   );

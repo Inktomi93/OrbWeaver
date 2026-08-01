@@ -27,6 +27,10 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section";
+import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section";
+import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section";
+import { AppearanceSizingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-sizing-section";
 import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
@@ -498,6 +502,58 @@ export function ContextRegionHeaderStory(): ReactElement {
     <CtDataProviders>
       <div data-testid="band-slot">
         <SectionContextHeader definition={CLAIMED_SECTION} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── The four APP-SHELL-owned appearance SECTIONS (SET-SEAMS stage 1) ──────────────────────────────
+// app-shell PAINTS these knobs (the shell scope tokens, the content-width clamp, `data-elevation`/
+// `data-reduced-motion`, the reading scope, the glass/texture effects, the background layers), so under §6
+// it owns their editors. Each is self-owned: its own cache-first read, its own autosave session and its own
+// KEY-MINIMAL `updateUserSettingsSection("appearance")` write. Mounted bare (no `SaveStatusHostContext`) so
+// the DEGRADED save-status arm renders inline.
+
+/** The Sizing & motion appearance section — `getUserSettings` + the appearance section-patch stubbed
+ *  per-test via routeTrpc. */
+export function AppearanceSizingSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceSizingSection sectionId="appearance-sizing" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Reading typography appearance section. */
+export function AppearanceReadingSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceReadingSection sectionId="appearance-reading" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Effects appearance section. */
+export function AppearanceEffectsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceEffectsSection sectionId="appearance-effects" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Background appearance section. */
+export function AppearanceBackgroundSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720, padding: 16 }}>
+        <AppearanceBackgroundSection sectionId="appearance-background" />
       </div>
     </CtDataProviders>
   );
