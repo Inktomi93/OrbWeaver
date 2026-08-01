@@ -116,11 +116,12 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
     },
     {
-      // The ONE PHASE-locked tab (panel-redesign §4 "Map"): visible, aria-disabled with its reason on
-      // title + a lock glyph (the strip's disabledReason mechanics) — the promise visible, the gate
-      // honest. RV-7: the tab is `aria-disabled`, NOT `disabled` (so its reason stays keyboard-reachable),
-      // which means it still opens — and an opened tab that renders NOTHING reads as a broken panel. The
-      // body is the coming-soon presentation the mock drew (`map.html`); MA-3 replaces it with the region map.
+      // The ONE PHASE-locked tab (panel-redesign §4 "Map"): visible, wearing a lock glyph with its reason
+      // on `title` — the promise visible, the gate honest. RV-7: it OPENS, onto the coming-soon body the
+      // mock drew (`map.html`); MA-3 replaces that with the region map. Because it opens for every input,
+      // the HUD's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable" over
+      // a tab that Enter and a click both open is two stories) — `disabledReason` is the LOCK's reason here,
+      // and the cell decides how to wear it.
       id: "rpg.map",
       label: "Map",
       icon: MapIcon,

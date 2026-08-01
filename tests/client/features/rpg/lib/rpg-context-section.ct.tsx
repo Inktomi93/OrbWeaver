@@ -16,6 +16,10 @@ import { RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
 
+/** "a `title` with any content at all" — hoisted (a regex literal in a test body is a per-call recompile,
+ *  `useTopLevelRegex`) and used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
+const ANY_TITLE = /./;
+
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
 function gameChat(): unknown {
   return {
@@ -274,13 +278,14 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
   // The redesign's top strip (panel-redesign §4) as the tracked-field unification §3 left it: 5 live game
   // tabs — Quests + Journal are LIVE lite tabs (the owner correction), and SHEET IS GONE (the sheet is a
   // STATE of Status now: expanding a roster entry IS the sheet).
-  const gameStrip = component.getByRole("tablist", { name: "Game" });
+  const gameStrip = component.getByRole("tablist", { name: "Game state" });
   await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("tab", { name: label })).toBeVisible()));
   await expect(gameStrip.getByRole("tab", { name: "Sheet" })).toHaveCount(0);
-  // Map is the ONE PHASE-locked tab: visible + aria-disabled with its reason on title (never hidden).
+  // Map is the ONE PHASE-locked tab: visible, wearing the lock + its reason on `title` (never hidden, and
+  // never `aria-disabled` — see the RV-7 CT: it opens onto the body that states when maps arrive).
   const mapTab = gameStrip.getByRole("tab", { name: "Map" });
   await expect(mapTab).toBeVisible();
-  await expect(mapTab).toHaveAttribute("aria-disabled", "true");
+  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("tablist", { name: "Chat" });
@@ -1103,22 +1108,33 @@ test.describe("the takeover at mobile width", () => {
   });
 });
 
-// RV-7 — the PHASE-locked Map is `aria-disabled` (its reason stays keyboard-reachable), which means it still
-// OPENS. It used to open onto nothing; now it states the promise.
-test("RV-7: the locked Map tab opens onto a real coming-soon presentation, not a blank viewport", async ({ mount, page }) => {
+// RV-7 — the PHASE-locked Map OPENS onto the body that states the promise (it used to open onto nothing).
+// The 2026-08-01 side-eye found the two input paths DISAGREEING about that: the cell was `aria-disabled`
+// (so AT announced "unavailable" and Playwright's actionability refused the click) while Enter opened it
+// anyway. One story now — a real tab wearing a lock — so BOTH paths are driven here, plus the SR contract:
+// the reason is the cell's accessible DESCRIPTION (`title` beside an `aria-label`), not a mouse-only tooltip.
+test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mouse and the keyboard", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
-  // The tab is `aria-disabled`, NOT `disabled` — a deliberate PHASE choice (the reason must stay reachable).
-  // Playwright's actionability treats `aria-disabled` as un-clickable where the browser does not, so the drive
-  // here is the KEYBOARD path the choice exists to preserve: focus the tab, press Enter, read the viewport.
-  const mapTab = component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Map" });
-  await mapTab.focus();
-  await page.keyboard.press("Enter");
+  const mapTab = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Map" });
+  // NOT aria-disabled: the lock is a glyph + a reason, not a refusal the tab does not honour.
+  await expect(mapTab).not.toHaveAttribute("aria-disabled", "true");
+  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+
+  // MOUSE — a plain click (Playwright would refuse this outright on an aria-disabled control).
+  await mapTab.click();
   const map = component.locator('[data-slot="rpg-map-tab"]');
   await expect(map).toBeVisible();
   await expect(map).toContainText("Maps unlock with the map arc");
   await expect(map).toContainText("arrives with MA-3");
+
+  // KEYBOARD — leave and come back with Enter, so the path is proven independently of the click above.
+  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" }).click();
+  await expect(map).toBeHidden();
+  await mapTab.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.locator('[data-slot="rpg-map-tab"]')).toBeVisible();
 });
 
 // RV-4 / RV-12 — the stat profile was a READ-ONLY badge row: a game shipped with six d20 attributes or none,
@@ -1224,9 +1240,12 @@ test("the pack GRID tile carries the ×N and the location, at a density SHORTER 
 
   // GEOMETRY (the density change, asserted — not eyeballed): a single-line tile is SHORTER than the 3.5rem
   // square it replaced, and no tile overflows its track (a model-authored name wraps, it never spills).
-  const rope = cells.filter({ hasText: "Rope, 30 ft" });
-  const ropeBox = await rope.boundingBox();
-  expect(ropeBox?.height ?? 0).toBeLessThan(56);
+  // "Torch", not "Rope, 30 ft": since the story mounts the REAL `.shell-panel-body` box (2026-08-01), the
+  // content width is the panel's true one and the longer name legitimately wraps to two lines — which is
+  // the wrap rule below, not a density regression. The single-line claim needs a single-line name.
+  const torch = cells.filter({ hasText: "Torch" });
+  const torchBox = await torch.boundingBox();
+  expect(torchBox?.height ?? 0).toBeLessThan(56);
   const overflow = await cells.evaluateAll((els) => els.map((el) => el.scrollWidth - el.clientWidth));
   expect(Math.max(...overflow)).toBeLessThanOrEqual(0);
   await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-grid-after.png" });
@@ -1476,7 +1495,7 @@ test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown conso
 test("HUD-1: the rpg HUD CLAIMS the pane — the shell's band is empty and its generic strip never renders", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  await expect(component.getByRole("tablist", { name: "Game" })).toBeVisible();
+  await expect(component.getByRole("tablist", { name: "Game state" })).toBeVisible();
 
   // The claimant renders inside the single-writer region host…
   await expect(component.locator("[data-context-region]")).toHaveCount(1);
@@ -1486,41 +1505,156 @@ test("HUD-1: the rpg HUD CLAIMS the pane — the shell's band is empty and its g
   await expect(component.locator(".ctx-tab-strip")).toHaveCount(0);
 });
 
-test("HUD-1 §7.2: every rail cell shows its CAPTION, not a nameless glyph, at the real panel width", async ({ mount, page }) => {
-  // F6 defect 2: the shared strip's container-query reveal can never fire at the widths the shell gives
-  // this panel, so the game rail was icon-only permanently. The HUD's cells carry the word unconditionally.
+test("HUD-1 §7.2: a rail cell RENDERS its caption at the real panel width — the box holds glyph over word", async ({ mount, page }) => {
+  // F6 defect 2: the shared strip's container-query reveal can never fire at the widths the shell gives this
+  // panel, so the game rail was icon-only permanently. The HUD's cells carry the word unconditionally — and
+  // the assertion is the CELL'S BOX, not the text node: the first build appended `h-auto` to the primitive's
+  // sealed `h-control-sm`, which tailwind-merge cannot resolve on a custom token, so the caption rendered
+  // into a clipped ~5px sliver while every class-string assertion stayed green (`done ≠ rendered`).
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
-  const inventory = component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" });
+  const inventory = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Inventory" });
 
   await expect(inventory).toContainText("Inventory");
-  await expect(inventory.locator("svg")).toBeVisible();
+  const glyph = inventory.locator("svg");
+  const caption = inventory.getByText("Inventory");
+  await expect(glyph).toBeVisible();
+  const [cellBox, glyphBox, captionBox] = await Promise.all([inventory.boundingBox(), glyph.boundingBox(), caption.boundingBox()]);
+  if (cellBox === null || glyphBox === null || captionBox === null) {
+    throw new Error("expected the cell, its glyph and its caption to be laid out");
+  }
+  const padding = await inventory.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return Number.parseFloat(style.paddingBlockStart) + Number.parseFloat(style.paddingBlockEnd);
+  });
+  const lineHeight = await caption.evaluate((el) => Number.parseFloat(getComputedStyle(el).lineHeight));
+  // THE SQUASH IS THE DEFECT, and it is what a naive "does it fit" check misses: pinned to 32px the cell did
+  // not overflow — it CRUSHED its own children, rendering a 6px glyph over a 5px sliver of the word. So the
+  // children are measured against what they are: the glyph is square, and the caption owns its line-box.
+  expect(glyphBox.height).toBeCloseTo(glyphBox.width, 0);
+  expect(captionBox.height).toBeGreaterThanOrEqual(lineHeight - 0.5);
+  // …and the cell is at least as tall as what it holds, with the caption UNDER the glyph and inside the box.
+  expect(cellBox.height).toBeGreaterThanOrEqual(padding + glyphBox.height + captionBox.height);
+  expect(captionBox.y).toBeGreaterThanOrEqual(glyphBox.y + glyphBox.height);
+  expect(captionBox.y + captionBox.height).toBeLessThanOrEqual(cellBox.y + cellBox.height);
 });
 
-test("HUD-1 §7.1: a SHORT body leaves no dead zone — the admin rail rides up under the viewport, still at the pane's foot", async ({ mount, page }) => {
-  // The dead-zone rule: the viewport is `flex: 0 1 auto`, NOT `flex-1`, so a short body takes its NATURAL
-  // height and the rail follows it immediately instead of being flung to the bottom of a ~400px void. The
-  // relation is asserted against the measured gap between them, never a hardcoded px.
+test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell's word is on screen already", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const rail = component.getByRole("tablist", { name: "Game state" });
+  await expect(rail.getByRole("tab", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
+  await expect(rail.getByRole("tab", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+});
+
+test("HUD-1: the ACTIVE cell's caption takes the cell's ember state colour (the Text primitive must not win)", async ({ mount, page }) => {
+  // `voice="gloss"` paints `text-muted-foreground`; without `text-inherit` the caption stays grey while the
+  // glyph and the cell tint go ember, which reads as "nothing is selected". Asserted as the COMPUTED colour
+  // against the same token the cell's `data-active:text-primary` resolves to.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const rail = component.getByRole("tablist", { name: "Game state" });
+  await rail.getByRole("tab", { name: "Scene" }).click();
+  await expect(rail.getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-selected", "true");
+
+  const activeCaption = rail.getByRole("tab", { name: "Scene" }).getByText("Scene");
+  const restingCaption = rail.getByRole("tab", { name: "Quests" }).getByText("Quests");
+  const [active, resting, primary] = await Promise.all([
+    activeCaption.evaluate((el) => getComputedStyle(el).color),
+    restingCaption.evaluate((el) => getComputedStyle(el).color),
+    activeCaption.evaluate((el) => getComputedStyle(el.closest('[data-slot="tabs-tab"]') as Element).color),
+  ]);
+  expect(active).toBe(primary);
+  expect(active).not.toBe(resting);
+});
+
+test("HUD-1 §3.6 fence 6: the ACTIVE tabpanel is NAMED by its cell — two rails off one root break Base UI's own association", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const scene = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" });
+  await scene.click();
+  await expect(scene).toHaveAttribute("aria-selected", "true");
+
+  const panel = component.locator('[data-slot="tabs-panel"]:visible');
+  const labelledBy = await panel.getAttribute("aria-labelledby");
+  const cellId = await scene.getAttribute("id");
+  expect(labelledBy).not.toBeNull();
+  expect(labelledBy).toBe(cellId);
+  // …and the id actually resolves to the cell, so the name is a real one, not a dangling reference.
+  await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("role", "tab");
+});
+
+test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short body AND a tall one, with no jump", async ({ mount, page }) => {
+  // The dead-zone rule as owner decision 6 was re-answered on real screenshots: the viewport is
+  // `flex: 0 1 auto` (a short body takes its natural height, never a half-empty stretched scroll region),
+  // the GROUND absorbs the residual span, and the rail sits on the pane's bottom edge in BOTH states — a
+  // rail floating ~400px up the pane was the defect. Measured, never eyeballed.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   const region = component.locator("[data-context-region]");
   await expect(region).toBeVisible();
-  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  const rail = component.getByRole("tablist", { name: "Chat" });
+
+  // Measure only once the swap has SETTLED: Base UI keeps the outgoing panel mounted through its exit
+  // transition, so a mid-swap read sees two viewports (the DEF-14 flake class). The panel is addressed by
+  // its accessible name — which it has because the cell labels it (the fence-6 CT above).
+  const footOf = async (tabName: string): Promise<{ readonly railBottom: number; readonly regionBottom: number; readonly viewportBottom: number }> => {
+    await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
+    const [railBox, regionBox, viewportBox] = await Promise.all([
+      rail.boundingBox(),
+      region.boundingBox(),
+      component.getByRole("tabpanel", { name: tabName }).boundingBox(),
+    ]);
+    if (railBox === null || regionBox === null || viewportBox === null) {
+      throw new Error("expected the admin rail, the region and the viewport to be laid out");
+    }
+    return { railBottom: railBox.y + railBox.height, regionBottom: regionBox.y + regionBox.height, viewportBottom: viewportBox.y + viewportBox.height };
+  };
+
+  // SHORT body (Journal on the stub's three entries) — the rail sits ON the pane's bottom edge, and the
+  // span between the body and it is the HUD's ground, not a void the rail floats above.
+  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Journal" }).click();
   // Settle the swap BEFORE measuring — geometry read mid-transition is the DEF-14 flake class.
-  await expect(component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" })).toHaveAttribute("aria-selected", "true");
-  await expect(component.locator('[data-slot="tabs-panel"]:visible')).toBeVisible();
+  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Journal" })).toHaveAttribute("aria-selected", "true");
+  const short = await footOf("Journal");
+  expect(short.railBottom).toBeCloseTo(short.regionBottom, 0);
+  expect(short.viewportBottom).toBeLessThanOrEqual(short.railBottom);
+  // The span between them is the GROUND, and it is PAINTED — a treatment that failed to compile would
+  // leave exactly the bare void this fix exists to kill, with every geometry assertion still green.
+  const ground = component.locator('[data-slot="rpg-hud-ground"]');
+  await expect(ground).toBeVisible();
+  await expect.poll(() => ground.evaluate((el) => getComputedStyle(el).backgroundImage), { intervals: [20, 50, 100] }).toContain("linear-gradient");
 
-  const viewportBox = await component.locator('[data-slot="tabs-panel"]:visible').boundingBox();
-  const railBox = await component.getByRole("tablist", { name: "Chat" }).boundingBox();
-  const regionBox = await region.boundingBox();
-  if (viewportBox === null || railBox === null || regionBox === null) {
-    throw new Error("expected the viewport, the admin rail and the region to be laid out");
+  // TALL body (Status: roster + orbs + the veiled ledger) — the viewport shrinks and scrolls, and the rail
+  // has NOT moved: the two states differ by no layout jump at all.
+  await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Status" }).click();
+  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
+  const tall = await footOf("Status");
+  expect(tall.railBottom).toBeCloseTo(short.railBottom, 0);
+  expect(tall.railBottom).toBeCloseTo(tall.regionBottom, 0);
+});
+
+test("HUD-1 §5.2: the ember binding edge paints FLUSH at the pane's top edge, full-bleed — like the generic band's", async ({ mount, page }) => {
+  // The claimant owns the pane's TOP EDGE. Under the shell's panel-body padding the HUD's edge landed 8px
+  // down and 8px shy of both inline edges while the generic band's inset one paints at row 0 across the
+  // full width (2026-08-01 side-eye, measured off the real screenshots). shell.css drops that padding under
+  // a claim; this pins the geometry, in the real `.shell-panel` anatomy the story now mounts.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const pane = component.locator(".shell-panel");
+  const band = component.locator('[data-slot="rpg-hud-band"]');
+  await expect(band).toBeVisible();
+  const [paneBox, bandBox, width] = await Promise.all([
+    pane.boundingBox(),
+    band.boundingBox(),
+    band.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth)),
+  ]);
+  if (paneBox === null || bandBox === null) {
+    throw new Error("expected the pane and the HUD's band to be laid out");
   }
-
-  // The rail starts within one row-gap of where the body ends — the column is packed, not spread.
-  const gap = railBox.y - (viewportBox.y + viewportBox.height);
-  expect(gap).toBeGreaterThanOrEqual(0);
-  expect(gap).toBeLessThan(viewportBox.height);
-  // …and it stays INSIDE the pane, at its foot — never pushed off, never floating mid-pane.
-  expect(railBox.y + railBox.height).toBeLessThanOrEqual(regionBox.y + regionBox.height + 1);
+  // Row 0 of the pane, and both inline edges reached (the pane's own 1px hairline frame is the only slack).
+  expect(bandBox.y).toBeCloseTo(paneBox.y, 0);
+  expect(bandBox.x - paneBox.x).toBeLessThanOrEqual(1);
+  expect(paneBox.x + paneBox.width - (bandBox.x + bandBox.width)).toBeLessThanOrEqual(1);
+  expect(width).toBe(2);
 });
