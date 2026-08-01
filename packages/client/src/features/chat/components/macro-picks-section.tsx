@@ -6,8 +6,8 @@
 //   • user-macro INPUTS — a macro (`{{mood}}`) with typed inputs (a Tone select, a random-pick pool, …)
 //     (`chat.getUserMacroPicks` + `chat.setUserMacroValues`, `chats.user_macro_values`).
 // Both halves read declarations + the stored bag in ONE proc each and write the WHOLE rebuilt bag on every
-// edit — each verb is a column flush, so there is no per-knob patch verb to reach for. (The module keeps its
-// MU name because the section, its CT mirror and its story are named for the family that landed first.)
+// edit — each verb is a column flush, so there is no per-knob patch verb to reach for. The module is named for
+// the PANE (both families), not for the user-macro half that landed first.
 //
 // PER-CHAT, not per-user (the MU spec's Arm-A owner ruling): the picks are room state every member shares and
 // every member may edit (the `setVariables` member floor), so the copy says "this chat", never "yours".
@@ -283,7 +283,7 @@ function withVariablePick(values: ChoiceBlockValues, name: string, next: string 
   return next === undefined ? rest : { ...rest, [name]: next };
 }
 
-export interface UserMacroPicksSectionProps {
+export interface MacroPicksSectionProps {
   readonly chatId: ChatId;
 }
 
@@ -291,7 +291,7 @@ export interface UserMacroPicksSectionProps {
  *  ChoiceBlock variables, then one group per pickable macro (a control per typed input). The two reads run in
  *  PARALLEL (`useSuspenseQueries` — two sequential `useSuspenseQuery`s would waterfall the pane behind two
  *  round trips) and each family paints only when the preset declares one. */
-export function UserMacroPicksSection({ chatId }: UserMacroPicksSectionProps): ReactElement {
+export function MacroPicksSection({ chatId }: MacroPicksSectionProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data }, { data: variableData }] = useSuspenseQueries({

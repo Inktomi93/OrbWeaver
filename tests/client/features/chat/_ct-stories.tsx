@@ -93,6 +93,7 @@ import { GroupConfigForm } from "../../../../packages/client/src/features/chat/c
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section";
 import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog";
+import { MacroPicksSection } from "../../../../packages/client/src/features/chat/components/macro-picks-section";
 import { MemberCardViewer } from "../../../../packages/client/src/features/chat/components/member-card-viewer";
 import { MembersPanel } from "../../../../packages/client/src/features/chat/components/members-panel";
 import { MemorySettingsSection } from "../../../../packages/client/src/features/chat/components/memory-settings-section";
@@ -112,7 +113,6 @@ import { RoomOverridesForm } from "../../../../packages/client/src/features/chat
 import { CommittedSettingsTab, DraftSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
-import { UserMacroPicksSection } from "../../../../packages/client/src/features/chat/components/user-macro-picks-section";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows";
@@ -1933,7 +1933,7 @@ export function ImageryTemplatesSectionStory(): ReactElement {
 /** The MU PICKS pane (#24) over the real data layer — `chat.getUserMacroPicks` + `chat.setUserMacroValues`
  *  stubbed in the `.ct.tsx`. Wrapped in the SAME `QueryBoundary` the "This chat" tab mounts it behind
  *  (the section suspends on its own read), so the CT drives the production composition, never a bare mount. */
-export function UserMacroPicksSectionStory(): ReactElement {
+export function MacroPicksSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 480, padding: 16 }}>
@@ -1941,7 +1941,7 @@ export function UserMacroPicksSectionStory(): ReactElement {
           fallback={<Text tone="muted">Loading macro picks…</Text>}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
         >
-          <UserMacroPicksSection chatId={CHAT_ID} />
+          <MacroPicksSection chatId={CHAT_ID} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
