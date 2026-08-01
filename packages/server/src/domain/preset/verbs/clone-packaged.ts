@@ -36,6 +36,9 @@ export function createClonePackaged(ctx: PresetContext): Pick<PresetService, "cl
       kind: source.kind,
       config,
       schemaVersion: config.schemaVersion,
+      // Lineage: the clone names its template. NOT a convergence key — a repeat clone is by contract an
+      // independent second copy, so `(owner_id, forked_from)` is deliberately a non-unique index.
+      forkedFrom: template.id,
       createdAt: now,
       updatedAt: now,
     };

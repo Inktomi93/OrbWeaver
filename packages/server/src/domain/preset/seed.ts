@@ -25,6 +25,8 @@ export async function ensureSystemDefaultPreset(db: Db, now: () => number): Prom
       kind: SYSTEM_DEFAULT_PRESET_KIND,
       config: DEFAULT_PROMPT_CONFIG,
       schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+      // The seeded roots are the lineage FLOOR — every fork points AT them, they point at nothing.
+      forkedFrom: null,
       createdAt: at,
       updatedAt: at,
     });
@@ -67,6 +69,7 @@ async function ensureOnePackagedPreset(db: Db, key: string, template: PackagedPr
       kind: template.kind,
       config: template.config,
       schemaVersion: version,
+      forkedFrom: null,
       createdAt: at,
       updatedAt: at,
     });

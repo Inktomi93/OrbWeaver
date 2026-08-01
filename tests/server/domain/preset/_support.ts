@@ -42,6 +42,7 @@ interface SeedPresetOverrides {
   readonly kind?: string;
   readonly config?: PromptConfig;
   readonly schemaVersion?: number;
+  readonly forkedFrom?: PresetId;
 }
 
 /** Insert a preset row directly (the read/list/update/delete fixtures). Defaults to an un-owned roleplay row. */
@@ -55,6 +56,7 @@ export async function seedPreset(db: Db, overrides: SeedPresetOverrides = {}): P
     kind: overrides.kind ?? "roleplay",
     config,
     schemaVersion: overrides.schemaVersion ?? config.schemaVersion,
+    forkedFrom: overrides.forkedFrom ?? null,
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
   });

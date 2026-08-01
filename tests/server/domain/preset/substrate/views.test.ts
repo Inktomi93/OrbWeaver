@@ -26,6 +26,7 @@ function row(overrides: Partial<PresetRow> = {}): PresetRow {
     kind: "roleplay",
     config: DEFAULT_PROMPT_CONFIG,
     schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion,
+    forkedFrom: null,
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
     ...overrides,
@@ -48,6 +49,11 @@ describe("toPresetSummary", () => {
   test("projects id/name/kind/dates", () => {
     const s = toPresetSummary(row({ name: "Assistant", kind: "assistant" }));
     expect(s).toMatchObject({ name: "Assistant", kind: "assistant", createdAt: FROZEN_AT });
+  });
+
+  test("carries the fork lineage verbatim (null for a born-here row)", () => {
+    expect(toPresetSummary(row()).forkedFrom).toBe(null);
+    expect(toPresetSummary(row({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID })).forkedFrom).toBe(SYSTEM_DEFAULT_PRESET_ID);
   });
 });
 

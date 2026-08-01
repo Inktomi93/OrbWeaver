@@ -67,6 +67,9 @@ export function createImport(ctx: PresetContext): ImportPreset {
       kind: IMPORTED_PRESET_KIND,
       config,
       schemaVersion: config.schemaVersion,
+      // An import is born here — its provenance is the FILE, and the source preset (if any) is not a row
+      // in this database.
+      forkedFrom: null,
       createdAt: at,
       updatedAt: at,
     });
