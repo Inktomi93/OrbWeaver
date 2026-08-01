@@ -6,6 +6,7 @@ import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import {
   CHAT_MODELS,
+  CLAUDE_CAPABILITY_FLOOR,
   chatModelForTier,
   detectChatModelTier,
   getChatModel,
@@ -58,6 +59,20 @@ describe("the shortlist id brand guard", () => {
     for (const entry of CHAT_MODELS) {
       expect(isChatModelId(entry.id)).toBe(true);
     }
+  });
+});
+
+describe("CLAUDE_CAPABILITY_FLOOR — the uncurated-Claude inheritance", () => {
+  test("is DERIVED from the table: an axis is in the floor iff EVERY curated entry declares it", () => {
+    expect(CLAUDE_CAPABILITY_FLOOR).toEqual({
+      parallelTools: CHAT_MODELS.every((entry) => entry.capability.tools?.parallel === true),
+      structuredOutput: CHAT_MODELS.every((entry) => entry.capability.output.structured === true),
+      vision: CHAT_MODELS.every((entry) => entry.capability.input?.vision === true),
+    });
+  });
+
+  test("today every curated Claude declares all three — so a NEWER Claude inherits all three", () => {
+    expect(CLAUDE_CAPABILITY_FLOOR).toEqual({ parallelTools: true, structuredOutput: true, vision: true });
   });
 });
 

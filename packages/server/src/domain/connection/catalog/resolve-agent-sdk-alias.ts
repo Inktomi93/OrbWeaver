@@ -1,11 +1,14 @@
 // Maps a bare family alias (sonnet/opus/haiku) or a stale curated/version id onto the daemon's current
 // `resolvedModel` + a `ModelCapability` derived from the daemon's own flags, so an agent never pins a stale
-// version. Pure (cached rows passed in); `undefined` ⇒ no daemon row covers the id.
+// version. The axes the daemon is silent about (tools / structured output / vision) come from the curated
+// entry for the resolved version, else the `CLAUDE_CAPABILITY_FLOOR`.
+// Pure (cached rows passed in); `undefined` ⇒ no daemon row covers the id.
 
 import type { AgentSdkModel, ModelCapability } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import type { AgentSdkAliasResolution } from "../contract/results";
-import { getChatModel } from "./chat-models";
+import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models";
+import { detectModelFamily } from "./model-family";
 
 const CLAUDE_CONTEXT_WINDOW = 200_000;
 const CLAUDE_MAX_OUTPUT = 64_000;
@@ -50,22 +53,44 @@ export function resolveAgentSdkAlias(model: ModelId | string, cached: readonly A
   if (row === undefined || row.resolvedModel === null) {
     return;
   }
-  // Output/context bounds: prefer the curated entry for the resolved id; else the Claude-family default.
+  // Bounds + the daemon-silent axes: prefer the curated entry for the resolved id; else the Claude family.
   // BOTH arms are live, though the caller's shape hides it: `resolveModelCapability` only reaches here after
   // `getChatModel(model)` MISSED, so a row matched by its `resolvedModel` (model === row.resolvedModel) always
   // takes the default arm, while a row matched by ALIAS ("sonnet" — never a curated id) hits the curated arm
-  // whenever the daemon's current version is one we curate. An UNCURATED resolved id (a version newer than the
-  // shortlist) takes the default arm: family bounds, and no `structured` claim.
+  // whenever the daemon's current version is one we curate.
   const curated = getChatModel(row.resolvedModel);
-  const output = curated === undefined ? { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT } } : curated.capability.output;
-  const context = curated === undefined ? { window: CLAUDE_CONTEXT_WINDOW, supports1M: false } : curated.capability.context;
+  if (curated !== undefined) {
+    return {
+      resolvedModel: row.resolvedModel,
+      capability: {
+        reasoning: reasoningFromDaemon(row),
+        sampling: {}, // agent-sdk honors no sampling knob
+        ...(curated.capability.input !== undefined ? { input: curated.capability.input } : {}),
+        ...(curated.capability.tools !== undefined ? { tools: curated.capability.tools } : {}),
+        output: curated.capability.output,
+        context: curated.capability.context,
+      },
+    };
+  }
+  // Uncurated resolved id ⇒ a Claude NEWER than the shortlist. The daemon advertises REASONING flags only, so
+  // the axes it is silent about (tools / structured output / vision) come from the family FLOOR — the axes
+  // every curated Claude declares — rather than a flagless profile: synthesizing a brand-new Claude as
+  // tool-less + structured-output-less inverts reality (newer resolved as LESS capable) and silently drops an
+  // rpg game on it to trackers-readonly. A resolved id the anthropic anchor does NOT recognize (a third-party
+  // fork whose id merely contains "claude") is genuinely unrecognized and keeps the conservative synthesis.
+  const claude = detectModelFamily(row.resolvedModel) === "anthropic";
   return {
     resolvedModel: row.resolvedModel,
     capability: {
       reasoning: reasoningFromDaemon(row),
-      sampling: {}, // agent-sdk honors no sampling knob
-      output,
-      context,
+      sampling: {},
+      ...(claude && CLAUDE_CAPABILITY_FLOOR.vision ? { input: { vision: true } } : {}),
+      ...(claude && CLAUDE_CAPABILITY_FLOOR.parallelTools ? { tools: { parallel: true } } : {}),
+      output: {
+        maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT },
+        ...(claude && CLAUDE_CAPABILITY_FLOOR.structuredOutput ? { structured: true } : {}),
+      },
+      context: { window: CLAUDE_CONTEXT_WINDOW, supports1M: false },
     },
   };
 }
