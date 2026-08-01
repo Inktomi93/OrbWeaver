@@ -107,8 +107,14 @@ reach, alias --radius-base in the clamp) · ~~flake-chase~~ MERGED (`7c1a734c`: 
 11's one-shot install banner scraped as phantom gate "Lockfile" by the unanchored ✓-regex;
 deterministic repro red→green; scrapes anchored + verify-deps-before-run=false on both parsing
 harnesses; reports/-contention hypothesis RULED OUT with receipts) ·
-PROSE-1 S1 (app-tier cohort; #8=room host; tool descriptions wait for S5). Merge each on report;
-check after each merge.
+~~PROSE-1 S1~~ MERGED (`7137235d`: 9 new slots [26 total], room-host resolution via the ONE new
+ChatContext.resolveChatProse op; rows 76/79 ride to S4 [label-only rows — rule: a census row
+yields slots for its substitution-free clauses]; "prose" NOT yet in USER_SETTINGS_SECTIONS —
+CORRECT per D107 arm B: the section tuple is the EDITOR's door, register it in the same commit
+as the S2 Prose settings section; integrator fixed the flagged pre-existing lifecycle healthz
+red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · NumberField =
+embrace textbox, bounds via derived description — SEAL+SWEEP LANE IN FLIGHT. Merge each on
+report; check after each merge.
 
 ~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
 13 fully-landed docs archived, 11 refs repointed, pain-points annotated in place. Lesson: check a
