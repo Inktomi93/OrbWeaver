@@ -4,7 +4,8 @@
 // parseable choice set (a later user reply settles the choice; the echo disappears). The wand/transcript
 // still owns the send: this block routes a pick through the SAME behavior the transcript block obeys —
 // the game's `cyoaChoiceBehavior` knob (`send` fires the pick as the user turn via `chat.send` directly,
-// the [workloads.subscribe cross-feature] ride-the-proc precedent; `compose` seeds the composer draft +
+// a cross-feature ride on the other domain's tRPC procedure directly, never its client (lockdown §12 —
+// see this file's own `trpc.chat.listMessages` read below, the live precedent); `compose` seeds the composer draft +
 // focuses it via the shared #state channel). Info-blue voice (§3 — the story asking YOU), tokens only.
 //
 // Cross-domain read rides `trpc.chat.listMessages` DIRECTLY (lockdown §12 — the transcript surface shares

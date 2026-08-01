@@ -67,13 +67,6 @@ export const providerMetadataSchema = z.union([
       responseMap: customOpenAiResponseMapSchema.optional(),
     })
     .loose(),
-  z
-    .object({
-      kind: z.literal("google_vertex"),
-      project: z.string().min(MIN_NON_EMPTY),
-      region: z.string().min(MIN_NON_EMPTY),
-    })
-    .loose(),
   z.null(),
 ]);
 

@@ -19,8 +19,8 @@ interface CustomOpenAiEndpoint {
 /** Narrow a raw metadata column value to the custom_openai endpoint fields, or null. */
 export function parseCustomOpenAiEndpoint(raw: unknown): CustomOpenAiEndpoint | null {
   const meta = parseProviderMetadata(raw);
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: parseProviderMetadata returns `… | null` (the z.null() arm — tsc confirms it); biome's cross-package zod-union inference misses the null member and calls the guard redundant, but tsc rejects `meta.kind` without it and a null metadata row would NPE — biome is the false positive.
-  if (meta === null || meta.kind !== "custom_openai") {
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: `ProviderMetadata` is `custom_openai | null` (the z.null() arm — tsc confirms it); biome's cross-package zod-union inference misses the null member and calls the guard redundant, but tsc rejects the `meta.baseUrl` access below without it and a null metadata row would NPE — biome is the false positive.
+  if (meta === null) {
     return null;
   }
   return {
