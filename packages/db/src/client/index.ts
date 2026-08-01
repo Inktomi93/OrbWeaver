@@ -3,14 +3,16 @@
 //
 // The OTel tracing wrapper is INJECTED (`wrap`), never imported: `@orb/db` cannot import `@orb/server`
 // (the cake), so `server/observability` passes its wrapper IN at `createDb`. node:fs/node:url are
-// sanctioned here for the NON-OPTIONAL pre-migration backup (Tier-1-DB.md "backupBeforeMigrate").
+// sanctioned here for the NON-OPTIONAL pre-migration backup (Tier-1-DB.md "backupBeforeMigrate") and its
+// retention sweep (`pruneDbBackups`).
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient } from "@libsql/client";
+import { escapeRegExp } from "@orb/kit/strings";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { drizzle } from "drizzle-orm/libsql";
@@ -144,6 +146,108 @@ export function backupBeforeMigrate(url: string): string | undefined {
   return backupPath;
 }
 
+// Retention for {@link pruneDbBackups}. Pre-launch these are CONSTANTS, not knobs — every retained backup
+// is a full copy of the db, so this cap is the only thing bounding `data/`. (Before the boot step gated
+// the backup on pending migrations, every no-op boot copied the db aside: 3.2k copies, 150GB.)
+const KEEP_RECENT_BACKUPS = 5;
+// On top of the recent five, the newest backup of each of the last N distinct days — a coarse history that
+// survives a day of frequent migrating without unbounded growth. Ceiling is KEEP_RECENT + KEEP_DAILY files.
+const KEEP_DAILY_BACKUPS = 7;
+const MS_PER_DAY = 86_400_000;
+
+// One backup instant: the base copy and/or its sqlite sidecars. `hasBase` false ⇒ orphaned sidecars.
+interface BackupGroup {
+  readonly files: string[];
+  hasBase: boolean;
+}
+
+/**
+ * Every `<db>.backup-<stamp>` file (+ sidecars) in the db's OWN directory, grouped by stamp — the narrow
+ * match {@link pruneDbBackups} documents. `matchAll` over an anchored `g` pattern rather than `exec`: it
+ * yields the single match or nothing, with no `null` branch for the type-aware lint to mis-read.
+ */
+function collectBackupGroups(dir: string, base: string): Map<number, BackupGroup> {
+  const backupRe = new RegExp(`^${escapeRegExp(base)}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
+  const groups = new Map<number, BackupGroup>();
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    for (const match of entry.name.matchAll(backupRe)) {
+      const stamp = Number(match[1]);
+      const group = groups.get(stamp) ?? { files: [], hasBase: false };
+      group.files.push(join(dir, entry.name));
+      group.hasBase ||= match[2] === undefined;
+      groups.set(stamp, group);
+    }
+  }
+  return groups;
+}
+
+/**
+ * The stamps to KEEP: the {@link KEEP_RECENT_BACKUPS} newest, plus the newest of each of the last
+ * {@link KEEP_DAILY_BACKUPS} distinct days. Only stamps with a real base file are candidates — an orphan
+ * sidecar group restores nothing, so it is never kept.
+ */
+function retainedStamps(groups: ReadonlyMap<number, BackupGroup>): ReadonlySet<number> {
+  // Newest-first, so the first stamp seen for a day IS that day's newest. The day bucket is
+  // floor(epoch-ms / 1 day): TZ-independent and clock-free.
+  const stamps = [...groups]
+    .filter(([, group]) => group.hasBase)
+    .map(([stamp]) => stamp)
+    .sort((a, b) => b - a);
+  const keep = new Set(stamps.slice(0, KEEP_RECENT_BACKUPS));
+  const days = new Set<number>();
+  for (const stamp of stamps) {
+    const day = Math.floor(stamp / MS_PER_DAY);
+    if (days.has(day)) {
+      continue;
+    }
+    if (days.size >= KEEP_DAILY_BACKUPS) {
+      break;
+    }
+    days.add(day);
+    keep.add(stamp);
+  }
+  return keep;
+}
+
+/**
+ * Delete stale `<db>.backup-<epoch>` copies (with their `-wal`/`-shm` sidecars), keeping the
+ * {@link KEEP_RECENT_BACKUPS} newest plus the newest of each of the last {@link KEEP_DAILY_BACKUPS} days.
+ * Returns the deleted paths. No-op for `:memory:` / non-file URLs. Called by the boot migrate step AFTER a
+ * successful migration — never on a no-op boot.
+ *
+ * This runs at BOOT against the LIVE db directory, so the match is deliberately narrow: an anchored,
+ * regex-ESCAPED basename (its `.` separators must not wildcard onto a neighbour), `\d+` for the stamp (so
+ * `.backup-`, `.backup-12a`, `.backup-1.zip`, `-shmx` all fall through), only the db's OWN directory, no
+ * recursion, and regular FILES only (a directory named like a backup is never touched). A stamp group with
+ * no base file is an orphaned sidecar and is always removed — it restores nothing on its own.
+ */
+export function pruneDbBackups(url: string): readonly string[] {
+  const path = localPath(url);
+  if (path === undefined) {
+    return [];
+  }
+  const dir = dirname(path);
+  if (!existsSync(dir)) {
+    return [];
+  }
+  const groups = collectBackupGroups(dir, basename(path));
+  const keep = retainedStamps(groups);
+  const deleted: string[] = [];
+  for (const [stamp, group] of groups) {
+    if (keep.has(stamp)) {
+      continue;
+    }
+    for (const file of group.files) {
+      rmSync(file, { force: true });
+      deleted.push(file);
+    }
+  }
+  return deleted;
+}
+
 /**
  * Run drizzle migrations with FK enforcement toggled OFF on the CONNECTION for the duration. drizzle's
  * 12-step table rebuild DROPs + recreates tables; with FKs ON, a `DROP TABLE parent` silently
@@ -205,14 +309,36 @@ async function readAppliedBaseline(db: Db): Promise<{ hash: string; folderMillis
   return { hash: String(row["hash"]), folderMillis: Number(row["created_at"]) };
 }
 
+// The migrations journal drizzle itself reads: one `{ when, tag }` per migration file, in apply order.
+function readJournalEntries(migrationsFolder: string): readonly { readonly when: number; readonly tag: string }[] {
+  const journal = JSON.parse(readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8")) as {
+    entries?: readonly { readonly when: number; readonly tag: string }[];
+  };
+  return journal.entries ?? [];
+}
+
+/**
+ * Would {@link runMigrations} actually APPLY something? Mirrors drizzle's migrator selection exactly: it
+ * applies every journal entry whose `when` is newer than the newest `created_at` in `__drizzle_migrations`
+ * (and all of them when that table is absent/empty). Read-only.
+ *
+ * The boot step gates the pre-migration backup on this: a no-op boot (every dev-stack restart) must NOT
+ * copy the db aside, while the backup-before-change guarantee is unchanged for boots that change anything.
+ */
+export async function hasPendingMigrations(db: Db, migrationsFolder: string): Promise<boolean> {
+  const entries = readJournalEntries(migrationsFolder);
+  const applied = await readAppliedBaseline(db);
+  if (applied === undefined) {
+    return entries.length > 0;
+  }
+  return entries.some((entry) => entry.when > applied.folderMillis);
+}
+
 // The shipped baseline's identity, computed EXACTLY as drizzle's `readMigrationFiles` records it: sha256
 // of the raw `<tag>.sql` bytes + the journal entry's `when`. Pre-launch the journal holds one entry (the
 // baseline); `.at(-1)` reads it without hard-coding the tag.
 function shippedBaselineIdentity(migrationsFolder: string): { hash: string; folderMillis: number } {
-  const journal = JSON.parse(readFileSync(join(migrationsFolder, "meta", "_journal.json"), "utf-8")) as {
-    entries?: readonly { readonly when: number; readonly tag: string }[];
-  };
-  const entry = journal.entries?.at(-1);
+  const entry = readJournalEntries(migrationsFolder).at(-1);
   if (entry === undefined) {
     throw new Error("@orb/db: migrations journal has no entries — cannot compute baseline identity");
   }

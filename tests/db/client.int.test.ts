@@ -1,13 +1,15 @@
 // Smoke .int test for the @orb/db floor: the FK PRAGMA dance, the integrity gate, a users round-trip,
-// and the unified constraint classifier. Real libSQL :memory: (the integration lane). NOTE: Wave-0 has
-// no FK-bearing tables (users/audit have none), so the constraint test exercises a UNIQUE violation;
-// the foreign-key arm of isConstraintViolation is exercised by the Wave-1 slices that land real FKs.
+// the unified constraint classifier, and the backup lifecycle (`hasPendingMigrations` + the
+// `pruneDbBackups` retention sweep, incl. its adversarial-filename blast radius). Real libSQL :memory:
+// (the integration lane). NOTE: Wave-0 has no FK-bearing tables (users/audit have none), so the constraint
+// test exercises a UNIQUE violation; the foreign-key arm of isConstraintViolation is exercised by the
+// Wave-1 slices that land real FKs.
 
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { assertReferentialIntegrity, createDb, isConstraintViolation, localPath, runMigrations, users } from "@orb/db";
+import { assertReferentialIntegrity, createDb, hasPendingMigrations, isConstraintViolation, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -140,6 +142,147 @@ test("assertReferentialIntegrity THROWS on an orphan FK row (the foreign_key_che
   await db.run(sql`PRAGMA foreign_keys = OFF`);
   await db.run(sql.raw("insert into sessions (id, user_id, token_hash, expires_at) values ('session_orphan', 'user_ghost', 'h', 1)"));
   await expect(assertReferentialIntegrity(db)).rejects.toThrow(ORPHAN_RE);
+});
+
+test("hasPendingMigrations: true on a fresh db, false once the baseline is applied (the no-op-boot gate)", async () => {
+  // This is what the boot step gates the pre-migration backup on — if it ever returned a blanket `true`,
+  // every dev-stack restart would copy the db aside again (the 3.2k-backup / 150GB leak).
+  const db = await createDb(":memory:");
+  expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(true);
+  await runMigrations(db, MIGRATIONS_DIR);
+  expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(false);
+});
+
+// --- pruneDbBackups (the retention sweep) -----------------------------------------------------------
+// It runs at BOOT against the LIVE db directory, so every test here is as much about what it must NOT
+// touch as about what it deletes. Stamps are built off exact day multiples (the sweep buckets by
+// floor(epoch-ms / day)) — no ambient clock, so the day arithmetic is deterministic.
+
+const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
+const DB_FILE = "orbweaver.db";
+const BASE_DAY = 20_000; // an arbitrary fixed day index; absolute value is irrelevant to the sweep
+
+/** A scratch dir holding a live db file + the named siblings; returns its path and the `file:` url. */
+function backupFixture(names: readonly string[]): { dir: string; url: string } {
+  const dir = mkdtempSync(join(tmpdir(), `orb-prune-${pid}-`));
+  writeFileSync(join(dir, DB_FILE), "db");
+  for (const name of names) {
+    writeFileSync(join(dir, name), "x");
+  }
+  return { dir, url: `file:${join(dir, DB_FILE)}` };
+}
+
+function backupName(stamp: number, suffix = ""): string {
+  return `${DB_FILE}.backup-${stamp}${suffix}`;
+}
+
+test("pruneDbBackups keeps the 5 newest same-day backups and deletes the rest", () => {
+  // 12 backups an hour apart inside ONE day: the per-day rule adds nothing beyond the newest, so the
+  // recent-5 cap is what's under test.
+  const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
+  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  try {
+    const deleted = pruneDbBackups(url);
+    const survivors = stamps.filter((s) => existsSync(join(dir, backupName(s))));
+    expect(survivors).toEqual(stamps.slice(-5));
+    expect(deleted).toHaveLength(7);
+    expect(existsSync(join(dir, DB_FILE))).toBe(true); // never the live db
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pruneDbBackups keeps the newest of each of the last 7 days on top of the recent 5", () => {
+  // One backup per day for 10 consecutive days: recent-5 covers days 0-4, the daily rollup extends the
+  // history to 7 distinct days, and days 7-9 (the oldest three) go.
+  const stamps = Array.from({ length: 10 }, (_, k) => (BASE_DAY - k) * DAY_MS);
+  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  try {
+    pruneDbBackups(url);
+    const survivors = stamps.filter((s) => existsSync(join(dir, backupName(s))));
+    expect(survivors).toEqual(stamps.slice(0, 7));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pruneDbBackups takes the -wal/-shm sidecars with their backup, and orphaned sidecars always", () => {
+  // Mid-day, so the whole cluster lands on ONE day — otherwise `dropped` would be the newest of the
+  // previous day and the daily rollup would (correctly) rescue it.
+  const kept = BASE_DAY * DAY_MS + 12 * HOUR_MS;
+  const dropped = kept - HOUR_MS;
+  const orphanDay = (BASE_DAY - 30) * DAY_MS; // old enough to fall outside the daily window either way
+  const { dir, url } = backupFixture([
+    backupName(kept),
+    backupName(kept, "-wal"),
+    backupName(kept, "-shm"),
+    backupName(dropped),
+    backupName(dropped, "-wal"),
+    // Sidecars with NO base file: they restore nothing on their own, so they go regardless of age.
+    backupName(orphanDay, "-wal"),
+    backupName(orphanDay, "-shm"),
+  ]);
+  try {
+    // Four more same-day backups: `kept` is then the 5th-newest (retained, boundary case) and `dropped`
+    // the 6th (evicted) — and neither is its day's newest, so the daily rollup can't rescue `dropped`.
+    for (let i = 1; i <= 4; i++) {
+      writeFileSync(join(dir, backupName(kept + i * HOUR_MS)), "x");
+    }
+    pruneDbBackups(url);
+    expect(existsSync(join(dir, backupName(kept, "-wal")))).toBe(true);
+    expect(existsSync(join(dir, backupName(kept, "-shm")))).toBe(true);
+    expect(existsSync(join(dir, backupName(dropped)))).toBe(false);
+    expect(existsSync(join(dir, backupName(dropped, "-wal")))).toBe(false);
+    expect(existsSync(join(dir, backupName(orphanDay, "-wal")))).toBe(false);
+    expect(existsSync(join(dir, backupName(orphanDay, "-shm")))).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pruneDbBackups matches ONLY `<db>.backup-<digits>` — adversarial neighbours survive untouched", () => {
+  // The blast radius if this pattern is loose is the user's data directory. `orbweaverXdb.backup-1` is the
+  // unescaped-dot probe; the trailing-newline name pins that `$` is a strict end-anchor (no /m, no /$\n/).
+  const bystanders = [
+    `${DB_FILE}-wal`,
+    `${DB_FILE}-shm`,
+    `${DB_FILE}.backup-`,
+    `${DB_FILE}.backup-12a`,
+    `${DB_FILE}.backup-123.zip`,
+    `${DB_FILE}.backup-123-shmx`,
+    `${DB_FILE}.backup-1e3`,
+    `${DB_FILE}.backup--1`,
+    `${DB_FILE}.Backup-1`,
+    `x${DB_FILE}.backup-1`,
+    "orbweaverXdb.backup-1",
+    "other.db.backup-1",
+    ` ${DB_FILE}.backup-1`,
+    `${DB_FILE}.backup-1\n`,
+  ];
+  // Plus a real old backup, so a pass that deletes nothing at all can't masquerade as a pass.
+  const doomed = Array.from({ length: 6 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
+  const { dir, url } = backupFixture([...bystanders, ...doomed.map((s) => backupName(s))]);
+  try {
+    // A DIRECTORY named exactly like a backup: the sweep is files-only and must never recurse into it.
+    const dirTrap = join(dir, backupName(BASE_DAY * DAY_MS - DAY_MS));
+    mkdirSync(dirTrap);
+    writeFileSync(join(dirTrap, "inside.txt"), "x");
+
+    const deleted = pruneDbBackups(url);
+    expect(deleted).toEqual([join(dir, backupName(doomed[0] ?? 0))]);
+    for (const name of [DB_FILE, ...bystanders]) {
+      expect({ name, exists: existsSync(join(dir, name)) }).toEqual({ name, exists: true });
+    }
+    expect(existsSync(join(dirTrap, "inside.txt"))).toBe(true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pruneDbBackups is a no-op for :memory: / non-file urls", () => {
+  expect(pruneDbBackups(":memory:")).toEqual([]);
+  expect(pruneDbBackups("libsql://example.turso.io")).toEqual([]);
 });
 
 test("createDb auto-creates the parent dir RELATIVE to cwd for a bare file:./ url (never absolutized)", async () => {
