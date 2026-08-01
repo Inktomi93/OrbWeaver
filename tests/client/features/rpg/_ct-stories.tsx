@@ -69,22 +69,43 @@ export function RpgTakeoverStory(): ReactElement {
   );
 }
 
-// The freshness indicator in isolation — a pure component (no providers/network), so its three honest states
-// mount directly. This proves the label datum + a11y model per state without driving a live turn over SSE.
+// The freshness indicator in isolation — a pure component (no providers/network), so every honest state mounts
+// directly. This proves the label datum + a11y model per state without driving a live turn over SSE. Since EFF-3
+// the input is the room's EFFECTIVE delivery, not the raw knob — the arm that used to lie ("folded" on a wire
+// that cannot fold, showing "Live" while rounding a beat behind) is the `RpgFreshnessGuardedStory` below.
 
-/** Cheap mode, idle — the accepted one-beat lag surfaced ("As of last beat"). */
+/** The host picked the two-call arm, idle — the accepted one-beat lag surfaced ("As of last beat"). */
 export function RpgFreshnessCheapIdleStory(): ReactElement {
-  return <RpgFreshnessIndicator extractionMode="cheap" pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={false} />;
 }
 
-/** Cheap mode, the post-commit round's window open — the transient "Updating…" (the pulse is aria-hidden).
+/** The two-call arm with the post-commit round's window open — the transient "Updating…" (pulse aria-hidden).
  *  (`cheap` claimed "Live" from D108's inline-tools shape, which D109 replaced with a dedicated round.) */
 export function RpgFreshnessCheapStory(): ReactElement {
-  return <RpgFreshnessIndicator extractionMode="cheap" pending={true} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={true} />;
 }
 
-/** Folded mode (R1) — the reply records its own state, so there is no post-commit call to wait on: a minimal
- *  "Live" affordance, never a fake lag label. `pending` is set true to prove it does NOT flip to "Updating…". */
+/** The fold actually ran (R1) — the reply records its own state, so there is no post-commit call to wait on: a
+ *  minimal "Live" affordance, never a fake lag label. `pending` is true to prove it does NOT flip to "Updating…". */
 export function RpgFreshnessFoldedStory(): ReactElement {
-  return <RpgFreshnessIndicator extractionMode="folded" pending={true} />;
+  return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null }} pending={false} />;
+}
+
+/** THE EFF-3 ARM: a `folded` game on a wire that goes mute under tool attachment. It rounds a beat behind, and
+ *  before EFF-3 this exact room rendered "Live" (D112 (4)'s KNOWN GAP). The label is the lag; the title carries
+ *  the reason. `pending` true proves the fallback arm still opens the honest transient. */
+export function RpgFreshnessGuardedStory(): ReactElement {
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard" }} pending={false} />;
+}
+
+/** No model write path at all — nothing delivers state, so the pill renders NOTHING (the band's Read-only pill
+ *  is the honest word; a freshness claim beside it would be the lie again). */
+export function RpgFreshnessNoneStory(): ReactElement {
+  // Wrapped: the component renders null, and a mount root with no element in it is not something the CT can
+  // hold a locator on — the wrapper is the anchor the "nothing here" assertion counts children against.
+  return (
+    <div data-testid="freshness-slot">
+      <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null }} pending={true} />
+    </div>
+  );
 }

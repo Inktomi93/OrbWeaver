@@ -7,10 +7,27 @@
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
-import type { RpgGameConfig } from "./config";
+import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
 import type { RpgPlot, RpgPresentCharacter } from "./snapshot";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker";
+
+/** EFF-3 — the EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
+ *  it (D112 (4)'s KNOWN GAP: a `folded` game whose wire cannot fold was still showing "Live" while it rounded a
+ *  beat behind). It is NOT a prediction of model behavior: `path` is the same capability verdict the gather uses
+ *  PRE-COMMIT to decide whether to mount the terminal tools, read off the SAME one connection resolve — so it
+ *  states what this room's connection does, and it changes only when the connection does.
+ *
+ *  The one thing it CANNOT see is a fold that was eligible and failed at runtime (an unbuildable mount, a hook
+ *  miss — `no-terminal-channel`): that verdict exists only after a turn completes and is not persisted, so it
+ *  stays a LOG-only fact (`rpg.extraction.path` WARN). The `fallbackReason` vocabulary carries the member anyway
+ *  (one total vocabulary, one home) — the panel just never sources it here. */
+export interface RpgEffectiveDelivery {
+  readonly path: RpgDeliveryPath;
+  /** Set only when the KNOB and the PATH disagree — a `folded` game that will not fold. `null` when the host
+   *  got what they asked for (`folded` folding, an explicit `cheap` rounding) or when nothing runs at all. */
+  readonly fallbackReason: RpgFoldFallbackReason | null;
+}
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
  *  lite/full trim decision (§2.1). `publicConfig` is the member-safe config slice (never the host-only
@@ -33,6 +50,10 @@ export interface RpgGameView {
    *  construction (a dedicated round runs AFTER the character turn commits — §4.9 amendment); `folded` ⇒ the
    *  tracker is current-beat fresh at commit. Member-safe (a `steeringNote`-class secret it is not). */
   readonly extractionMode: RpgGameConfig["extractionMode"];
+  /** EFF-3 — what the knob above actually RESOLVES to on this room's connection. The freshness surface renders
+   *  THIS (never the bare mode): a `folded` game on a wire that cannot fold reads "as of last beat, because …",
+   *  not "Live". Member-safe for the same reason `extractionMode` is — it governs the whole room's freshness. */
+  readonly effectiveDelivery: RpgEffectiveDelivery;
   /** The member-safe config slice — the `statProfile` (for attribute labels) minus the host-only note.
    *  `immersiveHtml` (parity-plus §4.8/§9 #7) lets the reading surface gate the lenient naked-HTML wrap +
    *  the card-archive section per game (member-safe — a play-style option, never a secret). */

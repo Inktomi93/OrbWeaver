@@ -6,11 +6,12 @@ import type { RpgGameView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "../../contract/params";
 import type { RpgContext, RpgService } from "../../contract/service";
 import { resolveMember } from "../../guard";
+import { deriveEffectiveDelivery } from "../../substrate/readonly-axis";
 
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const { trackersReadOnly, canPopulate } = await ctx.resolveStateDelivery(params.chatId);
+    const { trackersReadOnly, foldGuarded, canPopulate } = await ctx.resolveStateDelivery(params.chatId);
     return {
       id: game.id,
       chatId: game.chatId,
@@ -19,6 +20,10 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       trackersReadOnly,
       canPopulate,
       extractionMode: game.config.extractionMode,
+      // EFF-3 — the knob is what the host ASKED for; this is what the room's connection actually does with it,
+      // off the SAME one resolve above (D112 (4)'s freshness lie: a fold-guarded room read "Live" while it
+      // rounded a beat behind). The derivation is rpg's law, homed beside the readonly axis it shares inputs with.
+      effectiveDelivery: deriveEffectiveDelivery(game.config.extractionMode, { trackersReadOnly, foldGuarded }),
       publicConfig: {
         statProfile: game.config.statProfile,
         dateMode: game.config.dateMode, // #9 — the ambient-date display mode (member-safe)
