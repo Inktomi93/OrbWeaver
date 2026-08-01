@@ -620,6 +620,18 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_settingsanchor/surfaces/__g_settingsanchor-settings-surface.tsx",
     'export const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
   );
+  // ui-size-via-variant: a call-site SIZE utility (the F2 `size-auto` incident shape) on a JSX element
+  // imported from @orb/ui, at a path with no ALLOWLIST/DEBT_BASELINE row (budget 0 → fires).
+  fx(
+    "packages/client/src/features/__g_uisize/components/__g_uisize.tsx",
+    'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n',
+  );
+  // scrubber-home: the stateful hidden-span stream scrubber constructed outside its producer home
+  // (domain/chat/substrate/member-visibility.ts) — the ed2aafc5 cold-scrubber reconnect-leak shape.
+  fx(
+    "packages/server/src/transport/__g_scrubhome.ts",
+    'import { createHiddenSpanStreamScrubber } from "@orb/kit/content";\nexport const s = createHiddenSpanStreamScrubber();\n',
+  );
   // ct-no-oneshot-live-read-assert: a non-retrying `expect(await <locator>.boundingBox()).not.toBe(...)` in a
   // *.ct.tsx — the exact DEF-14 layout-rect shape the HARD (zero-baseline) gate flags on sight. Unescaped +
   // a plain value matcher → RED.
