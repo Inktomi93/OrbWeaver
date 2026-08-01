@@ -16,10 +16,16 @@ export interface WeaveGlyphProps {
    * ui package's global stylesheet freezes the animation to a static glyph under `prefers-reduced-motion`.
    */
   readonly anim?: boolean;
+  /**
+   * Drops the glyph out of the a11y tree (`aria-hidden`, no role/name) — for a glyph that is the visual
+   * body of an ALREADY-NAMED control (the rail brand button, which is labelled "Home"). Without it the
+   * button announced its own name plus a nested "Orbweaver" image.
+   */
+  readonly decorative?: boolean;
 }
 
 /** The woven-orb brand mark: three interlaced arcs around a center node (the "orbweaver" thread). */
-export function WeaveGlyph({ size = 24, className, anim = false }: WeaveGlyphProps): ReactElement {
+export function WeaveGlyph({ size = 24, className, anim = false, decorative = false }: WeaveGlyphProps): ReactElement {
   return (
     <svg
       width={size}
@@ -31,8 +37,11 @@ export function WeaveGlyph({ size = 24, className, anim = false }: WeaveGlyphPro
       strokeLinecap="round"
       strokeLinejoin="round"
       className={anim === true ? `orb-weave-shimmer ${className ?? ""}`.trim() : className}
-      role="img"
-      aria-label="Orbweaver"
+      // The two arms are mutually exclusive: a NAMED image, or a decoration inside an already-named
+      // control. Written as literal attributes (not a spread) so the a11y lint can see the aria-hidden.
+      aria-hidden={decorative ? true : undefined}
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : "Orbweaver"}
     >
       <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" />
       <path d="M12 3.2a8.8 8.8 0 0 1 7.6 13.2" />

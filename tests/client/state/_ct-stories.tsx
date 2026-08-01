@@ -14,6 +14,7 @@ import {
   clearCharacterSelection,
   clearChatListCharacterFilter,
   clearCorpusSelection,
+  clearNewChatPreset,
   clearPresetSection,
   clearPresetSelection,
   clearTagFilter,
@@ -27,6 +28,7 @@ import {
   isLanding,
   migrateComposerDraft,
   openModal,
+  openNewChatPicker,
   openSettingsTo,
   requestComposerFocus,
   revealContextPanel,
@@ -74,6 +76,7 @@ import {
   useListDocked,
   useModalRegistry,
   useNarrowViewport,
+  useNewChatPreset,
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
@@ -181,6 +184,8 @@ export function ActiveChatStoreProbe(): ReactElement {
   const seed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
   const openOverlayPanel = useOpenOverlayPanel();
+  const preset = useNewChatPreset();
+  const modal = useOpenModal();
   let handleStr = "landing";
   if (isCommitted(handle)) {
     handleStr = `committed:${handle.id}`;
@@ -191,6 +196,8 @@ export function ActiveChatStoreProbe(): ReactElement {
   return (
     <div>
       <output>{`handle=${handleStr} session=${sessionKey} seed=${seedStr} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
+      {/* A `p`, not a second `<output>` — the store CTs read the state line as `locator("output")`. */}
+      <p data-testid="new-chat-preset">{`modal=${modal ?? "none"} preset=${preset === undefined ? "none" : String(preset.temporary === true)}`}</p>
       <button type="button" onClick={(): void => startNewChat()}>
         new blank
       </button>
@@ -227,6 +234,15 @@ export function ActiveChatStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => goToLanding()}>
         go landing
+      </button>
+      {/* The ONE creation ceremony (side-eye F9): an opener with a creation-only intent PRESETS the seed
+          and opens the shared picker, instead of minting a draft of its own. The picker clears the preset
+          on unmount, which `clear preset` stands in for here. */}
+      <button type="button" onClick={(): void => openNewChatPicker({ temporary: true })}>
+        open picker temp
+      </button>
+      <button type="button" onClick={(): void => clearNewChatPreset()}>
+        clear preset
       </button>
     </div>
   );

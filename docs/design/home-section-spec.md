@@ -372,6 +372,7 @@ Three arms, ordered by honesty:
 | - | - | - | - |
 | **L-a — home declares no `list`** | `panelDefaults: {list:"collapsed", context:"collapsed"}`; the toggle stays and reveals *"Home list — this surface isn't wired yet"* | zero | **REJECT.** A reachable "isn't wired yet" panel on the app's front door is the exact "looks unbuilt" defect |
 | **L-b — the shell learns `unavailable`** | `SectionDefinition.panels?: { readonly list?: "unavailable" }`; THREE consumer sites: `useShellLayout` (force `collapsed`, ignore any persisted override), `ShellTopbar` (render no list toggle), and `useListDocked`'s shared `resolvePanelMode` input. `shell.css` needs NOTHING — the collapsed track is already zero-width | one optional Def field + 3 sites + a CT | **RECOMMEND.** This is genuine missing shell capability (every future pane-less section needs it), it adds no `PanelMode` member (the 4th-mode cost list-pane-projection §4.2 rightly refused), and it is invisible to every existing section |
+| **L-b AMENDED (side-eye fix-all, 2026-08-01)** | the axis covers BOTH panels — `panels?: { list?: "unavailable"; context?: "unavailable" }`, and home declares both. The consumer sites grow with it: `useShellLayout` pins `contextMode` collapsed + derives `anyPanelAvailable`, `contextToggleChrome`/`fullscreenChrome` gate their `useVisible` on it, and `AppShell` renders NO context body into the dead track | +1 field arm + 4 sites | shipped. Declaring only `list` left the front door with a detail-panel toggle onto `context:{kind:"none"}` and a focus toggle that cold-booted reading "Exit focus mode" (zero panels trivially satisfies "both collapsed") |
 | **L-c — home ships a real LIST** | the LIST becomes the recents list; the recents TILE drops | no shell change | **alternative.** Honest but weaker: it makes home a two-column surface competing with the chats section, and the tile grid loses its best row-content. Take this only if the owner wants zero shell change |
 
 Owner decision **H3**. Under L-b, home's CONTEXT panel is `context: { kind: "none" }` (an explicit decision,
@@ -412,8 +413,13 @@ asked for the comparison:
    (`draft-commit.ts:17-25,50-60`) — ONE sparse field, absent ⇒ today's plain new chat, byte-identical.
    Both commit paths (`use-send-message.ts`, `use-guided-actions.ts`) inherit it because the carry has one
    home (that file's own header states why).
-3. The home tile: a primary **Temp chat** button = `startNewChat({ temporary: true })` (a `DraftSeed` field)
+3. The home tile: a primary **Temp chat** button seeding `{ temporary: true }` (a `DraftSeed` field)
    - a `gloss` line rendering the user's own TTL: *"Not saved to your chats · deleted after 24h"*.
+   - **AMENDED (side-eye fix-all, 2026-08-01):** the button does NOT call `startNewChat` directly — it calls
+     `openNewChatPicker({ temporary: true })`, opening the SAME character picker every other "New chat"
+     affordance opens, with the creation-only flag preset (the picker mints preset ⊕ picks). ONE creation
+     ceremony: the direct call forked a second launcher that silently skipped the cast pick, so a temp room
+     could only ever be born castless.
 4. The draft surface must SAY it is temporary before the first send (a `Badge` in the topbar draft header) —
    the flag is set at creation and cannot be toggled later (`start-chat.ts:418`; the schema comment is
    explicit), so a user who does not see it before sending cannot fix it after. Post-send, the room shows

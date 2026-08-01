@@ -24,8 +24,22 @@ test("each row borrows its section's own placeholder copy as the gloss", async (
   const home = await mount(<HomeSectionJumpStory />);
 
   const tile = home.locator('[data-home-tile="home.jump"]');
-  await expect(tile.getByText("Your conversations live here — pick a thread on the left, or start a new one.")).toBeVisible();
+  // Side-agnostic copy: on this tile there is no "left" at all, which is why the chats section's own
+  // placeholder stopped saying it.
+  await expect(tile.getByText("Your conversations live here — pick a thread from your chats, or start a new one.")).toBeVisible();
   await expect(tile.getByText("Score → rewrite → analyze a character card without drifting from your original.")).toBeVisible();
+});
+
+test("a row's gloss WRAPS to two clamped lines — a nowrap ellipsis would cut the sentence that is the row's content", async ({ mount }) => {
+  const home = await mount(<HomeSectionJumpStory />);
+
+  const gloss = home.locator('[data-home-tile="home.jump"] [data-slot="list-row-subtitle"]').first();
+  const style = await gloss.evaluate((el) => {
+    const s = globalThis.getComputedStyle(el);
+    return { clamp: s.webkitLineClamp, whitespace: s.whiteSpace, lines: el.getClientRects().length };
+  });
+  expect(style.clamp).toBe("2");
+  expect(style.whitespace).not.toBe("nowrap");
 });
 
 test("a DECLARED-PLANNED section renders its Planned badge — derived from `content`, not a second list", async ({ mount }) => {

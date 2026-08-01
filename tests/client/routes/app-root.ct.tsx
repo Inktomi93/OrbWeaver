@@ -116,3 +116,47 @@ test("picking a character in the library starts a chat with it (the library→ch
   await expect(page.getByTestId(testId("composer"))).toBeVisible();
   await expect(page.getByText("The night market hums.")).toBeVisible();
 });
+
+// ── The TEMP-CHAT creation ceremony + the rail round-trip (side-eye F9 + the data-loss it flagged) ──
+// ONE ceremony: the home temp tile opens the SAME character picker every other "New chat" opens, with the
+// creation-only flag preset. And the draft it starts SURVIVES a rail round-trip — the active-chat pointer
+// is module state and CONTENT is <Activity>-kept, so leaving the section must never drop an unsent room.
+
+test("the temp tile starts its room through the SHARED picker, and the draft survives a rail round-trip", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    ...DRAFT_IDENTITY_STUB,
+  });
+  const component = await mount(<HomePageStory />);
+
+  // The tile no longer mints a seed of its own — it opens the ONE picker, which states the preset.
+  await component.getByRole("button", { name: "Start a temp chat" }).click();
+  const picker = page.getByRole("dialog");
+  await expect(picker.getByText("This room won't join your chats list, and you can't switch it later.")).toBeVisible();
+
+  await picker.getByText("Blank chat").click();
+
+  // The picker minted preset ⊕ picks: a draft room on the chats section, marked Temporary BEFORE any send.
+  await expect(page.getByTestId(testId("composer"))).toBeVisible();
+  await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
+
+  // Type into the unsent draft — the thing an accidental discard would actually cost the user.
+  const composerInput = page.getByTestId(testId("composer")).getByRole("textbox");
+  await composerInput.fill("a line I have not sent yet");
+
+  // Rail round-trip: home and back. The unsent draft must still be the active room — losing it here
+  // discards what the user typed and lands them on "No chat selected".
+  await page.locator(".shell-rail").getByRole("button", { name: "Home", exact: true }).click();
+  await expect(page.locator('[data-home-tile="chat.tempChat"]')).toBeVisible();
+  await page.locator(".shell-rail").getByRole("button", { name: "Chats", exact: true }).click();
+
+  await expect(page.getByText("No chat selected")).toHaveCount(0);
+  await expect(page.getByTestId(testId("composer"))).toBeVisible();
+  await expect(page.locator(".shell-topbar").getByText("Temporary")).toBeVisible();
+  // …and the composer draft came back with it (the EntityDraftStore scope is the draft key, which the
+  // round-trip does not re-mint).
+  await expect(composerInput).toHaveValue("a line I have not sent yet");
+});

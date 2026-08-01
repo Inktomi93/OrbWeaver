@@ -21,6 +21,11 @@ import { AppShellDropGuardStory, AppShellOnSectionStory, AppShellStory, AppShell
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
 const MAX_MOBILE_TAB_BUTTONS = 4;
 
+/** The three PANEL affordances, by accessible name — present iff the active section HAS that panel. */
+const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
+const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) detail panel$/u;
+const FOCUS_TOGGLE_RE = /focus mode$/u;
+
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
 
@@ -938,4 +943,55 @@ test("a non-file drag is left entirely alone — the guard is files-only", async
   // Cancelling a text drop would break dropping selected text into the composer — its insertion IS the default.
   expect(await readDropDefault(page)).toBe(false);
   await expect(page.getByText("Nothing imports from here")).toHaveCount(0);
+});
+
+// ── PANE-LESS SECTIONS (side-eye F1/F2/F6) — no doors onto panes that do not exist ──────────────────
+
+test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle, no focus toggle", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [], "character.list": { items: [], nextCursor: null } });
+  const shell = await mount(<AppShellOnSectionStory section="home" />);
+
+  await expect(shell.locator('[data-home-tile="home.jump"]')).toBeVisible();
+  // Home declares BOTH panels unavailable, so all three panel affordances are absent — not disabled, not
+  // present-but-dead. The focus toggle in particular cold-booted labelled "Exit focus mode", because zero
+  // panels trivially reads as "both collapsed".
+  await expect(page.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: FOCUS_TOGGLE_RE })).toHaveCount(0);
+  // …and the CONTEXT track carries no body at all (no "Select something to see its details here" pane
+  // parked off-screen behind a toggle nothing can reach).
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.locator('.shell-panel[data-panel-side="context"] .shell-panel-body')).toBeEmpty();
+});
+
+test("a section WITH panes still ships both toggles — the gate is per-section capability, not a global removal", async ({ mount }) => {
+  const shell = await mount(<AppShellStory />);
+
+  await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
+  await expect(shell.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toBeVisible();
+  await expect(shell.getByRole("button", { name: FOCUS_TOGGLE_RE })).toBeVisible();
+});
+
+test("MOBILE: a collapsed drawer is the FULL viewport wide and entirely off-screen — never a dead slab over content", async ({ mount, page }) => {
+  // The app-wide regression this pins: the desktop `--panel-context-w` rule out-specified the mobile
+  // block's `width:100dvw`, so at ≤48rem a COLLAPSED context drawer kept its 272px desktop width and —
+  // with `inset-inline:0` resolving to the inline start — painted 272px of dead panel OVER content on
+  // EVERY section. Asserted on both panels, as rendered.
+  await page.setViewportSize(MOBILE);
+  await mount(<AppShellStory />);
+
+  const assertOffScreenDrawer = async (side: string): Promise<void> => {
+    const panel = page.locator(`.shell-panel[data-panel-side="${side}"]`);
+    await expect(panel).toHaveAttribute("data-panel-mode", "collapsed");
+    const width = await panel.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).width));
+    expect(width).toBe(MOBILE.width);
+    // …and its visible x-range is entirely outside the viewport (left of 0, or right of the width).
+    const box = await panel.boundingBox();
+    const start = box?.x ?? 0;
+    const end = start + (box?.width ?? 0);
+    expect(end <= 0 || start >= MOBILE.width).toBe(true);
+  };
+
+  await assertOffScreenDrawer("list");
+  await assertOffScreenDrawer("context");
 });

@@ -47,6 +47,17 @@ test("the trailing action jumps to the chats section", async ({ mount, page }) =
   await expect(home.locator("output")).toHaveText("section=chats");
 });
 
+test("the rows are real LIST ITEMS, and the trailing action sits inside the tile's own named region", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [RECENT] });
+
+  const home = await mount(<ChatRecentsTileStory />);
+
+  // A `role="list"` whose children are generic divs announces as an empty list to AT (side-eye F4).
+  await expect(home.getByRole("list", { name: "Recent chats" }).getByRole("listitem")).toHaveCount(1);
+  // …and "All chats →" is announced under the tile's heading instead of standing alone as an arrow.
+  await expect(home.getByRole("region", { name: "Recent chats" }).getByRole("button", { name: "All chats →" })).toBeVisible();
+});
+
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [] });
 

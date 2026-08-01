@@ -119,6 +119,19 @@ export function AppShell(): ReactElement {
   // A section that declares NO list pane renders nothing into the (zero-width, toggle-less) track — the
   // "isn't wired yet" placeholder is for a section that HAS a list and hasn't built it (H3 / arm L-b).
   const listContent = activeDef.list?.() ?? (layout.listAvailable ? <SectionPlaceholder title={`${placeholderCopy.title} list`} /> : null);
+  // A section that declares NO context pane renders nothing into the (zero-width, toggle-less) track —
+  // the LIST twin above. Without this the pane-less front door still built a detail-panel body ("Select
+  // something to see its details here") that nothing could ever reach.
+  const contextPane = layout.contextAvailable
+    ? {
+        header: <SectionContextHeader key={layout.activeSection} definition={activeDef} />,
+        body: (
+          <RegionAnchor region="context">
+            <SectionContextHost key={layout.activeSection} definition={activeDef} />
+          </RegionAnchor>
+        ),
+      }
+    : { header: null, body: null };
   const contentFallback = <SectionPlaceholder title={placeholderCopy.title} description={placeholderCopy.description} weave={true} />;
   // Every section's content, from the registry, so <Activity> keeps recently-visited panes mounted-but-
   // hidden across a rail switch. The DECLARED-PLANNED arm renders the section's own placeholder as its
@@ -232,15 +245,8 @@ export function AppShell(): ReactElement {
               </main>
             </div>
 
-            <PanelChrome
-              panel="context"
-              label={`${layout.activeSectionLabel} details`}
-              header={<SectionContextHeader key={layout.activeSection} definition={activeDef} />}
-              mode={layout.contextMode}
-            >
-              <RegionAnchor region="context">
-                <SectionContextHost key={layout.activeSection} definition={activeDef} />
-              </RegionAnchor>
+            <PanelChrome panel="context" label={`${layout.activeSectionLabel} details`} header={contextPane.header} mode={layout.contextMode}>
+              {contextPane.body}
             </PanelChrome>
 
             {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}

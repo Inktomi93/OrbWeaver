@@ -104,6 +104,59 @@ test("a full-span tile spans BOTH columns while a half-span tile does not", asyn
   expect((full?.width ?? 0) > (half?.width ?? 0) * 1.5).toBe(true);
 });
 
+// ── A11y STRUCTURE (side-eye F3/F4) — the frame owns it, so every contributed tile inherits it ──────
+
+test("every tile is a REGION named by its own real h2 — home is navigable by heading and by landmark", async ({ mount, page }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  // One h2 per tile, in grid order (a styled div here would leave the whole screen heading-less).
+  await expect(home.getByRole("heading", { level: 2 })).toHaveText(["First tile", "Second tile", "Third tile"]);
+  // …and each CARD is the region that heading names, so a screen-reader user can jump tile-to-tile and
+  // everything inside a tile (its rows, its trailing action) is announced under that tile's name.
+  await expect(page.getByRole("region", { name: "First tile" })).toHaveAttribute("data-home-tile", "a-first");
+  await expect(page.getByRole("region", { name: "Second tile" })).toHaveAttribute("data-home-tile", "b-second");
+  await expect(page.getByRole("region", { name: "Third tile" })).toHaveAttribute("data-home-tile", "z-third");
+});
+
+// ── RENDERED fidelity against the mock (docs/design/mocks/home-section/home.html) ───────────────────
+
+test("a DORMANT tile's frame is DASHED — the doorway reads as not-built-yet from across the grid", async ({ mount }) => {
+  const dormant = await mount(<HomeDormantTileStory />);
+
+  const style = await dormant.locator('[data-home-tile="dormant"]').evaluate((el) => {
+    const s = globalThis.getComputedStyle(el);
+    return { border: s.borderTopStyle, width: s.borderTopWidth };
+  });
+  expect(style.border).toBe("dashed");
+  // A dashed edge that resolved to 0 width would be invisible — the mock's frame is a real hairline.
+  expect(Number.parseFloat(style.width)).toBeGreaterThan(0);
+});
+
+test("the dev-citation 'waiting on:' line is a FOOTNOTE — mono, and smaller than the teaser it annotates", async ({ mount }) => {
+  const dormant = await mount(<HomeDormantTileStory />);
+  const tile = dormant.locator('[data-home-tile="dormant"]');
+
+  const teaser = await tile.getByText(TEASER_RE).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
+  const reason = await tile.getByText(REASON_RE).evaluate((el) => ({
+    size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+    family: globalThis.getComputedStyle(el).fontFamily,
+    alpha: globalThis.getComputedStyle(el).opacity,
+  }));
+
+  expect(reason.size).toBeLessThan(teaser);
+  expect(reason.family.toLowerCase()).toContain("mono");
+  expect(Number.parseFloat(reason.alpha)).toBeLessThan(1);
+});
+
+test("the grid aligns tiles to START — a short tile never stretches to its row-mate's height", async ({ mount }) => {
+  const home = await mount(<HomeTileOrderStory />);
+
+  // `items-start` resolves to the computed `flex-start` (its grid-axis synonym) — the point is that it is
+  // NOT `normal`/`stretch`, which is what grew the short tile.
+  const align = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).alignItems);
+  expect(align).toBe("flex-start");
+});
+
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
   expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);
