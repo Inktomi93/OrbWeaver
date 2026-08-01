@@ -18,7 +18,8 @@
 //
 // Survivor mechanism (2026-08-01 founding sweep — 14 hits triaged): `ALLOWLIST` holds the SANCTIONED
 // files (reason-cited, both-ways stale ratchet); `DEBT_BASELINE` holds the incident-class debt under a
-// per-file count ratchet (over budget RED, under budget stale RED — terminal state `{}`).
+// per-file count ratchet (over budget RED, under budget stale RED — terminal state `{}`, REACHED
+// 2026-08-01 when the two choice-button sites moved onto Button's `size="wrap"`).
 //
 // DECLARED BLIND SPOT (literal-shape): only a literal `className="…"` / `className={"…"}` /
 // no-substitution template is read — a computed/conditional className (cn(...), a template with
@@ -51,16 +52,14 @@ const ALLOWLIST: Record<string, string> = {
     "`size-1.5` on a CHILDLESS Badge dot — Badge declares no h/w/size of its own (padding-sized), so there is no variant to fight; a features-tier surface can't paint a raw <span>, so the dot is a Badge sized at the call site (see the site comment).",
 };
 
-/** Incident-class DEBT under ratchet: file → the count of banned size tokens it may still carry. These
- *  are `h-auto`-on-Button sites (h-auto vs the size variant's `h-control-sm` — a CUSTOM token
- *  tailwind-merge can't classify, so the override rides stylesheet order: the exact hazard). The fix is
- *  a wrap/multiline size variant on Button (packages/ui/src/primitives/button/variants.ts — the
- *  `media: "size-auto"` F2 precedent). Over budget = RED; UNDER budget = stale RED (ratchet the row
- *  down / delete it). */
-const DEBT_BASELINE: Record<string, number> = {
-  "packages/client/src/features/chat/components/message-choices-block.tsx": 1,
-  "packages/client/src/features/rpg/components/rpg-choice-echo.tsx": 1,
-};
+/** Incident-class DEBT under ratchet: file → the count of banned size tokens it may still carry. Over
+ *  budget = RED; UNDER budget = stale RED (ratchet the row down / delete it).
+ *
+ *  TERMINAL — the founding sweep's two rows (the `h-auto min-h-touch-target py-field` choice buttons in
+ *  chat/message-choices-block + rpg/rpg-choice-echo) were PAID 2026-08-01: they now ride Button's
+ *  `size="wrap"` (packages/ui/src/primitives/button/variants.ts — the `media`/F2 precedent). The map
+ *  stays as the ratchet mechanism; it must never grow again — a new hit is a variant to add, not a row. */
+const DEBT_BASELINE: Record<string, number> = {};
 
 const MESSAGE =
   "sizes come from variants — tailwind-merge can't classify custom-token utilities, so a call-site " +

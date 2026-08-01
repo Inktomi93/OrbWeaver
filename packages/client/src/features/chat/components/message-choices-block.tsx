@@ -49,12 +49,12 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
         <Button
           key={key}
           intent="secondary"
-          size="sm"
+          size="wrap"
           focusableWhenDisabled={true}
           disabled={disabled}
           title={reason}
           data-testid={testId("messageChoiceOption")}
-          className="h-auto min-h-touch-target justify-start whitespace-normal py-field text-left"
+          className="justify-start text-left"
           onClick={(): void => {
             if (choiceSend !== null && !choiceSend.busy) {
               choiceSend.choose(option);

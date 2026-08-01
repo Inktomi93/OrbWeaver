@@ -36,6 +36,12 @@ test.describe("coarse pointer — the touch floor", () => {
     expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
   });
 
+  test("wrap size keeps the floor for a short label (its height is a MINIMUM, not a release)", async ({ mount }) => {
+    const button = await mount(<Button size="wrap">Go</Button>);
+    const box = await button.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+  });
+
   test("icon size is a square control meeting the floor with no horizontal padding", async ({ mount }) => {
     const button = await mount(<Button aria-label="Regenerate" size="icon" />);
     const box = await button.boundingBox();
@@ -62,6 +68,28 @@ test("media size takes its child's box exactly, with no padding of its own", asy
   expect(box?.height).toBeCloseTo(MEDIA_CHILD_PX, 0);
   await expect(button).toHaveCSS("padding-left", "0px");
   await expect(button).toHaveCSS("padding-top", "0px");
+});
+
+// `wrap` is the MULTILINE arm: a choice affordance carrying a model-authored sentence. The label wraps
+// inside a constrained column and the box GROWS with it — the geometry a call-site `h-auto` could not
+// buy, since a custom-token height is opaque to tailwind-merge and the winner fell out of stylesheet
+// order (the two choice-button debt sites the ui-size-via-variant gate held).
+const WRAP_COLUMN_PX = 180;
+const WRAP_LABEL = "1. Take the long way round the ridge and approach the camp from the treeline at dusk";
+
+test("wrap size wraps its label and grows taller than the single-line sm control", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: WRAP_COLUMN_PX }}>
+      <Button size="sm">Go</Button>
+      <Button size="wrap">{WRAP_LABEL}</Button>
+    </div>,
+  );
+  const singleLine = await page.getByRole("button", { name: "Go" }).boundingBox();
+  const wrapped = await page.getByRole("button", { name: WRAP_LABEL }).boundingBox();
+  // It stayed inside the column (it wrapped) instead of overflowing on one nowrap line …
+  expect(wrapped?.width ?? 0).toBeLessThanOrEqual(WRAP_COLUMN_PX);
+  // … and the box followed the wrapped text past the fixed control height.
+  expect(wrapped?.height ?? 0).toBeGreaterThan(singleLine?.height ?? 0);
 });
 
 test("loading sets aria-busy and disables the button", async ({ mount }) => {
