@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preset redesign — the PROMPT RACK, first-class (the section manager)</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-warning: oklch(0.8 0.12 85);
+  --color-success: oklch(0.72 0.13 150);
+  --color-info: oklch(0.7 0.1 232);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 64px}
+.muted{color:var(--color-muted-foreground)}
+.mono{font-family:var(--font-mono)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:1020px}
+.stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:360px;margin:9px 0 0;line-height:1.55}
+.note b{color:var(--color-foreground);font-weight:650}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+
+.panel{width:720px;background:var(--color-background);border:1px solid var(--color-sidebar-border);
+  border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.ehead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--color-border)}
+.ehead .nm{font-size:14px;font-weight:650}
+.chip{font-size:9px;font-weight:650;padding:2px 7px;border-radius:var(--radius-full)}
+.c-active{color:var(--color-primary);background:var(--ember-tint)}
+.ehead .grow{flex:1}
+.autosave{font-size:10px;color:var(--color-muted-foreground)}
+.tabs{display:flex;gap:2px;padding:8px 12px 0;border-bottom:1px solid var(--color-border)}
+.tabs button{border:none;background:none;color:var(--color-muted-foreground);cursor:pointer;font-family:inherit;
+  font-size:12px;font-weight:600;padding:7px 12px 9px;position:relative}
+.tabs button[aria-selected="true"]{color:var(--color-foreground)}
+.tabs button[aria-selected="true"]::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;
+  background:var(--color-primary);border-radius:2px}
+.body{padding:12px 14px 20px;display:flex;flex-direction:column;gap:10px}
+
+.toolbar{display:flex;align-items:center;gap:8px}
+.toolbar .grow{flex:1}
+.newbtn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border:none;border-radius:var(--radius-control);
+  cursor:pointer;font-family:inherit;font-size:11px;font-weight:650;background:var(--color-primary);color:var(--color-primary-foreground);
+  box-shadow:0 2px 10px color-mix(in oklab,var(--color-primary) 30%,transparent)}
+.newbtn svg{width:12px;height:12px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round}
+
+/* ————— the rack rows (instrument list — hairline separation, no border boxes) ————— */
+.rack{display:flex;flex-direction:column}
+.rrow{display:grid;grid-template-columns:16px 20px minmax(0,1fr) auto 52px 34px 22px;align-items:center;gap:9px;
+  min-height:38px;padding:4px 6px;border-radius:var(--radius-control);position:relative}
+.rrow + .rrow{border-top:1px solid color-mix(in oklab,var(--color-foreground) 3.5%,transparent)}
+.rrow:hover{background:color-mix(in oklab,var(--color-foreground) 3.5%,transparent)}
+.rrow.selected{background:var(--ember-tint)}
+.rrow.selected::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:2px;border-radius:2px;background:var(--color-primary)}
+.rrow.off{opacity:.55}
+/* zone accent = the type-glyph badge hue: steel-blue setup / warm-amber post */
+.grip{color:color-mix(in oklab,var(--color-muted-foreground) 60%,transparent);cursor:grab}
+.grip svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none}
+.glyph{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:var(--radius-control)}
+.glyph svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.g-setup{color:var(--color-info);background:color-mix(in oklab,var(--color-info) 13%,transparent)}
+.g-post{color:var(--color-warning);background:color-mix(in oklab,var(--color-warning) 13%,transparent)}
+.rname{min-width:0;text-align:left;background:none;border:none;color:inherit;font-family:inherit;cursor:pointer;padding:0}
+.rname .t{font-size:12.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rname .sub{font-size:9.5px;color:var(--color-muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.cues{display:flex;align-items:center;gap:4px}
+.cue{font-size:9px;font-weight:650;padding:1px 6px;border-radius:var(--radius-full);white-space:nowrap;font-family:var(--font-mono)}
+.cue.splice{color:var(--color-info);background:color-mix(in oklab,var(--color-info) 13%,transparent)}
+.cue.trig{color:var(--color-warning);background:color-mix(in oklab,var(--color-warning) 13%,transparent)}
+.cue.lock,.cue.custom{color:var(--color-muted-foreground);background:color-mix(in oklab,var(--color-foreground) 7%,transparent)}
+.tok{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground);text-align:right;font-variant-numeric:tabular-nums}
+.rrow.off .tok{text-decoration:line-through}
+.sw{width:30px;height:17px;border-radius:var(--radius-full);background:color-mix(in oklab,var(--color-foreground) 14%,transparent);position:relative;flex:none;justify-self:center}
+.sw.on{background:var(--color-primary)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--color-foreground)}
+.sw.on::after{left:auto;right:2px;background:var(--color-primary-foreground)}
+.chev{color:var(--color-muted-foreground);cursor:pointer}
+.chev svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+
+/* the pivot band — the horizon; NO switch (cannot be disabled/deleted/silenced) */
+.pivot{margin:6px 0;padding:8px 10px;border-radius:var(--radius-base);
+  background:color-mix(in oklab,var(--color-foreground) 4%,transparent);border:1px dashed var(--color-input)}
+.pivot .zl{font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:650;color:var(--color-info)}
+.pivot .zl.post{color:var(--color-warning)}
+.pivot .mid{display:flex;align-items:center;gap:8px;padding:4px 0}
+.pivot .mid svg{width:13px;height:13px;stroke:var(--color-muted-foreground);stroke-width:2;fill:none}
+.pivot .mid .t{font-size:11.5px;font-weight:650;letter-spacing:.02em}
+.pivot .mid .g{font-size:9.5px;color:var(--color-muted-foreground)}
+</style></head><body>
+
+<h1>Preset redesign — the PROMPT RACK, first-class</h1>
+<p class="lede">The section MANAGER (spec §5.0/§5.1) — the concept the Actions view is not. Per-row:
+grip (drag; keyboard sensors are the same home) · type glyph (zone-hued) · name button (click =
+<b>select/inspect</b>, readout echoes) · only-when-set cue badges · ~tokens · enable Switch · chevron
+(= <b>edit</b>, drills in). Markers are STRUCTURAL (no delete anywhere); the pivot has no switch at
+all. <b>Add</b> mints a literal or an absent marker and auto-drills to name it.</p>
+
+<div class="stage">
+  <div>
+    <p class="plabel">Content pane — Prompt view, the rack (720px)</p>
+    <div class="panel">
+      <div class="ehead">
+        <span class="nm">Default (edited)</span><span class="chip c-active">ACTIVE</span>
+        <span class="grow"></span><span class="autosave">Saved</span>
+      </div>
+      <div class="tabs" role="tablist">
+        <button aria-selected="false">Params</button>
+        <button aria-selected="true">Prompt</button>
+        <button aria-selected="false">Actions</button>
+        <button aria-selected="false">Data</button>
+        <button aria-selected="false">Transforms</button>
+      </div>
+      <div class="body">
+
+        <div class="toolbar">
+          <span class="grow"></span>
+          <button class="newbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add</button>
+        </div>
+
+        <div class="rack">
+
+          <!-- selected templated marker -->
+          <div class="rrow selected">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="m12 3 1.7 5.2h5.5l-4.4 3.2 1.7 5.2-4.5-3.2-4.5 3.2 1.7-5.2L4.8 8.2h5.5z"/></svg></span>
+            <button class="rname"><span class="t">Main</span><span class="sub">the top framing instruction</span></button>
+            <span class="cues"><span class="cue custom">custom</span></span>
+            <span class="tok">~480</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <!-- carrier -->
+          <div class="rrow">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 8h18M3 16h18"/></svg></span>
+            <button class="rname"><span class="t">World info (before)</span><span class="sub">carrier — content from World info</span></button>
+            <span class="cues"></span>
+            <span class="tok">~—</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="rrow">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/></svg></span>
+            <button class="rname"><span class="t">Description</span><span class="sub">carrier — the character card</span></button>
+            <span class="cues"></span>
+            <span class="tok">~370</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <!-- literal (user-authored — the only deletable kind) -->
+          <div class="rrow">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></span>
+            <button class="rname"><span class="t">Style guide</span><span class="sub">your own text</span></button>
+            <span class="cues"><span class="cue splice">@4·100</span></span>
+            <span class="tok">~210</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <!-- disabled row -->
+          <div class="rrow off">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></span>
+            <button class="rname"><span class="t">Dialogue examples</span><span class="sub">carrier — the card's examples</span></button>
+            <span class="cues"></span>
+            <span class="tok">~88</span>
+            <div class="sw"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="rrow">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-setup"><svg viewBox="0 0 24 24"><path d="M12 8v8m-4-4h8M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg></span>
+            <button class="rname"><span class="t">Guided instruction</span><span class="sub">carrier — your steer, when you fire one</span></button>
+            <span class="cues"><span class="cue trig">⚡ steered turns</span></span>
+            <span class="tok">~—</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <!-- THE PIVOT — no switch, no delete, no silence -->
+          <div class="pivot">
+            <div class="zl">setup · sent before the conversation</div>
+            <div class="mid">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span class="t">CHAT HISTORY</span>
+              <span class="g">your conversation splices in here — always on, always placed</span>
+            </div>
+            <div class="zl post">post · sent after your last message</div>
+          </div>
+
+          <!-- post-zone templated marker with lock -->
+          <div class="rrow">
+            <span class="grip"><svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span>
+            <span class="glyph g-post"><svg viewBox="0 0 24 24"><path d="m12 3 1.7 5.2h5.5l-4.4 3.2 1.7 5.2-4.5-3.2-4.5 3.2 1.7-5.2L4.8 8.2h5.5z"/></svg></span>
+            <button class="rname"><span class="t">Post-history</span><span class="sub">the last word before the reply</span></button>
+            <span class="cues"><span class="cue lock">🔒</span><span class="cue custom">custom</span></span>
+            <span class="tok">~86</span>
+            <div class="sw on"></div>
+            <span class="chev"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>ST-anatomy parity, our grammar:</b> enable toggle + token count per row (ST's
+    toggle/pencil/count), the chevron as the edit pencil, mandatory rows with NO delete anywhere
+    (markers — delete exists only in a LITERAL's drill-in ⋯), the pivot as a horizon band with no
+    switch. Splice/trigger/lock/custom cues only-when-set; carriers show <span class="mono">~—</span>
+    (their real cost is chat-side — REAL when the ruled §7.1 binding is active). Drag = the grip; keyboard
+    reorder = the same sortable's sensors; Move-above/below in the drill-in ⋯ is the sanctioned
+    zone-jump echo. <b>Add</b> offers "Literal text" + every absent marker, then auto-drills to name.</p>
+  </div>
+</div>
+</body></html>

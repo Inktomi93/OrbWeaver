@@ -163,15 +163,26 @@ built-in's sections IDENTICALLY (nothing is special-cased; the lock is a WRITE p
 mode). The
 sequence when the user edits (the landed `usePresetAutosave` machinery, spelled as UX):
 
-1. the FIRST committed edit autosaves through the serialized chain; the server copy-on-writes and
-   returns the fork's row ("Default (edited)") — the mint happens exactly once per session chain;
-2. the editor RETARGETS in place: the header name flips to the fork's, the LIST grows the fork row
-   (selected), and the built-in row stays locked and unchanged;
-3. activation follows when the built-in was the active pick (the landed retarget) — the header's
+1. **First-ever edit (no fork exists): the SILENT COW — unchanged.** The edit autosaves through the
+   serialized chain; the server copy-on-writes and returns the fork's row ("Default (edited)") — the
+   mint happens exactly once per session chain; no dialog, no interruption.
+2. **Edit while the owner already holds ≥1 fork (owner-ruled; BUILD lane in flight): the CHOICE.**
+   The save chain INTERCEPTS before the write — a confirm-shaped dialog: *"Your edits to Default live
+   in <fork name>"* → **Keep editing it** (primary — retargets the session to that fork, the newest
+   built-in-descended one, and the pending edit converges there) vs **Start a new fork** (a name
+   input — mints with `forkedFrom` lineage; the non-unique name index deliberately permits N
+   deliberate forks). The dialog is the standard confirm anatomy + one name field — landed primitives,
+   not drawn (nothing novel to draw).
+3. either way the editor RETARGETS in place: the header name flips to the target fork's, the LIST
+   selects it, and the built-in row stays locked and unchanged;
+4. activation follows when the built-in was the active pick (the landed retarget) — the header's
    ACTIVE chip appears, or the not-active **Activate** echo renders (§16 row 3b, the sanctioned
    editor-side half of activation);
-4. every subsequent save patches the fork. No dialog, no interruption — the `AutosaveStatus` chip is
-   the only narration.
+5. every subsequent save patches the target fork; the `AutosaveStatus` chip is the only narration.
+
+One-home note (the load-bearing half of the ruling): the interception is a ROUTING DECISION inside
+the ONE save path (`usePresetAutosave`'s chain — the exact seam that owns the silent COW), never a
+second write path; its two arms route to EXISTING homes (§16 row 32).
 
 The built-in's LIST row: lock glyph, no Delete (landed), Export hidden (§16.1), its activate toggle =
 the null pick.
@@ -297,6 +308,11 @@ readout is the named prior failure class. The contract, in full:
   surface RED, so the build lane structurally cannot ship the prior failure class.
 - **Router-sweep classification**: `preset.resolveEffective` is a new proc — it lands with its
   cross-tenant sweep row (PROBED: caller-scoped preset read) per the standing new-router rule.
+- **The BINDING is a READ of chat state (§7.1, ruled)**: while bound, chat changes invalidate the
+  bound readout/preview queries — turn commits + canon changes on the bound chat (the `chatsChanged`
+  fan the preview read already rides) and a LAST-OPEN-CHAT handle change (bind target moved) each
+  refetch; the `presetOverride` preview read is classified in the `query-freshness-coverage` gate at
+  birth like every other read here.
 - **The tested property**: an integration/CT pin drives a write → asserts the invalidation fired → the
   readout refetched (the settle-live loop, proven not narrated).
 
@@ -315,9 +331,15 @@ as law:
   prefill"*): the template text (ghost-default), the delivery **role**, and the delivery **depth** —
   today's contract carries `prompt` + `role` only (`contracts/preset/index.ts:314-320`) with depth
   FIXED at 0 by the role comment; G10 grows the contract by an optional `depth` (absent = 0, the
-  tail — byte-compatible with every stored blob), so the fixture becomes the default. Assistant-role
-  delivery is named for what it is: **PREFILL** — the reply begins with the template's rendered text,
-  normalized on wires without prefill support (the landed note). Nudges (`formatStrings.*`) stay pure
+  tail — byte-compatible with every stored blob), so the fixture becomes the default. PREFILL is
+  CORRECTED per owner + ST source: assistant-role delivery is just an assistant-VOICED message —
+  **prefill is a POSITION, not a role**: an assistant message at the PROMPT TAIL the model continues,
+  and per-wire (ST receipt: the `continue_prefill` mode shifts the message-to-continue and prepends
+  `assistant_prefill` ONLY when it is assistant-role AND the source is Claude —
+  `SillyTavern/public/scripts/openai.js:1319-1331`; the setting is its own Claude-gated field,
+  `:380,:490`). In our model the prefill-shaped CONFIGURATION is `role: assistant` + `depth: 0` with
+  nothing after it — the delivery cluster MARKS that configuration ("tail prefill · normalized where
+  the wire lacks it"); the role option label stays plain. Nudges (`formatStrings.*`) stay pure
   strings — text only.
 - **A PROMPT SECTION is an ASSEMBLY ROW** — arrangement is its meaning. It owns the section-only
   vocabulary: enable, order-in-rack, zone, splice depth/order, triggers, role, override locks, and
@@ -329,7 +351,7 @@ as law:
 | - | - | - | - |
 | body text, ghost-default-when-empty (Default/Custom state) | YES (`prompt` — the state chip is the same derivation) | YES (literal content / marker framing) | both are authored prose; ONE ghost grammar + ONE state derivation (`guidedFooterState`, §5.2a) |
 | `{{input}}` splice + lint | YES — the steer lands here | NO — the `guided_instruction` MARKER carries the resolved steer into the assembly | the steer exists only when a button fires |
-| delivered-as role | YES (`role`) — assistant = **PREFILL**, named | YES — same semantic at the tail | both deliver on the wire; ONE role vocabulary (`MESSAGE_ROLE_ITEMS`), ONE prefill concept |
+| delivered-as role | YES (`role`) — assistant is a VOICE; the `assistant`+`depth 0` CONFIGURATION gets the "tail prefill" mark | YES — the same conditional mark at the tail | both deliver on the wire; ONE role vocabulary (`MESSAGE_ROLE_ITEMS`); prefill = position, per the §5.0 ST receipt |
 | inject depth | **YES (owner, round 4b)** — `depth` joins the contract (G10; absent = 0/tail, the current behavior) | YES (Delivery, beside role — round-3 ruling) | both are in-chat delivery; ONE delivery-cluster grammar (role + depth side by side) serves BOTH drill-ins — the one-home rule made literal (§13 `DeliveryCluster`) |
 | splice order | NO | YES (Placement) | within-depth tiebreak is assembly vocabulary |
 | zone | NO | YES | zones are pivot-relative arrangement |
@@ -465,9 +487,11 @@ Impersonate   writes as you for one turn        [system] [Customized] "Write the
 handles, no Add — `GUIDED_ACTION_KINDS` + the nudges are the exhaustive set, and every row always
 resolves (empty = the default rides). The manageable list lives in Prompt (§5.1); a manage affordance
 appearing here is the §5.0 conflation rebuilt. The drill-in's HONEST field set (owner-refined, round
-4b): the template textarea (ghost-default) + the DELIVERY CLUSTER — role (assistant = **prefill**,
-labeled as such) beside depth (G10; blank = 0, the tail) — the SAME cluster grammar the section
-drill-in uses (one home, §13 `DeliveryCluster`; one role vocabulary via `MESSAGE_ROLE_ITEMS`).
+4b): the template textarea (ghost-default) + the DELIVERY CLUSTER — role beside depth (G10; blank =
+0, the tail) — the SAME cluster grammar the section drill-in uses (one home, §13 `DeliveryCluster`;
+one role vocabulary via `MESSAGE_ROLE_ITEMS`). The cluster renders the **"tail prefill"** mark ONLY
+for the `assistant` + `depth 0` configuration (prefill is a position, not a role — the §5.0 ST
+receipt), with the per-wire normalization gloss.
 Zone / splice order / triggers / locks are ARRANGEMENT vocabulary and never render here (the button
 is the trigger). Nudge editors are text-only (a `formatStrings` slot has no role or depth).
 
@@ -504,19 +528,26 @@ app-tier defaults elsewhere). No S2 editor is designed here.
 ### 6.5 The ST TEMPLATE CENSUS — every ST slot mapped to its ONE home (owner-supplied list, round 4b)
 
 The owner's parity requirement: *"we need to make sure we have the same templates along with our
-own."* Every ST template section, mapped — ONE home each, never a duplicate slot:
+own"* — and his round-4c direction: *stop inventing semantics; pull the actual ST fields from
+source.* Done — every claim below is receipted from the local checkout
+(`SillyTavern/public/scripts/openai.js`). **The source-derived law: EVERY ST utility template is a
+TEXT-ONLY setting** (plain strings in `oai_settings` — the settings map `:363-381`, defaults
+`:425-436`); none carries a role/depth/position FIELD — role and position are FIXED at each
+consumption site (system everywhere except `send_if_empty`, which lands as a USER message). Our
+`role` + `depth` on guided actions is therefore a DELIBERATE EXCESS over ST (owner-ruled, round 4b),
+recorded against the receipt, and the census verdicts stand on the evidence:
 
-| ST template | our ONE home | verdict |
-| - | - | - |
-| Impersonation prompt | TWO jobs, one home each: `formatStrings.impersonateNudge` (the standing voice-lock — the measured IMP-1 instrument) + `guidedActions.impersonate` (the `{{input}}` wrap when you STEER an impersonation) | **EXISTS** — ST's single slot is honestly two jobs here; the census notes the split so nobody "unifies" the pair into drift |
-| World Info format (`{0}` wrapper) | `formatStrings.wiFormat` (`{{entry}}`) | **EXISTS** |
-| Scenario format | the `scenario` MARKER's template (`DEFAULT_MARKER_TEMPLATES.scenario` = `{{scenario}}`) | **EXISTS** — a section template, deliberately NOT a second formatString (one home) |
-| Personality format | the `char_personality` MARKER's template | **EXISTS** (same shape) |
-| Group Nudge prompt | room-owned, NOT preset-owned — the recorded importer ruling (`DROPPABLE_FIELDS`: "group nudge is room-owned"); the multi-character reply-forcing machinery is the chat domain's arbitration | **DELIBERATELY ELSEWHERE** — named, not missing |
-| New Chat / New Group Chat | no home — ST emits a history-start boundary marker; our assembly emits none (and our rooms have no chat/group split, so ONE slot covers both) | **ADD (G9)**: `formatStrings.newChatMarker`, blank-by-default (= today's behavior); the assembler emits it at history start when set |
-| New Example Chat | the `dialogue_examples` MARKER's template — it already frames EACH example block (the contract's own doc: "One example dialogue block, rendered inside the dialogue-examples marker") | **EXISTS** — ST's separator IS our per-block wrapper |
-| Continue nudge | `formatStrings.continueNudge` | **EXISTS** |
-| Replace empty message | none — and DELIBERATELY: in ST an empty send needs placeholder text; here the empty-composer act IS the first-class **Continue** action (its nudge is the slot) | **DELIBERATE ABSENCE** — recorded so it reads as mapped, not missed; revisit only if a real empty-send flow ever lands |
+| ST template | ST field set + consumption (receipts) | our ONE home | verdict |
+| - | - | - | - |
+| Impersonation prompt | text-only (`:104,:364`); a SYSTEM prompt, id `impersonate`, in the unordered system set (`:1370,:1381`); ST's separate `assistant_impersonation` prefill is Claude-gated (`:381,:491`) | TWO jobs, one home each: `formatStrings.impersonateNudge` (the standing voice-lock — the measured IMP-1 instrument) + `guidedActions.impersonate` (the `{{input}}` wrap when you STEER an impersonation) | **EXISTS** — ST's single slot is honestly two jobs here; the census notes the split so nobody "unifies" the pair into drift |
+| World Info format (`{0}` wrapper) | text-only (`:106`); `formatWorldInfo` string-format wrapper (`:788-800`) feeding the fixed system WI markers (`:1375-1376`) | `formatStrings.wiFormat` (`{{entry}}`) | **EXISTS** |
+| Scenario format | text-only (`:113`); substituted into the system `scenario` marker's content (`:1367,:1378`) | the `scenario` MARKER's template (`DEFAULT_MARKER_TEMPLATES.scenario` = `{{scenario}}`) | **EXISTS** — a section template, deliberately NOT a second formatString (one home) |
+| Personality format | text-only (`:112`); same shape (`:1368,:1377`) | the `char_personality` MARKER's template | **EXISTS** (same shape) |
+| Group Nudge prompt | text-only (`:114`); a SYSTEM prompt, id `groupNudge` (`:1369,:1382`), budget-reserved beside history and SUPPRESSED for impersonate (`:897-901`) | room-owned, NOT preset-owned — the recorded importer ruling (`DROPPABLE_FIELDS`: "group nudge is room-owned"); the multi-character reply-forcing machinery is the chat domain's arbitration | **DELIBERATELY ELSEWHERE** — named, not missing |
+| New Chat / New Group Chat | text-only (`:107-108`); one of the two picked by group-ness → a SYSTEM message `newMainChat` reserved at history population (`:892-894`) | no home — ST emits a history-start boundary marker; our assembly emits none (and our rooms have no chat/group split, so ONE slot covers both) | **ADD (G9)**: `formatStrings.newChatMarker`, blank-by-default (= today's behavior); the assembler emits it at history start when set |
+| New Example Chat | text-only (`:109`); a SYSTEM message `newChat` inserted per example block (`:1107`) | the `dialogue_examples` MARKER's template — it already frames EACH example block (the contract's own doc: "One example dialogue block, rendered inside the dialogue-examples marker") | **EXISTS** — ST's separator IS our per-block wrapper |
+| Continue nudge | text with `{{lastChatMessage}}` extended substitution (`:110,:910`); a SYSTEM prompt spliced with the continued message — GATED by `!continue_prefill` (`:905-925`): ST's continue has TWO modes, nudge vs tail-prefill; ours rides the nudge shape (a continue-prefill mode is a named doorway, not designed) | `formatStrings.continueNudge` | **EXISTS** |
+| Replace empty message | text, default empty (`:363,:425`); a USER message `emptyUserMessageReplacement` inserted into chatHistory ONLY when the last message is assistant-role (`:928-932`) | none — and DELIBERATELY: in ST an empty send needs placeholder text; here the empty-composer act IS the first-class **Continue** action (its nudge is the slot) | **DELIBERATE ABSENCE** — recorded so it reads as mapped, not missed; revisit only if a real empty-send flow ever lands |
 
 Census rule: a future ST-parity sweep starts HERE, not at the ST list — each row names where the job
 lives, so a "missing template" claim must first beat the mapping.
@@ -576,11 +607,12 @@ only — macros are tokenized, never resolved; nothing here touches live chat da
 over the preset's own `sections`, plain markers contributing their one-line hint (`:95`), never
 materialized rows; (2) the REAL materialization view (actual spliced rows, per-row token costs) is the
 CHAT-side surface — the landed PREV/assembly machinery already renders the true per-turn context
-against a live room. Whether the preset editor gets an OPT-IN binding to that reality is the ONE open
-fork of this spec — §7.1 weighs it in full (owner decision D8). Until ruled, the boundary above is the
-posture: attribution editor-side, materialization chat-side, nothing faked.
+against a live room. The binding to that reality is RULED (owner, 08-02 — §7.1):
+the readouts AUTO-BIND to the last-open chat, named + dismissible; the boundary above is the UNBOUND
+arm's posture — attribution editor-side, materialization chat-side, nothing faked — and it survives
+as the dismissed/no-recent-chat fallback.
 
-### 7.1 The NAME-CLICK INSPECT — weighed in full (OPEN, owner decision D8)
+### 7.1 The NAME-CLICK INSPECT — RULED (owner, 08-02): auto-bind to the last-open chat
 
 The ST reference, stated exactly (owner screenshots): clicking a marker's NAME opens an Inspect panel
 ("Prompt List — the list of prompts associated with this marker") showing the marker's ACTUAL
@@ -616,12 +648,19 @@ weighed without anchoring on the current design:
   honesty — and it preserves a pane-hop loop (edit → jump to the chat Preview tab → look → jump back)
   through the exact workflow the ST inspect exists to de-friction.
 
-**Recommendation (D8): (c), opt-in — defaulting BOUND when the edited preset IS the active one AND a
-chat is open** (the mid-play case: everything real), UNBOUND otherwise (the honest floor). (d) stays
-true regardless — the chat Preview tab keeps its own view of the same read. Sequenced AFTER P0–P5
-(nothing in the core depends on it); a YES lands the `presetOverride` seam + the freshness rows + a
-§16 row for the binding chip (a readout-local VIEW toggle, not a mutation — the read-only invariant
-holds).
+**THE RULING (owner, 08-02 — arm (c) as refined):** the editor's readouts/preview **AUTO-BIND to the
+LAST-OPEN CHAT** — the active-chat handle that survives section switches (the proven nav-round-trip
+property: the composed CT pinned that navigation round-trips keep the handle; only a page RELOAD
+drops it by design, which lands you in the unbound arm honestly). The binding is **NAMED AND
+DISMISSIBLE** in the readout header — "inspecting against: <chat name> ✕". Dismissing, or having no
+recent chat, falls back to the HONEST TOKEN VIEW (the chat-free arm above, exactly as designed —
+never a broken pane). While bound, materialized rows + identity macros resolve through the ONE
+`presetOverride` preview read. **The binding control is ONE control with two states** (§16 row 33):
+bound → the ✕ dismisses; dismissed → the same header slot renders a quiet "Inspect against <chat>"
+re-bind chip (judgment call, stated: requiring a section round-trip to undo one click is a trap — the
+chip is the same control's other face, not a second home). The weighing above stands as the rationale
+record; (d) stays true regardless — the chat Preview tab keeps its own view of the same read.
+Sequenced AFTER P0–P5; the build lands the `presetOverride` seam + the §4.4 binding freshness rows.
 
 **Where the honest answer is "the same readout," said per-view:** no view duplicates another
 wholesale. Prompt and Actions share the arrangement SOURCE (both project `sections` — one derivation,
@@ -744,7 +783,7 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | the slider control, INCLUDING large integer ranges (output 1..32768, context 1..131072) | **EXISTS** | `slider/slider.tsx:15` — the Base UI `SliderRootProps` pass-through carries `min`/`max`/`step`/`largeStep`; a large range is props, and precision entry belongs to the twin, so no log-scale machinery. NOT a mint |
 | slider ghost/inherited tone | **VARIANT-ROW** | `slider/variants.ts` has NO tone axis today, and the indicator is hardcoded `bg-primary` — add `tone: "default" \| "ghost"` dimming track-fill + thumb + indicator. Flag for the build: whether EXPLICIT rows keep the ember fill across a 7-row cluster is a CD3/D10-class side-eye call |
 | the editable numeric twin | **VARIANT-ROW** | `number-field/` EXISTS (Base UI; textbox role by design, bounds as accessible DESCRIPTION — `number-field.tsx:19-26`; placeholder-as-default built in; drag-to-scrub bonus). Today's skin is full-width + touch-target steppers + centered text (`variants.ts`) — add `size="inline"`: stepper-less compact group, mono tabular right-aligned ~9ch, scrub + bounds-description retained. CTs locate by textbox (the landed Base UI reality) |
-| `DeliveryCluster` (role select + depth field, side by side — round-3 arrangement) | **COMPOSITE** (feature-local) | ONE grammar serving BOTH drill-ins (section §5.2 + template §6.1 — the owner's one-home charge made literal); role items from the shared `MESSAGE_ROLE_ITEMS`, depth via `NumberField size="inline"`; the assistant option carries the "prefill" labeling in ONE place |
+| `DeliveryCluster` (role select + depth field, side by side — round-3 arrangement) | **COMPOSITE** (feature-local) | ONE grammar serving BOTH drill-ins (section §5.2 + template §6.1 — the owner's one-home charge made literal); role items from the shared `MESSAGE_ROLE_ITEMS`, depth via `NumberField size="inline"`; the conditional "tail prefill" mark (assistant + depth-0 only — §5.0) renders in ONE place |
 | `KnobRow` (label · slider · twin · reset · provenance) | **COMPOSITE** (feature-local) | `features/preset/components/knob-row.tsx` — Row + Field + Slider(tone) + NumberField(inline) + ghost reset Button + Text voices. ONE consumer today; promotes to `components/` when a second feature (rpg GM knobs, connections preview) adopts it — the R2 bar honored, not pre-paid |
 | the quality segmented strip | **EXISTS** | `ToggleGroup`/`Toggle` (single-select, deselectable — the assembly-toolbar idiom); `option-strip` is the listbox-flavored alternative if the descriptions return |
 | kicker cluster headers | **EXISTS** | `Section.kicker` (landed — `layout/section.tsx:17,45-49`) + `Text voice="kicker"` (density S1) |
@@ -804,8 +843,8 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 
 ## 15. Owner decisions — genuine forks ONLY, with recommendations
 
-> **D1–D7 RULED AS RECOMMENDED (owner, mock review round 3)** — the table stands as the rationale
-> record. **D8 (round 4) is the ONE OPEN fork.**
+> **D1–D7 RULED AS RECOMMENDED (owner, mock review round 3); D8 RULED (owner, 08-02 — §7.1's
+> refined arm c).** Nothing remains open; the table stands as the rationale record.
 
 | # | decision | recommendation |
 | - | - | - |
@@ -817,7 +856,7 @@ Verification recipes for the build (stage permitting): `pnpm snap --wide` on the
 | **D6** | `maxBudgetUsd`: build its OUTPUT editor, or delete the field (NO-LEGACY allows it pre-launch) | **verify the wire first, then decide** — if the funnel/runners actually enforce a budget, build the editor (S); if it is a dead schema field, delete it. This spec does not fake either |
 | **D7** | `customParameters`: read-only presence row + JSON view in ADVANCED, or stay invisible | **presence row** — an invisible stored blob that changes the wire (custom-byo) fails the no-silent-knobs bar; editing stays out (it is the server-side BYOK escape hatch by design) |
 
-| **D8** | **The inspect binding (OPEN — §7.1):** bind the preset readout to the user's ACTIVE chat so materialization + identity macros go REAL (arm c), vs the chat-side-only boundary (arm d) | **(c) opt-in, default-bound in the mid-play case** — §7.1 carries the full weighing; a YES lands post-core with the `presetOverride` preview seam |
+| **D8** | **The inspect binding — RULED (owner, 08-02):** auto-bind to the LAST-OPEN chat, named + dismissible in the readout header; unbound/no-recent falls to the honest token view; one `presetOverride` preview read | landed as §7.1's ruled state; post-core build with the §4.4 binding freshness rows + §16 row 33 |
 
 Everything else in this spec is design, not a fork: the five-view map (§3), the KnobRow anatomy
 (§4.1), the staleness row (§4.2), the Actions list grammar (§6), the gap-close register (§10 — G6/G7
@@ -865,6 +904,8 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
 | 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |
 | 31 | manage the guided-template SET (add / remove / reorder / toggle a template) | **NO HOME EXISTS, BY DESIGN** (§5.0: `GUIDED_ACTION_KINDS` is a fixed product enum; every action always resolves) | none — an affordance for this appearing ANYWHERE is the §5.0 conflation as a defect | mock + review: the Actions view renders no grips/switches/Add; the audit pins the ABSENCE |
+| 32 | the COW-moment fork CHOICE (§3.1 step 2 — editing the built-in while ≥1 fork exists; owner-ruled, build in flight) | the interception dialog AT the one save path (`usePresetAutosave`'s chain — the seam that owns the silent COW; a routing decision inside the ONE write path) | its two arms are ROUTERS to existing homes, never new ones: **Keep editing <fork>** = the landed RETARGET semantics (session moves; the pending edit converges); **Start a new fork** = the DUPLICATE home's create-with-config + the `forkedFrom` stamp | review: no second write path exists; the dialog renders only from the save chain's built-in-with-existing-fork branch; CT: both arms land the pending edit exactly once |
+| 33 | the inspect BINDING control (§7.1, ruled): dismiss / re-bind | the readout HEADER — ONE control, two states: bound → "inspecting against: <chat> ✕" (the ✕ dismisses); dismissed → the same slot's quiet "Inspect against <chat>" re-bind chip | none — opening a chat and returning re-derives the bind target (the same last-open-chat read), which is a data change, not a second control | a readout-local VIEW state, never a mutation (the read-only invariant holds); CT: dismiss falls back to the token view, the chip re-binds |
 
 **Invariants the table pins:** (i) CONTEXT is read-only + navigation-only — its only interactions
 are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE mutation/store
@@ -883,7 +924,7 @@ a THIN ARM over the same descriptor, never a parallel path):
 | create | `preset.create` | band **New** (#1) | starter config; selected after create |
 | rename | `preset.update` (name) | row kebab dialog (#6) | names are NOT unique — the fork workflow mints same-name rows by design; the scent subtitle + qualifier machinery disambiguates |
 | duplicate | `preset.get` + `preset.create(config)` | inline row verb (#5) | "Copy of <name>"; selected after |
-| fork (COW) | `preset.update` against the system default | implicit — editing the built-in (§ fork-once, landed) | server mints "Default (edited)" ONCE per session chain; activation retargets when the built-in was the pick; the queued `forkedFrom` column adds lineage scent later |
+| fork (COW) | `preset.update` against the system default | implicit — editing the built-in; with ≥1 existing fork, the §3.1 CHOICE dialog intercepts at the same save path (row 32) | first-ever: silent COW mints "Default (edited)" once per session chain; thereafter: Keep-editing (retarget + converge) vs named new fork; `forkedFrom` stamps lineage (LANDED — the §9 column); activation retargets when the built-in was the pick |
 | activate | `settings` seeds patch (`defaultPresetId`) | row toggle (#3, + its two sanctioned echoes) | one-of-N; the built-in row = the null pick |
 | delete | `preset.remove` | row kebab confirm (#8) | deleting the ACTIVE preset clears the pointer first (landed); the built-in cannot be deleted |
 | ST import | client-side `importStChatCompletionPreset` → `preset.create` | the ONE band import dialog (#2) | landed: browser-side parse, dropped-fields summary, selected after |
