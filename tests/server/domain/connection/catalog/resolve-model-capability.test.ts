@@ -211,6 +211,35 @@ describe("resolveModelCapability — the four gapped axes (§U0 + IC-A synthesis
     }
   });
 
+  test("openrouter: an UNCURATED Claude inherits the family floor — tools + structured, never flagless", () => {
+    // OR's catalog under-advertises `structured_outputs` for Claude (why claude-sonnet-4-6 was hand-curated);
+    // a version newer than the shortlist must not read as structured-output-less → trackers-readonly.
+    const cap = resolveModelCapability("anthropic/claude-sonnet-9", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 200_000, supportedParameters: ["temperature"], inputModalities: ["text", "image"] },
+    });
+    expect(cap.output.structured).toBe(true);
+    expect(cap.tools).toEqual({ parallel: true });
+    // …and a COLD catalog entry (nothing advertised at all) resolves the same floor.
+    const cold = resolveModelCapability("anthropic/claude-opus-9", "openrouter", "chat-completions");
+    expect(cold.output.structured).toBe(true);
+    expect(cold.tools).toEqual({ parallel: true });
+  });
+
+  test("openrouter: the Claude floor is family-GATED — a fork that merely contains 'claude' claims nothing", () => {
+    const cap = resolveModelCapability("some-org/claude-fork-9", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 128_000, supportedParameters: ["temperature"], inputModalities: ["text"] },
+    });
+    expect(cap.output.structured).toBeUndefined();
+    expect(cap.tools).toBeUndefined();
+  });
+
+  test("openrouter: the Claude floor never fabricates VISION — input stays advertised-modality truth (R1)", () => {
+    const cap = resolveModelCapability("anthropic/claude-sonnet-9", "openrouter", "chat-completions", {
+      orEntry: { contextLength: 200_000, supportedParameters: ["temperature"], inputModalities: ["text"] },
+    });
+    expect(cap.input).toBeUndefined();
+  });
+
   test("vLLM: structured output is native (guided decoding); tools advertise parallel calls (U0, hermes parser)", () => {
     const cap = resolveModelCapability("Qwen/Qwen3-8B", "vllm", "chat-completions");
     expect(cap.output.structured).toBe(true);
