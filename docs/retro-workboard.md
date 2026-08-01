@@ -379,8 +379,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   covers content+reasoning on exactly this path; VARIABLES are the one missed plane, + the
   no-baseline divergence half is floor-independent. Small consistency fix, low priority. ·
   contracts-audit F6 — `DEFAULT_BLUR_SURFACES` (3 members, zero consumers) vs schema default `[]`
-  (two-line fix; closing it archives that whole audit) · Button wrap/multiline size variant
-  (clears ui-size-via-variant's 2 debt rows).
+  (two-line fix; closing it archives that whole audit) · ~~Button wrap variant~~ MERGED (size="wrap" arm — size axis stays the SOLE box owner; debt
+  baseline terminal {}; rendered-proofed). NEW SMALL flagged by its sweep: 10 call sites use
+  `!h-auto min-h-0 !py-0` (deliberate sub-touch-target text-height inline buttons, deterministic
+  via !important, NOT the gate's hazard class) — candidate "inline" Button arm to retire the
+  !important family; needs a side-eye pass; separate ticket.
 
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
   (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
