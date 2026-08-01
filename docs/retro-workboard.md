@@ -97,7 +97,16 @@ chat.impersonateStream only; close-out D-entry stays with the orchestrator) · *
 IN FLIGHT**: check-gates "unfired" flaked in TWO sessions (217s contended run; Lockfile gate) —
 suspect shared reports/ contention across concurrent worktree checks; reproduce → structural fix
 or ruled-out writeup · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
-side-eye at the combined window AFTER merge) · density S2 (@orb/ui slot conformance + gate arm) ·
+side-eye at the combined window AFTER merge) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
+0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
+[foreign data-slot RED born-sealed; unmapped tiers.css slot RED]; found+fixed the A2 paired-tag
+self-match defect [every paired box was its own ancestor — baseline was inflated]; 176/1080.
+⚠ OWNER EYEBALL: theme radius knob now reaches ELEVATED islands only [clampThemeTokens aliases
+--radius-card alone] — avatars/media/tool-blocks no longer follow it; if the knob should keep its
+reach, alias --radius-base in the clamp) · ~~flake-chase~~ MERGED (`7c1a734c`: NOT a race — pnpm
+11's one-shot install banner scraped as phantom gate "Lockfile" by the unanchored ✓-regex;
+deterministic repro red→green; scrapes anchored + verify-deps-before-run=false on both parsing
+harnesses; reports/-contention hypothesis RULED OUT with receipts) ·
 PROSE-1 S1 (app-tier cohort; #8=room host; tool descriptions wait for S5). Merge each on report;
 check after each merge.
 
