@@ -370,3 +370,13 @@ export const DEFAULT_CHAT_MODEL_ID: ChatModelId = castId<ChatModelId>("claude-op
 /** The OpenRouter default chat model — OpenRouter's auto-router; `pickOrModel` heals a null/rejected
  *  OR model id to this. */
 export const DEFAULT_OR_CHAT_MODEL_ID: ModelId = castId<ModelId>("openrouter/auto");
+
+// ── The `refresh-model-catalog` workload's terminal result (the workloads junk-drawer exit: authored by
+//    the OWNING domain). COUNTS ONLY — no provider entry shape crosses into the queue's vocabulary. ──
+
+/** Each lane (OpenRouter models, agent-sdk models) is best-effort and independent; a failed lane reports
+ *  `null` (distinct from 0, a real empty catalog). The run only fails when BOTH lanes fail. */
+export interface CatalogRefreshResult {
+  readonly models: number | null;
+  readonly agentSdkModels: number | null;
+}

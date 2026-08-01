@@ -33,11 +33,9 @@ export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution";
 export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params";
 export {
   asStartWorkloadInput,
-  computeThemesWorkloadParams,
   databankIngestWorkloadParams,
   databankReindexWorkloadParams,
   emptyWorkloadParams,
-  findDuplicatesWorkloadParams,
   importBundleWorkloadParams,
   importStWorkloadParams,
   indexWorkloadParams,
@@ -45,15 +43,11 @@ export {
   startWorkloadEnvelope,
 } from "./params";
 export type {
-  AnalyticsResult,
   BackfillPassResult,
   BundleImportWorkloadResult,
-  CatalogRefreshResult,
   DeferredResult,
-  EmbedPassResult,
   FsckReport,
   MaintenanceResult,
   MemoryBackfillResult,
-  ReconcileStatsWorkloadResult,
   WorkloadResultByKind,
 } from "./result";

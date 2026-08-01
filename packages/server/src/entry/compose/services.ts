@@ -656,8 +656,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bulkImportPersonas,
     resolveOwnerPrincipal,
     workloads,
-    discovery,
-    connection,
     embeddings,
     databankIngest,
     chat: { backfill: chatCompose.backfill },
@@ -667,10 +665,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
   workloadContributions = buildWorkloadContributions({
+    db,
+    now,
+    embeddings,
+    discovery,
+    connection,
+    loadUserSettings: settings.loadUserSettings,
+    // TRANSITIONAL: what the not-yet-moved kinds' runner shim still reads.
     env: runnerEnv,
     bindRoleClients,
-    loadUserSettings: settings.loadUserSettings,
-    now,
   });
 
   const services: Services = {

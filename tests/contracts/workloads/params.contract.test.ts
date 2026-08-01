@@ -4,11 +4,9 @@
 // validator is the owning domain's `WorkloadContribution.params` at the `start` door.
 
 import {
-  computeThemesWorkloadParams,
   databankIngestWorkloadParams,
   databankReindexWorkloadParams,
   emptyWorkloadParams,
-  findDuplicatesWorkloadParams,
   importBundleWorkloadParams,
   importStWorkloadParams,
   indexWorkloadParams,
@@ -21,20 +19,6 @@ import { expect, test } from "../../support/fixtures";
 describe("workload params schemas", () => {
   test("a tunable-less kind accepts an empty params object", () => {
     expect(emptyWorkloadParams.parse({})).toEqual({});
-  });
-
-  test("compute-themes accepts an optional k and rejects a non-positive k", () => {
-    expect(computeThemesWorkloadParams.parse({ k: 8 })).toEqual({ k: 8 });
-    expect(computeThemesWorkloadParams.parse({})).toEqual({});
-    expect(() => computeThemesWorkloadParams.parse({ k: 0 })).toThrow();
-    expect(() => computeThemesWorkloadParams.parse({ k: -3 })).toThrow();
-  });
-
-  test("find-duplicates accepts an optional cosine threshold (0..1) and rejects out-of-range", () => {
-    expect(findDuplicatesWorkloadParams.parse({ threshold: 0.85 })).toEqual({ threshold: 0.85 });
-    expect(findDuplicatesWorkloadParams.parse({})).toEqual({});
-    expect(() => findDuplicatesWorkloadParams.parse({ threshold: 1.5 })).toThrow();
-    expect(() => findDuplicatesWorkloadParams.parse({ threshold: -0.1 })).toThrow();
   });
 
   test("index requires a source and accepts an optional force flag", () => {

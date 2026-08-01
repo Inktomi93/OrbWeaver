@@ -68,3 +68,9 @@ export interface StatsService {
    *  by the character's distilled genre. */
   characterModelEconomics: (ownerId: UserId) => Promise<CharacterModelEconomics[]>;
 }
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root (`reconcile-stats`). */
+export interface StatsWorkloadDeps {
+  readonly db: Db;
+  readonly now: () => number;
+}

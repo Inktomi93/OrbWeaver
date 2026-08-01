@@ -8,6 +8,21 @@
 import type { ReportProgress, WorkloadKind, WorkloadParamsByKind, WorkloadResultByKind } from "@orb/contracts/workloads";
 import type { WorkloadRunnerContext } from "./service";
 
+/** The kinds still served by a `runners/` file (shrinks each stage; empty ⇒ the tree + this type die). */
+export type ShimmedKind = Extract<
+  WorkloadKind,
+  | "memory-backfill"
+  | "group-character-backfill"
+  | "assets-backfill"
+  | "assets-gc"
+  | "assets-fsck"
+  | "import-st"
+  | "import-bundle"
+  | "reconcile-world-state"
+  | "databank-ingest"
+  | "databank-reindex"
+>;
+
 export type Runner<K extends WorkloadKind> = (
   ctx: WorkloadRunnerContext,
   params: WorkloadParamsByKind[K],

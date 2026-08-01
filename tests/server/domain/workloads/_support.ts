@@ -16,7 +16,11 @@ import type { DocumentId, Handle, UserId, WorkloadId, WorkloadScheduleId } from 
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
-import type { WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
+import { createConnectionWorkloadContributions } from "../../../../packages/server/src/domain/connection/workload-contributions.ts";
+import { createDiscoveryWorkloadContributions } from "../../../../packages/server/src/domain/discovery/workload-contributions.ts";
+import { createEmbeddingsWorkloadContributions } from "../../../../packages/server/src/domain/embeddings/workload-contributions.ts";
+import { createStatsWorkloadContributions } from "../../../../packages/server/src/domain/stats/workload-contributions.ts";
+import type { AnyWorkloadContribution, WorkloadContributions } from "../../../../packages/server/src/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerEnv } from "../../../../packages/server/src/domain/workloads/contract/runner-env.ts";
 import type { WorkloadRunnerContext, WorkloadRunnerDeps, WorkloadService } from "../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { createWorkloadService } from "../../../../packages/server/src/domain/workloads/service.ts";
@@ -30,17 +34,47 @@ export const T0 = 1_700_000_000_000;
 /** The default enumeration owner a runner context carries (the SINGULAR scope a runner threads to its op). */
 export const RUNNER_OWNER_ID = castId<UserId>("user_owner");
 
-/** The kind-keyed contribution registry a test drives the engine/verbs through. TRANSITIONAL: built by the
- *  shim adapter over the fake env until every kind's ownership move lands (then this builds from the owning
- *  domains' real factories). It is the params VALIDATOR the verbs + the row read path use, so every test that
- *  touches a workload row needs one. */
+/** The kind-keyed contribution registry a test drives the engine/verbs through — it is the params VALIDATOR
+ *  the verbs + the row read path use, so every test touching a workload row needs one. Assembled exactly the
+ *  way `entry/compose` does it (the owning domains' real factories over stub deps, plus the shrinking shim
+ *  for the not-yet-moved kinds), so a stage that re-homes a kind can't silently drift this harness. */
 export function fakeContributions(env: WorkloadRunnerEnv = fakeEnv()): WorkloadContributions {
-  return buildShimContributions({
-    env,
-    bindRoleClients: () => Promise.resolve({} as RoleClients),
-    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
-    now: () => T0,
-  });
+  const stub = <T>(value: T): ReturnType<typeof vi.fn<() => Promise<T>>> => vi.fn(async () => value);
+  // This harness needs the owning domains' real PARAMS SCHEMAS (the verbs + the row read path validate
+  // against them), not their run bodies — those are tested at each domain's own mirror. Stating a full
+  // service per domain here would be noise, so every dep below is a deliberate stub frame.
+  const contributions: readonly AnyWorkloadContribution[] = [
+    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    ...createEmbeddingsWorkloadContributions({
+      embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
+    }),
+    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    ...createDiscoveryWorkloadContributions({
+      discovery: {
+        computeThemes: stub({ digestsAssigned: 10, clustersWritten: 5 }),
+        distillCharacters: stub({ scanned: 8, distilled: 8 }),
+        computeCooccurrence: stub({ charKeywordsWritten: 6, pairsWritten: 4 }),
+        computeDuplicatePairs: stub({ charactersScanned: 7, pairsWritten: 1 }),
+        computeChatDuplicatePairs: stub({ chatsScanned: 2, pairsWritten: 0 }),
+        computeCharacterHubScores: stub({ rowsScored: 7 }),
+      } as never,
+      loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+    }),
+    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    ...createStatsWorkloadContributions({ db: {} as Db, now: () => T0 }),
+    // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+    ...createConnectionWorkloadContributions({
+      connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
+    }),
+    ...buildShimContributions({
+      env,
+      // FABRICATION-OK: no shimmed runner reads roleClients (measured consumer count: zero).
+      bindRoleClients: () => Promise.resolve({} as RoleClients),
+      loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
+      now: () => T0,
+    }),
+  ];
+  return Object.fromEntries(contributions.map((contribution) => [contribution.kind, contribution])) as WorkloadContributions;
 }
 
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
@@ -94,14 +128,6 @@ export function principal(id: string, role: UserRole = "user"): Principal {
 export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<WorkloadRunnerEnv[K]> } = {}): WorkloadRunnerEnv {
   return {
     embeddings: {
-      embedCorpus: vi.fn(async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
-        embedded: 3,
-        skipped: 1,
-      })),
-      embedAssets: vi.fn(async (_args: { ownerId: UserId | null; force: boolean; signal: AbortSignal }) => ({
-        embedded: 2,
-        skipped: 0,
-      })),
       purgeMemoryVectors: vi.fn(async () => undefined),
       purgeDocumentVectors: vi.fn(async () => undefined),
       ...overrides.embeddings,
@@ -124,28 +150,6 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         failed: [],
       })),
       ...overrides.databank,
-    },
-    discovery: {
-      computeThemes: vi.fn(async (_args: { ownerId: UserId | null; k: number; signal: AbortSignal }) => ({
-        scanned: 10,
-        written: 5,
-      })),
-      distillCharacters: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
-        scanned: 8,
-        written: 8,
-      })),
-      computeCooccurrence: vi.fn(async (_args: { signal: AbortSignal; maxPairs?: number | undefined; hubFraction?: number | undefined }) => ({
-        scanned: 6,
-        written: 4,
-      })),
-      findDuplicates: vi.fn(async (_args: { ownerId: UserId | null; threshold?: number | undefined; signal: AbortSignal }) => ({
-        scanned: 9,
-        written: 1,
-      })),
-      computeHubScores: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
-        scanned: 7,
-        written: 7,
-      })),
     },
     import: {
       importAll: vi.fn(async (_args: { ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => ({
@@ -179,13 +183,6 @@ export function fakeEnv(overrides: { [K in keyof WorkloadRunnerEnv]?: Partial<Wo
         characters: 4,
       })),
     },
-    connection: {
-      refreshCatalogSnapshot: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        models: 99,
-        agentSdkModels: 3,
-      })),
-      ...overrides.connection,
-    },
     memory: {
       backfill: vi.fn(async (_args: { ownerId: UserId | null; signal: AbortSignal }) => ({
         segments: { scanned: 4, changed: 2 },
@@ -210,6 +207,7 @@ export function makeRunnerContext(env: WorkloadRunnerEnv, overrides: Partial<Wor
     userId: RUNNER_OWNER_ID,
     // The enumeration scope a runner threads to its op (SINGULAR by default; a bulk test overrides to null).
     ownerId: RUNNER_OWNER_ID,
+    // FABRICATION-OK: no surviving runner reads roleClients (measured consumer count: zero).
     roleClients: {} as RoleClients,
     loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
     env,

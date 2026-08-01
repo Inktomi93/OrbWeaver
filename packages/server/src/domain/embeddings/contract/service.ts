@@ -111,3 +111,9 @@ export interface EmbeddingsIndexer {
   readonly onCharacterUpdated: (event: CharacterUpdatedEvent) => Promise<void>;
   readonly onAssetCreated: (event: AssetCreatedEvent) => Promise<void>;
 }
+
+/** What the domain's `WorkloadContribution` factory needs from the composition root (the `index` kind) —
+ *  this domain's own verbs, nothing cross-feature. */
+export interface EmbeddingsWorkloadDeps {
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
+}

@@ -13,6 +13,7 @@
 
 import { z } from "zod";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
+import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
 import type { WorkloadKind } from "./axes";
 import { indexSourceSchema, workloadKindSchema } from "./axes";
 
@@ -37,14 +38,6 @@ const stagedHandleSchema = z
   .regex(STAGED_HANDLE, "must be a single safe path segment (no separators, no leading dot)")
   .refine((s) => !s.includes(".."), "must not contain a `..` traversal segment");
 
-/** compute-themes: the k-means theme pass. `k` is an optional per-run cluster count. */
-export const computeThemesWorkloadParams = z.object({ k: z.number().int().positive().optional() });
-
-/** find-duplicates: the near-dup analytics pass. `threshold` is an optional per-run raw-cosine floor for the
- *  CHARACTER arm (0..1). Precedence (param → `UserSettings.workloads.dupThreshold` → discovery's floor). The
- *  chat Jaccard arm keeps its own floor — a different metric, not this cosine knob. */
-export const findDuplicatesWorkloadParams = z.object({ threshold: z.number().min(0).max(1).optional() });
-
 /** databank-ingest: chunk+embed+prune ONE document (the post-upload path). `documentId` is required; the row
  *  owner (`ctx.ownerId`) scopes the run. */
 export const databankIngestWorkloadParams = z.object({ documentId: documentIdSchema });
@@ -54,7 +47,10 @@ export const databankIngestWorkloadParams = z.object({ documentId: documentIdSch
  *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). */
 export const databankReindexWorkloadParams = z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() });
 
-/** index: `source` is required (also the single-active lock dimension stamped into `workloads.source`). */
+/** index: the embeddings reindex. Its ONE required field is `source` — which is the queue's OWN
+ *  single-active lock sub-partition (stamped into `workloads.source`), so unlike every other kind this
+ *  schema stays here rather than in `@orb/contracts/embeddings`: the field is queue vocabulary, and moving
+ *  it would make `contracts/embeddings` and `contracts/workloads` import each other. */
 export const indexWorkloadParams = z.object({ source: indexSourceSchema, force: z.boolean().optional() });
 
 /** The shared maintenance tunable — `dryRun` reports what a pass WOULD change without mutating. */
@@ -87,11 +83,11 @@ export const emptyWorkloadParams = noParams;
 export interface WorkloadParamsByKind {
   index: z.infer<typeof indexWorkloadParams>;
   "distill-characters": NoWorkloadParams;
-  "compute-themes": z.infer<typeof computeThemesWorkloadParams>;
+  "compute-themes": ComputeThemesWorkloadParams;
   "memory-backfill": NoWorkloadParams;
   "group-character-backfill": NoWorkloadParams;
   "compute-cooccurrence": NoWorkloadParams;
-  "find-duplicates": z.infer<typeof findDuplicatesWorkloadParams>;
+  "find-duplicates": FindDuplicatesWorkloadParams;
   csls: NoWorkloadParams;
   "assets-backfill": z.infer<typeof maintenanceWorkloadParams>;
   "assets-gc": z.infer<typeof maintenanceWorkloadParams>;

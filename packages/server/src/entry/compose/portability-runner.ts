@@ -11,9 +11,7 @@ import type { UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
-import type { ConnectionService } from "#domain/connection";
 import type { DatabankIngest } from "#domain/databank";
-import type { DiscoveryService } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
@@ -59,8 +57,6 @@ export interface PortabilityRunnerComposeDeps {
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
   readonly workloads: Pick<WorkloadService, "start">;
-  readonly discovery: DiscoveryService;
-  readonly connection: ConnectionService;
   readonly embeddings: EmbeddingsService;
   readonly databankIngest: DatabankIngest;
   readonly chat: PortabilityChatSlice;
@@ -120,8 +116,6 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     db,
     now,
     cas: deps.cas,
-    discovery: deps.discovery,
-    connection: deps.connection,
     embeddings: deps.embeddings,
     databankIngest: deps.databankIngest,
     assets: deps.assets,
