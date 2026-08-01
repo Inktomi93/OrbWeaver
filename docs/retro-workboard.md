@@ -23,18 +23,30 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
-## ═══ ▶▶▶ CURRENT STATE — 2026-08-01 EOD (read first) ═══
+## ═══ ▶▶▶ CURRENT STATE — 2026-08-02 DAWN (the overnight run; read first) ═══
 
-**Tree:** everything green — final battery CT 1653/0 + vitest clean; every merge of the day was
-whole-tree check-certified. **Origin** holds through midday (`b87ec743..24989143`, verify:push
-14/14); the ENTIRE afternoon (~25 commits/merges) is LOCAL awaiting the next per-push owner word.
-**Stack:** running `adopt-only` + `WIRE_CAPTURE=on DEBUG_TOKEN=dbg` (restarted 13:20); `stack.sh` now
-DEFAULTS `ENGINES_POSTURE=adopt-only` (owner-ruled — the engines-off default silently killed a day of
-turns). Engines awake (gen = Qwen3-VL-8B @ 8703, hermes). Dev DB was wiped at dawn 08-01 (fresh
-schema, owner re-seeding by play).
+**Tree:** green — check 12/12 + battery certified through the whole night (final integration
+fixes `83a03778`; last full battery 8760/8786 with the 3 reds fixed+committed after). **Origin**
+still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + overnight, ~65
+commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
+fully-polished tree; engines adopt-only.
 
-**The day in one line:** 39 lanes dispatched, 37 landed, 0 reverted — the full ledger is §LANDED
-below; the owner drove the app all day and every find closed same-day.
+**THE OVERNIGHT IN ONE PARAGRAPH (owner slept after ~01:00; full-auto ladder ran):** SSE multiplex
+S0+S1 LANDED + live-verified (1 socket/tab measured; rpg gate leak mechanism fixed) · the
+LIST-PANE PROJECTION built (A+B, mocks-ratified) through TWO side-eye fix-all rounds + a seam
+close-out (focus decided at the intent write; float on every row; viewer seat out of titles;
+qualified action names) · the HOME SECTION built (glyph→home, born default, landing slimmed,
+tile registry + gate, temp-chat wired through the picker) + its fix-all round (panel-availability
+both sides; the APP-WIDE mobile dead-drawer CSS bug fixed; ARIA headings/lists; Badge-as-picture
+deleted) · guided-cluster flake ROOT-CAUSED (Base UI popup starting-style vs Playwright stability
+— test-side settle gate, users unaffected) · reliable deleted → D112 amended · D115 populate ·
+D116 injections · agent-sdk terminal channel BUILT · capability family-floor (3 arms) ·
+routing-coherence class killed (the vllm×sonnet 404 was the E2E SEED's partial patch — see the
+morning question) · IMP-1 measured (hosted clean; local 28% unlabelled takeover — PROSE-1
+territory; the label-LAUNDERING bug fixed) · ChatSummary scent + snippet search · MU+ChoiceBlock
+picks pane + game macros end-to-end (read/write/editor) · GM knob editors + EFF-3 honesty ·
+databank spec'd+mocked+ruled (build queued LAST) · zTXt · smalls throughout. Mock-vs-rendered
+artifact published for the owner; comparison captures in reports/snaps/{projection-final,home-verify}.
 
 **The extraction-mode map is now EMPIRICAL** (spike §4f–§4h — read those before ANY mode work):
 hosted strong × folded = the proven path (default) · agent-sdk wire (incl. OR×protocol-auto×Claude —
@@ -57,13 +69,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    non-atomic: a dead-engine opening orphans a real committed chat behind the draft + a lying toast +
    duplicate-chat risk (server returns chat id + opening-failure outcome; fork's degraded-not-broken
    catch is the model pattern).
-2. **SSE MULTIPLEX** — THE next big lane (owner-ruled). Spec `docs/design/sse-multiplex-spec.md`,
-   §14 fully RULED (SSE not WS · presence→socket + ROSTER-gating vocab · impersonate exempt ·
-   workloads folds S5 · numbers ratified · automation.stream = DOORWAY wired at its stage 4).
-   S0 vocabulary+heartbeat → S1 user+rpg rooms → S2 chat (stickler pass) → S3 notifications+presence
-   → S4 automation → S5 workloads. Kills the invisible-retry class structurally (SSE-1b —
-   ProviderError→typed-terminal mapping — folds into its room sources; also retires the
-   fragile-by-accident `connectionsChanged` coverage) + the connection-cap class.
+2. **SSE MULTIPLEX — S0+S1 LANDED + LIVE-VERIFIED (08-01 overnight)**: merged at `accaf133`;
+   one socket/tab measured on the wire (1 plain · 1 with a GAME open — rpg adds ZERO · 2 across
+   two tabs · 0 after close, reap working) via `/api/_debug/stream/sockets`. The rpg gate leak's
+   mechanism found+fixed (`use-rpg-bus` re-spelled isRpgEngaged as a null-check — disengaged
+   games held sockets); BOOT-4X heal semantics carried into a per-room gate (one home, both gap
+   classes, re-proven-to-fail); `single-stream-transport` gate live + ratchet-probed;
+   sessions.streamUserEvents + rpg.stream DELETED. **REMAINING: S2 chat (needs its stickler
+   pass) → S3 notifications+presence → S4 automation → S5 workloads → close-out ledger entry.**
+   Spec `docs/design/sse-multiplex-spec.md`, §14 fully ruled.
 3. **HUD-HOME** (owner-ruled 2026-08-01, from the stickler visual audit F6,
    `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): **the pre-HUD chrome seams in the
    CONTEXT panel get YEETED — the context panel (where the rpg game lives in lite mode) IS the
@@ -88,7 +102,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as recommended). Stage 0
    mechanism is the hard barrier.
 6. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
-   Card.padding retirement). RIDER (08-01 late): the ghost tag-chips (F3-B, merged `98fdff28`)
+   Card.padding retirement). **QUEUE-ORDER TENSION (side-eye, 08-01 overnight): the projection
+   pane's mock look is UNREACHABLE until density S5 retunes ListRow's instrument scale** (title
+   15px vs the mock's 12.5 — honest sequenced debt, the build correctly didn't touch it). The
+   owner ruled density stays in queue order BEFORE the projection existed — consider pulling
+   S1+S5 forward at the next queue review; morning call. Also P3 owner call: the characters
+   picker band shows NO count (keyset paging = any number lies); accept or ship a server total.
+   RIDER (08-01 late): the ghost tag-chips (F3-B, merged `98fdff28`)
    are quieter but not mock-TIGHT — box height is dominated by the D62 touch-floor icon buttons
    and the smallest spacing token (field=6px). S1's `--spacing-tight` (4px) + `--radius-inset`
    make mock-tight chips ON-TOKEN — fold chip tightening into the S1/S3 sweep, don't pre-solve.
@@ -155,11 +175,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   headings · impersonate/continue/response nudges · R2 template shells · FOLDED_RECONCILE_NOTE.
   Homes: per-game teaches ride config.features; nudge/voice prose rides the PRESET (ST
   `assistant_impersonation` precedent). Reuses the preset copy-on-edit fork model. Spec-first.
-- **IMP-1** — impersonate anti-bleed hardening: measure the voice-lock nudge on hosted+local FIRST;
-  ST runs two layers (char-name stop strings + wrong-name sink delete —
-  `docs/reviews/misc/2026-08-01-st-impersonate-anatomy.md`). PLUS the proven per-tick hygiene gap:
-  impersonate streams RAW deltas (AI_OUTPUT regex/self-label strip run on `content` only — a leaked
-  `Name:` prefix lands in the composer verbatim; cheapest fix = final replacement delta).
+- ~~IMP-1~~ **MEASURED + landed what the data justified** (`4fa8a65b`, 84 real gens,
+  `scripts/probes/impersonate/RESULTS.md`): hosted 0/12 clean · local 8B **28% bleed, dominant
+  class = UNLABELLED first-person takeover** (invisible to every mechanical layer, ST's included).
+  Fixed the real bug found: impersonate inherited ASSISTANT-turn cleaning and LAUNDERED leaked
+  `Char:` labels into the composer as the user's words (self=persona now; labels survive for the
+  reviewer). Stop-string layer built as ST-parity INSURANCE (never fired in 84 gens — do not cite
+  as the fix). **OPEN (owner-adjacent, prose territory): the 28% unlabelled class** — only nudge
+  iteration (the probe's fixture set is the harness — long-scene 3/3 reproduces), model choice,
+  or a review-UI tell ("this reads like {{char}} — regenerate?") can move it. Folds naturally
+  into PROSE-1 (the impersonate nudge becomes editable data there — iterate it against the probe).
 - **IMP-2** — visible Stop/cancel during impersonate (the unsubscribe handle IS the lever, nothing
   renders it; guided icons show a misleading wait reason meanwhile).
 - **QUOTE-1 follow-up** — greeting-preview surfaces (greeting studio / facet editor /
@@ -175,13 +200,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   `chat.getUserMacroPicks`, least-privilege: members get identity+inputs, never macro bodies).
   FOLLOW-ON small: the ChoiceBlock picks sibling (getVariables/setVariables) still has zero tRPC
   procs — wiring it into the same Section makes the spec's "one pane, two knob families" true. ·
-  **DATABANK CLIENT SURFACE** (re-classified from "setChatDocumentVisibility wire" — verified
-  2026-08-01: ZERO client callers of the whole databank router; the settings pane is retrieval
-  knobs only; legacy-main's DBK-E context tab was never ported. This is a BUILD-SURFACE feature
-  (library list + per-chat attach rack + active-docs read + the D85 visibility toggle), not a
-  wire small. AU8's "WIRE · M" row underestimates it — re-check sibling databank rows before
-  dispatch) · **AU-10** background-library manage UI ·
-  MP footer "from config" untrue on curated fallback · `resolveAgentSdkAlias` unreachable-branch look.
+  **DATABANK SURFACE — SPEC'D + MOCKED + RULED (08-01 late), build QUEUED LAST** (owner: "own
+  rail section... they look good. this can go at the end after everything"). Spec
+  `docs/design/databank-surface-spec.md` + artifact-published mocks. D-0=own 9th rail section ·
+  D-1..D-7 as recommended (listGlobal twin · sources on the active view · workloadId ingest
+  progress · rack after Injections · home tile). Legacy audited CARRY/REJECT, 5 named defects
+  die. S1-S3 fork-independent; RowToggleAction minted by the projection lane (first). DISPATCH
+  after projection + home + SSE stages land. · **AU-10** background-library manage UI ·
 - **VER-1c** — custom-byo `role:"tool"` wire still drops `isError` silently (OR-4's unbuilt sibling).
 - **Preset multi-tab fork idempotency** — two tabs editing the built-in can still mint two forks (no
   `forkedFrom` column; cheap when it bites).
@@ -215,21 +240,32 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   plain HOME route with no chat + doubles after one chat open — the use-rpg-bus header's law
   ("non-game chat holds no socket") is NOT holding. ROUTED to the SSE S1 lane as must-cover
   (find the mechanism while swapping the body + the missing zero-attach CT).
-- **⚠ LIVE DEV DB — broken routing pairing (OWNER MORNING FLAG):** `routing.roleDefaults.chat`
-  = `{source:"vllm", model:"anthropic/claude-sonnet-5"}` — any live vllm chat turn 404s ("model
-  does not exist"). NOT auto-fixed (owner data — [[dev-stack-fights-host-automation]]); fix in
-  Connections: pick a real local model for the vllm chat slot (stage copies were patched to
-  Qwen3-VL-8B for the drives).
+- ~~LIVE DEV DB broken routing pairing~~ **CLASS KILLED + row SELF-HEALS** (`2586a2d0`): the
+  doorway was PARTIAL DEEP-MERGE patches (a patch naming source without model is a no-op on the
+  stale model key), and the exact bad row was written by `tests/e2e/support/global-setup.ts`'s
+  role patch — the pane was innocent. Now: write-boundary coherence (source-without-model gets
+  model:null; a pin on a config-derived source is REFUSED), read-side heal with a WARN naming
+  stored vs resolved, ONE (source,role)→model home shared by pane + resolver, and the display
+  names an ignored pin instead of labeling it "server config".
+- **⚠ OWNER MORNING QUESTION: an e2e run wrote to the DEV stack** — the 404 row's shape is
+  verbatim the e2e global-setup patch, but memory says e2e owns its OWN adopt-only stack
+  ([[e2e-live-verification-facts]]). Either an e2e run was pointed at :8788 at some point, or the
+  seed ran outside its harness. Worth confirming how before trusting the isolation again.
+  Related note: `import-user-settings` bypasses the new write guard (whole-blob verb) — imports
+  heal+warn at read instead of refusing at write; lift the guard into the import path on want.
 - WAKE-STATUS: the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
 - Freshness-gate DEFERRED debt: 12 `stats.*` keys (driver-vs-dashboard-cost tradeoff) +
   `assets.listOwned` (the raw multipart upload seam invalidates nothing).
 - Scout: `connection.getCatalog`/`getAgentSdkCatalog` appear in admin `invalidates` with zero literal
   consumers — aliased reads or dead rows.
-- `composer-guided-cluster.ct` 30s timeouts — DIAGNOSE, don't knob: verified 2026-08-01 there is NO
-  per-file timeout idiom anywhere in the CT surface (no setTimeout/describe.configure/config
-  override — 30s Playwright default repo-wide), so the fix is finding why the tests bust 30s
-  (likely stub/flush, cf [[ct-sse-stub-replayable-every-connect]]), not minting a timeout override.
-- `blurSurfaces` consuming selector unconfirmed (low).
+- `composer-guided-cluster.ct` flake — **MECHANISM FOUND (08-01 overnight): Base UI NESTED-SUBMENU
+  timing** — the ✨ menu's Plot submenu intermittently never opens ("game steers" test, line ~448;
+  3×fail-then-pass pattern observed twice, screenshot shows menu open + submenu collapsed). Fix =
+  a submenu-open wait/retry idiom in the test or a Base UI hover-intent workaround — not a timeout
+  knob. Also the original whole-file 30s note stands (no per-file timeout idiom exists repo-wide).
+- `blurSurfaces` consuming selector unconfirmed (low). · `useListDocked` (#state) now has ZERO
+  feature consumers (its one caller was the landing's showRecents, deleted by the home slim) —
+  liveness-sweep candidate, kept per unwired≠delete pending the sweep.
 - `staging.ensure` residual: first-write-wins seeded from HEAD — dormant unless rpg tools ever mount
   as REGISTRY tools again (D112 keeps `tools: []`); reroll accumulation would return via that seam.
 - R5b(a) verify: `refEnumerationLines` (non-enforcing-backend prompt fallback) should enumerate
@@ -246,7 +282,32 @@ verification (needs the multi-user e2e stack).
 
 ### DISCUSSION PILE (owner, no build)
 
-☰ **LIST-PANE RENT** (owner musing 08-01 late: "kind of feels like a waste"): the stickler audit
+☰ **UNSENT-DRAFT RELOAD PERSISTENCE** (from the home side-eye's "temp draft data loss" — NOT a
+bug: nav round-trips keep everything, proven by a composed CT; only a PAGE RELOAD loses an unsent
+draft because the active-chat handle + composer text are deliberately unpersisted while
+activeSection persists). Fork: should an unsent draft (seed + typed composer text) survive a
+reload? Persistence-design call, not a fix — the current behavior is by design.
+
+☰ **LIST-PANE PROJECTION — RATIFIED (owner, 08-01 late): Arm A + Arm B approved, C rejected;
+the MOCKS' look is the approved target** (`docs/design/list-pane-projection-proposal.md` + mocks;
+remaining D2-D10 stand as recommended). Stickler resumed for §11 primitives inventory (the
+fugly-prevention list — what @orb/ui needs before building) + §12 row-action grammar (owner:
+"I REALLY hate having to click the three dots in list view" — inline/hover actions per row type,
+D62 touch-floor math, one grammar for ALL list panes, kebab keeps destructive/rare only). Build
+lanes L0-L4 dispatch after the primitives pass lands. **HOME RULED (owner, 08-01 late, on seeing the mock): "landing goes to home"** — H1 = home is
+the BORN DEFAULT + the chat landing SLIMS (the coupled pair, ruled together); H2-H11 stand as
+recommended. Home build (H0-H4 per `docs/design/home-section-spec.md`) queues BEHIND the
+projection build (shared door files) — dispatch on its merge. GM-tab game-macros editor = small
+follow-up (read end + write arm landed `cad777f9`). [superseded fork below:] Confirmed: `shell-store.ts:89` defaults
+`activeSection:"chats"` (home = chats tab + the chat-owned landing surface). Fork: resume-first
+(keep chats-home; Arm B makes it a real mixed launcher) vs face-first (flip default to characters;
+Arm A's launcher pane is the canonical entry — a one-line change) vs the HOME section (spec in
+flight) as default. **PLUS the owner's held-back option, kept alive: MERGE characters+chats into
+ONE rail glyph** — he considered it, went with A+B; note that A+B CONVERGES toward it (the two
+sections become behavioral mirrors), so post-landing the merge is a cheap rail-level edit
+(one glyph, one section, both flows), not a redesign — composes with home (rail: Home ·
+Library&Chats · rest). Rule by feel after A+B + home land, not before. Deeper samey diagnosis
+(owner): every rail entry unrolls the IDENTICAL tri-pane anatomy — home is the first mold-breaker. [superseded musing below:] the stickler audit
 fixed row CONTENT (scent — landed); the pane's per-screen EXISTENCE is an open IA call. Arms
 sketched: (1) auto-collapse to a slim glyph rail once a chat is open (cheap, reclaims ~280px) ·
 (2) live-instrument rows (activity/streaming indicators; snippet landed) · (3) contextual content
