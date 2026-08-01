@@ -12,13 +12,11 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useSettingsViewerView, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
-import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
-import type { SettingsSectionContribution } from "#state";
-import { resolveSettingsSections, settingsAnchorId } from "#state";
+import { settingsAnchorId, useSettingsSections } from "#state";
 import { AppearanceEffectsSection } from "../components/appearance-effects-section";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { BackgroundUploadField } from "../components/background-upload-field";
@@ -64,21 +62,15 @@ const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>(
 /** The DOM anchor id for one appearance subcategory `<Section>`, derived from the shared registry ids. */
 const anchor = (sub: string): string => settingsAnchorId("appearance", sub);
 
-export interface AppearanceSettingsSurfaceProps {
-  /** The `appearance`-anchored settings-section contributors (§6c) — the feature that OWNS a display
-   *  pref (character's library page-size ⑪) grafts its section here WITHOUT settings importing it. Zero
-   *  contributions ⇒ the pane renders byte-identical to the pre-seam pane. */
-  readonly sectionContributors: ContributorRegistry<SettingsSectionContribution>;
-}
-
 /** The appearance panel body (rendered inside the settings modal's Dialog). */
-export function AppearanceSettingsSurface({ sectionContributors }: AppearanceSettingsSurfaceProps): ReactElement {
+export function AppearanceSettingsSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
-  // The contributed sections (§6c) — each owns its own suspense/mutation, so they render OUTSIDE the
-  // appearance autosave form, below it, in declared registry order (the chat-behavior pane posture).
-  const contributedSections = resolveSettingsSections(sectionContributors, "appearance");
+  // The contributed sections (§6c) — read off the ONE door-assembled section registry (SET-SEAMS §5.2),
+  // `when`-filtered. Each owns its own suspense/mutation, so they render OUTSIDE the appearance autosave
+  // form, below it, in declared registry order (the chat-behavior pane posture).
+  const contributedSections = useSettingsSections("appearance", useSettingsViewerView());
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">

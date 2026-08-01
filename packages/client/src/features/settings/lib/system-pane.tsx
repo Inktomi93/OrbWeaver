@@ -101,5 +101,5 @@ export const systemPane: SettingsPaneDefinition = {
       ],
     },
   ],
-  body: () => <SystemSettingsSurface />,
+  body: { kind: "surface", render: () => <SystemSettingsSurface /> },
 };

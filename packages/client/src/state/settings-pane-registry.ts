@@ -6,11 +6,12 @@
 // (`client-state-below-data` has zero type-only exemption), so the settings HOST computes this narrow
 // shape from its own `useViewer()`/session read and supplies it at nav/search/pane-filter time.
 
+import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "#lib";
-import type { SettingsCategoryId, SettingsSectionAnchor } from "./shell-store";
-import { SETTINGS_SECTION_ANCHORS } from "./shell-store";
+import type { SettingsCategoryId } from "./shell-store";
+import { SETTINGS_CATEGORY_IDS } from "./shell-store";
 
 /** The two nav groups — the settings region's USER + APP micro-caps taxonomy (pane taxonomy homes WITH
  *  the Def, not shell-store — the section-registry `SectionGroup` precedent). */
@@ -38,8 +39,18 @@ export interface SettingsViewerView {
   readonly isAdmin: boolean;
 }
 
-/** A settings category as ONE definition. `body` is a real feature-owned render, or the DECLARED-PLANNED
- *  arm (`{ placeholder: true }`) — a category with no branch can no longer silently placeholder. */
+/** What a pane RENDERS (SET-SEAMS §5.3) — an honest three-arm union instead of "a function or a flag":
+ *  - `sections` — a pure SKIMMER: the pane has no body of its own and no own `subcategories`; the host
+ *    renders the sections contributed at its anchor, and nav DERIVES from them.
+ *  - `surface` — a feature-owned render (a knob stack still welded into one form, or a genuinely non-knob
+ *    CRUD/table pane like tags/personas/connections). It still HOSTS the sections contributed at its
+ *    anchor — the surface renders them itself, at the position it owns (`useSettingsSections`).
+ *  - `{ placeholder: true }` — the DECLARED-PLANNED arm; a category with no branch can no longer silently
+ *    placeholder. */
+export type SettingsPaneBody = { readonly kind: "sections" } | { readonly kind: "surface"; readonly render: () => ReactNode } | { readonly placeholder: true };
+
+/** A settings category as ONE definition. `body` is the §5.3 union: a skimmer, a feature-owned surface,
+ *  or the DECLARED-PLANNED placeholder arm. */
 export interface SettingsPaneDefinition {
   readonly id: SettingsCategoryId;
   /** USER (Account · Personas · Appearance · Chat behavior · …) / APP (Connections · Automation ·
@@ -52,9 +63,10 @@ export interface SettingsPaneDefinition {
   /** Declarative viewer gating — replaces `adminOnly`. Consumes the PROJECTION, never `data/`'s
    *  `Viewer` (the §6b "def declares, consumer supplies" inversion). Absent = always visible. */
   readonly when?: (viewer: SettingsViewerView) => boolean;
-  /** The pane's anchored sections, in render order. Absent/empty for a placeholder pane. */
+  /** The pane's OWN anchored sections, in render order — the contributed sections' navs are merged in by
+   *  the host at nav/search time. Absent/empty for a placeholder pane and for a `sections` skimmer. */
   readonly subcategories?: readonly SettingsSubcategory[];
-  readonly body: (() => ReactNode) | { readonly placeholder: true };
+  readonly body: SettingsPaneBody;
 }
 
 /** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered string
@@ -70,9 +82,9 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // the settings god-feature. Structural mirror of the character-detail `editor-sections` seam
 // (`CharacterDetailContribution` + `resolveDetailSections`, registry-contracts.ts): an OPEN
 // `ContributorRegistry` (no fixed vocabulary — purely additive, so no existing pane's in-body sections
-// must migrate, §A's total-registry migration clause never triggers), assembled EMPTY-typed at the door
-// (G8), threaded into the host pane's surface by PROP (the `detailContributors` posture), consumed at a
-// named pane anchor. Zero contributions ⇒ the pane renders byte-identical to today.
+// must migrate, §A's total-registry migration clause never triggers), assembled at the door as ONE
+// registry (G8) and delivered by a `createRegistryContext` mint — the host reads it for nav/search, the
+// host pane's surface reads it for render. Zero contributions ⇒ the pane renders byte-identical to today.
 //
 // Homed HERE (not lib/registry-contracts.ts, where `CharacterDetailContribution` lives) because a
 // contribution reuses `SettingsSubcategory` — a state-owned nav shape — so the def binds state vocabulary
@@ -80,26 +92,37 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // rides DOWN from `#lib` (the sanctioned direction, the slash-command-registry-context precedent).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// The anchor vocabulary (`SETTINGS_SECTION_ANCHORS` / `SettingsSectionAnchor`) is SHELL VOCABULARY and homes
-// in `shell-store.ts` beside `SETTINGS_CATEGORY_IDS` (§5 rule 5 / M6.1; re-declaring it here trips
-// `no-parallel-section-map`). It is imported above; `chat-behavior` hosts per-chat generation sections
-// (memory master switch, world-info), `admin` hosts the AppSettings admin-tier sections (memory tuning,
-// summarizer, rate limits), `appearance` hosts display prefs another feature owns (the library page size).
-// Each anchor is a checked SUBSET of `SettingsCategoryId` — the pane it targets.
+// SET-SEAMS §5.1: the anchor is a `SettingsCategoryId` — EVERY pane is a host now, so the four-member
+// `SETTINGS_SECTION_ANCHORS` subset tuple retired (a subset tuple only existed because three panes were
+// not yet hosts, and it made "can a section land here?" a second, drifting fact). `groupByAnchor` keys
+// over `SETTINGS_CATEGORY_IDS`, which stays total by construction.
 
-/** A contributed settings section (§6c) — a discriminated union BY ANCHOR (the `ChatSurfaceContribution`
- *  shape), so a second anchor carrying a different projection narrows cleanly with zero casts. One arm
- *  today. `nav` reuses the existing `SettingsSubcategory` so a contributed section is a first-class
- *  nav/search citizen with zero new vocabulary (derive, don't re-declare) — the host pane merges it into
- *  its own `subcategories`. `body` renders the section keyed to `settingsAnchorId(anchor, nav.id)` so the
- *  host's scroll-spy and fuzzy-search jump work unchanged. */
+/** What a section claims to WRITE (SET-SEAMS §2.3, the S2 partition pin). Absent = the section persists
+ *  nothing through the settings tiers (a CRUD surface like tags/personas) and is exempt from the
+ *  partition. Nested namespaces claim at the TOP-level key (`retrieval`, not `retrieval.k`) — the server's
+ *  `deepMergePlain` recurses, so top-level disjointness already guarantees commutativity, and a deeper
+ *  claim would encode form internals in the contribution. */
+export type SettingsKeyClaim =
+  | { readonly tier: "user"; readonly section: UserSettingsSection; readonly keys: readonly string[] }
+  | { readonly tier: "app"; readonly keys: readonly (keyof AppSettings)[] };
+
+/** A contributed settings section (§6c). `nav` reuses the existing `SettingsSubcategory` so a contributed
+ *  section is a first-class nav/search citizen with zero new vocabulary (derive, don't re-declare) — the
+ *  host merges it into the pane's subcategory list. `body` renders the section keyed to
+ *  `settingsAnchorId(anchor, nav.id)` so the host's scroll-spy and fuzzy-search jump work unchanged. */
 export interface SettingsSectionContribution {
   /** The registry key + React key (a duplicate throws at door construction). */
   readonly id: string;
-  /** The host pane this section renders into (the discriminant). */
-  readonly anchor: SettingsSectionAnchor;
+  /** The host pane this section renders into. */
+  readonly anchor: SettingsCategoryId;
   /** The pane left-nav + search-index entry for this section. */
   readonly nav: SettingsSubcategory;
+  /** Viewer gating with pane parity (SET-SEAMS §5): ONE predicate, three consumers — nav, search, and
+   *  render all run it, so a section hidden from a viewer is never a search hit that scrolls to nothing.
+   *  Absent = always visible. */
+  readonly when?: (viewer: SettingsViewerView) => boolean;
+  /** The write claim (§2.3) — the keys this section, and only this section, patches. */
+  readonly owns?: SettingsKeyClaim;
   /** The contributed `<Section>` node. Anchored via `settingsAnchorId(anchor, nav.id)` by the section. */
   readonly body: () => ReactNode;
 }
@@ -111,34 +134,187 @@ export interface ResolvedSettingsSection {
   readonly node: ReactNode;
 }
 
-/** Group every contribution by its own `anchor` into a total `Record<anchor, contributions[]>`, in
- *  declared registry order. A KEYED write (`groups[c.anchor].push`) — never an `anchor === "…"` comparison
- *  (with a single-member tuple that is provably always-true; the single-arm-dispatch-record-not-switch
- *  precedent). A future anchor is one tuple entry + one union arm; the seed stays total by construction. */
-function groupByAnchor(registry: ContributorRegistry<SettingsSectionContribution>): Record<SettingsSectionAnchor, readonly SettingsSectionContribution[]> {
-  const groups = Object.fromEntries(SETTINGS_SECTION_ANCHORS.map((a) => [a, [] as SettingsSectionContribution[]])) as Record<
-    SettingsSectionAnchor,
+/** Group every VISIBLE contribution by its own `anchor` into a total `Record<anchor, contributions[]>`, in
+ *  declared registry order — one `when` evaluation feeding all three consumers. A KEYED write
+ *  (`groups[c.anchor].push`), never an `anchor === "…"` comparison (the
+ *  single-arm-dispatch-record-not-switch precedent); the seed is total over `SETTINGS_CATEGORY_IDS`. */
+function groupByAnchor(
+  registry: ContributorRegistry<SettingsSectionContribution>,
+  viewer: SettingsViewerView,
+): Record<SettingsCategoryId, readonly SettingsSectionContribution[]> {
+  const groups = Object.fromEntries(SETTINGS_CATEGORY_IDS.map((a) => [a, [] as SettingsSectionContribution[]])) as Record<
+    SettingsCategoryId,
     SettingsSectionContribution[]
   >;
   for (const c of registry.list()) {
-    groups[c.anchor].push(c);
+    if (c.when?.(viewer) ?? true) {
+      groups[c.anchor].push(c);
+    }
   }
   return groups;
 }
 
-/** The contributed sections for one anchor, in declared registry order — the host pane appends these
- *  below its own sections and merges their `nav`s into its subcategory list. Zero contributions ⇒ an
- *  empty array (the caller renders no wrapper — byte-identical to today, the `editor-sections` posture). */
+/** The visible contributed sections for one anchor, in declared registry order — the host pane renders
+ *  these below its own sections. Zero contributions ⇒ an empty array (the caller renders no wrapper —
+ *  byte-identical to today, the `editor-sections` posture). */
 export function resolveSettingsSections(
   registry: ContributorRegistry<SettingsSectionContribution>,
-  anchor: SettingsSectionAnchor,
+  anchor: SettingsCategoryId,
+  viewer: SettingsViewerView,
 ): readonly ResolvedSettingsSection[] {
-  return groupByAnchor(registry)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body() }));
+  return groupByAnchor(registry, viewer)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body() }));
 }
 
-/** The `nav` entries a host pane merges into its own subcategory list, for one anchor — same grouping,
- *  in declared registry order. Consumed by the pane def (nav-time) while `resolveSettingsSections` is
- *  consumed by the surface (render-time), off the SAME keyed group so neither compares an anchor. */
-export function settingsSectionNavs(registry: ContributorRegistry<SettingsSectionContribution>, anchor: SettingsSectionAnchor): readonly SettingsSubcategory[] {
-  return groupByAnchor(registry)[anchor].map((c) => c.nav);
+/** The `nav` entries the host merges into a pane's subcategory list, for one anchor — same grouping, same
+ *  `when`, in declared registry order. Consumed by the shell (nav + search) while `resolveSettingsSections`
+ *  is consumed by the surface (render), off the SAME keyed group so neither compares an anchor. */
+export function settingsSectionNavs(
+  registry: ContributorRegistry<SettingsSectionContribution>,
+  anchor: SettingsCategoryId,
+  viewer: SettingsViewerView,
+): readonly SettingsSubcategory[] {
+  return groupByAnchor(registry, viewer)[anchor].map((c) => c.nav);
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// S2 — the key partition (SET-SEAMS §2.3). N sections saving into ONE `UserSettings` namespace is only
+// safe because each patch is KEY-MINIMAL (S1): the server's read-merge-write is per-key
+// (`deepMergePlain`) and serialized per user, so DISJOINT patches commute. This assertion is what turns
+// that convention into a proof — it runs ONCE at the door, over the whole settings-section registry,
+// against the contract defaults, and THROWS (the `createContributorRegistry` duplicate-id posture).
+//
+// The gap arm is scoped to CLAIMED namespaces: a namespace no section claims is still owned WHOLE by its
+// pane's welded form (pre-SET-SEAMS-stage-1), which is not a partition violation — it is the migration
+// state the stage table describes. The instant one section claims a key in a namespace, that namespace is
+// under the partition and every remaining key must be claimed or CITED. So each stage that decomposes a
+// pane brings its namespace under the pin automatically, and no stage can half-claim a namespace silently.
+// (The APP tier has no gap arm: `AppSettings` is still owned whole by the system pane until stage 4, and
+// server-side wiring coverage is `knob-wire-coverage`'s job, D107 — see §10 Q5, two registries of two
+// different facts.)
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** One cited exemption from the gap arm — a key inside a CLAIMED namespace that has no client editor.
+ *  Self-cleaning in BOTH directions (the D50 bus-coverage DEFERRED discipline): a key that GAINS a section
+ *  REDs its stale entry, and a cite for a key that no longer exists (or for a namespace no section claims)
+ *  REDs too. */
+export interface UnclaimedSettingsKey {
+  readonly section: UserSettingsSection;
+  readonly key: string;
+  /** WHY there is no editor — an unclaimed knob is the settings-side twin of a dead switch (D107). */
+  readonly reason: string;
+}
+
+/** The cited gap-arm exemptions. Keep it SHORT — every entry is a knob a user cannot reach. */
+export const UNCLAIMED_SETTINGS_KEYS: readonly UnclaimedSettingsKey[] = [
+  {
+    section: "databank",
+    key: "chunk",
+    reason: "ingest-time chunking params (size/overlap) — set at import, never edited after; the databank section deliberately round-trips them untouched.",
+  },
+];
+
+/** `defaults[section]` as a plain key bag, or undefined when the namespace is not an object. */
+function namespaceKeys(defaults: UserSettings, section: UserSettingsSection): readonly string[] | undefined {
+  const value: unknown = defaults[section];
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.keys(value) : undefined;
+}
+
+function claimKey(tier: string, section: string, key: string): string {
+  return `${tier}:${section}.${key}`;
+}
+
+/** Build the leaf-key → owning-section map, THROWING on the first overlap (two sections writing one key is
+ *  a live lost-update: A's debounce carries its stale copy of B's value). */
+function collectClaims(registry: ContributorRegistry<SettingsSectionContribution>): ReadonlyMap<string, string> {
+  const owners = new Map<string, string>();
+  for (const contribution of registry.list()) {
+    const claim = contribution.owns;
+    if (claim === undefined) {
+      continue;
+    }
+    const section = claim.tier === "user" ? claim.section : "app";
+    for (const key of claim.keys) {
+      const id = claimKey(claim.tier, section, key);
+      const firstOwner = owners.get(id);
+      if (firstOwner !== undefined) {
+        throw new Error(
+          `assertSettingsKeyPartition: "${section}.${key}" is claimed by BOTH "${firstOwner}" and "${contribution.id}" — two sections writing one key is a lost update (SET-SEAMS §2.3 S2). Give the key exactly one owning section.`,
+        );
+      }
+      owners.set(id, contribution.id);
+    }
+  }
+  return owners;
+}
+
+/** THROWS on overlap (two sections write one key → clobber), on a GAP (a knob with no editor inside a
+ *  claimed namespace → D107) that is not cited in {@link UNCLAIMED_SETTINGS_KEYS}, and on a STALE cite (a
+ *  cited key that is now claimed, no longer exists, or sits in a namespace no section claims). Called once
+ *  at the composition root, right after the settings-section registry is assembled. `exemptions` defaults
+ *  to the live cite list and is injectable so each arm is unit-testable against a fixture. */
+export function assertSettingsKeyPartition(
+  registry: ContributorRegistry<SettingsSectionContribution>,
+  defaults: UserSettings,
+  exemptions: readonly UnclaimedSettingsKey[] = UNCLAIMED_SETTINGS_KEYS,
+): void {
+  const owners = collectClaims(registry);
+  const claimedSections = new Set<UserSettingsSection>();
+  for (const contribution of registry.list()) {
+    if (contribution.owns?.tier === "user") {
+      claimedSections.add(contribution.owns.section);
+    }
+  }
+  const cited = validateCites(exemptions, owners, claimedSections, defaults);
+  assertNoGaps(claimedSections, defaults, owners, cited);
+}
+
+/** The STALE-CITE arms — a cite that is now claimed, sits in an unclaimed (still pane-owned) namespace, or
+ *  names a key the contract no longer has. Returns the validated cite ids. */
+function validateCites(
+  exemptions: readonly UnclaimedSettingsKey[],
+  owners: ReadonlyMap<string, string>,
+  claimedSections: ReadonlySet<UserSettingsSection>,
+  defaults: UserSettings,
+): ReadonlySet<string> {
+  const cited = new Set<string>();
+  for (const exemption of exemptions) {
+    const id = claimKey("user", exemption.section, exemption.key);
+    const owner = owners.get(id);
+    if (owner !== undefined) {
+      throw new Error(
+        `assertSettingsKeyPartition: "${exemption.section}.${exemption.key}" is cited in UNCLAIMED_SETTINGS_KEYS but section "${owner}" now claims it — delete the stale cite (SET-SEAMS §2.3).`,
+      );
+    }
+    if (!claimedSections.has(exemption.section)) {
+      throw new Error(
+        `assertSettingsKeyPartition: UNCLAIMED_SETTINGS_KEYS cites "${exemption.section}.${exemption.key}", but no section claims any key in "${exemption.section}" — the namespace is still pane-owned, so the cite is inert. Delete it (SET-SEAMS §2.3).`,
+      );
+    }
+    if (!(namespaceKeys(defaults, exemption.section)?.includes(exemption.key) ?? false)) {
+      throw new Error(
+        `assertSettingsKeyPartition: UNCLAIMED_SETTINGS_KEYS cites "${exemption.section}.${exemption.key}", which is not a key of DEFAULT_USER_SETTINGS.${exemption.section} — delete the stale cite (SET-SEAMS §2.3).`,
+      );
+    }
+    cited.add(id);
+  }
+  return cited;
+}
+
+/** The GAP arm — every key of a CLAIMED namespace is owned by a section or cited as editor-less. */
+function assertNoGaps(
+  claimedSections: ReadonlySet<UserSettingsSection>,
+  defaults: UserSettings,
+  owners: ReadonlyMap<string, string>,
+  cited: ReadonlySet<string>,
+): void {
+  for (const section of claimedSections) {
+    for (const key of namespaceKeys(defaults, section) ?? []) {
+      const id = claimKey("user", section, key);
+      if (!(owners.has(id) || cited.has(id))) {
+        throw new Error(
+          `assertSettingsKeyPartition: "${section}.${key}" has no owning section — the namespace is under the partition (another section claims part of it), so this knob has no editor (D107). Claim it in a section's \`owns\`, or cite it in UNCLAIMED_SETTINGS_KEYS with a reason (SET-SEAMS §2.3).`,
+        );
+      }
+    }
+  }
 }

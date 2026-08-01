@@ -6,9 +6,25 @@ import type { SettingsSectionContribution } from "#state";
 import { SystemTuningSection } from "../components/system-tuning-section";
 import { SYSTEM_TUNING_SUBCATEGORY } from "./system-tuning-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "admin-system-tuning";
+
 export const systemTuningSection: SettingsSectionContribution = {
-  id: "admin-system-tuning",
+  id: SECTION_ID,
   anchor: "admin",
   nav: SYSTEM_TUNING_SUBCATEGORY,
-  body: () => <SystemTuningSection />,
+  owns: {
+    tier: "app",
+    keys: [
+      "agentSdkConcurrency",
+      "promptTransformDeadlineMs",
+      "nonOwnerLocalComputeBudgetWindowMs",
+      "catalogRefreshIntervalMs",
+      "imageVariantQuality",
+      "maxDatabankBytes",
+      "engineLaunch",
+    ],
+  },
+  body: () => <SystemTuningSection sectionId={SECTION_ID} />,
 };

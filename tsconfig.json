@@ -61,6 +61,13 @@
     // The draft-store test's subject defaults to window.localStorage (the crash-mirror home) — DOM-coupled
     // `.ts`, so it lives in tsconfig.tests-dom.json (the same routing as its forms siblings above).
     "tests/client/state/create-entity-draft-store.test.ts",
+    // Same DOM-barrel hazard, registry flavor: this test value-imports the nine settings-SECTION
+    // contributions from the feature front doors (`@orb/client/features/*`) so it can run the DOOR's own
+    // `assertSettingsKeyPartition` over the REAL claims — a violated partition throws at main.tsx module
+    // init, i.e. a white screen, so the pre-image of that crash belongs in a test. Those front doors are
+    // `.tsx` React surfaces → phantom lib.dom errors in this DOM-less node program. The subject SOURCE
+    // stays dom-typechecked by packages/client/tsconfig.
+    "tests/client/state/settings-pane-registry.test.ts",
     // Same class, RAF flavor: the subject hook (`use-message-items`, PD-147) calls bare
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.
@@ -69,6 +76,10 @@
     // (an `evaluateHandle` callback), so its body needs lib.dom even though it is `.ts` node-side glue —
     // the one exception to the "tests/support/ct/*.ts stays here" note above. Home: tsconfig.tests-dom.json.
     "tests/support/ct/drop-files.ts",
+    // Same exception, geometry flavor: the settings render-parity harness measures section boxes INSIDE the
+    // page (a `page.evaluate` callback reads `document` + `getBoundingClientRect`), so its body needs
+    // lib.dom. Home: tsconfig.tests-dom.json.
+    "tests/support/ct/settings-geometry.ts",
     // Same DOM-barrel hazard, ui flavor: the waystone MATRIX test is pure data (`waystone-treatment`), but it
     // reaches it through the `@orb/ui/meter` barrel, which value-exports the `<Waystone>` component — and that
     // component subscribes to `document.visibilitychange` (it pauses its ambient layers in a hidden tab). That

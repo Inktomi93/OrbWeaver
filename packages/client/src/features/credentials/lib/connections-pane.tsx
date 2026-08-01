@@ -58,5 +58,5 @@ export const connectionsPane: SettingsPaneDefinition = {
       ],
     },
   ],
-  body: () => <ConnectionsSettingsSurface />,
+  body: { kind: "surface", render: () => <ConnectionsSettingsSurface /> },
 };

@@ -17,6 +17,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ChangeEvent, ReactElement } from "react";
 import { useId } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { useReportSaveStatus } from "#forms";
+import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav";
 
@@ -33,26 +35,36 @@ const useUpdateLibrary = createEntityMutation<UpdateLibraryVars, unknown>({
 const LIBRARY_PAGE_SIZE_MIN = 10;
 const LIBRARY_PAGE_SIZE_MAX = 100;
 
+/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
+ *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
+function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  return isPending ? "saving" : "saved";
+}
+
 /** The Library settings section body — mounted at the appearance pane's contributed-sections anchor. */
-export function LibrarySettingsSection(): ReactElement {
+export function LibrarySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading your library settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
     >
-      <LibraryPageSizeRow />
+      <LibraryPageSizeRow sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
 /** The rows-per-page control. A blank/out-of-range input is dropped (never a wipe-triggering write; the
  *  server re-validate + `.catch` self-heal is the true enforcement, these bound the input). */
-function LibraryPageSizeRow(): ReactElement {
+function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const update = useUpdateLibrary({ trpc, invalidation });
   const id = useId();
+  useReportSaveStatus(sectionId, saveStateOf(update.isPending, update.error !== null));
   const onChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const n = Number(e.target.value);
     if (Number.isInteger(n) && n >= LIBRARY_PAGE_SIZE_MIN && n <= LIBRARY_PAGE_SIZE_MAX) {

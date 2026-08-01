@@ -24,5 +24,10 @@ export { createSavedEntityForm } from "./create-saved-entity-form";
 export { hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base";
 export type { SaveCircuitBreaker, SaveCircuitBreakerConfig } from "./save-circuit-breaker";
 export { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker";
+// The settings-section save-status seam (SET-SEAMS §3): sections REPORT, the settings shell renders ONE
+// aggregate footer, retry stays local.
+export { SaveStatusHostContext, useReportSaveStatus, useSaveStatusHosted } from "./save-status-seam";
+export type { SectionSaveStatusProps } from "./section-save-status";
+export { SectionSaveStatus } from "./section-save-status";
 export type { AppFormInstance } from "./use-app-form";
 export { useAppForm } from "./use-app-form";

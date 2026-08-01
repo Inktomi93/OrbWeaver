@@ -8,9 +8,14 @@ import type { SettingsSectionContribution } from "#state";
 import { ImageryTemplatesSection } from "../components/imagery-templates-section";
 import { IMAGERY_TEMPLATES_SUBCATEGORY } from "./imagery-templates-section-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "chat-imagery-templates";
+
 export const imageryTemplatesSection: SettingsSectionContribution = {
-  id: "chat-imagery-templates",
+  id: SECTION_ID,
   anchor: "chat-behavior",
   nav: IMAGERY_TEMPLATES_SUBCATEGORY,
-  body: () => <ImageryTemplatesSection />,
+  owns: { tier: "user", section: "imagery", keys: ["templates", "captions"] },
+  body: () => <ImageryTemplatesSection sectionId={SECTION_ID} />,
 };
