@@ -55,6 +55,7 @@ import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatSurfaceContribution,
+  ContextRegionDef,
   ContextTabDef,
   ContributorRegistry,
   HomeTileContribution,
@@ -112,6 +113,7 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
 // front doors stays in the client program.
 
 const chatContextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", []);
+const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", []);
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 // The per-tool-name renderer seam, empty as at the real door — every tool record falls back to `ToolCallBlock`.
@@ -130,7 +132,7 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),
-  chats: makeChatsSection(chatContextContributors, chatSurfaceContributors, chatToolRenderers),
+  chats: makeChatsSection(chatContextContributors, chatContextRegions, chatSurfaceContributors, chatToolRenderers),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -261,16 +263,24 @@ export function CtRealSectionRegistry({ children }: { readonly children: ReactNo
  *  section stays the real registry (`REAL`), so a chat CT mounting the shell still sees real siblings. */
 export function CtChatContributorSectionRegistry({
   contextContributors,
+  contextRegions,
   surfaceContributors,
   children,
 }: {
   readonly contextContributors?: ContributorRegistry<ContextTabDef<ChatContextState>>;
+  /** The whole-pane REGION-CLAIM arm (HUD-1 §3.2) — a fake claimant proves the seam without rpg. */
+  readonly contextRegions?: ContributorRegistry<ContextRegionDef<ChatContextState>>;
   readonly surfaceContributors?: ContributorRegistry<ChatSurfaceContribution>;
   readonly children: ReactNode;
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    chats: makeChatsSection(contextContributors ?? chatContextContributors, surfaceContributors ?? chatSurfaceContributors, chatToolRenderers),
+    chats: makeChatsSection(
+      contextContributors ?? chatContextContributors,
+      contextRegions ?? chatContextRegions,
+      surfaceContributors ?? chatSurfaceContributors,
+      chatToolRenderers,
+    ),
   });
   return (
     <SectionRegistryProvider value={registry}>
