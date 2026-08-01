@@ -47,8 +47,8 @@ function sseFrame(fields: { event?: string; data: string; id?: string; retry?: n
 /** The Nth CONNECT's body: `connected` + ONE scripted delta (the Nth), no `return` — so the EventSource
  *  reconnects for the next. Once every delta is served, the final connect sends `connected` + `return` (clean
  *  close → the subscription's onComplete). A connect past the script (a stray reconnect) gets a bare close. */
-function connectBody(deltas: readonly string[], connectIndex: number): string {
-  const frames: string[] = [sseFrame({ event: "connected", data: JSON.stringify({}) })];
+function connectBody(deltas: readonly string[], connectIndex: number, retryMs: number | undefined): string {
+  const frames: string[] = [sseFrame({ event: "connected", data: JSON.stringify({}), ...(retryMs === undefined ? {} : { retry: retryMs }) })];
   const delta = deltas[connectIndex];
   if (delta !== undefined) {
     // One delta this connect; its tracked id is the delta index (the reconnect's Last-Event-ID resume cursor).
@@ -70,8 +70,13 @@ export interface ImpersonateStreamRecorder {
 
 /** Stub `chat.impersonateStream` with a scripted SSE stream that stages ONE `{ delta }` per EventSource
  *  CONNECT (see the header) — the browser auto-reconnects between deltas, giving a CT an observable gap to
- *  assert the composer grows delta-by-delta. Non-event-stream requests fall through (`route.fallback()`). */
-export async function routeImpersonateStream(page: Page, deltas: readonly string[]): Promise<ImpersonateStreamRecorder> {
+ *  assert the composer grows delta-by-delta. Non-event-stream requests fall through (`route.fallback()`).
+ *
+ *  `retryMs` pins the browser's reconnect delay (default: the browser's own ~3s), which makes the INTER-DELTA
+ *  GAP a known quantity — the window in which the stream is provably still LIVE. A CT that acts mid-stream
+ *  (the IMP-2 Stop) needs both halves of that: enough time to act, and a bound short enough that "no
+ *  reconnect arrived" is a real observation rather than an impatient one. */
+export async function routeImpersonateStream(page: Page, deltas: readonly string[], retryMs?: number): Promise<ImpersonateStreamRecorder> {
   const inputs: unknown[] = [];
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
@@ -87,7 +92,7 @@ export async function routeImpersonateStream(page: Page, deltas: readonly string
     await route.fulfill({
       status: 200,
       headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-      body: connectBody(deltas, inputs.length - 1),
+      body: connectBody(deltas, inputs.length - 1, retryMs),
     });
   });
   return {

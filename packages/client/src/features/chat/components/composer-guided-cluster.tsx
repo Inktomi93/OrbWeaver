@@ -14,19 +14,26 @@
 // is aria-disabled (Base UI `focusableWhenDisabled` keeps it hoverable) with its reason on `title`. Response
 // is never disabled — Generate opening on a draft, generate reply on any committed tail — which is why it
 // hosts empty-send-generate.
+//
+// THE ONE CONDITIONAL CONTROL (IMP-2): a Stop appears at the cluster's right edge while the impersonate
+// STREAM fills the composer, and only then — there is nothing to stop otherwise, and the row-2 turn Stop
+// aborts a chat TURN, which an impersonation is not. While it runs, every icon's reason names the stream
+// instead of a phantom "wait for the current reply to finish".
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Drama, FastForward, Icon, Play, RotateCcw } from "@orb/ui/icons";
+import { Drama, FastForward, Icon, Play, RotateCcw, Square } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import {
   CONTINUE_NEEDS_REPLY,
+  IMPERSONATE_IN_FLIGHT,
+  IMPERSONATE_STOP_LABEL,
   IMPERSONATE_WAIT_FOR_TURN,
   STEER_CUE_CONTINUE,
   STEER_CUE_IMPERSONATE,
@@ -86,7 +93,14 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   // a disabled icon on an off engine reads "Local engine is off…", not "needs a reply first".
   const anyBusy = guided.isPending || busy === true;
   const idle = !(anyBusy || sendUnavailable);
-  const reasonFor = (phaseReason: string): string => (sendUnavailable && sendUnavailableReason !== undefined ? sendUnavailableReason : phaseReason);
+  // IMP-2 — a LIVE impersonate stream is the honest off-cause while it runs: it idles every icon, but nothing
+  // is being generated into the transcript, so the generic "wait for the current reply to finish" pointed at a
+  // turn the user could neither see nor stop. It wins over the send cause (it is the immediate one, and it
+  // ends on its own or on the Stop rendered beside the icons); a phase reason loses to both.
+  const impersonating = guided.stopImpersonation !== null;
+  const streamOffReason = impersonating ? IMPERSONATE_IN_FLIGHT : undefined;
+  const persistentOffReason = streamOffReason ?? (sendUnavailable ? sendUnavailableReason : undefined);
+  const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
 
   // CONSUME actions clear the composer on fire; onFireError restores it on failure (D57).
   const fireAndClear = (run: (input: string) => void): void => {
@@ -137,14 +151,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         // Swipe KEEPS the steer (reroll again with the same guidance) — no onChange clear.
         onFire={(): void => guided.fireSwipe(trimmed)}
       />
-      <ResponseGuidedButton
-        hasText={hasText}
-        idle={idle}
-        committed={committed}
-        cast={cast}
-        onFire={fireResponse}
-        sendUnavailableReason={sendUnavailable ? sendUnavailableReason : undefined}
-      />
+      <ResponseGuidedButton hasText={hasText} idle={idle} committed={committed} cast={cast} onFire={fireResponse} disabledReason={persistentOffReason} />
       <GuidedIconButton
         icon={FastForward}
         label={hasText ? "Continue with this steering" : "Continue"}
@@ -155,6 +162,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         buttonTestId="composerGuidedContinue"
         onFire={(): void => fireAndClear(guided.fireContinue)}
       />
+      {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
       <RewriteDialog
         open={rewrite.isOpen}
         onOpenChange={rewrite.setOpen}
@@ -284,13 +292,36 @@ function resolveGuidedTitle(args: { disabled: boolean; hasText: boolean; label: 
   return args.hasText ? `${args.label} — ${args.steerCue}` : args.label;
 }
 
-/** Response's title: the honest-refusal reason wins (#54 — Response has no other disabled state), else the
- *  steer cue when the composer has text, else the plain label. */
-function responseTitle(label: string, hasText: boolean, sendUnavailableReason: string | undefined): string {
-  if (sendUnavailableReason !== undefined) {
-    return `${label} — ${sendUnavailableReason}`;
+/** Response's title: a persistent off-cause wins (#54 refusal / the IMP-2 live impersonate stream — Response
+ *  has no phase-disabled state of its own), else the steer cue when the composer has text, else the label. */
+function responseTitle(label: string, hasText: boolean, disabledReason: string | undefined): string {
+  if (disabledReason !== undefined) {
+    return `${label} — ${disabledReason}`;
   }
   return hasText ? `${label} — ${STEER_CUE_RESPONSE}` : label;
+}
+
+// ── The live impersonate stream's Stop (IMP-2) ───────────────────────────────────────────────────────────
+/** Rendered ONLY while an impersonate stream is filling the composer — the same idiom as the turn Stop in
+ *  composer row 2 (secondary square icon-button, `rounded-full`), sat at the cluster's right edge directly
+ *  above it. Before this, a user watching the composer fill had no way to end the stream: it is a
+ *  subscription, so the row-2 turn Stop (which aborts a chat TURN) never applied to it. Stopping KEEPS the
+ *  partial fill (a deliberate divergence from ST — see `useGuidedActions.stopImpersonation`). */
+function ImpersonateStopButton({ onStop }: { readonly onStop: () => void }): ReactElement {
+  return (
+    <Button
+      type="button"
+      intent="secondary"
+      size="icon"
+      title={IMPERSONATE_STOP_LABEL}
+      aria-label={IMPERSONATE_STOP_LABEL}
+      data-testid={testId("composerGuidedStopImpersonate")}
+      onClick={onStop}
+      className="shrink-0 rounded-full"
+    >
+      <Icon icon={Square} size="sm" />
+    </Button>
+  );
 }
 
 /** The dual-mode ACCESSIBLE NAME (side-eye P3-dualmode): when the composer has text the icon is in its guided
@@ -354,19 +385,20 @@ function ResponseGuidedButton({
   committed,
   cast,
   onFire,
-  sendUnavailableReason,
+  disabledReason,
 }: {
   readonly hasText: boolean;
   readonly idle: boolean;
   readonly committed: boolean;
   readonly cast: ReturnType<typeof filterCharacters>;
   readonly onFire: (speakerCharacterId: CharacterId | null) => void;
-  /** The honest-refusal reason (#54) — present only when the connection can't serve. Response is otherwise
-   *  never phase-disabled, so this is its ONLY disabled reason; it surfaces on `title` + focusableWhenDisabled. */
-  readonly sendUnavailableReason: string | undefined;
+  /** The PERSISTENT off-cause when there is one: the honest-refusal reason (#54) or the live impersonate
+   *  stream (IMP-2). Response is never phase-disabled, so this is its ONLY disabled reason; it surfaces on
+   *  `title` + focusableWhenDisabled. */
+  readonly disabledReason: string | undefined;
 }): ReactElement {
   const label = committed ? "Generate reply" : "Generate opening";
-  const title = responseTitle(label, hasText, sendUnavailableReason);
+  const title = responseTitle(label, hasText, disabledReason);
   // The dual-mode accessible name (P3-dualmode): guided when the composer has text, plain when empty.
   const name = resolveGuidedName(label, hasText);
   // Solo/draft: a direct fire (Auto). Multi-room: a submenu picks the speaker (Auto + each member).
@@ -377,9 +409,9 @@ function ResponseGuidedButton({
         intent={hasText ? "primary" : "ghost"}
         size="icon"
         disabled={!idle}
-        // An unserveable connection disables Response too (it fires a turn) — keep it hoverable so the reason
-        // shows (Response has no OTHER disabled state, so focusableWhenDisabled only matters here).
-        focusableWhenDisabled={sendUnavailableReason !== undefined}
+        // An unserveable connection (or a live impersonate stream) disables Response too — keep it hoverable
+        // so the reason shows (Response has no OTHER disabled state, so focusableWhenDisabled only matters here).
+        focusableWhenDisabled={disabledReason !== undefined}
         title={title}
         aria-label={name}
         data-testid={testId("composerGuidedResponse")}
