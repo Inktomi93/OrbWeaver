@@ -14,7 +14,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { CharacterId, ChatId, MessageId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
@@ -23,6 +23,7 @@ import { expect, test } from "../../support/fixtures";
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
 const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");
 const CHARACTER_ID = castId<CharacterId>("char_invalidationtest");
+const PRESET_ID = castId<PresetId>("preset_invalidationtest");
 
 /** Fresh client + proxy per test — no shared cache state to bleed across assertions. */
 function setup(): ReturnType<typeof createInvalidation> & {
@@ -203,6 +204,12 @@ const USER_TRACKED_KEYS = [
   "character",
   "persona",
   "preset",
+  // The preset editor's EFFECTIVE-profile read (`preset.resolveEffective`) — tracked SEPARATELY from `preset`
+  // because it has TWO drivers, and the second one is the interesting half: `presetsChanged` covers it via
+  // the router root (a knob autosave must re-resolve the funnel), and `settingsChanged` covers it NARROWLY
+  // (a model/routing swap changes the capability the funnel clamps against, so every provenance line —
+  // "model default", "clamped to 1.2" — would otherwise describe the previous model). Redesign §4.4.
+  "presetEffective",
   "worldInfo",
   "tag",
   "themes",
@@ -238,7 +245,7 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   charactersChanged: ["character", "memberCard"],
   personasChanged: ["persona"],
-  presetsChanged: ["preset", "previewContextFit", "previewAssembly"],
+  presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly"],
   worldInfoChanged: ["worldInfo"],
   tagsChanged: ["tag"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
@@ -246,7 +253,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // `settings.updateUserSettingsSection` (busDriven), so this event is the ONLY freshness driver for the
   // preset params panel's capability gate — the row whose absence kept the editor on its connect-a-model note
   // until a page reload.
-  settingsChanged: ["userSettings", "previewContextFit", "chatCapability", "previewAssembly"],
+  settingsChanged: ["userSettings", "presetEffective", "previewContextFit", "chatCapability", "previewAssembly"],
   credentialsChanged: ["credentials"],
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
@@ -273,6 +280,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         character: trpc.character.list.queryKey(),
         persona: trpc.persona.list.queryKey(),
         preset: trpc.preset.list.queryKey(),
+        presetEffective: trpc.preset.resolveEffective.queryKey({ id: PRESET_ID }),
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
         tag: trpc.tag.listTags.queryKey(),
         themes: trpc.settings.listThemes.queryKey(),

@@ -449,6 +449,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getEffectiveConfig: () => effectiveConfig.getEffectiveConfig(),
     emitChatEvent,
     corpusAutoindex: resolved.corpusAutoindex,
+    // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
+    // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
+    resolveChatCapability: (args) => connection.resolveChatCapability(args),
     getContributions: getWorkloadContributions,
   });
   const { embeddings, indexer, persona, presetCtx, preset, stats, search, discovery, notifications, workloads } = searchDiscovery;

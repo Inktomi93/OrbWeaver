@@ -104,7 +104,7 @@ export interface ChatInjection {
 /** The injection PRODUCER axis (see {@link ChatInjection.origin}) — declared ONCE as a tuple and DERIVED
  *  (§5.5, no inline union re-spell). Not a wire-input axis: `chatInjectionInputSchema` deliberately omits it
  *  (a client never authors provenance — the `user` origin is stamped server-side when the row is mapped). */
-export const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state"] as const;
+export const CHAT_INJECTION_ORIGINS = ["user", "world-info", "persona", "authors-note", "guided", "game-state", "new-chat-marker"] as const;
 export type ChatInjectionOrigin = (typeof CHAT_INJECTION_ORIGINS)[number];
 
 /** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`

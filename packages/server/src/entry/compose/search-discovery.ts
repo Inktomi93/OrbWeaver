@@ -75,6 +75,10 @@ export interface SearchDiscoveryComposeDeps {
   readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
   /** ON ⇒ subscribe the indexer to the bus (embed-on-write); OFF ⇒ built-but-not-subscribed. */
   readonly corpusAutoindex: boolean;
+  /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
+   *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
+   *  plain dep, not a forward-ref. */
+  readonly resolveChatCapability: PresetContext["resolveChatCapability"];
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: () => WorkloadContributions;
@@ -206,6 +210,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newPresetId: minter(ID_PREFIX.preset),
     audit,
     emitUserEvent: publishUserEvent,
+    resolveChatCapability: deps.resolveChatCapability,
   };
   // Shared: the service + the portability `preset` descriptor (both write the domain's own `presets` table).
   const preset = createPresetService(presetCtx);
