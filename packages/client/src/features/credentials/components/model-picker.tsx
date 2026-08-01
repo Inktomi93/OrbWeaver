@@ -181,7 +181,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
 
           <Row gap="field" align="center" justify="between" className="border-t border-border px-block py-field">
             <Text size="micro" tone="muted">
-              {footerSyncedLabel(result?.fetchedAt ?? null, view.allowsFreeText)}
+              {footerSyncedLabel(result?.fetchedAt ?? null, view.allowsFreeText, view.curatedFallback)}
             </Text>
             <Text size="micro" tone="muted">
               {`${view.pool.length} model${view.pool.length === 1 ? "" : "s"}`}

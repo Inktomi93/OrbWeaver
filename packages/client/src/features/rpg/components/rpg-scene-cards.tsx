@@ -37,7 +37,14 @@ export function RpgCardLightbox({
       <DialogPopup size="lg" className="gap-row">
         <DialogTitle>{cardLabel(openCard?.title ?? null)}</DialogTitle>
         {openCard === undefined ? null : (
-          <ImmersiveCard html={openCard.html} {...(openCard.title === null ? {} : { title: openCard.title })} origin={openCard.origin} />
+          // The card carries the ORIGIN ROW's render policy: the archive is a second lens on the same
+          // authored content, so its sandbox CSP must be the transcript's, never a laxer default.
+          <ImmersiveCard
+            html={openCard.html}
+            {...(openCard.title === null ? {} : { title: openCard.title })}
+            origin={openCard.origin}
+            allowExternalMedia={openCard.allowExternalMedia}
+          />
         )}
       </DialogPopup>
     </Dialog>
@@ -56,12 +63,20 @@ export interface RpgSceneCardsProps {
 export function RpgSceneCards({ chatId, enabled }: RpgSceneCardsProps): ReactElement | null {
   const trpc = useTRPC();
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled });
+  // The roster + viewer the per-card render policy resolves against — the SAME cache-first `chat.getChat`
+  // read the takeover already holds (lockdown §12 direct read), never a second projection of it.
+  const chatQuery = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId }), enabled });
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (!enabled) {
     return null;
   }
   // Newest first — Scene is the birth home; Journal archives the same cards into their day groups.
-  const cards = [...collectArchivedCards(messagesQuery.data?.messages ?? [])].reverse();
+  const cards = [
+    ...collectArchivedCards(messagesQuery.data?.messages ?? [], {
+      participants: chatQuery.data?.participants,
+      viewerUserId: chatQuery.data?.viewerUserId ?? null,
+    }),
+  ].reverse();
   if (cards.length === 0) {
     return (
       <Stack gap="field" data-slot="rpg-card-archive">
