@@ -12,7 +12,7 @@
 
 import type { MessageView, ParticipantView, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
@@ -232,12 +232,6 @@ export interface CharacterChatsProjectionView {
   readonly characterName: string;
   /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. */
   readonly onNewChat: () => void;
-}
-
-/** The Presets CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
- *  open preset every context tab drills into. */
-export interface PresetContextState {
-  readonly presetId: PresetId;
 }
 
 /** A COMMITTED chat's CONTEXT-panel projection — the `ChatDetail` wire fields the tabs read, plus

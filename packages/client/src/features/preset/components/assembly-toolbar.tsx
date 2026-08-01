@@ -1,52 +1,34 @@
-// AssemblyToolbar — the rack's top bar (BUILD-SPEC §3.2): the Compose | Preview mode toggle · the Add menu
-// (a new literal, or a marker type not yet placed). Mode is LOCAL VIEW state (the caller owns it — it never
-// touches the form). Add mutates the form (`onAdd(marker)` → the caller appends the fresh section).
+// AssemblyToolbar — the rack's top bar, now just **Add** (preset-surface-redesign.md §5.1): the
+// Compose|Preview mode toggle is DELETED. The assembled preview moved WHOLE to the Prompt view's CONTEXT
+// readout (decision D2, §16 row 29), so compose is the center's only mode and a toggle with one arm is
+// chrome.
+//
+// ADD MINTS AND AUTO-DRILLS (§16 row 16): the menu offers "Literal text" plus every ABSENT marker (an ST
+// import can arrive marker-less, and a placed marker is thereafter disabled-not-deleted — the deliberate
+// one-way door). Picking one appends the section AND drills straight into its editor, where the NAME field
+// is: naming is part of creating, one flow, not "add a row then go find it".
 
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Toolbar } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { ASSEMBLY_MODES, addableSections } from "../lib/assembly-model";
+import { addableSections } from "../lib/assembly-model";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
-/** The rack's two view modes (derived from the tuple — the type-home rule bans an exported alias). */
-type AssemblyMode = (typeof ASSEMBLY_MODES)[number];
-
 export interface AssemblyToolbarProps {
   readonly form: AssemblyForm;
-  readonly mode: AssemblyMode;
-  readonly onModeChange: (mode: AssemblyMode) => void;
-  /** Append a new section (a literal when `marker` is `null`, else that marker). */
+  /** Append a new section (a literal when `marker` is `null`, else that marker) and drill into it. */
   readonly onAdd: (marker: MarkerType | null) => void;
 }
 
-export function AssemblyToolbar({ form, mode, onModeChange, onAdd }: AssemblyToolbarProps): ReactElement {
+export function AssemblyToolbar({ form, onAdd }: AssemblyToolbarProps): ReactElement {
   return (
     <Toolbar aria-label="Assembly controls">
-      <Row gap="field" align="center" className="ml-auto">
-        <ToggleGroup
-          aria-label="Rack mode"
-          value={[mode]}
-          onValueChange={(next): void => {
-            const picked = next[0];
-            if (picked === "compose" || picked === "preview") {
-              onModeChange(picked);
-            }
-          }}
-        >
-          {ASSEMBLY_MODES.map((value) => (
-            <Toggle key={value} value={value} aria-label={value === "compose" ? "Compose" : "Preview"}>
-              {value === "compose" ? "Compose" : "Preview"}
-            </Toggle>
-          ))}
-        </ToggleGroup>
-
+      <Row align="center" className="ml-auto" gap="field">
         <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
           {(sections): ReactElement => (
             <Menu>
