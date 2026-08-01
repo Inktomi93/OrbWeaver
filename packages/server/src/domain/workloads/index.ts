@@ -28,7 +28,6 @@ export type { WorkloadRowAnyKind } from "./contract/workload-row";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
-  subscribeWorkloadEvents,
   subscribeWorkloadWake,
   workloadStreamEmitter,
 } from "./engine/progress-bus";
