@@ -73,6 +73,15 @@ const NON_WHITESPACE = /\S/u;
 const GM_NAME = "Thornwick";
 const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern.";
 
+// SPEC 1's actor-subject tracker defs. Hoisted because `rpg.updateConfig`'s `trackers` is a WHOLE-LIST
+// replace (the ONE def door since the tracked-field unification — there is no additive "add a widget" call),
+// so a later def write that names only its own tracker DELETES these.
+const ACTOR_TRACKER_DEFS: readonly Record<string, unknown>[] = [
+  { key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 10, pinned: true },
+  { key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 },
+  { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" },
+];
+
 /** Open the CONTEXT panel on a GAME chat and land on its takeover. A game chat's panel is NOT the shared
  *  "Detail" tablist — the CP-4 bracket renders a "Game" tablist (Status/Sheet/Inventory/Scene), and
  *  `rpg.status` is the `defaultTab` so the Status body lands WITHOUT a click. Idempotent. */
@@ -167,14 +176,9 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     const ref = characterRef(before, characterId);
     // The host's TRACKER defs (the ONE def home) + a custom-relationship hint. `trust`/`secret` carry the
     // `npcs` class so the scene cast picks them up; `Mana` is the party-side meter, PINNED to the band.
-    await setGameFeatures(chatId, {
-      trackers: [
-        { key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party", max: 10, pinned: true },
-        { key: "trust", label: "Trust", shape: "meter", write: "set", subject: "actor", appliesTo: "npcs", max: 10 },
-        { key: "secret", label: "Secret", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" },
-      ],
-      relationshipHints: { vassal: "sworn to serve but resentful" },
-    });
+    // `updateConfig.patch.trackers` is a WHOLE-LIST replace (the one def door, verbs/game/update-config.ts),
+    // so every later def write below re-sends these — a def the list omits is a def the host deleted.
+    await setGameFeatures(chatId, { trackers: [...ACTOR_TRACKER_DEFS], relationshipHints: { vassal: "sworn to serve but resentful" } });
     // Ambient plane (location/date/clock/weather) + a beat.
     await editSnapshot(chatId, {
       location: "Ashfell Night Market",
@@ -227,8 +231,12 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
         { text: "Ask the smith", completed: true },
       ],
     });
-    // The GAME-SUBJECT tracker plane (def in config, value on the snapshot, joined by KEY).
-    await setTrackers(chatId, [{ key: "reputation", label: "Reputation", shape: "meter", write: "set", subject: "game", max: 10, icon: "star" }]);
+    // The GAME-SUBJECT tracker plane (def in config, value on the snapshot, joined by KEY). Whole-list door:
+    // the actor defs ride along or they are deleted.
+    await setTrackers(chatId, [
+      ...ACTOR_TRACKER_DEFS,
+      { key: "reputation", label: "Reputation", shape: "meter", write: "set", subject: "game", max: 10, icon: "star" },
+    ]);
     await editSnapshot(chatId, { trackerValues: { reputation: { value: 7, items: null } } });
     // Journal plane (variant-aware table — its own read).
     await addJournalEntry(chatId, { type: "note", label: "", title: "Session 1", content: "Arrived at Ashfell" });
@@ -278,7 +286,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
 
     // The host config-editor read (HOST-gated): the feature schemas + hints are real, not a client illusion.
     const config = await getConfigView(chatId);
-    expect(config.trackers.map((t) => t.key)).toEqual(["mana", "trust", "secret"]);
+    expect(config.trackers.map((t) => t.key)).toEqual(["mana", "trust", "secret", "reputation"]);
     expect(config.relationshipHints["vassal"]).toBe("sworn to serve but resentful");
 
     // ── FE CROSS-CHECK: the CP-4 panel re-renders the SAME server-truth (invalidation → re-render). The
@@ -304,9 +312,10 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     await expect(scene).toContainText("Trust"); // the meter cast-field label
     await expect(scene).toContainText("Secret"); // the text cast-field label
     await expect(scene).toContainText("Reputation"); // the game-tracker label
-    // The quest GOAL name renders at rest as static text on its edit button (host); the objective count
-    // (1 of 2 complete) renders as "1/2" plain text.
-    await expect(scene.getByRole("button", { name: "Goal" })).toContainText("Find the Rusted Key");
+    // The Scene GOALS section is a read-only ECHO of the quest plane (#39 dual-homing — the Quests tab is
+    // its ONE edit home), so the row is a NAVIGATING button ("Open <quest> in Quests") carrying the goal
+    // name as its visible datum — never a second inline editor. The objective count renders as "1/2".
+    await expect(scene.getByRole("button", { name: "Open Find the Rusted Key in Quests" })).toContainText("Find the Rusted Key");
     await expect(scene).toContainText("1/2");
     await expect(scene).toContainText("Stepped into the freezing night market");
     // Status tab: the hero's className + pool + condition render on the actor row.
