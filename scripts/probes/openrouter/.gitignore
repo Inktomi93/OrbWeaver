@@ -1,0 +1,8 @@
+# Scratch output dirs stay on disk; `results/` (the committed JSONL evidence) is re-included.
+# NOTE — this file has a SECOND effect on purpose: biome.json runs with `vcs.useIgnoreFile: true` and does
+# not honour the negations, so a directory-local ignore file takes the whole probe dir out of biome's
+# scope. That is how `scripts/probes/rpg-extraction/` is already exempt, and why these throwaway harnesses
+# may use `process.env` + raw wire literals (the constitution excepts throwaway scripts + dev tooling from
+# the architecture rigor). Nothing here ships.
+*/
+!results/
