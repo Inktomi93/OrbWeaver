@@ -37,15 +37,16 @@ ONE generation pipeline (`Generate('impersonate')`); the special-casing is at th
 | tool-call suppression on impersonate | ✓ equivalent by construction — terminal tools thread ONLY through executeTurn (D112 (5)) |
 | separate event vocabulary (IMPERSONATE_READY) | ✓ equivalent — dedicated non-persisting subscription, never a message event |
 | shared abort/stop lifecycle | ✗ was the gap — dedicated subscription needs managed lifecycle (the zombie-sub lane, in flight, wires the unsubscribe handle as the cancel lever) |
-| char-name stop strings + wrong-name delete | **⚠ OPEN — queued.** Ours is prompt-side only (the voice-lock impersonateNudge). No stop-string layer, no wrong-name scrub at the fill seam. Matters most on local models (weaker instruction-following) and is TWO layers in ST for a reason. |
+| char-name stop strings + wrong-name delete | ✓ BUILT (IMP-1, measured first) — `\n{{char}}:` stops per present cast member on the impersonate request (`foreignLabelStops`, one grammar with the receive-side truncate) + the fill-seam clean re-configured so an impersonate draft's "self" is the PERSONA and the whole cast is foreign (it previously stripped a leading `Seren:` off a line Seren wrote, LAUNDERING the bleed). **The measurement is the real finding:** the nudge holds 0/12 hosted and fails 10/36 (28%) on the local 8B, and ~all of that bleed is UNLABELLED first-person takeover that NEITHER ST layer can see. `scripts/probes/impersonate/RESULTS.md`. |
 | per-tick cleanup before the sink | verify-item already on the zombie-sub lane |
 | draft cleared at start vs preserved | deliberate divergence — ours keeps partial fill on cancel (review-flow UX); ST clears + overwrites |
 | dedicated Claude impersonate prefill | park — preset territory, evaluate with the preset program |
 
-**Queued item (IMP-1):** impersonate anti-bleed hardening — add the second layer: char-name stop
-handling for impersonate generations (per-backend wire vocab applies) + a wrong-name guard at the
-fill seam, measured against the existing voice-lock nudge before building (if the nudge already
-holds on hosted + local, record that and close).
+**IMP-1 — CLOSED (2026-07-31), with one item left open.** The second layer was measured first and then
+built: [`scripts/probes/impersonate/RESULTS.md`](../../../scripts/probes/impersonate/RESULTS.md). What the
+layer removed is the LAUNDERING (2/36 generations), not the bleed rate — the wire stop never fired in 84
+generations. STILL OPEN: ~28% of local-8B impersonate drafts are the character's voice with NO mechanical
+tell, which is a prompt (or model-choice, or review-UI) problem, not a scrub one.
 
 ## Not covered
 

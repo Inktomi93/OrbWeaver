@@ -1,5 +1,6 @@
 import {
   cleanPerSpeakerReply,
+  foreignLabelStops,
   LEADING_SPEAKER_TAG,
   normalizeExampleStart,
   parseSpeakerSpans,
@@ -166,4 +167,21 @@ test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline
 test("cleanPerSpeakerReply persists NO self-tag fragment — leading + inline + foreign all scrubbed", () => {
   const raw = "JFC: My whole religion fits on an index card: ship the dumJFC: —b version.\nMara: her line";
   expect(cleanPerSpeakerReply(raw, "JFC", ["Mara", "Niko"])).toBe("My whole religion fits on an index card: ship the dumb version.");
+});
+
+// foreignLabelStops (IMP-1) — the WIRE half of the same foreign-label grammar truncateAtForeignLabel
+// enforces at RECEIVE. The pin that matters: the two ends agree, so a stop that fires and a truncate that
+// fires cut the SAME text (the impersonate anti-bleed layer is only sound if they can't drift).
+test("foreignLabelStops emits one `\\nName:` stop per name, deduped, blanks dropped", () => {
+  expect(foreignLabelStops(["Seren", "Holt"])).toEqual(["\nSeren:", "\nHolt:"]);
+  expect(foreignLabelStops(["Seren", " Seren ", "", "   "])).toEqual(["\nSeren:"]);
+  // No cast (a chat with no characters) ⇒ no stops ⇒ a byte-identical request.
+  expect(foreignLabelStops([])).toEqual([]);
+});
+
+test("foreignLabelStops agrees with truncateAtForeignLabel — the wire cut and the receive cut are the same cut", () => {
+  const drafted = "I drop the satchel by the fire.\nSeren: She writes it down.";
+  const stop = foreignLabelStops(["Seren"])[0] ?? "";
+  // What a completion runner keeps when the stop fires == what the receive-side truncate keeps.
+  expect(drafted.slice(0, drafted.indexOf(stop))).toBe(truncateAtForeignLabel(drafted, ["Seren"]));
 });

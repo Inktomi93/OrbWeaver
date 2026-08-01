@@ -1105,6 +1105,51 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("I attack the goblin and take cover.");
   });
+
+  // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and the WHOLE cast is
+  // foreign. An impersonate turn carries no `shape`, which is exactly why the pre-IMP-1 fallback (self = the
+  // character) ran the inverted configuration on it.
+  describe("impersonate — self is the persona, every cast member is foreign", () => {
+    test("a leading CHARACTER label is NOT stripped — the composer must SEE the bleed, not receive it laundered", async () => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn('Kai: "You are paying, or you sleep outside."'),
+        assembleContext: groupCtx(),
+        kind: "impersonate",
+      });
+      const result = await runTurnPipeline(args);
+      expect(result.content).toBe('Kai: "You are paying, or you sleep outside."');
+    });
+
+    test("a draft that rolls on into ANY cast member's line is truncated — including the primary character", async () => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn("I drop the satchel by the fire.\nKai: I watch her do it."),
+        assembleContext: groupCtx(),
+        kind: "impersonate",
+      });
+      const result = await runTurnPipeline(args);
+      expect(result.content).toBe("I drop the satchel by the fire.");
+    });
+
+    test("the drafter's OWN persona label is stripped (the user never types their own name)", async () => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn("Nate: I drop the satchel by the fire."),
+        assembleContext: groupCtx(),
+        kind: "impersonate",
+      });
+      const result = await runTurnPipeline(args);
+      expect(result.content).toBe("I drop the satchel by the fire.");
+    });
+
+    test("a clean first-person draft is untouched", async () => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn("I shake the rain off my coat and ask Kai about the ford."),
+        assembleContext: groupCtx(),
+        kind: "impersonate",
+      });
+      const result = await runTurnPipeline(args);
+      expect(result.content).toBe("I shake the rain off my coat and ask Kai about the ford.");
+    });
+  });
 });
 
 describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {

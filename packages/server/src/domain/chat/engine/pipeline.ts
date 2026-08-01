@@ -10,7 +10,16 @@
 // Single-speaker core: output is pinned per-speaker/merged (no narrator, no scoped egocentric fold); the
 // arbitration/auto-mode chunk extends this via the `shape` argument.
 
-import type { AssembleContext, AssembledPrompt, ChatContentPart, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  AssembledPrompt,
+  AssemblePersona,
+  ChatContentPart,
+  ChatDeltaEvent,
+  ChatInjection,
+  MessageView,
+  ToolCallRecord,
+} from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -101,6 +110,13 @@ interface RunTurnPipelineArgs {
    *  immediate total collapse (the argued cache/budget-honest default). Wired from the game config by the
    *  P4 wave; the mechanism is feature-agnostic. */
   readonly cardKeepLastX?: number | undefined;
+}
+
+/** The wire speaker name for the human side of the turn — SHAPE's `speakers.user`, and (post-IMP-1) the
+ *  self-label an impersonate draft is stripped of, so both act on exactly the same name. A personaless chat
+ *  falls back to the shared `"User"` floor. */
+function userSpeakerName(persona: AssemblePersona | null | undefined): string {
+  return persona === null || persona === undefined ? "User" : persona.name;
 }
 
 /** The historyMacroNames default when a caller supplies none — every row falls through to its own
@@ -199,12 +215,29 @@ async function reduceStream(
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
  *  self-label and truncates any drift into a foreign cast member's line. Applied only on the per-speaker
- *  output path; merged/narrator output is left alone (its labels are the intended transcript). */
+ *  output path; merged/narrator output is left alone (its labels are the intended transcript).
+ *
+ *  IMP-1 layer 2b — WHO IS "SELF" DEPENDS ON THE TURN. An `impersonate` draft is the USER's next line, so
+ *  the self is the PERSONA and every cast member is foreign. Running the assistant-turn configuration on it
+ *  (self = the character, as the `shape`-less fallback did) inverts both halves: it quietly STRIPPED a
+ *  leading `Seren:` off a line Seren had written and handed the character's words to the composer as the
+ *  user's own — LAUNDERING the bleed rather than catching it (measured: 2/36 local generations,
+ *  scripts/probes/impersonate) — while leaving the primary character out of the foreign-drift truncate,
+ *  the one name most likely to appear. A leading whole-cast label survives on purpose: it is not
+ *  truncatable (no preceding newline) and the composer is a REVIEW surface, so the user sees `Seren: …`
+ *  and discards it. That is the deliberate divergence from ST, which DELETES the whole response
+ *  (`cleanUpMessage` wrongName, script.js:6472) — ours keeps partial fill for review by design. */
 function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): string {
+  const ctx = args.assembleContext;
+  if (args.kind === "impersonate") {
+    const castNames = (ctx.cast ?? [ctx.character]).map((c) => c.name);
+    // The SAME name SHAPE stamped the user rows with, so the label the model was trained to echo is
+    // exactly the label stripped here.
+    return cleanPerSpeakerReply(content, userSpeakerName(ctx.activePersona), castNames);
+  }
   if ((args.shape?.output ?? "per-speaker") !== "per-speaker") {
     return content;
   }
-  const ctx = args.assembleContext;
   const speakerName = args.shape?.speakerName ?? ctx.character.name;
   const otherNames = (ctx.cast ?? []).map((c) => c.name).filter((name) => name !== speakerName);
   return cleanPerSpeakerReply(content, speakerName, otherNames);
@@ -361,7 +394,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const speakers = {
-    user: ctx.activePersona?.name ?? "User",
+    user: userSpeakerName(ctx.activePersona),
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
