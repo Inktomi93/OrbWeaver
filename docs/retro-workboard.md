@@ -81,7 +81,11 @@ Origin: pushed through `32539eda` mid-day; everything since is LOCAL (next push 
   meters honest (—/30, null end-to-end); six kickers + Host-controls group (D-1); crown recedes;
   lock names tsc-forced; dead class ×5 fixed vs CSSOM; ghost tile dead; ORB RULE stated+enforced
   (ceilinged=ring, max-less=coin — the permanent-full-ring lie fixed); caption wrap at 20rem.
-  **ESCALATION (owner call): band-orb READOUT duplication vs roster** — DESIGN §2 mandates
+  ~~ESCALATION~~ TABLED (owner 08-02 — no action; the duplication stands as chrome-vs-body).
+D119a RATIFIED (stamped in the ledger). Optional small boarded: lefthook post-checkout →
+auto-install on raw `git worktree add` (closes the one manual-install recovery path; the
+harness WorktreeCreate hook already covers all dispatched lanes). Was: band-orb READOUT
+duplication owner call — DESIGN §2 mandates
   text-under-orb (text is the datum); de-duplicating = a MOCK AMENDMENT + RingGauge caption
   mode, not a feature-tier call. Band = persistent chrome across 7 tabs vs roster = one tab's
   body (the OSRS idiom). Rule if you want numbers to appear once. ALSO: rpg-scene-tab.tsx sits
