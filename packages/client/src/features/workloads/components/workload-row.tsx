@@ -1,7 +1,7 @@
 // One workload row in Settings → Workloads. Anatomy: a ListRow head (kind label · relative created-time
 // · owner handle for a foreign row · status badge + Cancel/Retry actions), then a detail line — a live
-// progress bar for active rows, a compact result preview for succeeded, the persisted error reason for
-// failure terminals.
+// progress bar for active rows, a per-kind result SENTENCE for succeeded (`workloads-result-copy`, never
+// the raw JSON blob this row used to print), the persisted error reason for failure terminals.
 //
 // An active row mounts its live-tail ROOM via ActiveWorkloadRow; progress buffers in row-local
 // state and every state-changing event invalidates workloads.list. Cancel is confirm-gated; Retry clones
@@ -38,8 +38,8 @@ import {
   WORKLOAD_KIND_LABELS,
   WORKLOAD_STATUS_INTENT,
   WORKLOAD_STATUS_LABELS,
-  workloadResultPreview,
 } from "../lib/workloads-model";
+import { workloadResultSummary } from "../lib/workloads-result-copy";
 import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
@@ -83,7 +83,7 @@ function WorkloadRowBody({
   const waiting = isWaitingOnDependencies(workload);
   const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
   const statusLabel = depFailed ? "Dependency failed" : WORKLOAD_STATUS_LABELS[workload.status];
-  const resultPreview = workload.status === "succeeded" ? workloadResultPreview(workload.result) : null;
+  const resultSummary = workload.status === "succeeded" ? workloadResultSummary(workload.kind, workload.result) : null;
 
   const subtitleParts = [timeLib.formatRelative(workload.createdAt)];
   if (ownerHandle !== null) {
@@ -119,7 +119,7 @@ function WorkloadRowBody({
       <WorkloadProgressLine workload={workload} live={progress} processing={active && !deferred && !waiting} />
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       <WorkloadPoisonDetail workload={workload} />
-      {resultPreview === null ? null : <Text voice="gloss">{resultPreview}</Text>}
+      {resultSummary === null ? null : <Text voice="gloss">{resultSummary}</Text>}
       <WorkloadFailureDetail workload={workload} />
 
       <ConfirmDialog
