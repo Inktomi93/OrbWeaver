@@ -69,6 +69,34 @@ pre-merge-commit:
       env:
         NO_COLOR: "1"
 
+# The RAW-`git worktree add` gap (added 2026-08-02). The WorktreeCreate agent hook installs deps for the
+# worktrees IT creates; a worktree added by hand gets a tree with no `node_modules`, and then every gate
+# LIES (§L rule 5 — `git worktree add` does not fire the install hook, so `pnpm check` runs against nothing).
+# git DOES fire `post-checkout` in the new worktree (probed: cwd = the new tree, $1 = the null sha, $3 = 1),
+# so this is the one place that gap can be closed generically.
+#
+# GUARDED TO A NO-OP ON EVERY NORMAL CHECKOUT — this hook fires on `git checkout <file>` too, and its exit
+# status IS `git checkout`'s, so it must never be slow and never be red:
+#   • `{3}` is git's third post-checkout argument — 1 = a BRANCH checkout (a switch, or a new worktree),
+#     0 = a FILE checkout. Probed for all three shapes; lefthook templates the raw git args.
+#   • `node_modules` present ⇒ nothing to do. So a plain branch switch on an installed tree does zero work,
+#     and the install only runs on a tree that genuinely has no deps.
+# The `if` exits 0 when the guard is false (no `|| true` — a FAILING install must stay visible, not be
+# swallowed into a green checkout). ~3s from the store on the hit path.
+#
+# The `.git/hooks/post-checkout` FILE is synced by lefthook itself (config-checksum auto-sync on the next
+# `lefthook run` / `pnpm install`'s `prepare`) — nothing to install by hand. One caveat, pre-existing and
+# not fixable here: the generated hook script resolves the lefthook BINARY through `$worktree/node_modules`
+# (plus a path baked in by whichever tree last ran `lefthook install`), so on a hand-added worktree whose
+# baked path is dead this hook prints "Can't find lefthook in PATH" and exits 0 — the gap re-opens for that
+# one case, and `pnpm install --prefer-offline` by hand is still the fallback (§L rule 5).
+post-checkout:
+  commands:
+    bootstrap-deps:
+      run: if [ "{3}" = "1" ] && [ ! -d node_modules ]; then pnpm install --prefer-offline; fi
+      env:
+        NO_COLOR: "1"
+
 pre-push:
   commands:
     # The ONE push-tier command (V3 repoint): static + tests:node (`pnpm test` = vitest projects + the CT
