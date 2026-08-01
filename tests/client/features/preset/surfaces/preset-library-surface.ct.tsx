@@ -33,6 +33,8 @@ const IMPORTED_NAME = "Imported RP";
 // (`page.clock.setFixedTime`) and derives the fixture dates from the SAME frozen instant — the shared
 // `FROZEN_AT_MS`, never an ambient clock read (test-determinism gate).
 const FROZEN_NOW = FROZEN_AT_MS;
+const REVEAL_ON_HOVER = /group-hover:opacity-100/;
+const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;
 const MINUTE_MS = 60_000;
 const EDITED_ONE_AT = FROZEN_NOW - 5 * MINUTE_MS;
 const EDITED_TWO_AT = FROZEN_NOW - 40 * MINUTE_MS;
@@ -132,4 +134,63 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
   await expect.poll(() => (trpc.inputs("preset.remove") as RemoveCall[]).map((call) => call.id)).toEqual([EDITED_ONE]);
   // The active pointer is nulled in the same gesture — a dangling id would silently fall back mid-generation.
   await expect.poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).at(-1)?.patch?.defaultPresetId).toBeNull();
+});
+
+// ── §12 row-action grammar (list-pane-projection) ────────────────────────────────────────────────
+// Presets carry no boolean row state, so the row's ONE inline affordance is the measured frequent VERB:
+// Duplicate (the fork workflow — the "(edited)" twins above are its receipt). It rests hidden and reveals
+// with the row, and the kebab keeps its own Duplicate item (N3 mirror parity).
+
+interface CreateCall {
+  readonly name?: string;
+}
+
+test("§12 the row's frequent verb is INLINE: a revealed Duplicate fires preset.create for THAT row", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "preset.list": () => PRESETS,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_preset",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      updatedAt: 0,
+    }),
+    "preset.get": () => ({ id: EDITED_ONE, name: EDITED_ONE_NAME, kind: "generation", isSystemDefault: false, config: {}, createdAt: 0, updatedAt: 0 }),
+    "preset.create": () => ({
+      id: "preset_ct_copy00001",
+      name: `Copy of ${EDITED_ONE_NAME}`,
+      kind: "generation",
+      isSystemDefault: false,
+      createdAt: 0,
+      updatedAt: 0,
+    }),
+  });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const duplicate = component.getByRole("button", { name: `Duplicate ${EDITED_ONE_NAME}`, exact: true });
+  // Rest posture: hidden until the row is hovered/focused (it is a shortcut, not permanent chrome).
+  await expect(duplicate).toHaveCSS("opacity", "0");
+  await expect(duplicate).toHaveClass(REVEAL_ON_HOVER);
+  await expect(duplicate).toHaveClass(REVEAL_ON_FOCUS);
+
+  // Assert the MUTATION fired with this row's name, not a repaint.
+  await duplicate.click();
+  await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
+});
+
+test("§12 the kebab KEEPS its Duplicate item beside the inline verb (N3 mirror parity)", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: `Actions for ${EDITED_ONE_NAME}`, exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+});
+
+test("§12 the built-in row stays action-free — no inline verb where there is no actions menu", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await expect(page.getByRole("button", { name: "Duplicate Default", exact: true })).toHaveCount(0);
 });

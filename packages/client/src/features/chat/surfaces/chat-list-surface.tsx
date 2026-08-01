@@ -23,12 +23,13 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRowMenu } from "../components/chat-list-row-menu";
 import { ChatSummaryRow } from "../components/chat-summary-row";
+import { useStarChat } from "../hooks/use-chat-row-mutations";
 import { chatPortraitHash, deriveChatTitle } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 
@@ -187,9 +188,15 @@ interface ChatListRowProps {
 }
 
 function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraitHash }: ChatListRowProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  // §12.2 — the row's ONE state toggle rides the SAME `useStarChat` mutation the kebab's Star item fires
+  // (mirror parity: the kebab keeps the item, so a keyboard user still has one menu that does everything).
+  const starChat = useStarChat({ trpc, invalidation });
   return (
     <ChatSummaryRow
       chat={chat}
+      onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, star: next })}
       portraitHash={portraitHash}
       // `group` roots the row so the kebab's hover/focus-within reveal (P3) fires on row hover (the
       // character-card precedent); the reveal lives on RowActionsMenu's `reveal`.

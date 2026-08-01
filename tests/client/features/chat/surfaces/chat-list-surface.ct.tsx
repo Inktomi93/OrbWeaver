@@ -52,6 +52,8 @@ const SUBTITLE = '[data-slot="list-row-subtitle"]';
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
+/** A PRESSED star toggle's accessible name (§12 — the un-set verb names the on state). */
+const ANY_PRESSED_STAR = /^Unstar /u;
 // Base UI's Avatar mounts `avatar-image` only once the image reaches "loaded" status, so the blob route is
 // fulfilled with a real 1×1 PNG (the message-row.ct.tsx precedent).
 const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
@@ -160,14 +162,45 @@ test("a chat whose participants own no portrait falls back to initials (no broke
   await expect(component.locator(AVATAR_IMAGE)).toHaveCount(0);
 });
 
+test("§12 the star is the row's state TOGGLE, and clicking it fires the star MUTATION with the row's id", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, { "chat.listChats": [ADVENTURE, STARRED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A pinned thread")).toBeVisible();
+
+  // One element, marker + affordance: the starred row announces pressed under the un-set name.
+  const starred = component.getByRole("button", { name: "Unstar A pinned thread", exact: true });
+  await expect(starred).toHaveAttribute("aria-pressed", "true");
+  const unstarred = component.getByRole("button", { name: "Star A grand adventure", exact: true });
+  await expect(unstarred).toHaveAttribute("aria-pressed", "false");
+
+  // Assert the MUTATION fired (not a UI reaction — the row is bus-driven, so the optimistic repaint is
+  // not the thing under test): the click hits `chat.star` with THIS row's id and the flipped value.
+  await unstarred.click();
+  await expect.poll(() => recorder.count("chat.star")).toBe(1);
+  expect(recorder.lastInput("chat.star")).toEqual({ chatId: "chat_adventure", star: true });
+});
+
+test("§12 the kebab KEEPS its Star item beside the inline toggle (N3 mirror parity)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Star A grand adventure", exact: true })).toBeVisible();
+
+  await component.getByRole("button", { name: "Chat actions for A grand adventure", exact: true }).click();
+  // Inline is a SHORTCUT, never the only path — everything stays reachable from one menu.
+  await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
+});
+
 test("starred and archived rows say so in ACCESSIBLE content, and the archived row recedes (F7)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, STARRED, ARCHIVED], "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A pinned thread")).toBeVisible();
 
-  // The star is an Icon with an accessible label (a11y-datum rule: state is never color-only) — exactly one.
-  await expect(component.getByLabel("Starred")).toHaveCount(1);
+  // The star is now the §12 pressable, so the state datum is its `aria-pressed` name — exactly one row
+  // carries it, and the un-set rows announce the set verb instead.
+  await expect(component.getByRole("button", { name: ANY_PRESSED_STAR })).toHaveCount(1);
   // Archived is TEXT, not just a dimming.
   await expect(component.getByText("Archived", { exact: true })).toHaveCount(1);
   // …and the dimming is the reinforcement: the archived row's root carries the receded class, others don't.

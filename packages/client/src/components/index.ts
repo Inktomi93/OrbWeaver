@@ -26,6 +26,8 @@ export { RelationManagerSection } from "./relation-manager-section";
 export type { RowActionsMenuProps, RowDestructiveAction } from "./row-actions-menu";
 export { RowActionsMenu } from "./row-actions-menu";
 export { ROW_REVEAL } from "./row-reveal";
+export type { RowToggleActionProps } from "./row-toggle-action";
+export { RowToggleAction } from "./row-toggle-action";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row";
 export type { TagPickerDialogProps } from "./tag-picker-dialog";
 export { TagPickerDialog } from "./tag-picker-dialog";
