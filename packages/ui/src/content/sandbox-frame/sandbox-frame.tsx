@@ -49,7 +49,9 @@ export function SandboxFrame({
 
   if (!complete) {
     return (
-      <div className="w-full animate-pulse rounded-card border border-border bg-muted" style={style} data-slot="sandbox-frame-skeleton" aria-hidden={true} />
+      // The frame and its skeleton are GROUPED CONTENT inside the message bubble (the elevated island):
+      // `rounded-base`, never the floating `card` step (density-pass-spec.md §2.1 D6).
+      <div className="w-full animate-pulse rounded-base border border-border bg-muted" style={style} data-slot="sandbox-frame-skeleton" aria-hidden={true} />
     );
   }
 
@@ -67,7 +69,7 @@ export function SandboxFrame({
       title={title}
       loading="lazy"
       referrerPolicy="no-referrer"
-      className={className ?? "w-full rounded-card border border-border bg-card"}
+      className={className ?? "w-full rounded-base border border-border bg-card"}
       style={style}
       data-slot="sandbox-frame"
     />

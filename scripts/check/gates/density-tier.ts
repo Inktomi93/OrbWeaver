@@ -9,6 +9,11 @@
 //   A4 tier writer    — `data-surface-tier` outside `packages/ui/src/layout/surface.tsx`. Born sealed: NO
 //      baseline, zero tolerance (two writers = two disagreeing density maps).
 //   A5 stale entry    — a baseline row whose file no longer violates (ratchet down, both ways).
+//   A6 slot names     — the two halves of "the map keys on slots the PRIMITIVES emit" (S2). tiers.css is
+//      read at run time, so the gate's vocabulary IS the live map: (a) a MAPPED slot name stamped outside
+//      `packages/ui/src/` silently inherits tier padding/type without going through the primitive that
+//      owns the slot — born sealed like A4; (b) a mapped slot NO ui file emits is a DEAD rule, the
+//      mapped-but-dead failure class that makes a stylesheet look load-bearing while it paints nothing.
 //
 // TRANSITION RATCHET (§5.2, the `no-test-fabrication` idiom): A1–A3 are budgeted per file by
 // density-tier.baseline.json — a file violates only when its LIVE count EXCEEDS its committed budget, and
@@ -33,6 +38,8 @@ const BASELINE_REL = "scripts/check/gates/density-tier.baseline.json";
 const GATE_SELF = "scripts/check/gates/density-tier.ts";
 const TIER_WRITER = "packages/ui/src/layout/surface.tsx";
 const FEATURES_DIR = "packages/client/src/features/";
+const TIER_MAP_REL = "packages/ui/src/styles/tiers.css";
+const UI_SRC = "packages/ui/src/";
 
 /** Files where `rounded-card` is CORRECT: the elevated/floating families (§2.1 — modal, popover, drawer,
  *  toast, composer, the chat bubble, the `elevated` opt-in itself). Everything else ratchets. */
@@ -56,13 +63,15 @@ const MESSAGE =
   "density-tier violation (docs/design/density-pass-spec.md §3/§5.1): `rounded-card` outside the ELEVATED " +
   "family (D6 — it is the floating-island step: modal/popover/drawer/toast/composer/chat bubble), a " +
   "border+radius+background box nested inside another one (CD2 — one box deep, maximum), a feature passing " +
-  "the @orb/ui-internal type axes instead of `voice` (§2.3), or a second writer of `data-surface-tier`.";
+  "the @orb/ui-internal type axes instead of `voice` (§2.3), a second writer of `data-surface-tier`, or a " +
+  "tier-mapped `data-slot` name emitted by something other than the @orb/ui primitive that owns it.";
 
 const FIX =
   "rounded-card → rounded-base (grouped content inside a surface) / rounded-control (anything you operate) / " +
   "rounded-inset (a sub-control mark), or wrap the surface in <Surface tier> and let tiers.css resolve it; " +
   "un-nest the inner box (hairlines + gaps separate INSIDE a box, never a nested card); <Text size=… weight=…> " +
-  '→ <Text voice="kicker|label|datum|gloss">; write data-surface-tier ONLY via <Surface>.';
+  '→ <Text voice="kicker|label|datum|gloss">; write data-surface-tier ONLY via <Surface>; compose the ' +
+  "@orb/ui primitive that owns a mapped slot instead of hand-stamping its data-slot name.";
 
 const A1_TOKEN = "rounded-card";
 const CLASS_STRING_CALLEES: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
@@ -159,14 +168,22 @@ function radiusFindings(sf: SourceFile, rel: string): Finding[] {
   return out;
 }
 
-/** A2 — a box whose JSX ancestor in the same file is also a box. */
+/** A2 — a box whose JSX ancestor in the same file is also a box.
+ *
+ *  The walk starts ABOVE the element's own `JsxElement` wrapper: a non-self-closing tag's `getParent()`
+ *  IS the JsxElement whose `getOpeningElement()` is that same tag, so walking from there made every
+ *  paired box report ITSELF as its own ancestor (a self-closing box did not — which is why the fixtures
+ *  missed it). Fixed 2026-08-01 (S2); the `mustPass` twin below pins both tag forms. */
 function boxInBoxFindings(sf: SourceFile, rel: string): Finding[] {
   const out: Finding[] = [];
   for (const element of jsxElements(sf)) {
     if (!isBox(ownClassText(element))) {
       continue;
     }
-    let ancestor: Node | undefined = element.getParent();
+    // An OPENING tag's parent is its own JsxElement; a SELF-CLOSING tag's parent is already the enclosing
+    // element, so only the opening form skips a level.
+    const self: Node = element.getKind() === SyntaxKind.JsxOpeningElement ? (element.getParent() ?? element) : element;
+    let ancestor: Node | undefined = self.getParent();
     let nested = false;
     while (ancestor !== undefined && !nested) {
       const jsxElement = ancestor.asKind(SyntaxKind.JsxElement);
@@ -222,6 +239,69 @@ function tierWriterFindings(sf: SourceFile, rel: string): Finding[] {
   return out;
 }
 
+/** A `[data-slot="…"]` selector, as tiers.css spells it. */
+const SLOT_SELECTOR_RE = /\[data-slot="([a-z0-9-]+)"\]/gu;
+/** CSS block comments — stripped before parsing, so the header's ILLUSTRATIVE selectors never enter the map. */
+const CSS_COMMENT_RE = /\/\*[\s\S]*?\*\//gu;
+
+/** The slot names the live tier map keys on → the 1-based line of the first selector that names each.
+ *  Parsed from tiers.css itself rather than hand-listed here: a hand-listed copy is a second map that
+ *  drifts, and a drifted copy would police slots the stylesheet stopped mapping. */
+export function mappedSlots(root: string): Map<string, number> {
+  const path = join(root, TIER_MAP_REL);
+  const out = new Map<string, number>();
+  if (!existsSync(path)) {
+    return out;
+  }
+  const lines = readFileSync(path, "utf-8").replace(CSS_COMMENT_RE, "").split("\n");
+  for (const [index, line] of lines.entries()) {
+    for (const match of line.matchAll(SLOT_SELECTOR_RE)) {
+      const slot = match[1];
+      if (slot !== undefined && !out.has(slot)) {
+        out.set(slot, index + 1);
+      }
+    }
+  }
+  return out;
+}
+
+/** Every `data-slot="literal"` JSX attribute of one file, as (slot name → the attribute node). */
+function slotAttributes(sf: SourceFile): { readonly slot: string; readonly attr: Node }[] {
+  const out: { slot: string; attr: Node }[] = [];
+  for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
+    if (attr.getNameNode().getText() !== "data-slot") {
+      continue;
+    }
+    const literal = attr.getInitializer()?.asKind(SyntaxKind.StringLiteral);
+    if (literal !== undefined) {
+      out.push({ slot: literal.getLiteralText(), attr });
+    }
+  }
+  return out;
+}
+
+/** A6a — a tier-MAPPED slot name stamped outside `packages/ui/src/`. NOT budgeted: born sealed. */
+function rogueSlotFindings(sf: SourceFile, rel: string, mapped: ReadonlyMap<string, number>): Finding[] {
+  if (rel.startsWith(UI_SRC)) {
+    return [];
+  }
+  const out: Finding[] = [];
+  for (const { slot, attr } of slotAttributes(sf)) {
+    if (!mapped.has(slot)) {
+      continue;
+    }
+    out.push({
+      file: rel,
+      line: attr.getStartLineNumber(),
+      column: attr.getStart() - attr.getStartLinePos() + 1,
+      // No `token` — the renderer prints the token INSTEAD of a per-occurrence message, and this arm's
+      // whole legibility is in the message (scripts/check/render.ts occurrenceSuffix).
+      message: `data-slot="${slot}" is a slot the tier map keys on (${TIER_MAP_REL}), stamped outside ${UI_SRC} — only @orb/ui primitives emit a mapped slot, or an arbitrary element silently inherits tier padding/type without the primitive that owns the slot (density-pass-spec.md §4.2).`,
+    });
+  }
+  return out;
+}
+
 /** The BUDGETED arms (A1–A3) of one file, in a deterministic order so `slice(budget)` reports the same
  *  excess on every run. */
 export function densityFindings(sf: SourceFile, rel: string): Finding[] {
@@ -238,6 +318,8 @@ export function loadBaseline(root: string): Record<string, number> {
 
 let passBaseline: Record<string, number> = {};
 const passSeenViolating = new Set<string>();
+let passMappedSlots: ReadonlyMap<string, number> = new Map();
+const passSeenSlotEmitters = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "density-tier",
@@ -249,13 +331,26 @@ export const gate: GateDescriptor = {
   // The `no-off-token-radius-shadow` form — it makes NO assumption about a leading slash (the two existing
   // gates disagree on that, and a wrong path format is a SILENT GREEN, not a red).
   scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
+  // A6 reads tiers.css off disk (the map is CSS — never in the ts-morph project), so its examples must be
+  // materialized to a real tree.
+  fsBacked: true,
   begin: (ctx: GateRunCtx) => {
     passBaseline = loadBaseline(ctx.root);
     passSeenViolating.clear();
+    passMappedSlots = mappedSlots(ctx.root);
+    passSeenSlotEmitters.clear();
   },
   visitFile: (sf, ctx) => {
     const rel = repoRel(sf.getFilePath());
     for (const finding of tierWriterFindings(sf, rel)) {
+      ctx.report(finding);
+    }
+    if (rel.startsWith(UI_SRC)) {
+      for (const { slot } of slotAttributes(sf)) {
+        passSeenSlotEmitters.add(slot);
+      }
+    }
+    for (const finding of rogueSlotFindings(sf, rel, passMappedSlots)) {
       ctx.report(finding);
     }
     const findings = densityFindings(sf, rel);
@@ -270,6 +365,18 @@ export const gate: GateDescriptor = {
   finalize: (ctx) => {
     if (ctx.scope.kind !== "project") {
       return; // a stale-entry claim is whole-tree — never fire it below project scope
+    }
+    // A6b — every mapped slot must have an emitter. Whole-tree by nature: the emitter lives in a file this
+    // run only saw because the scope was the project.
+    for (const [slot, line] of passMappedSlots) {
+      if (!passSeenSlotEmitters.has(slot)) {
+        ctx.report({
+          file: TIER_MAP_REL,
+          line,
+          column: 1,
+          message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (density-pass-spec.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
+        });
+      }
     }
     for (const rel of Object.keys(passBaseline)) {
       if (!passSeenViolating.has(rel)) {
@@ -314,6 +421,23 @@ export const gate: GateDescriptor = {
       at: "packages/ui/src/primitives/thing/variants.ts",
       why: "A1 inside a tv() object literal — the variants-file shape a className-only scan misses",
     },
+    {
+      files: {
+        [TIER_MAP_REL]: `[data-surface-tier] [data-slot="card-root"] {\n  padding: var(--spacing-row);\n}\n`,
+        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
+        "packages/client/src/features/x/rogue-slot.tsx": `export const G = <div data-slot="card-root" />;\n`,
+      },
+      expect: { messageIncludes: "only @orb/ui primitives emit a mapped slot" },
+      why: "A6a: a feature stamping a MAPPED slot name — it would inherit tier steps without the primitive that owns the slot",
+    },
+    {
+      files: {
+        [TIER_MAP_REL]: `/* [data-slot="card-root"] in a comment is NOT a mapping */\n[data-surface-tier] [data-slot="ghost-slot"] {\n  padding: var(--spacing-row);\n}\n`,
+        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
+      },
+      expect: { messageIncludes: "no file under packages/ui/src/ emits that slot" },
+      why: "A6b: the map keys on a slot no primitive emits — the mapped-but-dead rule (and the commented card-root proves comments are stripped, not parsed)",
+    },
   ],
   mustPass: [
     {
@@ -345,6 +469,19 @@ export const gate: GateDescriptor = {
       files: `export const label = "rounded-card is the elevated step";\n`,
       at: "packages/client/src/features/x/copy.ts",
       why: "the token as prose OUTSIDE a class-string site — the false positive the class-site scoping guards",
+    },
+    {
+      files: `export const G = <div className="rounded-base border border-border bg-card">one box, paired tags</div>;\n`,
+      at: "packages/client/src/features/x/paired-box.tsx",
+      why: "A2's self-match guard: a PAIRED-tag box is not its own ancestor (the self-closing fixture above missed this for a full stage)",
+    },
+    {
+      files: {
+        [TIER_MAP_REL]: `[data-surface-tier] [data-slot="card-root"] {\n  padding: var(--spacing-row);\n}\n`,
+        "packages/ui/src/primitives/card/card.tsx": `export const Card = (): unknown => <div data-slot="card-root" />;\n`,
+        "packages/client/src/features/x/uses-card.tsx": `export const G = <div data-slot="feature-own-slot" />;\n`,
+      },
+      why: "A6: the mapped slot is emitted by its ui primitive, and a FEATURE's own unmapped slot name is none of the map's business: passes",
     },
   ],
 };

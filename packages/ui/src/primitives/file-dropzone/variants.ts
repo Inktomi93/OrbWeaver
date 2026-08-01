@@ -9,7 +9,9 @@ import { DISABLED_STATE, FOCUS_RING_HAS, tv } from "#lib";
 export const fileDropzoneVariants = tv({
   slots: {
     root: [
-      "relative flex flex-col items-center justify-center gap-field rounded-card border-2 border-dashed border-border bg-input/30 p-section text-center",
+      // `rounded-control`: the box IS the file input (the native control covers 100% of it), and
+      // density-pass-spec.md §2.1 gives anything you operate the control step — it is not a floating island.
+      "relative flex flex-col items-center justify-center gap-field rounded-control border-2 border-dashed border-border bg-input/30 p-section text-center",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       FOCUS_RING_HAS,
       DISABLED_STATE,

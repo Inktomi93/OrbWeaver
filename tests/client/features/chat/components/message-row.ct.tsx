@@ -367,7 +367,7 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
     />,
   );
   const root = component.locator(AVATAR);
-  await expect(root).toHaveCSS("border-radius", "10px"); // rounded = --radius-card
+  await expect(root).toHaveCSS("border-radius", "8px"); // rounded = --radius-base, the PORTRAIT step (density S2 / D6)
   await expect(root).toHaveCSS("aspect-ratio", "2 / 3");
   const boxShadow = await root.evaluate((el) => getComputedStyle(el).boxShadow);
   expect(boxShadow).not.toBe("none");
