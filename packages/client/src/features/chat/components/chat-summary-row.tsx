@@ -58,7 +58,11 @@ const STACK_SLOTS = 4;
 
 /** The row's LEADING slot. One seat (or none) = a single portrait / the hue-seeded initials blob; two or
  *  more = an `AvatarStack`, so a group room reads SHARED at rest instead of borrowing one member's face
- *  and looking like a 1:1 with them (D3). Both surfaces inherit this — one row anatomy, no fork. */
+ *  and looking like a 1:1 with them (D3). Both surfaces inherit this — one row anatomy, no fork.
+ *
+ *  `md` (32px) is THE list-row portrait size across every LIST pane — the mock's single row rhythm
+ *  (`.row .av{width:32px}`). The chats panes ran 24px and the character library 40px, so the two dense
+ *  instrument lists scanned at different pitches (side-eye P2-5). */
 function RowLeading({
   chatId,
   portraits,
@@ -73,7 +77,7 @@ function RowLeading({
       <AvatarStack
         items={portraits.map((seat) => ({ name: seat.name, ...(seat.hash === null ? {} : { src: blobUrl(seat.hash) }) }))}
         max={STACK_SLOTS}
-        size="sm"
+        size="md"
       />
     );
   }
@@ -83,7 +87,7 @@ function RowLeading({
   // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
   const avatarSrc = hash === null ? {} : { src: blobUrl(hash) };
   return (
-    <Avatar fallbackDelay={0} hueSeed={chatId} size="sm" {...avatarSrc}>
+    <Avatar fallbackDelay={0} hueSeed={chatId} size="md" {...avatarSrc}>
       {initialsFor(title)}
     </Avatar>
   );

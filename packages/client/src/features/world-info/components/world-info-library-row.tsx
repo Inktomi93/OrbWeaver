@@ -1,7 +1,8 @@
 // One book row in the World Info LIST — a shared `LibraryRow` (§13.2 entity row → RowActionsMenu). Clicking
 // the row opens the book in the editor (`onSelect` → `selectWorldBook`, the §5.1 writer-only seam; the route
-// is the single reader). A book attached GLOBALLY carries a passive `Badge` (leading) — a status marker, NOT
-// a make-global affordance (activation lives in the book's CONTEXT panel). The Rename · Duplicate · Delete
+// is the single reader). A book attached GLOBALLY carries a passive `Badge` on the TITLE LINE (the shared
+// marker slot — a leading badge only some rows have leaves the title column ragged, side-eye P2-6) — a
+// status marker, NOT a make-global affordance (activation lives in the book's CONTEXT panel). The Rename · Duplicate · Delete
 // menu + its delete-confirm (warning that the cascade drops every entry) live in LibraryRow.
 
 import type { WorldBookId } from "@orb/kit/ids";
@@ -42,12 +43,12 @@ export function WorldInfoLibraryRow({ book, selected, global, onSelect, onDelete
       selected={selected}
       title={book.name}
       {...(book.description !== null && book.description !== "" ? { subtitle: book.description } : {})}
-      {...(global ? { leading: <GlobalMarker /> } : {})}
+      {...(global ? { markers: <GlobalMarker /> } : {})}
     />
   );
 }
 
-/** The leading passive GLOBAL marker (a compact `Badge`, info intent). */
+/** The passive GLOBAL marker on the title line (a compact `Badge`, info intent). */
 function GlobalMarker(): ReactElement {
   return (
     <Badge intent="info" size="sm">
