@@ -53,8 +53,11 @@ roomLagged resumes it from last-delivered; reconnect re-announce carries a since
 the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
 stacks — re-review the delta then merge) · the scrub mid-slot-reconnect verification
 (security-executor) · ~~reachability suite~~ LANDED (`b5c1d9ff` merged: 80 leaves/60 tests, cast-volatile parity FIXED
-via castVolatile+one volatileSegs; healthz test assertion fixed post-merge) · workloads junk-drawer
-exit. **NEW OWNER QUESTIONS (cited in the suite):** inventory item `description`/`location` are
+via castVolatile+one volatileSegs; healthz test assertion fixed post-merge) · ~~workloads junk-drawer exit~~ MERGED (58→30 files; 8 owner-domain contribution factories;
+D117 minted; full battery green pre-merge). DEFERRED into D117, each independently landable:
+two-lane worker + workloads.lane column (the head-blocking defect stands) · durable progress
+column · poison-row visible surface. Q4 (reconcile-stats direct mutation) deferred as additive
+surface. **NEW OWNER QUESTIONS (cited in the suite):** inventory item `description`/`location` are
 model-writable but read by NEITHER surface — render-capped, or make unwritable? **FOLLOW-ON
 QUEUED: the macro/CEL feed is a THIRD model-facing surface** (macro-view.ts carries NO volatile
 state for any carrier — same drift class; extend the suite's matrix to it + fix, ~a lane). **THEN:** re-verify both fix-alls → SSE S3-S5 +
