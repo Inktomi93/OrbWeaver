@@ -97,14 +97,26 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // not yet hosts, and it made "can a section land here?" a second, drifting fact). `groupByAnchor` keys
 // over `SETTINGS_CATEGORY_IDS`, which stays total by construction.
 
+/** An APP-tier write claim: a top-level `AppSettings` key, or a DOTTED PATH into one of its nested objects
+ *  (`engineLaunch.genPresencePenalty`). The dotted arm exists because the app tier has no namespaces — the
+ *  whole config is ONE object shared by every admin section — so two sections can legitimately own
+ *  different LEAVES of one nested key (SET-SEAMS stage 4's resolution of the stage-3 `engineLaunch` hold).
+ *  `deepMergeAppSettings` recurses per key exactly like the user tier's `deepMergePlain`, so leaf-disjoint
+ *  sparse patches commute the same way.
+ *
+ *  A leaf claimant owns ONLY that leaf: it may never write or CLEAR the parent key (`{engineLaunch: null}`
+ *  would wipe the co-owner's leaves), which is why the partition below REDs a parent/child claim pair. */
+export type AppSettingsClaimPath = keyof AppSettings | `${keyof AppSettings}.${string}`;
+
 /** What a section claims to WRITE (SET-SEAMS §2.3, the S2 partition pin). Absent = the section persists
  *  nothing through the settings tiers (a CRUD surface like tags/personas) and is exempt from the
- *  partition. Nested namespaces claim at the TOP-level key (`retrieval`, not `retrieval.k`) — the server's
- *  `deepMergePlain` recurses, so top-level disjointness already guarantees commutativity, and a deeper
- *  claim would encode form internals in the contribution. */
+ *  partition. A USER-tier nested namespace claims at the TOP-level key (`retrieval`, not `retrieval.k`) —
+ *  the server's `deepMergePlain` recurses, so top-level disjointness already guarantees commutativity, and
+ *  a deeper claim would encode form internals in the contribution. The APP tier additionally allows a leaf
+ *  path (see {@link AppSettingsClaimPath}). */
 export type SettingsKeyClaim =
   | { readonly tier: "user"; readonly section: UserSettingsSection; readonly keys: readonly string[] }
-  | { readonly tier: "app"; readonly keys: readonly (keyof AppSettings)[] };
+  | { readonly tier: "app"; readonly keys: readonly AppSettingsClaimPath[] };
 
 /** A contributed settings section (§6c). `nav` reuses the existing `SettingsSubcategory` so a contributed
  *  section is a first-class nav/search citizen with zero new vocabulary (derive, don't re-declare) — the
@@ -188,9 +200,11 @@ export function settingsSectionNavs(
 // state the stage table describes. The instant one section claims a key in a namespace, that namespace is
 // under the partition and every remaining key must be claimed or CITED. So each stage that decomposes a
 // pane brings its namespace under the pin automatically, and no stage can half-claim a namespace silently.
-// (The APP tier has no gap arm: `AppSettings` is still owned whole by the system pane until stage 4, and
-// server-side wiring coverage is `knob-wire-coverage`'s job, D107 — see §10 Q5, two registries of two
-// different facts.)
+// The APP tier runs the OVERLAP arm only (including the nesting arm above — its claims may be leaf paths),
+// never a gap arm: "an AppSettings key with no admin editor" is already `knob-wire-coverage`'s arm B2
+// (D107), which reconciles it against the WHOLE admin surface with its own cited-deferral registry. Two
+// registries of two different facts, deliberately (§10 Q5) — this one would only re-state it worse, since
+// a key can be edited by a non-contributed surface.
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One cited exemption from the gap arm — a key inside a CLAIMED namespace that has no client editor.
@@ -223,6 +237,20 @@ function claimKey(tier: string, section: string, key: string): string {
   return `${tier}:${section}.${key}`;
 }
 
+/** A claim id back as its human `<section>.<key>` half (the tier prefix is scaffolding for the map). */
+function claimLabel(id: string): string {
+  return id.slice(id.indexOf(":") + 1);
+}
+
+/** An already-claimed key that NESTS with `id` — one is a dotted path INSIDE the other. A parent/child pair
+ *  is an overlap in disguise: the parent's owner writes (and clears) the whole nested object, wiping the
+ *  leaf owner's value. Returns the conflicting claim id + its owning section. */
+function findNestedConflict(owners: ReadonlyMap<string, string>, id: string): readonly [string, string] | undefined {
+  // The DOT is load-bearing: a claim that merely shares a name PREFIX (`engineLaunchExtra`) is a sibling key,
+  // not a nested one.
+  return [...owners].find(([claimed]) => claimed.startsWith(`${id}.`) || id.startsWith(`${claimed}.`));
+}
+
 /** Build the leaf-key → owning-section map, THROWING on the first overlap (two sections writing one key is
  *  a live lost-update: A's debounce carries its stale copy of B's value). */
 function collectClaims(registry: ContributorRegistry<SettingsSectionContribution>): ReadonlyMap<string, string> {
@@ -239,6 +267,12 @@ function collectClaims(registry: ContributorRegistry<SettingsSectionContribution
       if (firstOwner !== undefined) {
         throw new Error(
           `assertSettingsKeyPartition: "${section}.${key}" is claimed by BOTH "${firstOwner}" and "${contribution.id}" — two sections writing one key is a lost update (SET-SEAMS §2.3 S2). Give the key exactly one owning section.`,
+        );
+      }
+      const nested = findNestedConflict(owners, id);
+      if (nested !== undefined) {
+        throw new Error(
+          `assertSettingsKeyPartition: "${section}.${key}" (claimed by "${contribution.id}") NESTS with "${claimLabel(nested[0])}" claimed by "${nested[1]}" — the outer claim's owner writes and CLEARS the whole nested object, wiping the inner one (SET-SEAMS §2.3 S2). Either split BOTH claims to disjoint leaves, or give the whole key to one section.`,
         );
       }
       owners.set(id, contribution.id);

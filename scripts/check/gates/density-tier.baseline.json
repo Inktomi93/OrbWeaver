@@ -139,7 +139,6 @@
   "packages/client/src/features/settings/components/theme-editor.tsx": 15,
   "packages/client/src/features/settings/surfaces/regex-settings-surface.tsx": 1,
   "packages/client/src/features/settings/surfaces/settings-shell-surface.tsx": 7,
-  "packages/client/src/features/settings/surfaces/system-settings-surface.tsx": 1,
   "packages/client/src/features/settings/surfaces/tags-settings-surface.tsx": 4,
   "packages/client/src/features/settings/surfaces/theme-picker-surface.tsx": 3,
   "packages/client/src/features/stats/components/analytics-context-header.tsx": 5,

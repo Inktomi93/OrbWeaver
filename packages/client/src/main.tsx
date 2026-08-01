@@ -58,7 +58,7 @@ import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
-import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
+import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import {
   adminCatalogSection,
@@ -66,8 +66,13 @@ import {
   adminEnginesSection,
   adminPane,
   adminUsersSection,
+  computeSection,
+  mediaTrustSection,
   memoryTuningSection,
+  multiUserSection,
+  operationsSection,
   rateLimitsSection,
+  sharedAccessSection,
   systemTuningSection,
 } from "#features/user-admin";
 import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
@@ -256,9 +261,16 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
-  // admin ← the DECOMPOSED admin pane (SET-SEAMS stage 3) leading in its pre-split order (users · engines ·
-  // model catalog · card embeddings), then the AppSettings admin-tier sections that were already
-  // contributions. All seven are owned by user-admin (it owns the admin verbs + the admin-tier config).
+  // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2 merged `system` INTO
+  // `admin`, "system's sections becoming the first group"), in their pre-merge pane order …
+  mediaTrustSection,
+  computeSection,
+  sharedAccessSection,
+  multiUserSection,
+  operationsSection,
+  // … then the DECOMPOSED admin pane (SET-SEAMS stage 3) in its pre-split order (users · engines · model
+  // catalog · card embeddings), then the AppSettings admin-tier sections that were already contributions.
+  // All twelve are owned by user-admin (it owns the admin verbs + the admin-tier config).
   adminUsersSection,
   adminEnginesSection,
   adminCatalogSection,
@@ -286,9 +298,11 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   librarySettingsSection,
 ]);
 
-// S2 — the key partition (SET-SEAMS §2.3). N sections patching ONE UserSettings namespace is safe only
-// while their claims are DISJOINT (the server merges per key and serializes per user, so disjoint patches
-// commute). THROWS here, at the door, on an overlap or on an uneditable knob inside a claimed namespace.
+// S2 — the key partition (SET-SEAMS §2.3). N sections patching ONE UserSettings namespace (or the ONE
+// AppSettings blob) is safe only while their claims are DISJOINT — the server merges per key and serializes
+// the write, so disjoint patches commute. THROWS here, at the door, on an overlap (including a claim NESTED
+// inside another section's, e.g. two owners of one `engineLaunch`) or on an uneditable knob inside a claimed
+// user namespace.
 assertSettingsKeyPartition(settingsSections, DEFAULT_USER_SETTINGS);
 
 // The ONE settings-pane assembly (§8/G8): total over SETTINGS_CATEGORY_IDS by tsc; delivered as a
@@ -303,7 +317,6 @@ const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   regex: regexPane,
   connections: connectionsPane,
   automation: automationPane,
-  system: systemPane,
   admin: adminPane,
 });
 

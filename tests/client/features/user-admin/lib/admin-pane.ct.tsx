@@ -52,9 +52,15 @@ const APP_SETTINGS = {
   },
 };
 
-/** The seven sections at the `admin` anchor, in the door's declared order (main.tsx) — which IS the render
- *  order: the four that moved out of the retired pane surface, then the AppSettings admin-tier sections. */
+/** The twelve sections at the `admin` anchor, in the door's declared order (main.tsx) — which IS the render
+ *  order: the five that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then the four
+ *  that moved out of the retired admin pane surface, then the AppSettings admin-tier sections. */
 const ANCHOR_ORDER = [
+  "settings-anchor-admin-media-trust",
+  "settings-anchor-admin-compute",
+  "settings-anchor-admin-shared-access",
+  "settings-anchor-admin-multi-user",
+  "settings-anchor-admin-operations",
   "settings-anchor-admin-users",
   "settings-anchor-admin-engines",
   "settings-anchor-admin-model-catalog",
@@ -65,13 +71,29 @@ const ANCHOR_ORDER = [
 ];
 
 /** The nav rows the pane DERIVES from its contributions, in door order. */
-const NAV_LABELS = ["Users", "Engines", "Model catalog", "Card embeddings", "Memory tuning", "Rate limits", "System tuning"];
+const NAV_LABELS = [
+  "Media & trust",
+  "Compute",
+  "Shared access",
+  "Multi-user",
+  "Operations",
+  "Users",
+  "Engines",
+  "Model catalog",
+  "Card embeddings",
+  "Memory tuning",
+  "Rate limits",
+  "System tuning",
+];
 /** A moved section's surviving search leaf, and the nav label a hidden pane must not surface. */
 const SESSIONS_LEAF = /Sessions/;
 const ENGINES_LEAF = /Engines/;
+/** A leaf that travelled in from the retired SYSTEM pane (stage 4). */
+const LOG_LEVEL_LEAF = /Log level/;
 
-// The resolved slice the three AppSettings sections read together (each CT above pins its own knobs; here
-// they all mount at once, so ONE stub must satisfy all three). Untyped route stubs, so a partial suffices.
+// The resolved slice the EIGHT AppSettings sections read together (each has its own CT pinning its own
+// knobs; here they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a
+// partial suffices.
 const RESOLVED_APP = {
   ...APP_SETTINGS,
   memoryDefaults: {},
@@ -83,6 +105,18 @@ const RESOLVED_APP = {
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
   maxDatabankBytes: 20_971_520,
+  // … the five sections that merged in from the System pane (stage 4).
+  forbidExternalMedia: true,
+  trustHtml: false,
+  maxImageBytes: 5_000_000,
+  vllmConcurrency: { embed: 4, summarize: 2 },
+  allowNonOwnerLocalCompute: true,
+  nonOwnerLocalComputeBudget: null,
+  allowNonOwnerMaxProSub: false,
+  localMultiUser: false,
+  discreetLogin: false,
+  corpusAutoindex: false,
+  logLevel: "info",
 };
 
 function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
@@ -98,10 +132,12 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
   });
 }
 
-test("the skimmer renders all seven admin sections, in the door's declared order", async ({ mount, page }) => {
+test("the skimmer renders all twelve admin sections, in the door's declared order", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   await mount(<AdminPaneStory />);
-  await page.getByRole("heading", { name: "Users" }).waitFor();
+  // Every section resolves its OWN read behind its OWN boundary, so wait on the full set rather than on one
+  // heading — a partially-painted pane would otherwise pass the order assertion on a subsequence.
+  await expect(page.locator('[id^="settings-anchor-admin-"]')).toHaveCount(ANCHOR_ORDER.length);
 
   const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-admin-"]')].map((el) => el.id));
   expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
@@ -113,7 +149,7 @@ test("the skimmer renders all seven admin sections, in the door's declared order
 test("subcategory sections are a single column, stacked in registry order", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   await mount(<AdminPaneStory />);
-  await page.getByRole("heading", { name: "Users" }).waitFor();
+  await expect(page.locator('[id^="settings-anchor-admin-"]')).toHaveCount(ANCHOR_ORDER.length);
 
   const geometry = await readSettingsPaneGeometry(page, "admin");
   expect(findSettingsColumnViolation(geometry, ANCHOR_ORDER.length)).toBeNull();
@@ -128,6 +164,26 @@ test("the derived nav lists every contributed section, in door order", async ({ 
 
   const nav = page.getByRole("navigation", { name: "Settings sections" });
   await Promise.all(NAV_LABELS.map((label) => expect(nav.getByText(label, { exact: true })).toBeVisible()));
+  // The nav DERIVES from the registry, so its order is the door's — assert the sequence, not just presence.
+  const rendered = await nav.getByRole("button").allInnerTexts();
+  expect(rendered.filter((text) => NAV_LABELS.includes(text))).toStrictEqual(NAV_LABELS);
+});
+
+// §7.2 across the PANE MERGE (§10 Q2): the System pane's search leaves travelled into user-admin's nav
+// files. Their sub ids are byte-identical, so only the CATEGORY half of the anchor changed — the leaf must
+// now jump to the admin pane's copy of the section, with no `settings-anchor-system-*` node left anywhere.
+test("a search leaf of a MERGED system section jumps to its admin anchor", async ({ mount, page }) => {
+  await stub(page, OWNER_VIEWER);
+  await mount(<AdminPaneStory />);
+  await page.getByRole("heading", { name: "Operations" }).waitFor();
+
+  await page.getByRole("combobox", { name: "Search settings" }).fill("log level");
+  const result = page.getByRole("option", { name: LOG_LEVEL_LEAF }).first();
+  await expect(result).toBeVisible();
+  await result.click();
+
+  await expect(page.locator("#settings-anchor-admin-operations")).toBeInViewport();
+  await expect(page.locator('[id^="settings-anchor-system-"]')).toHaveCount(0);
 });
 
 test("a search leaf of a MOVED section still jumps to a live anchor", async ({ mount, page }) => {

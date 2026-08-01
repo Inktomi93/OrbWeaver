@@ -16,10 +16,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { isOverridden } from "../lib/app-override-model";
+import { isOverridden, saveStateOf } from "../lib/app-override-model";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
 
@@ -55,16 +54,6 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 
 /** The section's own suspense/error boundary so it is self-contained (renders inside the admin pane's
  *  boundary in-app, but also stands alone). */
-
-/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
- *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
-function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
-  if (errored) {
-    return "error";
-  }
-  return isPending ? "saving" : "saved";
-}
-
 export function RateLimitsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary

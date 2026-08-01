@@ -10,11 +10,13 @@
 //   projectForm( serverShape( toPatch( projectForm(serverRow) ) ) )  ≡structural≡  projectForm(serverRow)
 //
 // A failing case is a FINDING (a mapper bug or an intrinsic non-invertibility), reported — never pinned
-// around. system-settings is the one KNOWN intrinsic non-round-trip (it edits a DIFF against baselines, not
-// the whole row) — asserted at the projection level it CAN round-trip, with the diff asymmetry recorded.
+// around. The system-settings arm RETIRED with SET-SEAMS stage 4: it was the one KNOWN intrinsic
+// non-round-trip (an autosave form editing a DIFF against two mount baselines), and the decomposed admin
+// sections have no such mapper at all — each reads `getAppSettingsWithOverrides` (floor AND stored override)
+// and writes a sparse patch of its own keys, so there is no project→save→echo cycle left to oscillate.
 
 import type { RegexScript } from "@orb/contracts/regex";
-import type { AppearanceSettings, ChatSettings, EffectiveAppConfig } from "@orb/contracts/settings";
+import type { AppearanceSettings, ChatSettings } from "@orb/contracts/settings";
 import {
   backgroundLibraryEntrySchema,
   DEFAULT_APPEARANCE_SETTINGS,
@@ -28,7 +30,6 @@ import { describe } from "vitest";
 import type { CharacterThemeFormValues } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
 import { characterThemeFormFromOverride, overrideFromCharacterThemeForm } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
 import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model";
-import { diffSystemPatch, projectSystemForm } from "../../../packages/client/src/features/settings/lib/system-settings-model";
 import { expect, test } from "../../support/fixtures";
 
 // The SERVER SHAPE for a `userSettings` section: the section patch is deep-merged into the settings blob
@@ -157,65 +158,5 @@ describe("convergence: character theme", () => {
   test.each(overrides.map((o, i) => [i, o] as const))("override %i is a project/save/echo fixed point", (_i, override) => {
     const form = characterThemeFormFromOverride(override);
     expect(echo(form)).toEqual(form);
-  });
-});
-
-// ── system settings ────────────────────────────────────────────────────────────────────────────────
-// The KNOWN intrinsic non-round-trip: the System pane projects the RESOLVED EffectiveAppConfig but saves a
-// DIFF (`diffSystemPatch`, keyed off two baselines) into the sparse AppSettings override — projecting a
-// resolved config and mapping back does NOT reconstruct the resolved config (the env floor + the diff
-// semantics are lossy BY DESIGN). What CAN round-trip: the projection itself is a stable fixed point
-// (projecting the same effective config twice is identical), and a no-change diff (current === lastSaved
-// === original) is empty — the pane doesn't oscillate because an untouched form emits no patch.
-describe("convergence: system settings (diff-based — see the header)", () => {
-  const effective: EffectiveAppConfig = {
-    corpusAutoindex: true,
-    importSkipCharacters: [],
-    logLevel: "info",
-    forbidExternalMedia: true,
-    trustHtml: false,
-    memoryDefaults: {},
-    memorySummarizer: {},
-    rateLimits: { login: 10, aiTurn: 10, publicIp: 60, authed: 120 },
-    vllmConcurrency: { embed: 2, summarize: 1 },
-    engineLaunch: {
-      embedModel: "Qwen/Qwen3-VL-Embedding-2B",
-      rerankModel: "Qwen/Qwen3-VL-Reranker-2B",
-      genModel: "Qwen/Qwen3-VL-8B-Instruct",
-      embedMaxModelLen: 8192,
-      rerankMaxModelLen: 8192,
-      genMaxModelLen: 32_768,
-      embedGpuUtil: 0.14,
-      rerankGpuUtilMulti: 0.16,
-      rerankGpuUtilSingle: 0.22,
-      genGpuUtilMulti: 0.28,
-      genGpuUtilSingle: 0.5,
-      poolingMaxPixels: 1_843_200,
-      genMaxPixels: 4_194_304,
-      genRepetitionPenalty: 1.05,
-      genPresencePenalty: 1.5,
-    },
-    agentSdkConcurrency: { summarize: 4 },
-    allowNonOwnerLocalCompute: true,
-    nonOwnerLocalComputeBudget: null,
-    nonOwnerLocalComputeBudgetWindowMs: 86_400_000,
-    allowNonOwnerMaxProSub: false,
-    localMultiUser: false,
-    discreetLogin: false,
-    maxImageBytes: 5_000_000,
-    maxDatabankBytes: 20_971_520,
-    promptTransformDeadlineMs: 250,
-    catalogRefreshIntervalMs: 86_400_000,
-    imageVariantQuality: 80,
-  };
-
-  test("projectSystemForm is a stable fixed point (projecting twice is identical)", () => {
-    expect(projectSystemForm(effective)).toEqual(projectSystemForm(effective));
-  });
-
-  test("an untouched form emits an EMPTY diff (no phantom override → no echo-oscillation)", () => {
-    const form = projectSystemForm(effective);
-    const patch = diffSystemPatch({ original: form, lastSaved: form }, form);
-    expect(patch).toEqual({});
   });
 });

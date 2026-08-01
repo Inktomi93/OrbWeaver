@@ -10,7 +10,11 @@ import { useState } from "react";
 import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section";
 import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section";
+import { ComputeSection } from "../../../../packages/client/src/features/user-admin/components/compute-section";
+import { MultiUserSection, SharedAccessSection } from "../../../../packages/client/src/features/user-admin/components/governance-sections";
+import { MediaTrustSection } from "../../../../packages/client/src/features/user-admin/components/media-trust-section";
 import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section";
+import { OperationsSection } from "../../../../packages/client/src/features/user-admin/components/operations-section";
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
@@ -101,6 +105,60 @@ export function MemoryTuningSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
           <MemoryTuningSection sectionId="admin-memory-tuning" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The Media & trust SECTION (SET-SEAMS stage 4 — the decomposed System pane) in isolation. */
+export function MediaTrustSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <MediaTrustSection sectionId="admin-media-trust" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The Compute SECTION (SET-SEAMS stage 4) in isolation — the vllmConcurrency leaves. */
+export function ComputeSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <ComputeSection sectionId="admin-compute" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The two OWNER-GATED sections (SET-SEAMS stage 4), mounted together as the door renders them (adjacent at
+ *  the admin anchor) so one mount proves the shared owner predicate gates BOTH. */
+export function GovernanceSectionsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <SharedAccessSection sectionId="admin-shared-access" />
+          <MultiUserSection sectionId="admin-multi-user" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The Operations SECTION (SET-SEAMS stage 4) in isolation — corpusAutoindex + logLevel. */
+export function OperationsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <OperationsSection sectionId="admin-operations" />
         </div>
       </TooltipProvider>
     </CtDataProviders>
