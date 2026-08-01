@@ -1,6 +1,7 @@
 // One preset row in the Presets LIST — a shared `LibraryRow` (§13.2 entity row → RowActionsMenu). Clicking
-// it opens the preset in the editor. The system-default row is marked (editing it COWs into a fork
-// server-side) and cannot be deleted. The active-for-generation preset carries a passive amber Badge (a
+// it opens the preset in the editor. The subtitle is the row's scent (`presetRowSubtitle` — the edit stamp
+// plus a meaningful kind), since same-base forks all carry the SAME name. The system-default row is marked
+// (editing it COWs into a fork server-side), keeps its "Built-in default" subtitle, and cannot be deleted. The active-for-generation preset carries a passive amber Badge (a
 // status marker, not a make-active affordance — activation is the LIST dropdown only). The Rename/Duplicate/
 // Delete menu + its delete-confirm live in LibraryRow; the delete copy warns when the row is the active preset.
 
@@ -9,12 +10,16 @@ import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { LibraryRow } from "#components";
+import { timeLib } from "#lib";
+import { presetRowSubtitle } from "../lib/preset-row-view";
 
 /** The minimal preset shape the row renders (a `PresetSummary` — tRPC-inferred at the surface). */
 interface PresetRowItem {
   readonly id: PresetId;
   readonly name: string;
+  readonly kind: string;
   readonly isSystemDefault: boolean;
+  readonly updatedAt: number;
 }
 
 export interface PresetLibraryRowProps {
@@ -46,6 +51,9 @@ export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete,
       {...(preset.isSystemDefault
         ? { subtitle: "Built-in default" }
         : {
+            // F5: the row's scent — forks of the same base share a name, so the edit stamp (+ a
+            // meaningful kind) is what tells nine "Default (edited)" rows apart.
+            subtitle: presetRowSubtitle(preset.kind, preset.updatedAt, timeLib.formatRelative),
             actions: {
               name: preset.name,
               onRename: (): void => onRename(preset.id),

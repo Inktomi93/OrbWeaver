@@ -100,4 +100,30 @@ describe("update (copy-on-write of the system default)", () => {
     const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
     expect(forked.name).toBe(`${base.name} (edited)`);
   });
+
+  test("repeat COWs NUMBER the derived name instead of stacking identical rows (F5)", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+
+    const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    const third = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+
+    expect([first.name, second.name, third.name]).toEqual([`${base.name} (edited)`, `${base.name} (edited) 2`, `${base.name} (edited) 3`]);
+  });
+
+  test("numbering is per-OWNER — another user's identical name is not a collision", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const a = await seedUser(db, "a");
+    const b = await seedUser(db, "b");
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+
+    const aFork = await svc.update({ userId: a, id: SYSTEM_DEFAULT_PRESET_ID });
+    const bFork = await svc.update({ userId: b, id: SYSTEM_DEFAULT_PRESET_ID });
+    expect(bFork.name).toBe(aFork.name);
+  });
 });

@@ -3,6 +3,7 @@
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
 import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
@@ -85,8 +86,9 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
 }
 
 /** The `chat.listChats` row shape (ChatSummary — packages/server/src/domain/chat/contract/views.ts).
- *  A plain client read-model literal (see the header); `participantNames` is names-only (the list card
- *  has no avatars). Ids are plain strings — the wire shape routeTrpc fulfills. */
+ *  A plain client read-model literal (see the header); `participantNames` is names-only, while
+ *  `participantCharacterIds` is what the row resolves its PORTRAIT from (F7). Ids are plain strings —
+ *  the wire shape routeTrpc fulfills. */
 export interface ChatSummaryFixture {
   readonly id: string;
   readonly title: string | null;
@@ -96,6 +98,8 @@ export interface ChatSummaryFixture {
   readonly lastMessageAt: number | null;
   readonly messageCount: number;
   readonly participantNames: readonly string[];
+  readonly participantCharacterIds: readonly string[];
+  readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -111,6 +115,8 @@ export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): Ch
     lastMessageAt: FROZEN_AT,
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
+    participantCharacterIds: [],
+    viewerRole: "host",
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
     ...overrides,

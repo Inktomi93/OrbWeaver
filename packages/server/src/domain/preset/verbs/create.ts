@@ -4,12 +4,16 @@ import type { PresetContext } from "../context";
 import type { CreatePresetParams } from "../contract/params";
 import type { PresetService } from "../contract/service";
 import type { PresetDetail } from "../contract/views";
-import { insertPreset } from "../persistence/queries";
+import { insertPreset, listOwnedPresetNames } from "../persistence/queries";
+import { uniquePresetName } from "../substrate/names";
 import { toPresetDetail } from "../substrate/views";
 
 // verb: create — write a new OWNED preset (ownerId = the resolved caller). The config defaults to
 // DEFAULT_PROMPT_CONFIG when the caller omits one (a fresh "start from default" preset); `schemaVersion`
 // mirrors `config.schemaVersion` (the reseed-gate compare key). Timestamps come from the injected clock.
+// The submitted name is de-collided against the caller's own library at mint time (`uniquePresetName`) —
+// the client's Duplicate derives "Copy of X" from a row, so repeat duplicates would otherwise stack
+// indistinguishable rows (visual-blech audit F5).
 
 const PRESET_CREATE = "preset.create";
 const PRESET_ENTITY = "preset";
@@ -19,10 +23,11 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
     const id = ctx.newPresetId();
     const now = ctx.now();
     const config = params.config ?? DEFAULT_PROMPT_CONFIG;
+    const name = uniquePresetName(params.name, await listOwnedPresetNames(ctx.db, params.userId));
     const row = {
       id,
       ownerId: params.userId,
-      name: params.name,
+      name,
       kind: params.kind,
       config,
       schemaVersion: config.schemaVersion,
@@ -37,7 +42,7 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
         action: PRESET_CREATE,
         entityType: PRESET_ENTITY,
         entityId: id,
-        metadata: { name: params.name, kind: params.kind },
+        metadata: { name, kind: params.kind },
       },
       now,
     );

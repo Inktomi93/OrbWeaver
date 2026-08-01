@@ -6,7 +6,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row";
+import { chatPortraitHash, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row";
 import { expect, test } from "../../../../support/fixtures";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -70,4 +70,26 @@ test("chatSummaryRowView: untitled AND participant-less → 'Untitled chat' / 'N
 test("chatSummaryRowView: `when` prefers lastMessageAt, falling back to updatedAt", () => {
   expect(chatSummaryRowView(makeSummary({ lastMessageAt: 99, updatedAt: 2 })).when).toBe(99);
   expect(chatSummaryRowView(makeSummary({ lastMessageAt: null, updatedAt: 2 })).when).toBe(2);
+});
+
+// F7 — the portrait arm: the avatar slot resolves a REAL face from the seat ids instead of a hue blob.
+const AVATARS = new Map<string, string | null>([
+  ["char_faceless", null],
+  ["char_azarael", "hash_azarael"],
+  ["char_niko", "hash_niko"],
+]);
+
+test("chatPortraitHash: the FIRST seat that owns an avatar wins", () => {
+  expect(chatPortraitHash(["char_azarael", "char_niko"], AVATARS)).toBe("hash_azarael");
+});
+
+test("chatPortraitHash: a portrait-less seat is skipped, not treated as the answer", () => {
+  expect(chatPortraitHash(["char_faceless", "char_niko"], AVATARS)).toBe("hash_niko");
+});
+
+test("chatPortraitHash: null when nothing resolves (no seats · unknown seat · every seat portrait-less)", () => {
+  expect(chatPortraitHash([], AVATARS)).toBeNull();
+  // An unknown id is the un-landed / departed-seat case — the row keeps its initials blob.
+  expect(chatPortraitHash(["char_departed"], AVATARS)).toBeNull();
+  expect(chatPortraitHash(["char_faceless"], AVATARS)).toBeNull();
 });

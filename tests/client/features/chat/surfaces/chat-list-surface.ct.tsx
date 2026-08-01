@@ -5,6 +5,9 @@
 // LIST chrome band — chat-list-header.tsx); the search field filters client-side; the active row paints
 // `aria-current`; the per-row kebab opens the actions menu; an empty list shows its own state.
 //
+// Also pins F7 (visual-blech audit): a real participant PORTRAIT resolved off `participantCharacterIds` ×
+// the character list, the initials fallback when nothing resolves, and the star/archived state markers.
+//
 // NOTE (mirrors the other surface CTs): `trpc.chat.listChats` is stubbed at the NETWORK (routeTrpc) — the
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
 
@@ -17,12 +20,32 @@ const ADVENTURE = makeChatSummary({
   id: "chat_adventure",
   title: "A grand adventure",
   participantNames: ["Aria Nightshade"],
+  participantCharacterIds: ["char_aria"],
 });
 const UNTITLED = makeChatSummary({
   id: "chat_untitled",
   title: null,
   participantNames: [],
 });
+// F7 state rows: the summary already carries star/archived — the row must SHOW them.
+const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", star: true });
+const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
+
+// The character library the portrait map resolves against: Aria has a face, the faceless one doesn't.
+const CHARACTERS = {
+  items: [
+    { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
+    { id: "char_faceless", name: "Faceless", avatarHash: null },
+  ],
+};
+const AVATAR_IMAGE = '[data-slot="avatar-image"]';
+const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
+const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
+/** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
+const RECEDED_RE = /opacity-60/u;
+// Base UI's Avatar mounts `avatar-image` only once the image reaches "loaded" status, so the blob route is
+// fulfilled with a real 1×1 PNG (the message-row.ct.tsx precedent).
+const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
 
 // EXACT row names — the row button's accessible name is now the TITLE ALONE (finding #1: subtitle rides
 // aria-describedby, not the name). A loose /regex/ would ALSO match the per-row kebab, whose label is now
@@ -99,6 +122,50 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Archive" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+});
+
+test("a chat with a portrait-owning participant renders the REAL portrait; the others keep the initials blob (F7)", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+
+  // Exactly ONE row resolved a face — the row whose participantCharacterIds hit an avatar-owning character.
+  const images = component.locator(AVATAR_IMAGE);
+  await expect(images).toHaveCount(1);
+  await expect(images).toHaveAttribute("src", ARIA_BLOB_RE);
+  // …and the participant-less row still renders (its avatar is the hue-seeded initials fallback, no <img>).
+  await expect(page.getByText("Untitled chat")).toBeVisible();
+});
+
+test("a chat whose participants own no portrait falls back to initials (no broken image element)", async ({ mount, page }) => {
+  await page.route("**/api/blob/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: ONE_BY_ONE_PNG }));
+  await routeTrpc(page, {
+    "chat.listChats": [makeChatSummary({ id: "chat_faceless", title: "Faceless chat", participantCharacterIds: ["char_faceless"] })],
+    "character.list": CHARACTERS,
+  });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("Faceless chat")).toBeVisible();
+  await expect(component.locator(AVATAR_IMAGE)).toHaveCount(0);
+});
+
+test("starred and archived rows say so in ACCESSIBLE content, and the archived row recedes (F7)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, STARRED, ARCHIVED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("A pinned thread")).toBeVisible();
+
+  // The star is an Icon with an accessible label (a11y-datum rule: state is never color-only) — exactly one.
+  await expect(component.getByLabel("Starred")).toHaveCount(1);
+  // Archived is TEXT, not just a dimming.
+  await expect(component.getByText("Archived", { exact: true })).toHaveCount(1);
+  // …and the dimming is the reinforcement: the archived row's root carries the receded class, others don't.
+  const archivedRow = component.locator(LIST_ROW_ROOT, { hasText: "A shelved thread" });
+  await expect(archivedRow).toHaveClass(RECEDED_RE);
+  const plainRow = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
+  await expect(plainRow).not.toHaveClass(RECEDED_RE);
 });
 
 test("an empty chats list shows the 'no chats yet' empty state", async ({ mount, page }) => {
