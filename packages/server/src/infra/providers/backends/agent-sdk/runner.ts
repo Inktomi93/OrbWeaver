@@ -2,6 +2,8 @@
 // `consumeTurnStream` is isolated from the spawn so it's unit-testable with a hand-built stream.
 
 import type {
+  HookCallbackMatcher,
+  HookEvent,
   McpSdkServerConfigWithInstance,
   Options,
   Query,
@@ -13,7 +15,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
-import type { AgentSdkChatRequest, ChatEvent, ChatResult, ChatUsage, ContextUsage, RateLimitSnapshot, ResolvedWarning } from "../../contract";
+import type { AgentSdkChatRequest, ChatEvent, ChatResult, ChatUsage, ContextUsage, RateLimitSnapshot, ResolvedWarning, ToolCallInput } from "../../contract";
 import { normalizeFinishReason, ProviderError } from "../../contract";
 import { resolveDynamicContext } from "../../resolve-chat";
 import { refreshHostSubTokenIfMode1 } from "./host-token";
@@ -32,6 +34,7 @@ import {
 } from "./log";
 import { toSdkOutputFormat } from "./output-schema";
 import type { SeededSessionDecision, SessionCache } from "./session";
+import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools";
 import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate";
 import type { AgentSdkDeps, TurnStreamContext } from "./types";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify";
@@ -47,13 +50,19 @@ const STDERR_TAIL_BYTES = 2048;
 const DEFAULT_CHAT_TOOL_ROUNDS = 4;
 // A structured turn floors at 2: the runtime's own schema-validation retry consumes a turn (agent-runner parity).
 const STRUCTURED_MIN_TURNS = 2;
+// A TERMINAL-tool turn floors at 2 — NOT because a second turn is wanted (the PreToolUse deny ends the turn at
+// depth 0, which is the whole point), but as the degrade budget: if that stop ever failed, a ceiling of 1 would
+// make the runtime answer `error_max_turns` and take the NARRATIVE down with it. At 2 the same failure costs one
+// extra call and the reply still lands — a failed mechanism costs a CALL, never a BEAT (D112 (2b)).
+const TERMINAL_MIN_TURNS = 2;
 
 /** The chat turn's SDK turn ceiling: 1 for the plain roleplay turn (the firewall base); a mounted tool
- *  server lifts it to rounds + the final reply (the SDK owns the loop); a structured turn floors at 2. */
+ *  server lifts it to rounds + the final reply (the SDK owns the loop); structured + terminal turns floor at 2. */
 function chatMaxTurns(req: AgentSdkChatRequest): number {
   const toolTurns = req.toolServer !== undefined ? 1 + (req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS) : 1;
   const structuredFloor = req.responseFormat !== undefined ? STRUCTURED_MIN_TURNS : 1;
-  return Math.max(toolTurns, structuredFloor);
+  const terminalFloor = (req.terminalTools?.length ?? 0) > 0 ? TERMINAL_MIN_TURNS : 1;
+  return Math.max(toolTurns, structuredFloor, terminalFloor);
 }
 
 /** Mount the domain's in-process MCP tool server (the STATEFUL tool channel) — overrides the firewall
@@ -72,6 +81,35 @@ function chatToolOptions(req: AgentSdkChatRequest, turnId: string): Pick<Options
     mcpServers: { [MCP_NAMESPACE]: req.toolServer as McpSdkServerConfigWithInstance },
     allowedTools: [`mcp__${MCP_NAMESPACE}__*`],
   };
+}
+
+/** The SDK option fields more than one channel contributes: the two MCP mounts (registry + terminal), the
+ *  registry mount's allowlist, and the two hook channels (dynamic-context UserPromptSubmit + terminal
+ *  PreToolUse). */
+type MountedOptions = Pick<Options, "mcpServers" | "hooks" | "allowedTools">;
+
+/** UNION the channel fragments instead of spreading them: a plain spread lets the later fragment DELETE the
+ *  earlier one's whole `mcpServers`/`hooks` map — which would silently drop the mid-conversation system channel
+ *  (or a whole tool mount) on any turn that carries both. Per-event hook matcher lists concatenate. */
+function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): MountedOptions {
+  const merged: MountedOptions = {};
+  for (const { hooks, mcpServers, allowedTools } of fragments) {
+    if (mcpServers !== undefined) {
+      merged.mcpServers = { ...merged.mcpServers, ...mcpServers };
+    }
+    if (allowedTools !== undefined) {
+      merged.allowedTools = [...(merged.allowedTools ?? []), ...allowedTools];
+    }
+    if (hooks === undefined) {
+      continue;
+    }
+    const acc: NonNullable<Options["hooks"]> = merged.hooks ?? {};
+    for (const [event, matchers] of Object.entries(hooks) as [HookEvent, HookCallbackMatcher[] | undefined][]) {
+      acc[event] = [...(acc[event] ?? []), ...(matchers ?? [])];
+    }
+    merged.hooks = acc;
+  }
+  return merged;
 }
 
 /** Bounded last-N-bytes tail of the CLI subprocess stderr for one turn. */
@@ -96,6 +134,21 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+/** Bridge the caller's signal onto the fresh controller the SDK query takes — an ALREADY-aborted caller
+ *  aborts it immediately (an `addEventListener` alone would never fire and the turn would run on). */
+function linkAbort(signal: AbortSignal | undefined): AbortController {
+  const controller = new AbortController();
+  if (signal === undefined) {
+    return controller;
+  }
+  if (signal.aborted) {
+    controller.abort();
+  } else {
+    signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  return controller;
+}
+
 export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, sessions: SessionCache): Promise<ChatResult> {
   // Mode-1 (Max sub) only: proactively refresh an expired host OAuth token before the spawn — the spawned
   // runtime's own refresh can't persist through the ephemeral-dir symlink. Best-effort, never throws.
@@ -115,29 +168,25 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   logSessionDecision(req.chatId, resume, disposition);
 
   const stderrTail = new StderrTail();
-
-  const abortController = new AbortController();
-  if (req.signal !== undefined) {
-    if (req.signal.aborted) {
-      abortController.abort();
-    } else {
-      req.signal.addEventListener("abort", () => abortController.abort(), { once: true });
-    }
-  }
+  const abortController = linkAbort(req.signal);
 
   const chatId = req.chatId;
-  captureAgentSdkWire(req, deps, { systemPrompt, resume, gen });
+  // The TERMINAL channel (D112 R1): its own MCP mount + the PreToolUse deny-and-stop hook, or `null` when
+  // nothing was requested / a schema would not lift. `null` means the request stays byte-identical to a
+  // tool-less one AND `toolCalls` stays absent, so the fold reads its honest "no channel" and runs its round.
+  const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId);
+  captureAgentSdkWire(req, deps, { systemPrompt, resume, gen, terminalMounted: terminal !== null });
   const stream = deps.query({
     prompt: req.prompt,
     options: {
       ...disciplineOptions(req.credential, req.orSkinTierModels, gen.envOverrides),
       ...observabilityOptions(),
       ...gen.options,
-      ...dynamicHook,
-      // The stateful tool + structured channels (both absent on a plain roleplay turn — byte-identical):
-      // the MCP mount overrides the firewall base's mcpServers:{}; outputFormat is the SDK's own
-      // json_schema mode (bound-stripped, agent-runner parity) — honored on every skin.
-      ...chatToolOptions(req, gen.turnId),
+      // The stateful tool + structured + terminal channels (all absent on a plain roleplay turn —
+      // byte-identical): the MCP mounts override the firewall base's mcpServers:{}; outputFormat is the SDK's
+      // own json_schema mode (bound-stripped, agent-runner parity) — honored on every skin. The two mounts and
+      // the two hook channels MERGE (a spread would drop one), so a folded turn keeps its dynamic-context hook.
+      ...mergeMountedOptions(dynamicHook, chatToolOptions(req, gen.turnId), terminal ?? {}),
       ...(req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat, req.model) } : {}),
       includePartialMessages: req.onDelta !== undefined,
       model: req.model,
@@ -158,6 +207,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     disposition,
     now: deps.now,
     expectStructured: req.responseFormat !== undefined,
+    captureTerminalTools: terminal !== null,
     stderrTail: () => stderrTail.tail(),
     probeContextUsage: () => probeContextUsage(stream),
     ...(chatId !== undefined ? { chatId } : {}),
@@ -177,7 +227,12 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
 function captureAgentSdkWire(
   req: AgentSdkChatRequest,
   deps: AgentSdkDeps,
-  ctx: { systemPrompt: string | string[] | undefined; resume: string | undefined; gen: ReturnType<typeof toSdkGeneration> },
+  ctx: {
+    systemPrompt: string | string[] | undefined;
+    resume: string | undefined;
+    gen: ReturnType<typeof toSdkGeneration>;
+    terminalMounted: boolean;
+  },
 ): void {
   deps.captureWire?.({
     chatId: req.chatId,
@@ -197,6 +252,10 @@ function captureAgentSdkWire(
       toolsMounted: req.toolServer !== undefined,
       maxTurns: chatMaxTurns(req),
       structuredOutput: req.responseFormat !== undefined,
+      // The TERMINAL channel: the tool NAMES declared (never their per-game schemas — those carry actor
+      // names) plus whether the mount actually happened, so a folded turn that degraded is visible here too.
+      terminalTools: req.terminalTools?.map((t) => t.name) ?? null,
+      terminalToolsMounted: ctx.terminalMounted,
     },
   });
 }
@@ -211,7 +270,7 @@ function routeDynamicContext(
   turnId: string,
 ): {
   systemPrompt: string | string[] | undefined;
-  dynamicHook: Pick<Parameters<AgentSdkDeps["query"]>[0]["options"] & object, "hooks"> | object;
+  dynamicHook: Pick<Options, "hooks">;
 } {
   const channel = resolveDynamicContext(req.params, req.capability, []);
   const midConvCapable = req.capability.turns?.midConversationSystem ?? false;
@@ -376,6 +435,10 @@ class TurnAccumulator {
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
   lastRetryError: SDKAssistantMessageError | undefined;
+  /** The TERMINAL tool calls this completion co-emitted (D112 R1) — read off the assistant frame's `tool_use`
+   *  blocks BEFORE the permission seam denies them, which is why they are complete even though the deny hook
+   *  ends the turn on the first one. Collected only when the terminal channel actually mounted. */
+  readonly terminalToolCalls: ToolCallInput[] = [];
   readonly events: ChatEvent[] = [];
   readonly usageAcc = {
     tokensIn: 0,
@@ -455,6 +518,11 @@ class TurnAccumulator {
     const structuredReply = this.ctx.expectStructured === true && this.structuredOutput !== undefined ? JSON.stringify(this.structuredOutput) : undefined;
     return {
       reply: structuredReply ?? this.reply.trim(),
+      // ONLY the terminal channel puts calls here: registry (MCP) tool calls are executed by the SDK and
+      // recorded through the pipeline's own side-channel, so surfacing them would double-count them AND leak
+      // them into a member-visible payload (D112 (5) — terminal calls have exactly one consumer). Absent
+      // (never `[]`) when the channel did not mount, so the fold reads "no channel" and runs its own round.
+      ...(this.ctx.captureTerminalTools === true ? { toolCalls: this.terminalToolCalls } : {}),
       reasoning: this.reasoning,
       reasoningRedacted: this.redactedThinkingBlocks > 0,
       stopReason: this.stopReason,
@@ -521,6 +589,8 @@ function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): vo
   for (const block of message.message.content) {
     if (block.type === "text") {
       acc.reply += block.text;
+    } else if (block.type === "tool_use") {
+      captureTerminalCall(acc, block);
     } else if (block.type === "thinking") {
       const thinkingText = (block as { thinking?: string }).thinking;
       if (typeof thinkingText === "string") {
@@ -529,6 +599,19 @@ function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): vo
     } else if (block.type === "redacted_thinking") {
       acc.redactedThinkingBlocks += 1;
     }
+  }
+}
+
+/** The TERMINAL capture (D112 R1, half 3): a `tool_use` block from OUR terminal mount becomes a
+ *  {@link ToolCallInput}. A registry-mount call is skipped — the SDK executes those and the pipeline records
+ *  them on its own channel. A capture-off turn skips everything (a plain tool turn stays byte-identical). */
+function captureTerminalCall(acc: TurnAccumulator, block: { readonly id: string; readonly name: string; readonly input: unknown }): void {
+  if (acc.ctx.captureTerminalTools !== true) {
+    return;
+  }
+  const call = toTerminalCall(block);
+  if (call !== null) {
+    acc.terminalToolCalls.push(call);
   }
 }
 
@@ -727,7 +810,13 @@ function checkPermissionDenials(acc: TurnAccumulator, message: Narrow<"result">)
   if (denials === undefined || denials.length === 0) {
     return;
   }
-  const toolNames = denials.map((d) => d.tool_name);
+  // A TERMINAL tool's denial is the MECHANISM, not a leak: the deny hook is exactly what keeps the co-emitted
+  // state call from executing and earning a second model call. Counting it would fire the firewall alarm on
+  // every folded turn and bury a real leak in the noise.
+  const toolNames = denials.map((d) => d.tool_name).filter((name) => !isTerminalToolCall(name));
+  if (toolNames.length === 0) {
+    return;
+  }
   acc.emit({ kind: "permission_leak", at: acc.ctx.now(), toolNames });
   logProviderLeak({ model: acc.ctx.model, toolNames });
 }

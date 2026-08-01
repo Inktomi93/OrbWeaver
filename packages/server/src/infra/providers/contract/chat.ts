@@ -112,6 +112,13 @@ export type ChatRequest = ChatRequestCommon &
         /** Structured output via the SDK's own `outputFormat: json_schema` (schema bound-stripped for the
          *  Anthropic wire) — honored on both agent-sdk skins (sub / OR skin). Absent ⇒ prose. */
         readonly responseFormat?: ResponseFormat | undefined;
+        /** TERMINAL tools (D112 R1 — the folded state extraction) declared to the model on THIS completion and
+         *  then abandoned: the backend mounts them as a SEPARATE in-process MCP server, denies the call at the
+         *  `PreToolUse` seam (so nothing executes and no second model call is paid), and hands the co-emitted
+         *  calls back on {@link ChatResult.toolCalls}. The same `WireTool` shape the array wires put in
+         *  `tools[]` — the DELIVERY differs per wire, the declaration does not. Absent ⇒ byte-identical to a
+         *  tool-less turn. Orthogonal to `toolServer` (registry tools): both may ride one turn. */
+        readonly terminalTools?: readonly WireTool[] | undefined;
       }
     | {
         readonly api: "chat-completions";
@@ -133,8 +140,10 @@ export type ChatRequest = ChatRequestCommon &
         readonly responseFormat?: ResponseFormat | undefined;
       }
   );
-// The agent-sdk arm carries no wire `tools[]`/`toolChoice`: its tool channel is `toolServer` (the MCP
-// projection — the SDK owns its own loop and never reads an OpenAI-shaped tools array).
+// The agent-sdk arm carries no wire `tools[]`/`toolChoice`: the SDK owns the wire body and never reads an
+// OpenAI-shaped tools array. Its two tool channels are MCP mounts instead — `toolServer` (REGISTRY tools: the
+// SDK runs the loop and executes them) and `terminalTools` (DECLARE+CAPTURE: denied at PreToolUse, never
+// executed, never recursed on).
 
 /** Narrowed per-api shapes the sealed backends consume — a backend takes its own arm directly. */
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };

@@ -65,7 +65,8 @@ export {
 } from "./log";
 export { sanitizeAnthropicOutputSchema } from "./output-schema";
 export { consumeTurnStream } from "./runner";
-export { disciplineOptions, dynamicContextOptions, firewallBase } from "./translate";
+export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools";
+export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate";
 export { assertInitFrameShape, classifyTerminalReason } from "./verify";
 
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
