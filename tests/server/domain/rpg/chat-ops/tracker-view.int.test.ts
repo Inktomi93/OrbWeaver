@@ -217,6 +217,50 @@ test("the band renders the PINNED trackers with a numeric reading — never a de
   expect(orbs).toEqual([{ key: "focus", label: "Focus", value: 12, max: 20, color: null }]);
 });
 
+// A cast NPC's conditions live on the SAME per-actor plane a roster member's do (`cast:<key>`), and
+// `RpgPresentCharacter` has no volatile plane at all — so until the view projected them they reached NO reader,
+// and the steering reminder could not state an affliction the tool round had just applied to that NPC.
+test("a scene-cast member's CONDITIONS ride the view off its `cast:<key>` volatile row", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "castcond");
+  const gameId = await seedGame(db, chatId, "castcond");
+  const ctx = makeRpgService(db, { roster: [] }).ctx;
+  const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  const written = await writeStagedSnapshot(
+    db,
+    {
+      ...emptyState(),
+      presentCharacters: [
+        { key: "Mari", name: "Mari", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+        { key: "Bran", name: "Bran", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+      ],
+      actorState: [
+        {
+          actorRef: { kind: "cast", castKey: "Mari" },
+          hp: null,
+          trackerValues: {},
+          conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
+          inventory: [],
+          wallet: [],
+          status: "",
+        },
+      ],
+    },
+    target({ gameId, chatId, seq: 1, variantId, key: "castcond" }),
+  );
+  if (!written.ok) {
+    throw new Error(`snapshot write dropped: ${written.reason}`);
+  }
+  const game = await findGameByChat(db, chatId);
+  if (game === undefined) {
+    throw new Error("game not found");
+  }
+  const view = await buildTrackerView(ctx, game, false);
+  expect(view.castConditions["Mari"]?.map((c) => c.name)).toEqual(["poisoned"]);
+  // An on-stage member with no volatile row reads EMPTY (never undefined) — the castTrackers key rule.
+  expect(view.castConditions["Bran"]).toEqual([]);
+});
+
 test("P5: the plot plane rides the tracker view from the resolved snapshot (null for a turnless game)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "plotv");
