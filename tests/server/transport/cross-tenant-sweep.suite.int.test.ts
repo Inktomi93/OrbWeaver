@@ -788,8 +788,9 @@ const PROBES: readonly Probe[] = [
   //    (withhold-not-throw — a game/chat room is legitimately attachable before it exists, and refusing would
   //    be an existence oracle), so the leak-free outcome here is a marker-free `void`, and the actual data
   //    gate is the room source's per-yield membership probe (proven in routers/stream.test.ts: a non-member
-  //    attaches and receives NOTHING). `detach` is idempotent and touches only the caller's own socket cell.
-  //    A room whose per-proc subscription has not folded yet (chat/notifications/automation) refuses with the
+  //    attaches and receives NOTHING). The `chat` room (S2) is the same shape — accept-always at attach, the
+  //    verdict per yield. `detach` is idempotent and touches only the caller's own socket cell.
+  //    A room whose per-proc subscription has not folded yet (notifications/automation) refuses with the
   //    same leak-free NOT_FOUND. The socketId here is the STRANGER's own — a foreign one is refused before
   //    any room is recorded (stream/socket-registry.test.ts). ──
   { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
@@ -949,7 +950,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "notifications.markAllRead": "self-scoped by principal.userId (recipient-scoped inside the verb, no foreign id)",
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
-  "chat.streamMessages": "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
   // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a

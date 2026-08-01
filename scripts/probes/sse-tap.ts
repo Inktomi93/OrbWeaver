@@ -2,14 +2,14 @@
 /**
  * pnpm sse-tap <chatId>
  *
- * The curl-replacement for the tRPC SSE channel. Subscribes to `chat.streamMessages`
- * via a real tRPC client and pretty-prints every ChatBusEvent envelope. Exits on
- * Ctrl-C OR when the subscription closes.
+ * The curl-replacement for the tRPC SSE channel. Since SSE-1 a tab holds ONE socket:
+ * this ATTACHES the chat ROOM for <chatId> and then opens `stream.connect`, printing
+ * every frame that room delivers. Exits on Ctrl-C OR when the socket closes.
  *
- * NOTE the withhold-not-throw gate (transport/trpc/routers/chat.ts): a chatId you are
+ * NOTE the withhold-not-throw gate (transport/trpc/stream/sources/chat.ts): a chatId you are
  * not a member of (or that doesn't exist yet) yields an OPEN, SILENT stream — silence
  * can mean "not a member", not only "no events". `connection open` + no error proves
- * connect/auth/subscribe.
+ * connect/auth/attach.
  *
  * PREREQUISITES (single-user dev stack — `pnpm stack start`):
  *   • No cookie needed: the owner fallback resolves identity on :8788 directly.
@@ -31,10 +31,10 @@
  */
 import { spawnSync } from "node:child_process";
 import process from "node:process";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
-import { createTRPCClient, httpSubscriptionLink } from "@trpc/client";
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
 
 if (typeof globalThis.EventSource === "undefined") {
   const result = spawnSync(process.execPath, [...process.execArgv, "--experimental-eventsource", ...process.argv.slice(1)], { stdio: "inherit" });
@@ -59,20 +59,30 @@ if (chatIdArg === undefined || chatIdArg === "") {
   process.exit(EXIT_USAGE);
 }
 
-// The Cookie rides in via eventSourceOptions.fetch — the header-injection seam for
-// undici's EventSource.
+// The Cookie rides in via eventSourceOptions.fetch (the header-injection seam for undici's EventSource) and
+// via the batch link's own `headers` for the ATTACH mutation. The split mirrors the app's client: the socket
+// on the subscription link, `stream.attach` on the ordinary batched HTTP link.
 const client = createTRPCClient<AppRouter>({
   links: [
-    httpSubscriptionLink({
-      url: TRPC_URL,
-      ...(COOKIE === ""
-        ? {}
-        : {
-            eventSourceOptions: {
-              fetch: (u: string | URL | Request, init?: RequestInit): Promise<Response> =>
-                fetch(u, { ...init, headers: { ...(init?.headers ?? {}), Cookie: COOKIE } }),
-            },
-          }),
+    splitLink({
+      condition: (op) => op.type === "subscription",
+      true: httpSubscriptionLink({
+        url: TRPC_URL,
+        ...(COOKIE === ""
+          ? {}
+          : {
+              eventSourceOptions: {
+                fetch: (u: string | URL | Request, init?: RequestInit): Promise<Response> =>
+                  fetch(u, { ...init, headers: { ...(init?.headers ?? {}), Cookie: COOKIE } }),
+              },
+            }),
+      }),
+      false: httpBatchLink({
+        url: TRPC_URL,
+        // A cookie principal's mutation needs the CSRF header (transport/trpc/trpc.ts); the fallback owner
+        // needs neither and ignores both.
+        headers: () => (COOKIE === "" ? {} : { Cookie: COOKIE, "x-orb-csrf": "1" }),
+      }),
     }),
   ],
 });
@@ -80,20 +90,33 @@ const client = createTRPCClient<AppRouter>({
 process.stdout.write(`tapping ${TRPC_URL}  chatId=${chatIdArg}\n`);
 process.stdout.write("press Ctrl-C to exit\n\n");
 
-const sub = client.chat.streamMessages.subscribe(
-  { chatId: castId<ChatId>(chatIdArg) },
+const socketId = castId<SocketId>(globalThis.crypto.randomUUID());
+const chatId = castId<ChatId>(chatIdArg);
+
+// Attach FIRST: the cell is created by whichever of attach/connect arrives first, so an attach-then-connect
+// tap re-hydrates the room the instant the socket goes live (spec §5.1).
+await client.stream.attach.mutate({ socketId, ref: { channel: "chat", chatId } });
+
+const sub = client.stream.connect.subscribe(
+  { socketId },
   {
     onStarted: () => process.stdout.write("· connection open\n"),
     onData: (envelope) => {
       const ts = new Date().toISOString().slice(TS_START, TS_END);
       const { data } = envelope;
-      // Narrow on the `__subscriptionError` sentinel before touching `.type`, which only
-      // real events carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
+      // Narrow on the `__subscriptionError` sentinel before touching the frame, which only
+      // real frames carry (see withSubscriptionErrors, transport/trpc/subscriptions.ts).
       if ("__subscriptionError" in data) {
-        process.stdout.write(`${ts}  seq=${envelope.id}  ! subscription-error  code=${data.code}  ${data.message}\n`);
+        process.stdout.write(`${ts}  ord=${envelope.id}  ! socket-error  code=${data.code}  ${data.message}\n`);
         return;
       }
-      process.stdout.write(`${ts}  seq=${envelope.id}  ${data.type}  ${JSON.stringify(data)}\n`);
+      if (data.channel === "control") {
+        process.stdout.write(`${ts}  ord=${envelope.id}  · ${data.type}  ${JSON.stringify(data)}\n`);
+        return;
+      }
+      // The durable cursor rides the FRAME (§3.3 — the envelope id is a per-socket ordinal).
+      const seq = "seq" in data ? data.seq : "-";
+      process.stdout.write(`${ts}  seq=${seq}  ${data.event.type}  ${JSON.stringify(data.event)}\n`);
     },
     onError: (err) => {
       process.stderr.write(`! error: ${err.message}\n`);

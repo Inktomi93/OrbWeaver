@@ -16,6 +16,7 @@
 import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RoomSourceDef } from "./room-source";
+import { chatRoomSource } from "./sources/chat";
 import { rpgRoomSource } from "./sources/rpg";
 import { userRoomSource } from "./sources/user";
 
@@ -38,8 +39,8 @@ function refusedUntilFolded<C extends StreamChannel>(channel: C, stage: string):
 export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,
   rpg: rpgRoomSource,
+  chat: chatRoomSource,
   notifications: refusedUntilFolded("notifications", "S3"),
-  chat: refusedUntilFolded("chat", "S2"),
   automation: refusedUntilFolded("automation", "S4"),
 };
 

@@ -1,9 +1,9 @@
 // The monotonic per-chat seq guard for the chat SSE stream — the exactly-once gate the bus adapter
 // (`use-chat-bus.ts`) runs every tracked envelope through before the reducer sees it.
 //
-// WHY: every DURABLE-log `chat.streamMessages` yield is a tracked envelope carrying the durable per-chat
-// `seq` as its id. On the draft→committed promotion path the subscription attaches with the
-// `lastEventId:"0"` seed, so ANY subscription churn (a React StrictMode dev remount, HMR, a re-attach)
+// WHY: every DURABLE-log frame on the `chat` room carries the durable per-chat `seq` (SSE-1 §3.3 — it rode
+// the tracked envelope id before the multiplex fold). On the draft→committed promotion path the room attaches
+// with the `sinceSeq: 0` seed, so ANY room churn (a React StrictMode dev remount, HMR, a re-attach)
 // re-REPLAYS the whole durable log FROM ZERO. A re-replayed `turnStarted` re-OPENS a turn slot that already
 // terminated (`beginTurn` is unconditional by design — a real regenerate must re-open a completed slot); if
 // that replaying subscription is torn down before it re-yields the matching terminal, the slot is stranded
@@ -12,9 +12,9 @@
 // stranding at the source (also the "getChat invalidated 3× in 6ms" double-delivery smell).
 //
 // EXEMPTION BY TYPE (not by id-shape): `chatOpened`/`historyTruncated` are attach-SYNTHESIZED signals, NOT
-// durable-log entries — the transport yields them per attach (routers/chat.ts `attachSynthesesAndReplay`),
-// stamped with the NON-advancing resume cursor as their id (a numeric `String(resumeSeq ?? 0)`, so an
-// id-shape test can never tell them apart). Re-firing them on every (re)attach is BY DESIGN — that per-attach
+// durable-log entries — the transport yields them per attach (`transport/trpc/stream/sources/chat.ts`
+// `attachSynthesesAndReplay`), stamped with the NON-advancing resume cursor as their frame `seq` (a numeric
+// `cursor ?? 0`, so an id-shape test can never tell them apart). Re-firing them on every (re)attach is BY DESIGN — that per-attach
 // re-fire IS the reopen catch-up: `chatOpened` is the sole invalidate that refetches a detached-then-reopened
 // chat (query-client staleTime is Infinity — the SSE bus drives freshness), and `historyTruncated` fires
 // exactly when a refetch is needed. Running them through the monotonic mark would DROP them on reopen (their

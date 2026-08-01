@@ -20,7 +20,7 @@
 //
 // SCOPE BOUNDARY (reasoning host-only, §3.6): the deception-active REASONING-channel host-only cut has NO
 // deterministic WIRE door — `chat.editReasoning` is a DOMAIN verb but not a tRPC procedure (verified: a call
-// 404s), and `reasoningHostOnly` is consumed only INSIDE the `streamMessages` SSE subscription (not a query),
+// 404s), and `reasoningHostOnly` is consumed only INSIDE the chat ROOM source on the multiplexed socket (not a query),
 // as is the durable `replayChatEvents` replay. So the reasoning-channel projection AND the SSE/replay body
 // strip stay exhaustively DOMAIN-proven (`packages/server/src/domain/chat/substrate/member-visibility.ts` +
 // `tests/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical

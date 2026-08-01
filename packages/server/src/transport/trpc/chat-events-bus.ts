@@ -1,4 +1,4 @@
-// The per-chat live fan-out the chat.streamMessages subscription tails. The chat domain owns the durable
+// The per-chat live fan-out the multiplexed socket's `chat` ROOM tails. The chat domain owns the durable
 // half (the chat_events INSERT + the replayChatEvents/chatEventBounds member-gated reads); the per-chat
 // live channel is transport state. Rides `defineBusChannel` WITH the firehose opt-in (the buddy-observer
 // chat source) — the ONE bus needing it (client-architecture-lockdown.md §13/§16 G10).

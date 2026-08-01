@@ -70,7 +70,7 @@ export { loadTurnForClassify, loadTurnOrigin } from "./persistence/queries";
 export { loadPresentRole } from "./persistence/roster";
 export { createChatService } from "./service";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
-// `chat.streamMessages` runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
+// the chat ROOM stream runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
 // only) yet must apply the IDENTICAL verdict the durable replay applies: one emitted event is BOTH fanned
 // out live AND logged under ONE `seq`, so a laxer live arm would make a row's visibility depend on whether
 // the client happened to be connected. The transport only APPLIES the verdict — it never re-derives the

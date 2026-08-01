@@ -5,7 +5,7 @@
 // multi-human surface (invite/kick/host-handoff delivery), so a deployment that cannot seat a second
 // human (single-user, or local with `LOCAL_MULTI_USER` off — the B4 axis, FINAL-Auth-Modes §9) refuses
 // the whole router as NOT_FOUND. Transport owns ONLY the subscription: it adopts the
-// `chat.streamMessages` resume shape — every yield `tracked()`, `lastEventId` replay, DURABLE-FIRST /
+// `chat` room resume shape — every yield `tracked()`, `lastEventId` replay, DURABLE-FIRST /
 // fan-out-second — wired over the inbox's durable `list` (cursor = `seq`) + the transport-owned live bus
 // (`notifications-bus`).
 //

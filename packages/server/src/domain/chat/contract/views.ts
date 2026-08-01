@@ -280,7 +280,7 @@ export interface ChatStreamReplayEvent {
 }
 
 /** A durable chat-bus log row (replayChatEvents) — one room-public `ChatBusEvent` with its per-chat replay
- *  cursor (the `chat_events` row projected). The `chat.streamMessages` SSE resume replays these; the live
+ *  cursor (the `chat_events` row projected). The chat room's SSE resume replays these; the live
  *  half rides the transport fan-out with the SAME `{seq, event}` shape (uniform `tracked()` envelopes). */
 export interface ChatBusReplayEvent {
   readonly seq: number;

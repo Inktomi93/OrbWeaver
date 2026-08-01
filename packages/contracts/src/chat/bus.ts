@@ -190,7 +190,7 @@ export interface PromptTransform {
   readonly apply: (draft: string, env: PromptTransformEnv) => Promise<string>;
 }
 
-/** The chat bus union — the room-public event stream (`streamMessages` fans these out; the durable log
+/** The chat bus union — the room-public event stream (the `chat` ROOM fans these out; the durable log
  *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
  *
  *  BUS-PAYLOAD ALLOWLIST (Part III inv §11): every member is a closed object literal of branded ids, enum

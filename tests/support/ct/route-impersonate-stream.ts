@@ -1,4 +1,4 @@
-// routeImpersonateStream — the SSE stub for `chat.impersonateStream` in Playwright CT (the `routeChatStream`
+// routeImpersonateStream — the SSE stub for `chat.impersonateStream` in Playwright CT (the `routeOrbSocket`
 // companion). It fulfills the EventSource GET with a real `text/event-stream` body carrying a SCRIPTED
 // sequence of `{ delta }` chunks in the exact tRPC SSE wire shape, so a CT drives the production path
 // end-to-end: EventSource → httpSubscriptionLink → the imperative `trpcClient.chat.impersonateStream.subscribe`
@@ -12,7 +12,7 @@
 // serves the terminal `return`. The reconnect IS the timing gap a CT observes between deltas — modeling the
 // real network's frame-by-frame arrival without needing a streaming body Playwright can't produce.
 //
-// Wire shape (matches route-trpc-subscription.ts, verified against @trpc/server 11.18 sse.ts): a `connected`
+// Wire shape (matches route-orb-socket.ts, verified against @trpc/server 11.18 sse.ts): a `connected`
 // frame first, then each tracked value as `data: <JSON>` + `id: <seq>`, then a terminal `return` frame that
 // closes the EventSource cleanly (the stream's natural completion → the subscription's onComplete).
 //

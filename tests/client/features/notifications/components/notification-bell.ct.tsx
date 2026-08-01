@@ -1,7 +1,7 @@
 // CT: the topbar notifications bell (features/notifications — the multi-human invites lane). Drives
 // the PRODUCTION path over the stubbed network: `notifications.list` (the durable inbox read) + the
 // `notifications.notifications` SSE subscription (a scripted `text/event-stream` body in the exact
-// tRPC wire shape — the routeChatStream pattern, local here because that helper types its events as
+// tRPC wire shape — the routeOrbSocket pattern, local here because that helper types its frames as
 // `ChatBusEvent`) + the invite verbs. Asserts: the unread badge + accessible name; open→markAllRead
 // (ONE bulk mutation, not a per-row markRead loop); the inline Accept (fires `invites.acceptInvite`
 // with the notification's `inviteId`, then dismisses);
@@ -35,7 +35,7 @@ function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unkn
   };
 }
 
-/** SSE frames in the tRPC wire shape (route-trpc-subscription.ts, retyped for InboxView payloads). */
+/** SSE frames in the tRPC wire shape (route-orb-socket.ts, retyped for InboxView payloads). */
 function sseBody(events: readonly Record<string, unknown>[]): string {
   const frames = ["event: connected\ndata: {}\n\n"];
   for (const [i, event] of events.entries()) {
