@@ -54,7 +54,7 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
-import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
+import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgStatProfileSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
@@ -313,6 +313,17 @@ const setUserMacroValuesSchema = z.object({
 // INSIDE the verb (`requireParticipant`), so a stranger's chatId is a leak-free NOT_FOUND.
 const getUserMacroPicksSchema = z.object({ chatId: brandedId<ChatId>() });
 
+// The picks pane's ChoiceBlock half — the `setUserMacroValues`/`getUserMacroPicks` pair's sibling (one pane,
+// two knob families). `setVariables` flushes the FLAT per-chat picks bag to `chats.variableValues` (bounded
+// at the wire by the DERIVED `choiceBlockValuesSchema`); `getVariablePicks` reads the declared variables +
+// those picks back. Both are member-gated (`requireParticipant`) INSIDE the verb, so a stranger's chatId is
+// a leak-free NOT_FOUND.
+const setVariablesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  values: choiceBlockValuesSchema,
+});
+const getVariablePicksSchema = z.object({ chatId: brandedId<ChatId>() });
+
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
 const previewAssemblySchema = z.object({
@@ -525,6 +536,10 @@ export const chatRouter = t.router({
   getUserMacroPicks: authedProcedure
     .input(getUserMacroPicksSchema)
     .query(({ ctx, input }) => ctx.services.chat.getUserMacroPicks({ principal: ctx.auth, ...input })),
+  setVariables: authedProcedure.input(setVariablesSchema).mutation(({ ctx, input }) => ctx.services.chat.setVariables({ principal: ctx.auth, ...input })),
+  getVariablePicks: authedProcedure
+    .input(getVariablePicksSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getVariablePicks({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),

@@ -708,6 +708,14 @@ export const choiceBlockSchema = z.object({
 });
 export type ChoiceBlockSpec = z.infer<typeof choiceBlockSchema>;
 
+/** The per-chat ChoiceBlock PICKS bag (`chats.variableValues`, written by `setVariables`): variable name →
+ *  the picked option value. The `userMacroValuesSchema` sibling — FLAT because a ChoiceBlock pick is one
+ *  string (a `multiSelect` pick is its chosen values `separator`-joined, the exact shape
+ *  `resolveChoiceVariables` splits again at turn time). An absent key OR an empty string is UNSET (the
+ *  resolver treats both alike): the turn falls back to the declared `defaultValue`, else the first option. */
+export const choiceBlockValuesSchema = z.record(z.string().max(MAX_NAME_LENGTH), z.string().max(MAX_CHOICE_VALUE_LENGTH));
+export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
+
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // User macros (WAVE MU — parity-plus §12A.5 M5 + the #24 typed-input fold). The DEFINITION home is
 // preset/game CONFIG (owner ruling #20 — never a global runtime): `promptConfig.userMacros` here and

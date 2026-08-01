@@ -10,7 +10,7 @@
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
 import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
-import type { UserMacroValues } from "@orb/contracts/preset";
+import type { ChoiceBlockValues, UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -70,6 +70,29 @@ export const useSetUserMacroValues = createEntityMutation<SetUserMacroValuesVars
   // delivered by the active subscription — that echo is the reconciliation of the optimistic write above.
   busDriven: true,
   errorToast: "Couldn't save the macro picks.",
+});
+
+/** `chat.setVariables` vars — the WHOLE per-chat ChoiceBlock pick bag (the verb is a column flush, so every
+ *  edit sends the rebuilt map, orphan keys included) + the target chat. Member-gated INSIDE the verb — the
+ *  `setUserMacroValues` sibling, the picks pane's second knob family. */
+interface SetVariablesVars {
+  readonly chatId: ChatId;
+  readonly values: ChoiceBlockValues;
+}
+
+type VariablePicks = inferOutput<Trpc["chat"]["getVariablePicks"]>;
+
+export const useSetVariables = createEntityMutation<SetVariablesVars, unknown, VariablePicks>({
+  options: (trpc) => trpc.chat.setVariables.mutationOptions(),
+  // OPTIMISTIC + `busDriven` for the same reasons as `useSetUserMacroValues` above (discrete-write controls
+  // outside an autosave form; the verb's `chatUpdated` echo is the reconciliation). Patches only the picks
+  // half — the declarations come from the preset and this write never touches them.
+  optimistic: {
+    readKey: (trpc, vars) => trpc.chat.getVariablePicks.queryKey({ chatId: vars.chatId }),
+    update: (old, vars) => (old === undefined ? old : { ...old, values: vars.values }),
+  },
+  busDriven: true,
+  errorToast: "Couldn't save the variable picks.",
 });
 
 /** `chat.setChatInjection` vars — the authored injection fields (`ChatInjectionInput`: id?/position/
