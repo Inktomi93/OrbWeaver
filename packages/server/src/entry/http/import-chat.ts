@@ -14,14 +14,14 @@
 // mutation missing the custom header) → a hono/body-limit total cap (413). Per-file failures are ISOLATED
 // into `failed[]` (one bad transcript never fails the batch), matching POST /api/import's card contract.
 
-import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import type { UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
 import { parseChatJsonl } from "#kit/serde/chat";
+import type { registerImportBundle } from "./import";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -32,6 +32,12 @@ const UPLOAD_FIELD = "file";
 const CHAT_KIND = "chat";
 const UNNAMED_ERROR = "the transcript's header names no character — import it inside a bundle instead";
 const UNPARSEABLE_ERROR = "not a valid chat .jsonl file";
+const IMPORT_FAILED = "import failed";
+
+/** The principal-carrying Hono app the sibling `/api/import/*` registrars take — DERIVED from one of them
+ *  rather than re-declaring its env (one home for the shape; a re-spell would also re-spell Hono's
+ *  framework-fixed `Variables` key). */
+type ImportApp = Parameters<typeof registerImportBundle>[0];
 
 export interface ImportChatDeps {
   /** The composed registry — its `chat` descriptor IS the import path (resolved once at registration). */
@@ -39,13 +45,13 @@ export interface ImportChatDeps {
 }
 
 /** One transcript that landed (or deduped). `created:false` = the chat was already present (no write). */
-export interface ImportedChat {
+interface ImportedChat {
   readonly filename: string;
   readonly created: boolean;
 }
 
 /** One transcript that could not be imported — the operator-facing reason, isolated rather than thrown. */
-export interface FailedChat {
+interface FailedChat {
   readonly filename: string;
   readonly error: string;
 }
@@ -56,28 +62,10 @@ export interface ChatImportResult {
   readonly failed: readonly FailedChat[];
 }
 
-interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null };
-}
-
 const DEC = new TextDecoder();
 
-/** Auth-first + CSRF gate, ahead of the body-limit belt so an anonymous/cross-site caller is rejected
- *  before a body byte is read (the sibling upload routes' belt order). */
-const authCsrfGuard: MiddlewareHandler<PrincipalEnv> = async (c, next) => {
-  const principal = c.get("principal");
-  if (principal === null) {
-    return c.body(null, UNAUTHORIZED);
-  }
-  if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
-    return c.body(null, FORBIDDEN);
-  }
-  return await next();
-};
-
 /** The descriptor path a bare transcript maps to: `<handle>/<leaf>`, where the handle comes from the
- *  transcript's own `character_name`. `null` = the file isn't a parseable chat, or names nobody. */
+ *  transcript's own `character_name` — or the operator-facing reason it maps nowhere. */
 function descriptorPath(bytes: Uint8Array, filename: string): { readonly path: string } | { readonly error: string } {
   // Parsed TWICE (here for the routing name, again inside the descriptor for the content). The alternative —
   // a second import entry point taking a resolved characterId — is the parallel path this route exists to
@@ -94,42 +82,66 @@ function descriptorPath(bytes: Uint8Array, filename: string): { readonly path: s
   return { path: `${slugifyHandle(parsed.characterName)}/${filename}` };
 }
 
+/**
+ * Route every uploaded transcript through the chat descriptor, one at a time, collecting each file's
+ * isolated outcome. SEQUENTIAL by construction — a promise CHAIN rather than an await-in-loop — because two
+ * transcripts naming the same character must not race the descriptor's handle lookup and dedup reads.
+ */
+async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly File[]): Promise<ChatImportResult> {
+  const imported: ImportedChat[] = [];
+  const failed: FailedChat[] = [];
+  await files.reduce<Promise<void>>(async (chain, file) => {
+    await chain;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const routed = descriptorPath(bytes, file.name);
+    if ("error" in routed) {
+      failed.push({ filename: file.name, error: routed.error });
+      return;
+    }
+    const outcome = await chat.importFile(ownerId, { filename: routed.path, bytes });
+    if (outcome.ok) {
+      imported.push({ filename: file.name, created: outcome.created === true });
+    } else {
+      failed.push({ filename: file.name, error: outcome.error ?? IMPORT_FAILED });
+    }
+  }, Promise.resolve());
+  return { imported, failed };
+}
+
 /** Register `POST /api/import/chat` on `app`: auth → CSRF → body cap → per-file delegate to the registry's
  *  `chat` descriptor. Throws at registration if the registry has no chat descriptor (a composition bug). */
-export function registerImportChat(app: Hono<PrincipalEnv>, deps: ImportChatDeps): void {
+export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
   const chat: PortableEntity | undefined = deps.registry.find((entity) => entity.kind === CHAT_KIND);
   if (chat === undefined) {
     throw new Error("portability registry has no chat descriptor");
   }
 
-  app.post(CHAT_ROUTE, authCsrfGuard, bodyLimit({ maxSize: IMPORT_MAX_TOTAL_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
-    const principal = c.get("principal");
-    if (principal === null) {
-      return c.body(null, UNAUTHORIZED);
-    }
-    const form = await c.req.formData();
-    const files = form.getAll(UPLOAD_FIELD).filter((entry): entry is File => entry instanceof File);
-    if (files.length === 0) {
-      return c.json({ error: `no "${UPLOAD_FIELD}" transcript uploads` }, BAD_REQUEST);
-    }
-
-    const imported: ImportedChat[] = [];
-    const failed: FailedChat[] = [];
-    for (const file of files) {
-      // biome-ignore lint/performance/noAwaitInLoops: transcripts import sequentially — each is one atomic write with its own isolated failure, exactly like the card batch.
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const routed = descriptorPath(bytes, file.name);
-      if ("error" in routed) {
-        failed.push({ filename: file.name, error: routed.error });
-        continue;
+  app.post(
+    CHAT_ROUTE,
+    // Auth-first + CSRF, ahead of the body-limit belt so an anonymous/cross-site caller is rejected before a
+    // body byte is read (the sibling upload routes' belt order). Inline, so the ctx types come off `app`.
+    async (c, next) => {
+      const principal = c.get("principal");
+      if (principal === null) {
+        return c.body(null, UNAUTHORIZED);
       }
-      const outcome = await chat.importFile(principal.userId, { filename: routed.path, bytes });
-      if (outcome.ok) {
-        imported.push({ filename: file.name, created: outcome.created === true });
-      } else {
-        failed.push({ filename: file.name, error: outcome.error ?? "import failed" });
+      if (principal.via === "cookie" && !hasCsrfHeader(c.req.raw.headers)) {
+        return c.body(null, FORBIDDEN);
       }
-    }
-    return c.json({ imported, failed } satisfies ChatImportResult);
-  });
+      return await next();
+    },
+    bodyLimit({ maxSize: IMPORT_MAX_TOTAL_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }),
+    async (c) => {
+      const principal = c.get("principal");
+      if (principal === null) {
+        return c.body(null, UNAUTHORIZED);
+      }
+      const form = await c.req.formData();
+      const files = form.getAll(UPLOAD_FIELD).filter((entry): entry is File => entry instanceof File);
+      if (files.length === 0) {
+        return c.json({ error: `no "${UPLOAD_FIELD}" transcript uploads` }, BAD_REQUEST);
+      }
+      return c.json(await importAll(chat, principal.userId, files));
+    },
+  );
 }

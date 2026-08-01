@@ -14,7 +14,6 @@
   "packages/client/src/features/auth/surfaces/login-surface.tsx": 8,
   "packages/client/src/features/character/components/character-appearance-tab.tsx": 15,
   "packages/client/src/features/character/components/character-chats-projection-shell.tsx": 2,
-  "packages/client/src/features/character/components/character-create-menu.tsx": 6,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 8,
   "packages/client/src/features/character/components/character-facet-inspector.tsx": 15,
   "packages/client/src/features/character/components/character-facet-list.tsx": 4,

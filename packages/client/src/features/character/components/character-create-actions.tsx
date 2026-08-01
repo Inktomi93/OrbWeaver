@@ -65,11 +65,13 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
       title="New character"
     >
       <Stack gap="field">
-        <Text as="span" size="label" tone="muted">
+        {/* The four-voice grammar (density §2.3): a field caption is the NAME OF ONE DATUM → `label`.
+            Tone rides a className, the landed dialog precedent (create-schedule-dialog). */}
+        <Text as="span" className="text-muted-foreground" voice="label">
           Name
         </Text>
         <Input aria-label="Character name" onValueChange={setName} placeholder="Elara Vance" value={name} />
-        <Text as="span" size="label" tone="muted">
+        <Text as="span" className="text-muted-foreground" voice="label">
           Description
         </Text>
         <Textarea
@@ -79,8 +81,10 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
           value={description}
         />
       </Stack>
+      {/* LOAD-BEARING: it names why Create is disabled, so it keeps the `label` voice (the landed
+          requirement/error line grammar), never the receding `gloss`. */}
       {incomplete ? (
-        <Text size="label" tone="muted">
+        <Text className="text-muted-foreground" voice="label">
           A name and a description are both required.
         </Text>
       ) : null}

@@ -68,6 +68,9 @@ function chains(deps: ImportChatDeps): Map<string, Handler[]> {
       return app;
     },
   };
+  // A route-CAPTURING stand-in for Hono's `app` (Hono is not test-resolvable), narrowed to the one `.post`
+  // this registrar calls — the identical capture harness the sibling upload/export slice tests use.
+  // FABRICATION-OK: not a fabricated domain value — a test-local capture object, never a typed row.
   registerImportChat(app as unknown as Parameters<typeof registerImportChat>[0], deps);
   return routes;
 }
