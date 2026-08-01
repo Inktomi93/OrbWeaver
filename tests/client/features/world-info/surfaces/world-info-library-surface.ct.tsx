@@ -70,6 +70,8 @@ test("§12 world-info rows stay kebab-only — no inline toggle, no inline verb"
   // Everything the row can do lives behind the one ⋯ menu.
   await expect(page.getByRole("button", { name: "Duplicate Alpha", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: ANY_STAR_TOGGLE })).toHaveCount(0);
+  // §12.2: the kebab rests hidden + inert like every row affordance, so reach it by hovering the row.
+  await page.locator('[data-slot="list-row-root"]', { hasText: "Alpha" }).hover();
   await page.getByRole("button", { name: "Actions for Alpha", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();

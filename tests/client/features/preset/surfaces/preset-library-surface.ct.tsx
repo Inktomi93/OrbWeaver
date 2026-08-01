@@ -38,6 +38,19 @@ const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;
 const MINUTE_MS = 60_000;
 const EDITED_ONE_AT = FROZEN_NOW - 5 * MINUTE_MS;
 const EDITED_TWO_AT = FROZEN_NOW - 40 * MINUTE_MS;
+const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
+
+// Action names carry the row's own edit stamp after the name (side-eye P3a): nine forks share the name
+// "Default (edited)", so `Actions for Default (edited)` was nine identical accessible names. These matchers
+// are SUBSTRINGS (Playwright's non-exact name match) — the stamp itself is clock-relative, so the pin is the
+// disambiguated SHAPE, never the elapsed text. The closing quote is what keeps `…(edited)"` from also
+// matching `…(edited) 2"`.
+function menuFor(name: string): string {
+  return `Actions for "${name}" ·`;
+}
+function duplicateFor(name: string): string {
+  return `Duplicate "${name}" ·`;
+}
 
 function summary(fields: { id: string; name: string; isSystemDefault?: boolean; updatedAt?: number; kind?: string }): Record<string, unknown> {
   const isSystemDefault = fields.isSystemDefault ?? false;
@@ -100,9 +113,11 @@ test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offer
 
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
   // The locked built-in carries no actions menu (its delete would be a server refusal).
-  await expect(page.getByRole("button", { name: "Actions for Default", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Actions for" })).toHaveCount(PRESETS.length - 1);
 
-  await page.getByRole("button", { name: `Actions for ${EDITED_TWO_NAME}`, exact: true }).click();
+  // §12.2: the kebab rests hidden + inert like every other row affordance, so reach it by hovering the row.
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).hover();
+  await page.getByRole("button", { name: menuFor(EDITED_TWO_NAME) }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
@@ -141,7 +156,8 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
 
   await expect(component.getByText("Active", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: `Actions for ${EDITED_ONE_NAME}`, exact: true }).click();
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
@@ -181,13 +197,17 @@ test("§12 the row's frequent verb is INLINE: a revealed Duplicate fires preset.
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  const duplicate = component.getByRole("button", { name: `Duplicate ${EDITED_ONE_NAME}`, exact: true });
-  // Rest posture: hidden until the row is hovered/focused (it is a shortcut, not permanent chrome).
+  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  const duplicate = component.getByRole("button", { name: duplicateFor(EDITED_ONE_NAME) });
+  // Rest posture: hidden until the row is hovered/focused (it is a shortcut, not permanent chrome) — and
+  // while hidden it is inert to the pointer, so it can't eat a click aimed at the text it floats over (P3b).
   await expect(duplicate).toHaveCSS("opacity", "0");
+  await expect(duplicate).toHaveCSS("pointer-events", "none");
   await expect(duplicate).toHaveClass(REVEAL_ON_HOVER);
   await expect(duplicate).toHaveClass(REVEAL_ON_FOCUS);
 
   // Assert the MUTATION fired with this row's name, not a repaint.
+  await row.hover();
   await duplicate.click();
   await expect.poll(() => (trpc.inputs("preset.create") as CreateCall[]).map((call) => call.name)).toEqual([`Copy of ${EDITED_ONE_NAME}`]);
 });
@@ -197,8 +217,52 @@ test("§12 the kebab KEEPS its Duplicate item beside the inline verb (N3 mirror 
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: `Actions for ${EDITED_ONE_NAME}`, exact: true }).click();
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
+});
+
+// §12.2 + side-eye P2d: the kebab is the row grammar's third slot — it rests HIDDEN like the inline verb
+// beside it (a permanently-visible ⋯ on every row is the noise the grammar exists to remove) and it sits in
+// the same `size-control-md` box every other row icon control does (it was a 40×32 `sm` button).
+test("§12.2 the kebab rests hidden and IS the control-md box (the row grammar's own geometry)", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const kebab = page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) });
+  await expect(kebab).toHaveCSS("opacity", "0");
+  await expect(kebab).toHaveClass(REVEAL_ON_HOVER);
+
+  // Derived from the element's OWN resolved token, so it holds under either pointer arm (D62 P1).
+  const expected = await kebab.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
+  const box = await kebab.boundingBox();
+  expect(box?.width).toBe(expected);
+  expect(box?.height).toBe(expected);
+});
+
+// P3a: the copy-on-write flood mints forks that share ONE name exactly, so the action labels carry the
+// stamp the row already shows — two rows that read the same on screen must not be two identical names in
+// the accessibility tree (a SR/agent walk of the list could not tell which "Duplicate" it was on).
+test("P3a two forks with the SAME name expose distinct action names (the stamp disambiguates)", async ({ mount, page }) => {
+  // The stamp must be the RELATIVE form for the two rows to differ (past the 7-day horizon both collapse to
+  // the same date), so this test pins the page clock exactly like the F5 stamp test above.
+  await page.clock.setFixedTime(FROZEN_NOW);
+  await routeTrpc(page, {
+    "preset.list": () => [
+      summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, updatedAt: EDITED_ONE_AT }),
+      summary({ id: EDITED_TWO, name: EDITED_ONE_NAME, updatedAt: EDITED_TWO_AT }),
+    ],
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+  });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true }).first()).toBeVisible();
+
+  const names = await page.getByRole("button", { name: "Actions for" }).evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(names).toHaveLength(2);
+  expect(new Set(names).size).toBe(2);
+  // …and the disambiguator is the row's own stamp, not an index or an id.
+  expect(names.every((name) => name.startsWith(`Actions for "${EDITED_ONE_NAME}" · `))).toBe(true);
 });
 
 test("§12 the built-in row stays action-free — no inline verb where there is no actions menu", async ({ mount, page }) => {

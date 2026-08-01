@@ -60,6 +60,9 @@ export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete,
               // the row's ONE inline affordance. The kebab keeps its own Duplicate item (mirror parity).
               inlineVerb: "duplicate",
               name: preset.name,
+              // Nine forks share the name "Default (edited)" — the edit stamp the subtitle already shows is
+              // what tells their ACTION names apart too (side-eye P3a).
+              qualifier: timeLib.formatRelative(preset.updatedAt),
               onRename: (): void => onRename(preset.id),
               onDuplicate: (): void => onDuplicate(preset.id),
               onDelete: (): void => onDelete(preset.id),

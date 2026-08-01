@@ -74,6 +74,8 @@ test("clicking the row body fires onSelect (opens the editor)", async ({ mount }
 
 test("the Chat action fires onChat with the character id — a sibling, not nested", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  // The revealed cluster is inert while hidden (side-eye P3b), so reach it the way a user does — hover first.
+  await component.locator('[data-slot="list-row-root"]').hover();
   await component.getByRole("button", { name: "Chat with Aria Nightshade", exact: true }).click();
   await expect(component.getByTestId("chatted-id")).toHaveText("char_ct_story");
   // The action is OUTSIDE the body button — it does NOT also open the editor (disjoint elements).
@@ -82,6 +84,7 @@ test("the Chat action fires onChat with the character id — a sibling, not nest
 
 test("the star chip fires onToggleStar (immediate flag toggle)", async ({ mount }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={false} />);
+  await component.locator('[data-slot="list-row-root"]').hover();
   await component.getByRole("button", { name: "Star Aria Nightshade", exact: true }).click();
   await expect(component.getByTestId("starred-id")).toHaveText("char_ct_story");
 });

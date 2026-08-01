@@ -20,7 +20,7 @@ import type { ReactElement, ReactNode } from "react";
 import { RowToggleAction } from "#components";
 import { cn, timeLib } from "#lib";
 import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { chatSummaryRowView } from "../lib/chat-summary-row";
+import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row";
 
 type ChatSummaryItem = Parameters<typeof chatSummaryRowView>[0];
 
@@ -82,11 +82,12 @@ function RowLeading({
  *  labelled marker (the landing strip, which has no row-action grammar) — or nothing when unstarred. */
 function starMarker({
   pressed,
-  title,
+  rowName,
   onToggleStar,
 }: {
   readonly pressed: boolean;
-  readonly title: string;
+  /** The row's DISAMBIGUATED name (title + stamp) — the action labels' subject (`chatRowActionName`). */
+  readonly rowName: string;
   readonly onToggleStar: ((next: boolean) => void) | undefined;
 }): ReactNode {
   if (onToggleStar === undefined) {
@@ -95,8 +96,8 @@ function starMarker({
   return (
     <RowToggleAction
       icon={Star}
-      labelOff={`Star ${title}`}
-      labelOn={`Unstar ${title}`}
+      labelOff={`Star ${rowName}`}
+      labelOn={`Unstar ${rowName}`}
       onToggle={(): void => onToggleStar(!pressed)}
       pressed={pressed}
       pressedClassName="text-warning"
@@ -109,12 +110,18 @@ function starMarker({
 export function ChatSummaryRow({ chat, onSelect, selected = false, portraits = [], menu, onToggleStar, className }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
   const hasTrailing = chat.isGame || chat.star || chat.archived || menu !== undefined || onToggleStar !== undefined;
-  const starSlot = starMarker({ pressed: chat.star, title, onToggleStar });
+  // A rest-VISIBLE marker earns its width in flow; a cluster that is entirely hover-revealed must not
+  // reserve ~76px the title/subtitle need in a 307px pane (side-eye P1-2b) — it floats at the row's end.
+  const restVisible = chat.isGame || chat.star || chat.archived;
+  const starSlot = starMarker({ pressed: chat.star, rowName: chatRowActionName(title, timeLib.formatRelativeCompact(when)), onToggleStar });
   return (
     <ListRow
-      // The relative-time stamp now rides the ListRow `meta` slot — inside the row's accessible content
-      // (part of aria-describedby), not stranded in the `actions` sibling outside the accessible name.
-      meta={timeLib.formatRelative(when)}
+      // The relative-time stamp rides the ListRow `meta` slot — inside the row's accessible content (part of
+      // aria-describedby), not stranded in the `actions` sibling outside the accessible name. STAMP form
+      // (`2h`/`3w`, not "2 hours ago"): in a list this is a column the eye scans, and the long form ate ~7
+      // characters of the title's width on every row (side-eye P1-2a).
+      actionsFloat={!restVisible}
+      meta={timeLib.formatRelativeCompact(when)}
       {...(hasTrailing
         ? {
             actions: (

@@ -56,7 +56,10 @@ async function openFreshDraft(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
   await page.getByRole("button", { name: "Characters", exact: true }).click();
-  await page.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }).click();
+  // The CTA rests hidden AND inert (an invisible control is not hit-testable) — hover its row first.
+  const chatRow = page.locator('[data-slot="list-row-root"]').filter({ has: page.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }) });
+  await chatRow.hover();
+  await chatRow.getByRole("button", { name: `Chat with ${DRAFT_CHARACTER}` }).click();
   await expect(page.locator('[role="status"]', { hasText: "New chat draft" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }

@@ -11,6 +11,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { RowToggleActionHarness } from "./row-toggle-action.fixtures";
 
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;
+/** P3b: a rest-HIDDEN control is also un-hit-testable — an invisible button must not eat a click aimed
+ *  at the row (or, once the cluster floats over the title column, at the text under it). */
+const NO_HIT_AT_REST = /pointer-events-none/;
 const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;
 const REVEAL_ON_COARSE = /pointer-coarse:opacity-100/;
 /** The COARSE arm of the pointer-conditional control scale (theme.css overrides it under `pointer: fine`). */
@@ -22,6 +25,9 @@ test("announces as a toggle: aria-pressed carries the state and the name flips t
   const unpressed = component.getByRole("button", { name: "Star Mara", exact: true });
   await expect(unpressed).toHaveAttribute("aria-pressed", "false");
 
+  // The unpressed star rests hidden AND un-hit-testable (P3b), so reach it the way a user does: hover the
+  // row first. A click that lands without the reveal would be a click on something nobody can see.
+  await component.hover();
   await unpressed.click();
   // The SAME element now announces pressed under the un-set name — one element, marker + affordance.
   await expect(component.getByRole("button", { name: "Unstar Mara", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -37,7 +43,13 @@ test("rest posture (D11): unpressed rests hidden with the hover/focus/coarse rev
   await expect(unpressed).toHaveClass(REVEAL_ON_FOCUS);
   // A coarse pointer has no hover — the affordance is always on there, or it is unreachable.
   await expect(unpressed).toHaveClass(REVEAL_ON_COARSE);
+  // …and while it is invisible it is also inert to the pointer (P3b) — computed, not just declared.
+  await expect(unpressed).toHaveClass(NO_HIT_AT_REST);
+  await expect(unpressed).toHaveCSS("pointer-events", "none");
 
+  await component.hover();
+  // The reveal restores the hit-testing with the opacity — otherwise the control would be visible and dead.
+  await expect(unpressed).toHaveCSS("pointer-events", "auto");
   await unpressed.click();
   const pressed = component.getByRole("button", { name: "Unstar Mara", exact: true });
   await expect(pressed).toHaveCSS("opacity", "1");

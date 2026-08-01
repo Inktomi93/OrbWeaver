@@ -20,6 +20,11 @@ import { ROW_REVEAL } from "./row-reveal";
 export interface LibraryRowActions {
   /** The entity name — seeds the menu aria-label + the delete-confirm title. */
   readonly name: string;
+  /** A per-row DISAMBIGUATOR appended to the action names ('Duplicate "Default (edited)" · 9h ago').
+   *  Presets fork from one base, so nine rows share a name and every action label collided; the qualifier is
+   *  whatever the row already SHOWS (its edit stamp), so the announced name matches the screen. Omit where
+   *  names are unique. The delete-confirm keeps the bare name (a dialog carries its own context). */
+  readonly qualifier?: string;
   readonly onRename: () => void;
   readonly onDuplicate: () => void;
   readonly onDelete: () => void;
@@ -49,6 +54,9 @@ export function LibraryRow({ title, subtitle, selected, onSelect, leading, actio
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
       className="group"
+      // Every trailing control here is hover-revealed, so the cluster floats at the row's end instead of
+      // reserving ~76px of the title column at rest (side-eye P1-2b).
+      actionsFloat={true}
       clickable={true}
       onClick={onSelect}
       selected={selected}
@@ -60,26 +68,42 @@ export function LibraryRow({ title, subtitle, selected, onSelect, leading, actio
   );
 }
 
-function LibraryRowActionsMenu({ name, onRename, onDuplicate, onDelete, deleteDescription, inlineVerb }: LibraryRowActions): ReactElement {
+/** The subject an action label names — the row's name, disambiguated by what the row already shows. */
+function actionSubject(name: string, qualifier: string | undefined): string {
+  return qualifier === undefined ? name : `"${name}" · ${qualifier}`;
+}
+
+function LibraryRowActionsMenu({ name, qualifier, onRename, onDuplicate, onDelete, deleteDescription, inlineVerb }: LibraryRowActions): ReactElement {
+  const subject = actionSubject(name, qualifier);
   return (
     <>
       {inlineVerb === undefined ? null : (
-        <Button aria-label={`Duplicate ${name}`} className={ROW_REVEAL} intent="ghost" onClick={onDuplicate} size="icon" type="button">
+        <Button aria-label={`Duplicate ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={onDuplicate} size="icon" type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}
-      <LibraryRowMenu deleteDescription={deleteDescription} name={name} onDelete={onDelete} onDuplicate={onDuplicate} onRename={onRename} />
+      <LibraryRowMenu
+        deleteDescription={deleteDescription}
+        name={name}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+        onRename={onRename}
+        {...(qualifier === undefined ? {} : { qualifier })}
+      />
     </>
   );
 }
 
 /** The ⋯ overflow — it retains EVERY action including an inlined one (N3 mirror parity), and is the ONLY
- *  home for the destructive Delete + the dialog-opening Rename. */
-function LibraryRowMenu({ name, onRename, onDuplicate, onDelete, deleteDescription }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
+ *  home for the destructive Delete + the dialog-opening Rename. §12.2 rest posture: it RIDES the reveal
+ *  like every other row affordance (hidden at rest, hover/focus-within/coarse revealed) and sits in the
+ *  `size-control-md` icon box the grammar's touch math assumes — a 40×32 `sm` box was the odd one out. */
+function LibraryRowMenu({ name, qualifier, onRename, onDuplicate, onDelete, deleteDescription }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
   return (
     <RowActionsMenu
-      label={`Actions for ${name}`}
-      triggerSize="sm"
+      label={`Actions for ${actionSubject(name, qualifier)}`}
+      reveal={true}
+      triggerSize="icon"
       destructive={{
         separator: false,
         title: `Delete "${name}"?`,
