@@ -72,10 +72,14 @@ interface OverrideCollapseCardProps {
 
 function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onClear, disabled, children }: OverrideCollapseCardProps): ReactElement {
   return (
-    // padding="none" on the Card so the block padding lives on the trigger instead — the whole ~49px row is
-    // then one tap target (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel
-    // carry their own horizontal + bottom padding (the trigger's pad only reaches its own row).
-    <Card padding="none" className={isSet ? "border-l-2 border-l-primary" : undefined}>
+    // `!p-0` so the block padding lives on the trigger instead — the whole ~49px row is then one tap target
+    // (WCAG 2.5.8), not a ~23px band with dead padding above/below. The snippet + panel carry their own
+    // horizontal + bottom padding (the trigger's pad only reaches its own row). A className, not the retired
+    // `padding` prop: island padding is tier-resolved now (density-pass §4.3, D7), and "this island delegates
+    // its padding to its own trigger" is a composition fact, not a density step. The `!` is load-bearing:
+    // the tier map is UNLAYERED, so a plain `p-0` utility (layer `utilities`) loses to it inside a Surface —
+    // proven by this component's own CT (the card's top edge must hit the trigger, not dead padding).
+    <Card className={isSet ? "!p-0 border-l-2 border-l-primary" : "!p-0"}>
       <Collapsible open={open} onOpenChange={onOpenChange}>
         <CollapsibleTrigger className="w-full p-block" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">

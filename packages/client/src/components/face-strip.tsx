@@ -69,7 +69,7 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
           onClick={(): void => onSelect(item.id)}
           size="media"
         >
-          <Stack align="center" gap="field">
+          <Stack align="center" gap="tight">
             <Avatar
               hueSeed={item.id}
               ring={selectedId === item.id ? "accent" : "none"}
@@ -89,7 +89,10 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
               // avatar ring: a ring alone reads as "the one you last touched", while name-and-portrait
               // together reading accent is a STATE you are in — the same primary this strip's "Filtered: X"
               // chip repeats below it. That is what separates a face that FILTERS from a face that LAUNCHES.
-              <Text className="max-w-avatar-hero truncate text-center" size="micro" tone={selectedId === item.id ? "accent" : "muted"}>
+              // The `gloss` VOICE (density-pass §2.3) — the caption is the quiet second line under the
+              // datum (the face). The SELECTED face's accent tint is a state, not a type axis, so it stays
+              // a className on top of the voice.
+              <Text className={`max-w-avatar-hero truncate text-center${selectedId === item.id ? " text-primary" : ""}`} voice="gloss">
                 {item.name}
               </Text>
             ) : null}
@@ -102,10 +105,10 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
     return faces;
   }
   return (
-    <Stack gap="field">
-      <Text size="micro" tone="muted" transform="caps" weight="semibold">
-        {kicker}
-      </Text>
+    <Stack gap="tight">
+      {/* The `kicker` VOICE — the strip's NAME (density-pass §2.3); it was already this exact skin spelled
+          out of four internal axes. */}
+      <Text voice="kicker">{kicker}</Text>
       {faces}
     </Stack>
   );
