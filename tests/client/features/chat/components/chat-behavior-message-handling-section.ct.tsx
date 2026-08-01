@@ -8,9 +8,10 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { setNumber } from "../../../../support/ct/set-number";
 import { ChatMessageHandlingSectionStory } from "../_ct-stories";
 
 const SETTINGS_VIEW = { userId: "user_ct_message_handling", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
@@ -28,15 +29,6 @@ const OWNED_KEYS = [
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
-}
-
-/** Replace a Base UI NumberField's contents and commit them. `fill()` alone APPENDS here (the controlled
- *  input re-applies its own value), so the digits are typed over a select-all; the blur is what commits the
- *  clamp. */
-async function setNumber(field: Locator, digits: string): Promise<void> {
-  await field.press("ControlOrMeta+a");
-  await field.pressSequentially(digits);
-  await field.blur();
 }
 
 /** The most recent `chat` section-patch body. */
