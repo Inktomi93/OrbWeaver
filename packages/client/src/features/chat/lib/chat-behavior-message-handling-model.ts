@@ -9,6 +9,13 @@
 // projects by hand instead of `pickKeys` (the appearance sections' shape): the form value is not a subset of
 // `ChatSettings`. Minimality is still tsc-forced — {@link ChatMessageHandlingPatch} is DERIVED from the
 // `OWNS` tuple, so a patch field this section does not own does not typecheck.
+//
+// `autoContinueRounds` and `tempChatTtlHours` joined the tuple after stage 2 (they were the two cited
+// gap-arm exemptions): both are SERVER-honored — the turn engine's AUTO_CONTINUE loop bound and the
+// `reapTemporaryChats` delete cutoff — and neither had ever had an editor. `tempChatTtlHours` is not
+// literally "message handling", but the chat-behavior pane's other section is Streaming (reveal pacing),
+// and a chat's retention is a chat BEHAVIOR the same way auto-continue is; it lands beside them rather
+// than forking a third section.
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { SettingsSubcategory } from "#state";
@@ -16,13 +23,15 @@ import type { SettingsSubcategory } from "#state";
 export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: SettingsSubcategory = {
   id: "message-handling",
   label: "Chat & message handling",
-  keywords: ["send", "continue", "keyboard"],
+  keywords: ["send", "continue", "keyboard", "temporary"],
   settings: [
     { id: "enter-sends", label: "Enter to send", keywords: ["enter", "keyboard", "newline", "shortcut"] },
     { id: "continue-on-send", label: "Send continues the reply", keywords: ["continue", "extend", "empty"] },
     { id: "auto-continue", label: "Auto-continue", keywords: ["continue", "length", "cap", "follow-up"] },
+    { id: "auto-continue-rounds", label: "Auto-continue rounds", keywords: ["continue", "rounds", "limit", "follow-up", "cap"] },
     { id: "auto-swipe", label: "Auto-swipe short replies", keywords: ["swipe", "regenerate", "retry", "blacklist"] },
     { id: "custom-stopping-strings", label: "Custom stopping strings", keywords: ["stop", "stopping", "sequence", "generation"] },
+    { id: "temp-chat-ttl", label: "Delete temp chats after", keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"] },
   ],
 };
 
@@ -37,11 +46,21 @@ export const CHAT_MESSAGE_HANDLING_KEYS = [
   "continueOnSend",
   "generateOnEmptySend",
   "autoContinue",
+  "autoContinueRounds",
   "autoSwipe",
   "customStoppingStrings",
+  "tempChatTtlHours",
 ] as const;
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
+
+// The editor bounds MIRROR the `chatSchema` clamps in `@orb/contracts/settings` (the schema's own
+// MIN/MAX consts are module-private there) — the streaming section's `SMOOTH_STREAM_CPS_*` precedent. The
+// server is still the authority: an out-of-range blob self-heals to the default via `.catch()`.
+export const AUTO_CONTINUE_ROUNDS_MIN = 1;
+export const AUTO_CONTINUE_ROUNDS_MAX = 5;
+export const TEMP_CHAT_TTL_HOURS_MIN = 1;
+export const TEMP_CHAT_TTL_HOURS_MAX = 8760;
 
 /** The flat form shape — one field per bound control; the two `string[]`s are newline-joined text. */
 export interface ChatMessageHandlingForm {
@@ -49,10 +68,12 @@ export interface ChatMessageHandlingForm {
   readonly continueOnSend: boolean;
   readonly generateOnEmptySend: boolean;
   readonly autoContinue: boolean;
+  readonly autoContinueRounds: number;
   readonly autoSwipeEnabled: boolean;
   readonly autoSwipeMinLength: number;
   readonly autoSwipeBlacklist: string;
   readonly customStoppingStrings: string;
+  readonly tempChatTtlHours: number;
 }
 
 /** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
@@ -78,10 +99,12 @@ export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandl
     continueOnSend: chat.continueOnSend,
     generateOnEmptySend: chat.generateOnEmptySend,
     autoContinue: chat.autoContinue,
+    autoContinueRounds: chat.autoContinueRounds,
     autoSwipeEnabled: chat.autoSwipe.enabled,
     autoSwipeMinLength: chat.autoSwipe.minLength,
     autoSwipeBlacklist: chat.autoSwipe.blacklist.join("\n"),
     customStoppingStrings: chat.customStoppingStrings.join("\n"),
+    tempChatTtlHours: chat.tempChatTtlHours,
   };
 }
 
@@ -91,11 +114,13 @@ export function toMessageHandlingPatch(form: ChatMessageHandlingForm): ChatMessa
     continueOnSend: form.continueOnSend,
     generateOnEmptySend: form.generateOnEmptySend,
     autoContinue: form.autoContinue,
+    autoContinueRounds: form.autoContinueRounds,
     autoSwipe: {
       enabled: form.autoSwipeEnabled,
       minLength: form.autoSwipeMinLength,
       blacklist: linesToList(form.autoSwipeBlacklist),
     },
     customStoppingStrings: linesToList(form.customStoppingStrings),
+    tempChatTtlHours: form.tempChatTtlHours,
   };
 }

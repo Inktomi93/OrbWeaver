@@ -1,5 +1,6 @@
 // The "Chat & message handling" chat-behavior SECTION (SET-SEAMS stage 2) — Enter-to-send, the two
-// continue knobs, auto-swipe (+ its gated detail fields) and the custom stopping strings. A
+// continue knobs (+ the auto-continue round bound), auto-swipe (+ its gated detail fields), the custom
+// stopping strings and the temporary-chat TTL. A
 // settings-SECTION CONTRIBUTION at the `chat-behavior` anchor owned by features/chat, the feature that READS
 // these knobs: the composer's keydown path (`lib/composer-send-keys.ts`, `lib/continue-on-empty.ts`) and the
 // server turn engine chat drives (autoContinue / autoSwipe / customStoppingStrings).
@@ -22,9 +23,13 @@ import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model";
 import {
+  AUTO_CONTINUE_ROUNDS_MAX,
+  AUTO_CONTINUE_ROUNDS_MIN,
   AUTO_SWIPE_MIN_LENGTH_MIN,
   CHAT_MESSAGE_HANDLING_SUBCATEGORY,
   projectMessageHandlingForm,
+  TEMP_CHAT_TTL_HOURS_MAX,
+  TEMP_CHAT_TTL_HOURS_MIN,
   toMessageHandlingPatch,
 } from "../lib/chat-behavior-message-handling-model";
 
@@ -106,10 +111,28 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
           {(field): ReactElement => (
             <field.SwitchField
               label="Auto-continue"
-              description="When a reply stops at the length cap, fire one follow-up continue automatically. Syncs across your devices."
+              description="When a reply stops at the length cap, fire follow-up continues automatically — as many as the round limit below. Syncs across your devices."
             />
           )}
         </form.AppField>
+        {/* The bound the switch modulates: DISABLED rather than hidden when auto-continue is off, so the
+            coupling is visible and the stored value stays readable (the auto-swipe details below hide
+            instead — they are a whole sub-feature, this is one number the switch above governs). */}
+        <form.Subscribe selector={(state): boolean => state.values.autoContinue}>
+          {(on): ReactElement => (
+            <form.AppField name="autoContinueRounds">
+              {(field): ReactElement => (
+                <field.NumberField
+                  label="Auto-continue rounds"
+                  description="The most follow-up continues one send may fire while the reply keeps stopping at the length cap. A model that always hits the cap wants a bigger reply limit, not more rounds."
+                  disabled={!on}
+                  max={AUTO_CONTINUE_ROUNDS_MAX}
+                  min={AUTO_CONTINUE_ROUNDS_MIN}
+                />
+              )}
+            </form.AppField>
+          )}
+        </form.Subscribe>
         <form.AppField name="autoSwipeEnabled">
           {(field): ReactElement => (
             <field.SwitchField
@@ -152,6 +175,20 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
               description="One per line. Generation stops as soon as the model emits any of these strings."
               placeholder="###"
               rows={3}
+            />
+          )}
+        </form.AppField>
+        {/* Copy states what the server actually does (`reapTemporaryChats`): a HARD delete, messages and
+            all (FK cascade), on a cutoff measured from the chat's CREATION — not last activity — and only
+            for chats you host. The sweep is the fire-and-forget call the Home temp-chat tile makes on
+            mount, so an expired room can outlive its TTL until you next open Home. */}
+        <form.AppField name="tempChatTtlHours">
+          {(field): ReactElement => (
+            <field.NumberField
+              label="Delete temp chats after (hours)"
+              description="A temporary chat is deleted this many hours after it was created — messages and all, whether or not you were still using it. Expired rooms are swept when you open Home."
+              max={TEMP_CHAT_TTL_HOURS_MAX}
+              min={TEMP_CHAT_TTL_HOURS_MIN}
             />
           )}
         </form.AppField>

@@ -207,18 +207,6 @@ export interface UnclaimedSettingsKey {
 /** The cited gap-arm exemptions. Keep it SHORT — every entry is a knob a user cannot reach. */
 export const UNCLAIMED_SETTINGS_KEYS: readonly UnclaimedSettingsKey[] = [
   {
-    section: "chat",
-    key: "autoContinueRounds",
-    reason:
-      "the max auto-continue follow-ups a send issues (PD-146) — server-honored by the turn engine's AUTO_CONTINUE loop, but the pane has only ever surfaced the on/off `autoContinue` switch; the bound itself has no editor.",
-  },
-  {
-    section: "chat",
-    key: "tempChatTtlHours",
-    reason:
-      "the temporary-chat reap TTL — server-honored by `reapTemporaryChats`; never surfaced by the chat-behavior pane, before or after SET-SEAMS stage 2.",
-  },
-  {
     section: "databank",
     key: "chunk",
     reason: "ingest-time chunking params (size/overlap) — set at import, never edited after; the databank section deliberately round-trips them untouched.",
