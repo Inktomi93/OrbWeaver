@@ -1,8 +1,12 @@
-// The live per-workload stream adapter — subscribes workloads.subscribe for one active row. A `progress`
+// The live per-workload adapter — joins the `workloads` room for one active row (SSE-1 S5). A `progress`
 // event buffers locally at the row (transient, never the query cache); every other event means the row's
 // persisted state changed, so it invalidates workloads.list through the central seam. Mounted per active
-// row by the Workloads pane; a terminal event invalidates → the row leaves the active set → the
-// subscription unmounts with it.
+// row by the Workloads pane; a terminal event invalidates → the row leaves the active set → the room
+// detaches with it.
+//
+// EVERY NON-PROGRESS EDGE IS THE SAME REACTION — refetch the list — which is exactly why this room can
+// `collapse` under socket backpressure: the durable `progress` column + `workloads.list` are the truth
+// (D117 (10)), and a dropped frame costs a redraw, never a fact.
 
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Invalidation, Trpc } from "#data";
@@ -19,8 +23,8 @@ export interface WorkloadStreamDeps {
   readonly onProgress: (progress: WorkloadProgressView) => void;
 }
 
-/** Tail one active workload's SSE stream: progress → the row buffer, everything else (state change,
- *  stream error, reconnect) → invalidate `workloads.list` through the central seam. */
+/** Tail one active workload's room: progress → the row buffer, everything else (state change, room fault,
+ *  reconnect gap-heal) → invalidate `workloads.list` through the central seam. */
 export function useWorkloadStream({ workloadId, invalidation, onProgress }: WorkloadStreamDeps): void {
   const trpc = useTRPC();
   const refetchList = (): void => {
@@ -31,6 +35,6 @@ export function useWorkloadStream({ workloadId, invalidation, onProgress }: Work
     onProgress,
     onEvent: refetchList,
     onError: refetchList,
-    onConnectionPending: refetchList,
+    onSocketLive: refetchList,
   });
 }
