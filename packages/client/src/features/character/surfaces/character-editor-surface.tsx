@@ -22,7 +22,7 @@ import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
-import { clearCharacterFacet, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
+import { clearCharacterFacet, listProjectionOwnsFocus, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor";
 import { CharacterFacetList } from "../components/character-facet-list";
 import { CharacterHeroBand } from "../components/character-hero-band";
@@ -126,7 +126,11 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  // Stand down when the selection came from the LIST PICKER: that pick swaps the pane beside this editor
+  // into her chats, and the pane the user just transformed owns the focus (list-pane-projection §3.7 — the
+  // decision lives on the selection intent, so neither surface has to win a mount-effect race). Every other
+  // entry (deep link, agent nav, a fresh create) keeps this editor's own behavior.
+  useFocusOnMount(surfaceRef, !listProjectionOwnsFocus(data.id));
   const selectedFacetId = useSelectedCharacterFacetId();
   const narrow = useNarrowViewport();
   // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list

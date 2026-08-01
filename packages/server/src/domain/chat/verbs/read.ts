@@ -206,6 +206,20 @@ interface ChatSummaryInputs {
   readonly lastMessagePreview: string | null;
 }
 
+/**
+ * The list row's cast — the present roster MINUS the viewer's own seat (side-eye NR4).
+ *
+ * The names are what an untitled row shows as its title ("Alex, Niko"), and the viewer is in every chat they
+ * can list, so their own name is a constant prefix carrying zero information while eating the width the row
+ * has for the people it is ABOUT. Suppressing it makes the row read "Niko" — which is how a human names that
+ * conversation. FLOOR: only when at least one OTHER seat remains, so a solo / self chat keeps its name
+ * instead of collapsing to "Untitled chat".
+ */
+function summaryCast(participants: readonly ParticipantView[], viewerUserId: UserId): readonly string[] {
+  const others = participants.filter((p) => p.userId !== viewerUserId);
+  return (others.length > 0 ? others : participants).map((p) => p.displayName);
+}
+
 function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
@@ -219,7 +233,7 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
     // The ONE takeover-gate predicate over the opaque pointer (§2.1) — never a re-spelled null-check, so the
     // list marker and every client rpg gate agree (a DISENGAGED game shows no panel, so it shows no marker).
     isGame: isRpgEngaged(row.metadata.rpg),
-    participantNames: participants.map((p) => p.displayName),
+    participantNames: summaryCast(participants, viewerUserId),
     participantCharacterIds,
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to

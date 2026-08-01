@@ -60,6 +60,10 @@ const AVATAR_IMAGE = '[data-slot="avatar-image"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const SUBTITLE = '[data-slot="list-row-subtitle"]';
+const MARKERS = '[data-slot="list-row-markers"]';
+const CONTENT = '[data-slot="list-row-content"]';
+/** A real LIST pane width — the row's width budget is only observable at one. */
+const PANE_WIDTH = 290;
 const ARIA_BLOB_RE = /\/api\/blob\/hash_aria$/u;
 /** The archived row's receded skin — the visual reinforcement of the "Archived" text datum. */
 const RECEDED_RE = /opacity-60/u;
@@ -253,6 +257,68 @@ test("starred and archived rows say so in ACCESSIBLE content, and the archived r
   await expect(archivedRow).toHaveClass(RECEDED_RE);
   const plainRow = component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" });
   await expect(plainRow).not.toHaveClass(RECEDED_RE);
+});
+
+// side-eye P1 (round 2): the round-1 float gate (`actionsFloat={!restVisible}`) was inert on a real chats
+// list — a game / starred / archived row is the NORM, so the hover-only cluster kept reserving ~76px of the
+// title column on essentially every row. The trailing zone is split now: the rest-visible markers live on
+// the TITLE LINE (where the mock draws them) and the floated cluster holds controls only, so the float is
+// unconditional. Measured, not classes: `done ≠ rendered`.
+test.describe("P1 the trailing zone is split: markers on the title line, the CONTROL cluster floats", () => {
+  test("every chat row — game, starred, archived — keeps its text column at rest, and hover shifts it 0px", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": [GAME, STARRED, ARCHIVED, ADVENTURE], "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
+    await expect(component.getByText("The Ashfell run")).toBeVisible();
+
+    // The state rows are exactly the ones the round-1 gate excluded — measure THEM.
+    const rested = await component.locator(CONTENT).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().width));
+    expect(rested).toHaveLength(4);
+    expect(Math.min(...rested)).toBeGreaterThanOrEqual(240);
+
+    // …and the reveal reflows nothing: the truncation point does not move mid-read.
+    const starredRow = component.locator(LIST_ROW_ROOT, { hasText: "A pinned thread" });
+    const before = await starredRow.locator(CONTENT).evaluate((el) => el.getBoundingClientRect().width);
+    await starredRow.hover();
+    await expect(component.getByRole("button", { name: PINNED_UNSTAR })).toBeVisible();
+    const after = await starredRow.locator(CONTENT).evaluate((el) => el.getBoundingClientRect().width);
+    expect(after).toBe(before);
+  });
+
+  test("the markers render IN the title line and stay accessible content (aria-describedby, not the name)", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": [GAME, STARRED, ARCHIVED, ADVENTURE], "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
+    await expect(component.getByText("The Ashfell run")).toBeVisible();
+
+    // Three marked rows, one marker slot each — and the plain row grows no empty box.
+    await expect(component.locator(MARKERS)).toHaveCount(3);
+    await expect(component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).locator(MARKERS)).toHaveCount(0);
+    // The slot is INSIDE the title line, beside the stamp — not a trailing sibling zone.
+    const gameRow = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
+    await expect(gameRow.locator('[data-slot="list-row-title-row"]').locator(MARKERS)).toHaveCount(1);
+    await expect(gameRow.locator(MARKERS).getByLabel("Game chat")).toBeVisible();
+    // The datum survives for a screen reader: the row body DESCRIBES itself with the marker span.
+    const describedBy = await gameRow.locator('[data-slot="list-row-body"]').getAttribute("aria-describedby");
+    const markersId = await gameRow.locator(MARKERS).getAttribute("id");
+    expect(markersId).not.toBeNull();
+    expect((describedBy ?? "").split(" ")).toContain(markersId);
+  });
+
+  test("a starred row never paints TWO stars: the title-line marker yields to the revealed toggle", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": [STARRED], "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
+    await expect(component.getByText("A pinned thread")).toBeVisible();
+
+    // At rest the marker carries the state and the toggle is hidden (D11's invariant, in the marker slot).
+    const marker = component.locator(MARKERS).getByLabel("Starred");
+    const toggle = component.getByRole("button", { name: PINNED_UNSTAR });
+    await expect(marker).toBeVisible();
+    await expect(toggle).toHaveCSS("opacity", "0");
+
+    // Hovered, they swap — exactly one star is painted at a time.
+    await component.locator(LIST_ROW_ROOT, { hasText: "A pinned thread" }).hover();
+    await expect(toggle).toHaveCSS("opacity", "1");
+    await expect(marker).toBeHidden();
+  });
 });
 
 test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME marker is labelled text (not color)", async ({ mount, page }) => {

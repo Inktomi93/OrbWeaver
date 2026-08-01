@@ -877,20 +877,23 @@ export interface ChatListSurfaceStoryProps {
    *  REAL active-chat-store via `selectChat` (ChatListSurface reads `useActiveChatId()` internally now —
    *  the character/preset/world-info library-surface precedent), not a passthrough prop. */
   readonly activeChatId?: string | null;
+  /** Pin the LIST panel width — the row's width budget (text column vs. trailing cluster) is only
+   *  observable at a real pane width. Omitted = the 320px default. */
+  readonly width?: number;
 }
 
 /** The Chats-section LIST surface + its anchor, wired to the real data layer (routeTrpc stubs
  *  `chat.listChats`). Records select / new-chat clicks into visible markers so a CT can assert the
  *  callbacks fire with the right id. */
-export function ChatListSurfaceStory({ activeChatId = null }: ChatListSurfaceStoryProps): ReactElement {
+export function ChatListSurfaceStory({ activeChatId = null, width = 320 }: ChatListSurfaceStoryProps): ReactElement {
   return (
     <CtDataProviders>
-      <ChatListInner activeChatId={activeChatId} />
+      <ChatListInner activeChatId={activeChatId} width={width} />
     </CtDataProviders>
   );
 }
 
-function ChatListInner({ activeChatId }: { readonly activeChatId: string | null }): ReactElement {
+function ChatListInner({ activeChatId, width }: { readonly activeChatId: string | null; readonly width: number }): ReactElement {
   const [selected, setSelected] = useState("none");
   const [newCount, setNewCount] = useState(0);
   const [deleted, setDeleted] = useState("none");
@@ -900,7 +903,7 @@ function ChatListInner({ activeChatId }: { readonly activeChatId: string | null 
     }
   }, [activeChatId]);
   return (
-    <div style={{ height: 480, width: 320 }}>
+    <div style={{ height: 480, width }}>
       <ChatListAnchor>
         <ChatListSurface
           onDeletedChat={(id): void => setDeleted(id)}

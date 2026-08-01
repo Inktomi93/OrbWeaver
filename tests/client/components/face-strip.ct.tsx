@@ -48,19 +48,60 @@ test("tapping a face fires onSelect with its id", async ({ mount }) => {
   expect(picked).toBe(AZARAEL.id);
 });
 
-test("the caption truncates to the strip's rhythm while the FULL name stays the accessible name", async ({ mount }) => {
-  const component = await mount(<FaceStrip caption={true} items={[SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+// side-eye P2a: the caption used to be a FIXED `w-avatar-lg` box, so every name — including a short one the
+// mock prints in full — was clipped to ~6 characters. The ceiling is a MAX now: short names take their own
+// natural width and only a genuinely long one truncates.
+test("a caption takes its NATURAL width; only a long name truncates, and the full name stays the accessible name", async ({ mount }) => {
+  const component = await mount(
+    <FaceStrip caption={true} items={[AZARAEL, SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+  );
 
-  const caption = component.getByText(SERA.name, { exact: true });
-  const clipping = await caption.evaluate((el) => {
-    const style = getComputedStyle(el);
-    return { overflow: style.overflow, textOverflow: style.textOverflow, whiteSpace: style.whiteSpace, width: el.getBoundingClientRect().width };
-  });
-  expect(clipping.overflow).toBe("hidden");
-  expect(clipping.textOverflow).toBe("ellipsis");
-  expect(clipping.whiteSpace).toBe("nowrap");
+  const measure = (name: string): Promise<{ overflow: string; textOverflow: string; whiteSpace: string; width: number; scrollWidth: number }> =>
+    component.getByText(name, { exact: true }).evaluate((el) => {
+      const style = getComputedStyle(el);
+      return {
+        overflow: style.overflow,
+        textOverflow: style.textOverflow,
+        whiteSpace: style.whiteSpace,
+        width: el.getBoundingClientRect().width,
+        scrollWidth: el.scrollWidth,
+      };
+    });
+
+  // "Azarael" fits — it is NOT clipped (the round-1 defect: rendered "Azarae…" in a 40px box).
+  const short = await measure(AZARAEL.name);
+  expect(short.width).toBeGreaterThan(40);
+  expect(Math.round(short.scrollWidth)).toBeLessThanOrEqual(Math.ceil(short.width));
+  // The long one still truncates rather than warping the strip's rhythm.
+  const long = await measure(SERA.name);
+  expect(long.overflow).toBe("hidden");
+  expect(long.textOverflow).toBe("ellipsis");
+  expect(long.whiteSpace).toBe("nowrap");
+  expect(long.scrollWidth).toBeGreaterThan(long.width);
   // Nothing is lost: the button still announces the whole name.
   await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).toBeVisible();
+});
+
+// side-eye P2b: a bare row of portraits reads as decoration. The kicker is the mock's group label — the
+// only VISIBLE thing telling a cold user the strip is a control (the aria-label reaches SR users only).
+test("a kicker prints a micro-caps group label above the faces (and is omitted by default)", async ({ mount }) => {
+  const bare = await mount(<FaceStrip caption={true} items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+  await expect(bare.getByText("Faces", { exact: true })).toHaveCount(0);
+  await bare.unmount();
+
+  const labelled = await mount(
+    <FaceStrip caption={true} items={[AZARAEL]} kicker="Faces" label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+  );
+  const kicker = labelled.getByText("Faces", { exact: true });
+  await expect(kicker).toBeVisible();
+  await expect(kicker).toHaveCSS("text-transform", "uppercase");
+  // It labels the faces — above them in the reading order, not beside a face.
+  const order = await labelled.evaluate((root) => {
+    const nodes = [...root.querySelectorAll("*")];
+    const at = (el: Element | null): number => (el === null ? -1 : nodes.indexOf(el));
+    return { kicker: at(root.querySelector("p, span")), list: at(root.querySelector('[role="list"]')) };
+  });
+  expect(order.kicker).toBeLessThan(order.list);
 });
 
 test("no caption by default (the favorites-strip posture: portraits only)", async ({ mount }) => {
