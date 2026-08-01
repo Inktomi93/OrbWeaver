@@ -294,6 +294,7 @@ function wireTurnRequest(opts: {
   readonly intent?: UserIntent;
   readonly customParameters?: CustomParameters;
   readonly responseFormat?: ResponseFormat;
+  readonly agentTerminalTools?: TurnRequest["agentTerminalTools"];
 }): TurnRequest {
   // FABRICATION-OK: minimal AssembledPrompt — the bridge reads only prompt.static + prompt.dynamic.
   const prompt = { static: "You are a test.", dynamic: "" } as unknown as AssembledPrompt;
@@ -305,6 +306,7 @@ function wireTurnRequest(opts: {
     intent: opts.intent ?? {},
     ...(opts.customParameters !== undefined ? { customParameters: opts.customParameters } : {}),
     ...(opts.responseFormat !== undefined ? { responseFormat: opts.responseFormat } : {}),
+    ...(opts.agentTerminalTools !== undefined ? { agentTerminalTools: opts.agentTerminalTools } : {}),
     kind: "auto",
     ownerConsented: false,
     cacheBreakpointFromEnd: null,
@@ -526,5 +528,36 @@ describe("TASK-24 four-layer round-trip fidelity (deterministic, real buildBody 
     // The participant name is stamped as a text prefix on the prompt (agent-sdk seed frames carry no `name` field).
     expect(wire["prompt"]).toContain("Nate: how goes it?");
     expect(wire["name"]).toBeUndefined();
+  });
+
+  test("agent-sdk — a folded turn's TERMINAL tools reach the SDK query input MOUNTED (D112 R1)", async () => {
+    // The bridge maps the domain's `agentTerminalTools` onto the agent-sdk ChatRequest, and the backend mounts
+    // them (its own MCP server + the deny hook) BEFORE the query — so the captured query input is the proof
+    // that a folded turn on this wire actually carries its state channel instead of falling back to a round.
+    const wire = await captureWireVia(
+      agentSdkSurface,
+      wireTurnRequest({
+        connection: connectionFor("max-pro-sub", "agent-sdk"),
+        history: [textRow("user", "she draws her blade")],
+        agentTerminalTools: [
+          { name: "update_scene", description: "record the scene", parameters: { type: "object", properties: { weather: { type: "string" } } } },
+        ],
+      }),
+    );
+    expect(wire["terminalTools"]).toEqual(["update_scene"]);
+    expect(wire["terminalToolsMounted"]).toBe(true);
+    // The turn ceiling carries the degrade budget (the deny hook ends it at depth 0; a ceiling of 1 would turn
+    // a hook miss into `error_max_turns` and take the narrative with it).
+    expect(wire["maxTurns"]).toBe(2);
+  });
+
+  test("agent-sdk — a turn with NO terminal tools reports an absent channel (byte-identical to pre-fold)", async () => {
+    const wire = await captureWireVia(
+      agentSdkSurface,
+      wireTurnRequest({ connection: connectionFor("max-pro-sub", "agent-sdk"), history: [textRow("user", "hello")] }),
+    );
+    expect(wire["terminalTools"]).toBeNull();
+    expect(wire["terminalToolsMounted"]).toBe(false);
+    expect(wire["maxTurns"]).toBe(1);
   });
 });

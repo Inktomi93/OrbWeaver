@@ -432,8 +432,8 @@ interface FoldBuildFailedInfo {
 
 /** The resolved state-round PATH for one flush (R1 observability). `path` is what actually ran; `mode` is what
  *  the host's knob asked for. They differ exactly when a `folded` game could not fold, and `fallbackReason` names
- *  WHICH of the two causes it was: `no-terminal-channel` (the wire carries no terminal tools at all — the
- *  stateful agent-sdk arm, a tools-incapable model) or `local-engine-fold-guard` (the wire CAN carry them but
+ *  WHICH of the two causes it was: `no-terminal-channel` (the wire carries no terminal tools at all — a
+ *  tools-incapable model, or a mount the backend could not build) or `local-engine-fold-guard` (the wire CAN carry them but
  *  silences the prose when they ride, so the mount was deliberately withheld — D112 as amended).
  *  Non-exported: reachable only through `RpgContext.onStateRoundPath`'s signature — no consumer names it (knip). */
 /** WHY a `folded` game did not fold. `no-terminal-channel` = the wire cannot carry terminal tools at all;

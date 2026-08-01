@@ -60,4 +60,9 @@ export interface TurnStreamContext {
    *  then surfaces the success frame's `structured_output` as the reply (compact JSON — the vLLM
    *  guided-decoding convention, so a consumer can't tell the backends apart). */
   readonly expectStructured?: boolean | undefined;
+  /** True when the request's TERMINAL tools actually MOUNTED (D112 R1): the reducer then collects their
+   *  co-emitted `tool_use` blocks off the assistant frame and reports them on `ChatResult.toolCalls`. False /
+   *  absent leaves `toolCalls` ABSENT — the honest "this wire carried no terminal channel", which is what
+   *  makes the fold's `null`-vs-`[]` distinction total. */
+  readonly captureTerminalTools?: boolean | undefined;
 }

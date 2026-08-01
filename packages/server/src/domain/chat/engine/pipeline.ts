@@ -501,23 +501,30 @@ async function attachTools(
  *  required arm returned narrative on 0/6 turns). The turn's narrative is the product; the state is the
  *  passenger, and a passenger may never crash the vehicle.
  *
- *  ELIGIBILITY (the honest degrade — the contributor is told by the `null` on the way back out):
+ *  ELIGIBILITY is a CAPABILITY question, never a WIRE one (the honest degrade — the contributor is told by the
+ *  `null` on the way back out):
  *   • the model must declare `capability.tools` (same gate `attachTools` gives registry tools);
  *   • the wire must CO-EMIT prose alongside those calls (`coEmitsProseWithTools`) — a wire that answers
  *     `content: null` the moment tools ride (the local vLLM engine, measured 36/36) would trade the whole
  *     narrative for the passenger, and the passenger may never crash the vehicle. The contributor gates its own
  *     mount on the same capability fact; this is the WIRE's truth, so it holds even if the turn ends up routed
- *     somewhere the contributor's resolve didn't predict;
- *   • the wire must carry `tools[]` on a chat turn — the STATEFUL agent-sdk arm does not (it mounts an
- *     in-process MCP server whose tools the SDK executes, which is precisely the loop a terminal tool must
- *     not enter).
+ *     somewhere the contributor's resolve didn't predict.
  *  Ineligible ⇒ the request is byte-identical to a tool-less one and `attached:false` flows back, so the
- *  contributor runs its own fallback instead of silently losing state. */
+ *  contributor runs its own fallback instead of silently losing state.
+ *
+ *  DELIVERY then splits by WIRE, exactly as {@link attachTools} already splits registry tools: the ARRAY wires
+ *  carry the declarations in `tools` with `tool_choice:"auto"`; the STATEFUL agent-sdk wire reads no tools
+ *  array, so it takes the SAME `WireTool[]` on `agentTerminalTools` and its backend mounts them as a
+ *  deny-on-use MCP server (declared to the model, denied at the `PreToolUse` seam, never executed, never a
+ *  second call). Same declarations in, same `[]`-vs-`null` channel back — the domain learns no backend
+ *  concept from the split, and a wire is never made ineligible for lacking one delivery shape. */
 function attachTerminalTools(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; attached: boolean } {
   const wanted = args.terminalTools ?? [];
-  const eligible = coEmitsProseWithTools(args.connection.capability) && args.connection.api !== "agent-sdk";
-  if (wanted.length === 0 || !eligible) {
+  if (wanted.length === 0 || !coEmitsProseWithTools(args.connection.capability)) {
     return { request: baseRequest, attached: false };
+  }
+  if (args.connection.api === "agent-sdk") {
+    return { request: { ...baseRequest, agentTerminalTools: wanted }, attached: true };
   }
   return { request: { ...baseRequest, tools: [...(baseRequest.tools ?? []), ...wanted], toolChoice: { mode: "auto" } }, attached: true };
 }

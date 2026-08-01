@@ -380,6 +380,10 @@ export function createRunChatTurnBridge(deps: {
             // rides the SDK's own outputFormat (json_schema) — never silently dropped.
             ...(req.agentToolServer !== undefined ? { toolServer: req.agentToolServer, toolTurnLimit: req.agentToolTurnLimit } : {}),
             ...(req.responseFormat !== undefined ? { responseFormat: req.responseFormat } : {}),
+            // The TERMINAL channel (D112 R1): the backend mounts these as its own deny-on-use MCP server and
+            // hands the co-emitted calls back on `result.toolCalls` — the SAME field the array wires report,
+            // so the pipeline's fold reads one shape.
+            ...(req.agentTerminalTools !== undefined ? { terminalTools: req.agentTerminalTools } : {}),
             ...(agentSplit !== null
               ? { chatId: req.chatId, seed: agentSplit.seed, prompt: agentSplit.prompt }
               : { prompt: flattenAgentHistory(agentExtract?.rows ?? req.history) }),
