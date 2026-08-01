@@ -275,8 +275,10 @@ export type RpgRunToolRound = (input: RpgStateRoundInput) => Promise<RpgStateDel
 
 /** R1 (the FOLDED delivery mode) — build the TERMINAL wire tools the CHARACTER turn mounts, so the model
  *  co-emits its prose AND the turn's state in ONE completion. The product is the SAME
- *  `buildToolRoundWireTools` set the dedicated cheap round sends (identical per-call ref/condition/cast-field
- *  enum constraints — the fold changes the DELIVERY, never the schema), plus the reconcile-beat note when this
+ *  `buildToolRoundWireTools` set the dedicated cheap round sends, bound to the CACHE-STABLE ref projection
+ *  (F4 — these tools open the character turn's cached prefix, so a live-scene enum here re-bills the whole
+ *  story; the config-derived constraints ride on, the scene-derived enums move to the depth-0 state block +
+ *  the R5 ghost guard: `cacheStableExtractionRefs`), plus the reconcile-beat note when this
  *  beat is the `reconcileEveryBeats`-th (the round would have put that line in its own system prompt; the
  *  folded turn has no second prompt, so the gather appends it to the reminder). `null` tools ⇒ do not mount
  *  (the game is not folded / the refs could not resolve) — the gather then contributes a byte-identical

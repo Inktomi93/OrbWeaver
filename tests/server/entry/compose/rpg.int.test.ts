@@ -1184,9 +1184,14 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   // defines NO game-subject tracker, so `set_tracker` is OMITTED ENTIRELY (a disabled feature's tool is absent,
   // never an empty husk) — the rest of the round's set is byte-identical.
   expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
-  // …carrying the live per-call ref enums (`constrainExtractionSchema`), so R5/R5a's hardening rides the fold.
-  const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as { properties?: { targetRef?: { enum?: string[] } } };
-  expect(Array.isArray(party.properties?.targetRef?.enum)).toBe(true);
+  // …carrying the CACHE-STABLE ref projection (F4): the party plane is fully writable, but its scene-derived
+  // enums are gone — this payload opens the character turn's cached prefix (the byte-stability pin is below).
+  const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as {
+    properties?: { targetRef?: { enum?: string[]; type?: string }; hpDelta?: unknown };
+  };
+  expect(party.properties?.targetRef?.enum).toBeUndefined();
+  expect(party.properties?.targetRef?.type).toBe("string");
+  expect(party.properties?.hpDelta).toBeDefined();
   // RV-9: `update_scene`'s description carries the WHEN — the panel's Waystone only reads as a clock if the
   // model actually advances time/weather/day, and a bare field list measurably doesn't get that written.
   const scene = folded?.terminalTools?.find((t) => t.name === "update_scene");
@@ -1232,6 +1237,72 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   expect(partyTool?.description).toContain("resolve you spend to push through danger");
   const partyArms = partyTool?.parameters as { properties?: { trackerDeltas?: { items?: { properties?: { key?: { enum?: string[] } } } } } };
   expect(partyArms.properties?.trackerDeltas?.items?.properties?.key?.enum).toEqual(["grit"]);
+});
+
+// F4 (`scripts/probes/openrouter/RESULTS.md`) — the folded turn's tools are the FIRST bytes of the character
+// turn's cached prompt prefix, and the probe measured that ANY change to that payload drops `cached_tokens` to
+// zero and re-bills the whole prefix (~10× that turn). So the fold's payload must not move when the SCENE
+// moves; the DEDICATED round — the enforcing vehicle, whose own prefix re-renders the same refs every turn
+// regardless — must keep the live enums. Both halves, on one game, driven through the real graph.
+test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools byte-identical; the ROUND keeps live enums", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "f4-cache-stability");
+  const principal = hostPrincipal(hostId);
+  const foldCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
+  await foldCompose.service.createGame({ principal, chatId, mode: "lite" });
+  await foldCompose.service.updateConfig({ principal, chatId, extractionMode: "folded" });
+
+  // An opening beat ESTABLISHES the scene first: `establishScene` is deliberately still state-dependent (it is
+  // the lever that makes a fresh game populate at all, and it settles once instead of churning per beat), so the
+  // pin below is about the ONGOING-PLAY churn F4 named — a cast/condition change on an established scene.
+  const open = await seedMessage(db, chatId, 1, { role: "assistant", content: "The rafters creak in the dark." });
+  await foldCompose.chatOps.onTurnCompleted(
+    chatId,
+    open.messageId,
+    open.variantId,
+    TURN,
+    foldedTurn([{ name: "update_scene", args: { location: "the rafters", timeOfDay: "night", presentUpsert: [{ name: "Kael" }], recentEvent: "they wait" } }]),
+  );
+  const before = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+
+  // One beat of real play: an NPC walks on stage and someone takes a condition. This is EXACTLY the churn that
+  // was re-billing the prefix — `actorRefs` gains Mira and `conditionNames` gains Bleeding.
+  const slot = await seedMessage(db, chatId, 2, { role: "assistant", content: "Mira drops from the rafters; you take a cut." });
+  await foldCompose.chatOps.onTurnCompleted(
+    chatId,
+    slot.messageId,
+    slot.variantId,
+    TURN,
+    foldedTurn([
+      { name: "update_scene", args: { presentUpsert: [{ name: "Mira", mood: "wary" }], recentEvent: "Mira dropped in" } },
+      { name: "update_party", args: { targetRef: "player", addCondition: { name: "Bleeding" }, status: "bleeding" } },
+    ]),
+  );
+
+  // The state genuinely moved (without this the byte-comparison below would be vacuous).
+  const view = await foldCompose.service.getTrackerView({ principal, chatId });
+  expect(view.cast.map((c) => c.name)).toContain("Mira");
+
+  const after = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  // The enumeration the enums used to carry is STILL delivered — in the depth-0 state block, BELOW the cache
+  // breakpoint, where it costs nothing to change. That placement is what makes the schema drop honest.
+  const stateBlock = after?.injections[0]?.content ?? "";
+  expect(stateBlock).toContain("Mira");
+  expect(stateBlock).toContain("Bleeding");
+  // THE CACHE-KEY PROPERTY: the mounted payload is byte-identical across the two turns.
+  expect(JSON.stringify(after?.terminalTools)).toEqual(JSON.stringify(before?.terminalTools));
+
+  // THE ENFORCEMENT PROPERTY: the dedicated round, on this SAME state, still binds the live enums — the
+  // vehicle whose backend actually grammar-enforces them loses nothing.
+  const spy = emptySpy();
+  const roundCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", cannedToolCalls: [] });
+  await roundCompose.service.updateConfig({ principal, chatId, extractionMode: "cheap" });
+  const roundSlot = await seedMessage(db, chatId, 3, { role: "assistant", content: "She presses a hand to the wound." });
+  await roundCompose.chatOps.onTurnCompleted(chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
+  const roundParty = spy.wireTools[0]?.find((t) => t.name === "update_party")?.parameters as {
+    properties?: { targetRef?: { enum?: string[] }; removeCondition?: { enum?: string[] } };
+  };
+  expect(roundParty.properties?.targetRef?.enum).toContain("Mira");
+  expect(roundParty.properties?.removeCondition?.enum).toEqual(["Bleeding"]);
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

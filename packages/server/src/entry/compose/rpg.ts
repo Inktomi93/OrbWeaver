@@ -40,6 +40,7 @@ import {
   actorRefKey,
   buildRpgToolDescriptions,
   buildTrackerWriteGroups,
+  cacheStableExtractionRefs,
   composePlaneTeaching,
   composePopulateTeaching,
   constrainExtractionSchema,
@@ -772,8 +773,9 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Two halves, neither of which makes a model call of its own:
 //   • `buildFoldedTurn` (the GATHER's half) — the SAME `buildToolRoundWireTools` product the dedicated round
-//     sends, with the SAME per-call ref/condition/cast-field enums (`constrainExtractionSchema`). The fold
-//     changes the DELIVERY, never the schema, so everything R5/R5a/R6 hardens applies verbatim.
+//     sends, bound to the CACHE-STABLE ref projection (F4: this payload opens the character turn's cached
+//     prefix). R6's key enums + the locked-tracker prevention ride on; R5/R5a's scene-derived enums move to
+//     the depth-0 state block and the apply-time ghost guard. See `buildFoldedTurnBuilder`.
 //   • `foldTurnToolCalls` (the FLUSH's half) — the calls the character turn co-emitted, through the SAME
 //     `toolCallsToExtraction` → `extractionToStateDelta` fold the round uses.
 // The narrative is committed BEFORE either the engine hands us the calls or this code runs, so nothing here
@@ -794,13 +796,26 @@ const FOLDED_RECONCILE_NOTE =
   "anything the tracked state gets wrong against the story. Never mention this in your reply.";
 
 /** Build the `buildFoldedTurn` op (R1 — the gather's half). Resolves the per-call refs off the SAME base state
- *  the flush will apply against and returns the ref-constrained wire tools. No model call, no connection read:
- *  the engine decides at request-build time whether the turn's connection can actually carry them (and hands
- *  back a `null` channel when it can't, which the flush reads as "fall back to the post-commit round"). */
+ *  the flush will apply against and returns the wire tools. No model call, no connection read: the engine
+ *  decides at request-build time whether the turn's connection can actually carry them (and hands back a `null`
+ *  channel when it can't, which the flush reads as "fall back to the post-commit round").
+ *
+ *  F4 — CACHE-STABLE REFS ON THIS VEHICLE ONLY (`scripts/probes/openrouter/RESULTS.md` F4, option b). These
+ *  tools ride the CHARACTER turn, so they are the FIRST bytes of its cached prefix: a live-state ref enum here
+ *  re-bills the entire story prefix (~10× that turn) every time an NPC walks on or a condition is gained. The
+ *  rest of that prefix is stable by construction — the volatile state block is an `in_chat` depth-0 injection,
+ *  BELOW the rolling breakpoint — so this payload was the whole leak. `cacheStableExtractionRefs` keeps the
+ *  config-derived enforcement (tracker keys, locked-tracker prevention, establish-when-unset) and drops only the
+ *  scene-derived enums, which the depth-0 state block already enumerates in prose and the R5 ghost guard already
+ *  backstops at apply. The DEDICATED round below keeps the full live bundle — it is the enforcing vehicle, and
+ *  its own prefix is per-turn volatile regardless (its system block re-renders the same refs). */
 function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTurn"] {
   return async ({ chatId, baseState, reconcile }) => {
     const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
-    return { tools: buildToolRoundWireTools(refs, config), reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
+    return {
+      tools: buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config),
+      reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null,
+    };
   };
 }
 
