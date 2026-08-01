@@ -47,6 +47,7 @@ export {
 export type { SeededBackground } from "./list-seeded-backgrounds";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./list-seeded-backgrounds";
 export { logClock } from "./log-clock";
+export { messageBubbleClass } from "./message-bubble-class";
 export type { MessageRenderContext } from "./message-render";
 export { renderMessageForDisplay } from "./message-render";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels";

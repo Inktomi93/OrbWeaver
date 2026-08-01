@@ -21,7 +21,7 @@ import { useInvalidation, useTRPC } from "#data";
 // The two THEME-shaped appearance tables. They used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the pair three features render homes at the `#lib` shared-vocabulary floor.
-import { CHAT_STYLE_ITEMS, DENSITY_ITEMS } from "#lib";
+import { CHAT_STYLE_ITEMS, DENSITY_ITEMS, messageBubbleClass } from "#lib";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
@@ -170,7 +170,10 @@ function ThemeableVarsReference(): ReactElement {
   );
 }
 
-/** A scoped live preview — a sample exchange under the in-progress theme, contained to this box only. */
+/** A scoped live preview — a sample exchange under the in-progress theme, contained to this box only. The
+ *  two bubbles paint from `messageBubbleClass`, the SAME builder the transcript's bubble skins use, so what
+ *  an author judges here is the box the app actually paints (side-eye P2: the preview had drifted to
+ *  `rounded-base p-block` against the real `rounded-card px-block py-row`). */
 function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactElement {
   return (
     <Stack gap="block">
@@ -179,7 +182,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
           <Text voice="label" className="text-speaker">
             Aria
           </Text>
-          <Stack gap="field" className="rounded-base bg-ai-bubble p-block">
+          <Stack gap="field" className={messageBubbleClass("assistant")}>
             <Text as="span" className="text-dialogue">
               “Welcome to the archive,” she said.
             </Text>{" "}
@@ -190,7 +193,7 @@ function ThemePreview({ values }: { readonly values: ThemeFormValues }): ReactEl
               Everything here has a story.
             </Text>
           </Stack>
-          <Stack gap="field" className="self-end rounded-base bg-user-bubble p-block">
+          <Stack gap="field" className={`self-end ${messageBubbleClass("user")}`}>
             <Text as="span">Show me the oldest one.</Text>
           </Stack>
         </Stack>

@@ -228,6 +228,9 @@
   border-radius: inherit;
   box-shadow: var(--shadow-glow);
 }
+/* The active rail button's gradient border — the globals.css CTA-ring recipe: a --color-primary head
+ * over a --color-sheen foot (polarity-fixed sheen highlight, a deliberate white gloss unless a theme
+ * overrides the token); the alpha is this site's tuned weight, the colour is the token's call. */
 .shell-rail .shell-rail-button[data-active]::after {
   content: "";
   position: absolute;
@@ -238,7 +241,7 @@
   border-radius: inherit;
   background:
     linear-gradient(transparent, transparent) padding-box,
-    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(1 0 0 / 0.03)) border-box;
+    linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.45), oklch(from var(--color-sheen) l c h / 0.03)) border-box;
 }
 
 /* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip

@@ -54,6 +54,9 @@ const ELEVATED_ALLOW: readonly string[] = [
   "packages/ui/src/primitives/toast/",
   "packages/ui/src/content/immersive-card/",
   "packages/client/src/features/chat/components/composer.tsx",
+  // THE chat bubble's box, single-homed here so the theme editor's preview paints the same one (a runtime
+  // cross-feature import is dep-cruiser RED, so lib/ is the shared home). The row skins consume it.
+  "packages/client/src/lib/message-bubble-class.ts",
   "packages/client/src/features/chat/lib/message-row-variants.ts",
   "packages/client/src/features/chat/lib/message-row-backing.ts",
   "packages/client/src/features/chat/surfaces/command-palette-surface.tsx",

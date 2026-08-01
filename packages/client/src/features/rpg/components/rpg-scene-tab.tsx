@@ -383,11 +383,11 @@ function SceneGoals({ quests }: { readonly quests: RpgTrackerView["quests"] }): 
             key={quest.id}
             type="button"
             intent="ghost"
-            size="sm"
+            size="inline"
             aria-label={`Open ${quest.name} in Quests`}
             title="Open in Quests"
             onClick={(): void => revealContextPanel("rpg.quests")}
-            className="!h-auto min-h-0 w-full justify-start border border-transparent !px-field !py-0 text-left font-normal"
+            className="w-full border border-transparent px-field text-left"
           >
             <GoalLine text={quest.name} done={quest.status === "completed"} {...(total > 0 ? { clock: { filled, total } } : {})} />
           </Button>

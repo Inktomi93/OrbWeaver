@@ -1,12 +1,11 @@
-import { DISABLED_STATE, FIELD_CONTROL, FOCUS_RING, ITEM_ROW, OVERLAY_ARROW, OVERLAY_MOTION, POPUP_SURFACE, SCRIM, tv } from "#lib";
+import { DISABLED_STATE, FIELD_CONTROL, FIELD_CONTROL_BOX, FOCUS_RING, ITEM_ROW, OVERLAY_ARROW, OVERLAY_MOTION, POPUP_SURFACE, SCRIM, tv } from "#lib";
 
 // Trigger in-flow; positioner/popup portaled. --available-height/--anchor-width are Base UI Positioner-provided vars.
 export const selectVariants = tv({
   slots: {
     label: "text-label font-medium leading-label text-foreground data-disabled:opacity-50",
     trigger: [
-      FIELD_CONTROL,
-      "flex h-control-sm cursor-pointer select-none items-center justify-between gap-row",
+      "flex cursor-pointer select-none items-center justify-between gap-row",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
       "outline-none",
       FOCUS_RING,
@@ -29,4 +28,20 @@ export const selectVariants = tv({
     backdrop: SCRIM("popover"),
     scrollArrow: "sticky z-(--z-raised) flex h-section w-full cursor-default items-center justify-center bg-popover text-muted-foreground",
   },
+  variants: {
+    // THE TRIGGER'S SCALE (the Input `layout` twin — same axis name, same two arms). `field` is the form
+    // control: the full FIELD_CONTROL chrome at the sealed control height. `inline` is the IDENTITY-LINE
+    // trigger — a name/datum that happens to open a menu, so it wears the text itself (content width,
+    // text-height, no box) and the popup is the affordance.
+    //
+    // Both arms live here rather than at the call site because the chrome they swap is custom-token
+    // (`h-control-sm`, `px-block`): twMerge cannot classify those, so an override neither wins nor loses
+    // deterministically — the shipped site wrote `!h-auto !w-auto !px-field` to force the cascade. Same law
+    // as Button `size`/TabsTab `layout`. Pinned by COMPUTED box in tests/ui/primitives/select/select.ct.tsx.
+    layout: {
+      field: { trigger: [FIELD_CONTROL, "h-control-sm"] },
+      inline: { trigger: [FIELD_CONTROL_BOX, "h-auto min-h-0 w-auto border-transparent bg-transparent px-field py-0 text-label leading-label"] },
+    },
+  },
+  defaultVariants: { layout: "field" },
 });

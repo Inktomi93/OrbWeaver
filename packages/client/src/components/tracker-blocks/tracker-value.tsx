@@ -83,7 +83,7 @@ export function TrackerValue({
       <Button
         type="button"
         intent="ghost"
-        size="sm"
+        size="inline"
         data-slot="tracker-value-rest"
         aria-label={ariaLabel}
         title={editTitle}
@@ -95,7 +95,7 @@ export function TrackerValue({
         // width/alignment classes still apply so the rest state lines up with the read-only arm. The
         // TRANSPARENT border reserves the edit input's 1px border box, so the click-to-reveal swap is
         // pixel-stable — no layout jump (the owner no-shift bar).
-        className={`!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal ${restClassName ?? className ?? ""}`}
+        className={`gap-0 border border-transparent px-field text-left ${restClassName ?? className ?? ""}`}
       >
         <Text as="span" size={size} tone={empty ? "muted" : tone} className={wrap ? "min-w-0 whitespace-normal break-words" : "truncate"}>
           {restText}
@@ -119,11 +119,12 @@ export function TrackerValue({
       autoFocus={true}
       aria-label={ariaLabel}
       // COMPACT in-place editor (owner bar: the revealed input occupies the SAME visual slot the display
-      // did — no clip, no overflow, no layout jump): text-height box (`!h-auto py-0`), the rest state's
-      // `px-field` inset, and the display's `text-label` type — over the Input primitive's form-field
-      // skin (h-control-sm/px-block/text-body would grow the row on reveal). Callers append width/
-      // alignment only, never a height.
-      className={`!h-auto min-h-0 !px-field py-0 text-label leading-label ${className ?? ""}`}
+      // did — no clip, no overflow, no layout jump): the `inline` layout arm IS that box — text-height,
+      // the rest state's `px-field` inset, the display's `text-label` type — where the default `field` arm
+      // (h-control-sm/px-block/text-body) would grow the row on reveal. Callers append width/alignment
+      // only, never a height.
+      layout="inline"
+      className={className ?? ""}
       data-slot="tracker-value-edit"
       inputMode={kind === "numeric" ? "numeric" : "text"}
       {...(placeholder === undefined ? {} : { placeholder })}

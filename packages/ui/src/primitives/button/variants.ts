@@ -43,6 +43,27 @@ export const buttonVariants = tv({
       // `media` (F2) and TabsTab `layout="stacked"` precedent. Pinned by COMPUTED height in
       // tests/ui/primitives/button/button.ct.tsx.
       wrap: "h-auto min-h-control-sm whitespace-normal px-block py-field text-label leading-label",
+      // INLINE: the DISPLAY-AT-REST arm — a datum/line of prose that is also the click target (a tracker
+      // value, a beat line, a card row, a roster name). It wears NO control box: text-height, start-aligned,
+      // regular weight, so it reads as the text it stands in for and the click-to-edit swap is pixel-stable.
+      // It was 13 call sites of `!h-auto min-h-0 !py-0 font-normal` — an `!important` escape from the sealed
+      // control height, which is also how they escaped the `ui-size-via-variant` gate (it reads `h-auto`,
+      // not `!h-auto`). MEASURED, not assumed (twMerge 3.6): custom-token spacing/height utilities are
+      // unclassifiable — `twMerge("h-control-sm","h-auto")` keeps BOTH, so those call sites resolved by
+      // stylesheet order, i.e. luck (the `media`/`wrap`/TabsTab-`stacked` precedent).
+      // The arm therefore sets NO padding at all: preflight already zeroes it, and a `py-0` here would be
+      // the same unresolvable pair against a call site's `py-row` (`twMerge("py-0","py-row")` keeps both).
+      // Padding is the call site's — px-field/py-row/none — and needs no `!` because nothing fights it.
+      // TOUCH FLOOR BY CONSTRUCTION: a text-height button is ~18px tall, so the arm carries its own hit-area
+      // pseudo (the TOUCH_TARGET_PSEUDO idea, ::after and stretched to the button's own width) sized on
+      // `--spacing-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown pointers, 28px on
+      // fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged. Pinned by COMPUTED
+      // box in tests/ui/primitives/button/button.ct.tsx.
+      inline: [
+        "relative h-auto min-h-0 justify-start font-normal text-label leading-label",
+        "after:absolute after:top-1/2 after:left-1/2 after:h-touch-target after:w-full after:min-w-touch-target",
+        "after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']",
+      ],
     },
   },
   defaultVariants: { intent: "primary", size: "md" },

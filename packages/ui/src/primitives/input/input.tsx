@@ -1,10 +1,11 @@
 import type { InputProps as BaseInputProps } from "@base-ui/react/input";
 import { Input as BaseInput } from "@base-ui/react/input";
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { inputVariants } from "./variants";
 
-export interface InputProps extends Omit<BaseInputProps, "type"> {
+export interface InputProps extends Omit<BaseInputProps, "type">, VariantProps<typeof inputVariants> {
   className?: string;
   /**
    * The native input mode — TEXT-SHAPED values only.
@@ -30,6 +31,6 @@ export interface InputProps extends Omit<BaseInputProps, "type"> {
  *
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
-export function Input({ className, ...rest }: InputProps): ReactElement {
-  return <BaseInput className={cn(inputVariants(), className)} data-slot="input-root" {...rest} />;
+export function Input({ className, layout, ...rest }: InputProps): ReactElement {
+  return <BaseInput className={cn(inputVariants({ layout }), className)} data-slot="input-root" {...rest} />;
 }

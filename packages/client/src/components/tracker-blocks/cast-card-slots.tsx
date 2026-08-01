@@ -45,15 +45,13 @@ function CastRelationship({ name, relationship, onEditRelationshipKind, relation
             <Button
               type="button"
               intent="ghost"
-              size="sm"
+              size="inline"
               aria-label={`${name} relationship`}
               title="Click to edit"
               // rounded-full + zero padding when a badge shows: the trigger's hover highlight must hug the
               // pill EXACTLY — padding around it reads as a mismatched halo (owner reports ×2, 08-01). The
               // seed state ("+ relationship") keeps its own padding for a clickable text target.
-              className={
-                badge === null ? "!h-auto min-h-0 gap-field rounded-full !px-field !py-0 font-normal" : "!h-auto min-h-0 rounded-full !p-0 font-normal"
-              }
+              className={badge === null ? "rounded-full px-field" : "rounded-full"}
             >
               {badge ?? (
                 <>

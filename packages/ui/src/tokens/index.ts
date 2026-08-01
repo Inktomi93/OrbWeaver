@@ -37,6 +37,7 @@ export const TOKENS = {
   "color.sidebar-accent": { cssVar: "--color-sidebar-accent", value: "oklch(0.235 0.008 60)" },
   "color.sidebar-border": { cssVar: "--color-sidebar-border", value: "oklch(0.99 0.005 60 / 0.07)" },
   "color.scrim": { cssVar: "--color-scrim", value: "oklch(0.12 0.006 60 / 0.6)" },
+  "color.sheen": { cssVar: "--color-sheen", value: "oklch(1 0 0)" },
   "color.chart-1": { cssVar: "--color-chart-1", value: "oklch(0.72 0.175 52)" },
   "color.chart-2": { cssVar: "--color-chart-2", value: "oklch(0.70 0.10 200)" },
   "color.chart-3": { cssVar: "--color-chart-3", value: "oklch(0.68 0.12 300)" },

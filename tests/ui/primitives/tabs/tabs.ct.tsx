@@ -124,6 +124,27 @@ test("the default (inline) layout keeps the sealed control height — the stacke
   expect(box?.height ?? 0).toBeCloseTo(control, 1);
 });
 
+// The panel carries tabindex=0 (Base UI), so REAL Tab traversal lands on it — and it used to show only
+// the UA outline (measured 1.10:1, under the 3:1 non-text law; 2026-08-01 side-eye P1). The gesture must be
+// a real key press: `.focus()` sets :focus but NOT :focus-visible, so a scripted-focus test would assert
+// nothing. The ring is a box-shadow (Tailwind ring-*), so the receipt is the COMPUTED shadow, not a class.
+test("keyboard Tab into the panel paints the focus ring (not the bare UA outline)", async ({ mount, page }) => {
+  await mount(fixture());
+  const panel = page.locator('[data-slot="tabs-panel"]:visible');
+  await expect(panel).toHaveCSS("box-shadow", "none");
+  // Tab 1 → the active tab (roving tabindex); Tab 2 → the panel.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(panel).toBeFocused();
+  const shadow = await panel.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).not.toBe("none");
+  // The ring rides the `--color-ring` token and stays INSIDE the panel box (no offset halo to be clipped
+  // by a scroll parent) — read the token from the same document, never a hardcoded color.
+  const ring = await panel.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-ring").trim());
+  expect(ring.length).toBeGreaterThan(0);
+  expect(shadow).toContain("inset");
+});
+
 test("Home/End jump to the first/last tab", async ({ mount, page }) => {
   await mount(
     <Tabs defaultValue="one">
