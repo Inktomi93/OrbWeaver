@@ -215,11 +215,19 @@ interface Violation {
 function runCruise(): Violation[] {
   let stdout: string;
   try {
-    stdout = execFileSync("pnpm", ["exec", "depcruise", "packages", "--config", ".dependency-cruiser.cjs", "--output-type", "json"], {
-      cwd: ROOT,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    });
+    // `--config.verify-deps-before-run=false`: with a stale deps-state (any package.json/lockfile mtime
+    // past `lastValidatedTimestamp` — routine when sibling worktree lanes install concurrently) pnpm 11
+    // runs an implicit install and PREPENDS its banner to stdout, which makes the JSON.parse below throw
+    // in beforeAll. Same root cause as check-gates.int.test.ts's phantom-`Lockfile` flake.
+    stdout = execFileSync(
+      "pnpm",
+      ["--config.verify-deps-before-run=false", "exec", "depcruise", "packages", "--config", ".dependency-cruiser.cjs", "--output-type", "json"],
+      {
+        cwd: ROOT,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      },
+    );
   } catch (err) {
     // depcruise exits non-zero when violations exist — the JSON is on stdout.
     stdout = (err as { stdout?: string }).stdout ?? "";
