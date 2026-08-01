@@ -237,8 +237,11 @@ describe("nextRunnableWorkload (lane scoping)", () => {
       params: { documentId: mintTypeId(ID_PREFIX.document) },
       scheduledAt: T0 + 1000,
     });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "interactive"))?.id).toBe("interactive_row");
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("sweep_head");
+    // The interactive row is DEFERRED to T0+1000, so at T0 it is not due (the deferral gate, below) — the
+    // lane-scoping claim is asserted at its instant, where both lanes hand back their OWN head.
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "interactive")).toBeNull();
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "interactive"))?.id).toBe("interactive_row");
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("sweep_head");
   });
 
   test("a lane with no queued rows polls null while the other lane has work", async () => {
@@ -246,6 +249,33 @@ describe("nextRunnableWorkload (lane scoping)", () => {
     await seedWorkloadRow(db, { id: "sweep_only", kind: "reconcile-stats", lane: "sweep" });
     expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "interactive")).toBeNull();
     expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("sweep_only");
+  });
+});
+
+// The "Run at" affordance's regression floor: `scheduledAt` is a DUE INSTANT, not a sort hint. Before this
+// gate existed a future-dated row was dispatched by the very next poll (~2s), so the client's deferral was a
+// silent no-op.
+describe("nextRunnableWorkload (scheduledAt deferral gate)", () => {
+  test("a future-dated row is NOT dispatched before its instant, and IS at/after it", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "deferred", kind: "reconcile-stats", scheduledAt: T0 + 1000 });
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 999, "sweep")).toBeNull();
+    // Its own instant counts as due (the gate is `<=`, so a poll landing exactly on it dispatches).
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("deferred");
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 5000, "sweep"))?.id).toBe("deferred");
+    // …and it was never touched while it waited (deferred ≠ failed/poison — it is still queued).
+    expect(await loadWorkloadStatus(db, castId<WorkloadId>("deferred"))).toBe("queued");
+  });
+
+  test("a deferred row does NOT starve its lane — a later-queued DUE row wins the head", async () => {
+    const db = await freshDb();
+    // Queued FIRST and sorting first by both order keys if it were visible — the starvation shape.
+    await seedWorkloadRow(db, { id: "deferred", kind: "compute-themes", params: { k: 1 }, scheduledAt: T0 + 1000, createdAt: T0 });
+    await seedWorkloadRow(db, { id: "due", kind: "reconcile-stats", scheduledAt: T0 + 10, createdAt: T0 + 10 });
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 10, "sweep"))?.id).toBe("due");
+    // Once BOTH are due the (scheduledAt, createdAt) order resumes — the due row is still earliest.
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("due");
   });
 });
 
@@ -283,6 +313,25 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       dependsOn: [depId],
     });
     expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("dependent");
+  });
+
+  // The blocked row FRONTS the head window (earliest by both order keys) — the gate must SKIP it, not stop
+  // the scan, or one waiting dependent would starve every unblocked row behind it in its lane.
+  test("a blocked dependent does NOT starve its lane — the next unblocked row is returned", async () => {
+    const db = await freshDb();
+    await seedWorkloadRow(db, { id: "dep", kind: "compute-themes", status: "running", scheduledAt: T0, createdAt: T0 });
+    await seedWorkloadRow(db, {
+      id: "blocked",
+      kind: "import-st",
+      status: "queued",
+      dependsOn: [depId],
+      scheduledAt: T0,
+      createdAt: T0,
+    });
+    await seedWorkloadRow(db, { id: "unblocked", kind: "reconcile-stats", status: "queued", scheduledAt: T0 + 5, createdAt: T0 + 5 });
+    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 5, "sweep"))?.id).toBe("unblocked");
+    // …and the skip is not a mutation: the blocked row is untouched, still waiting on its dep.
+    expect(await loadWorkloadStatus(db, castId<WorkloadId>("blocked"))).toBe("queued");
   });
 
   test("a FAILED dependency fails the dependent with dependency_failed (it never runs)", async () => {

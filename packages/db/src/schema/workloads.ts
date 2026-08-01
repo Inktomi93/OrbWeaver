@@ -111,13 +111,16 @@ export const workloads = sqliteTable(
     ownerId: text("owner_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
-    // Forward-compat DAG hint: PERSISTED but NOT FK-ENFORCED (dispatch is purely (status='queued',
-    // scheduledAt) order; start/retry warn at the seam). A plain JSON array of workload ids — deliberately
-    // no FK. Null when the caller supplied no deps.
+    // The DAG edges: PERSISTED and ENFORCED AT DISPATCH (`nextRunnableWorkload`'s dependency gate — a dep
+    // still active skips the row, a non-success terminal or an absent dep fails it with `dependency_failed`),
+    // but deliberately NOT FK-ENFORCED: a plain JSON array of workload ids, so an absent dep is a runtime
+    // verdict rather than an insert-time refusal. Null when the caller supplied no deps.
     dependsOn: text("depends_on", { mode: "json" }).$type<readonly WorkloadId[]>(),
     // A human-readable failure reason stamped on the terminal (failed/worker_died) path. Null otherwise.
     error: text("error"),
-    // Dispatch order key (the queue is (status='queued', scheduledAt) — earliest first). Defaults to now.
+    // Dispatch DUE-instant + order key: the queue is (status='queued', lane, scheduledAt <= now) ordered
+    // earliest-first, so a future-dated value is the "Run at" deferral (the row is invisible to dispatch
+    // until its instant), not merely a sort hint. Defaults to now = run as soon as the lane is free.
     scheduledAt: integer("scheduled_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Enqueue time — the stable creation timestamp `list` orders newest-first + filters `since` on
     // (scheduledAt may be future-dated, so it can't double as the audit clock).

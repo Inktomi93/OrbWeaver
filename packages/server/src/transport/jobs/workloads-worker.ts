@@ -16,9 +16,17 @@
 //
 // LIFECYCLE (neo parity, re-tiered): boot reap (orphans from a prior lifetime) → periodic reap tick (a fast
 // crash-restart or a sibling replica's death the boot reap misses) → ONE POLL LOOP PER EXECUTION LANE (claim
-// → run) → wake-on-emit (an enqueued row short-circuits every lane's poll wait) → SIGTERM aborts the loops
-// AND is threaded into the runs so in-flight workloads abort to `cancelled`. The cross-replica lock is the DB
-// partial-unique index (the claim loser polls the next row); no leader election.
+// → run) → wake-on-emit → SIGTERM aborts the loops AND is threaded into the runs so in-flight workloads abort
+// to `cancelled`. The cross-replica lock is the DB partial-unique index (the claim loser polls the next row);
+// no leader election.
+//
+// WAKE-ON-EMIT IS A LIFECYCLE WAKE, NOT AN ENQUEUE WAKE. The bus carries events for rows that are ALREADY
+// dispatched (started / progress / terminal), so what the wake buys is zero gap between BACK-TO-BACK items:
+// a finishing row wakes every sleeping lane immediately instead of leaving it parked on its poll timer.
+// ENQUEUE emits nothing — a freshly queued row (or one that becomes DUE between polls: the `scheduledAt`
+// gate is evaluated per poll, never scheduled against) is picked up on the next tick, i.e. within
+// `pollIntervalMs` (2 s). That latency is BY DESIGN (see the constant below), not an oversight; do not build
+// on a sub-poll enqueue-to-dispatch invariant.
 //
 // LANES: each `WorkloadLane` gets its own independent loop (`laneConcurrency` workers each, default 1), and
 // each loop polls ONLY its lane's queue head. That is the whole fix for the head-blocking defect — a
@@ -182,9 +190,11 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
     void reapOnce(deps);
   }, reapMs);
 
-  // Wake-on-emit: ANY workload event (started/terminal) wakes EVERY sleeping lane to look for more work
-  // immediately, so there is never a poll-period gap between back-to-back items. The set holds each sleeping
-  // loop's resolver (one per lane worker); a fired event resolves them all.
+  // Wake-on-emit: ANY workload event (started/progress/terminal — every emitter is a row already in flight)
+  // wakes EVERY sleeping lane to look for more work immediately, so there is never a poll-period gap between
+  // back-to-back items. A fresh ENQUEUE emits nothing and waits for the next poll (header, "wake-on-emit is a
+  // lifecycle wake"). The set holds each sleeping loop's resolver (one per lane worker); a fired event
+  // resolves them all.
   const waiters = new Set<() => void>();
   const unsubscribe = deps.subscribeWake(() => {
     for (const wake of [...waiters]) {

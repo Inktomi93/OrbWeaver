@@ -1,7 +1,9 @@
 // verb: start — enqueue a `queued` row in a given MODE. Re-parses the input against the OWNING domain's
 // contribution schema (defense in depth — the wire validates the envelope only, and mocked-procedure tests
 // bypass it entirely). `dependsOn` is persisted here and enforced at dispatch (the DAG scheduler in
-// `persistence/nextRunnableWorkload`) — start just records the edges.
+// `persistence/nextRunnableWorkload`) — start just records the edges. `scheduledAt` is the same shape: a
+// caller-supplied future instant is persisted verbatim (absent ⇒ now) and the SAME head query gates on it,
+// so a "Run at" row stays out of the dispatch window until its instant.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
