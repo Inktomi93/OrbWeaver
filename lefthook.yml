@@ -56,6 +56,19 @@ pre-commit:
       env:
         NO_COLOR: "1"
 
+# The MERGE-commit twin of pre-commit (added 2026-08-01 — main went red twice in one day from exactly
+# this hole): git runs `pre-merge-commit` (NOT `pre-commit`) for a NON-conflicted auto-merge commit
+# (`git merge <branch>` that commits by itself), so merges skipped the gate entirely. A CONFLICTED merge
+# concluded via `git commit` already runs pre-commit — this hook covers precisely the uncovered path.
+# Same body as pre-commit: the merged working tree is in place when the hook fires, so `pnpm check`
+# verdicts the exact tree the merge commit would snapshot. Bypass: `git merge --no-verify` (emergencies).
+pre-merge-commit:
+  commands:
+    check:
+      run: pnpm check
+      env:
+        NO_COLOR: "1"
+
 pre-push:
   commands:
     # The ONE push-tier command (V3 repoint): static + tests:node (`pnpm test` = vitest projects + the CT
