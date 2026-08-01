@@ -110,11 +110,14 @@ client consumers. REDESIGN: 5 flat views · KnobRow grammar (label·slider·mono
 unset = GHOSTED effective value with provenance) · ONE new read preset.resolveEffective ·
 CONTEXT becomes the assembly readout (per-section token bars) · list = ratified projection +
 inline activate RowToggleAction · zero new primitives (2 variant rows + 1 local composite).
-OWNER PUSHBACK (08-02) → designer RESUMED for two required additions before rulings: (a) PER-VIEW
+ROUND-2 DELIVERED + MERGED (`29ff1ac8`): §7 = per-view CONTEXT table (6 states, each element
+names its decision; CONTEXT reads SAVED truth, zero mutation affordances, one writer per echo
+pair) · §16 = the 29-row one-home audit (sanctioned echoes justified: create/activate/add-section/
+reorder/select; audit caught+fixed 2 defects in its own v1 mocks). NEW mock context-readouts
+claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + actions REPUBLISHED
+same URLs. Owner's two bars met — D1-D7 rulings now unblocked. [round-1 note: (a) PER-VIEW
 CONTEXT definition (static Assembly readout insufficient — each of the 5 views + list-only state
-gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) the
-ONE-HOME AUDIT table (every affordance → one primary home → justified echoes only → enforcement;
-mocks swept against it). THEN OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
+gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) one-home audit — both delivered above.] OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
 ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
 GATE FOLLOW-UP flagged: knob-wire-coverage should grow a preset-editor reader arm (the F8
 minted-but-editor-less class). Mocks PUBLISHED: params-deck
