@@ -164,6 +164,11 @@ wherever wiring touches an unadopted pane — band anatomy + §12 row-actions + 
 reserved ONLY for non-thin SERVER serde/schema work); placement RULED list-side one-home
 (band=Import, kebab=Export, rooms/editors carry zero lifecycle chrome); chat export gated on the member-strip
 visibility plane (flag-not-build if the bundle doesn't already handle it — SECURITY).
+~~density S4~~ MERGED (`15905ffc`: baseline 779→422 / 75 files, 54 files zeroed; content-
+integrity strip-diff audit caught a perl brace-eat DELETION before commit; teaching prose kept
+body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
+bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
+NOW DISPATCHABLE.
 **CATCH-UP WAVE (08-02):** density S4 settings sweep LANE (post-D120 unblocked; corpus/analytics
 folded in, preset-* EXCLUDED — wave 2 rebuilds them) · closed-program ARCHIVE sweep LANE (SSE/HUD/
 SET-SEAMS specs + 4 resolved stickler reports → history, refs repointed, verify-then-move) ·
