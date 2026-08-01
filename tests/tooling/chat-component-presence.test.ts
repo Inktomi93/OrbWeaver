@@ -44,8 +44,8 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "the row is the list surface's split-out unit (projection L0); chat-list-surface.ct drives portrait/snippet/star/game-marker arms and the RowToggleAction star mutation on real rows.",
   },
   "chats-with-character-pane": {
-    coveredBy: "characters-list-pane",
-    why: "the pane is Arm A's projection body, mounted only through the characters list pane's modal swap; characters-list-pane.ct drives the swap, the projection rows, and back-focus through it.",
+    deferred:
+      "REAL coverage lives OUTSIDE this checker's chat glob: tests/client/features/character/components/characters-list-pane.ct.tsx composes picker+editor+projection and drives the swap, rows, focus ownership and back-focus. This checker only resolves chat-dir CTs, so citing it as coveredBy reads as dangling (see header); recorded here instead.",
   },
   "assembly-preview-diagnostics": {
     coveredBy: "assembly-preview-panel",

@@ -848,6 +848,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   echo: "public: no auth, no id",
   clientError: "public: fire-and-forget log sink, no id",
   // Self-scoped by the resolved Principal — no cross-tenant id input (returns only the caller's own world).
+  "chat.reapTemporaryChats": "self-scoped maintenance: no input at all — sweeps only the CALLER's own expired temp chats (matrix: non-chat-scoped)",
   "character.create": "self-scoped: creates the caller's own row",
   "character.list": "self-scoped: lists the caller's own rows",
   "persona.create": "self-scoped",
