@@ -137,6 +137,28 @@ describe("lock-honoring (manual-edit-wins)", () => {
     expect(keys).toContain("zan");
   });
 
+  test("an UNNAMED actorState element survives with NO lock — an actor is an identity, not list content", () => {
+    // `actorState` is the ONE additive keyed plane: no producer removes an actor by omission (the tool
+    // appliers map/append over the base; the client patch builder can only see the ROSTER half of the
+    // plane), so an unnamed element is ignorance. Without this the second of two per-actor writes silently
+    // deleted the first actor's whole volatile row (the e2e-caught hand-plane loss).
+    const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
+    const out = applyLockedPatch(base, { actorState: [actorWithWallet("zan", 3, 9)] }, null);
+    const actors = out.actorState as { actorRef: { castKey: string }; trackerValues: Record<string, { value: number }> }[];
+    expect(actors.map((a) => a.actorRef.castKey).sort()).toEqual(["mari", "zan"]);
+    expect(actors.find((a) => a.actorRef.castKey === "mari")?.trackerValues["focus"]?.value).toBe(5); // untouched
+    expect(actors.find((a) => a.actorRef.castKey === "zan")?.trackerValues["focus"]?.value).toBe(9); // took the patch
+  });
+
+  test("every OTHER keyed plane still removes by omission — an unlocked dropped quest is gone [the contrast]", () => {
+    // The counterweight to the additive `actorState` rule: quests/inventory/presentCharacters/wallet/
+    // conditions all have a real remove-by-omission gesture (deleteQuest, the pack's onRemoveItem,
+    // `presentRemove`, `removeCondition`), so the authored array IS the plane there.
+    const base = { quests: [quest("main"), quest("side")] };
+    const out = applyLockedPatch(base, { quests: [quest("side")] }, null);
+    expect((out.quests as { id: string }[]).map((q) => q.id)).toEqual([questId("side")]);
+  });
+
   test("a wallet-entry lock (…wallet.<name>) pins one currency while another takes the patch", () => {
     const base = {
       actorState: [
