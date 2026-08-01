@@ -225,6 +225,11 @@ const USER_TRACKED_KEYS = [
   // card edit is announced on THIS bus, not the chat bus. Without the row the dialog re-opened inside its
   // gcTime window showed the pre-edit card.
   "memberCard",
+  // The Analytics dashboard's twelve turn-ECONOMICS reads (`trpc.stats` ROUTER root). The rollups are written
+  // in the same `db.batch` as the canon write, and this fan is the moment that batch lands — before the row
+  // they had NO driver at all (an open Analytics route froze at mount; a re-open inside gcTime served numbers
+  // up to 5 min old). One representative read stands for the router root the map path-invalidates.
+  "stats",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -246,7 +251,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
-  chatsChanged: ["character", "chatGet", "chatList"],
+  chatsChanged: ["character", "chatGet", "chatList", "stats"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],
@@ -280,6 +285,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+        stats: trpc.stats.overview.queryKey(),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
@@ -302,7 +308,10 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
     const chatList = trpc.chat.listChats.queryKey();
     const character = trpc.character.list.queryKey();
     const chatGet = trpc.chat.getChat.queryKey({ chatId: CHAT_ID });
-    for (const key of [chatList, character, chatGet]) {
+    // The turn-economics rollups land on this SAME terminal fan — the chatId-less branch is the one a plain
+    // turn takes, so if the stats row rode only the lifecycle branch the dashboard would still never move.
+    const stats = trpc.stats.overview.queryKey();
+    for (const key of [chatList, character, chatGet, stats]) {
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -310,6 +319,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
 
     expect(isInvalidated(queryClient, chatList)).toBe(true);
     expect(isInvalidated(queryClient, character)).toBe(true);
+    expect(isInvalidated(queryClient, stats)).toBe(true);
     expect(isInvalidated(queryClient, chatGet)).toBe(false);
   });
 
@@ -327,6 +337,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.chat.listChats.queryKey(),
       trpc.connection.getCatalog.queryKey(),
       trpc.connection.resolveChatCapability.queryKey(),
+      trpc.stats.overview.queryKey(),
     ];
     for (const key of roots) {
       queryClient.setQueryData([...key], [] as never);
