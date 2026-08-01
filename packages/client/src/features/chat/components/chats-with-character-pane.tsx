@@ -60,6 +60,8 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
   const projected = chatsWithCharacter(chats, characterId);
   if (projected.length === 0) {
     return (
+      // Scale is the primitive's own business (side-eye P2f): `EmptyState` drops a type step by CONTAINER
+      // QUERY inside a ~307px LIST pane, so this call site says WHAT to teach and nothing about how big.
       <EmptyState
         action={
           <Button intent="primary" onClick={onNewChat} size="sm">

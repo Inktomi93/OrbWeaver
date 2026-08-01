@@ -114,8 +114,12 @@ export function CharacterCreateMenu(): ReactElement {
       <Menu>
         <MenuTrigger
           render={
-            <Button aria-label="New or import a character" intent="primary" size="icon">
+            // A VISIBLE label like every sibling band primary ("New chat", "New book") — a bare `+` in the
+            // one band that has no other affordance made the section's create read as chrome (side-eye P2c).
+            // The aria-label stays the fuller verb, because the menu also imports.
+            <Button aria-label="New or import a character" intent="primary" size="sm">
               <Icon icon={Plus} size="sm" />
+              New
             </Button>
           }
         />

@@ -10,6 +10,11 @@
 // (CONTENT-sized), which is the F2-safe size for a display-token child — every other button size pins a
 // control height, so a 32px avatar inside one would paint outside its own hit box.
 //
+// TOUCH FLOOR (side-eye P1-3): content-sized means the box was the 32px AVATAR at every pointer — under
+// WCAG's 44px and under this app's own coarse floor. The fix is the sibling icon buttons' mechanism, not a
+// bigger portrait: a per-pointer MIN box (`min-w/min-h-control-md` = 34px fine / 48px coarse by token
+// construction, D62 P1) with the avatar centered inside it. The avatar display token stays 32px.
+//
 // Data-driven: an empty `items` renders NOTHING, never an empty shell (the strip is a shortcut, and a
 // shortcut to nowhere is chrome).
 
@@ -52,7 +57,7 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
         <Button
           aria-current={selectedId === item.id ? "true" : undefined}
           aria-label={`${verb} ${item.name}`}
-          className="shrink-0"
+          className="min-h-control-md min-w-control-md shrink-0"
           intent="ghost"
           key={item.id}
           onClick={(): void => onSelect(item.id)}

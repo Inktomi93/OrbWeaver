@@ -608,3 +608,17 @@ hand-rolled star Button migrates onto `RowToggleAction` with `rest` per owner ru
 
 **No server, contract, db, or gate files change in L0–L4.** The deferred instrumentation items are the
 only contract-field work, and they are explicitly out of this program.
+
+### 13.1 Homes the side-eye FIX-ALL pass added (2026-08-01, post-L1/L3)
+
+The polish round found four defects whose fix could NOT live at a call site — §11.2's "zero new `@orb/ui`
+variants" claim is amended by the first two rows (the anti-fugly law's own escape: a look no variant offers
+is a VARIANT, never a `className`).
+
+| file | change |
+| - | - |
+| `packages/ui/src/primitives/list-row/{list-row.tsx,variants.ts}` | NEW `actionsFloat` prop + `float` variant — a rest-HIDDEN trailing cluster leaves the flow (fine pointers) instead of reserving ~76px of the title column; coarse keeps it in flow, where it is permanently visible. Consumed by `ChatSummaryRow` (only when no marker is rest-visible) and `LibraryRow` |
+| `packages/ui/src/primitives/empty-state/variants.ts` | the teaching stack re-voices itself one type step down inside a narrow (`@max-sm`) container — a CONTAINER QUERY on its own root, never a `compact` prop (`no-layout-context-props` is the wall) |
+| `packages/kit/src/time/index.ts` | NEW `TimeLib.formatRelativeCompact` (`2h`/`1d`/`3w`) — the LIST-ROW stamp form beside `formatRelative`; the client singleton (`client/src/lib/time.ts`) freezes it under `--probe` like its long twin. Sentences (presets' "edited 5m ago") keep the long form |
+| `packages/client/src/components/row-reveal.ts` | `ROW_REVEAL` adds `pointer-events-none` at rest (cleared by every reveal arm) — an invisible control must not be hit-testable, which is also what lets the floated cluster sit over the text column safely |
+| `packages/client/src/features/chat/lib/chat-summary-row.ts` | NEW `chatRowActionName` — action labels carry the row's own stamp, so N rows titled "Azarael" stop exposing N identical accessible names (`LibraryRow.qualifier` is the same fix for preset forks) |

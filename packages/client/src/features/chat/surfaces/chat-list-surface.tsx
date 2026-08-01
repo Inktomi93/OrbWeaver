@@ -19,7 +19,7 @@ import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
@@ -57,6 +57,12 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
 
   return (
     <Stack className="h-full min-h-0 outline-none" gap="block" ref={surfaceRef} tabIndex={-1}>
+      {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
+          shortcut you arrive for, and burying them under the search box made them read as a filter widget.
+          The strip lives HERE rather than in the suspending body so it can sit above the chip; it reads the
+          SAME `chat.listChats` cache entry non-suspensefully (no new key, no second truth) and renders
+          nothing until it lands, which is its own empty posture anyway. */}
+      <FacesStrip characterFilter={characterFilter} />
       {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
       <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
       <Stack className="min-h-0 flex-1">
@@ -76,6 +82,37 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         </QueryBoundary>
       </Stack>
     </Stack>
+  );
+}
+
+/** Arm B — the faces strip: the pane learns FACES without the rail learning a new section. Tapping a face
+ *  sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
+ *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
+ *
+ *  A plain `useQuery` on the chats key the body suspends on: a shortcut row must not gate the pane's chrome
+ *  on a fetch, and an unresolved read renders NOTHING (the strip's own data-driven empty posture). */
+function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
+  const characterById = useChatPortraitMap();
+  const faces = recentFaces(chats ?? [], characterById);
+  const scopeToFace = (id: string): void => {
+    const face = faces.find((candidate) => candidate.id === id);
+    if (face === undefined) {
+      return;
+    }
+    // Re-tapping the scoping face clears it — the same toggle its `aria-current` announces (the chip's ✕
+    // stays the other way out).
+    if (characterFilter?.id === id) {
+      clearChatListCharacterFilter();
+      return;
+    }
+    setChatListCharacterFilter({ id: castId<CharacterId>(id), name: face.name });
+  };
+  // Captions on: this strip is a NAMED shortcut list (the library's favorites strip stays portraits-only),
+  // so a face you haven't opened in a week is still identifiable without hovering it.
+  return (
+    <FaceStrip caption={true} items={faces} label="Recent characters" onSelect={scopeToFace} selectedId={characterFilter?.id ?? null} verb="Show chats with" />
   );
 }
 
@@ -110,24 +147,6 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
   const characterById = useChatPortraitMap();
 
-  // Arm B — the faces strip: the pane learns FACES without the rail learning a new section. Tapping one
-  // sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
-  // "filtered by" (a chip you can clear) rather than a second list that owns her chats.
-  const faces = recentFaces(chats, characterById);
-  const scopeToFace = (id: string): void => {
-    const face = faces.find((candidate) => candidate.id === id);
-    if (face === undefined) {
-      return;
-    }
-    // Re-tapping the scoping face clears it — the same toggle its `aria-current` announces (the chip's ✕
-    // stays the other way out).
-    if (characterFilter?.id === id) {
-      clearChatListCharacterFilter();
-      return;
-    }
-    setChatListCharacterFilter({ id: castId<CharacterId>(id), name: face.name });
-  };
-
   if (chats.length === 0) {
     return (
       <EmptyState
@@ -148,8 +167,8 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
   const filtered = filterChats(scoped, query);
   return (
     <Stack className="h-full min-h-0" gap="block">
-      {/* The strip stays put across every body state below it — it is the way OUT of an empty scope. */}
-      <FaceStrip items={faces} label="Recent characters" onSelect={scopeToFace} selectedId={characterFilter?.id ?? null} verb="Show chats with" />
+      {/* The strip renders ABOVE this boundary (the surface), so it stays put across every body state —
+          including an empty scope, where it is the way OUT. */}
       <Stack className="min-h-0 flex-1">
         <ChatRows
           activeChatId={activeChatId}
