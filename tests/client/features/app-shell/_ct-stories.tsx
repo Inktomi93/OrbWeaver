@@ -304,7 +304,7 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
 /** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
  *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */
 function resolvedTab(partial: Partial<ResolvedContextTab> & Pick<ResolvedContextTab, "id" | "label" | "node">): ResolvedContextTab {
-  return { strip: "meta", badge: null, disabledReason: null, defaultTab: false, ...partial };
+  return { strip: "meta", crown: false, badge: null, disabledReason: null, defaultTab: false, ...partial };
 }
 
 const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [

@@ -1,79 +1,22 @@
-// The Chat behavior settings pane (PD-146) — co-located SettingsPaneDefinition wrapping the real surface.
-// Registered at the door (main.tsx); settings owns this pane. Two groups mirror neo's Preferences behavior
-// column: message handling (send/continue/auto-swipe/stopping strings) + streaming (smooth reveal).
+// The Chat behavior settings pane (client-architecture-lockdown.md §8) — a PURE SKIMMER since SET-SEAMS
+// stage 2: `body: { kind: "sections" }`, no own surface and no own `subcategories`. Both knob groups it used
+// to render inside ONE welded autosave form are self-owned settings-SECTION CONTRIBUTIONS in features/chat
+// now (§6, reader-owns): message handling (send/continue/auto-swipe/stopping strings) and streaming (scroll
+// mode + smooth reveal) — the composer and the streaming ghost are what read them. The pane's other sections
+// (memory ①, world-info ②, databank ④, imagery) were already contributions, so the settings host renders the
+// `chat-behavior`-anchored contributions and DERIVES the pane's nav from them.
 //
-// A HOST of the settings-SECTION contribution seam (client-architecture-lockdown.md §6c / pain-point §7):
-// the `chat-behavior`-anchored contributions (memory ①, world-info ②, databank ④, imagery) render inside
-// its surface off the ONE door-assembled section registry, and the settings shell merges their navs into
-// this pane's subcategory list. Zero contributions ⇒ byte-identical to the pre-seam pane (the
-// `editor-sections` posture). The def homes settings-owned; the sections home in their OWNING features.
+// The def stays settings-owned because the settings feature owns the SHELL, not the knobs.
 
 import { MessagesSquare } from "@orb/ui/icons";
-import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
-import { ChatBehaviorSettingsSurface } from "../surfaces/chat-behavior-settings-surface";
-import { CHAT_BEHAVIOR_SUBCATEGORY_IDS } from "./chat-behavior-nav";
+import type { SettingsPaneDefinition } from "#state";
 
-// The pane's OWN subcategories — the contributed section navs are appended after these (declared order).
-const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
-  {
-    id: CHAT_BEHAVIOR_SUBCATEGORY_IDS.messageHandling,
-    label: "Chat & message handling",
-    keywords: ["send", "continue", "keyboard"],
-    settings: [
-      {
-        id: "enter-sends",
-        label: "Enter to send",
-        keywords: ["enter", "keyboard", "newline", "shortcut"],
-      },
-      {
-        id: "continue-on-send",
-        label: "Send continues the reply",
-        keywords: ["continue", "extend", "empty"],
-      },
-      {
-        id: "auto-continue",
-        label: "Auto-continue",
-        keywords: ["continue", "length", "cap", "follow-up"],
-      },
-      {
-        id: "auto-swipe",
-        label: "Auto-swipe short replies",
-        keywords: ["swipe", "regenerate", "retry", "blacklist"],
-      },
-      {
-        id: "custom-stopping-strings",
-        label: "Custom stopping strings",
-        keywords: ["stop", "stopping", "sequence", "generation"],
-      },
-    ],
-  },
-  {
-    id: CHAT_BEHAVIOR_SUBCATEGORY_IDS.streaming,
-    label: "Streaming",
-    keywords: ["stream", "reveal", "typing"],
-    settings: [
-      {
-        id: "smooth-stream",
-        label: "Smooth streaming",
-        keywords: ["smooth", "reveal", "pace", "fade", "typing"],
-      },
-      {
-        id: "smooth-stream-cps",
-        label: "Reveal speed",
-        keywords: ["speed", "cps", "rate", "characters"],
-      },
-    ],
-  },
-];
-
-/** The chat-behavior pane — a settings-section host. `subcategories` lists only what the pane itself
- *  renders; the shell appends the `chat-behavior`-anchored contributions' navs. */
+/** The chat-behavior pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx). */
 export const chatBehaviorPane: SettingsPaneDefinition = {
   id: "chat-behavior",
   group: "user",
   label: "Chat behavior",
   icon: MessagesSquare,
   description: "How chats send, continue, and stream.",
-  subcategories: OWN_SUBCATEGORIES,
-  body: { kind: "surface", render: () => <ChatBehaviorSettingsSurface /> },
+  body: { kind: "sections" },
 };

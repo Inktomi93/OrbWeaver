@@ -73,6 +73,32 @@ test("the size steps interrogate the CONTAINER: 120 · 96 · 76px at the mapped 
   await expect(stone.locator("[data-slot=waystone-marker]")).toBeVisible();
 });
 
+test("an UNSET stone steps the SAME mapping down one step at EVERY container step (HUD-1 §7.3)", async ({ mount }) => {
+  // The compressed band's stone, derived from its own datum rather than from a caller flag: with no clock
+  // there is no sky, no celestial, no stars, no weather and no hand, so the size the LAYERS need is not the
+  // size an empty disc needs. Measured: at every width where the full stone is 120/96/76, the unset one is
+  // the NEXT step down — the two mappings live in one place and cannot be tuned apart.
+  const host = await mount(
+    <div style={{ containerType: "inline-size", width: "480px" }}>
+      <Waystone clock={null} />
+    </div>,
+  );
+  const stone = host.locator("[data-slot=waystone]");
+  const sizeAt = async (containerWidth: number): Promise<number> => {
+    await host.evaluate((el, width) => {
+      el.style.width = `${width}px`;
+    }, containerWidth);
+    return Math.round((await stone.boundingBox())?.width ?? 0);
+  };
+  await expect.poll(async () => sizeAt(480)).toBe(96);
+  await expect.poll(async () => sizeAt(350)).toBe(76);
+  await expect.poll(async () => sizeAt(300)).toBe(60);
+  // The sub-pixel gate follows the STONE, not the container: at 350px the unset stone is already the 76px
+  // step the layer drop exists for, so it drops there — one container step earlier than the full stone's.
+  await expect.poll(async () => sizeAt(350)).toBe(76);
+  await expect(host.locator("[data-slot=waystone-cardinal-noon] line").first()).toBeHidden();
+});
+
 test("with no query container the stone stays at its full 120px (the steps fail OPEN, never to the smallest)", async ({ mount }) => {
   const component = await mount(<Waystone clock={{ hour: 12, minute: 0 }} weather="clear" />);
   expect(Math.round((await component.boundingBox())?.width ?? 0)).toBe(120);

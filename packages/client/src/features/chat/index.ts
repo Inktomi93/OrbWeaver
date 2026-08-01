@@ -25,6 +25,8 @@ export { useStopTurn } from "./hooks/use-stop-turn";
 export { appearanceAvatarsSection } from "./lib/appearance-avatars-section";
 export { appearanceMessageDetailsSection } from "./lib/appearance-message-details-section";
 export { appearanceMessageStyleSection } from "./lib/appearance-message-style-section";
+export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling-section";
+export { chatStreamingSection } from "./lib/chat-behavior-streaming-section";
 export { chatOptionsChrome } from "./lib/chat-options-chrome";
 export { chatSlashCommands } from "./lib/chat-slash-commands";
 export { deriveChatTitle } from "./lib/chat-summary-row";

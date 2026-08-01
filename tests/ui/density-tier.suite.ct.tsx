@@ -14,11 +14,16 @@
 // Every expected value is resolved FROM THE SAME DOCUMENT (`resolveToken`), never a hardcoded px: a token
 // retune must not red this file, and an authored-string assertion would stay green through a visual
 // regression (the Waystone lesson). One `mount()` per test — a second throws.
+import { Avatar } from "@orb/ui/avatar";
 import { Card } from "@orb/ui/card";
+import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Input } from "@orb/ui/input";
 import { Surface } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
+import { MessageMedia } from "@orb/ui/message-media";
+import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
+import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { ReactElement } from "react";
@@ -312,6 +317,39 @@ test("the four LIST pane declarations resolve identically, and a form pane keeps
   // title step, and it is the form/untiered pane that keeps the larger body step.
   expect(instrument.inputSize).toBe(instrument.titleSize);
   expect(Number.parseFloat(form.inputSize)).toBeGreaterThan(Number.parseFloat(instrument.inputSize));
+});
+
+// A 1×1 transparent GIF — an `asset` source that actually decodes, so the image arm renders the <img>
+// rather than falling through to the broken-media placeholder.
+const PIXEL_GIF = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+test("S2 CONFORMANCE: every @orb/ui island lands on its ASSIGNED radius step, none on the floating one", async ({ mount }) => {
+  // The rendered receipt for the S2 sweep of the ui internals (density-pass-spec.md §2.1 / D6): these five
+  // primitives all defaulted to `rounded-card`, the ELEVATED step, while every one of them renders INSIDE
+  // something else — media/frames/tool calls inside the message bubble, an avatar in a row. Read by computed
+  // value against the resolved tokens: an authored-class assertion would stay green if the utility stopped
+  // resolving (the Waystone lesson), and `not.toBe(card)` is what actually pins the demotion.
+  const tree = await mount(
+    <div>
+      <ToolCallBlock record={{ toolCallId: "t1", name: "search", arguments: "{}", result: "{}", isError: false, durationMs: 12 }} />
+      <Avatar alt="Azarael" shape="rounded" />
+      <MessageMedia alt="A pixel" media="image" src={{ kind: "asset", url: PIXEL_GIF }} />
+      <SandboxFrame html="<p>card</p>" title="Sandboxed card" />
+      <FileDropzone />
+    </div>,
+  );
+  const base = await resolveToken(tree, "--radius-base");
+  const card = await resolveToken(tree, "--radius-card");
+  const control = await resolveToken(tree, "--radius-control");
+  expect(base).not.toBe(card); // the whole assertion is vacuous if the two steps ever collapse
+
+  // Grouped content, every one of them: read in one batch, then asserted as a MAP so a failure names the
+  // slot that drifted instead of just a px number.
+  const grouped = ["tool-call-block", "avatar-root", "message-media", "sandbox-frame"];
+  const radii = await Promise.all(grouped.map((slot) => computedPx(tree.locator(`[data-slot="${slot}"]`), "borderTopLeftRadius")));
+  expect(Object.fromEntries(grouped.map((slot, i) => [slot, radii[i]]))).toEqual(Object.fromEntries(grouped.map((slot) => [slot, base])));
+  // The dropzone IS the file input (the native control covers the whole box) — the control step, not base.
+  expect(await computedPx(tree.locator('[data-slot="file-dropzone"]'), "borderTopLeftRadius")).toBe(control);
 });
 
 test("CD3: exactly ONE focal element at rest in a surface (accent fill or elevation shadow)", async ({ mount }) => {

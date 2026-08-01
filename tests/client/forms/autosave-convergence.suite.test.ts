@@ -27,7 +27,7 @@ import { themeOverrideSchema } from "@orb/contracts/theme";
 import { describe } from "vitest";
 import type { CharacterThemeFormValues } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
 import { characterThemeFormFromOverride, overrideFromCharacterThemeForm } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
-import { projectChatForm, toChatSectionPatch } from "../../../packages/client/src/features/settings/lib/chat-behavior-model";
+import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model";
 import { diffSystemPatch, projectSystemForm } from "../../../packages/client/src/features/settings/lib/system-settings-model";
 import { expect, test } from "../../support/fixtures";
 
@@ -35,7 +35,7 @@ import { expect, test } from "../../support/fixtures";
 // and re-parsed (the `updateUserSettingsSection` write path), then the section is plucked back. This runs
 // the section's zod `.catch`/`.default`/nested-prefault exactly as the server would on the echo.
 /** A DEEP-partial section patch (mirrors the real deep-merge write: a pane that edits only some fields — e.g.
- *  chat's `toChatSectionPatch` omits the PD-146 knobs it doesn't surface, INCLUDING nested ones like
+ *  chat's `toMessageHandlingPatch` omits the leaves it doesn't surface, including the nested
  *  `autoSwipe.maxRetries` — leaves them untouched). */
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
 
@@ -49,9 +49,12 @@ function serverShapeSection<K extends keyof typeof DEFAULT_USER_SETTINGS>(
   return userSettingsSchema.parse({ ...DEFAULT_USER_SETTINGS, [section]: merged })[section];
 }
 
-// ── chat-behavior ──────────────────────────────────────────────────────────────────────────────────
-// project = projectChatForm, save = toChatSectionPatch, serverShape = chatSchema.parse.
-describe("convergence: chat-behavior", () => {
+// ── chat-behavior › message handling (SET-SEAMS stage 2 — the section owns its own project/save) ────
+// project = projectMessageHandlingForm, save = toMessageHandlingPatch, serverShape = chatSchema.parse. The
+// SIBLING streaming section needs no arm here: its form value IS a `Pick<ChatSettings, …>` (pickKeys both
+// ways), so project/save is the identity and the round-trip is the schema's own idempotence, already
+// covered by the appearance arm's identity case.
+describe("convergence: chat-behavior message handling", () => {
   const rows: readonly ChatSettings[] = [
     DEFAULT_CHAT_SETTINGS,
     {
@@ -59,18 +62,20 @@ describe("convergence: chat-behavior", () => {
       continueOnSend: false,
       generateOnEmptySend: false,
       autoContinue: true,
-      autoContinueRounds: 1,
+      // Both NON-default (the section owns them now): a projection that dropped either would echo back the
+      // schema default and fail the fixed point.
+      autoContinueRounds: 3,
       autoSwipe: { enabled: true, minLength: 120, blacklist: ["As an AI", "I cannot"], maxRetries: 1 },
       customStoppingStrings: ["###", "END"],
-      tempChatTtlHours: 24,
+      tempChatTtlHours: 72,
       smoothStream: true,
       smoothStreamCps: 150,
       streamScrollMode: "pin-prompt",
     },
   ];
   test.each(rows.map((r, i) => [i, r] as const))("row %i is a project/save/echo fixed point", (_i, row) => {
-    const form = projectChatForm(row);
-    const echoed = projectChatForm(serverShapeSection("chat", toChatSectionPatch(form)));
+    const form = projectMessageHandlingForm(row);
+    const echoed = projectMessageHandlingForm(serverShapeSection("chat", toMessageHandlingPatch(form)));
     expect(echoed).toEqual(form);
   });
 });

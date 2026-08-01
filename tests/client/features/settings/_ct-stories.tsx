@@ -3,8 +3,7 @@
 // `settings.getUserSettings` so the Appearance pane resolves; the placeholder panes need no network).
 
 import { SettingsShell, ThemePickerSurface } from "@orb/client/features/settings";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { SettingsCategoryId, SettingsSectionContribution } from "@orb/client/state";
+import type { SettingsCategoryId } from "@orb/client/state";
 import { openSettingsTo } from "@orb/client/state";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { TooltipProvider } from "@orb/ui/tooltip";
@@ -13,14 +12,13 @@ import { useState } from "react";
 // The story reaches a feature internal the front door doesn't re-export (the app-shell _ct-stories.tsx
 // Rail precedent) — SystemSettingsSurface and friends are mounted by SettingsShell itself, not exported
 // standalone.
-import { ChatBehaviorSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/chat-behavior-settings-surface";
 import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
 import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders, CtRealSectionRegistry, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 /** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
  *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —
@@ -102,11 +100,6 @@ export function ThemePickerStory(): ReactElement {
   );
 }
 
-// The contributed-sections seam is exercised by its OWN stories (memory ①, world-info ②, library ⑪, and
-// the seven decomposed appearance sections); the chat-behavior story below pins that pane's native fields,
-// so it mounts with zero contributions (the door's empty case — byte-identical to the pre-seam pane).
-const emptySettingsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-settings-sections", []);
-
 /** The REAL appearance pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 1
  *  made it a `{kind:"sections"}` skimmer with no surface of its own. `appearance` is the shell's default
  *  active category, so this lands on it cold, with the REAL door-ordered section registry, the shell's
@@ -124,16 +117,23 @@ export function AppearancePaneStory(): ReactElement {
   );
 }
 
-/** The real Chat-behavior pane (PD-146) in isolation — `getUserSettings` (read) and
- *  `updateUserSettingsSection("chat")` (the autosave write) are stubbed per-test via routeTrpc. */
-export function ChatBehaviorSettingsStory(): ReactElement {
+/** The REAL chat-behavior pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 2
+ *  made it a `{kind:"sections"}` skimmer with no surface of its own. Deep-linked (the shell's default active
+ *  category is `appearance`) so it lands cold on chat-behavior with the REAL door-ordered section registry,
+ *  the shell's aggregate save-status footer (`SaveStatusHostContext`) and the derived nav — the production
+ *  path. A tall/wide box: the pane stacks six sections and would clip in a short one. */
+export function ChatBehaviorPaneStory(): ReactElement {
+  useState(() => {
+    openSettingsTo("chat-behavior");
+    return null;
+  });
   return (
     <CtDataProviders>
-      <CtSettingsSectionRegistry sections={emptySettingsSections}>
-        <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <ChatBehaviorSettingsSurface />
+      <CtRealSectionRegistry>
+        <div style={{ height: 900, width: 1160 }}>
+          <SettingsShell />
         </div>
-      </CtSettingsSectionRegistry>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

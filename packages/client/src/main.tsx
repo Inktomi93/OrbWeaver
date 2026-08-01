@@ -36,10 +36,12 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
+  chatMessageHandlingSection,
   chatOptionsChrome,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
+  chatStreamingSection,
   chatTempChatTile,
   commandModal,
   databankSettingsSection,
@@ -58,8 +60,17 @@ import { refinerySection } from "#features/refinery";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
 import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { adminPane, memoryTuningSection, rateLimitsSection, systemTuningSection } from "#features/user-admin";
-import { backupPane, workloadsPane, workloadsTuningSection } from "#features/workloads";
+import {
+  adminCatalogSection,
+  adminEmbeddingsSection,
+  adminEnginesSection,
+  adminPane,
+  adminUsersSection,
+  memoryTuningSection,
+  rateLimitsSection,
+  systemTuningSection,
+} from "#features/user-admin";
+import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
 import type {
   CharacterDetailContribution,
@@ -235,17 +246,31 @@ const chrome = createContributorRegistry(
 //
 // DOOR ORDER IS RENDER ORDER: within a pane, sections render in the order they appear below.
 const settingsSections = createContributorRegistry<SettingsSectionContribution>("settings-sections", [
-  // chat-behavior ← chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
-  // databank ④ (retrieval), imagery (prompt templates).
+  // chat-behavior ← the DECOMPOSED chat-behavior pane (SET-SEAMS stage 2) leading, then the sections that
+  // were already contributions: chat/memory ① (the master switch), world-info ② (scanDepth/tokenBudget),
+  // databank ④ (retrieval), imagery (prompt templates). The two chat-owned knob groups come FIRST, which
+  // reproduces the pre-split pane exactly (its own sections rendered above the contributed ones).
+  chatMessageHandlingSection,
+  chatStreamingSection,
   memorySettingsSection,
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
-  // admin ← the AppSettings admin-tier surfaces, owned by user-admin (admin-tier config).
+  // admin ← the DECOMPOSED admin pane (SET-SEAMS stage 3) leading in its pre-split order (users · engines ·
+  // model catalog · card embeddings), then the AppSettings admin-tier sections that were already
+  // contributions. All seven are owned by user-admin (it owns the admin verbs + the admin-tier config).
+  adminUsersSection,
+  adminEnginesSection,
+  adminCatalogSection,
+  adminEmbeddingsSection,
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
-  // workloads ← the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction).
+  // workloads ← the DECOMPOSED workloads pane (SET-SEAMS stage 3): the jobs list and the schedules, ahead of
+  // the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction) that were already a
+  // contribution — reproducing the pre-split pane exactly.
+  workloadsJobsSection,
+  workloadsSchedulesSection,
   workloadsTuningSection,
   // appearance ← the DECOMPOSED appearance pane (SET-SEAMS stage 1). Order here IS render order down the
   // pane, and it reproduces the pre-split pane exactly. Each section is owned by the feature that READS its

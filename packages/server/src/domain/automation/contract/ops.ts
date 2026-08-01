@@ -11,6 +11,7 @@ import type { PromptTransform, TurnInitiator } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
@@ -138,6 +139,10 @@ export interface AutomationOps {
      *  arm no-ops (nothing to pick). Author-scoped; the picked source is the author's own asset, so BG-C's
      *  asset-ownership gate on the write never refuses it. */
     readonly listBackgroundChoices: (authorUserId: UserId) => Promise<readonly BackgroundChoice[]>;
+    /** PROSE-1 census 91 — the ROOM HOST's prose overrides for this chat (owner-decision 8, option (a)),
+     *  wired to chat's `resolveChatProse` at compose. The `set_chat_background` quiet pick reads its two
+     *  authored clauses from here; a hostless/stale room resolves `{}` ⇒ the shipped defaults. */
+    readonly resolveChatProse: (chatId: ChatId) => Promise<ProseOverrides>;
     /** BG-F — the `set_chat_background` arm's WRITE, wired to chat's host-gated `setChatBackground` under the
      *  author's Principal at compose (the author's dispatch-time host authority was re-verified at the gate).
      *  Writes the per-chat carried background — INERT for every viewer outside a true-solo room (BG-C), which
