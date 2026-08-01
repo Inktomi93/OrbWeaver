@@ -15,6 +15,8 @@ export { IS_DEV } from "./dev-flag";
 export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
+export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts";
+export { HOME_TILE_SPANS } from "./home-tile-contracts";
 export {
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,

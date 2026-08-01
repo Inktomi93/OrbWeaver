@@ -8,8 +8,9 @@ import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
-/** The rail's navigable sections. */
-export const SECTION_IDS = ["chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
+/** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
+ *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order. */
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
