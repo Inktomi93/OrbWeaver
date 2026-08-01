@@ -94,9 +94,11 @@ density S3 conformance: baseline 174/1076 → 128/779 (45 files zeroed; empty-st
 readable-prose not gloss [no body+muted voice — plain Text]; voice-in-Badge needs text-inherit
 [3 pre-existing colour bugs FIXED]; S3 not closed until its side-eye; SCOPE CALL owed: corpus/
 preset/analytics context tabs mapped to S4/S5, are the bulk of remaining 779) · forkedFrom
-MERGED (`1138025f`: self-FK set-null; COW converges on oldest — ⚠ OWNER SANITY-CHECK: at most
-ONE COW fork of built-in now, re-edit overwrites it [last-write-wins], numbered-fork behavior
-replaced, second variant = Duplicate; read-then-write residual pinned honestly; regen fixed a
+MERGED (`1138025f`: self-FK set-null; COW converges on oldest — OWNER RULED (08-02): the COW moment SURFACES A CHOICE when a fork
+already exists — keep-editing-existing (converge, primary) vs start-a-new-named-fork (mint with
+lineage; N deliberate forks sanctioned by the non-unique index); first-ever fork stays silent;
+convergence remains the intent-absent backstop. FORK-CHOICE BUILD LANE IN FLIGHT; designer folds
+it into the consolidation round. (Old sanity-check note superseded.) regen fixed a
 PRE-EXISTING baseline drift: PROSE-1 bumped SCHEMA_VERSION 7 without baseline regen — lesson:
 schema-version bump = baseline-regen trigger) · smalls MERGED (`e8e7d825`: 3 labels · google_vertex
 arm DELETED · submenu retry idiom 125/125×5 · VER-1c was ALREADY BUILT [stale board row] · §2.3.1
