@@ -9,6 +9,7 @@
 // caller ends the turn instead of falling back and generating on a round nobody is waiting for.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -63,6 +64,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
     expect(summarize).toHaveBeenCalledTimes(1);
@@ -77,6 +79,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out).toEqual({ speakers: [charRef("cara")], degraded: false, aborted: false });
   });
@@ -92,6 +95,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -112,6 +116,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -133,6 +138,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -149,6 +155,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
@@ -166,6 +173,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers).not.toContainEqual(charRef("cara"));
     expect(out.speakers).toHaveLength(1);
@@ -182,6 +190,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       lastSpeaker: charRef("aria"),
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out.speakers[0]).not.toEqual(charRef("aria"));
   });
@@ -205,6 +214,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       lastSpeaker: charRef("ari"), // ban-last → the fallback avoids Ari, proving no substring match
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out).toEqual({ speakers: [charRef("bran")], degraded: true, aborted: false });
   });
@@ -218,6 +228,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out).toEqual({ speakers: [charRef("ari")], degraded: false, aborted: false });
   });
@@ -234,6 +245,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     // No LLM was consulted, so this is NOT a degrade — a warning here would cry wolf on every solo round.
     expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
@@ -250,6 +262,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
     });
     expect(out).toEqual({ speakers: [], degraded: false, aborted: false });
     expect(summarize).not.toHaveBeenCalled();
@@ -274,6 +287,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
       signal: controller.signal,
     });
 
@@ -302,6 +316,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
       signal: controller.signal,
     });
     controller.abort();
@@ -324,6 +339,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
       signal: controller.signal,
     });
 
@@ -344,11 +360,46 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
       lastSpeaker: null,
       rng,
       sampling: ARB_SAMPLING,
+      prose: {},
       signal: controller.signal,
     });
 
     expect(out.speakers).toHaveLength(1);
     expect(out.degraded).toBe(true);
     expect(out.aborted).toBe(false);
+  });
+});
+
+// PROSE-1 census 75 — the director prompt is a per-USER slot resolved against the ROOM HOST. The engine is
+// pure: the caller hands it the resolved overrides, and the slot's bytes are what land on the summarize call.
+describe("the director prompt is a prose slot", () => {
+  test("no override ⇒ the shipped default rides the summarize call", async () => {
+    const summarize = summarizeReturning("Bran");
+    await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      sampling: ARB_SAMPLING,
+      prose: {},
+    });
+    expect(summarize).toHaveBeenCalledWith([{ systemPrompt: PROSE_SLOTS["chat.arbiter.system"].text, userPrompt: expect.any(String) }], expect.anything());
+  });
+
+  test("a host override REPLACES the director prompt on the wire", async () => {
+    const summarize = summarizeReturning("Bran");
+    await smartArbitrate({
+      summarize,
+      candidates: CANDIDATES,
+      castNames: CAST,
+      recentHistory: "...",
+      lastSpeaker: null,
+      rng,
+      sampling: ARB_SAMPLING,
+      prose: { "chat.arbiter.system": { text: "Pick whoever is angriest.", baseVersion: 1 } },
+    });
+    expect(summarize).toHaveBeenCalledWith([{ systemPrompt: "Pick whoever is angriest.", userPrompt: expect.any(String) }], expect.anything());
   });
 });

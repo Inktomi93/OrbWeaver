@@ -2,6 +2,8 @@
 // drift belt (imagery-design/02 §5-6). The prefixes are load-bearing: the size defaults assume the composition
 // they set, and ensurePrefix re-asserts them when the LLM drops its instruction.
 
+import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { describe } from "vitest";
 import {
   CAPTION_INSTRUCTIONS,
@@ -28,10 +30,23 @@ describe("PROMPT_TEMPLATES / CAPTION_INSTRUCTIONS", () => {
     expect(CAPTION_INSTRUCTIONS.face_multimodal).toContain("close up facial portrait,");
   });
 
-  test("the default negative (via composeNegative, no user extra) suppresses the generic defects (text, watermark, bad anatomy)", () => {
-    const negative = composeNegative(undefined);
+  test("the shipped negative base (via composeNegative, no user extra) suppresses the generic defects (text, watermark, bad anatomy)", () => {
+    // PROSE-1 census 88 — the base is the `imagery.negative.base` slot; `composeNegative` only appends.
+    const base = PROSE_SLOTS[IMAGERY_NEGATIVE_SLOT_ID].text;
+    const negative = composeNegative(base, undefined);
+    expect(negative).toBe(base);
     expect(negative).toContain("watermark");
     expect(negative).toContain("bad anatomy");
+  });
+
+  test("a user's per-request negative APPENDS to the base, never replaces it", () => {
+    const base = PROSE_SLOTS[IMAGERY_NEGATIVE_SLOT_ID].text;
+    expect(composeNegative(base, "  blurry  ")).toBe(`${base}, blurry`);
+  });
+
+  test("a host override of the negative-base slot reaches the composed negative", () => {
+    const resolved = resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, { [IMAGERY_NEGATIVE_SLOT_ID]: { text: "mine", baseVersion: 1 } });
+    expect(composeNegative(resolved, "extra")).toBe("mine, extra");
   });
 });
 

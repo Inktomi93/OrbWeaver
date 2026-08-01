@@ -5,7 +5,8 @@
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
+import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, users } from "@orb/db";
@@ -122,6 +123,8 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     // a test can inject overrides to exercise the per-user path. Mirrors the compose resolver's default arm.
     resolvePromptTemplate: (_caller, mode) => Promise.resolve(DEFAULT_PROMPT_TEMPLATES[mode]),
     resolveCaptionInstruction: (_caller, mode) => Promise.resolve(DEFAULT_CAPTION_INSTRUCTIONS[mode]),
+    // PROSE-1 census 88 — no user override ⇒ the shipped catalog base, the same bytes the verb shipped before.
+    resolveNegativeBase: () => Promise.resolve(PROSE_SLOTS[IMAGERY_NEGATIVE_SLOT_ID].text),
     recordStats: (delta) => {
       recordedStats.push(delta);
       return Promise.resolve();

@@ -67,6 +67,42 @@
     "imagery.caption.faceMultimodal": {
       "version": 1,
       "sha256": "cd3aabe6ca5c34c306d53ece026c593ef27fa86992a3d6c2fff7dfb6a16834ad"
+    },
+    "imagery.negative.base": {
+      "version": 1,
+      "sha256": "e4cfa53e14d5bdb6de2c9d9013ea7b571f60c18bab8ecdb7b09a9cb243a96ef9"
+    },
+    "chat.assembly.anchorIdentity": {
+      "version": 1,
+      "sha256": "2cc3f447c355e3722be2a11f3d36caf3149e177043dd3486cddfaf202faffb99"
+    },
+    "chat.arbiter.system": {
+      "version": 1,
+      "sha256": "dae73b77fd1d999ef978654c45814cbc56107ec4d6ac9b5ec25063d28b2b1739"
+    },
+    "chat.compaction.system": {
+      "version": 1,
+      "sha256": "41e05dd85b765ccf413c3220c425d7abab03747c876276632366f685a7cd01a8"
+    },
+    "chat.memory.digestSystem": {
+      "version": 1,
+      "sha256": "f08feb5c679ce2a8b205c1403d290ab3123249d3340fb49ec77b66ffcb671923"
+    },
+    "chat.memory.consolidationSystem": {
+      "version": 1,
+      "sha256": "e1e345d50c0499075f5dc441639caccae478b2cde2d28318c9b1777992c18203"
+    },
+    "chat.memory.consolidationLead": {
+      "version": 1,
+      "sha256": "64425d23e7c682b6979f1a9932ec27299484581f97d906ccf969e5643d011dc1"
+    },
+    "automation.autobg.task": {
+      "version": 1,
+      "sha256": "81ef44c82af57107b320e37c8ff9183c10e1195b7a0b353f3fd22c1877f3be4a"
+    },
+    "automation.autobg.reply": {
+      "version": 1,
+      "sha256": "63eee380890b3d3e41d9ccb806b7a51d2587536f1d34a6cc9667ec27d06a27f8"
     }
   }
 }

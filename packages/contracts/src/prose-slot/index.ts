@@ -63,6 +63,17 @@ export const PROSE_SLOT_IDS = [
   "imagery.template.background",
   "imagery.caption.characterMultimodal",
   "imagery.caption.faceMultimodal",
+  "imagery.negative.base",
+  // ── per-USER: the app-tier chat side-generation prompts (census 74-81) ──
+  "chat.assembly.anchorIdentity",
+  "chat.arbiter.system",
+  "chat.compaction.system",
+  "chat.memory.digestSystem",
+  "chat.memory.consolidationSystem",
+  "chat.memory.consolidationLead",
+  // ── per-USER: the automation quiet-pick prompts (census 91) ──
+  "automation.autobg.task",
+  "automation.autobg.reply",
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 

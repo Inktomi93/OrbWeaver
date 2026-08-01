@@ -340,3 +340,7 @@ export type AutomationBusEvent =
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "rulesChanged"; chatId: ChatId };
 export type AutomationBusEventType = AutomationBusEvent["type"];
+
+// The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
+// `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
+export { AUTOMATION_PROSE_SLOTS } from "./prose";
