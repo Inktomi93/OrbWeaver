@@ -21,6 +21,8 @@ import { accountModal } from "@orb/client/features/auth";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
   ChatsWithCharacterPane,
+  chatQuickPicksTile,
+  chatRecentsTile,
   commandModal,
   databankSettingsSection,
   makeChatsSection,
@@ -116,7 +118,7 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [sectionJumpTile]);
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [chatRecentsTile, chatQuickPicksTile, sectionJumpTile]);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),

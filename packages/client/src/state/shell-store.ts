@@ -86,8 +86,13 @@ interface PersistedShellState {
   readonly panelOverrides: PanelOverrides;
 }
 
+// The BORN default is HOME (owner decision H1 = D-1 — ONE coupled ruling with the chat landing slimming
+// to a no-selection state): the app opens on the landing that HAS a launcher instead of on a section
+// whose content is "nothing selected". `activeSection` is persisted, so this only ever affects a fresh
+// install / cleared storage — an existing user keeps their last section, and `isSectionId` already
+// validates the stored value against the tuple, so no persist-version bump is needed.
 const DEFAULT_STATE: ShellState = {
-  activeSection: "chats",
+  activeSection: "home",
   panelOverrides: {},
   openModal: null,
   contextTab: null,

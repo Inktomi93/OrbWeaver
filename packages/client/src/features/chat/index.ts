@@ -29,6 +29,8 @@ export { makeChatsSection } from "./lib/chats-section";
 export { commandModal } from "./lib/command-modal";
 export { isContinueEligible } from "./lib/continue-on-empty";
 export { databankSettingsSection } from "./lib/databank-settings-section";
+export { chatQuickPicksTile } from "./lib/home-quick-picks-tile";
+export { chatRecentsTile } from "./lib/home-recents-tile";
 export { imageryTemplatesSection } from "./lib/imagery-templates-section";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
 export { memorySettingsSection } from "./lib/memory-settings-section";
