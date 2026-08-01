@@ -25,5 +25,5 @@ export const backupPane: SettingsPaneDefinition = {
       keywords: ["restore", "upload", "sillytavern", "st", "migrate", "bundle", "zip", "card"],
     },
   ],
-  body: () => <BackupSettingsSurface />,
+  body: { kind: "surface", render: () => <BackupSettingsSurface /> },
 };

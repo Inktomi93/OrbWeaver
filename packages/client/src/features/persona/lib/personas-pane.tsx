@@ -30,5 +30,5 @@ export const personasPane: SettingsPaneDefinition = {
       ],
     },
   ],
-  body: () => <PersonaSettingsSurface />,
+  body: { kind: "surface", render: () => <PersonaSettingsSurface /> },
 };

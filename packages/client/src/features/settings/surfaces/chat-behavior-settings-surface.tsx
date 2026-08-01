@@ -12,13 +12,11 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useSettingsViewerView, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
-import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
-import type { SettingsSectionContribution } from "#state";
-import { resolveSettingsSections, settingsAnchorId } from "#state";
+import { settingsAnchorId, useSettingsSections } from "#state";
 import { CHAT_BEHAVIOR_ENTITY_ID, ChatBehaviorAutosaveForm } from "../hooks/use-chat-behavior-form";
 import type { ChatBehaviorForm } from "../lib/chat-behavior-model";
 import {
@@ -44,22 +42,15 @@ const useUpdateChatBehavior = createEntityMutation<UpdateChatVars, unknown>({
 /** The DOM anchor id for one chat-behavior subcategory `<Section>`, derived from the shared registry ids. */
 const anchor = (sub: string): string => settingsAnchorId("chat-behavior", sub);
 
-export interface ChatBehaviorSettingsSurfaceProps {
-  /** The `chat-behavior`-anchored settings-section contributors (§6c) — memory ①, world-info ② graft
-   *  their sections here WITHOUT importing settings. Assembled empty at the door; zero contributions ⇒
-   *  the pane renders byte-identical to the pre-seam pane. */
-  readonly sectionContributors: ContributorRegistry<SettingsSectionContribution>;
-}
-
 /** The chat-behavior panel body (rendered inside the settings modal's Dialog). */
-export function ChatBehaviorSettingsSurface({ sectionContributors }: ChatBehaviorSettingsSurfaceProps): ReactElement {
+export function ChatBehaviorSettingsSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
   // The contributed sections (§6c) — each owns its own suspense/mutation, so they render OUTSIDE the
   // chat autosave form, below it, in declared registry order. Zero contributions ⇒ no extra nodes (the
   // character `editor-sections` posture).
-  const contributedSections = resolveSettingsSections(sectionContributors, "chat-behavior");
+  const contributedSections = useSettingsSections("chat-behavior", useSettingsViewerView());
 
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">

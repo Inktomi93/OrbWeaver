@@ -10,10 +10,11 @@ import { MemoryTuningSection } from "../../../../packages/client/src/features/us
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section";
 import { AdminSettingsSurface } from "../../../../packages/client/src/features/user-admin/surfaces/admin-settings-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 // This story pins the Users + Engines built sections; the AppSettings admin-tier sections get their own
-// stories below (the seam's empty-contributions case here — byte-identical to the pre-seam pane).
+// stories below (the seam's empty-contributions case here — byte-identical to the pre-seam pane). The
+// surface reads the section registry from CONTEXT now (SET-SEAMS §5.2), so "empty" is a provided registry.
 const emptyAdminSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-admin-sections", []);
 
 /** The real Admin settings pane (the Users + Engines sections) in isolation — `admin.listUsers`,
@@ -22,11 +23,13 @@ const emptyAdminSections = createContributorRegistry<SettingsSectionContribution
 export function AdminSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <TooltipProvider>
-        <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AdminSettingsSurface sectionContributors={emptyAdminSections} />
-        </div>
-      </TooltipProvider>
+      <CtSettingsSectionRegistry sections={emptyAdminSections}>
+        <TooltipProvider>
+          <div style={{ height: 900, overflow: "auto", width: 960 }}>
+            <AdminSettingsSurface />
+          </div>
+        </TooltipProvider>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -38,7 +41,7 @@ export function RateLimitsSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <RateLimitsSection />
+          <RateLimitsSection sectionId="admin-rate-limits" />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -52,7 +55,7 @@ export function MemoryTuningSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <MemoryTuningSection />
+          <MemoryTuningSection sectionId="admin-memory-tuning" />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -66,7 +69,7 @@ export function SystemTuningSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <SystemTuningSection />
+          <SystemTuningSection sectionId="admin-system-tuning" />
         </div>
       </TooltipProvider>
     </CtDataProviders>

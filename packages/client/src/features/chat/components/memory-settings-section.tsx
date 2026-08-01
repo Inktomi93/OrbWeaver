@@ -20,6 +20,8 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { useReportSaveStatus } from "#forms";
+import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav";
 
@@ -33,24 +35,34 @@ const useSetMemoryEnabled = createEntityMutation<MemoryPatchVars, unknown>({
   errorToast: "Couldn't save your memory settings.",
 });
 
+/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
+ *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
+function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  return isPending ? "saving" : "saved";
+}
+
 /** The Memory section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function MemorySettingsSection(): ReactElement {
+export function MemorySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading your memory settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your memory settings" onRetry={retry} />}
     >
-      <MemorySettingsBody />
+      <MemorySettingsBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MemorySettingsBody(): ReactElement {
+function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
   const toggleId = useId();
+  useReportSaveStatus(sectionId, saveStateOf(setEnabled.isPending, setEnabled.error !== null));
 
   return (
     <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>

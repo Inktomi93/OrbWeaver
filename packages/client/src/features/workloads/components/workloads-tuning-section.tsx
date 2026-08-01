@@ -17,7 +17,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { AutosaveStatus } from "#forms";
+import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model";
@@ -46,18 +46,18 @@ const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unkno
 });
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
-export function WorkloadsTuningSection(): ReactElement {
+export function WorkloadsTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading your analysis-tuning settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
     >
-      <WorkloadsTuningFormBody />
+      <WorkloadsTuningFormBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function WorkloadsTuningFormBody(): ReactElement {
+function WorkloadsTuningFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -67,12 +67,12 @@ function WorkloadsTuningFormBody(): ReactElement {
 
   return (
     <WorkloadsTuningAutosaveForm entityId={WORKLOADS_TUNING_ENTITY_ID} serverValues={projectWorkloadsTuningForm(data.config.workloads)} save={save}>
-      {(session): ReactElement => <WorkloadsTuningBody session={session} />}
+      {(session): ReactElement => <WorkloadsTuningBody sectionId={sectionId} session={session} />}
     </WorkloadsTuningAutosaveForm>
   );
 }
 
-function WorkloadsTuningBody({ session }: { readonly session: AutosaveSession<WorkloadsTuningForm> }): ReactElement {
+function WorkloadsTuningBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorkloadsTuningForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={settingsAnchorId("workloads", WORKLOADS_TUNING_SUBCATEGORY.id)}>
@@ -123,7 +123,7 @@ function WorkloadsTuningBody({ session }: { readonly session: AutosaveSession<Wo
               )}
             </form.AppField>
             <Row gap="field" align="center">
-              <AutosaveStatus state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
             </Row>
           </Stack>
         </Container>

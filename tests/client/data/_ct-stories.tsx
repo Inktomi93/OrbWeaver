@@ -11,6 +11,7 @@ import {
   useGatedQuery,
   useInvalidation,
   useOnlineStatus,
+  useSettingsViewerView,
   useTRPC,
   useViewer,
 } from "@orb/client/data";
@@ -22,6 +23,22 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CtDataProviders } from "../../support/ct/ct-data-providers";
+
+/** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
+ *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from
+ *  painting, so an unresolved viewer reads as non-admin and the shell re-applies once it resolves. */
+export function SettingsViewerViewStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SettingsViewerViewReader />
+    </CtDataProviders>
+  );
+}
+
+function SettingsViewerViewReader(): ReactElement {
+  const viewer = useSettingsViewerView();
+  return <output>{`isAdmin=${String(viewer.isAdmin)}`}</output>;
+}
 
 // The suspending read under test: a REAL procedure (`echo` — transport/trpc/router.ts loose public
 // proc, input {message:string} → output {message:string}) because the options proxy is typed by

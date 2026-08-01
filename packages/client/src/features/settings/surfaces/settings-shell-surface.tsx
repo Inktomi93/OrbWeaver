@@ -2,14 +2,23 @@
 // fuzzy search above it, and a right column that mounts only the active category's pane.
 //
 // THIN HOST (client-architecture-lockdown.md §8, M6.1): the pane if-ladder is GONE — `SettingsPane` reads
-// `useSettingsPaneRegistry().get(active).body` blind, narrowing the DECLARED-PLANNED `{placeholder:true}`
-// arm to `SettingsPanePlaceholder`. The host's ONE cross-tier job is computing `SettingsViewerView` (the
-// state-owned projection a pane's `when` consumes, §5 rule 6) from its own `sessions.me` read and
-// supplying it at nav/search/pane-filter time — panes never import `#data` themselves for this.
+// `useSettingsPaneRegistry().get(active).body` blind over the §5.3 body union. The `SettingsViewerView` a
+// `when` predicate consumes comes from `#data`'s `useSettingsViewerView()` (its ONE derivation home), and
+// the host runs it at nav/search/pane-filter time — pane DEFS never touch `#data` for this.
+//
+// The `useSettingsPaneRegistry` read + the `settings-pane-completeness` gate keep the host blind: it never
+// imports a pane body.
 //
 // Active-tracking is a SELECTION × SCROLL-SPY hybrid: the active category is pure selection (nav click or
 // search jump); within that pane the active subcategory tracks scroll (a passive, rAF-throttled listener
-// lights the last section past the spy line), suppressed while a programmatic jump is in flight.
+// lights the last section past the spy line), suppressed while a programmatic jump is in flight. A deep
+// link may name a SUBCATEGORY (`openSettingsTo(category, subId)`, SET-SEAMS §10 Q4), which lands on that
+// section's anchor via the same jump path.
+//
+// SET-SEAMS §5.2: contributed sections arrive on ONE door-assembled registry the host reads for NAV +
+// SEARCH (each pane's own `subcategories` ⊕ the navs contributed at its anchor — the retired `make*Pane`
+// factories used to merge this); the pane's own surface renders them at the position IT owns. §3: the host
+// is also the ONE aggregate save-status footer for the sections that report into it.
 
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandStatus } from "@orb/ui/command";
 import { Icon } from "@orb/ui/icons";
@@ -17,14 +26,25 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useTRPC } from "#data";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSettingsViewerView } from "#data";
+import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
-import type { SettingsCategoryId, SettingsPaneDefinition, SettingsViewerView } from "#state";
-import { SETTINGS_GROUPS, settingsAnchorId, useSettingsPaneRegistry, useSettingsTarget } from "#state";
+import type { SettingsCategoryId, SettingsPaneDefinition, SettingsSubcategory } from "#state";
+import {
+  SETTINGS_GROUPS,
+  settingsAnchorId,
+  settingsSectionNavs,
+  useErroredSaveSections,
+  useSettingsPaneRegistry,
+  useSettingsSectionRegistry,
+  useSettingsSections,
+  useSettingsSubTarget,
+  useSettingsTarget,
+} from "#state";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
+import { SettingsSaveFooter } from "../components/settings-save-footer";
 import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
 import type { SettingsSearchEntry } from "../lib/settings-search";
 import { buildSettingsSearchEntries } from "../lib/settings-search";
@@ -50,20 +70,33 @@ export function SettingsShell(): ReactElement {
 
   const registry = useSettingsPaneRegistry();
   const panes = registry.list();
+  const sectionRegistry = useSettingsSectionRegistry();
 
-  // A non-suspense probe (never blocks the shell) so `when`-gated panes (e.g. admin) can filter nav/search.
-  const trpc = useTRPC();
-  const viewerQuery = useQuery(trpc.sessions.me.queryOptions());
-  const isAdmin = viewerQuery.data?.globalRole === "owner" || viewerQuery.data?.globalRole === "admin";
-  const visiblePanes = useMemo(() => {
-    const viewer: SettingsViewerView = { isAdmin };
-    return panes.filter((pane) => pane.when?.(viewer) ?? true);
-  }, [panes, isAdmin]);
+  // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
+  // pane filter, the section filter, and the search index.
+  const viewer = useSettingsViewerView();
+  const visiblePanes = useMemo(() => panes.filter((pane) => pane.when?.(viewer) ?? true), [panes, viewer]);
   const visibleIds = useMemo(() => new Set(visiblePanes.map((p) => p.id)), [visiblePanes]);
+
+  // A pane's nav rows: its OWN subcategories ⊕ the navs contributed at its anchor, in declared registry
+  // order — the merge the retired pane factories did, now done once here off the one section registry.
+  const subcategoriesFor = useCallback(
+    (pane: SettingsPaneDefinition): readonly SettingsSubcategory[] => [...(pane.subcategories ?? []), ...settingsSectionNavs(sectionRegistry, pane.id, viewer)],
+    [sectionRegistry, viewer],
+  );
+
+  // The failing sections' nav rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
+  // carried by a marker on the section's own nav row (and its own inline retry at its anchor).
+  const erroredSectionIds = useErroredSaveSections();
+  const erroredSubIds = useMemo(
+    () => new Set(erroredSectionIds.filter((id) => sectionRegistry.has(id)).map((id) => sectionRegistry.get(id).nav.id)),
+    [erroredSectionIds, sectionRegistry],
+  );
 
   // A cross-feature deep-link can request a specific pane via the shell store's `settingsCategory` seam;
   // honor it as the initial pane and whenever it changes (a `when`-hidden target falls back to the default).
   const targetCategory = useSettingsTarget();
+  const targetSub = useSettingsSubTarget();
   const targetSatisfiable = isCategoryId(targetCategory) && visibleIds.has(targetCategory);
   const [active, setActive] = useState<SettingsCategoryId>(() => (targetSatisfiable ? targetCategory : "appearance"));
   // Adjust state during render (never a setState-in-effect cascade) when the deep-link target changes OR when
@@ -72,25 +105,35 @@ export function SettingsShell(): ReactElement {
   // (isAdmin false → 'admin' not yet in visibleIds), so we must re-apply once the probe resolves and
   // visibility GROWS, not only when the target string itself changes. Keying the "seen" latch on
   // (target, satisfiable) re-fires exactly then, and never again once applied (satisfiable stays true).
-  const [seen, setSeen] = useState<{ readonly target: SettingsCategoryId | null; readonly satisfiable: boolean }>({
+  const [seen, setSeen] = useState<{ readonly target: SettingsCategoryId | null; readonly satisfiable: boolean; readonly sub: string | null }>({
     target: targetCategory,
     satisfiable: targetSatisfiable,
+    sub: targetSub,
   });
-  if (targetCategory !== seen.target || targetSatisfiable !== seen.satisfiable) {
-    setSeen({ target: targetCategory, satisfiable: targetSatisfiable });
+  const [activeSub, setActiveSub] = useState<string | null>(targetSatisfiable ? targetSub : null);
+  // A SUB-level deep link (`openSettingsTo(category, subId)`, §10 Q4) rides the SAME latch: the pane and the
+  // selected sub resolve here, in render; only the SCROLL is deferred (the anchor exists after the pane has
+  // mounted — the effect below waits for it), so no state is ever set from an effect.
+  if (targetCategory !== seen.target || targetSatisfiable !== seen.satisfiable || targetSub !== seen.sub) {
+    setSeen({ target: targetCategory, satisfiable: targetSatisfiable, sub: targetSub });
     if (targetSatisfiable) {
       setActive(targetCategory);
+      setActiveSub(targetSub);
     }
   }
-  const [activeSub, setActiveSub] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const hasQuery = query.trim() !== "";
   // Suppresses the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the nav; a ref, never state.
   const suppressSpyRef = useRef(false);
 
-  const searchEntries = useMemo(() => buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId)), [registry, visibleIds]);
+  const searchEntries = useMemo(
+    () => buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId), subcategoriesFor),
+    [registry, visibleIds, subcategoriesFor],
+  );
 
-  const beginProgrammaticScroll = (): void => {
+  // Stable identities (refs only) so the deep-link effect below can depend on them honestly instead of
+  // re-firing every render.
+  const beginProgrammaticScroll = useCallback((): void => {
     suppressSpyRef.current = true;
     const container = contentRef.current;
     const rearm = (): void => {
@@ -98,46 +141,59 @@ export function SettingsShell(): ReactElement {
     };
     container?.addEventListener("scrollend", rearm, { once: true });
     globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
-  };
+  }, []);
 
   // Switching category remounts the pane, which may SUSPEND on its settings read — under CPU
   // contention the resolve can outlast any frame budget, and the old 20-frame rAF poll silently gave
   // up without ever scrolling (the fuzzy-search jump flake, root-caused 2026-07-24). Observe the
   // pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing frames.
-  const scrollToAnchor = (categoryId: SettingsCategoryId, subId: string): void => {
-    beginProgrammaticScroll();
-    const anchorId = settingsAnchorId(categoryId, subId);
-    const container = contentRef.current;
-    if (container === null) {
-      return;
-    }
-    const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
-    const existing = find();
-    if (existing !== null) {
-      flashAnchor(existing);
-      return;
-    }
-    let done = false;
-    const finish = (target: HTMLElement | null): void => {
-      if (done) {
+  const scrollToAnchor = useCallback(
+    (categoryId: SettingsCategoryId, subId: string): void => {
+      beginProgrammaticScroll();
+      const anchorId = settingsAnchorId(categoryId, subId);
+      const container = contentRef.current;
+      if (container === null) {
         return;
       }
-      done = true;
-      observer.disconnect();
-      globalThis.clearTimeout(timer);
-      if (target !== null) {
-        flashAnchor(target);
+      const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
+      const existing = find();
+      if (existing !== null) {
+        flashAnchor(existing);
+        return;
       }
-    };
-    const observer = new MutationObserver((): void => {
-      const target = find();
-      if (target !== null) {
-        finish(target);
-      }
-    });
-    const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
-    observer.observe(container, { childList: true, subtree: true });
-  };
+      let done = false;
+      const finish = (target: HTMLElement | null): void => {
+        if (done) {
+          return;
+        }
+        done = true;
+        observer.disconnect();
+        globalThis.clearTimeout(timer);
+        if (target !== null) {
+          flashAnchor(target);
+        }
+      };
+      const observer = new MutationObserver((): void => {
+        const target = find();
+        if (target !== null) {
+          finish(target);
+        }
+      });
+      const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
+      observer.observe(container, { childList: true, subtree: true });
+    },
+    [beginProgrammaticScroll],
+  );
+
+  // Land a SUB-level deep link once the pane has mounted (§10 Q4) — `scrollToAnchor` observes the pane's DOM
+  // until the anchor exists. Keyed on the TARGET (never on `active`), so a later user pane-switch can't
+  // re-fire a stale jump.
+  useEffect((): void => {
+    if (!(targetSatisfiable && targetSub !== null)) {
+      return;
+    }
+    scrollToAnchor(targetCategory, targetSub);
+  }, [targetCategory, targetSub, targetSatisfiable, scrollToAnchor]);
 
   const selectCategory = (id: SettingsCategoryId): void => {
     setActive(id);
@@ -150,6 +206,16 @@ export function SettingsShell(): ReactElement {
     setActive(id);
     setActiveSub(subId);
     scrollToAnchor(id, subId);
+  };
+
+  /** Jump to a REPORTING section by its contribution id — the aggregate footer's "take me to the failure"
+   *  (§3: the footer never retries, it only locates). */
+  const jumpToSection = (sectionId: string): void => {
+    if (!sectionRegistry.has(sectionId)) {
+      return;
+    }
+    const contribution = sectionRegistry.get(sectionId);
+    selectSub(contribution.anchor, contribution.nav.id);
   };
 
   const jumpToEntry = (entry: SettingsSearchEntry): void => {
@@ -248,7 +314,7 @@ export function SettingsShell(): ReactElement {
                   </Text>
                   {categoryIdsForGroup(visiblePanes, group).map((pane) => {
                     const isActive = active === pane.id;
-                    const subs = pane.subcategories ?? [];
+                    const subs = subcategoriesFor(pane);
                     return (
                       <Stack key={pane.id} gap="field">
                         <ListRow
@@ -264,6 +330,7 @@ export function SettingsShell(): ReactElement {
                               <ListRow
                                 key={sub.id}
                                 clickable={true}
+                                {...(erroredSubIds.has(sub.id) ? { meta: SAVE_FAILED_MARKER } : {})}
                                 onClick={(): void => selectSub(pane.id, sub.id)}
                                 selected={activeSub === sub.id}
                                 title={sub.label}
@@ -278,8 +345,13 @@ export function SettingsShell(): ReactElement {
               ))}
             </Stack>
 
-            <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="min-h-0 flex-1 overflow-y-auto">
-              <SettingsPane pane={activePane} />
+            <Stack className="min-h-0 flex-1" gap="row">
+              <Stack ref={contentRef} role="region" aria-label={`${activePane.label} settings`} className="min-h-0 flex-1 overflow-y-auto">
+                <SaveStatusHostContext value={true}>
+                  <SettingsPane pane={activePane} />
+                </SaveStatusHostContext>
+              </Stack>
+              <SettingsSaveFooter onJumpToSection={jumpToSection} />
             </Stack>
           </Row>
         </Stack>
@@ -290,6 +362,9 @@ export function SettingsShell(): ReactElement {
 
 // The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; applied
 // via a class toggle (not inline style) so the token radius/transition still apply.
+// The nav-row marker for a section whose save FAILED (§3) — a short string so it rides ListRow's `meta`
+// slot (inside the row's aria-describedby), never a bare icon a screen reader can't read.
+const SAVE_FAILED_MARKER = "Save failed";
 const FLASH_MS = 1200;
 const FLASH_BASE_CLASS = "settings-flash-anchor";
 const FLASH_LIT_CLASS = "settings-flash-anchor--lit";
@@ -335,12 +410,24 @@ function flashAnchor(el: HTMLElement): void {
   }, FLASH_MS);
 }
 
-/** The active pane — reads the registry blind, narrowing the DECLARED-PLANNED arm to the placeholder.
- *  Admin needs no extra guard here — the nav/search hide it from non-admin viewers via `when`, and a
- *  forced deep-link hits the pane's own server-gated error. */
+/** The active pane — reads the registry blind over the §5.3 body union: a feature-owned `surface` (which
+ *  renders its own anchored sections), a pure `sections` SKIMMER (the host renders the anchor's sections
+ *  itself), or the DECLARED-PLANNED placeholder. Admin needs no extra guard here — the nav/search hide it
+ *  from non-admin viewers via `when`, and a forced deep-link hits the pane's own server-gated error. */
 function SettingsPane({ pane }: { readonly pane: SettingsPaneDefinition }): ReactNode {
-  if (typeof pane.body === "function") {
-    return pane.body();
+  const viewer = useSettingsViewerView();
+  const sections = useSettingsSections(pane.id, viewer);
+  if ("placeholder" in pane.body) {
+    return <SettingsPanePlaceholder title={pane.label} description={pane.description} />;
   }
-  return <SettingsPanePlaceholder title={pane.label} description={pane.description} />;
+  if (pane.body.kind === "surface") {
+    return pane.body.render();
+  }
+  return (
+    <Stack gap="section">
+      {sections.map((section) => (
+        <Fragment key={section.id}>{section.node}</Fragment>
+      ))}
+    </Stack>
+  );
 }

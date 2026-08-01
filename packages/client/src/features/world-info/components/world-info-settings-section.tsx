@@ -18,7 +18,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { AutosaveStatus } from "#forms";
+import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "../hooks/use-world-info-settings-form";
 import { SCAN_DEPTH_MAX, SCAN_DEPTH_MIN, WI_TOKEN_BUDGET_MAX, WI_TOKEN_BUDGET_MIN } from "../lib/world-info-settings-model";
@@ -38,18 +38,18 @@ const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unk
 });
 
 /** The World-info settings section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function WorldInfoSettingsSection(): ReactElement {
+export function WorldInfoSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading your world-info settings…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world-info settings" onRetry={retry} />}
     >
-      <WorldInfoSettingsFormBody />
+      <WorldInfoSettingsFormBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function WorldInfoSettingsFormBody(): ReactElement {
+function WorldInfoSettingsFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -60,12 +60,12 @@ function WorldInfoSettingsFormBody(): ReactElement {
 
   return (
     <WorldInfoSettingsAutosaveForm entityId={WORLD_INFO_SETTINGS_ENTITY_ID} serverValues={data.config.worldInfo} save={save}>
-      {(session): ReactElement => <WorldInfoSettingsBody session={session} />}
+      {(session): ReactElement => <WorldInfoSettingsBody sectionId={sectionId} session={session} />}
     </WorldInfoSettingsAutosaveForm>
   );
 }
 
-function WorldInfoSettingsBody({ session }: { readonly session: AutosaveSession<WorldInfoSettingsForm> }): ReactElement {
+function WorldInfoSettingsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorldInfoSettingsForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
     <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", WORLD_INFO_SETTINGS_SUBCATEGORY.id)}>
@@ -93,7 +93,7 @@ function WorldInfoSettingsBody({ session }: { readonly session: AutosaveSession<
               )}
             </form.AppField>
             <Row gap="field" align="center">
-              <AutosaveStatus state={saveState} onRetry={retrySave} caption="Synced across your devices." />
+              <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />
             </Row>
           </Stack>
         </Container>

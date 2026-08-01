@@ -19,6 +19,7 @@ import {
 } from "../../../../../packages/client/src/features/settings/lib/appearance-bounds";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry";
 import { AppearanceSettingsNarrowStory, AppearanceSettingsNoContributionsStory, AppearanceSettingsStory } from "../_ct-stories";
 
 const SETTINGS_VIEW = {
@@ -274,35 +275,17 @@ test("with ZERO contributions the pane renders no contributed section (the empty
 // Single-column-of-SECTIONS (owner ruling — Discord grammar): every subcategory SECTION shares the same
 // left edge + full column width and stacks in registry order (never two sections side by side). Fields
 // WITHIN a section may pair up — this asserts SECTION boxes only.
+//
+// Runs the SHARED render-parity harness (SET-SEAMS §9, `tests/support/ct/settings-geometry.ts`) rather than
+// a pane-local evaluate: every stage that decomposes a pane runs the SAME measurement on it, before and
+// after, so a decomposition that moves the pixels is caught instead of argued about.
 test("subcategory sections are a single column, stacked in registry order", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceSettingsStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
-  const boxes = await page.evaluate(() => {
-    const sections = [...document.querySelectorAll<HTMLElement>('[id^="settings-anchor-appearance-"]')];
-    const parent = sections[0]?.parentElement;
-    return {
-      count: sections.length,
-      parentWidth: parent?.clientWidth ?? -1,
-      rows: sections.map((s) => {
-        const r = s.getBoundingClientRect();
-        return { x: Math.round(r.x), top: Math.round(r.top), width: Math.round(r.width) };
-      }),
-    };
-  });
-
-  expect(boxes.count).toBeGreaterThanOrEqual(8);
-  // All sections share the same left edge (single column) and fill (nearly) the whole column width.
-  const firstX = boxes.rows[0]?.x ?? 0;
-  for (const row of boxes.rows) {
-    expect(Math.abs(row.x - firstX)).toBeLessThanOrEqual(1);
-    expect(row.width).toBeGreaterThanOrEqual(boxes.parentWidth - 2);
-  }
-  // Registry order == DOM order == strictly increasing vertical position (stacked, never side-by-side).
-  for (let i = 1; i < boxes.rows.length; i += 1) {
-    expect(boxes.rows[i]?.top ?? 0).toBeGreaterThan(boxes.rows[i - 1]?.top ?? 0);
-  }
+  const geometry = await readSettingsPaneGeometry(page, "appearance");
+  expect(findSettingsColumnViolation(geometry, 8)).toBeNull();
 });
 
 // Effects redesign (owner ruling — the ToggleGroup multi-select read ugly): the frosted-glass surfaces
