@@ -38,8 +38,8 @@ const HAIKU: AgentSdkModel = {
 const CACHE = [SONNET, OPUS, HAIKU];
 
 /** Resolve + assert the row was found (narrows away the `| undefined` for the member reads below). */
-function resolved(model: string): NonNullable<ReturnType<typeof resolveAgentSdkAlias>> {
-  const r = resolveAgentSdkAlias(model, CACHE);
+function resolved(model: string, cache: readonly AgentSdkModel[] = CACHE): NonNullable<ReturnType<typeof resolveAgentSdkAlias>> {
+  const r = resolveAgentSdkAlias(model, cache);
   expect(r).toBeDefined();
   if (r === undefined) {
     throw new Error("unreachable — asserted defined above");
@@ -84,5 +84,23 @@ describe("agent-sdk alias resolution", () => {
 
   test("an unknown alias not in the cache resolves to undefined", () => {
     expect(resolveAgentSdkAlias("gpt-5", CACHE)).toBeUndefined();
+  });
+
+  // The two arms a reader reads as unreachable — both are live wire shapes (`ModelInfo.resolvedModel` and the
+  // effort flags are all OPTIONAL on the SDK type, and the curated shortlist trails the daemon's versions).
+  test("a daemon row that names NO wire id is skipped (resolvedModel is optional upstream)", () => {
+    const headless: AgentSdkModel = { ...SONNET, alias: "preview", resolvedModel: null };
+    expect(resolveAgentSdkAlias("preview", [headless])).toBeUndefined();
+  });
+
+  test("an UNCURATED resolved version falls back to the Claude-family bounds — and claims no structured output", () => {
+    const future: AgentSdkModel = { ...SONNET, alias: "sonnet", resolvedModel: "claude-sonnet-9" };
+    const r = resolved("sonnet", [future]);
+    expect(r.resolvedModel).toBe("claude-sonnet-9");
+    expect(r.capability.output.maxTokens.max).toBe(64_000);
+    expect(r.capability.context).toEqual({ window: 200_000, supports1M: false });
+    // The synthesized fallback carries NO `structured` flag (only a curated entry asserts it) — a shortlist that
+    // trails the daemon therefore reads a brand-new Claude as structured-output-less.
+    expect(r.capability.output.structured).toBeUndefined();
   });
 });

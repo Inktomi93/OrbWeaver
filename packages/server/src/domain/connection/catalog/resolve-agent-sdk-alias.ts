@@ -44,10 +44,18 @@ export function resolveAgentSdkAlias(model: ModelId | string, cached: readonly A
     return;
   }
   const row = findRow(model, cached);
+  // `resolvedModel` is OPTIONAL on the SDK's own `ModelInfo` (normalized to null in providers/…/agent-sdk/
+  // catalog.ts), so a daemon row that names no wire id is a real wire shape — it can't be resolved, and
+  // falling through would pin the alias itself as a model id.
   if (row === undefined || row.resolvedModel === null) {
     return;
   }
   // Output/context bounds: prefer the curated entry for the resolved id; else the Claude-family default.
+  // BOTH arms are live, though the caller's shape hides it: `resolveModelCapability` only reaches here after
+  // `getChatModel(model)` MISSED, so a row matched by its `resolvedModel` (model === row.resolvedModel) always
+  // takes the default arm, while a row matched by ALIAS ("sonnet" — never a curated id) hits the curated arm
+  // whenever the daemon's current version is one we curate. An UNCURATED resolved id (a version newer than the
+  // shortlist) takes the default arm: family bounds, and no `structured` claim.
   const curated = getChatModel(row.resolvedModel);
   const output = curated === undefined ? { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT } } : curated.capability.output;
   const context = curated === undefined ? { window: CLAUDE_CONTEXT_WINDOW, supports1M: false } : curated.capability.context;
