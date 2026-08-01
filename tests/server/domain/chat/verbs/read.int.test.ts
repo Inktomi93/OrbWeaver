@@ -102,7 +102,39 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect(chats.map((c) => c.id)).not.toContain(theirs);
     expect(chats[0]?.messageCount).toBe(1);
     expect(chats[0]?.lastMessageAt).not.toBeNull();
-    expect(chats[0]?.participantNames).toContain(me);
+    // The cast is the OTHER seats (see the viewer-suppression arms below) — here, the room's character.
+    expect(chats[0]?.participantNames).toEqual(["character_mine_char"]);
+  });
+
+  // side-eye NR4: the names are what an untitled row TITLES itself with, and the viewer is in every chat they
+  // can list — so their own name is a constant prefix that carries nothing and eats the title's width.
+  describe("listChats participantNames suppress the VIEWER'S OWN seat", () => {
+    test("a room with another seat drops the viewer — the row names who it is ABOUT", async () => {
+      const me = await seedUser(db, "me");
+      const friend = await seedUser(db, "friend");
+      const chatId = await seedRoom("shared", me);
+      await seedParticipant(db, { chatId, key: "shared_friend", userId: friend, role: "member" });
+
+      const { listChats } = createRead(makeChatContext(db), makeDeps());
+      const [mine] = await listChats({ principal: principal(me) });
+      const [theirs] = await listChats({ principal: principal(friend) });
+
+      // PER-CALLER, from the SAME row: each viewer's own name is the one that's gone.
+      expect(mine?.participantNames).toEqual(["character_shared_char", "user_friend"]);
+      expect(theirs?.participantNames).toEqual(["user_me", "character_shared_char"]);
+    });
+
+    test("a SOLO chat keeps the viewer's name — suppression never empties the cast", async () => {
+      const me = await seedUser(db, "me");
+      const solo = await seedChat(db, "solo");
+      await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
+
+      const { listChats } = createRead(makeChatContext(db), makeDeps());
+      const chats = await listChats({ principal: principal(me) });
+
+      // Otherwise the row would fall through the client's title chain to "Untitled chat".
+      expect(chats[0]?.participantNames).toEqual(["user_me"]);
+    });
   });
 
   test("listChats derives viewerRole per-caller from the roster (host vs member)", async () => {
