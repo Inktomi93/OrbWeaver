@@ -10,9 +10,13 @@ export interface HealthzDeps {
   /** The boot decrypt-probe result: did SecretBox successfully decrypt the canary at boot? `false` means
    *  the credentials key no longer matches the stored ciphertext. */
   readonly credentialsKeyOk: () => boolean;
+  /** Does this process carry the e2e-harness self-stamp (`E2E_HARNESS=on`)? Reported on the live body as
+   *  `harness` so the e2e globalSetup can refuse to seed a stack it does not own (target-guard.ts). */
+  readonly isHarnessStack: () => boolean;
 }
 
-/** Register `GET /healthz`. 200 when live; 503 during shutdown drain; 503 on a boot decrypt-probe mismatch. */
+/** Register `GET /healthz`. 200 when live (body also carries the e2e-harness stamp); 503 during shutdown
+ *  drain; 503 on a boot decrypt-probe mismatch. */
 export function registerHealthz(app: Hono, deps: HealthzDeps): void {
   app.get("/healthz", (c) => {
     if (deps.isShuttingDown()) {
@@ -21,6 +25,6 @@ export function registerHealthz(app: Hono, deps: HealthzDeps): void {
     if (!deps.credentialsKeyOk()) {
       return c.json({ status: "credentials_key_mismatch" }, SERVICE_UNAVAILABLE);
     }
-    return c.json({ status: "ok" });
+    return c.json({ status: "ok", harness: deps.isHarnessStack() });
   });
 }

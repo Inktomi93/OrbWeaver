@@ -247,10 +247,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   model:null; a pin on a config-derived source is REFUSED), read-side heal with a WARN naming
   stored vs resolved, ONE (source,role)→model home shared by pane + resolver, and the display
   names an ignored pin instead of labeling it "server config".
-- **⚠ OWNER MORNING QUESTION: an e2e run wrote to the DEV stack** — the 404 row's shape is
-  verbatim the e2e global-setup patch, but memory says e2e owns its OWN adopt-only stack
-  ([[e2e-live-verification-facts]]). Either an e2e run was pointed at :8788 at some point, or the
-  seed ran outside its harness. Worth confirming how before trusting the isolation again.
+- ~~⚠ OWNER MORNING QUESTION: an e2e run wrote to the DEV stack~~ **ANSWERED + STRUCTURALLY FIXED.**
+  The isolation memory was wrong for ONE project: the `single-user` mode-project was DEFINED on the
+  dev ports with no `DATABASE_URL` (`tests/e2e/support/modes.ts`) and `reuseExistingServer` locally
+  (`playwright.config.ts`), so every local `pnpm e2e` / `pnpm e2e:smoke` (the `verify --push` browser
+  lane!) attached to the running dev stack and ran globalSetup's unconditional `pinRouting` against
+  the LIVE DB. Now: single-user owns an isolated stack (8796/5181 + `.cache/e2e-single/orb.db`), every
+  mode boots with `E2E_HARNESS=on`, `/healthz` reports the stamp, and globalSetup HARD-FAILS on an
+  unstamped or dev-port target (`tests/e2e/support/target-guard.ts`) unless `E2E_ALLOW_DEV_TARGET=1`.
+  Verified: full `pnpm e2e` 30/30 green on the isolated stacks; the dev stack's `/healthz` carries no
+  stamp, so the guard refuses it.
   Related note: `import-user-settings` bypasses the new write guard (whole-blob verb) — imports
   heal+warn at read instead of refusing at write; lift the guard into the import path on want.
 - WAKE-STATUS: the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.

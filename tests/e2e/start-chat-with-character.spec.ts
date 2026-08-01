@@ -17,7 +17,7 @@
 // a real speaker in the room) streams a reply back.
 
 import { expect, test } from "@playwright/test";
-import { typeAndSend } from "./support/chat-room";
+import { charactersRailButton, typeAndSend } from "./support/chat-room";
 
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;
@@ -36,7 +36,7 @@ test("pick a character, send a message, and the assistant streams a reply", {
   // Single-user mode: `/` resolves the owner with no login. Wait for the client to mount the shell —
   // the rail's Characters nav is the entry to the library (exact — "Characters" is a substring of
   // "Collapse Characters panel").
-  const charactersNav = page.getByRole("button", { name: "Characters", exact: true });
+  const charactersNav = charactersRailButton(page);
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
@@ -93,7 +93,7 @@ test("draft promotion: after the first send completes, the composer returns to S
   test.setTimeout(240_000);
 
   await page.goto("/");
-  const charactersNav = page.getByRole("button", { name: "Characters", exact: true });
+  const charactersNav = charactersRailButton(page);
   await expect(charactersNav).toBeVisible({ timeout: 30_000 });
   await charactersNav.click();
 
