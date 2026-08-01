@@ -274,7 +274,15 @@ export function RpgJournalTab({ state }: RpgJournalTabProps): ReactElement {
   // (lockdown §12 direct read). APPLICABILITY: only fetched/offered when the game crafts cards at all.
   const cardsEnabled = state.game.publicConfig.immersiveHtml;
   const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  const cards = cardsEnabled ? collectArchivedCards(messagesQuery.data?.messages ?? []) : [];
+  // The roster the per-card render policy resolves against (cache-first — the takeover already read it);
+  // a card renders under its ORIGIN ROW's verdict here exactly as it does in the transcript.
+  const chatQuery = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const cards = cardsEnabled
+    ? collectArchivedCards(messagesQuery.data?.messages ?? [], {
+        participants: chatQuery.data?.participants,
+        viewerUserId: state.viewerUserId,
+      })
+    : [];
   const effectiveScope = scope === "cards" && !cardsEnabled ? "all" : scope;
   return (
     <Stack gap="section" data-slot="rpg-journal-tab">
