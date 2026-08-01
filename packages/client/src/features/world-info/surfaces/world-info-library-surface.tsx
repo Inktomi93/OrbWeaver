@@ -1,13 +1,14 @@
-// The World Info LIST hub: header band, search, rows. Reads worldInfo.listBooks + listGlobal (to mark
-// the "Global" badge), filters client-side by name, renders a WorldInfoLibraryRow per book. A row click
-// opens the book in CONTENT and never attaches it. Overlays live in the row/dialog components; the
-// surface only wires the mutations. The focus/QueryBoundary shell + header/search/empty body come from
+// The World Info LIST hub: search + rows. Reads worldInfo.listBooks + listGlobal (to mark the "Global"
+// badge), filters client-side by name, renders a WorldInfoLibraryRow per book. A row click opens the book
+// in CONTENT and never attaches it. Overlays live in the row/dialog components; the surface only wires the
+// mutations. The title + the ONE primary (New) live in the LIST chrome band now
+// (`world-info-list-header.tsx`, D66 A1/A2); the focus/QueryBoundary shell + search/empty body come from
 // the shared library-surface scaffold.
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { BookOpen, Icon, Plus, Search } from "@orb/ui/icons";
+import { BookOpen, Icon, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -88,12 +89,6 @@ function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) =
   return (
     <>
       <LibraryListLayout
-        actions={
-          <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-            <Icon icon={Plus} size="sm" />
-            New
-          </Button>
-        }
         empty={
           <EmptyState
             action={
@@ -113,7 +108,6 @@ function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) =
         searchLabel="Search books"
         searchPlaceholder="Search books"
         searchValue={query}
-        title="World Info"
       >
         {filtered.map((book) => (
           <WorldInfoLibraryRow

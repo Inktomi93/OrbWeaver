@@ -11,6 +11,7 @@ import type { SectionDefinition } from "#state";
 import { dismissPresetSection, selectPresetFromList } from "#state";
 import { PresetLibraryAnchor } from "../anchors/preset-library-anchor";
 import { PresetContent } from "../components/preset-content";
+import { PresetListHeader } from "../components/preset-list-header";
 import { PresetSectionInspector } from "../components/preset-section-inspector";
 import { PresetUsageContext } from "../components/preset-usage-context";
 import { usePresetContextState } from "../hooks/use-preset-context-state";
@@ -29,6 +30,8 @@ export const presetsSection: SectionDefinition = {
       <PresetLibrarySurface onSelectPreset={selectPresetFromList} />
     </PresetLibraryAnchor>
   ),
+  // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
+  listHeader: () => <PresetListHeader />,
   content: () => <PresetContent />,
   // Two tabs: Section (the rack row drilled into) and Usage (where the preset is bound).
   context: defineContextTabs<PresetContextState>({
