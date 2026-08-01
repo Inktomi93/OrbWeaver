@@ -232,7 +232,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    non-atomic: a dead-engine opening orphans a real committed chat behind the draft + a lying toast +
    duplicate-chat risk (server returns chat id + opening-failure outcome; fork's degraded-not-broken
    catch is the model pattern).
-2. **SSE MULTIPLEX — S0+S1 LANDED + LIVE-VERIFIED (08-01 overnight)**: merged at `accaf133`;
+2. **~~SSE MULTIPLEX~~ — COMPLETE + CLOSED (08-02, D118 MINTED)**: S0-S5 all merged (S5 `d01b6c7e`
+   + reconcile `b17b88bd`: workloads room, union homed in contracts, ratchet closed to
+   chat.impersonateStream only). One socket/tab measured; five legacy procs deleted. Close-out
+   residue: 3 files cite the retired "[workloads.subscribe cross-feature]" precedent LABEL
+   (rpg-choice-echo, use-rpg-mutations:101, chat-options-menu:37) — rename the label on next
+   docs sweep. LIVE re-verify of socket counts rides the next stage window. Original stage notes: merged at `accaf133`;
    one socket/tab measured on the wire (1 plain · 1 with a GAME open — rpg adds ZERO · 2 across
    two tabs · 0 after close, reap working) via `/api/_debug/stream/sockets`. The rpg gate leak's
    mechanism found+fixed (`use-rpg-bus` re-spelled isRpgEngaged as a null-check — disengaged
