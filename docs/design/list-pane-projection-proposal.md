@@ -465,8 +465,125 @@ either way.
 | D8 | The hero's "N chats ›" under Arm A | **re-point in place** (§3.8): wide = focus the projection pane; narrow = open the LIST sheet. The count stays (it now derives from the same predicate, L0) |
 | D9 | The band's projection mode: back + `CHATS · <name>` + New-chat in the BAND, identity row in the pane (recommended) vs everything in one in-pane header (band stays `CHARACTERS`) | **band swaps** — the band is the panel's chrome voice and its ONE primary must be the pane's actual primary (A2); a `CHARACTERS` band over her chats would mislabel the pane for a screen-reader user landing on the band |
 | D10 | §4.2 doc amendment (Characters CONTEXT "activity" cell → the LIST projection) + the D18-rider D-entry | **approve both on ratification** — the amendment is recorded in §3.8; the D-entry mint is the orchestrator's |
+| D11 | **Star rest-visibility (the §12 grammar's one surviving fork):** unpressed star hidden-at-rest everywhere (revealed on hover/focus, coarse always) — which RETROFITS the character card's landed always-visible-both-states star — vs keep the card's posture and let lists diverge | **unify on pressed-always / unpressed-revealed** (quieter rows; the marker earns rest pixels only when it carries state) — but it reverses a shipped posture on the card, so it is the owner's call, not spec fiat |
+| D12 | The three §11.2 mints (`ListPaneHeader` · `FaceStrip` · `RowToggleAction`) as tier-2 composites, each retiring its live hand-copies in the same commit | **approve** — all three clear the R2/§13.0 placement bars on verified receipts; zero new primitives/tokens/variants needed |
 
-## 11. Homes — the file map (Arm A + B)
+## 11. Primitives inventory — the build material (fugly-prevention; owner-directed follow-up)
+
+> **Ruling context:** Arm A + Arm B approved; the MOCKS' look is the approved target. This § walks both
+> approved mocks element by element and names, for each, the EXISTING `@orb/ui`/tier-2 piece that
+> renders it — verified against the variants files, not assumed — or the NEW piece to mint. The
+> anti-fugly law it enforces: **a mock element needing a size/weight/tone no variant offers is a NEW
+> VARIANT row, never a `className` override.** The F2 lesson is now written INTO the button seal
+> itself: `size-*` on custom tokens is opaque to tailwind-merge, so a call-site override of a sealed
+> size silently loses to the variant (`packages/ui/src/primitives/button/variants.ts` — the `media`
+> size's own comment). Features compose primitives + the layout kit; zero feature CSS.
+
+### 11.1 Element-by-element (both approved mocks)
+
+| mock element | verdict | renders as / mint spec |
+| - | - | - |
+| the chrome band container (48px, hairline) | EXISTS — shell-owned | `.shell-panel-header` via `PanelChrome` (`app-shell.tsx:186`); content arrives through `SectionDefinition.listHeader` — nothing to build |
+| the band title cluster (`CHATS · Azarael` + mono count) | **NEW tier-2 composite: `ListPaneHeader`** | Three landed headers hand-copy the identical `Row(Heading micro/caps/semibold + Text micro/mono/muted)` cluster today — `chat-list-header.tsx:27-36`, `corpus-list-header.tsx:22-33`, `analytics-list-header.tsx:16-27` — and Arm A adds two more modes: the §13.0 bar (3+ sites AND changing together) is met. Home `components/list-pane-header.tsx` (the LibrarySurfaceShell owner-ruling precedent: composites live client-shared, not `@orb/ui`). API: `{ back?: { label: string; onClick: () => void }; title: string; accent?: string; count?: number; action?: ReactNode }` — `accent` is the foreground entity-name half (`CHATS · <b>Azarael</b>`), `action` the panel's ONE primary. CT: cluster voices (micro/caps + mono) via `toHaveCSS` against `TOKENS`; back is focusable + labeled; exactly one `action` node renders |
+| the back affordance (`‹`) | EXISTS | `Button intent="ghost" size="icon"` + `Icon icon={ChevronLeft}` (in the icons seal — the characters stop landed "ChevronLeft Back"). The mock's 26px square yields to the token size (`size-control-md`: 34px fine / 48px coarse) — the mock is a look target, never a geometry override |
+| New / New chat primary | EXISTS | `Button intent="primary" size="sm"` + `Icon Plus` — the landed A2 pattern (`chat-list-header.tsx:37-40`) |
+| the pinned identity row (portrait · name · `7 chats · last 2h ago`) | EXISTS — feature composition, no mint | `Row align="center" gap="block" padding="row"` (the layout kit HAS a `padding` variant — `layout/variants.ts:12-18,41`) + `Avatar size="md"` + `Stack`(`Text` name, `Text size="micro" tone="muted" className="font-mono"` gloss — the landed mono-micro idiom). Instrument-tier island: no border box (CD1). Density S1's `Text.voice` re-voices it (`label`/`gloss`) when it lands — build on today's axes, S5 sweeps |
+| portrait / initials avatar | EXISTS | `Avatar` (`sm`/`md`, `hueSeed`, `blobUrl(hash)` src, initials fallback) — sizes are display tokens (24/32/40 post-PP4) |
+| the group-room stack | EXISTS at `sm` | `AvatarStack size="sm" max={4}` in the `ListRow` leading slot (`@orb/ui/avatar-stack` — overlap map has `sm/md/lg/hero`; display-only, right for a leading slot). The mock's 20px `xs` is NOT minted — it yields to the 24px `sm` token. **No `xs` avatar size** unless a real density defect appears in S5 |
+| the chat row (title / snippet / meta time / markers / actions) | EXISTS | `ListRow` — leading · `title` · `subtitle` (truncating) · `meta` (title-line mono stamp) · `actions` sibling · **`renderActions(collapsed)` + `collapseBelow`** (the collapse-aware arm §12 uses) · `density` · selection skin (2px ember bar + 10% tint). The `portraits` generalization is a prop change on the FEATURE composite `ChatSummaryRow`, not a primitive change |
+| markers (⚔ · ★ · Archived) | EXISTS | labeled `Icon` (`Swords`/`Star`) + `Badge intent="neutral" size="sm" tone="soft"` — landed F7 anatomy (`chat-summary-row.tsx:53-61`); the star's ROLE changes in §12 (marker → toggle), primitives unchanged |
+| the row state-toggle (star as a pressable) | **NEW tier-2 composite: `RowToggleAction`** (small) | 2 features render the same anatomy (character-card's inline star, `character-card.tsx:140-147`; the chats row gains it in §12) — R2 places a 2-feature composite at tier 2. Home `components/row-toggle-action.tsx`. API: `{ pressed: boolean; onToggle: () => void; labelOn: string; labelOff: string; icon: LucideIcon; pressedClassName?: string; rest: "always" | "when-on" }` — a `Button intent="ghost" size="icon"` carrying `aria-pressed`, the pressed tone (e.g. `text-warning` fill), and the `rest` posture (`when-on` = visible at rest only while pressed; unpressed rides `ROW_REVEAL`). CT: `aria-pressed` flips; coarse-pointer always-visible; the control box meets the per-pointer floor |
+| the faces strip + captioned face chip (Arm B) | **NEW tier-2 composite: `FaceStrip`** | Generalizes the landed `CharacterFavoritesStrip` (avatar-in-Button, no captions) — 2 features, same anatomy, changing together. Home `components/face-strip.tsx`; the favorites strip becomes its first consumer (retiring the private copy — no old-beside-new). API: `{ items: readonly { id: string; name: string; avatarHash: string | null }[]; selectedId: string | null; onSelect: (id: string) => void; caption?: boolean }`. Face = `Button intent="ghost" size="media"` (content-sized — the F2-safe size for a display-token child) wrapping `Avatar size="md" ring={selected ? "accent" : "none"}` + optional `Text size="micro"` caption (truncate ~6ch); `aria-current` on the selected face; `role="list"` strip, horizontal scroll. The active ring is the EXISTING `Avatar ring="accent"` variant — no new ring styling. CT: selected face carries ring + `aria-current`; caption truncates; per-pointer floor on the face button |
+| the filter chip row (`Filtered: Azarael ✕`) | EXISTS | landed feature composition (`chat-list-surface.tsx:83-97`): `Badge intent="info" tone="soft"` + ghost icon clear — stays chat-local (one consumer) |
+| the projection empty state | EXISTS | `EmptyState` (icon · title · description · `action` slot) — the landed copy + primary New chat at `chat-list-surface.tsx:132-146` moves into the pane body |
+| search input | EXISTS | `Input` + aria-label (landed) |
+| pane scroll shell | EXISTS | `Stack` + the landed `h-full min-h-0 overflow-y-auto overscroll-contain` className idiom (legal on primitives; values are token-free layout) |
+
+### 11.2 The mint list (summary)
+
+Three NEW pieces, all tier-2 `components/` (each replaces live hand-copies in the same commit it lands,
+per the no-half-migration law): **`ListPaneHeader`** (retires 3 hand-assembled band clusters, gains the
+Arm A two-mode band) · **`FaceStrip`** (generalizes + retires `CharacterFavoritesStrip`'s private copy) ·
+**`RowToggleAction`** (the §12 state-toggle; character-card's inline star migrates onto it). Zero new
+`@orb/ui` primitives, zero new tokens, zero new variants — every size/weight/tone the approved mocks
+need already has a variant, verified against `button/variants.ts`, `avatar/variants.ts`,
+`layout/variants.ts`, `list-row/variants.ts`. Each mint ships with its CT per the §13.7/§13.8 bar
+(token assertions via the generated map, the 8 interactive states where interactive, per-pointer floor).
+
+## 12. Row actions — the kebab escape (owner: "I REALLY hate having to click the three dots")
+
+### 12.1 What the kebabs actually hold today (read, not assumed)
+
+| list | kebab contents | inline today |
+| - | - | - |
+| chats (`chat-list-row-menu.tsx`) | Rename · Star/Unstar · Archive/Unarchive · Delete (confirm) — trigger `reveal={true}` | none (the star renders as a PASSIVE marker only) |
+| characters (`character-card.tsx:115-178`) | Archive/Unarchive · Duplicate · Delete (confirm) | **the escape already landed here:** always-visible Star toggle + `ROW_REVEAL` Chat CTA |
+| presets (`preset-library-row.tsx` → `LibraryRow`) | Rename · Duplicate · Delete (confirm) | none |
+| world-info (`LibraryRow`) | Rename · Duplicate · Delete (confirm) | none |
+
+The grammar below GENERALIZES the character card's landed pattern — it is not an invention.
+
+### 12.2 The one row-action grammar (law for every list pane)
+
+Every list row composes ≤ three trailing things, in this order, all riding `ListRow`'s `actions`
+sibling slot (never inside the clickable body — the primitive enforces the a11y split):
+
+1. **The state toggle (≤1 per row type)** — `RowToggleAction` (§11): a real pressable that IS the
+   marker. Pressed = always visible (it carries state the eye scans for); unpressed = `ROW_REVEAL`
+   (rest hidden, hover/`focus-within` revealed, **coarse pointers always-on** — `row-reveal.ts`).
+   `aria-pressed` + per-entity label ("Star The Crimson Court"). One element, marker + affordance —
+   the chats row's passive star `Icon` is REPLACED by it, not doubled.
+2. **The primary verb (≤1 per row type)** — a `ROW_REVEAL` ghost icon `Button` for the row's ONE
+   frequent non-navigational action. The row CLICK is always open/select and never needs a button.
+3. **The kebab (`RowActionsMenu`, `reveal`)** — retains EVERY action including the inline ones (the
+   N3 keyboard/discoverability parity rule; the §9-checklist hover-mirror exception covers the
+   duplication), and is the ONLY home for destructive (Delete behind `ConfirmDialog`) and
+   dialog-opening occasional actions (Rename, Archive).
+
+Per-list assignment (frequency-ranked from the menus above):
+
+| list | state toggle | primary verb | stays in kebab |
+| - | - | - | - |
+| chats | **Star** | — (row click = open; nothing else is frequent) | Rename · Archive · Delete |
+| characters | Star (landed — migrates onto `RowToggleAction`) | Chat CTA (landed) | Archive · Duplicate · Delete |
+| presets | — (no boolean state on the row) | **Duplicate** — the fork workflow is the measured frequent action (nine "Default (edited)" rows are its receipt) | Rename · Delete |
+| world-info | — | — (no frequency evidence; books are low-churn) | Rename · Duplicate · Delete |
+| projection pane (Arm A) / filtered pane (Arm B) | inherits the chats row verbatim | | |
+
+### 12.3 The touch-floor math (why this fits, per pointer)
+
+- Inline icon buttons ride `size="icon"` = `size-control-md` — **34px fine / 48px coarse by token
+  construction** (D62 P1); no hand math, no floor risk.
+- Row heights absorb them: `ListRow` default density = `min-h-control-md` + `py-field` (~46-52px
+  fine, ~60px coarse) — a 34px control fits the fine row, a 48px control fits the coarse row.
+- Width at the 320px pane floor: leading (24-56px stack) + the `content` `min-w-24` title floor +
+  toggle 34 + kebab 34 + gaps ≈ 210px of fixed budget — fits with ~80px slack; a THIRD inline
+  (toggle + verb + kebab) still fits (~46px slack) but is the cap. **Hard cap: two icon affordances
+  + kebab.** Where a pane runs narrower (overlay/sheet edge cases), `ListRow.renderActions(collapsed)`
+  + `collapseBelow` is the built-in fallback: collapsed ⇒ render kebab-only (every action still
+  reachable). That arm exists in the primitive today — no new mechanism.
+- Coarse rest-noise honesty: at coarse, `ROW_REVEAL` shows the cluster always (hover doesn't exist);
+  with the cap that is at most toggle + verb + kebab = 3 quiet ghost glyphs per row — the A3
+  flex-starvation hazard is absent (the cluster keeps its box; opacity changes no layout).
+
+### 12.4 Keyboard reachability
+
+- Every inline affordance is a real `Button` — tabbable in DOM order after the row's body button;
+  `ROW_REVEAL` includes `group-focus-within:opacity-100`, so tabbing INTO the row reveals the cluster
+  (visible-focus law holds; nothing is reachable-but-invisible).
+- The kebab retains the full action set, so a keyboard user may also do everything from one menu
+  (roving menu semantics from the Base UI seal) — inline is a shortcut, never the only path.
+- The state toggle announces as a toggle (`aria-pressed`), not a command — "Star, pressed".
+
+### 12.5 What this changes on landed surfaces
+
+`ChatSummaryRow`: passive star `Icon` → `RowToggleAction` (the star mutation hook already exists in
+the kebab — `useStarChat`); the kebab keeps its Star item (mirror parity). `character-card.tsx`: the
+hand-rolled star Button migrates onto `RowToggleAction` with `rest` per owner ruling D11 (below).
+`PresetLibraryRow`/`LibraryRow`: `LibraryRowActions` gains an optional `inlineVerb` arm rendering the
+`ROW_REVEAL` Duplicate beside the kebab. All shifts ride existing mutations — zero server change.
+
+## 13. Homes — the file map (Arm A + B)
 
 | file | change |
 | - | - |
@@ -483,6 +600,10 @@ either way.
 | `packages/client/src/state/character-selection-store.ts` | L1: `withViewTransition` wrap on select/clear (store-tier, factory untouched) |
 | `packages/client/src/main.tsx` | L1: thread chat's pane into `makeCharactersSection` (the door — G8) |
 | `packages/client/src/features/{preset,world-info}/…` + their section defs | L4: `listHeader` band migration |
+| `packages/client/src/components/list-pane-header.tsx` | NEW (§11.2) — retires the 3 hand-assembled band clusters; Arm A's two-mode band consumes it |
+| `packages/client/src/components/face-strip.tsx` | NEW (§11.2, Arm B) — generalizes + retires `CharacterFavoritesStrip`'s private copy |
+| `packages/client/src/components/row-toggle-action.tsx` | NEW (§11.2/§12) — the state-toggle; chats row + character-card star migrate onto it |
+| `packages/client/src/components/library-row.tsx` | §12.5: optional `inlineVerb` arm (presets' revealed Duplicate) |
 | tests | `tests/client/features/chat/lib/chats-with-character.test.ts` (L0) · CTs per §9's L1/L2/L3 rows under the `tests/client` mirror |
 
 **No server, contract, db, or gate files change in L0–L4.** The deferred instrumentation items are the
