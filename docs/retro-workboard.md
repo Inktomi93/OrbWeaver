@@ -105,8 +105,11 @@ approved program opens) · V2 preset views P3-P5 (rack+drill-ins+Actions-from-re
 w/ D8+list projection; snap --isolated receipts required) · smalls#2 (Jobs vocab+CTA · toolround
 usage · ember-CT rename · retry-drift sweep · post-checkout install hook · BANG-PREFIX gate arm
 [~40-site baseline]). **BATCH CHECK: FAIL→FIXED→pending re-run** — the ONLY red was my §L AGENTS.md append unformatted
-(format:docs applied); code stages all green. Re-running the check now certifies the pile. Remaining in flight: R1 `aaf92c075ecb7572f`? / V2 / smalls#2 / mirror-pin (ids in
-the wave note above + handoff #2).
+(format:docs applied); code stages all green. Re-running the check now certifies the pile. ~~mirror-pin~~ MERGED (`acad5df6`, unhooked — 26 shapes pinned two-axis [keys+values]; proven
+on the exact TRK-2 regression; found+fixed FOUR more live drifts on landing [poolDefs debris,
+missing flavor/gr ants, phantom namesBehavior, weather |undefined]; envelope-sourced shapes
+listed as honest scope). Remaining in flight: R1 / V2 / smalls#2 (ids in the wave note +
+handoff #2). Post-merge check owed with the next merge batch.
 · ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
   (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
   capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
