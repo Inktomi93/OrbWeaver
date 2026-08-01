@@ -101,6 +101,21 @@ export function RpgTakeoverReferenceStory(): ReactElement {
   );
 }
 
+/** The SAME takeover at the context panel's own FLOOR — `clamp(17rem, 30vw, 30rem)`'s 17rem/272px arm, the
+ *  width a ~900px-wide window docks to. The rail's narrow-wrap rule is written against exactly this width
+ *  (six cells on one row here is what clipped four captions to three characters), so the CT that pins it
+ *  mounts exactly this width. */
+export function RpgTakeoverFloorStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <RpgTakeoverHarness width={272} height={640} />
+    </CtDataProviders>
+  );
+}
+
 // The freshness indicator in isolation — a pure component (no providers/network), so every honest state mounts
 // directly. This proves the label datum + a11y model per state without driving a live turn over SSE. Since EFF-3
 // the input is the room's EFFECTIVE delivery, not the raw knob — the arm that used to lie ("folded" on a wire

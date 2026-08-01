@@ -8,8 +8,12 @@ export type { CastCardProps, CastField } from "./cast-card-slots";
 export { CastCard } from "./cast-card-slots";
 export type { HintEditorProps } from "./hint-editor";
 export { HintEditor } from "./hint-editor";
+// The meter row + its label/value/max/track pieces are ONE module (the component-size cap) — nothing
+// outside it composes any of them.
+export type { MeterRowProps } from "./meter-row";
+export { MeterRow } from "./meter-row";
 export { RelationshipBadge } from "./relationship-badge";
-export type { BeatLineProps, GoalLineProps, MeterRowProps, StatCellProps, TrackerChipProps } from "./tracker-blocks";
-export { BeatLine, GoalLine, MeterRow, StatCell, TrackerChip } from "./tracker-blocks";
+export type { BeatLineProps, GoalLineProps, StatCellProps, TrackerChipProps } from "./tracker-blocks";
+export { BeatLine, GoalLine, StatCell, TrackerChip } from "./tracker-blocks";
 export type { TrackerValueProps } from "./tracker-value";
 export { TrackerValue } from "./tracker-value";

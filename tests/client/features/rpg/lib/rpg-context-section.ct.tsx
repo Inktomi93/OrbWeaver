@@ -12,7 +12,7 @@ import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
+import { RpgTakeoverFloorStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
 
@@ -414,8 +414,10 @@ test("a hand-locked field shows the pin; ONE click releases — the mutation fir
 
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
 
-  // The pin (§12.3 — aria-labelled) sits in the ambient strip beside the locked `location` field.
-  const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Pinned by hand — click to release to the model" });
+  // The pin (§12.3 — aria-labelled) sits in the ambient strip beside the locked `location` field, and it
+  // NAMES that field: the Scene tab renders five of these pins and a reader navigating by name has to be
+  // able to tell which plane each one hands back (side-eye 08-01).
+  const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Release the location to the model" });
   await expect(pin).toBeVisible();
   await pin.click();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
@@ -1651,7 +1653,10 @@ test("HUD-1 §7.1: the admin rail is PINNED to the pane's foot — on a short bo
   // the GROUND absorbs the residual span, and the rail sits on the pane's bottom edge in BOTH states — a
   // rail floating ~400px up the pane was the defect. Measured, never eyeballed.
   await stubTakeover(page);
-  const component = await mount(<RpgTakeoverStory />);
+  // Measured at the 30rem × 900 reference, not the 320-wide story: at 320 the game rail wraps to two rows
+  // (side-eye 08-01) and this stub's Journal body then fills the pane exactly, so there is no residual span
+  // left for the GROUND to be — and "the ground is painted" is precisely what this test exists to pin.
+  const component = await mount(<RpgTakeoverReferenceStory />);
   const region = component.locator("[data-context-region]");
   await expect(region).toBeVisible();
   const rail = component.getByRole("tablist", { name: "Chat" });
@@ -1787,9 +1792,20 @@ test("HUD-1 §4: HOST-ONLY cells wear the crown gold at rest — and only at res
       .first()
       .evaluate((el) => getComputedStyle(el).color);
 
-  expect(await glyphColor("Preview")).toBe(highlight);
+  // THE CROWN INHERITS THE RECEDE (side-eye 08-01). The landing tab is `rpg.status`, so the ADMIN rail is
+  // the receded one — and while it recedes its crowns recede with it. Full gold on a quiet strip made the
+  // crown the brightest pixel in the rail that does NOT hold the selection.
+  const receded = await glyphColor("Preview");
+  expect(receded).not.toBe(highlight);
+  expect(receded).toBe(await glyphColor("This chat"));
+
+  // Give the admin rail the selection and its crowns light up — the gold marks a class of CELL, within its
+  // rail's own voice.
+  await rail.getByRole("tab", { name: "This chat" }).click();
+  await expect(rail.getByRole("tab", { name: "This chat" })).toHaveAttribute("aria-selected", "true");
+  await expect.poll(() => glyphColor("Preview"), { intervals: [20, 50, 100, 200] }).toBe(highlight);
   expect(await glyphColor("Game")).toBe(highlight);
-  // A non-host cell in the SAME rail is untouched — the gold marks a class of cell, not the rail.
+  // A non-host cell in the SAME (owning) rail is untouched — the gold marks a class of cell, not the rail.
   expect(await glyphColor("This chat")).not.toBe(highlight);
 
   // ACTIVE beats crowned: once the cell is the answer to "where am I", the ember state colour owns it —
@@ -1924,4 +1940,172 @@ test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30re
   // …and the band is no longer the chrome's dominant tenant: the state it was WORST at (nothing set) is now
   // its cheapest form, so the 68% F6 measured is a line it may not cross back over.
   expect(bandBox.height / chrome).toBeLessThan(0.65);
+});
+
+test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET arm's budget — and the viewport keeps the majority", async ({ mount, page }) => {
+  // THE SECOND ARM (side-eye 08-01 P1). The budget CT above pins the COMPACT arm and stubs `ambientLess`, so
+  // the arm the panel actually lands on — a game with a scene set, the DEFAULT — was unguarded, and it
+  // measured 41.2% against a law written as a flat ≤30%. §7.1 is amended to a two-arm law because the single
+  // arm is unsatisfiable here without deleting the composite: at this reference the two rails alone cost
+  // 116.375px, leaving 153.6px of the 270px ceiling — and the SET band's floor is 18px of padding + the
+  // 120px stone row + 8px + the 13px echo ≈ 159px with ZERO satellites. The only way under is to shrink the
+  // stone below the focal step F16 grew it to, which is the signature element the amendment protects.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const region = component.locator("[data-context-region]");
+  await expect(region).toBeVisible();
+  await expect.poll(() => component.locator('[data-slot="tabs-panel"]:visible').count(), { intervals: [20, 50, 100, 200] }).toBe(1);
+  // The composite is really the full arm — a budget met by a band that collapsed to its compact form would
+  // be measuring the other law.
+  await expect(component.locator('[data-slot="rpg-takeover-header"]')).toHaveAttribute("data-compact", "false");
+
+  const rails = await component.locator('[data-slot="rpg-hud-rail"]').all();
+  expect(rails).toHaveLength(2);
+  const [regionBox, bandBox] = await Promise.all([region.boundingBox(), component.locator('[data-slot="rpg-hud-band"]').boundingBox()]);
+  if (regionBox === null || bandBox === null) {
+    throw new Error("expected the region and the band to be laid out");
+  }
+  const railBoxes = await Promise.all(rails.map((rail) => rail.boundingBox()));
+  const railHeight = railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
+  expect(regionBox.height).toBeCloseTo(900, -1);
+
+  // MEASURED 2026-08-01 at this reference: region 900 · band 254.6 · rails 116.4 · chrome 371 — 41.2%.
+  const chrome = bandBox.height + railHeight;
+  expect(chrome / regionBox.height).toBeLessThanOrEqual(0.45);
+  // THE RULE THAT SURVIVES BOTH ARMS, and the reason the budget exists at all: the VIEWPORT owns the
+  // majority of the pane. A set band may cost more than an unset one; it may never cost more than the body.
+  expect(chrome / regionBox.height).toBeLessThan(0.5);
+});
+
+test("side-eye 08-01: a POOLLESS pinned tracker is a DISC, not a full ring — shape follows the datum", async ({ mount, page }) => {
+  // The band drew `max ?? value` as the ring's domain, so a tracker with NO ceiling rendered a permanently
+  // FULL arc — the exact "lie of shape" DESIGN §2/§8.1 bans for the wallet. The eligibility rule: ceilinged
+  // pool ⇒ arc; max-less quantity ⇒ the wallet's disc.
+  const grit = { key: "grit", label: "Grit", value: 5, max: null, color: null };
+  await stubTakeover(page, {
+    tracker: {
+      ...(trackerView(false) as Record<string, unknown>),
+      trackerOrbs: [{ key: "vitality", label: "Vitality", value: 24, max: 30, color: null }, grit],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  const band = component.locator('[data-slot="rpg-hud-band"]');
+
+  // The ceilinged pool keeps its arc…
+  await expect(band.locator('[data-slot="ring-gauge"]')).toHaveCount(1);
+  // …and the poolless one wears the disc, with its quantity as the datum (no invented `/5`).
+  const disc = band.locator('[data-slot="coin-figure"]');
+  await expect(disc).toHaveCount(1);
+  await expect(disc).toContainText("Grit");
+  await expect(band.getByText("5/5")).toHaveCount(0);
+});
+
+test("side-eye 08-01: at the panel's 17rem FLOOR the game rail wraps to rows of three — no 3-character captions", async ({ mount, page }) => {
+  // Six cells on one `auto-cols-fr` row at 272px gave ~44px each and clipped four of the six captions to
+  // ~3 characters (an icon-only rail wearing text, F6 defect 2 again). Below the `xs` container step the
+  // rail lays out as rows of three. Asserted as RENDERED GEOMETRY: two rows, three columns, and every
+  // caption's scrollWidth inside its own box (the definition of "not clipped").
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  const list = component.getByRole("tablist", { name: "Game state" });
+  await expect(list.getByRole("tab")).toHaveCount(6);
+
+  const boxes = await Promise.all((await list.getByRole("tab").all()).map((tab) => tab.boundingBox()));
+  const tops = new Set(boxes.map((box) => Math.round(box?.y ?? 0)));
+  expect(tops.size).toBe(2);
+  const firstRow = boxes.filter((box) => Math.round(box?.y ?? 0) === Math.min(...tops));
+  expect(firstRow).toHaveLength(3);
+
+  // No caption is truncated: the text's own scroll width fits the box it renders in.
+  const clipped = await list.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
+});
+
+test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption that clips there is why", async ({ mount, page }) => {
+  // The wrap fires at the `xs` step, not at the 272px floor, because that is where the measurement says the
+  // words stop fitting: unwrapped at a 320px pane, "Inventory" wanted 48px of caption inside a 36px cell.
+  // (The ADMIN rail, 3-4 cells, never wraps at any width — it is not spending vertical budget it doesn't
+  // need to.)
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const game = component.getByRole("tablist", { name: "Game state" });
+  await expect(game.getByRole("tab")).toHaveCount(6);
+  const clipped = await game.locator('[data-slot="rpg-hud-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
+
+  const gameRows = new Set((await Promise.all((await game.getByRole("tab").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
+  expect(gameRows.size).toBe(2);
+  const admin = component.getByRole("tablist", { name: "Chat" });
+  const adminRows = new Set((await Promise.all((await admin.getByRole("tab").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
+  expect(adminRows.size).toBe(1);
+});
+
+// ── SIDE-EYE 08-01: THE PANEL STOPS INVENTING READINGS ────────────────────────────────────────────────
+
+/** The same roster actor with NO tracker readings written — the state a fresh game is in before the story
+ *  has touched anyone's pools (the defs exist; the values do not). */
+function unwrittenTrackerView(): unknown {
+  const base = trackerView(false) as { readonly actors: readonly Record<string, unknown>[] };
+  const actor = base.actors[0] as Record<string, unknown>;
+  return {
+    ...base,
+    actors: [{ ...actor, volatile: { ...(actor["volatile"] as Record<string, unknown>), trackerValues: {} } }],
+    trackerOrbs: [],
+  };
+}
+
+test("side-eye 08-01: an UNSET pool reads as an em dash, never a synthesized 0/max", async ({ mount, page }) => {
+  // The panel was the lying surface (the reminder already renders unset carriage honestly): `?? 0` turned a
+  // tracker nobody had written into "0/40" over an empty bar — and because TEXT is the datum, a screen
+  // reader announced the invention as the character's reading.
+  await stubTakeover(page, { tracker: unwrittenTrackerView() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  const row = component.locator('[data-slot="meter-row"]').first();
+  await expect(row).toHaveAttribute("data-unset", "true");
+  // The ceiling is a real fact (the def carries it); the READING is not — so the numerator is a dash.
+  await expect(row).toContainText("—/30");
+  await expect(component.getByText("0/30")).toHaveCount(0);
+  // …and the decoration agrees with the text: an EMPTY rail, not a bar computed off the invented zero.
+  const fillWidth = await row.locator('[data-slot="track-bar-fill"]').evaluate((el) => el.getBoundingClientRect().width);
+  expect(fillWidth).toBe(0);
+});
+
+test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost socket", async ({ mount, page }) => {
+  // The grid shipped one dashed `aria-hidden` cell called a "growth affordance": 150×28px with no word in
+  // it and nothing to click. The host's real add row sits directly beneath the grid.
+  await stubTakeover(page, { tracker: packedTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  await expect(component.locator('[data-slot="rpg-pack-cell"]')).toHaveCount(PACKED_ITEMS.length);
+  await expect(component.locator('[data-slot="rpg-pack-ghost"]')).toHaveCount(0);
+  // The growth affordance that DOES exist is a named control, not a box.
+  await expect(component.getByRole("button", { name: "Add item" })).toBeVisible();
+});
+
+test("side-eye 08-01: a cast card's tracked readings are named by WHOSE they are", async ({ mount, page }) => {
+  // Two cast members carrying the same tracker gave a name-navigating reader two buttons called "Trust
+  // value" and no way to tell Sera's from Mara's — the card's own name was in the DOM, not in the control's.
+  const trust = { ...VITALITY, key: "trust", label: "Trust", shape: "text", max: null, appliesTo: "npcs" };
+  const base = trackerView(false) as Record<string, unknown>;
+  const cast = base["cast"] as readonly Record<string, unknown>[];
+  await stubTakeover(page, {
+    tracker: {
+      ...base,
+      cast: [...cast, { ...cast[0], key: "mara-npc", name: "Mara the elder", appearance: "", thoughts: "" }],
+      castTrackers: {
+        sera: [{ def: trust, value: { value: "wary", items: null } }],
+        "mara-npc": [{ def: trust, value: { value: "warm", items: null } }],
+      },
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  await expect(component.getByRole("button", { name: "Sera Trust" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Mara the elder Trust" })).toBeVisible();
+  // The old subjectless name is gone (it named two different readings).
+  await expect(component.getByRole("button", { name: "Trust value" })).toHaveCount(0);
 });

@@ -8,6 +8,19 @@
 // and the band text says the story hasn't set the scene yet. Weather needs no resolution step: `weather.type`
 // is already the stone's CLOSED vocabulary (`@orb/kit/weather` — one axis, model-bound at the wire), while the
 // band text shows the model's free `weather.label` when it wrote one.
+// SATELLITE ELIGIBILITY — the rule, stated (side-eye 08-01: it was unstated, and the band drew a poolless
+// tracker as a FULL ring). It is SHAPE FOLLOWS THE DATUM, not "which plane the number came from": the server
+// hands the band exactly the trackers the HOST PINNED (`trackerOrbs`, envelope-capped there — the one
+// derivation home), and this composition picks each one's FIGURE from whether it has a ceiling. A ceilinged
+// pool is an ARC (`RingGauge` — the arc means value/max); a max-less quantity is a DISC (`CoinFigure`), the
+// same grammar the wallet already wears, because "a max-less quantity wearing an arc would be a lie of
+// shape" (DESIGN §2/§8.1) — and `max ?? value` was drawing exactly that lie, a permanently-full ring for a
+// tracker that has no full. That one rule answers both halves of the finding: a poolless tracker (Grit) is a
+// disc, not a missing orb; the wallet (Gold) is a disc for the same reason, not an exception.
+// The band stays the GLANCE and the roster/sheet stay the READING: the same numbers appear in both because
+// the band is persistent chrome across all seven tabs while a roster row is one tab's body (the OSRS orb
+// idiom the design set is built on). DESIGN §2 pins the orb's own text ("label + `value/max` text beneath —
+// text is the datum"), so the band does not drop its readout to de-duplicate against a body it cannot see.
 // Orb color rides the ONE `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)` — the owner
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked color.
 // The cues row = freshness (the EFFECTIVE delivery, honest — EFF-3) + the host-only `veiledCue` slot (§6 P3 — the band's
@@ -65,6 +78,22 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
 /** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at. */
 function clockTime(clock: RpgClockTime): string {
   return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}`;
+}
+
+/** ONE pinned tracker as a band SATELLITE, on the eligibility rule at the top of this file: a CEILINGED pool
+ *  wears the arc (`RingGauge` — value/max, with its 3-char glance tag); a max-less quantity wears the wallet's
+ *  disc instead, because an arc with no domain can only ever draw itself full. Both keep the tracker's own
+ *  resolved ramp colour, so the definition→orb→bar colour identity (§3) survives the shape fork. */
+function Satellite({ orb, ordinal }: { readonly orb: RpgTrackerOrb; readonly ordinal: number }): ReactElement {
+  const color = trackColorProps(resolveTrackerColor(orb.color, ordinal));
+  if (orb.max === null) {
+    // The disc is a QUANTITY figure — it carries no arc, so a host-picked free hex has nothing to paint;
+    // the ramp step is the honest colour channel it does have.
+    return <CoinFigure amount={orb.value} label={orb.label} color={color.color} showCaption={true} />;
+  }
+  return (
+    <RingGauge value={orb.value} max={orb.max} {...color} label={orb.label} showCaption={true} captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()} />
+  );
 }
 
 /** The viewer's primary wallet — the FIRST named amount (§12.2.2 ordinal rule); null when unfunded. */
@@ -146,15 +175,7 @@ export function RpgTakeoverHeader({
     trackerOrbs.length === 0 && wallet === null ? null : (
       <>
         {trackerOrbs.map((orb, i) => (
-          <RingGauge
-            key={orb.key}
-            value={orb.value}
-            max={orb.max ?? orb.value}
-            {...trackColorProps(resolveTrackerColor(orb.color, i))}
-            label={orb.label}
-            showCaption={true}
-            captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
-          />
+          <Satellite key={orb.key} orb={orb} ordinal={i} />
         ))}
         {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
       </>

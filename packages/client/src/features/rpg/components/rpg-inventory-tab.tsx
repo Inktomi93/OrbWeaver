@@ -5,8 +5,10 @@
 // other two zoom levels of the same number. Grid = `cols="cell"` (§5 — container-driven: 2-up at the 320px
 // mobile column, 3-up in the 480px docked panel). Cells: resolved glyph (#37 — the host-picked `item.icon`
 // seal name wins, else the §12.5 keyword resolver; aria-hidden, the NAME is the datum), the NAME, the ×N
-// read, and the item LOCATION (#37a — the data was already stored), quest-bound = the ember dot, plus ONE
-// dashed ghost socket (growth affordance — never a fake 28-slot pack; no encumbrance UI, not modeled).
+// read, and the item LOCATION (#37a — the data was already stored), and quest-bound = the ember dot. There
+// is NO ghost socket and no fake 28-slot pack (side-eye 08-01 killed the dashed one: an empty box with no
+// word and no click is not an affordance); the host's `AddRow` below the grid is the one growth home. No
+// encumbrance UI — not modeled.
 //
 // #37b — the COMPACT/LIST toggle: one view knob (grid default) on the Pack kicker row; the LIST view is a
 // row per item (glyph · name · ×qty · location · description) for the read-it-all posture.
@@ -134,7 +136,7 @@ function PackSection({
   return (
     <Stack gap="field">
       <Row gap="field" align="center" justify="between">
-        <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock onRelease={onRelease} />}>Pack — {items.length}</Kicker>
+        <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack — {items.length}</Kicker>
         {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
           <Button intent="ghost" size="sm" className="!size-6 !p-0" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
