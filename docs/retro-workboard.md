@@ -192,6 +192,13 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+**RULED mid-review (owner 08-02): HP JOINS THE UNIFIED TRACKERS** — demote the native
+rpgActorVolatileSchema.hp to a d20-profile-SEEDED pool def, one addressing rule; the review
+delivers the HOW (migration sites: hpDelta wire → tracker-delta vocab · reminder seg · panel
+orb · schema removal + NO-LEGACY squash · e2e mirrors · reachability leaves). NORTH STAR
+restated: rpg-lite = rpg-ISH — story steering + durable-ish state, NOT simulation; every reshape
+arm weighs against that. NPC retention option space given: tail-reach vs PER-GAME NPC LEDGER
+(owner lean visible; ledger may dissolve the two-homes split) + the wandering-NPC reference.
 **ACTOR-STATE MODEL STICKLER IN FLIGHT (owner-ordered 08-02 — "bandaid or clean?" + "NPCs come
 and go, is that modeled?"):** design-level review of the whole seam that ate 3 defects in a day —
 the actor taxonomy (roster humans/characters vs transient cast NPCs; TWO volatile homes
