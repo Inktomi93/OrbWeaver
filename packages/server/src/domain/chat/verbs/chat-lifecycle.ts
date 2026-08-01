@@ -27,6 +27,7 @@ import type {
   DeleteChatParams,
   GetStoredVariablesParams,
   GetUserMacroPicksParams,
+  GetVariablePicksParams,
   GetVariablesParams,
   ListChatInjectionsParams,
   ReapTemporaryChatsParams,
@@ -39,7 +40,7 @@ import type {
 } from "../contract/params";
 import type { ReapResult, VariablesResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
-import type { ChatInjectionView, UserMacroPicksView } from "../contract/views";
+import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views";
 import { requireHost, requireParticipant } from "../guard";
 import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
@@ -67,6 +68,7 @@ type ChatLifecycleVerbs = Pick<
   | "getVariables"
   | "getStoredVariables"
   | "getUserMacroPicks"
+  | "getVariablePicks"
   | "setVariables"
   | "setUserMacroValues"
   | "clearVariables"
@@ -273,6 +275,20 @@ function createGetUserMacroPicks(ctx: ChatContext): ChatService["getUserMacroPic
   };
 }
 
+/** `getVariablePicks` — member. The picks pane's ChoiceBlock half (the `getUserMacroPicks` sibling — one
+ *  pane, two knob families): the active preset's declared `variables` plus the persisted per-chat picks.
+ *  The declarations are projected WHOLE — a ChoiceBlock has no body/args class to withhold, and every field
+ *  decides how the pane stores a pick or what UNSET resolves to (see {@link VariablePicksView}). An absent
+ *  key (or an empty string, which the resolver reads alike) is UNSET — the turn resolves the declared
+ *  default, which is what the pane renders. */
+function createGetVariablePicks(ctx: ChatContext): ChatService["getVariablePicks"] {
+  return async ({ principal, chatId }: GetVariablePicksParams): Promise<VariablePicksView> => {
+    await requireParticipant(ctx, principal, chatId);
+    const [stored, variables] = await Promise.all([loadStoredVariables(ctx.db, chatId), ctx.resolvePromptVariables(chatId)]);
+    return { variables, values: stored ?? {} };
+  };
+}
+
 /** `clearVariables` — member. Null the persisted variable flush. Emits `chatUpdated`. */
 function createClearVariables(ctx: ChatContext, emit: EmitChatEvent): ChatService["clearVariables"] {
   return async ({ principal, chatId }: ClearVariablesParams): Promise<void> => {
@@ -360,6 +376,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     setVariables: createSetVariables(ctx, emit),
     setUserMacroValues: createSetUserMacroValues(ctx, emit),
     getUserMacroPicks: createGetUserMacroPicks(ctx),
+    getVariablePicks: createGetVariablePicks(ctx),
     clearVariables: createClearVariables(ctx, emit),
     setChatInjection: createSetChatInjection(ctx, emit),
     listChatInjections: createListChatInjections(ctx),

@@ -5,7 +5,7 @@
 import process from "node:process";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { UserMacroSpec } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -273,6 +273,82 @@ describe("variables — the config-plane round-trip (member)", () => {
 
     await life.clearVariables({ principal: principal(member), chatId });
     expect(await life.getStoredVariables({ principal: principal(member), chatId })).toEqual({});
+  });
+});
+
+describe("getVariablePicks — the picks pane's ChoiceBlock half (member)", () => {
+  // The host's preset declarations the pane renders controls from — one single-pick variable and one
+  // multi-select POOL. `resolvePromptVariables` is the compose op the verb reads.
+  const povVariable: ChoiceBlockSpec = {
+    name: "pov",
+    question: "Narration POV",
+    options: [
+      { label: "First", value: "first person" },
+      { label: "Third", value: "third person" },
+    ],
+    defaultValue: "third person",
+    multiSelect: false,
+    separator: ", ",
+    randomPick: false,
+  };
+  const weatherVariable: ChoiceBlockSpec = {
+    name: "weather",
+    question: "Weather pool",
+    options: [
+      { label: "Storm", value: "storm" },
+      { label: "Clear", value: "clear" },
+    ],
+    multiSelect: true,
+    separator: ", ",
+    randomPick: true,
+  };
+
+  function lifeWithVariables(specs: readonly ChoiceBlockSpec[]): ReturnType<typeof createChatLifecycle> {
+    return createChatLifecycle(makeChatContext(db, { resolvePromptVariables: () => Promise.resolve(specs) }), lifecycleDeps());
+  }
+
+  test("a member reads the DECLARED variables + the stored picks (the setVariables round-trip)", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = lifeWithVariables([povVariable, weatherVariable]);
+
+    await life.setVariables({ principal: principal(member), chatId, values: { pov: "first person" } });
+    const view = await life.getVariablePicks({ principal: principal(member), chatId });
+
+    // The declarations are projected WHOLE — a ChoiceBlock has no body/args class to withhold, and every
+    // field decides how a pick is stored or what UNSET resolves to.
+    expect(view.variables).toEqual([povVariable, weatherVariable]);
+    expect(view.values).toEqual({ pov: "first person" });
+  });
+
+  test("no picks stored yet ⇒ an empty bag (every control renders UNSET), not a throw", async () => {
+    const { member, chatId } = await seedRoom();
+    const view = await lifeWithVariables([povVariable]).getVariablePicks({ principal: principal(member), chatId });
+
+    expect(view.values).toEqual({});
+    expect(view.variables).toHaveLength(1);
+  });
+
+  test("a stored pick whose variable the preset no longer declares SURVIVES the read (orphan-preserve)", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = lifeWithVariables([povVariable]);
+
+    // The pane rebuilds the WHOLE bag on every edit, so an orphan it never renders must still come back —
+    // otherwise the next pick would silently drop it (`resolveChoiceVariables` still resolves it at turn time).
+    await life.setVariables({ principal: principal(member), chatId, values: { pov: "first person", retired: "kept" } });
+    const view = await life.getVariablePicks({ principal: principal(member), chatId });
+
+    expect(view.values).toEqual({ pov: "first person", retired: "kept" });
+    expect(view.variables.map((v) => v.name)).toEqual(["pov"]);
+  });
+
+  test("a non-participant (stranger) is refused — neither declarations nor picks leak", async () => {
+    const { chatId } = await seedRoom();
+    const stranger = await seedUser(db, "stranger");
+
+    const err = await lifeWithVariables([povVariable])
+      .getVariablePicks({ principal: principal(stranger), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatNotFoundError);
   });
 });
 
