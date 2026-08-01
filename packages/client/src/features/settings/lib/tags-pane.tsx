@@ -19,5 +19,5 @@ export const tagsPane: SettingsPaneDefinition = {
       keywords: ["label", "folder", "color", "merge", "rename", "prune"],
     },
   ],
-  body: () => <TagsSettingsSurface />,
+  body: { kind: "surface", render: () => <TagsSettingsSurface /> },
 };

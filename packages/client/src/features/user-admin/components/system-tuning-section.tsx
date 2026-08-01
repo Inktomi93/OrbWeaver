@@ -19,6 +19,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { useReportSaveStatus } from "#forms";
+import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
 import { isOverridden } from "../lib/app-override-model";
@@ -125,19 +127,28 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
   return out;
 }
 
+/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
+ *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
+function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  return isPending ? "saving" : "saved";
+}
+
 /** The section's own suspense/error boundary so it is self-contained. */
-export function SystemTuningSection(): ReactElement {
+export function SystemTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading system tuning…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
     >
-      <SystemTuningBody />
+      <SystemTuningBody sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function SystemTuningBody(): ReactElement {
+function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -155,6 +166,7 @@ function SystemTuningBody(): ReactElement {
   });
   const dirty = dirtyKnobs.length > 0;
   const anyOverridden = KNOBS.some((knob) => knob.overridden(overrides));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
   // Merge every dirty knob's sparse patch into ONE partial (nested engineLaunch/agentSdkConcurrency deep-merge
   // server-side, so an untouched sibling in the same section survives).

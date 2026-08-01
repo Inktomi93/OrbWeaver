@@ -9,10 +9,11 @@ import type { ReactElement } from "react";
 import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section";
 import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface";
 import { WorkloadsSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/workloads-settings-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtSettingsSectionRegistry } from "../../../support/ct/ct-data-providers";
 
 // The tuning section has its OWN story/CT below; this jobs-surface story mounts with zero contributions
-// (the seam's empty case — byte-identical to the pre-seam pane).
+// (the seam's empty case — byte-identical to the pre-seam pane). The surface reads the section registry
+// from CONTEXT now (SET-SEAMS §5.2), so the empty case is an empty registry PROVIDED, not a prop.
 const emptyWorkloadsSections = createContributorRegistry<SettingsSectionContribution>("ct-empty-workloads-sections", []);
 
 /** The real Workloads settings pane (the per-user jobs surface) in isolation — `workloads.list`,
@@ -22,9 +23,11 @@ const emptyWorkloadsSections = createContributorRegistry<SettingsSectionContribu
 export function WorkloadsSettingsStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <WorkloadsSettingsSurface sectionContributors={emptyWorkloadsSections} />
-      </div>
+      <CtSettingsSectionRegistry sections={emptyWorkloadsSections}>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <WorkloadsSettingsSurface />
+        </div>
+      </CtSettingsSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -35,7 +38,7 @@ export function WorkloadsTuningSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <WorkloadsTuningSection />
+        <WorkloadsTuningSection sectionId="workloads-tuning" />
       </div>
     </CtDataProviders>
   );

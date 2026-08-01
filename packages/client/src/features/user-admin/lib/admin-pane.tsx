@@ -1,13 +1,11 @@
-// The Admin settings pane (client-architecture-lockdown.md §8) — a FACTORY over the `admin`-anchored
-// settings-section registry (Phase B ③): it merges each contributed section's nav into its subcategories and
-// threads the registry into its surface, so the AppSettings admin-tier sections (memory tuning, rate limits)
-// graft in WITHOUT growing this pane (pain-point §7 / the makeChatBehaviorPane precedent). `when` replaces
-// the old `adminOnly` flag — the §6b "def declares, consumer supplies" inversion.
+// The Admin settings pane (client-architecture-lockdown.md §8) — a HOST of the `admin`-anchored
+// settings-section seam (Phase B ③): the AppSettings admin-tier sections (memory tuning, rate limits,
+// system tuning) graft in WITHOUT growing this pane (pain-point §7), rendering inside its surface off the
+// ONE door-assembled section registry while the shell merges their navs in. `when` replaces the old
+// `adminOnly` flag — the §6b "def declares, consumer supplies" inversion.
 
 import { Lock } from "@orb/ui/icons";
-import type { ContributorRegistry } from "#lib";
-import type { SettingsPaneDefinition, SettingsSectionContribution, SettingsSubcategory } from "#state";
-import { settingsSectionNavs } from "#state";
+import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
 import { AdminSettingsSurface } from "../surfaces/admin-settings-surface";
 import { ADMIN_SUBCATEGORY_IDS } from "./admin-nav";
 
@@ -59,20 +57,15 @@ const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
   },
 ];
 
-/** The admin pane is a host of the settings-section seam (Phase B ③). `sectionContributors` is the
- *  door-assembled `admin`-anchored registry; the pane merges each contribution's `nav` into its subcategory
- *  list and threads the registry into its surface by prop. Zero contributions ⇒ identical to the pre-seam
- *  pane (the makeChatBehaviorPane precedent). */
-export function makeAdminPane(sectionContributors: ContributorRegistry<SettingsSectionContribution>): SettingsPaneDefinition {
-  const contributedNavs = settingsSectionNavs(sectionContributors, "admin");
-  return {
-    id: "admin",
-    group: "app",
-    label: "Admin",
-    icon: Lock,
-    description: "Accounts, sessions, and the local inference engines on this deployment.",
-    when: (viewer) => viewer.isAdmin,
-    subcategories: [...OWN_SUBCATEGORIES, ...contributedNavs],
-    body: () => <AdminSettingsSurface sectionContributors={sectionContributors} />,
-  };
-}
+/** The admin pane — a host of the settings-section seam (Phase B ③). `subcategories` lists only what the
+ *  pane itself renders; the shell appends the `admin`-anchored contributions' navs. */
+export const adminPane: SettingsPaneDefinition = {
+  id: "admin",
+  group: "app",
+  label: "Admin",
+  icon: Lock,
+  description: "Accounts, sessions, and the local inference engines on this deployment.",
+  when: (viewer) => viewer.isAdmin,
+  subcategories: OWN_SUBCATEGORIES,
+  body: { kind: "surface", render: () => <AdminSettingsSurface /> },
+};

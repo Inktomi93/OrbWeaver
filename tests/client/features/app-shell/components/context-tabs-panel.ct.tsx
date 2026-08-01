@@ -1,3 +1,7 @@
+// CT: the GENERIC (unclaimed) CONTEXT panel — the six sections + every non-game chat. Post-HUD-1 it is ONE
+// strip labelled "Detail", always: the two-strip bracket branch is deleted, and rail membership (`strip`) is
+// a claimant's vocabulary this renderer ignores.
+//
 // CT: the container-responsive CONTEXT tab strip (context-tabs-panel.tsx, Context-Panel-Program CP-1 ·
 // UI-Arch §4.3 rule-4 · §4b axis-1 @container). The strip compresses word labels → icon+tooltip when its
 // @container can't fit every current tab's words, and restores words when it can. The shell.css
@@ -9,7 +13,7 @@
 // pins the React contract + the CSS collapse behavior.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ContextBracketStory, ContextDefaultTabStory, ContextTabStripStory } from "../_ct-stories";
+import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
@@ -64,39 +68,32 @@ test("an icon-LESS tab keeps its word label unconditionally (never compressed to
   await expect(component.getByRole("tab", { name: "Members" }).locator(".ctx-tab-label")).toHaveCSS("display", "none");
 });
 
-// ── The two-strip bracket (Context-Panel-Program §4.2/§4.6 — W3a generic mechanism) ──────────────────
+// ── ONE strip, always (HUD-1 §5.1 — the bracket branch is deleted) ───────────────────────────────────
 
-test("backward-compat: a meta-only tab set renders ONE strip, no bracket (byte-identical to today)", async ({ mount }) => {
-  // Every standard section's tabs default strip:"meta" — the existing story is all meta, so it must stay
-  // a SINGLE tablist. The bracket appears ONLY when a game tab exists.
+test("the generic panel renders ONE strip labelled Detail — the pre-HUD contract, now permanent", async ({ mount }) => {
   const component = await mount(<ContextTabStripStory width={291} />);
   await expect(component.getByRole("tablist")).toHaveCount(1);
   await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
 });
 
-test("game+meta: TWO labeled strips, ONE selection crossing both", async ({ mount }) => {
-  const component = await mount(<ContextBracketStory />);
+test("rail membership is a CLAIMANT's vocabulary: the generic panel ignores `strip` and renders one strip", async ({ mount }) => {
+  // A mixed game/meta set is exactly what used to summon the bracket. With no claim there is no bracket —
+  // every visible tab lives in the single "Detail" strip, one selection, and no "Game"/"Chat" group exists.
+  const component = await mount(<ContextTabStatesStory />);
 
-  // Two strips, each its own a11y group.
-  const gameStrip = component.getByRole("tablist", { name: "Game" });
-  const chatStrip = component.getByRole("tablist", { name: "Chat" });
-  await expect(gameStrip).toBeVisible();
-  await expect(chatStrip).toBeVisible();
-  // The game tabs live in the game strip; the meta tabs in the chat strip.
-  await expect(gameStrip.getByRole("tab", { name: "Status" })).toBeVisible();
-  await expect(chatStrip.getByRole("tab", { name: "Members" })).toBeVisible();
+  await expect(component.getByRole("tablist")).toHaveCount(1);
+  await expect(component.getByRole("tablist")).toHaveAttribute("aria-label", "Detail");
+  await expect(component.getByRole("tablist", { name: "Game" })).toHaveCount(0);
+  const strip = component.getByRole("tablist");
+  await expect(strip.getByRole("tab", { name: "Status" })).toBeVisible();
+  await expect(strip.getByRole("tab", { name: "Members" })).toBeVisible();
 
-  // One selection: activate a GAME tab → its panel shows, only it is selected.
-  await gameStrip.getByRole("tab", { name: "Status" }).click();
+  // ONE selection across the whole set, and the viewport follows it.
+  await strip.getByRole("tab", { name: "Status" }).click();
   await expect(component.getByTestId("ctx-body-status")).toBeVisible();
-  await expect(gameStrip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "true");
-
-  // Now activate a META tab (the other strip) → viewport follows, the game tab deselects.
-  await chatStrip.getByRole("tab", { name: "Settings" }).click();
+  await strip.getByRole("tab", { name: "Settings" }).click();
   await expect(component.getByTestId("ctx-body-settings")).toBeVisible();
-  await expect(chatStrip.getByRole("tab", { name: "Settings" })).toHaveAttribute("aria-selected", "true");
-  await expect(gameStrip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
-  // Exactly one tab is selected across BOTH strips.
+  await expect(strip.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
   await expect(component.getByRole("tab", { selected: true })).toHaveCount(1);
 });
 
@@ -114,37 +111,30 @@ test("defaultTab (§4.1): a fresh panel lands on the flagged tab, not the declar
   await expect(component.getByRole("tab", { name: "Status" })).toHaveAttribute("aria-selected", "false");
 });
 
-test("indicator: the per-tab active bar faces INWARD (top strip: bottom edge; bottom strip: top edge) — no sliding twin", async ({ mount }) => {
-  // The bracket rule (panel-redesign `.strip.top`/`.strip.bottom`): the active marker sits on the edge
-  // NEAREST the content — the TOP strip marks the active tab's BOTTOM edge, the BOTTOM strip its TOP
-  // edge. It's a per-tab 2px `--color-primary` border (transparent on inactive tabs — zero layout shift),
-  // replacing the sliding <TabsIndicator/> (which could clip inside the strip's overflow scroll container
-  // and can't flip edges per strip). No tabs-indicator element renders at all.
+test("indicator: the per-tab active bar sits on the strip's INWARD (bottom) edge — no sliding twin", async ({ mount }) => {
+  // The active marker sits on the edge NEAREST the content: a per-tab 2px `--color-primary` border,
+  // transparent on inactive tabs so selection costs zero layout shift, replacing the sliding
+  // <TabsIndicator/> (which could clip inside the strip's overflow scroll container).
   const transparent = "rgba(0, 0, 0, 0)";
-  const component = await mount(<ContextBracketStory />);
-  const gameStrip = component.getByRole("tablist", { name: "Game" });
-  const chatStrip = component.getByRole("tablist", { name: "Chat" });
+  const component = await mount(<ContextTabStatesStory />);
+  const strip = component.getByRole("tablist");
   await expect(component.locator('[data-slot="tabs-indicator"]')).toHaveCount(0);
 
-  // Activate a GAME (top-strip) tab → its BOTTOM border carries the 2px primary bar.
-  const status = gameStrip.getByRole("tab", { name: "Status" });
+  const status = strip.getByRole("tab", { name: "Status" });
   await status.click();
   await expect(status).toHaveCSS("border-bottom-width", "2px");
-  const statusBar = await status.evaluate((el) => getComputedStyle(el).borderBottomColor);
-  expect(statusBar).not.toBe(transparent);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(transparent);
 
-  // Activate a META (bottom-strip) tab → its TOP border carries the bar; the game tab's bar clears.
-  const settings = chatStrip.getByRole("tab", { name: "Settings" });
+  // Selecting elsewhere clears it — exactly one tab ever carries the bar.
+  const settings = strip.getByRole("tab", { name: "Settings" });
   await settings.click();
-  await expect(settings).toHaveCSS("border-top-width", "2px");
-  const settingsBar = await settings.evaluate((el) => getComputedStyle(el).borderTopColor);
-  expect(settingsBar).not.toBe(transparent);
-  const statusCleared = await status.evaluate((el) => getComputedStyle(el).borderBottomColor);
-  expect(statusCleared).toBe(transparent);
+  await expect(settings).toHaveCSS("border-bottom-width", "2px");
+  await expect.poll(() => settings.evaluate((el) => getComputedStyle(el).borderBottomColor)).not.toBe(transparent);
+  await expect.poll(() => status.evaluate((el) => getComputedStyle(el).borderBottomColor)).toBe(transparent);
 });
 
 test("PHASE disabled: aria-disabled + reason on title, focusable-discoverable (not `disabled`)", async ({ mount }) => {
-  const component = await mount(<ContextBracketStory />);
+  const component = await mount(<ContextTabStatesStory />);
   const map = component.getByRole("tab", { name: "Map" });
   await expect(map).toHaveAttribute("aria-disabled", "true");
   await expect(map).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
@@ -153,7 +143,7 @@ test("PHASE disabled: aria-disabled + reason on title, focusable-discoverable (n
 });
 
 test("badge: a boolean dot + a count, never on the active tab", async ({ mount }) => {
-  const component = await mount(<ContextBracketStory />);
+  const component = await mount(<ContextTabStatesStory />);
   // The count badge (badge:3 on Game) renders its number.
   await expect(component.getByRole("tab", { name: "Game" }).getByText("3")).toBeVisible();
   // The boolean-badge tab (Scene) shows the corner dot.

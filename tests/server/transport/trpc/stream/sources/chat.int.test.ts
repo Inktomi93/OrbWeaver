@@ -89,13 +89,18 @@ async function openChatRoom(read: ReturnType<typeof createRead>, userId: UserId,
 /** `bus.emit` is TOTAL — it resolves `null` when the durable append is dropped (the aggregate is gone).
  *  Every emit in this fixture targets a LIVE chat, so a `null` means the FIXTURE is broken, not the code
  *  under test: fail loudly rather than publishing a fabricated cursor (which would silently mis-key the
- *  live fan and make a clamp assertion meaningless). */
-async function emitSeq(bus: ReturnType<typeof createChatBus>, event: ChatBusEvent): Promise<number> {
-  const seq = await bus.emit(event);
-  if (seq === null) {
+ *  live fan and make a clamp assertion meaningless).
+ *
+ *  Returns what was LOGGED — the cursor AND the event as stored, which is the §3.6-stamped copy, not the
+ *  caller's. A fixture that fans its own object instead reproduces nothing real: an unstamped `delta` is
+ *  withheld from members by design (fail-closed), so it would look like a passing strip while proving
+ *  nothing. `entry/compose/services.ts::emitChatEvent` fans exactly this pair; so does every site here. */
+async function emitLogged(bus: ReturnType<typeof createChatBus>, event: ChatBusEvent): Promise<{ readonly seq: number; readonly event: ChatBusEvent }> {
+  const logged = await bus.emit(event);
+  if (logged === null) {
     throw new Error("fixture: bus.emit dropped the event — the chat row is missing");
   }
-  return seq;
+  return logged;
 }
 
 describe("the chat room — durable delta replay over a real reads-slice (the #1 server pin)", () => {
@@ -261,13 +266,11 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
 
     // ONE emit, fanned to BOTH rooms — durable-first, exactly as the composition root's `emitChatEvent`
     // does it (the durable seq the log assigned IS the live cursor). The host edits the PRE-join row.
-    const leak: ChatBusEvent = { type: "messageEdited", chatId, messageId: preId, view: preView };
-    const leakSeq = await emitSeq(bus, leak);
-    publishChatEvent({ seq: leakSeq, event: leak });
+    const leak = await emitLogged(bus, { type: "messageEdited", chatId, messageId: preId, view: preView });
+    publishChatEvent(leak);
     // Then a row the member is legitimately entitled to, so their pull has something to resolve on.
-    const allowed: ChatBusEvent = { type: "messageEdited", chatId, messageId: postId, view: postView };
-    const allowedSeq = await emitSeq(bus, allowed);
-    publishChatEvent({ seq: allowedSeq, event: allowed });
+    const allowed = await emitLogged(bus, { type: "messageEdited", chatId, messageId: postId, view: postView });
+    publishChatEvent(allowed);
 
     const hostGot = await hostPending;
     const memberGot = await memberPending;
@@ -275,11 +278,11 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
     await memberIt.return?.(undefined);
 
     // The host — unclamped (a born-here seat, joinSeq 0) — receives the pre-join edit with its content.
-    expect(seqOf(hostGot)).toBe(leakSeq);
+    expect(seqOf(hostGot)).toBe(leak.seq);
     expect(JSON.stringify(hostGot.value)).toContain("pre-join greeting");
     // The clamped member skipped it entirely: their FIRST live frame is the post-join row at its own durable
     // seq (the withheld row left a gap; the cursor was never advanced to it, so nothing re-offers or stalls).
-    expect(seqOf(memberGot)).toBe(allowedSeq);
+    expect(seqOf(memberGot)).toBe(allowed.seq);
     expect(JSON.stringify(memberGot.value)).not.toContain("pre-join greeting");
     expect(JSON.stringify(memberGot.value)).toContain("post-join reply");
   });
@@ -295,14 +298,13 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
 
     const memberIt = await attach(createRead(ctx, readDeps()), joiner, chatId);
     const pending = memberIt.next();
-    const event: ChatBusEvent = { type: "messageEdited", chatId, messageId: preId, view: preView };
-    const seq = await emitSeq(bus, event);
-    publishChatEvent({ seq, event });
+    const logged = await emitLogged(bus, { type: "messageEdited", chatId, messageId: preId, view: preView });
+    publishChatEvent(logged);
     const got = await pending;
     await memberIt.return?.(undefined);
 
     // Same room shape, same event, `joinSeq` still 5 — only the policy differs, so the floor resolves to 0.
-    expect(seqOf(got)).toBe(seq);
+    expect(seqOf(got)).toBe(logged.seq);
     expect(JSON.stringify(got.value)).toContain("pre-join greeting");
   });
 
@@ -321,19 +323,17 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
     const memberIt = await attach(read, joiner, chatId);
     const pending = memberIt.next();
     // slot 1 = the PRE-join greeting the host is re-voicing; slot 5 = the post-join reply being generated.
-    const leak: ChatBusEvent = { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "pre-join tokens" } };
-    const leakSeq = await emitSeq(bus, leak);
-    publishChatEvent({ seq: leakSeq, event: leak });
-    const allowed: ChatBusEvent = { type: "delta", chatId, slotSeq: 5, delta: { chatId, kind: "text", text: "post-join tokens" } };
-    const allowedSeq = await emitSeq(bus, allowed);
-    publishChatEvent({ seq: allowedSeq, event: allowed });
+    const leak = await emitLogged(bus, { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "pre-join tokens" } });
+    publishChatEvent(leak);
+    const allowed = await emitLogged(bus, { type: "delta", chatId, slotSeq: 5, delta: { chatId, kind: "text", text: "post-join tokens" } });
+    publishChatEvent(allowed);
 
     const got = await pending;
     await memberIt.return?.(undefined);
 
     // LIVE: the pre-join stream was dropped whole (no cursor advance — the next frame keeps its own seq), and
     // the post-join stream arrived. Before `slotSeq`, BOTH were withheld and this member never saw a token.
-    expect(seqOf(got)).toBe(allowedSeq);
+    expect(seqOf(got)).toBe(allowed.seq);
     expect(dataOf(got).type).toBe("delta");
     expect(JSON.stringify(got.value)).not.toContain("pre-join tokens");
     expect(JSON.stringify(got.value)).toContain("post-join tokens");
@@ -341,8 +341,83 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
     // REPLAY: the same two durable rows, same caller, same verdict — one row delivered at its own seq, the
     // other absent (a gap, never a renumber). This is the live/replay coherence the clamp is built on.
     const replayed = await read.replayChatEvents({ principal: callerPrincipal("user", { userId: joiner }), chatId, afterSeq: 0 });
-    expect(replayed.map((e) => e.seq)).toEqual([allowedSeq]);
+    expect(replayed.map((e) => e.seq)).toEqual([allowed.seq]);
     expect(JSON.stringify(replayed)).not.toContain("pre-join tokens");
     expect(JSON.stringify(replayed)).toContain("post-join tokens");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// §3.6 — THE MID-SLOT RECONNECT, over the multiplex. The hidden-span scrub is STATEFUL over one slot's
+// delta stream (a `<lie …/>` opener is withheld until its `/>` arrives), and under the fold a room's PUMP
+// restarts far more often than a subscription used to: a socket reconnect, a shed's resume, a rewind
+// re-attach. Every one of those is a cold start mid-slot. If that state lived in the pump, the fresh one
+// would see only the tail (`1234"/> …`), find no `<`, call it safe, and hand the member the secret's last
+// bytes — and the withheld open makes the ghost visibly stall, so the member knows exactly when to
+// reconnect. It lives at the PRODUCER instead (`memberText`), so this pins the property AT the room source:
+// a cold pump reads the same stamped bytes as one that watched the whole slot. Driven through the REAL
+// attach→connect ladder over a REAL durable bus.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("the chat room — a hidden span open across a MEMBER's reconnect never leaks its tail", () => {
+  const textDelta = (chatId: ChatId, text: string): ChatBusEvent => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text } });
+
+  test("the opener lands DURING the disconnect gap; the closer arrives LIVE on the resumed room", async () => {
+    const host = await seedUser(db, "reopen_host");
+    const member = await seedUser(db, "reopen_member");
+    const chatId: ChatId = await seedChat(db, "reopen");
+    await seedParticipant(db, { chatId, key: "reopen_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "reopen_m", userId: member, role: "member" });
+
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const read = createRead(ctx, readDeps());
+
+    // Turn head: ordinary prose the member is entitled to (durable seq 1).
+    await emitLogged(bus, textDelta(chatId, "The vault is "));
+
+    // FIRST connection — the replay delivers the head; its frame `seq` is the resume cursor.
+    const first = await openChatRoom(read, member, chatId, 0);
+    expect(dataOf(await first.next()).type).toBe("chatOpened");
+    const prose = await first.next();
+    await first.return?.(undefined); // DISCONNECT (a blip, a tab close, or a deliberate one)
+    const cursor = seqOf(prose);
+    expect(JSON.stringify(prose.value)).toContain("The vault is ");
+
+    // The gap: the model opens a hidden span (seq 2). Durable-only — nobody is attached to fan it live. A
+    // lifecycle event follows it (seq 3): every member sees that one, so the resume cursor ADVANCES PAST the
+    // still-open span — which is what forces the replay/live handoff below to be a real cold start.
+    await emitLogged(bus, textDelta(chatId, '<lie character="Vex" truth="the vault code is '));
+    await emitLogged(bus, {
+      type: "turnStarted",
+      chatId,
+      intent: "send",
+      api: "chat-completions",
+      source: "openrouter",
+      model: "m",
+      speakerCharacterId: null,
+      targetMessageId: null,
+    });
+
+    // RECONNECT at the last DELIVERED cursor. AWAIT the replayed lifecycle row: that pins the durable replay
+    // as COMPLETE (it withheld the opener) before any live byte arrives.
+    const second = await openChatRoom(read, member, chatId, cursor);
+    expect(dataOf(await second.next()).type).toBe("chatOpened");
+    const replayed = await second.next();
+    expect(dataOf(replayed).type).toBe("turnStarted");
+    const pending = second.next(); // now parked in the LIVE loop, span still open
+
+    // The closer + the rest of the reply arrive LIVE on the resumed room.
+    const tail = await emitLogged(bus, textDelta(chatId, '1234"/> The vault is empty.'));
+    publishChatEvent(tail);
+
+    const got = await pending;
+    await second.return?.(undefined);
+
+    const wire = JSON.stringify(got.value);
+    // The secret's tail bytes — and the tag syntax framing them — must NEVER reach the member…
+    expect(wire).not.toContain("1234");
+    expect(wire).not.toContain('"/>');
+    // …while the visible prose that followed the closed span still streams.
+    expect(wire).toContain("The vault is empty.");
   });
 });

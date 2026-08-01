@@ -176,6 +176,29 @@ test("a deep-link to a when-gated pane lands on it once the viewer probe resolve
   await expect(component.getByRole("region", { name: "Appearance settings" })).toHaveCount(0);
 });
 
+// SET-SEAMS §10 Q4 — the SUB-level deep link: `openSettingsTo(category, subId)` lands ON the section, not
+// at the top of the pane. The target may name a CONTRIBUTED section (its anchor is minted from the same
+// (category, subId) pair as a pane-owned one), which is the whole point: a feature can link straight to the
+// section it owns without knowing where the settings shell put it.
+test("a SUB-level deep link lands on the section's anchor (contributed sections included)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellDeepLinkStory target="chat-behavior" subId="world-info" />);
+
+  // The pane resolved AND the contributed section's own anchor is in view + selected in the nav.
+  await expect(component.getByRole("region", { name: "Chat behavior settings" })).toBeVisible();
+  await expect(component.locator("#settings-anchor-chat-behavior-world-info")).toBeInViewport();
+  await expect(component.getByRole("button", { name: "World info" })).toHaveAttribute("aria-current", "true");
+});
+
+test("a category-only deep link still lands at the TOP of the pane (no phantom jump)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellDeepLinkStory target="chat-behavior" />);
+
+  await expect(component.getByRole("region", { name: "Chat behavior settings" })).toBeVisible();
+  // The pane's FIRST section is the one in view.
+  await expect(component.locator("#settings-anchor-chat-behavior-message-handling")).toBeInViewport();
+});
+
 // Task #37 — the System knobs are fuzzy-searchable like everything else; a hit jumps to its pane + anchor.
 test("fuzzy search jumps to a System subcategory anchor", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -236,8 +259,10 @@ test("fuzzy search surfaces a setting result and jumps its pane into view", asyn
 });
 
 // Each column OWNS its scroll axis: the Row is `align="stretch"`, so both the nav landmark and the pane
-// region FILL the row height and their own `overflow-y-auto` caps + scrolls them internally — the outer
-// modal wrapper never scrolls (side-eye round-3, nav-button top 262→-1516).
+// COLUMN fill the row height and their own `overflow-y-auto` caps + scrolls them internally — the outer
+// modal wrapper never scrolls (side-eye round-3, nav-button top 262→-1516). The pane column is the scroll
+// REGION plus the shell's one aggregate save-status footer (SET-SEAMS §3), which sits below the scroller
+// and must never scroll away — so the column, not the region alone, is what fills the row.
 test("both settings columns fill the row height (own their scroll axis; nav can't be swept)", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
@@ -246,12 +271,14 @@ test("both settings columns fill the row height (own their scroll axis; nav can'
   const heights = await page.evaluate(() => {
     const nav = document.querySelector('[role="navigation"]');
     const content = document.querySelector('[role="region"]');
+    const paneColumn = content?.parentElement ?? null;
     const row = nav?.parentElement ?? null;
     const isScroller = (el: Element | null): boolean => el !== null && ["auto", "scroll"].includes(getComputedStyle(el).overflowY);
     return {
       row: row?.clientHeight ?? -1,
       nav: nav?.clientHeight ?? -2,
-      content: content?.clientHeight ?? -3,
+      paneColumn: paneColumn?.clientHeight ?? -3,
+      content: content?.clientHeight ?? -4,
       navScrolls: isScroller(nav),
       contentScrolls: isScroller(content),
     };
@@ -259,7 +286,9 @@ test("both settings columns fill the row height (own their scroll axis; nav can'
   expect(heights.navScrolls).toBe(true);
   expect(heights.contentScrolls).toBe(true);
   expect(Math.abs(heights.nav - heights.row)).toBeLessThan(2);
-  expect(Math.abs(heights.content - heights.row)).toBeLessThan(2);
+  expect(Math.abs(heights.paneColumn - heights.row)).toBeLessThan(2);
+  // The scroller never EXCEEDS its column (it caps at the space the footer leaves).
+  expect(heights.content).toBeLessThanOrEqual(heights.paneColumn);
 });
 
 // Scroll-spy (owner ruling): scrolling the pane updates which subcategory row is aria-current, and a

@@ -11,8 +11,8 @@
 // story mirrors that door assembly with the CT's own singletons.
 
 import { useTRPC } from "@orb/client/data";
-import { makeRpgContextTabs } from "@orb/client/features/rpg";
-import type { ChatContextState, ContextTabDef } from "@orb/client/lib";
+import { makeRpgContextTabs, makeRpgHudRegion } from "@orb/client/features/rpg";
+import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,9 +25,9 @@ import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID } from "../chat/fixtures";
 
-/** Mounts the chats section's CONTEXT through the real host, with the rpg contributor merged in — built here
- *  with the CT's own trpc/queryClient (the door-injection the factory takes). Bounded height so the two-strip
- *  bracket + viewport have real room. */
+/** Mounts the chats section's CONTEXT through the real host, with BOTH rpg contributions merged in — the tab
+ *  contributors AND the whole-pane HUD region claim — built here with the CT's own trpc/queryClient (the
+ *  door-injection both factories take). Bounded height so the band + two rails + viewport have real room. */
 function RpgTakeoverHarness(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -35,8 +35,12 @@ function RpgTakeoverHarness(): ReactElement {
     () => createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", makeRpgContextTabs({ trpc, queryClient })),
     [trpc, queryClient],
   );
+  const regions = useMemo(
+    () => createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [makeRpgHudRegion({ trpc, queryClient })]),
+    [trpc, queryClient],
+  );
   return (
-    <CtChatContributorSectionRegistry contextContributors={contributors}>
+    <CtChatContributorSectionRegistry contextContributors={contributors} contextRegions={regions}>
       <RpgTakeoverInner />
     </CtChatContributorSectionRegistry>
   );
@@ -45,9 +49,10 @@ function RpgTakeoverHarness(): ReactElement {
 function RpgTakeoverInner(): ReactElement {
   const registry = useSectionRegistry();
   const definition = registry.get("chats");
-  // Mirror the shell's TWO CONTEXT consumers (app-shell.tsx): the BAND (`SectionContextHeader` → the scene
-  // banner + orbs via the W3c header-contributor seam) above, the BODY (`SectionContextHost` → the strips +
-  // viewport) below. The header rides the `.shell-panel-header` band slot, NOT a tab body (§4.2/§4.11 #3).
+  // Mirror the shell's TWO CONTEXT consumers (app-shell.tsx): the `.shell-panel-header` BAND slot above, the
+  // BODY below. Under the HUD-1 claim the band slot renders NOTHING — the claimant owns the pane's top edge
+  // and paints its own band inside the body — so keeping the slot here is deliberate: the CT proves it stays
+  // empty rather than assuming it was never mounted.
   return (
     <div style={{ height: 640, width: 320, display: "flex", flexDirection: "column" }}>
       <header className="shell-panel-header">

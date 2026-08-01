@@ -16,7 +16,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
-import { Stack } from "@orb/ui/layout";
+import { Stack, Surface } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useState } from "react";
@@ -84,42 +84,46 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
   const filtered = filterChats(projected, deferredQuery);
   const qualifiers = chatRowQualifiers(filtered);
   return (
-    <Stack className="h-full min-h-0" gap="block">
-      {projected.length > SEARCH_THRESHOLD ? (
-        <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
-      ) : null}
-      {filtered.length === 0 ? (
-        <EmptyState
-          action={
-            <Button intent="secondary" onClick={(): void => setQuery("")} size="sm">
-              Clear search
-            </Button>
-          }
-          description={`No chat with ${characterName} matches "${deferredQuery}".`}
-          icon={<Icon icon={MessagesSquare} size="lg" />}
-          title="No matches"
-        />
-      ) : (
-        <Stack aria-label={`Chats with ${characterName}`} className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
-          {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
+    // INSTRUMENT tier (density-pass-spec.md §3.1): a LIST pane, scanned — same steps as the chats pane it
+    // mirrors, so the two lists of the same rows can never drift apart in density.
+    <Surface tier="instrument">
+      <Stack className="h-full min-h-0" gap="row">
+        {projected.length > SEARCH_THRESHOLD ? (
+          <Input aria-label={`Search chats with ${characterName}`} onValueChange={setQuery} placeholder={`Search chats with ${characterName}…`} value={query} />
+        ) : null}
+        {filtered.length === 0 ? (
+          <EmptyState
+            action={
+              <Button intent="secondary" onClick={(): void => setQuery("")} size="sm">
+                Clear search
+              </Button>
+            }
+            description={`No chat with ${characterName} matches "${deferredQuery}".`}
+            icon={<Icon icon={MessagesSquare} size="lg" />}
+            title="No matches"
+          />
+        ) : (
+          <Stack aria-label={`Chats with ${characterName}`} className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="tight" role="list">
+            {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
-          {filtered.map((chat, index) => (
-            <ChatListRow
-              chat={chat}
-              key={chat.id}
-              onSelect={(chatId): void => {
-                selectChatFromList(chatId);
-                setActiveSection("chats");
-              }}
-              portraits={chatPortraits(chat.participantCharacterIds, characterById)}
-              // This pane is THE collision case (side-eye P2c): every row can be titled "Azarael", and the
-              // newest few share a stamp — so the disambiguator is resolved across the list, not per row.
-              qualifier={qualifiers[index]}
-              selected={chat.id === activeChatId}
-            />
-          ))}
-        </Stack>
-      )}
-    </Stack>
+            {filtered.map((chat, index) => (
+              <ChatListRow
+                chat={chat}
+                key={chat.id}
+                onSelect={(chatId): void => {
+                  selectChatFromList(chatId);
+                  setActiveSection("chats");
+                }}
+                portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+                // This pane is THE collision case (side-eye P2c): every row can be titled "Azarael", and the
+                // newest few share a stamp — so the disambiguator is resolved across the list, not per row.
+                qualifier={qualifiers[index]}
+                selected={chat.id === activeChatId}
+              />
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    </Surface>
   );
 }

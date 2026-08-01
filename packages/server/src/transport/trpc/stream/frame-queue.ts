@@ -130,11 +130,12 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
    *  which is also where the healing pump restarts — one number, one meaning. `pushControl` collapses a
    *  repeat notice while one is pending, so a burst heals once. */
   function announceLag(ref: StreamRoomRef, key: string): void {
-    const before = items.length;
+    // The PARK fires on EVERY shed; only the NOTICE is rate-limited. Skipping the park while a notice is
+    // still pending would leave the room producing into a queue nobody is draining, shedding its own output
+    // on every push — and it was the shape of a real hole: rows shed in that window had no resume to refill
+    // them once the pump had been restarted by something else (a re-attach).
+    opts.onShed?.(ref);
     pushControl({ channel: "control", type: "roomLagged", ref, cursor: opts.cursorFor(key) });
-    if (items.length > before) {
-      opts.onShed?.(ref);
-    }
   }
 
   /** `collapse`: at most ONE pending frame per (room, type). Newest payload wins, FIFO position kept. */

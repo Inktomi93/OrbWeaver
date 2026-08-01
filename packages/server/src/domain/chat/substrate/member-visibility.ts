@@ -15,14 +15,26 @@
 // spans (`HIDDEN_TAGS` registrants); `unknown-directive` noise is display-filtered client-side but is NOT a
 // secret and stays in the payload.
 //
-// THE MID-STREAM CHANNEL (§3.6 — closed by the per-subscriber scrubber): the live token DELTA stream + the
-// durable stream-event replay carry raw model text char-by-char, so a member watching a turn stream would see
+// THE MID-STREAM CHANNEL (§3.6 — closed by the PRODUCER-SIDE stamper): the live token DELTA stream + the
+// durable event replay carry raw model text char-by-char, so a member watching a turn stream would see
 // hidden bytes as they generate (they vanish at commit — a devtools-only leak). The `text`-channel delta is
 // run through a STATEFUL per-slot scrubber (`@orb/kit/content::createHiddenSpanStreamScrubber`) that emits only
 // the prefix provably free of a hidden tag (open or in-progress) and drops any hidden tag once it closes.
 // FAIL-CLOSED: an in-progress open is withheld; a truncated/aborted open is dropped; the member's authoritative
 // final content is the at-commit-stripped `messageCommitted` view (this module's `stripHiddenForMember`), so
 // dropping a held tail costs nothing — the stream is a best-effort preview, the committed view is the truth.
+//
+// THE SCRUB STATE IS THE PRODUCER'S, NOT THE SUBSCRIBER'S (the mid-slot reconnect leak). That scrubber is
+// stateful over a slot's WHOLE stream, and it is viewer-independent — every non-host member is owed the same
+// bytes. It used to be allocated per SUBSCRIPTION (one map in the SSE generator, another thrown away inside
+// each durable replay), which meant any reader that began — or resumed — while a `<lie …/>` open was still in
+// flight cold-started mid-tag: `1234"/> The vault is empty.` contains no `<`, so the fresh scrubber called all
+// of it safe and forwarded the secret's tail. Worse, it was an ORACLE, not a race: the withheld open makes the
+// member's ghost visibly stall, telling them exactly when to reconnect. The fix is one home on the WRITE side —
+// `createMemberDeltaStamper`, owned by `domain/chat/bus::createChatBus`, stamps every delta's member bytes onto
+// `ChatBusEvent.memberText` before the durable append, warm from the slot's first byte. Every read seam
+// (`scrubDeltaEventForMember`, the durable `scrubChatEventReplayForMember`, the transport's live fan-out, a
+// future multiplexed room source) is now a STATELESS field read that has no state to be missing.
 //
 // THE P3 REASONING-CHANNEL RULE (§3.6, owner-ratified 2026-07-27 — the game-conditional add): the BODY strip
 // above is UNCONDITIONAL (a `<lie>`'s truth is always stripped from a member's payload). The REASONING/thinking
@@ -167,31 +179,105 @@ export function stripChatEventForMember(event: ChatBusEvent, reasoningHostOnly =
   return event.view === undefined ? event : { ...event, view: projectViewForMember(event.view, reasoningHostOnly) };
 }
 
-/** The mid-stream scrubber verdict for one `delta` bus event toward a NON-HOST subscriber (§3.6). The
- *  `text`-channel delta is fed to the caller-owned per-slot scrubber; the returned event carries only the
- *  bytes provably safe this tick (a `null` return = nothing safe emitted → the transport SKIPS the yield, so
- *  the member never sees an empty delta). A `reasoning`-channel delta: on a DECEPTION-active game
- *  (`reasoningHostOnly`) it is DROPPED (`null` — the whole reasoning channel is host-only, so the live
- *  reasoning stream never reaches a member); otherwise it passes through unchanged (a non-deception game keeps
- *  reasoning member-visible, and the hidden BODY grammar rides the text channel, not reasoning). A non-delta
- *  event is a programming error at this seam and returns unchanged. The SCRUBBER is stateful and per-slot — the
- *  transport owns one per `slotSeq` for the subscriber's lifetime and NEVER shares it with a host (a host reads
- *  verbatim). */
-export function scrubDeltaEventForMember(
-  event: Extract<ChatBusEvent, { type: "delta" }>,
-  scrubber: HiddenSpanStreamScrubber,
-  reasoningHostOnly = false,
-): ChatBusEvent | null {
+/**
+ * The mid-stream verdict for one `delta` bus event toward a NON-HOST subscriber (§3.6) — STATELESS, and
+ * deliberately so (see the file header): it reads the member bytes the PRODUCER already stamped onto
+ * `memberText`, so it is identical whether this delta arrives live, out of the durable replay, or on a
+ * subscription that attached halfway through the slot.
+ *
+ * A `text`-channel delta returns an event carrying exactly the stamped bytes (`null` = nothing to emit → the
+ * caller SKIPS the yield, so the member never sees an empty delta). FAIL-CLOSED on an UNSTAMPED delta
+ * (`memberText === undefined` — a producer that bypassed `domain/chat/bus`): the member gets nothing rather
+ * than the raw model text. `memberText === null` means "stamped, byte-identical to `delta.text`" — the common
+ * no-hidden-span tick, which costs no second copy of the token in the durable log.
+ *
+ * A `reasoning`-channel delta: on a DECEPTION-active game (`reasoningHostOnly`) it is DROPPED (`null` — the
+ * whole reasoning channel is host-only, so the live reasoning stream never reaches a member); otherwise it
+ * passes through unchanged (a non-deception game keeps reasoning member-visible, and the hidden BODY grammar
+ * rides the text channel, not reasoning). The re-emitted delta drops `memberText`: a member's wire carries the
+ * member bytes ONCE, in `delta.text`, exactly as it did before the stamp existed.
+ */
+export function scrubDeltaEventForMember(event: Extract<ChatBusEvent, { type: "delta" }>, reasoningHostOnly = false): ChatBusEvent | null {
   if (event.delta.kind !== "text") {
     // A reasoning-channel delta: withheld entirely on a deception game (host-only reasoning); passed on otherwise.
     return reasoningHostOnly ? null : event;
   }
-  const safe = scrubber.push(event.delta.text);
+  if (event.memberText === undefined) {
+    return null;
+  }
+  const safe = event.memberText ?? event.delta.text;
   if (safe.length === 0) {
     return null;
   }
   const delta: ChatDeltaEvent = { chatId: event.delta.chatId, kind: "text", text: safe };
-  return { ...event, delta };
+  return { type: event.type, chatId: event.chatId, slotSeq: event.slotSeq, delta };
+}
+
+/** The PRODUCER-side mid-stream scrub state (§3.6 — the file header's "the scrub state is the producer's").
+ *  One stateful scrubber per streaming slot, fed every `text` delta IN EMIT ORDER and retired when the slot's
+ *  turn ends, so the state is warm from the slot's first byte and no reader ever has to reconstruct it. */
+interface MemberDeltaStamper {
+  /** Stamp `memberText` onto a `delta` event (identity for every other member) — call ONCE per emitted event,
+   *  in emit order, BEFORE the durable append: the stored payload and the live fan must carry the same bytes. */
+  readonly stamp: (event: ChatBusEvent) => ChatBusEvent;
+}
+
+/** One streaming slot's scrub-state key — the chat plus the `messages.seq` the tokens are streaming INTO
+ *  (the same anchor the D16 clamp reads off the delta event). */
+function slotKey(chatId: ChatId, slotSeq: number): string {
+  return `${chatId}:${slotSeq}`;
+}
+
+/** The stamped `memberText` for ONE text delta, advancing that slot's scrubber. `null` = byte-identical to
+ *  `delta.text` (the common tick — the durable row then keeps ONE copy of the token). */
+function stampTextDelta(scrubbers: Map<string, HiddenSpanStreamScrubber>, chatId: ChatId, slotSeq: number, text: string): string | null {
+  const key = slotKey(chatId, slotSeq);
+  const existing = scrubbers.get(key);
+  const scrubber = existing ?? createHiddenSpanStreamScrubber();
+  if (existing === undefined) {
+    scrubbers.set(key, scrubber);
+  }
+  const safe = scrubber.push(text);
+  return safe === text ? null : safe;
+}
+
+/** The slot's streaming phase is over: drop its state. A committed/edited row retires its own slot precisely
+ *  (`view.seq`); a turn that ends WITHOUT committing one (abort/failure) would otherwise leave its scrubber
+ *  behind forever, so a turn-terminal event sweeps the whole chat — turns are sequential per chat, so no live
+ *  slot's state is ever swept out from under it. */
+function retireSlotState(scrubbers: Map<string, HiddenSpanStreamScrubber>, event: ChatBusEvent): void {
+  // `in` narrows the optional `view?: MessageView` to present-and-defined — the same shape the transport's
+  // retired `retireScrubberOnCommit` read.
+  if ("view" in event) {
+    scrubbers.delete(slotKey(event.chatId, event.view.seq));
+    return;
+  }
+  if (event.type !== "turnCompleted" && event.type !== "turnAborted" && event.type !== "chatDeleted") {
+    return;
+  }
+  for (const key of scrubbers.keys()) {
+    if (key.startsWith(`${event.chatId}:`)) {
+      scrubbers.delete(key);
+    }
+  }
+}
+
+/** Build the per-process producer stamper. ONE instance, owned by `domain/chat/bus::createChatBus`. */
+export function createMemberDeltaStamper(): MemberDeltaStamper {
+  const scrubbers = new Map<string, HiddenSpanStreamScrubber>();
+  return {
+    stamp(event: ChatBusEvent): ChatBusEvent {
+      if (event.type !== "delta") {
+        retireSlotState(scrubbers, event);
+        return event;
+      }
+      // The reasoning channel carries no hidden-span grammar; its member verdict is the deception gate
+      // (`reasoningHostOnly`), applied per-viewer at the read seam. Stamp `null` so it is never mistaken for
+      // an UNSTAMPED event (which is withheld).
+      const memberText = event.delta.kind === "text" ? stampTextDelta(scrubbers, event.chatId, event.slotSeq, event.delta.text) : null;
+      return { ...event, memberText };
+    },
+  };
 }
 
 /** Scrub the DURABLE SSE token-log replay (`replayStreamEvents`) for a NON-HOST caller (§3.6). A late
@@ -234,26 +320,26 @@ export function scrubStreamReplayForMember(rows: readonly ChatStreamReplayEvent[
   return out;
 }
 
-/** The STATEFUL member projection of the DURABLE chat-bus-log replay (`replayChatEvents`), §3.6. Unlike the
- *  per-event {@link stripChatEventForMember} (which is deliberately delta-blind — the LIVE transport scrubs
- *  deltas via {@link scrubDeltaEventForMember}), the durable replay also carries raw `delta` rows (a resume
- *  from `lastEventId:"0"` re-drains the whole mid-turn token stream), so it MUST apply the same per-slot delta
- *  scrub the live path does — otherwise a member's reconnect leaks the model's hidden `<lie>` TEXT bytes AND
- *  (on a deception game) the whole reasoning channel that the live stream withheld. This is the durable twin
- *  of `resolveLiveYield`: a `text` delta rides a per-`slotSeq` stateful scrubber (empty→dropped); a `reasoning`
- *  delta is dropped on a deception game; a `reasoningStreamDone` is dropped on a deception game; every
- *  view-carrying event is body+reasoning projected; all else passes. Host: identity. Rows arrive in append
- *  order (the scrubber state depends on it). A dropped row is omitted (its `seq` gap is correct — the cursor
- *  is the last DELIVERED seq, exactly as the D16 floor drop). */
+/** The member projection of the DURABLE chat-bus-log replay (`replayChatEvents`), §3.6. Unlike the per-event
+ *  {@link stripChatEventForMember} (which is deliberately delta-blind), the durable replay also carries raw
+ *  `delta` rows (a resume from `lastEventId:"0"` re-drains the whole mid-turn token stream), so it MUST apply
+ *  the same delta verdict the live path does — otherwise a member's reconnect leaks the model's hidden `<lie>`
+ *  TEXT bytes AND (on a deception game) the whole reasoning channel the live stream withheld. This is the
+ *  durable twin of `resolveLiveYield` and, since the scrub state is the PRODUCER's (file header), it is now
+ *  literally the same stateless call: a `text` delta forwards its stamped `memberText` (empty/unstamped →
+ *  dropped); a `reasoning` delta is dropped on a deception game; a `reasoningStreamDone` is dropped on a
+ *  deception game; every view-carrying event is body+reasoning projected; all else passes. Host: identity.
+ *  Row ORDER no longer matters to correctness — a cursor landing mid-`<lie …/>` replays exactly the bytes the
+ *  live stream would have sent. A dropped row is omitted (its `seq` gap is correct — the cursor is the last
+ *  DELIVERED seq, exactly as the D16 floor drop). */
 export function scrubChatEventReplayForMember(rows: readonly ChatBusReplayEvent[], viewer: ViewerRole, reasoningHostOnly = false): ChatBusReplayEvent[] {
   if (viewerReadsHidden(viewer)) {
     return [...rows];
   }
-  const scrubbers = new Map<number, HiddenSpanStreamScrubber>();
   const out: ChatBusReplayEvent[] = [];
   for (const { seq, event } of rows) {
     if (event.type === "delta") {
-      const scrubbed = scrubDeltaEventForMember(event, scrubberFor(scrubbers, event.slotSeq), reasoningHostOnly);
+      const scrubbed = scrubDeltaEventForMember(event, reasoningHostOnly);
       if (scrubbed !== null) {
         out.push({ seq, event: scrubbed });
       }
@@ -265,16 +351,4 @@ export function scrubChatEventReplayForMember(rows: readonly ChatBusReplayEvent[
     }
   }
   return out;
-}
-
-/** Get-or-create the per-slot mid-stream scrubber for the durable replay (one stateful scrubber per streaming
- *  slot, exactly like the live transport's per-`slotSeq` map). */
-function scrubberFor(scrubbers: Map<number, HiddenSpanStreamScrubber>, slotSeq: number): HiddenSpanStreamScrubber {
-  const existing = scrubbers.get(slotSeq);
-  if (existing !== undefined) {
-    return existing;
-  }
-  const created = createHiddenSpanStreamScrubber();
-  scrubbers.set(slotSeq, created);
-  return created;
 }

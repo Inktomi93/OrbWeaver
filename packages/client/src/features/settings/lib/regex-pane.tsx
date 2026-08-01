@@ -19,5 +19,5 @@ export const regexPane: SettingsPaneDefinition = {
       keywords: ["regex", "find", "replace", "substitute", "transform", "script"],
     },
   ],
-  body: () => <RegexSettingsSurface />,
+  body: { kind: "surface", render: () => <RegexSettingsSurface /> },
 };

@@ -211,7 +211,24 @@ export type ChatBusEvent =
   // allocated tail seq (`maxSeq + 1`) for a new slot. NEVER client-supplied, never defaulted; on the
   // new-slot seq-race retry the real row lands at a HIGHER seq than announced, which errs toward
   // withholding, never toward leaking.
-  | { type: "delta"; chatId: ChatId; slotSeq: number; delta: ChatDeltaEvent }
+  // `memberText` = the §3.6 MEMBER PROJECTION of this tick's `text` bytes, STAMPED AT THE PRODUCER
+  // (`domain/chat/bus::createChatBus`, via `substrate/member-visibility::createMemberDeltaStamper`).
+  // WHY IT LIVES ON THE EVENT: the hidden-span scrub is STATEFUL across a slot's whole delta stream (a
+  // `<lie …/>` opener is withheld until its `/>` arrives) and VIEWER-INDEPENDENT (every non-host member is
+  // owed identical bytes). Holding that state per-SUBSCRIBER was a leak: a subscription that starts — or
+  // RESUMES — while a span is open cold-starts mid-tag, finds no `<` in `1234"/> …`, calls the whole tail
+  // safe, and hands the member the secret's last bytes (and the withheld open makes the ghost visibly
+  // stall, which tells the member exactly when to reconnect). So the state lives ONCE, on the write side,
+  // warm from the slot's first byte; every read seam (the live fan-out, the durable replay, a future room
+  // source) is then a STATELESS field read that cannot cold-start.
+  //   • `undefined` ⇒ NOT stamped ⇒ a member receives NOTHING for this tick. FAIL-CLOSED by construction: a
+  //     producer that bypasses the bus can only under-deliver, never leak.
+  //   • `null`      ⇒ stamped and byte-identical to `delta.text` (the overwhelming majority of ticks) — the
+  //     durable row and the host's wire carry a marker instead of a second copy of every token.
+  //   • a string    ⇒ exactly the bytes a member may see this tick; `""` ⇒ withhold the whole row.
+  // It is free text, but never UNANCHORED free text: it rides the same member as `slotSeq`, so the D16
+  // clamp (`substrate/auth::isBelowHistoryFloor`) covers it exactly as it covers `delta`.
+  | { type: "delta"; chatId: ChatId; slotSeq: number; delta: ChatDeltaEvent; memberText?: string | null }
   // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
   | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }

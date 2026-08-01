@@ -21,7 +21,7 @@ export function WorldInfoSettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <WorldInfoSettingsSection />
+        <WorldInfoSettingsSection sectionId="world-info-settings" />
       </div>
     </CtDataProviders>
   );

@@ -31,6 +31,32 @@ still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + 
 commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
 fully-polished tree; engines adopt-only.
 
+**⚠ SECURITY LANDING (08-02): the COLD-SCRUBBER LEAK fixed on main** (`ed2aafc5` merged, check
+12/12) — a mid-slot reconnect leaked hidden-span TAILS to members (member-triggerable: the
+withheld ghost's stall is an oracle; close/reopen delivered the tail). Fix = producer-side
+`memberText` stamp before the durable append; all read seams stateless; fail-closed on undefined.
+**MERGE-ORDER CONSEQUENCE: the S2 branch must merge main AGAIN post-stickler-verdict and
+reconcile its moved room source** (its pump-scoped deltaScrubbers machinery DELETES — the stamp
+makes the two-room-isolation property hold by construction); its security tests re-run; THEN S2
+merges. `scrubStreamReplayForMember` (unwired token log) still cold-starts — cited, needs the
+same class of fix IF ever wired.
+
+**▶▶▶ LIVE STATE (08-02 midday — compact-safety snapshot):** main @ `13963039`+ (SET-SEAMS S0 +
+HUD-1 ledger amendments merged; ~190 commits past origin `24989143`, NO pushes). **IN FLIGHT:**
+HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · density-S5
+fix-all (centerpiece: make tiers.css load-bearing — the tier declarations were INERT on list
+panes) · **SSE S2 branch IN FINAL ROUND** (re-review verdict MERGE-WITH-FIXES: RF1 HIGH — the reconnect thunk heal is guard-dropped by any pre-attach durable row [monotonic guard + out-of-band resume don't compose; repro in the report]; lane is fixing RF1 [ordering-barrier lean] + reconciling the cold-scrubber producer-stamp merge + the park-skip corner; merges on its report) (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
+— F1 fixed STRUCTURALLY: cursor advances at DELIVERY pre-yield; shed PARKS the pump, delivering
+roomLagged resumes it from last-delivered; reconnect re-announce carries a sinceSeq THUNK reading
+the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
+stacks — re-review the delta then merge) · the scrub mid-slot-reconnect verification
+(security-executor) · the exhaustive reminder/delta reachability suite (owner-ordered; schema-
+derived inventory) · workloads junk-drawer exit. **THEN:** re-verify both fix-alls → SSE S3-S5 +
+close-out ledger → HUD H2-H3 → SET-SEAMS S1-seal → PROSE-1 S1+ (app-tier; after SET-SEAMS S1
+merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone**.
+Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
+resolved); the E2E_LIVE specs on the next push window.
+
 **STANDING MANDATE (owner, 08-02 morning): BURN THE BOARD DOWN until DATABANK is the ONLY item
 remaining** — keep dispatching queue stages as lanes drain (SSE S3→S5, HUD-HOME H2→close-out,
 density S2/S6 + S3-after-HUD, SET-SEAMS S1→seal, PROSE-1 S2+, remaining smalls/probes), full-auto

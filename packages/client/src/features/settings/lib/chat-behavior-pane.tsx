@@ -2,17 +2,14 @@
 // Registered at the door (main.tsx); settings owns this pane. Two groups mirror neo's Preferences behavior
 // column: message handling (send/continue/auto-swipe/stopping strings) + streaming (smooth reveal).
 //
-// This pane is the ONE host of the settings-SECTION contribution seam today (client-architecture-lockdown.md
-// §6c / pain-point §7): it is a FACTORY taking the `chat-behavior`-anchored `SettingsSectionContribution`
-// registry (assembled at the door), which it threads into its surface by PROP and whose contributed navs it
-// MERGES into its own subcategories so a contributed section (memory ①, world-info ②) is a first-class
-// nav/search citizen. Zero contributions ⇒ byte-identical to the pre-seam pane (the `editor-sections`
-// posture). The def homes settings-owned; the contributed sections home in their OWNING features.
+// A HOST of the settings-SECTION contribution seam (client-architecture-lockdown.md §6c / pain-point §7):
+// the `chat-behavior`-anchored contributions (memory ①, world-info ②, databank ④, imagery) render inside
+// its surface off the ONE door-assembled section registry, and the settings shell merges their navs into
+// this pane's subcategory list. Zero contributions ⇒ byte-identical to the pre-seam pane (the
+// `editor-sections` posture). The def homes settings-owned; the sections home in their OWNING features.
 
 import { MessagesSquare } from "@orb/ui/icons";
-import type { ContributorRegistry } from "#lib";
-import type { SettingsPaneDefinition, SettingsSectionContribution, SettingsSubcategory } from "#state";
-import { settingsSectionNavs } from "#state";
+import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
 import { ChatBehaviorSettingsSurface } from "../surfaces/chat-behavior-settings-surface";
 import { CHAT_BEHAVIOR_SUBCATEGORY_IDS } from "./chat-behavior-nav";
 
@@ -69,19 +66,14 @@ const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
   },
 ];
 
-/** The chat-behavior pane is the ONE host of the settings-section seam today. `sectionContributors` is the
- *  door-assembled `chat-behavior`-anchored registry; the pane merges each contribution's `nav` into its
- *  subcategory list (so the section is nav/search-reachable) and threads the whole registry into its surface
- *  by prop. Zero contributions ⇒ identical to the pre-seam pane. */
-export function makeChatBehaviorPane(sectionContributors: ContributorRegistry<SettingsSectionContribution>): SettingsPaneDefinition {
-  const contributedNavs = settingsSectionNavs(sectionContributors, "chat-behavior");
-  return {
-    id: "chat-behavior",
-    group: "user",
-    label: "Chat behavior",
-    icon: MessagesSquare,
-    description: "How chats send, continue, and stream.",
-    subcategories: [...OWN_SUBCATEGORIES, ...contributedNavs],
-    body: () => <ChatBehaviorSettingsSurface sectionContributors={sectionContributors} />,
-  };
-}
+/** The chat-behavior pane — a settings-section host. `subcategories` lists only what the pane itself
+ *  renders; the shell appends the `chat-behavior`-anchored contributions' navs. */
+export const chatBehaviorPane: SettingsPaneDefinition = {
+  id: "chat-behavior",
+  group: "user",
+  label: "Chat behavior",
+  icon: MessagesSquare,
+  description: "How chats send, continue, and stream.",
+  subcategories: OWN_SUBCATEGORIES,
+  body: { kind: "surface", render: () => <ChatBehaviorSettingsSurface /> },
+};

@@ -194,6 +194,8 @@ floor. Behavioral contract (implementation left to the builder against Base UI):
 - The bottom strip renders ONLY when game-strip tabs resolved — standard chats keep today's single
   top strip untouched. The bracket exists only in takeover.
 
+> **§4.2 (AMENDED 2026-08-01, HUD-1 H1).** The bracket anatomy below describes the HUD's OWN composition, not a set of shell slots it occupies. When a chat carries an ENGAGED game the rpg feature CLAIMS the whole CONTEXT pane (`ContextRegionDef`, `client-architecture-lockdown.md` §6b/§6c): the shell renders the `.shell-panel` mechanics and hands the claimant the resolved tabs + the one selection; the claimant renders the band, both rails, and the viewport itself. The `.shell-panel-header` band, `.ctx-tab-strip`, and the two-strip branch of `ContextTabsPanel` are NOT used by the takeover — the branch, the `edge` prop, the count-6/7 reveal thresholds and the band's growth exception are DELETED, and §4.11's registry deltas 1, 2, 3 and 5 are RETIRED (they described the rented seams). `ContextTabDef.strip` SURVIVES, re-read as RAIL MEMBERSHIP: a property of the tab's job, declared by its owner, which the GENERIC panel ignores. The IA rulings survive unchanged: state above / administration below, ONE selection across both rails, icon density, the single swapped viewport, the locked-but-visible tab, and orbs as glanceable vitals.
+
 ### 4.3 Tab roster — full rpg (top strip, 7 · bottom strip, ≤5)
 
 **Top strip (game state):**
@@ -327,15 +329,20 @@ de-dup note. Two lines max at the 17rem floor:
 All grafting rides the §6c contributor registry (`chatContextContributors`) — rpg never imports
 chat. Seam deltas the takeover needs (design-recorded; the lockdown doc governs the how):
 
-1. `ContextTabDef` gains `strip?: "game" | "meta"` (default `"meta"`) — the bracket assignment.
-2. `ContextTabsPanel` renders a second strip below the panels when any resolved tab is
-   `strip:"game"`; both strips share the one `contextTab` selection seam (§4.2 contract).
-3. The scene banner + orbs ride the EXISTING `header` slot (`ResolvedContextTabs.header`) — no new
-   mount.
+1. **RETIRED (§4.2 amendment, 2026-08-01, HUD-1 H1)** — `ContextTabDef` gains `strip?: "game" |
+   "meta"` (default `"meta"`) — the bracket assignment. Described a rented seam; the takeover
+   claims its own pane instead. `strip` itself survives as rail membership (§4.2).
+2. **RETIRED (§4.2 amendment, 2026-08-01, HUD-1 H1)** — `ContextTabsPanel` renders a second strip
+   below the panels when any resolved tab is `strip:"game"`; both strips share the one
+   `contextTab` selection seam (§4.2 contract). Described a rented seam.
+3. **RETIRED (§4.2 amendment, 2026-08-01, HUD-1 H1)** — the scene banner + orbs ride the EXISTING
+   `header` slot (`ResolvedContextTabs.header`) — no new mount. Described a rented seam; the
+   claimant paints its own band.
 4. `ContextTabDef` gains `badge?: (s) => number | boolean | null` and
    `disabledReason?: (s) => string | null` (PHASE rendering per §4.6).
-5. shell.css `.ctx-tab-strip` gains count-6/7 thresholds; the takeover density hook lands beside
-   the existing `data-density` rule.
+5. **RETIRED (§4.2 amendment, 2026-08-01, HUD-1 H1)** — shell.css `.ctx-tab-strip` gains count-6/7
+   thresholds; the takeover density hook lands beside the existing `data-density` rule. Described
+   a rented seam.
 6. Game tab ids namespaced `rpg.*`; the meta set keeps CP-1's ids so selection state survives
    mode transitions.
 

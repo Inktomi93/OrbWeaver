@@ -7,9 +7,14 @@ import type { SettingsSectionContribution } from "#state";
 import { LibrarySettingsSection } from "../components/library-settings-section";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "./library-settings-nav";
 
+// The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
+// its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.
+const SECTION_ID = "library-settings";
+
 export const librarySettingsSection: SettingsSectionContribution = {
-  id: "library-settings",
+  id: SECTION_ID,
   anchor: "appearance",
   nav: LIBRARY_SETTINGS_SUBCATEGORY,
-  body: () => <LibrarySettingsSection />,
+  owns: { tier: "user", section: "library", keys: ["pageSize"] },
+  body: () => <LibrarySettingsSection sectionId={SECTION_ID} />,
 };

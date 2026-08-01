@@ -7,6 +7,9 @@
 // end-to-end by app-shell.ct.tsx, the correct tier. `SectionRegistryProbe` reads the section registry
 // context (useSectionRegistry) so the context+provider primitives carry a behavioral test.
 
+import type { ContributorRegistry } from "@orb/client/lib";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { SettingsSectionContribution } from "@orb/client/state";
 import {
   chatDeletedFromList,
   clearAnalyticsSelection,
@@ -17,6 +20,7 @@ import {
   clearNewChatPreset,
   clearPresetSection,
   clearPresetSelection,
+  clearSectionSaveStatus,
   clearTagFilter,
   clearWorldBookSelection,
   clearWorldEntrySelection,
@@ -30,8 +34,10 @@ import {
   openModal,
   openNewChatPicker,
   openSettingsTo,
+  reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
+  SettingsSectionRegistryProvider,
   selectAnalyticsCharacter,
   selectCharacter,
   selectCharacterFacet,
@@ -64,6 +70,7 @@ import {
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
+  useAggregateSaveStatus,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
@@ -72,6 +79,7 @@ import {
   useComposerDraft,
   useComposerFocusRequest,
   useContextTab,
+  useErroredSaveSections,
   useFavoritesOnly,
   useListDocked,
   useModalRegistry,
@@ -90,6 +98,8 @@ import {
   useSelectedWorldBookId,
   useSelectedWorldEntryId,
   useSettingsPaneRegistry,
+  useSettingsSectionRegistry,
+  useSettingsSections,
   useSettingsTarget,
   useShowArchived,
   useSpoilerBlur,
@@ -98,7 +108,7 @@ import {
 import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers";
 
 export function ShellStoreProbe(): ReactElement {
@@ -594,6 +604,85 @@ function ComposerDraftReader(): ReactElement {
   const draft = useComposerDraft("cd_scope");
   const committed = useComposerDraft("cd_committed");
   return <output>{`draft=${draft === "" ? "empty" : draft} committed=${committed === "" ? "empty" : committed}`}</output>;
+}
+
+/** SettingsSaveStatusProbe — drives the settings save-status store (SET-SEAMS §3) through its module
+ *  actions and reads the aggregate + errored ids through its reactive hooks, so a CT can prove the
+ *  precedence fold (error > saving > saved), the "nothing reported ⇒ nothing to render" null, and that an
+ *  unmount CLEARS a section's report (no ghost "saving" in the footer after a pane swap). A CT, not a unit
+ *  test: the store's only read surface is the reactive hook (useSyncExternalStore needs a browser render). */
+export function SettingsSaveStatusProbe(): ReactElement {
+  return (
+    <div>
+      <button type="button" onClick={(): void => reportSectionSaveStatus("probe-a", "saved")}>
+        a saved
+      </button>
+      <button type="button" onClick={(): void => reportSectionSaveStatus("probe-a", "error")}>
+        a error
+      </button>
+      <button type="button" onClick={(): void => reportSectionSaveStatus("probe-b", "saving")}>
+        b saving
+      </button>
+      <button type="button" onClick={(): void => reportSectionSaveStatus("probe-b", "saved")}>
+        b saved
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          clearSectionSaveStatus("probe-a");
+          clearSectionSaveStatus("probe-b");
+        }}
+      >
+        clear both
+      </button>
+      <SettingsSaveStatusReader />
+    </div>
+  );
+}
+
+function SettingsSaveStatusReader(): ReactElement {
+  const aggregate = useAggregateSaveStatus();
+  const errored = useErroredSaveSections();
+  return <output>{`aggregate=${aggregate ?? "none"} errored=${errored.length === 0 ? "none" : errored.join(",")}`}</output>;
+}
+
+/** SettingsSectionRegistryProbe — reads the settings-SECTION registry through `useSettingsSectionRegistry`
+ *  + `useSettingsSections` inside its provider (SET-SEAMS §5.2), rendering what a host pane would get: the
+ *  sections anchored at ONE pane, in declared order, `when`-filtered by the supplied viewer. */
+export function SettingsSectionRegistryProbe({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
+  return (
+    <SettingsSectionRegistryProvider value={probeSections}>
+      <SettingsSectionRegistryReader isAdmin={isAdmin} />
+    </SettingsSectionRegistryProvider>
+  );
+}
+
+const probeSections: ContributorRegistry<SettingsSectionContribution> = createContributorRegistry<SettingsSectionContribution>("probe-settings-sections", [
+  { id: "probe-chat", anchor: "chat-behavior", nav: { id: "probe-chat", label: "Probe chat" }, body: (): ReactElement => <output>chat body</output> },
+  {
+    id: "probe-admin",
+    anchor: "chat-behavior",
+    nav: { id: "probe-admin", label: "Probe admin" },
+    when: (viewer): boolean => viewer.isAdmin,
+    body: (): ReactElement => <output>admin body</output>,
+  },
+  { id: "probe-other", anchor: "appearance", nav: { id: "probe-other", label: "Probe other" }, body: (): ReactElement => <output>other body</output> },
+]);
+
+function SettingsSectionRegistryReader({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
+  const registry = useSettingsSectionRegistry();
+  const sections = useSettingsSections("chat-behavior", { isAdmin });
+  return (
+    <div>
+      <output>{`all=${registry
+        .list()
+        .map((c) => c.id)
+        .join(",")} chat-behavior=${sections.map((x) => x.id).join(",")}`}</output>
+      {sections.map((section) => (
+        <Fragment key={section.id}>{section.node}</Fragment>
+      ))}
+    </div>
+  );
 }
 
 /** ComposerFocusProbe — drives the composer-FOCUS store (the P5 CYOA compose-mode focus signal): a caller

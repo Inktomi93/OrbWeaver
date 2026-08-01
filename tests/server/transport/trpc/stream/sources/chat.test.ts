@@ -382,12 +382,16 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   /** A live token chunk anchored to the canon slot it fills (`slotSeq` — what the engine's emit site stamps
-   *  from the target it resolved). `text` names the slot so a leak is unmistakable in the assertion. */
+   *  from the target it resolved). `text` names the slot so a leak is unmistakable in the assertion.
+   *  `memberText: null` is the §3.6 producer stamp for a tick with no hidden span ("identical to
+   *  `delta.text`") — the shape `domain/chat/bus` writes to the log and fans. An UNSTAMPED delta is withheld
+   *  from members by design (fail-closed), so a fixture that omits it would prove nothing about the clamp. */
   const deltaInto = (slotSeq: number, text: string): ChatBusEvent => ({
     type: "delta",
     chatId: LiveChat,
     slotSeq,
     delta: { chatId: LiveChat, kind: "text", text },
+    memberText: null,
   });
 
   test("a clamped member DOES stream a POST-join turn's live deltas — the restoration `from-join` had lost", async () => {
@@ -441,14 +445,16 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// §5.5 — TWO-ROOM SCRUB ISOLATION. The new property the fold creates the possibility of breaking: one
-// socket, one principal, TWO chat rooms, only ONE deception-active. The P3 reasoning cut and the per-slot
-// hidden-span scrubber are allocated INSIDE the pump (`sources/chat.ts`), so each room carries its own —
-// hoisting either to the socket/cell/module would make the deception room's verdict (or a half-open `<lie>`
-// held by its scrubber) bleed into the other room's bytes. Live AND across a reconnect (a reconnect starts
-// FRESH pumps from the surviving cell — verdicts are never cached in the cell).
+// §5.5 — TWO ROOMS, ONE SOCKET, ONE DECEPTION-ACTIVE. The property the fold creates the possibility of
+// breaking. The HIDDEN-SPAN half is now true by CONSTRUCTION: the member bytes are stamped at the PRODUCER
+// (`memberText`) and every read seam here is a stateless field read, so there is no per-pump scrub state
+// left to bleed between rooms — the mid-slot reconnect leak that forced the stamp producer-side is pinned in
+// `domain/chat`. What remains PER ROOM, and is what these pin: the P3 reasoning cut is a verdict resolved
+// per yield from THIS room's own `chatEventBounds`; the pump forwards the stamp verbatim and withholds an
+// UNSTAMPED delta fail-closed; and a reconnect re-derives both from CURRENT membership rather than from
+// anything cached in the socket cell.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-describe("§5.5 two-room scrub isolation — one socket, two chats, ONE with deception", () => {
+describe("§5.5 two rooms on one socket — the per-room verdict, and the producer stamp forwarded verbatim", () => {
   const DeceptionChat = castId<ChatId>("chat_deception");
   const PlainChat = castId<ChatId>("chat_plain");
 
@@ -469,7 +475,17 @@ describe("§5.5 two-room scrub isolation — one socket, two chats, ONE with dec
     slotSeq: 1,
     delta: { chatId, kind: "reasoning", text },
   });
-  const textDelta = (chatId: ChatId, text: string): ChatBusEvent => ({
+  /** A `text` delta as the PRODUCER writes it: `memberText: null` = "stamped, byte-identical to `delta.text`"
+   *  (the no-hidden-span tick). A `memberText` STRING is the scrubbed member projection of a tick that held a
+   *  hidden span; `undefined` is an UNSTAMPED delta, which every member read seam withholds fail-closed. */
+  const textDelta = (chatId: ChatId, text: string, memberText: string | null = null): ChatBusEvent => ({
+    type: "delta",
+    chatId,
+    slotSeq: 1,
+    delta: { chatId, kind: "text", text },
+    memberText,
+  });
+  const unstampedDelta = (chatId: ChatId, text: string): ChatBusEvent => ({
     type: "delta",
     chatId,
     slotSeq: 1,
@@ -534,28 +550,51 @@ describe("§5.5 two-room scrub isolation — one socket, two chats, ONE with dec
     expect(JSON.stringify(plain)).toContain("thinking out loud");
   });
 
-  test("a half-open hidden span held by one room's scrubber never eats the other room's bytes", async () => {
-    // The per-slot scrubber is STATEFUL: it holds an incomplete `<lie …` open until it can prove the prefix
-    // safe. Both rooms stream into slotSeq 1, so a SHARED map would hand the plain room the deception room's
-    // held state (and vice versa) — the bytes would be withheld from the wrong stream.
+  test("the pump forwards each room's PRODUCER STAMP verbatim — a held span in one room is not the other's business", async () => {
+    // Both rooms stream into slotSeq 1, which is exactly the collision a per-pump scrubber map used to make
+    // possible. There is no such map now: the producer already decided each tick's member bytes, and the pump
+    // is a stateless field read. So the deception room's held `<lie …` open (stamped `"He says "` — the
+    // provably-safe prefix, the raw tail withheld) and the plain room's full tick pass each other untouched,
+    // and the RAW text of a partially-withheld tick never reaches the member's wire.
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
     });
     const { iterator } = await openBothRooms(ctx);
 
-    // 2 acks + 2 chatOpened + deception "He says " (the `<lie tru` tail is HELD) + plain "Nothing to hide." = 6.
+    // 2 acks + 2 chatOpened + deception "He says " + plain "Nothing to hide." = 6.
     const frames = await drain(iterator, 6, () => {
-      publishChatEvent({ seq: 20, event: textDelta(DeceptionChat, "He says <lie tru") });
+      publishChatEvent({ seq: 20, event: textDelta(DeceptionChat, "He says <lie tru", "He says ") });
       publishChatEvent({ seq: 21, event: textDelta(PlainChat, "Nothing to hide.") });
     });
     await iterator.return?.(undefined);
 
-    // The deception room emitted only the provably-safe prefix (the half-open tag is held, never sent)…
+    // The deception room got the stamped prefix, and NOT the raw bytes the producer withheld…
     expect(JSON.stringify(roomEvents(frames, DeceptionChat))).toContain("He says ");
     expect(JSON.stringify(roomEvents(frames, DeceptionChat))).not.toContain("<lie");
-    // …and the OTHER room's identical slot streamed its bytes whole, unaffected by that held state.
+    // …and the OTHER room's identical slot streamed its own tick whole.
     expect(JSON.stringify(roomEvents(frames, PlainChat))).toContain("Nothing to hide.");
+  });
+
+  test("an UNSTAMPED delta is withheld from a member — fail-closed, per room, and it does not stall the room", async () => {
+    // The stamp is the member's ONLY source of delta bytes, so a producer that bypassed `domain/chat/bus`
+    // can under-deliver but never leak. The room must drop that tick (no cursor advance) and keep streaming.
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
+    });
+    const { iterator } = await openBothRooms(ctx);
+
+    // 2 acks + 2 chatOpened + the STAMPED tick only (the unstamped one is withheld) = 5.
+    const frames = await drain(iterator, 5, () => {
+      publishChatEvent({ seq: 40, event: unstampedDelta(DeceptionChat, "raw model bytes nobody vetted") });
+      publishChatEvent({ seq: 41, event: textDelta(DeceptionChat, "vetted prose") });
+    });
+    await iterator.return?.(undefined);
+
+    const deception = roomEvents(frames, DeceptionChat);
+    expect(JSON.stringify(deception)).not.toContain("nobody vetted");
+    expect(JSON.stringify(deception)).toContain("vetted prose");
   });
 
   test("a RECONNECT re-derives each room's verdict from CURRENT membership — never a cached/shared one", async () => {
@@ -568,9 +607,15 @@ describe("§5.5 two-room scrub isolation — one socket, two chats, ONE with dec
     await drain(iterator, 4, () => undefined);
     await iterator.return?.(undefined);
 
-    // The RE-connect: the same cell, FRESH pumps — and therefore fresh, per-room scrub state.
+    // The RE-connect: the same cell, FRESH pumps — the moment a per-pump verdict cache would go stale. Both
+    // rooms are durable, so the RECONNECT BARRIER holds them until the client re-announces (which the real
+    // room registry does on every live edge after the first); that is what makes the client's own mark the
+    // resume truth instead of the server's delivered cursor.
     const socket = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const resumed = socket[Symbol.asyncIterator]();
+    const announce = caller(ctx);
+    await announce.stream.attach({ socketId, ref: { channel: "chat", chatId: DeceptionChat } });
+    await announce.stream.attach({ socketId, ref: { channel: "chat", chatId: PlainChat } });
     const frames = await drain(resumed, 7, () => {
       publishChatEvent({ seq: 30, event: reasoningDelta(DeceptionChat, "still the poisoned well") });
       publishChatEvent({ seq: 31, event: textDelta(DeceptionChat, "All is well.") });

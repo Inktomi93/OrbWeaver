@@ -242,6 +242,19 @@ export function buildTrackerWriteGroups(defs: readonly RpgTrackerDef[], carriers
   return [...bySignature.values()];
 }
 
+/** The ACTOR-subject write surface for the whole GAME — every unlocked actor tracker any carrier could hold,
+ *  split by the `write` axis. Config-derived ONLY: it never reads the live carriers, so the same game answers
+ *  the same keys on every turn. This is the CACHE-STABLE superset of {@link buildTrackerWriteGroups}'s per-actor
+ *  sets (`cacheStableExtractionRefs` binds it on the folded turn, whose tool payload sits inside a cached
+ *  prompt prefix); a `locked` tracker stays absent from it, so prevent-at-schema survives the widening. */
+export function actorTrackerWriteKeys(defs: readonly RpgTrackerDef[]): { readonly deltaKeys: readonly string[]; readonly setKeys: readonly string[] } {
+  const writable = sortTrackers(defs.filter((def) => def.subject === "actor" && !def.locked));
+  return {
+    deltaKeys: writable.filter((d) => d.write === "delta").map((d) => d.key),
+    setKeys: writable.filter((d) => d.write === "set").map((d) => d.key),
+  };
+}
+
 /** The game-subject write surface: the unlocked game trackers split by the `write` axis (the retired
  *  `set_widget_value` arm, now `set_tracker`). */
 export function gameTrackerWriteKeys(defs: readonly RpgTrackerDef[]): { readonly deltaKeys: readonly string[]; readonly setKeys: readonly string[] } {

@@ -50,7 +50,7 @@ import type { Services } from "../context";
 import { classifyDomainError } from "../error-mapping";
 import { createFrameQueue } from "./frame-queue";
 import { roomSourceFor } from "./room-sources";
-import type { SocketCell, SocketRegistry } from "./socket-registry";
+import type { SocketCell, SocketRegistry, SocketRoom } from "./socket-registry";
 
 /** What a room's fault becomes on the wire. A DOMAIN error keeps its classified code + message (the same
  *  typed-terminal-frame contract `withSubscriptionErrors` gives a whole stream today); anything else is a
@@ -128,20 +128,45 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   }
 
   /** Stop producing into a saturated queue — the shed's backpressure. No `detached` frame: the room is
-   *  still attached and its desired state is untouched; only its pump is parked until the notice lands. */
+   *  still attached and its desired state is untouched; only its pump is parked until the notice lands.
+   *  Fires on EVERY shed, including one whose notice collapsed into a pending one (`frame-queue.ts`): the
+   *  park is what stops the burn, and rate-limiting it would leave a room producing into a full queue. */
   function pausePump(ref: StreamRoomRef): void {
     const key = roomKey(ref);
     pumps.get(key)?.abort();
     pumps.delete(key);
   }
 
-  /** Re-run a paused room's pump from its last-DELIVERED cursor — fired when the `roomLagged` frame is
-   *  actually delivered. A no-op for a room that is no longer attached (a detach/fault raced the shed) or
-   *  one whose pump is already running (a re-attach beat the notice out). */
+  /**
+   * Re-run a room's pump from its last-DELIVERED cursor — fired when a `roomLagged` frame is actually
+   * delivered. UNCONDITIONAL for an attached room, deliberately: an earlier version skipped when a pump was
+   * already running (a re-attach having beaten the notice out), which left the rows shed BETWEEN that
+   * re-attach and the notice's delivery with nothing to refill them — the running pump's own high-water mark
+   * had passed them, and the resume that would have re-read them no-op'd. Restarting from the delivered
+   * cursor is always correct and at worst re-offers rows the client already has (its seq guard drops them).
+   * A no-op only for a room that is no longer attached (a detach/fault raced the shed).
+   */
   function resumeAfterLag(ref: StreamRoomRef): void {
-    const key = roomKey(ref);
-    const room = cell.rooms.get(key);
-    if (room !== undefined && !pumps.has(key)) {
+    const room = cell.rooms.get(roomKey(ref));
+    if (room !== undefined) {
+      startPump(room.ref, room.cursor);
+    }
+  }
+
+  /**
+   * THE RECONNECT BARRIER. A resumable room does not resume delivery on a reconnect until the CLIENT has
+   * announced it on this connection. Why it has to be the server's job: the cell's cursor counts frames
+   * handed to the PREVIOUS socket's writer, so it sits ahead of what the client actually received, and a
+   * pump resumed from it delivers rows the client never asked for — whose seqs then advance the client's own
+   * high-water mark PAST the gap, so the rewind attach that follows (carrying the client's true mark) has
+   * its whole replay dropped by that guard. It is not a race the client can win: announcing earlier carries
+   * a stale mark, announcing later has already lost the gap. Withholding the room for one round trip makes
+   * the client's mark the resume truth again — what `Last-Event-ID` did for free before the fold.
+   * A LIVE-ONLY room never waits: it has no cursor to be wrong about, and its freshness heal is a blanket
+   * invalidate that the delay would only postpone.
+   */
+  function startOrHoldPump(room: SocketRoom): void {
+    if (room.announced || !roomSourceFor(room.ref).resumable) {
       startPump(room.ref, room.cursor);
     }
   }
@@ -153,6 +178,16 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     pumps.set(key, control);
     queue.pushControl({ channel: "control", type: "attached", ref });
     void pumpRoom(ref, cursor, control);
+  }
+
+  /** An idempotent re-announce (no cursor change) — the barrier's lift signal. A room already pumping is
+   *  untouched: the announce carries nothing new, and restarting would re-replay for no reason. */
+  function liftBarrier(ref: StreamRoomRef): void {
+    const key = roomKey(ref);
+    const room = cell.rooms.get(key);
+    if (room !== undefined && !pumps.has(key)) {
+      startPump(room.ref, room.cursor);
+    }
   }
 
   function stopPump(ref: StreamRoomRef): void {
@@ -171,9 +206,9 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   }
 
   // ── the atomic setup slice (no `await` until the drain loop) ──────────────────────────────────────────
-  registry.goLive(cell, { onAttach: startPump, onDetach: stopPump });
+  registry.goLive(cell, { onAttach: startPump, onAnnounce: liftBarrier, onDetach: stopPump });
   for (const room of cell.rooms.values()) {
-    startPump(room.ref, room.cursor);
+    startOrHoldPump(room);
   }
   signal.addEventListener("abort", teardown, { once: true });
 

@@ -1,12 +1,10 @@
-// The Workloads settings pane (client-architecture-lockdown.md §8) — a FACTORY over the `workloads`-anchored
-// settings-section registry (Phase B ⑤): it merges each contributed section's nav into its subcategories and
-// threads the registry into its surface, so the analysis-tuning knobs (the workloads feature's own tuning
-// section) graft in via the seam rather than growing the pane inline (the makeAdminPane precedent, stint 2).
+// The Workloads settings pane (client-architecture-lockdown.md §8) — a HOST of the `workloads`-anchored
+// settings-section seam (Phase B ⑤): the analysis-tuning knobs (the workloads feature's own tuning section)
+// graft in via the seam rather than growing the pane inline, rendering inside its surface off the ONE
+// door-assembled section registry while the settings shell merges their navs in.
 
 import { Gauge } from "@orb/ui/icons";
-import type { ContributorRegistry } from "#lib";
-import type { SettingsPaneDefinition, SettingsSectionContribution, SettingsSubcategory } from "#state";
-import { settingsSectionNavs } from "#state";
+import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
 import { WorkloadsSettingsSurface } from "../surfaces/workloads-settings-surface";
 import { WORKLOADS_SUBCATEGORY_IDS } from "./workloads-nav";
 
@@ -38,19 +36,14 @@ const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
   },
 ];
 
-/** The workloads pane is a host of the settings-section seam (Phase B ⑤). `sectionContributors` is the
- *  door-assembled `workloads`-anchored registry; the pane merges each contribution's `nav` into its
- *  subcategory list and threads the registry into its surface by prop. Zero contributions ⇒ identical to the
- *  pre-seam pane (the makeAdminPane precedent). */
-export function makeWorkloadsPane(sectionContributors: ContributorRegistry<SettingsSectionContribution>): SettingsPaneDefinition {
-  const contributedNavs = settingsSectionNavs(sectionContributors, "workloads");
-  return {
-    id: "workloads",
-    group: "user",
-    label: "Workloads",
-    icon: Gauge,
-    description: "Run and monitor background jobs over your library.",
-    subcategories: [...OWN_SUBCATEGORIES, ...contributedNavs],
-    body: () => <WorkloadsSettingsSurface sectionContributors={sectionContributors} />,
-  };
-}
+/** The workloads pane — a host of the settings-section seam (Phase B ⑤). `subcategories` lists only what
+ *  the pane itself renders; the shell appends the `workloads`-anchored contributions' navs. */
+export const workloadsPane: SettingsPaneDefinition = {
+  id: "workloads",
+  group: "user",
+  label: "Workloads",
+  icon: Gauge,
+  description: "Run and monitor background jobs over your library.",
+  subcategories: OWN_SUBCATEGORIES,
+  body: { kind: "surface", render: () => <WorkloadsSettingsSurface /> },
+};

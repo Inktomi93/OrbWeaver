@@ -3,11 +3,11 @@
 // `stripHiddenSpans` (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload".
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
-import { createHiddenSpanStreamScrubber } from "@orb/kit/content";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views";
 import {
+  createMemberDeltaStamper,
   projectViewForMember,
   scrubChatEventReplayForMember,
   scrubDeltaEventForMember,
@@ -67,25 +67,38 @@ test("stripChatEventForMember strips the `view` payload of every view-carrying m
   // A view-less lifecycle event is untouched (same object).
   const lifecycle: ChatBusEvent = { type: "chatUpdated", chatId };
   expect(stripChatEventForMember(lifecycle)).toBe(lifecycle);
-  // A `delta` is NOT this function's job — it rides the stateful `scrubDeltaEventForMember` (below), so
-  // `stripChatEventForMember` passes it through (the transport routes deltas to the scrubber, never here).
+  // A `delta` is NOT this function's job — it rides `scrubDeltaEventForMember` (below), so
+  // `stripChatEventForMember` passes it through (the transport routes deltas to that seam, never here).
   const delta: ChatBusEvent = { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: "<lie " } };
   expect(stripChatEventForMember(delta)).toBe(delta);
 });
 
 // ── §3.6 the MID-STREAM channel (deltas) — the leak the at-commit strip can't reach ──
+//
+// The scrub state is the PRODUCER's: `createMemberDeltaStamper` runs once per emit, inside the bus, and every
+// reader is a stateless `memberText` read. So these tests emit through a stamper exactly like `domain/chat/bus`
+// does — a fixture that hand-rolls an unstamped delta is testing the fail-closed arm, not the strip.
 
-function textDelta(text: string, slotSeq = 1): Extract<ChatBusEvent, { type: "delta" }> {
+function rawTextDelta(text: string, slotSeq = 1): Extract<ChatBusEvent, { type: "delta" }> {
   return { type: "delta", chatId, slotSeq, delta: { chatId, kind: "text", text } };
 }
 
+/** Emit `text` through `stamper` as the bus would, and return the delta event AS LOGGED. */
+function stamped(stamper: ReturnType<typeof createMemberDeltaStamper>, text: string, slotSeq = 1): Extract<ChatBusEvent, { type: "delta" }> {
+  const event = stamper.stamp(rawTextDelta(text, slotSeq));
+  if (event.type !== "delta") {
+    throw new Error("the stamper must return the same union member it was given");
+  }
+  return event;
+}
+
 test("scrubDeltaEventForMember: a member's mid-stream text NEVER carries hidden bytes at any tick; the assembled stream matches the at-commit strip", () => {
-  const scrubber = createHiddenSpanStreamScrubber();
+  const stamper = createMemberDeltaStamper();
   const body = `He nods. ${LIE} "Nothing," he says.`;
   let assembled = "";
   let sawLeak = false;
   for (const ch of body) {
-    const out = scrubDeltaEventForMember(textDelta(ch), scrubber);
+    const out = scrubDeltaEventForMember(stamped(stamper, ch));
     if (out === null || out.type !== "delta" || out.delta.kind !== "text") {
       continue;
     }
@@ -98,15 +111,67 @@ test("scrubDeltaEventForMember: a member's mid-stream text NEVER carries hidden 
   expect(assembled).toBe('He nods.  "Nothing," he says.');
 });
 
+test("scrubDeltaEventForMember: an UNSTAMPED text delta is WITHHELD, never forwarded raw (the fail-closed arm)", () => {
+  // A producer that bypasses `domain/chat/bus` leaves `memberText` undefined. The member must get nothing —
+  // the failure mode of a missing stamp is a frozen ghost, never the model's raw bytes.
+  expect(scrubDeltaEventForMember(rawTextDelta(`He nods. ${LIE}`))).toBeNull();
+});
+
+test("scrubDeltaEventForMember: a member's forwarded delta carries the member bytes ONCE — `memberText` never rides their wire", () => {
+  const stamper = createMemberDeltaStamper();
+  const out = scrubDeltaEventForMember(stamped(stamper, `He nods. ${LIE} done.`));
+  expect(out).not.toBeNull();
+  expect(JSON.stringify(out)).not.toContain("memberText");
+  expect(out?.type === "delta" && out.delta.kind === "text" ? out.delta.text : "").toBe("He nods.  done.");
+});
+
 test("scrubDeltaEventForMember: a reasoning-channel delta passes through unchanged (out of the body-projection scope)", () => {
-  const scrubber = createHiddenSpanStreamScrubber();
   const reasoning: Extract<ChatBusEvent, { type: "delta" }> = {
     type: "delta",
     chatId,
     slotSeq: 1,
     delta: { chatId, kind: "reasoning", text: "thinking <lie" },
   };
-  expect(scrubDeltaEventForMember(reasoning, scrubber)).toBe(reasoning);
+  expect(scrubDeltaEventForMember(reasoning)).toBe(reasoning);
+});
+
+// ── The MID-SLOT COLD START — the leak that motivated moving the scrub state to the producer ──────────
+// A `<lie …/>` open spans many ticks. Any reader that begins mid-tag sees a continuation with no `<` in it
+// (`1234"/> …`), calls it all safe, and forwards the secret's tail. These pin that NO reader can be in that
+// position: the bytes are decided ONCE at emit, so a member who attaches (or resumes) mid-span reads exactly
+// what a member who watched the whole slot read.
+
+test("a subscriber that joins MID-SPAN gets the same bytes as one that watched the whole slot (no cold start)", () => {
+  const stamper = createMemberDeltaStamper();
+  // The slot streams: prose, then a `<lie …/>` open that stays unclosed for two ticks, then its closer.
+  const ticks = ["The vault is ", '<lie character="Vex" truth="the vault ', "code is ", '1234"/> empty.'].map((t) => stamped(stamper, t));
+
+  // The "watched it all" reader.
+  const continuous = ticks.map((e) => scrubDeltaEventForMember(e));
+  // The "attached at tick 3" reader — a DIFFERENT reader with no history whatsoever.
+  const lateJoiner = ticks.slice(2).map((e) => scrubDeltaEventForMember(e));
+
+  const textOf = (out: ChatBusEvent | null): string => (out?.type === "delta" && out.delta.kind === "text" ? out.delta.text : "");
+  expect(continuous.map(textOf).join("")).toBe("The vault is  empty.");
+  // Identical verdicts row-for-row on the rows they share — no state to be missing.
+  expect(lateJoiner.map(textOf)).toEqual(continuous.slice(2).map(textOf));
+  expect(JSON.stringify(lateJoiner)).not.toContain("1234");
+  expect(JSON.stringify(lateJoiner)).not.toContain("vault code");
+});
+
+test("two concurrently streaming slots keep independent span state (the stamper keys on chat + slotSeq)", () => {
+  const stamper = createMemberDeltaStamper();
+  // Slot 1 opens a lie; slot 2 interleaves clean prose that must NOT be swallowed by slot 1's open span.
+  const a1 = scrubDeltaEventForMember(stamped(stamper, '<lie character="Vex" truth="the code is ', 1));
+  const b1 = scrubDeltaEventForMember(stamped(stamper, "Meanwhile, ", 2));
+  const a2 = scrubDeltaEventForMember(stamped(stamper, '1234"/> nothing.', 1));
+  const b2 = scrubDeltaEventForMember(stamped(stamper, "the door opens.", 2));
+
+  expect(a1).toBeNull(); // the open is withheld whole
+  const textOf = (out: ChatBusEvent | null): string => (out?.type === "delta" && out.delta.kind === "text" ? out.delta.text : "");
+  expect(textOf(a2)).toBe(" nothing.");
+  expect(`${textOf(b1)}${textOf(b2)}`).toBe("Meanwhile, the door opens.");
+  expect(JSON.stringify([a1, a2, b1, b2])).not.toContain("1234");
 });
 
 test("scrubStreamReplayForMember: the DURABLE token-log replay drops hidden bytes per slot for a member; the host reads verbatim", () => {
@@ -200,7 +265,6 @@ test("stripChatEventForMember: on a deception game a view-carrying event withhol
 });
 
 test("scrubDeltaEventForMember: a reasoning delta is DROPPED on a deception game; text deltas still scrub; non-deception passes reasoning through", () => {
-  const scrubber = createHiddenSpanStreamScrubber();
   const reasoning: Extract<ChatBusEvent, { type: "delta" }> = {
     type: "delta",
     chatId,
@@ -208,11 +272,11 @@ test("scrubDeltaEventForMember: a reasoning delta is DROPPED on a deception game
     delta: { chatId, kind: "reasoning", text: REASONING_SPILL },
   };
   // Deception: reasoning delta withheld entirely (host-only channel).
-  expect(scrubDeltaEventForMember(reasoning, scrubber, true)).toBeNull();
+  expect(scrubDeltaEventForMember(reasoning, true)).toBeNull();
   // Non-deception: reasoning delta passes (the pre-P3 behavior).
-  expect(scrubDeltaEventForMember(reasoning, scrubber, false)).toBe(reasoning);
-  // A text delta still rides the hidden-span scrubber regardless (the body channel is unconditional).
-  const text = scrubDeltaEventForMember(textDelta("plain"), createHiddenSpanStreamScrubber(), true);
+  expect(scrubDeltaEventForMember(reasoning, false)).toBe(reasoning);
+  // A text delta still carries only its stamped member bytes regardless (the body channel is unconditional).
+  const text = scrubDeltaEventForMember(stamped(createMemberDeltaStamper(), "plain"), true);
   expect(text !== null && text.type === "delta" && text.delta.kind === "text" ? text.delta.text : "").toBe("plain");
 });
 
@@ -247,9 +311,10 @@ function viewOfRow(row: ChatBusReplayEvent): { readonly content?: string; readon
 
 /** The at-commit view + its mid-stream delta rows for ONE deception turn, in append order — a raw `<lie>` +
  *  reasoning delta stream, then the at-commit committed view. This is the exact durable log a member's
- *  reconnect re-drains. */
+ *  reconnect re-drains, so every row goes through the producer stamper the bus applies before the append. */
 function deceptionTurnRows(): ChatBusReplayEvent[] {
-  return [
+  const stamper = createMemberDeltaStamper();
+  const rows: readonly { readonly seq: number; readonly event: ChatBusEvent }[] = [
     {
       seq: 1,
       event: {
@@ -270,6 +335,7 @@ function deceptionTurnRows(): ChatBusReplayEvent[] {
     // FABRICATION-OK: the at-commit view probe reads content/reasoning only (viewOf above).
     { seq: 6, event: { type: "messageCommitted", chatId, messageId, view: viewOf(`He nods. ${LIE} "Nothing."`, REASONING_SPILL) } as ChatBusEvent },
   ];
+  return rows.map(({ seq, event }) => ({ seq, event: stamper.stamp(event) }));
 }
 
 test("scrubChatEventReplayForMember: a deception game's DURABLE replay withholds the reasoning channel AND scrubs hidden TEXT deltas for a member", () => {

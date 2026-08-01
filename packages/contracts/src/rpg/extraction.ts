@@ -26,7 +26,8 @@ import {
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
 } from "./tools";
-import type { RpgTrackerWriteGroup } from "./tracker";
+import type { RpgTrackerDef, RpgTrackerWriteGroup } from "./tracker";
+import { actorTrackerWriteKeys } from "./tracker";
 
 /** The extraction delta the model emits in ONE structured-output object (§4.6). Every field is
  *  OPTIONAL and defaults empty — a "nothing changed this turn" extraction is the empty object, which the
@@ -315,6 +316,41 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
   // content head, so forcing it would spend tokens on a field we derive for free (the 2026-07-27 ruling).
   requireField(itemsOf(propsOf(clone)?.["journal"]), "type");
   return clone;
+}
+
+/**
+ * F4 — the CACHE-STABLE projection of a per-call ref bundle: the same bundle with every field that derives from
+ * LIVE SCENE STATE neutralized, so two calls one turn apart produce a BYTE-IDENTICAL tool payload.
+ *
+ * WHY (measured, `scripts/probes/openrouter/RESULTS.md` F4): the OpenAI-compat `tools` field sits UPSTREAM of the
+ * Anthropic cached prefix — changing 360 bytes of one tool dropped `cached_tokens` 2841 → 0 and re-billed the
+ * WHOLE prefix at the 1.25× write rate (~10× that turn on a 10k prefix). The FOLDED turn (D112 R1) mounts these
+ * tools on the CHARACTER turn, whose prefix is otherwise stable (the rpg state block rides an `in_chat` depth-0
+ * injection, BELOW the rolling breakpoint), so a new NPC or a gained/retired condition was re-billing the whole
+ * story every few beats.
+ *
+ * WHAT SURVIVES (enforcement is not traded away):
+ *   • `gameTrackerKeys` + the actor tracker KEY enums (config-derived) — "never invent a key" and the LOCKED-
+ *     tracker prevention both hold, from the game's own defs instead of the live carrier split.
+ *   • `establishScene` — state-dependent but not per-turn churn (a fresh game establishes once; a reconcile beat
+ *     forces deliberately), and it is the lever that makes the scene populate at all.
+ * WHAT IS DROPPED, and its backstop: the `actorRefs` enums (`targetRef`/`presentRemove`) — the R5 GHOST GUARD
+ * drops a write naming nobody reachable, and the state block already enumerates the cast by name; the per-actor
+ * `oneOf` split — a key on an actor who doesn't carry it lands as inert data the panel never projects; the
+ * `conditionNames` enum — a `removeCondition` naming nothing active is a filter no-op. NOTE the swap is honest
+ * only where the schema is ADVISORY: wire tools are sent without `strict`, so no folded wire grammar-enforces
+ * these enums today. The DEDICATED tool round (the enforcing vLLM/xgrammar vehicle, whose own prefix is per-turn
+ * volatile anyway) keeps the full live bundle — de-volatilizing it would buy nothing and cost real enforcement.
+ */
+export function cacheStableExtractionRefs(refs: ExtractionRefs, defs: readonly RpgTrackerDef[]): ExtractionRefs {
+  return {
+    ...refs,
+    actorRefs: [],
+    conditionNames: [],
+    // ONE group, targetRef unconstrained: keeps both write arms present (an empty group list would PRUNE
+    // trackerDeltas/trackerSets entirely — losing the write surface, not just the pinning).
+    trackerWriteGroups: [{ targetRefs: [], ...actorTrackerWriteKeys(defs) }],
+  };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
