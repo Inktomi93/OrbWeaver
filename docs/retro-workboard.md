@@ -149,7 +149,14 @@ retired; G9/G10 wired end-to-end; importFile via factory injection [verb→verb 
 wiFormat {{entry}} refusal = write-boundary CARRIER-token law, distinct from requiredMacros
 lint-never-block; settingsChanged freshness row added — model swap re-labels provenance).
 **WAVE-2 V1 IN FLIGHT** (five-view shell + Params deck/KnobRow; V2 rack/actions/readouts/list
-next, serialized). **LIFECYCLE LANE in reconcile** (refused at the merge gate — density S4 moved
+next, serialized). ~~LIFECYCLE~~ **MERGED** (`5a894054` + reconcile: all 11 gate hits cleared honestly — density
+via voice= [baseline SHRANK 422→416], suppressions gone BY CONSTRUCTION [derived Hono app type;
+promise-chain sequencing], knip de-exports, marker adjacency, real 3-test presence). CRUD +
+import/export COMPLETE for both rail sections: single-chat jsonl import BUILT (thin over the
+descriptor; slugifyHandle empty-name bug fixed), txt export wired, PNG-V3 card export = row
+kebab, bands = ruled anatomy, rooms/editors zero lifecycle chrome (CT pins ABSENCE),
+member-strip export SAFE (host-gated 404). TABLED owner calls stand: JSON-card export format ·
+absent-character transcript policy. Old note: (refused at the merge gate — density S4 moved
 under it; 7 density + knip×2 + fabrication + suppressions×2 + test-presence to fix on merged
 tree; the audit itself: ~everything COMPLETE, single-chat jsonl import BUILT, txt export WIRED,
 bands moved to ruled anatomy, member-strip export CHECKED SAFE [host-gated 404], slugifyHandle
