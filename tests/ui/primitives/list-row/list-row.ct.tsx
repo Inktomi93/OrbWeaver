@@ -264,6 +264,47 @@ test("actionsFloat gives the text column back the width a rest-hidden cluster re
     .toBeGreaterThan(metaAtRest);
 });
 
+// side-eye P3, re-homed: a hidden cluster that FLOATS sits over the title column, so at rest the whole
+// cluster — the wrapper AND its controls — must be un-hit-testable, or an invisible button eats a click
+// aimed at the text under it. The wrapper alone is not enough: a child that re-declares `pointer-events:
+// auto` stays hit-testable through a `pointer-events: none` parent. Computed + elementFromPoint, never the
+// class string. (The in-flow arm is deliberately NOT inert — it overlays nothing, and a control that is
+// only conditionally hit-testable is unreachable to any click whose hit-test precedes the hover.)
+test("a FLOATED cluster is inert over the text at rest and comes live on the row's hover", async ({ mount, page }) => {
+  // `className="group"` is what the reveal keys on — every real consumer passes it.
+  await mount(
+    <ListRow
+      actions={<Button aria-label="Actions" intent="ghost" size="icon" />}
+      actionsFloat={true}
+      className="group"
+      clickable={true}
+      meta="2h"
+      subtitle="the pitch"
+      title="Elara"
+    />,
+  );
+  const kebab = page.getByRole("button", { name: "Actions" });
+  const hitAt = async (): Promise<string> => {
+    const box = await kebab.boundingBox();
+    if (box === null) {
+      throw new Error("the floated cluster has no box");
+    }
+    return await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.getAttribute("data-slot") ?? "none", [
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    ] as const);
+  };
+
+  await expect(page.locator('[data-slot="list-row-actions"]')).toHaveCSS("pointer-events", "none");
+  await expect(kebab).toHaveCSS("pointer-events", "none");
+  // A click over the hidden cluster reaches the ROW's own content, not the invisible control.
+  expect(await hitAt()).toBe("list-row-meta");
+
+  await page.locator('[data-slot="list-row-root"]').hover();
+  await expect(kebab).toHaveCSS("pointer-events", "auto");
+  expect(await hitAt()).toBe("button");
+});
+
 test("renders the leading slot", async ({ mount, page }) => {
   await mount(<ListRow leading={<span data-testid="glyph">*</span>} title="Elara" />);
   await expect(page.getByTestId("glyph")).toBeVisible();

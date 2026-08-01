@@ -51,12 +51,18 @@ export const listRowVariants = tv({
     // transition alternative moves both by the cluster's width on every hover).
     //   · FINE pointers only: at coarse there is no hover, the cluster is permanently visible
     //     (`ROW_REVEAL`), so it stays IN FLOW and honestly spends its width instead of covering text.
-    //   · the backdrop paints only while revealed, so at rest nothing shows over the text; the wrapper is
-    //     `pointer-events-none` (its revealed children re-enable themselves via ROW_REVEAL).
+    //   · the backdrop paints only while revealed, so at rest nothing shows over the text; the whole
+    //     cluster is INERT at rest — the wrapper AND its controls (`*:pointer-events-none`; a child that
+    //     re-declares `auto` stays hit-testable through a `pointer-events-none` parent, so the wrapper
+    //     alone is not enough), both restored on the row's hover/:focus-within. This is where side-eye
+    //     P3's "an invisible control must not be hit-testable" is enforced, because THIS is the arm where
+    //     the hidden cluster sits over real text; an in-flow cluster overlays nothing and keeps a live hit
+    //     target at rest (see `ROW_REVEAL`).
     float: {
       true: {
         actions: [
-          "pointer-fine:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
+          "pointer-fine:pointer-events-none pointer-fine:*:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
+          "pointer-fine:group-hover:*:pointer-events-auto pointer-fine:group-focus-within:*:pointer-events-auto",
           "pointer-fine:rounded-control pointer-fine:ps-block pointer-fine:transition-colors",
           "pointer-fine:group-hover:bg-accent pointer-fine:group-focus-within:bg-accent",
         ],

@@ -11,9 +11,6 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { RowToggleActionHarness } from "./row-toggle-action.fixtures";
 
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;
-/** P3b: a rest-HIDDEN control is also un-hit-testable — an invisible button must not eat a click aimed
- *  at the row (or, once the cluster floats over the title column, at the text under it). */
-const NO_HIT_AT_REST = /pointer-events-none/;
 const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;
 const REVEAL_ON_COARSE = /pointer-coarse:opacity-100/;
 /** The COARSE arm of the pointer-conditional control scale (theme.css overrides it under `pointer: fine`). */
@@ -43,13 +40,14 @@ test("rest posture (D11): unpressed rests hidden with the hover/focus/coarse rev
   await expect(unpressed).toHaveClass(REVEAL_ON_FOCUS);
   // A coarse pointer has no hover — the affordance is always on there, or it is unreachable.
   await expect(unpressed).toHaveClass(REVEAL_ON_COARSE);
-  // …and while it is invisible it is also inert to the pointer (P3b) — computed, not just declared.
-  await expect(unpressed).toHaveClass(NO_HIT_AT_REST);
-  await expect(unpressed).toHaveCSS("pointer-events", "none");
+  // The reveal is OPACITY-ONLY: the control keeps a live hit target at rest, so a click whose hit-test
+  // precedes the hover (an assistive / programmatic click, Playwright's actionability check) still lands on
+  // the control instead of resolving to the cluster wrapper. The rest-INERTNESS side-eye P3 asked for
+  // belongs to the arm where a hidden cluster actually covers text — `ListRow.actionsFloat`, which makes
+  // the wrapper AND its children non-hit-testable at rest (asserted in the list-row CT).
+  await expect(unpressed).toHaveCSS("pointer-events", "auto");
 
   await component.hover();
-  // The reveal restores the hit-testing with the opacity — otherwise the control would be visible and dead.
-  await expect(unpressed).toHaveCSS("pointer-events", "auto");
   await unpressed.click();
   const pressed = component.getByRole("button", { name: "Unstar Mara", exact: true });
   await expect(pressed).toHaveCSS("opacity", "1");
