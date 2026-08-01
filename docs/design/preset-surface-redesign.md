@@ -374,10 +374,13 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 - **Kebab:** Activate · Rename · Duplicate (mirror) · **Export** (gap-close G6 — wires the dead
   `preset.export` verb; the band's import gains the orb-native `parsePresetFile` arm beside ST) ·
   Delete (landed active-aware confirm copy).
-- **Lineage — stated seam, not faked.** The workboard already queues the `forkedFrom` column
-  ("Preset multi-tab fork idempotency"). Until it lands, lineage = the landed scent (stamp + kind);
-  when it lands, the subtitle gains "forked from <name>" from the column. Nothing is derived from
-  name-matching heuristics.
+- **Lineage — stated seam, not faked. LANDED** (`presets.forked_from` self-FK; `PresetSummary.forkedFrom`
+  carries the ID, `ChatSummary.parentChatId`-style). The subtitle now reads
+  "\[kind ·] forked from &lt;name&gt; · edited &lt;stamp&gt;", with the source NAME resolved by the surface
+  from the rows it already holds — a source it cannot see (a PACKAGED template is never in the readable
+  list) prints no lineage at all. Nothing is derived from name-matching heuristics. The same column is the
+  copy-on-write CONVERGENCE key: a second COW of the built-in retargets the owner's existing fork instead
+  of minting "Default (edited) 2" (residual + why it is not a UNIQUE index: `domain/preset/verbs/update.ts`).
 - The band (`PresetListHeader` — title/count/New/Import) is landed and stands.
 
 ## 10. Gap-close register (small, named, each independently landable)
