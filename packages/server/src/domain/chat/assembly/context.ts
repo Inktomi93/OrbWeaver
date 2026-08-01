@@ -7,7 +7,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleCharacter, AssembleContext, AssemblePersona, AssembleWorldEntry, ChatInjection, RoomOverrides, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -24,7 +24,7 @@ import type { ChatContext } from "../context";
 import type { ApplyRegexReplaceOp } from "../contract/context";
 import type { ResolvedPersonas } from "../contract/foreign";
 import type { GuidedSteer } from "../contract/params";
-import { renderInjection } from "./injections";
+import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
 
@@ -450,10 +450,15 @@ function routeKept(
   return { chatInjections, beforeParts, afterParts };
 }
 
-/** A depth-0, ignore-budget guided injection candidate carrying the resolved steer with `role`. */
-function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"]): InjectionCandidate {
+/** The guided steer's delivery depth when the action config declares none (G10): the tail — exactly where
+ *  every guided injection landed before the field existed, so an absent `depth` is byte-identical. */
+const GUIDED_DEFAULT_DEPTH = 0;
+
+/** An ignore-budget guided injection candidate carrying the resolved steer with `role` at `depth` (G10;
+ *  absent ⇒ the tail). */
+function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"], depth: number = GUIDED_DEFAULT_DEPTH): InjectionCandidate {
   return {
-    injection: { position: "in_chat", depth: 0, role, content: resolved, origin: "guided" },
+    injection: { position: "in_chat", depth, role, content: resolved, origin: "guided" },
     tokens: estimateTokens(resolved),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
@@ -508,7 +513,39 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
     base.guidedPlacedAsInjection = true;
     return { candidates: [guidedInjectionCandidate(resolved, "system")] };
   }
-  return { candidates: [guidedInjectionCandidate(resolved, placement.role)] };
+  // G10: the action's own `depth` rides the inject arm (absent ⇒ the tail). A per-turn `placement` overrides
+  // the ROLE only — depth is the preset author's delivery choice, not the caller's.
+  return { candidates: [guidedInjectionCandidate(resolved, placement.role, config.depth)] };
+}
+
+/** G9 — the history-START boundary (`formatStrings.newChatMarker`; ST `new_chat_prompt`, §6.5 census).
+ *  BLANK/absent ⇒ NO candidate, which is byte-identical to every pre-G9 turn (the shipped slot default is
+ *  blank). Set ⇒ ONE system-role injection at {@link BEFORE_HISTORY_DEPTH}: the splice clamps that to the
+ *  history length, so it lands ABOVE the first canon row — and, like every other non-tail system injection,
+ *  it demotes to the visible `[Note from system: …]` framing on a model with no mid-conversation system
+ *  channel. `ignoreBudget` because a boundary marker silently dropped by the budget pass is exactly the
+ *  silent break this slot exists to make visible; it is one line of text. */
+function newChatMarkerCandidate(base: AssembleContext, input: BuildAssembleContextInput): InjectionCandidate[] {
+  // Read straight off the preset (no PROSE-1 resolver rung): this key ships NO default bytes — blank IS the
+  // shipped behavior — so there is no slot to fall back to (`contracts/preset/prose.ts` states why).
+  const template = input.promptConfig.formatStrings?.newChatMarker ?? DEFAULT_FORMAT_STRINGS.newChatMarker;
+  if (template.trim().length === 0) {
+    return [];
+  }
+  const content = renderMacros(template, base, base.activePersona, { registry: input.macroRegistry }).trim();
+  if (content.length === 0) {
+    return [];
+  }
+  return [
+    {
+      injection: { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "system", content, origin: "new-chat-marker" },
+      tokens: estimateTokens(content),
+      ignoreBudget: true,
+      priority: OPERATOR_PRIORITY,
+      entryId: "new-chat-marker",
+      bucket: null,
+    },
+  ];
 }
 
 /** The active persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't
@@ -763,7 +800,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   // Appended after persona so a same-depth tie orders persona-then-note deterministically.
   const authorsNote = authorsNoteCandidates(base, reg);
   const { kept, dropped } = budgetInjections(
-    [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates],
+    [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription, ...authorsNote.candidates, ...newChatMarkerCandidate(base, input)],
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept, prose);

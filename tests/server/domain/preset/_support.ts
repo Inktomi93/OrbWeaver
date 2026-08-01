@@ -4,6 +4,7 @@
 // real injected dep, not an internal-module mock. Seeds the `users` FK parent directly (presets.ownerId
 // RESTRICT-references it); preset's OWN code never touches `users` (the no-direct-users-read chokepoint).
 
+import type { ResolvedChatCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -12,6 +13,7 @@ import type { Handle, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PresetContext } from "../../../../packages/server/src/domain/preset/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
+import { makeResolvedChatCapability } from "../../../support/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -25,6 +27,12 @@ interface AuditCall {
 export interface PresetHarness {
   readonly ctx: PresetContext;
   readonly audits: AuditCall[];
+}
+
+/** Build a harness whose injected chat-capability op answers with `capability` (the `resolveEffective`
+ *  fixtures) — a real injected dep at the root, never a module mock. */
+export interface HarnessOptions {
+  readonly capability?: ResolvedChatCapability;
 }
 
 /** Insert a `users` row (the FK parent for an owned preset); returns its branded id. Thin delegate over the
@@ -63,8 +71,9 @@ export async function seedPreset(db: Db, overrides: SeedPresetOverrides = {}): P
   return id;
 }
 
-/** Build the PresetContext over a real db with a frozen clock, seeded ids, and a recording audit fake. */
-export function makeHarness(db: Db): PresetHarness {
+/** Build the PresetContext over a real db with a frozen clock, seeded ids, a recording audit fake, and the
+ *  injected chat-capability op (defaulting to the shared vLLM fixture descriptor). */
+export function makeHarness(db: Db, options: HarnessOptions = {}): PresetHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
@@ -78,6 +87,7 @@ export function makeHarness(db: Db): PresetHarness {
     },
     // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
     emitUserEvent: (): void => undefined,
+    resolveChatCapability: (): Promise<ResolvedChatCapability> => Promise.resolve(options.capability ?? makeResolvedChatCapability()),
   };
   return { ctx, audits };
 }

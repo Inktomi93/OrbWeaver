@@ -2,6 +2,7 @@
 // from the request Principal, never a users join. No principal field and no guard op — preset has one
 // owner per row and gates by ownerId === userId.
 
+import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import type { PackagedPresetKey } from "./packaged";
@@ -69,4 +70,21 @@ export interface ClonePackagedParams {
 export interface ResetToDefaultParams {
   readonly userId: UserId;
   readonly id: PresetId;
+}
+
+/** Project the generation funnel for ONE readable preset against the CALLER'S OWN chat connection. Carries
+ *  the whole `Principal` (not a bare userId — every other preset verb's shape) because the capability half
+ *  is resolved through the injected `resolveChatCapability` op, which reads the ACTING principal's routing
+ *  and takes no caller-supplied user id: there is no way to aim this at another tenant's connection. */
+export interface ResolveEffectiveParams {
+  readonly principal: Principal;
+  readonly id: PresetId;
+}
+
+/** Import ONE orb-native preset FILE into the caller's library. `fileText` is the file's UTF-8 JSON text —
+ *  an `orb.preset` file IS text, so the door hands the verb exactly what the user picked (the verb's own
+ *  first act is a UTF-8 decode; base64 would only round-trip the same bytes). */
+export interface ImportPresetFileParams {
+  readonly userId: UserId;
+  readonly fileText: string;
 }
