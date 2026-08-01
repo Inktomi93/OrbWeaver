@@ -1,8 +1,8 @@
-// bundle-workload-tracker — a render-nothing subscription that tails ONE `import-bundle` workload's status
-// stream (`workloads.subscribe` — the SAME SSE seam the Workloads pane's rows use) and lifts progress + the
-// terminal outcome to the caller. Mounted by the import section ONLY while an import runs (the "mounted per
-// active row" shape of use-workload-stream); its unmount tears the SSE down. The bundle runner reports a
-// message (no pct), so progress is typically indeterminate — the section shows an indeterminate bar + label.
+// bundle-workload-tracker — a render-nothing tail on ONE `import-bundle` workload's live room (the SAME seam
+// the Workloads pane's rows use) that lifts progress + the terminal outcome to the caller. Mounted by the
+// import section ONLY while an import runs (the "mounted per active row" shape of use-workload-stream); its
+// unmount detaches the room. The bundle runner reports a message (no pct), so progress is typically
+// indeterminate — the section shows an indeterminate bar + label.
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

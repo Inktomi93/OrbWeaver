@@ -2,7 +2,7 @@
 // workloads.list + sessions.me. workloads.list server-scopes a plain caller to its own rows; an
 // owner/admin viewer gets the deployment-wide view, resolving each foreign row's owner handle through a
 // gated admin.listUsers read that never fires for a plain user. Filters are client-side tabs over the
-// one bounded list read; each active row tails workloads.subscribe.
+// one bounded list read; each active row tails its own `workloads` ROOM on the tab's ONE socket (SSE-1 S5).
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";

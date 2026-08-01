@@ -22,6 +22,7 @@
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
+import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request } from "@playwright/test";
 
 /** One SSE frame in the tRPC shape (fields each `\n`-terminated, then a blank line dispatches it). */
@@ -64,7 +65,7 @@ export interface OrbSocketRecorder {
   /** The same attaches WITH their replay request — the lens for "did this room ask for a replay?". */
   readonly attachRequests: () => readonly AttachRequest[];
   readonly detaches: () => readonly StreamRoomRef[];
-  /** Attached room KEYS (`"user"` / `"rpg:<id>"`) — the terse form for an assertion. */
+  /** Attached room KEYS (`"user"` / `"rpg:<id>"` / `"workloads:<id>"`) — the terse form for an assertion. */
   readonly attachedChannels: () => readonly string[];
 }
 
@@ -157,6 +158,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     attaches: (): readonly StreamRoomRef[] => attached.map((a) => a.ref),
     attachRequests: (): readonly AttachRequest[] => [...attached],
     detaches: (): readonly StreamRoomRef[] => detached.map((a) => a.ref),
-    attachedChannels: (): readonly string[] => attached.map(({ ref }) => ("chatId" in ref ? `${ref.channel}:${ref.chatId}` : ref.channel)),
+    // The ONE routing key, straight from the contract — a hand-rolled projection here would drift the moment
+    // a channel is keyed by something other than a chatId (the `workloads` room, S5, is keyed by workloadId).
+    attachedChannels: (): readonly string[] => attached.map(({ ref }) => roomKey(ref)),
   };
 }

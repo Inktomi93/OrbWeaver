@@ -11,18 +11,19 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_CHANNELS, streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
-import type { ChatId, SocketId } from "@orb/kit/ids";
+import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 const CHAT_A = castId<ChatId>("chat_aaa");
 const CHAT_B = castId<ChatId>("chat_bbb");
+const RUN = castId<WorkloadId>("workload_aaa");
 const SOCKET = castId<SocketId>("f7a1c0de-0000-4000-8000-000000000001");
 
 test("STREAM_CHANNELS is exactly the room-ref channel set (both directions)", () => {
   // Every channel the ref union can carry, enumerated by hand — the reverse of the declaration's
   // `satisfies readonly StreamChannel[]`, so a DROPPED union member reds here.
-  const known: StreamRoomRef["channel"][] = ["user", "notifications", "chat", "rpg", "automation"];
+  const known: StreamRoomRef["channel"][] = ["user", "notifications", "chat", "rpg", "automation", "workloads"];
   expect(new Set(STREAM_CHANNELS)).toEqual(new Set(known));
   // `control` is a FRAME channel, never a room — it must not be attachable.
   expect(STREAM_CHANNELS).not.toContain("control");
@@ -36,6 +37,9 @@ test("roomKey separates the self-scoped rooms, the per-chat rooms, and the two c
   expect(roomKey({ channel: "rpg", chatId: CHAT_A })).not.toBe(roomKey({ channel: "chat", chatId: CHAT_A }));
   // …and the same channel on two chats is two rooms.
   expect(roomKey({ channel: "rpg", chatId: CHAT_A })).not.toBe(roomKey({ channel: "rpg", chatId: CHAT_B }));
+  // The third SCOPING shape (S5): a room keyed by a workloadId, not a chatId. It gets its own arm rather
+  // than falling into the chat-scoped one — the projection is total by NAME, never by "has an id".
+  expect(roomKey({ channel: "workloads", workloadId: RUN })).toBe(`workloads:${RUN}`);
 });
 
 test("connect/detach accept a well-formed ref and refuse an unknown channel", () => {
@@ -55,4 +59,8 @@ test("attach demands the chatId on a chat-scoped ref and bounds sinceSeq", () =>
   expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "chat", chatId: CHAT_A }, sinceSeq: 1.5 }).success).toBe(false);
   // Omitted / explicit null = live-only from now.
   expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "user" }, sinceSeq: null }).success).toBe(true);
+  // The workloads room is keyed by a workloadId: a chatId does not open it, and its own id is required.
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads" } }).success).toBe(false);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", chatId: CHAT_A } }).success).toBe(false);
+  expect(streamAttachInputSchema.safeParse({ ...base, ref: { channel: "workloads", workloadId: RUN } }).success).toBe(true);
 });

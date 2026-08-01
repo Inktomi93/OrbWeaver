@@ -27,7 +27,7 @@
 // owned by the minting principal and a foreign `socketId` collapses to a leak-free NOT_FOUND (never a hijack,
 // never a FORBIDDEN that confirms existence). No frame ever carries it, and no domain ever sees it.
 
-import type { ChatId, SocketId } from "@orb/kit/ids";
+import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { AutomationBusEvent } from "#automation";
@@ -35,15 +35,18 @@ import type { ChatBusEvent } from "#chat";
 import type { InboxView } from "#notifications";
 import type { RpgBusEvent } from "#rpg";
 import type { UserBusEvent } from "#user-bus";
+import type { WorkloadEvent } from "#workloads";
 
 /** A room the client may attach to. `user`/`notifications` are self-scoped (the channel key IS the caller's
- *  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address. */
+ *  principal — no input can widen them); the three chat-scoped rooms carry the `chatId` they address, and
+ *  `workloads` carries the ONE run it tails (owner-scoped at attach, inside the room's own gate). */
 export const streamRoomRefSchema = z.discriminatedUnion("channel", [
   z.object({ channel: z.literal("user") }),
   z.object({ channel: z.literal("notifications") }),
   z.object({ channel: z.literal("chat"), chatId: brandedId<ChatId>() }),
   z.object({ channel: z.literal("rpg"), chatId: brandedId<ChatId>() }),
   z.object({ channel: z.literal("automation"), chatId: brandedId<ChatId>() }),
+  z.object({ channel: z.literal("workloads"), workloadId: brandedId<WorkloadId>() }),
 ]);
 export type StreamRoomRef = z.infer<typeof streamRoomRefSchema>;
 
@@ -52,16 +55,19 @@ export type StreamChannel = StreamRoomRef["channel"];
 
 /** The room-channel belt. Deliberately NOT named `*_EVENT_TYPES`: it is not an event union, and that suffix
  *  would drag it into the `bus-definition-belts` gate's producer/consumer belt demand. */
-export const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation"] as const satisfies readonly StreamChannel[];
+export const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "workloads"] as const satisfies readonly StreamChannel[];
 
 /** The ONE routing key — the server registry's map key AND the client handler-registry key. Accepts a ROOM
  *  REF or a DATA FRAME: both carry the same routing fields, and a delivered frame has to resolve to the same
  *  key its subscriber attached under, so the projection must not exist twice. Total: a new chat-scoped
- *  channel falls into the `chatId` arm (and fails `tsc` if it carries no `chatId`), a new self-scoped
- *  channel must be named here. */
+ *  channel falls into the `chatId` arm (and fails `tsc` if it carries no `chatId`), a new self-scoped or
+ *  otherwise-scoped channel must be named here. */
 export function roomKey(addressed: StreamRoomRef | StreamDataFrame): string {
   if (addressed.channel === "user" || addressed.channel === "notifications") {
     return addressed.channel;
+  }
+  if (addressed.channel === "workloads") {
+    return `${addressed.channel}:${addressed.workloadId}`;
   }
   return `${addressed.channel}:${addressed.chatId}`;
 }
@@ -73,7 +79,8 @@ export type StreamDataFrame =
   | { readonly channel: "notifications"; readonly seq: number; readonly event: InboxView }
   | { readonly channel: "chat"; readonly chatId: ChatId; readonly seq: number; readonly event: ChatBusEvent }
   | { readonly channel: "rpg"; readonly chatId: ChatId; readonly event: RpgBusEvent }
-  | { readonly channel: "automation"; readonly chatId: ChatId; readonly event: AutomationBusEvent };
+  | { readonly channel: "automation"; readonly chatId: ChatId; readonly event: AutomationBusEvent }
+  | { readonly channel: "workloads"; readonly workloadId: WorkloadId; readonly event: WorkloadEvent };
 
 /** The data frame a given channel delivers — the client room hook's `onEvent` payload type. */
 export type StreamFrameFor<C extends StreamChannel> = Extract<StreamDataFrame, { readonly channel: C }>;

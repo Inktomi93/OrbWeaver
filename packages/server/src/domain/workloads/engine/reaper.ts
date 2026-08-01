@@ -3,9 +3,9 @@
 // through the status-guarded markTerminal, so a returning zombie or already-moved row is not double-reaped.
 // now + the threshold are passed in — no ambient Date.now().
 
+import type { WorkloadError } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadContributions } from "../contract/contribution";
-import type { WorkloadError } from "../contract/workload-error";
 import { findStaleInFlight, markTerminal } from "../persistence/queries";
 import { emitWorkloadEvent } from "./progress-bus";
 
