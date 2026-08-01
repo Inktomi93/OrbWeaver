@@ -766,6 +766,13 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+- **WORKLOADS-PANE VOCAB + JOBS CTA (owner 08-02: "I don't even know the difference between jobs
+  and workloads"):** the pane says Workloads, its section says Jobs — same concept, two nouns;
+  pick ONE user-facing word (lean: "Jobs" for humans, workloads stays the system/code name) and
+  sweep the pane copy. SAME LANE: the Jobs two-homes CTA shape — drop the per-tab empty-state
+  CTAs on filtered tabs (the header "Run a workload…" stays; hiding it per-tab would flicker) —
+  SE-D's flagged fix. Small; side-eye the result.
+
 - ~~SMALLS LANE~~ MERGED: blur ON by default (`96c6df7d` — .catch+.default, explicit-[] survival
   pinned, CT toggle test corrected both directions; contracts audit ARCHIVED to
   docs/history/reviews/stickler/) · w4 emit order (`5272120b` — rpg-fire now precedes
