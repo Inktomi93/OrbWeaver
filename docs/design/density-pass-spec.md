@@ -273,7 +273,7 @@ Mechanism first, then surfaces, and never polish a demolition target.
 | S1 | 2 tokens (`--spacing-tight`, `--radius-inset`) + `Surface` + `tiers.css` + `Text.voice` + `Section.kicker` + `Card` delta; land the gate at the current baseline | zero-new | S0 green |
 | S2 | `@orb/ui` internal conformance (primitives emit the slots the map keys on; slot-name arm of the gate goes live) | baseline shrinks | S1 |
 | S3 | CONTEXT panel surfaces (rpg tabs, meta tabs) | baseline shrinks | **AFTER Tracker stage 2 rebuilds them** — polishing a surface that is about to be rebuilt is wasted twice |
-| S4 | settings panes | baseline shrinks | **AFTER the SET-SEAMS stages** (`docs/design/set-seams-spec.md`) — the seams move the rows before density touches them |
+| S4 | settings panes | baseline shrinks | **AFTER the SET-SEAMS stages** (`docs/history/design/set-seams-spec.md`) — the seams move the rows before density touches them |
 | S5 | LIST panes + library grids | baseline shrinks | S2 |
 | S6 | chat transcript + composer | baseline → `{}` | last — highest regression risk, most-looked-at surface |
 

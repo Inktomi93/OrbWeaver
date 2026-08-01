@@ -28,7 +28,7 @@ seam diagnosis at lines 121–134) · full-file code recon of the panel host cha
 (`docs/design/mocks/panel-redesign/DESIGN.md`).
 **Sibling specs (written aware of each other):** `docs/design/density-pass-spec.md` (S3 covers these exact
 surfaces — coordination is §9.1) · `docs/design/tracked-field-unification.md` (TRK stages 1+2 SHIPPED;
-they rebuilt the tab BODIES, this spec rebuilds the CHROME around them) · `docs/design/sse-multiplex-spec.md`
+they rebuilt the tab BODIES, this spec rebuilds the CHROME around them) · `docs/history/design/sse-multiplex-spec.md`
 (no file overlap).
 
 ---

@@ -18,7 +18,7 @@ updated: 2026-07-22
 > (58→30 files, 8 owner-domain `workload-contributions.ts` factories assembled at
 > `entry/compose/workload-contributions.ts`; the 13 `Workload<X>Env` bundles died with it). §7's
 > import/export split partially followed it (databank + import re-homed in stage D).
-> **§7 settings god-feature → ANSWERED by SET-SEAMS** (`docs/design/set-seams-spec.md`, S0-S6 all
+> **§7 settings god-feature → ANSWERED by SET-SEAMS** (`docs/history/design/set-seams-spec.md`, S0-S6 all
 > landed; ledger entry pending with the S6 seal) — the god-feature is gone. Every knob pane
 > DECOMPOSED into self-owned settings-SECTION contributions raised by the feature that READS the
 > knobs, and `features/settings` is now the SHELL plus the theme: 18 files, whose only surfaces are
@@ -198,7 +198,7 @@ updated: 2026-07-22
   - matching `use-*-form` / `use-*-mutations`). Adding a domain's settings adds a surface + form + hook
   - mutation to this one feature.
 
-- **RESOLVED 2026-08-01 by SET-SEAMS** (the bullet above; `docs/design/set-seams-spec.md` §8, receipts
+- **RESOLVED 2026-08-01 by SET-SEAMS** (the bullet above; `docs/history/design/set-seams-spec.md` §8, receipts
   per stage): S0 mechanism `30f43f69` (ONE section registry + `anchor: SettingsCategoryId` +
   `owns`/partition + the save-status seam) · S1 appearance → chat/app-shell/character `9d4646d4` ·
   S2 chat-behavior → chat `65f0865c` · S3 workloads + admin → their own features `1eaa962c` ·

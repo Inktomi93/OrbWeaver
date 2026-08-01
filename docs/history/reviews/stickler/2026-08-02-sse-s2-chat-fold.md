@@ -4,7 +4,7 @@
 touched file read in full, plus the S1 machinery the fold newly activates (`stream/socket.ts`,
 `stream/frame-queue.ts`, `stream/socket-registry.ts`, client `room-registry.ts`/`use-orb-socket.ts` —
 landed at `f2185df1`, unchanged by this diff, but chat is the FIRST durable-cursor `lag` room to ride them).
-**Law applied:** spec `docs/design/sse-multiplex-spec.md` §3.3/§4.2/§4.3/§5.3/§5.5/§6/§7/§12/§13; D106;
+**Law applied:** spec `docs/history/design/sse-multiplex-spec.md` §3.3/§4.2/§4.3/§5.3/§5.5/§6/§7/§12/§13; D106;
 D110 §3.6; Tier-4-Transport Esoteric #5; the mandated §13.3 stickler pass (this document).
 
 **VERDICT: MERGE-WITH-FIXES** — the security machinery moved intact (byte-identity verified mechanically;

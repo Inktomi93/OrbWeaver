@@ -24,7 +24,7 @@ editors (§6.4 states the seam), and the config-rail fork (§11 states compositi
 number-field surfaces, and the ST reference at `~/inktomi-stack/SillyTavern` (`public/index.html`
 range-block anatomy, `public/scripts/PromptManager.js` row anatomy). Law read IN FULL:
 `density-pass-spec.md` (approved), `list-pane-projection-proposal.md` (§11/§12 ratified),
-`hud-home-spec.md`, D115/D116/D117 ledger rows, the marinara mines + `parity-plus-program-spec.md`.
+`docs/history/design/hud-home-spec.md`, D115/D116/D117 ledger rows, the marinara mines + `parity-plus-program-spec.md`.
 Rendered receipts: the dev stage (:5173) serves, but the snap stage is a GLOBAL port singleton with
 side-eye lanes in flight (workboard §ORCHESTRATION GOTCHAS) — this pass deliberately did NOT seize it;
 every claim below is grounded in full component-tree reads, and the build's own side-eye owns the
