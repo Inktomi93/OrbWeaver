@@ -57,6 +57,19 @@ export interface ChatSummary {
   /** The seq/timestamp of the newest message (null for an empty just-created chat). */
   readonly lastMessageAt: number | null;
   readonly messageCount: number;
+  /** The list row's SCENT line: the newest visible message flattened to ONE line of plain text
+   *  (`@orb/kit/content::projectBodyForPreview` — hidden-class spans + structured spans dropped, markdown
+   *  flattened, ~120 chars). `null` when there is nothing this CALLER may see: an empty chat, a body that was
+   *  all structure, or — the member-visibility arm — a viewer whose D16 history floor sits ABOVE the newest
+   *  row (their whole readable window is empty, so a preview would be the one surface leaking pre-join canon).
+   *  Per-caller by construction: the floor is resolved from the viewer's own participant row, never stamped. */
+  readonly lastMessagePreview: string | null;
+  /** Is this chat a LIVE GAME (rpg-design/05 §2.1)? The ONE takeover-gate predicate (`isRpgEngaged`) over the
+   *  opaque `metadata.rpg` pointer this row already carries — the SAME sync surface `ChatDetail.rpg` and every
+   *  client rpg gate read, so the list marker can never disagree with the chat it opens (chat stays
+   *  rpg-table-blind: no join, no cross-domain read; a detached/healed pointer, or a game toggled OFF, is
+   *  `false` — a disengaged game shows no panel, so it shows no marker). */
+  readonly isGame: boolean;
   /** The resolved present cast for the list-card avatars (names only — the heavy roster is `getChat`). */
   readonly participantNames: readonly string[];
   /** The character-SEAT ids in this chat — the reverse "which chats include character X" read backing the

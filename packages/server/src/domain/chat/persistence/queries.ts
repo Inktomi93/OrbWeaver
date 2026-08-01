@@ -237,6 +237,36 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
   return out;
 }
 
+/** The NEWEST VISIBLE canon row per chat — its `seq` (the caller's floor verdict is decided on it) + the
+ *  selected variant's raw body, for the `ChatSummary.lastMessagePreview` scent line. Batched over a set of
+ *  ids in ONE read (a `row_number()` window partitioned by chat, `rn = 1`) — never a per-chat query, so the
+ *  library list stays one page = a fixed number of reads. Same VISIBILITY predicate as
+ *  {@link loadChatMessageStats} (selected variant ⋈ `notStateAnchor`), so the row that sets `lastMessageAt`
+ *  is the row that supplies the preview. A chat with no visible message is absent from the map. */
+export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { seq: number; content: string }>> {
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for the per-chat last message
+  const out = new Map<ChatId, { seq: number; content: string }>();
+  if (chatIds.length === 0) {
+    return out;
+  }
+  const ranked = db
+    .select({
+      chatId: messages.chatId,
+      seq: messages.seq,
+      content: messageVariants.content,
+      rn: sql<number>`row_number() over (partition by ${messages.chatId} order by ${messages.seq} desc)`.as("rn"),
+    })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(inArray(messages.chatId, [...chatIds]), notStateAnchor()))
+    .as("ranked");
+  const rows = await db.select({ chatId: ranked.chatId, seq: ranked.seq, content: ranked.content }).from(ranked).where(eq(ranked.rn, 1));
+  for (const r of rows) {
+    out.set(r.chatId, { seq: r.seq, content: r.content });
+  }
+  return out;
+}
+
 /** The character-seat ids per chat (the reverse "which chats include character X" read). Batched over a
  *  set of chatIds (one junction read, no N+1). Deduped; includes departed seats (no `leftSeq` filter) —
  *  Activity wants "every chat you've had with them." A chat with no seats is absent from the map. */

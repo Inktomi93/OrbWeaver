@@ -13,7 +13,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
-import { Icon, Star } from "@orb/ui/icons";
+import { Icon, Star, Swords } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
 import { cn, timeLib } from "#lib";
@@ -40,7 +40,7 @@ export function ChatSummaryRow({ chat, onSelect, selected = false, portraitHash,
   const { title, subtitle, when } = chatSummaryRowView(chat);
   // exactOptionalPropertyTypes: omit `src` entirely when there's no portrait so Avatar takes its fallback.
   const avatarSrc = portraitHash === undefined || portraitHash === null ? {} : { src: blobUrl(portraitHash) };
-  const hasTrailing = chat.star || chat.archived || menu !== undefined;
+  const hasTrailing = chat.isGame || chat.star || chat.archived || menu !== undefined;
   return (
     <ListRow
       // The relative-time stamp now rides the ListRow `meta` slot — inside the row's accessible content
@@ -50,6 +50,9 @@ export function ChatSummaryRow({ chat, onSelect, selected = false, portraitHash,
         ? {
             actions: (
               <>
+                {/* The GAME marker (rpg-design/05 §2.1 — `metadata.rpg` presence): the quiet twin of the star,
+                    labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
+                {chat.isGame ? <Icon className="text-muted-foreground" icon={Swords} label="Game chat" size="sm" /> : null}
                 {chat.star ? <Icon className="text-warning" icon={Star} label="Starred" size="sm" /> : null}
                 {chat.archived ? (
                   <Badge intent="neutral" size="sm" tone="soft">

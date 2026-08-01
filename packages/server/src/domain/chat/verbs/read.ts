@@ -25,6 +25,7 @@ import type {
   ChatInjection,
   ChatMacroNameProducer,
   ContextFitPreview,
+  JoinHistoryVisibility,
   MemberCardView,
   MemberCardVisibility,
   MessageView,
@@ -32,9 +33,12 @@ import type {
 } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -88,6 +92,7 @@ import {
   loadCanonHistory,
   loadChatEventBounds,
   loadChatEventReplay,
+  loadChatLastMessages,
   loadChatMessageStats,
   loadChatParticipantCharacterIds,
   loadChatRow,
@@ -97,7 +102,7 @@ import {
   loadStreamBounds,
   loadStreamReplay,
 } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
+import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import {
@@ -115,7 +120,7 @@ import {
   shapeTurn,
   toShapeCanon,
 } from "../substrate/assembly-access";
-import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility } from "../substrate/auth";
+import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember } from "../substrate/member-visibility";
@@ -190,9 +195,12 @@ interface ChatSummaryInputs {
   readonly participants: readonly ParticipantView[];
   readonly participantCharacterIds: readonly CharacterId[];
   readonly viewerUserId: UserId;
+  /** The already-resolved per-caller scent line (see {@link buildSummaryPreview}) — `null` = nothing this
+   *  viewer may see. Resolved by the caller so the mapper stays pure (no clamp re-derivation here). */
+  readonly lastMessagePreview: string | null;
 }
 
-function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId }: ChatSummaryInputs): ChatSummary {
+function toChatSummary({ row, stat, participants, participantCharacterIds, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
     title: row.title,
@@ -201,6 +209,10 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
     parentChatId: row.parentChatId,
     lastMessageAt: stat.lastMessageAt,
     messageCount: stat.messageCount,
+    lastMessagePreview,
+    // The ONE takeover-gate predicate over the opaque pointer (§2.1) — never a re-spelled null-check, so the
+    // list marker and every client rpg gate agree (a DISENGAGED game shows no panel, so it shows no marker).
+    isGame: isRpgEngaged(row.metadata.rpg),
     participantNames: participants.map((p) => p.displayName),
     participantCharacterIds,
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The
@@ -215,7 +227,35 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
 /** The canon stats for a chat with no messages (absent from the batched aggregate). */
 const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
 
-/** Resolve a set of chat rows → `ChatSummary[]` (the canon stats batched in one read; the names per chat).
+/**
+ * The per-caller SCENT line for one listed chat — the newest visible row, projected to one plain-text line.
+ *
+ * THE MEMBER-VISIBILITY ARM (the reason this is not just "format the last message"): the preview is decided
+ * against the viewer's OWN D16 history floor, resolved from their own participant row by the ONE clamp
+ * resolver (`resolveHistoryFloorSeq`) — never stamped, never shared between viewers. Because the floor is a
+ * MINIMUM `messages.seq`, the newest row is the last row that can clear it: `seq < floor` ⇒ the viewer's whole
+ * readable window is empty ⇒ NO preview (not "the next one down" — a `from-join` member must see nothing of
+ * the pre-join transcript, and walking backward would hand them exactly that). FAIL-CLOSED on an absent
+ * membership row (`undefined` ⇒ no preview), so a listing path that ever stopped gating cannot leak a body.
+ * The hidden-class strip is UNCONDITIONAL (inside `projectBodyForPreview`), so the veiled case is safe for
+ * every viewer including the host — a `<lie>`'s truth is never list chrome.
+ */
+function buildSummaryPreview(
+  last: { seq: number; content: string } | undefined,
+  membership: { readonly role: ParticipantRole; readonly joinSeq: number; readonly joinHistoryVisibility: JoinHistoryVisibility } | undefined,
+): string | null {
+  if (last === undefined || membership === undefined) {
+    return null;
+  }
+  if (last.seq < resolveHistoryFloorSeq(membership)) {
+    return null;
+  }
+  const preview = projectBodyForPreview(last.content);
+  return preview.length > 0 ? preview : null;
+}
+
+/** Resolve a set of chat rows → `ChatSummary[]` (the canon stats, the last-message bodies, the caller's own
+ *  visibility rows and the character seats each batched in ONE read — no N+1; the names per chat).
  *  Shared by listChats / listForks / getChatLineage. */
 async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummary[]> {
   if (rows.length === 0) {
@@ -223,6 +263,8 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
   }
   const chatIds = rows.map((r) => r.id);
   const stats = await loadChatMessageStats(db, chatIds);
+  const lastMessages = await loadChatLastMessages(db, chatIds);
+  const visibility = await loadPresentVisibilityRows(db, chatIds, viewerUserId);
   const characterIdsByChat = await loadChatParticipantCharacterIds(db, chatIds);
   const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
   return enriched.map(({ row, names }) =>
@@ -232,6 +274,7 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
       participants: names,
       participantCharacterIds: characterIdsByChat.get(row.id) ?? [],
       viewerUserId,
+      lastMessagePreview: buildSummaryPreview(lastMessages.get(row.id), visibility.get(row.id)),
     }),
   );
 }
