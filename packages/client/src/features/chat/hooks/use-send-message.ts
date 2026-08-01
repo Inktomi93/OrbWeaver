@@ -6,7 +6,7 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
-import { createEntityMutation, uploadAsset, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
 import type { DraftCarry } from "../lib/draft-commit";
@@ -65,17 +65,18 @@ export interface UseSendMessageResult {
   readonly clearError: () => void;
 }
 
-async function uploadAttachments(attachments: readonly File[]): Promise<AssetId[]> {
+async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, attachments: readonly File[]): Promise<AssetId[]> {
   if (attachments.length === 0) {
     return [];
   }
-  const stored = await Promise.all(attachments.map((file) => uploadAsset(file, "attachment")));
+  const stored = await Promise.all(attachments.map((file) => upload(file, "attachment")));
   return stored.map((s) => s.assetId);
 }
 
 export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResult {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const startChatMutation = useStartChatMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
@@ -86,7 +87,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   // before the event can arrive. A send that fails before commit never fires the user-role
   // messageCommitted, so onDraftCommitted never runs and the draft survives for retry untouched.
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
-    const attachmentAssetIds = await uploadAttachments(attachments);
+    const attachmentAssetIds = await uploadAttachments(upload, attachments);
     let committedChatId: ChatId | null = isCommitted(opts.handle) ? opts.handle.id : null;
     let unsubscribe: (() => void) | null = null;
     try {
