@@ -93,7 +93,7 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   // muted glyph + the badge; the dashed edge is what makes "not built yet" legible from across the grid.
   const frame = [span === "full" ? "col-span-full" : "", dormant === null ? "" : "border-dashed"].filter((c) => c !== "").join(" ");
   return (
-    <Card padding="block" className={frame === "" ? undefined : frame} data-home-tile={tile.id} role="region" aria-labelledby={headingId}>
+    <Card className={frame === "" ? undefined : frame} data-home-tile={tile.id} role="region" aria-labelledby={headingId}>
       <Stack gap="row">
         <TileHeader
           headingId={headingId}

@@ -1,0 +1,43 @@
+/* @orb/ui — the density tier map, made executable (density-pass-spec.md §4.2).
+ *
+ * HAND-AUTHORED (unlike theme.css): this file maps SLOT NAMES to token steps, and a slot name is not
+ * token data. It is imported UNLAYERED beside theme.css, which is the whole mechanism: Tailwind v4 emits
+ * every utility into `@layer utilities`, and an unlayered rule beats any layered rule regardless of
+ * specificity. So a primitive's own utility default (`p-block` on Card) is the TIER-LESS fallback, and
+ * these rules take over inside a `<Surface>`. Proven by computed value, never by reading the source:
+ * tests/ui/density-tier.suite.ct.tsx (density-pass-spec.md §4.2 build step 0).
+ *
+ * WHY THE INDIRECTION THROUGH A CUSTOM PROPERTY rather than the spec's illustrative
+ * `[data-surface-tier="instrument"] [data-slot="card-root"] { padding: … }` pair: those two rules have
+ * IDENTICAL specificity, so a nested surface would resolve by SOURCE ORDER — an `instrument` surface
+ * inside a `form` one would silently paint form steps (both selectors match). Custom properties INHERIT,
+ * so `--orb-tier-*` always carries the NEAREST tier ancestor's value and nesting resolves correctly in
+ * both directions (§5.3 CT 5 pins it). The consuming rules stay scoped to `[data-surface-tier] …` so a
+ * primitive outside every Surface keeps its own utility default instead of resolving an unset var.
+ *
+ * These are PRIVATE vars (`--orb-` prefix, the globals.css `--orb-ws-*` precedent), never DTCG tokens:
+ * their VALUES are tokens, their names are this file's plumbing. */
+
+[data-surface-tier="instrument"] {
+  /* instrument — read-mostly, glanceable, many data per cm²; chrome is subtracted until only data is left. */
+  --orb-tier-island-pad: var(--spacing-row);
+  --orb-tier-island-radius: var(--radius-base);
+}
+
+[data-surface-tier="form"] {
+  /* form — write-mostly, one decision per row; chrome carries grouping and affordance. */
+  --orb-tier-island-pad: var(--spacing-block);
+  --orb-tier-island-radius: var(--radius-card);
+}
+
+[data-surface-tier] [data-slot="card-root"] {
+  padding: var(--orb-tier-island-pad);
+  border-radius: var(--orb-tier-island-radius);
+}
+
+/* ELEVATED is the explicit opt-in that outranks the tier (density-pass-spec.md §2.1: `--radius-card` is
+ * the floating-island step). It must be spelled HERE, unlayered, because a `rounded-card` utility on the
+ * card would lose to the tier rule above. */
+[data-surface-tier] [data-slot="card-root"][data-elevated] {
+  border-radius: var(--radius-card);
+}
