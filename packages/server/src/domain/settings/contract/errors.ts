@@ -12,6 +12,9 @@ export const SETTINGS_OP_CODES = {
   reservedKey: "reserved_key",
   /** createTheme/updateTheme custom CSS failed css-validate (a containment-break shape). */
   unsafeCss: "unsafe_css",
+  /** A `routing.roleDefaults` patch pinned a model on a source that serves only its configured one
+   *  (substrate/routing-coherence.ts) — the `{source:"vllm", model:"anthropic/…"}` pair that 404s a turn. */
+  incoherentRoleModel: "incoherent_role_model",
 } as const;
 
 /** A theme the caller may read/own does not exist (or is not theirs, or is a seed on a write verb). Maps to

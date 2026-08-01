@@ -5,7 +5,8 @@
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
 import { deriveTrackersReadOnly } from "@orb/server/domain/rpg";
 import { env } from "@orb/server/foundation/env";
-import { afterEach, describe } from "vitest";
+import { logger } from "@orb/server/foundation/observability";
+import { afterEach, describe, vi } from "vitest";
 import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
 import { __resetOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -456,5 +457,69 @@ describe("resolveRole — vllm gen window truth order (engine self-report WINS o
 
     expect(conn.credential.source).toBe("vllm");
     expect(conn.capability.context.window).toBe(env.VLLM_GEN_MAX_MODEL_LEN);
+  });
+});
+
+// THE READ-SIDE HEAL. The live dev row held `{api:"chat-completions", source:"vllm",
+// model:"anthropic/claude-sonnet-5"}` — a pair the write boundary now prevents, but stored rows already
+// carry it, and the resolver used to hand that id straight to the local engine (a 404 on every turn). vllm /
+// local-light serve the model they were CONFIGURED with, so a foreign pin resolves to that configured model
+// — and says so at WARN (D41: never a silent degrade, never a silent 404 loop either).
+/** Narrow a captured pino call's first arg (the merge object) so the log fields can be asserted by NAME —
+ *  the structured fields are the contract, not the message text. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+describe("resolveRole — a stored model that cannot belong to a server-configured source", () => {
+  test("the live 404 pair (vllm × an OpenRouter model) resolves to the ENGINE's model, loudly", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm", model: "anthropic/claude-sonnet-5" } });
+    const warn = vi.spyOn(logger, "warn");
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("vllm");
+    expect(conn.model).toBe(env.VLLM_GEN_MODEL); // NOT the stale pin — the row heals without a DB touch
+    // The degrade is NAMED: both the ignored pin and what it resolved to, or an operator debugging a 404
+    // has no way to learn the settings row was overruled.
+    const line = warn.mock.calls.find(([fields]) => isRecord(fields) && fields["storedModel"] === "anthropic/claude-sonnet-5");
+    expect(line).toBeDefined();
+    expect((line?.[0] as Record<string, unknown>)["resolvedModel"]).toBe(env.VLLM_GEN_MODEL);
+    warn.mockRestore();
+  });
+
+  test("re-pinning the engine's OWN model is not a degrade — same model, no warning", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm", model: env.VLLM_GEN_MODEL } });
+    const warn = vi.spyOn(logger, "warn");
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.model).toBe(env.VLLM_GEN_MODEL);
+    expect(warn.mock.calls.some(([fields]) => isRecord(fields) && "storedModel" in fields)).toBe(false);
+    warn.mockRestore();
+  });
+
+  test("the heal is per-ROLE — an embed pin heals to the embed engine's model, not the gen one", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ embed: { source: "vllm", model: "text-embedding-3-large" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+
+    expect(conn.model).toBe(env.VLLM_EMBED_MODEL);
+  });
+
+  test("a custom_openai pin rides through UNTOUCHED — a BYO endpoint's model set is undecidable here", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "custom_openai", model: "my-own-server/whatever" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+
+    expect(conn.model).toBe("my-own-server/whatever");
   });
 });
