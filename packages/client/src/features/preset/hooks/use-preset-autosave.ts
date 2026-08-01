@@ -50,7 +50,7 @@ export interface PresetAutosaveDeps {
 }
 
 /** The open question: this edit targets the built-in and the owner already has a fork of it. */
-export interface PresetForkChoicePrompt {
+interface PresetForkChoicePrompt {
   /** The built-in default's name. */
   readonly sourceName: string;
   /** The fork "keep editing" would land on (the server's convergence pick — the oldest). */
