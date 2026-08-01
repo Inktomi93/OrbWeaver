@@ -9,6 +9,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
+import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
 import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellStory } from "../_ct-stories";
 
 /** The getUserSettings read-model the Appearance pane suspends on — defaults are enough to render it. */
@@ -102,6 +103,10 @@ test("System + Connections are real panes; Automation stays a teaching placehold
     "settings.getAppSettings": () => APP_CONFIG,
     "sessions.me": () => OWNER_VIEWER,
     "credentials.list": () => [],
+    // The Connections pane's role rows ALSO read the server's own chat resolution. Unstubbed it answered
+    // `{data:null}` and the surface threw (`Cannot read properties of null`) into its QueryErrorState —
+    // a latent hole that only reddened once the decomposed appearance pane changed the mount timing.
+    "connection.resolveChatCapability": () => makeResolvedChatCapability(),
   });
   const component = await mount(<SettingsShellStory />);
 

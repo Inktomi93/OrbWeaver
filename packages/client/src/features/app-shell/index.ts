@@ -7,6 +7,13 @@
 export { YouSheet } from "./components/you-sheet";
 export type { ShellLayout } from "./hooks/use-shell-layout";
 export { useShellLayout } from "./hooks/use-shell-layout";
+// The four app-shell-owned appearance SECTIONS (SET-SEAMS stage 1): app-shell reads these knobs (the shell
+// scope tokens, the content-width clamp, `data-elevation`/`data-reduced-motion`, the reading scope, the
+// glass/texture effects, the painted background), and §6's rule is that a section is owned by its reader.
+export { appearanceBackgroundSection } from "./lib/appearance-background-section";
+export { appearanceEffectsSection } from "./lib/appearance-effects-section";
+export { appearanceReadingSection } from "./lib/appearance-reading-section";
+export { appearanceSizingSection } from "./lib/appearance-sizing-section";
 export { contextToggleChrome } from "./lib/context-toggle-chrome";
 export { fullscreenChrome } from "./lib/fullscreen-chrome";
 export { youModal } from "./lib/you-modal";

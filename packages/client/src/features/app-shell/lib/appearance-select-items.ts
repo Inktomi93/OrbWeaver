@@ -1,58 +1,18 @@
-// The labelled Select/option tables for the appearance settings surface — pure data, not JSX. Each
-// `value` is pinned to the AppearanceSettings field union via `satisfies`, so a typo'd value is a tsc
-// error, not a silently-unselectable option.
+// The labelled Select/option tables for the APP-SHELL-owned appearance sections (sizing & motion · effects
+// · background) — pure data, not JSX. Each `value` is pinned to the AppearanceSettings field union via
+// `satisfies`/a total `Record`, so a typo'd value is a tsc error, not a silently-unselectable option.
+//
+// Split out of the settings feature's one `appearance-select-items.ts` at SET-SEAMS stage 1: the appearance
+// pane decomposed into sections owned by their READERS, and app-shell is the reader of every knob below
+// (`surfaces/app-shell.tsx` + `#lib`'s background resolver). The chat-owned half (chat display / avatars /
+// message actions) lives at `features/chat/lib/appearance-select-items.ts`. The two THEME-shaped tables a
+// third feature also renders (chatStyle/density) home at `#lib` instead.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
-import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
+import { BACKGROUND_IMAGE_KINDS } from "@orb/contracts/theme";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
 import { BACKGROUND_KIND_LABELS, listSeededBackgrounds } from "#lib";
-
-const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
-  bubble: "Bubble",
-  flat: "Flat",
-  document: "Document",
-  echo: "Echo (bled portrait)",
-  whisper: "Whisper (avatar banner)",
-  hush: "Hush (flat + speaker stripe)",
-  ripple: "Ripple (VN sticky portrait)",
-  tide: "Tide (paragraph bubbles)",
-};
-export const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
-  value,
-  label: CHAT_STYLE_LABELS[value],
-}));
-
-const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
-  comfortable: "Comfortable",
-  compact: "Compact",
-};
-export const DENSITY_ITEMS: SelectItems<string> = THEME_DENSITIES.map((value) => ({
-  value,
-  label: DENSITY_LABELS[value],
-}));
-
-export const AVATAR_SIZE_ITEMS: SelectItems<string> = [
-  { value: "sm", label: "Small" },
-  { value: "md", label: "Medium" },
-  { value: "lg", label: "Large" },
-] satisfies readonly { value: AppearanceSettings["avatarSize"]; label: string }[];
-
-export const AVATAR_SHAPE_ITEMS: SelectItems<string> = [
-  { value: "round", label: "Round" },
-  { value: "square", label: "Square" },
-  { value: "rounded", label: "Rounded" },
-] satisfies readonly { value: AppearanceSettings["avatarShape"]; label: string }[];
-
-export const AVATAR_ASPECT_ITEMS: SelectItems<string> = [
-  { value: "square", label: "Square" },
-  { value: "portrait", label: "Portrait (2:3)" },
-] satisfies readonly { value: AppearanceSettings["avatarAspect"]; label: string }[];
-
-export const AVATAR_RING_ITEMS: SelectItems<string> = [
-  { value: "none", label: "None" },
-  { value: "accent", label: "Accent" },
-] satisfies readonly { value: AppearanceSettings["avatarRing"]; label: string }[];
 
 export const ELEVATION_ITEMS: SelectItems<string> = [
   { value: "flat", label: "Flat" },
@@ -65,11 +25,6 @@ export const SURFACE_TEXTURE_ITEMS: SelectItems<string> = [
   { value: "none", label: "None" },
   { value: "grain", label: "Film grain" },
 ] satisfies readonly { value: AppearanceSettings["surfaceTexture"]; label: string }[];
-
-export const MESSAGE_ACTIONS_ITEMS: SelectItems<string> = [
-  { value: "hover", label: "Reveal on hover" },
-  { value: "expanded", label: "Always visible" },
-] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];
 
 // `messages` carries the reading-surface warning in its own label (never default-checked).
 const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], string> = {

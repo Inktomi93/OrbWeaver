@@ -22,6 +22,9 @@ export type {
 export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
+export { appearanceAvatarsSection } from "./lib/appearance-avatars-section";
+export { appearanceMessageDetailsSection } from "./lib/appearance-message-details-section";
+export { appearanceMessageStyleSection } from "./lib/appearance-message-style-section";
 export { chatOptionsChrome } from "./lib/chat-options-chrome";
 export { chatSlashCommands } from "./lib/chat-slash-commands";
 export { deriveChatTitle } from "./lib/chat-summary-row";
