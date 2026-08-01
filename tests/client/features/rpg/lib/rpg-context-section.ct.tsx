@@ -130,7 +130,7 @@ function trackerView(trackersReadOnly: boolean): unknown {
     // A cast member's carried trackers + readings, resolved server-side (empty here — this stub's cast
     // carries none, so the Scene renders her row without tracked values).
     castTrackers: {},
-    castConditions: {},
+    castVolatile: {},
     gameTrackers: [],
     quests: [{ id: "q1", name: "Keep the bone key", status: "active", description: "", objectives: [{ id: "o1", text: "Hold the door", completed: true }] }],
     recentBeats: ["The rain has not let up since dusk."],

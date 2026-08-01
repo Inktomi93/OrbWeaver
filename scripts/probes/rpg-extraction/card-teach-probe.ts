@@ -197,7 +197,7 @@ function armReminder(teach: string, beats: readonly string[]): string {
     cast: [{ key: "Marrow", name: "Marrow", emoji: "🩶", mood: "wary", relationship: { kind: "custom", label: "fixer" } }],
     trackerDefs: [...TRACKERS],
     castTrackers: { Marrow: [{ def: TRACKERS[1] as RpgTrackerDef, value: { value: 55, items: null, max: null } }] },
-    castConditions: {},
+    castVolatile: {},
     gameTrackers: [],
     quests: [],
     plot: null,
