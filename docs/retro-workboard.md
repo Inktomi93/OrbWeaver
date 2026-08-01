@@ -257,7 +257,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
      ledger claim verified; claim/reap/baseline/poison/heartbeat/wake all clean. TWO findings →
      FIX LANE IN FLIGHT: F1 MEDIUM `scheduledAt` NEVER enforced at dispatch (pre-existing; "Run
      at" runs immediately; lane test enshrined it — invert + starvation-ordering check) · F2 LOW
-     worker header claims an enqueue wake that doesn't exist (emit at door or correct header).
+     worker header claims an enqueue wake that doesn't exist (emit at door or correct header) ·
+     +OWNER ADDITION: `dependsOn` same-suspicion — DAG machinery exists (queries.ts:36-53,259-292)
+     but dispatch enforcement UNVERIFIED post-stage-E rewrite; lane verifying + wiring + 4
+     regressions (pending-dep holds, dispatches on success, failure arm per machinery semantics,
+     no lane starvation).
    - [x] stats.reconcile guard: A1 assessed acceptable-as-shipped (atomic batch, own-data only,
      button disables) AND owner ruled single-flight anyway — GUARD LANE IN FLIGHT (wait-not-cancel).
    - [ ] side-eye rider: lane group headings + Recompute-now button → fold into the COMBINED
