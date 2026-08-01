@@ -14,6 +14,7 @@ law, the `@orb/ui` primitive law, and the a11y gates apply to the BUILD, never t
 | Path | What |
 | - | - |
 | `panel-redesign/` | the chat context-panel strip, per-tab + `all-tabs.html` (the full strip) + `DESIGN.md`. **`this-chat-overrides.html` (07-29) is NEWER and WINS over `all-tabs.html` on Settings/Injections** — the superseded panes in `all-tabs.html` carry visible banners. |
+| `home-section/home.html` | the HOME section — the tile grid, the glyph-as-affordance rail, the dormant doorways, the temp-chat launcher (`../home-section-spec.md`). |
 | `crunchy-cluster-redesign/DESIGN.md` | the rpg state-round / tracker / wand / fork program — the spec home D111 cites. |
 | `waystone/` | reference renders of the Waystone dial across time-of-day × weather × theme. |
 | `osrs-fixed-interface.png`, `osrs-tabs/` | the OSRS fixed-screen interface — the source anatomy for the panel strip (`Context-Panel-Program.md` §CP-4). |
