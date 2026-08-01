@@ -80,8 +80,13 @@ Origin: pushed through `32539eda` mid-day; everything since is LOCAL (next push 
   caption wrap). Merge on report (--no-verify while load high; batch check covers).
 · SE-C `a0c461b088749fa65` — ui cluster (TabsPanel FOCUS_RING · Button inline arm ×13 · icon
   tiles · bubble single-home · dialogue hue via D71) + the BLESSED --color-sheen token addition.
-· V1 `a2111779d0b28b190` — preset wave-2: five-view shell + Params deck/KnobRow (fence: zero
-  app-shell edits; only the preset pane door line legal).
+· ~~V1~~ MERGED (`f7e8bb89`, unhooked — batch-check debt): five-view strip + params deck LIVE
+  (KnobRow ghost=placeholder idiom [B1 has no NumberField tone]; maxContextTokens ghosts from
+  capability under its OWN `window` rung; --width-label-col minted; MANAGED_VERBATIM_TAIL lifted
+  to contracts [two consumers one home]; maxBudgetUsd got NO editor — D6 stays an OWNER FORK:
+  verify the wire enforces budgets, then editor-or-delete; roundtrip helper grew dotted paths).
+  V2 scope = P3-P5: readouts + section-editor consolidation [bridge+inspector die] + list
+  projection + Actions rebuild + DELIVERY cluster + rest-of-surface density shrink.
 · nav-label `a512a625a8eb468a4` — SettingsSubcategory.navLabel split ("Message details").
 
 **THEN, IN ORDER:** batch `pnpm check` → **R1** (op-shaped patchActor + dismissActor — the
