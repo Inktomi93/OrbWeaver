@@ -912,7 +912,14 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(gameState?.detail).toBe("state block");
     expect(gameState?.tokens).toBeGreaterThan(0);
     // Turnless + dice-ineligible: the preview never marks a turn or feeds a queued roll.
-    expect(gatherTurnContext).toHaveBeenCalledWith(chatId, undefined, false, expect.objectContaining({ char: expect.any(String) }));
+    expect(gatherTurnContext).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chatId,
+        pendingUserText: undefined,
+        respondsToLatestUserTurn: false,
+        steerIdentity: expect.objectContaining({ char: expect.any(String) }),
+      }),
+    );
   });
 
   // ── the persona-swap CONTEXT leak (owner report 2026-08-01) ────────────────────────────────────────

@@ -2672,16 +2672,15 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
 // reminder describes the very prose the model is being asked to rewrite). Chat owns slot mechanics and is the
 // only side that knows which slot this is — this pins the thread, so the rpg-side fix can never be dead wire.
 
-/** A minimal `ctx.rpg` recording the `regenSlotMessageId` (5th positional arg) each gather was handed. */
+/** A minimal `ctx.rpg` recording the `regenSlotMessageId` each gather args object was handed. */
 function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const slots: (MessageId | undefined)[] = [];
   // FABRICATION-OK: the turn path reaches only these ops (the `foldedRpg` stub above's precedent).
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
-    // Variadic (not 5 named params): the injected contract is POSITIONAL and this stub only needs the 5th.
-    gatherTurnContext: (...args: unknown[]) => {
-      slots.push(args[4] as MessageId | undefined);
+    gatherTurnContext: (args: { regenSlotMessageId?: MessageId }) => {
+      slots.push(args.regenSlotMessageId);
       return Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0 });
     },
     markDicePreRollEligible: () => undefined,

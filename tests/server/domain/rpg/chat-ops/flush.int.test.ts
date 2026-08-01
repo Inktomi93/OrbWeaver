@@ -253,7 +253,7 @@ test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then as
 
   // Turn 2's gather starts while turn 1's flush is STILL in flight. It must block on the barrier.
   let gatherResolved = false;
-  const gather2 = h.chatOps.gatherTurnContext(chatId, undefined, false).then((result) => {
+  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }).then((result) => {
     gatherResolved = true;
     return result;
   });
@@ -293,7 +293,7 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   // before onTurnCompleted's first await) so the gather kicked off on the very next line sees the entry.
   const flush1 = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
   let gatherResolved = false;
-  const gather2 = h.chatOps.gatherTurnContext(chatId, undefined, false).then((r) => {
+  const gather2 = h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }).then((r) => {
     gatherResolved = true;
     return r;
   });
@@ -563,7 +563,7 @@ test("R1: a turn whose fold-mount failed lands its state via the fallback round 
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldedToolsThrow: true });
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
-  await h.chatOps.gatherTurnContext(chatId, undefined, false); // the mount throws + is swallowed here
+  await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }); // the mount throws + is swallowed here
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: null }));

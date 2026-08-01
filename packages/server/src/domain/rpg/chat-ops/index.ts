@@ -15,7 +15,7 @@
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgGatherResult, ChatRpgOps, RpgTurnContext } from "../../chat";
+import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "../../chat";
 import type { RpgContext } from "../contract/service";
 import { mintLiteGame } from "../game-mint";
 import { findGameByChat } from "../persistence/games";
@@ -111,15 +111,14 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // DISENGAGED game (#40) yields `[]`: the turn resolves preset macros only, byte-identical to no game.
     resolveUserMacros: async (chatId): ReturnType<ChatRpgOps["resolveUserMacros"]> => (await findEngagedGame(chatId))?.config.userMacros ?? [],
     // GATHER (§4.7): the depth-0 reminder injection + the resolved-mode tool set (cheap-with-tools) or none
-    // (readonly). `pendingUserText`/`respondsToLatestUserTurn` are full's dice-feed inputs — lite
-    // has no checks, so the gather ignores them. `steerIdentity` is chat's authoritative `{{user}}`/`{{char}}`
-    // binding, threaded so the reminder renders the host steeringNote's identity macros (rpg splices, never
-    // re-derives). `regenSlotMessageId` is chat's swipe/reroll target — the turn's state reads resolve as of
-    // BEFORE that slot so a reroll is never told the abandoned variant's beats (VER-1b). `null` for a non-game
-    // chat (byte-identical).
-    // Rest-taken (the contract is 5-positional): lite consumes chatId + steerIdentity + the regen slot; the
-    // two dice-feed inputs at 1/2 are full's, and destructuring them into named holes buys nothing here.
-    gatherTurnContext: (...args): Promise<ChatRpgGatherResult | null> => gatherTurnContext(ctx, args[0], args[3], args[4]),
+    // (readonly). `args.pendingUserText`/`args.respondsToLatestUserTurn` are full's dice-feed inputs — lite
+    // has no checks, so the gather ignores them (never threaded through to the impl below). `args.steerIdentity`
+    // is chat's authoritative `{{user}}`/`{{char}}` binding, threaded so the reminder renders the host
+    // steeringNote's identity macros (rpg splices, never re-derives). `args.regenSlotMessageId` is chat's
+    // swipe/reroll target — the turn's state reads resolve as of BEFORE that slot so a reroll is never told the
+    // abandoned variant's beats (VER-1b). `null` for a non-game chat (byte-identical).
+    gatherTurnContext: (args: GatherTurnContextArgs): Promise<ChatRpgGatherResult | null> =>
+      gatherTurnContext(ctx, args.chatId, args.steerIdentity, args.regenSlotMessageId),
     // Lite has no d20 checks to feed a die into — a no-op (full's staging eligibility set).
     markDicePreRollEligible: (): void => undefined,
     onUserCommit,

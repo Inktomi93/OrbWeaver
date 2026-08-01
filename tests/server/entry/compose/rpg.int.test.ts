@@ -748,7 +748,7 @@ test("D112 fold guard: a BORN-FOLDED game mounts terminal tools on a hosted wire
   const hostedChat = await seedHostGameChat(db, "guard-hosted");
   const hostedRpg = buildRpgWithCapability(app, db, hosted);
   await hostedRpg.service.createGame({ principal: hostPrincipal(hostedChat.hostId), chatId: hostedChat.chatId, mode: "lite" });
-  const hostedGather = await hostedRpg.chatOps.gatherTurnContext(hostedChat.chatId, undefined, false);
+  const hostedGather = await hostedRpg.chatOps.gatherTurnContext({ chatId: hostedChat.chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // Unchanged: the hosted wire co-emits (6/6 measured), so the born-folded game still folds.
   expect(hostedGather?.terminalTools?.length).toBeGreaterThan(0);
   expect(hostedGather?.tools).toEqual([]);
@@ -756,7 +756,7 @@ test("D112 fold guard: a BORN-FOLDED game mounts terminal tools on a hosted wire
   const localChat = await seedHostGameChat(db, "guard-local");
   const localRpg = buildRpgWithCapability(app, db, local);
   await localRpg.service.createGame({ principal: hostPrincipal(localChat.hostId), chatId: localChat.chatId, mode: "lite" });
-  const localGather = await localRpg.chatOps.gatherTurnContext(localChat.chatId, undefined, false);
+  const localGather = await localRpg.chatOps.gatherTurnContext({ chatId: localChat.chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // Guarded: tools would silence the prose on this wire, so the character turn carries none — the state falls
   // to the flush's cheap post-commit round (the fallback arm, pinned in the flush suite).
   expect(localGather?.terminalTools).toBeUndefined();
@@ -1175,11 +1175,11 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
 
   // The host's opt-out (cheap) mounts NONE — the two-call arm never touches the character turn's wire.
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
-  const built = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  const built = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(built?.terminalTools).toBeUndefined();
 
   await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
-  const folded = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // The SAME tools the dedicated round sends, in the same order, incl. the `no_changes` escape. R6: this game
   // defines NO game-subject tracker, so `set_tracker` is OMITTED ENTIRELY (a disabled feature's tool is absent,
   // never an empty husk) — the rest of the round's set is byte-identical.
@@ -1224,7 +1224,7 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
       ],
     },
   });
-  const withTrackers = await rpgCompose.chatOps.gatherTurnContext(chatId, undefined, false);
+  const withTrackers = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   const setTracker = withTrackers?.terminalTools?.find((t) => t.name === "set_tracker");
   expect((setTracker?.parameters as { properties?: { key?: { enum?: string[] } } }).properties?.key?.enum).toEqual(["alarm"]);
   const partyTool = withTrackers?.terminalTools?.find((t) => t.name === "update_party");
@@ -1482,13 +1482,15 @@ test("VER-1b: a REGEN's reminder + delta read the state BEFORE the slot, never t
   const slotC = await driveBeat({ compose, db, chatId, seq: 3, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
 
   // The FRESH-turn arm is UNTOUCHED: the head is correct there — the next beat is written knowing beat 3 happened.
-  const fresh = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false));
+  const fresh = reminderText(await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }));
   expect(fresh).toContain("confessed to Niko at the tower");
   expect(fresh).toContain("the obsidian tower");
   expect(fresh).toContain("CHANGES SINCE LAST BEAT: location → the obsidian tower");
 
   // THE REGEN of slot C: the same gather, told which slot it is re-generating.
-  const regen = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slotC.messageId));
+  const regen = reminderText(
+    await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slotC.messageId }),
+  );
   // THE DEFECT: variant A's beat + the state it wrote are GONE from what the model is told (pre-fix both were
   // present — the model was handed the confession beat while being asked to write that same moment afresh).
   expect(regen).not.toContain("confessed to Niko at the tower");
@@ -1511,7 +1513,9 @@ test("VER-1b: the regen read is the SAME state the flush applies onto (read base
 
   // The reroll: a second variant on slot 2, selected, flushed with ITS OWN beat — the gather that generated it
   // read pre-slot state, and VER-1a's write base applied its writes onto that same pre-slot state.
-  const regen = reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slot.messageId));
+  const regen = reminderText(
+    await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slot.messageId }),
+  );
   expect(regen).toContain("crossed the rope bridge");
   expect(regen).not.toContain("confessed to Niko at the tower");
   const rerolled = await addVariant(db, slot.messageId, 2, "She says nothing at all.");
@@ -1545,7 +1549,11 @@ test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical remin
   for (const mode of ["folded", "cheap"] as const) {
     // biome-ignore lint/performance/noAwaitInLoops: each pass flips the game's mode and re-gathers under it — inherently sequential.
     await compose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: mode });
-    reminders.push(reminderText(await compose.chatOps.gatherTurnContext(chatId, undefined, false, undefined, slot.messageId)));
+    reminders.push(
+      reminderText(
+        await compose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, regenSlotMessageId: slot.messageId }),
+      ),
+    );
   }
   // The delivery mode picks the WRITE vehicle; it never changes what the turn READS. The pre-slot cut therefore
   // rides both without a per-mode arm (the reminder is one gather — this pins that it stays one).
