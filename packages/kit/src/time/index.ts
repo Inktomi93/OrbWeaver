@@ -62,6 +62,10 @@ export interface TimeLib {
   readonly formatDateTime: (epochMs: number) => string;
   /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
   readonly formatRelative: (epochMs: number) => string;
+  /** `2h` / `1d` / `3w` — the LIST-ROW stamp form: the same instant with the tense words dropped, so a
+   *  dense row spends ~2-3 characters on recency instead of ~7 (list-pane-projection side-eye P1-2). Use
+   *  it where the stamp is a COLUMN the eye scans; a sentence ("edited 5m ago") keeps `formatRelative`. */
+  readonly formatRelativeCompact: (epochMs: number) => string;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
    *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
   readonly now: () => number;
@@ -73,6 +77,33 @@ const MS_PER_DAY = 24 * MS_PER_HOUR;
 /** Days before a relative time ("9 days ago") reads worse than the date — the fallback horizon. */
 const RELATIVE_HORIZON_DAYS = 7;
 const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;
+const DAYS_PER_WEEK = 7;
+const MS_PER_WEEK = DAYS_PER_WEEK * MS_PER_DAY;
+/** Weeks before a compact stamp switches to years — 52w is where "how many weeks?" stops being readable. */
+const COMPACT_WEEK_HORIZON = 52;
+const MS_PER_YEAR = COMPACT_WEEK_HORIZON * MS_PER_WEEK;
+
+/** The compact stamp ladder, coarsest first: the first unit the elapsed span fills wins. */
+const COMPACT_UNITS: readonly (readonly [ms: number, suffix: string])[] = [
+  [MS_PER_YEAR, "y"],
+  [MS_PER_WEEK, "w"],
+  [MS_PER_DAY, "d"],
+  [MS_PER_HOUR, "h"],
+  [MS_PER_MINUTE, "m"],
+];
+
+/** `2h`/`1d`/`3w` for an elapsed span. Deliberately NOT `Intl.RelativeTimeFormat`: every Intl style still
+ *  carries the tense ("2h ago" / "vor 2 Std."), and the whole point of the stamp form is that the tense is
+ *  implied by the column. Sub-minute (and any FUTURE instant — clock skew, an imported timestamp) reads
+ *  `now`: a list stamp has no future tense. */
+function compactStamp(elapsedMs: number): string {
+  for (const [unitMs, suffix] of COMPACT_UNITS) {
+    if (elapsedMs >= unitMs) {
+      return `${Math.trunc(elapsedMs / unitMs)}${suffix}`;
+    }
+  }
+  return "now";
+}
 
 /** A duration (ms) as compact human text using the two largest non-zero units: `8 minutes`, `1 hour 5 minutes`,
  *  `2 days 3 hours`, `45 seconds`. The `{{idle_duration}}` macro's time-since-last-activity form (parity-plus
@@ -150,5 +181,6 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
       }
       return relative.format(Math.trunc(deltaMs / MS_PER_SECOND), "second");
     },
+    formatRelativeCompact: (epochMs): string => compactStamp(now() - epochMs),
   };
 }
