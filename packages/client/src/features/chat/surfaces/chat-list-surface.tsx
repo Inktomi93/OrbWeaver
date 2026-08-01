@@ -10,7 +10,8 @@
 // (the character/preset/world-info library-surface precedent); writes the choice out via
 // onSelect/onNewChat/onDeletedChat.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -19,16 +20,23 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
+import { FaceStrip } from "#components";
+import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
-import { clearChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
+import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
+import type { ChatRowPortrait } from "../lib/chat-summary-row";
 import { chatPortraits } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
+import { recentFaces } from "../lib/recent-faces";
+
+type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 
 const SKELETON_ROW_COUNT = 5;
 
@@ -102,6 +110,24 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
   const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
   const characterById = useChatPortraitMap();
 
+  // Arm B — the faces strip: the pane learns FACES without the rail learning a new section. Tapping one
+  // sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
+  // "filtered by" (a chip you can clear) rather than a second list that owns her chats.
+  const faces = recentFaces(chats, characterById);
+  const scopeToFace = (id: string): void => {
+    const face = faces.find((candidate) => candidate.id === id);
+    if (face === undefined) {
+      return;
+    }
+    // Re-tapping the scoping face clears it — the same toggle its `aria-current` announces (the chip's ✕
+    // stays the other way out).
+    if (characterFilter?.id === id) {
+      clearChatListCharacterFilter();
+      return;
+    }
+    setChatListCharacterFilter({ id: castId<CharacterId>(id), name: face.name });
+  };
+
   if (chats.length === 0) {
     return (
       <EmptyState
@@ -119,7 +145,50 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
   }
 
   const scoped = characterFilter === null ? chats : chatsWithCharacter(chats, characterFilter.id);
-  if (characterFilter !== null && scoped.length === 0) {
+  const filtered = filterChats(scoped, query);
+  return (
+    <Stack className="h-full min-h-0" gap="block">
+      {/* The strip stays put across every body state below it — it is the way OUT of an empty scope. */}
+      <FaceStrip items={faces} label="Recent characters" onSelect={scopeToFace} selectedId={characterFilter?.id ?? null} verb="Show chats with" />
+      <Stack className="min-h-0 flex-1">
+        <ChatRows
+          activeChatId={activeChatId}
+          characterById={characterById}
+          characterFilter={characterFilter}
+          filtered={filtered}
+          onClearSearch={onClearSearch}
+          onDeletedChat={onDeletedChat}
+          onNewChat={onNewChat}
+          onSelect={onSelect}
+          query={query}
+          scopedCount={scoped.length}
+        />
+      </Stack>
+    </Stack>
+  );
+}
+
+interface ChatRowsProps extends ChatListBodyProps {
+  readonly characterById: ReadonlyMap<string, ChatRowPortrait>;
+  readonly filtered: readonly ChatSummaryItem[];
+  /** Rows left after the per-character scope, BEFORE the search — 0 means the scope itself is empty. */
+  readonly scopedCount: number;
+}
+
+/** The scope-empty → search-empty → rows ladder under the faces strip. */
+function ChatRows({
+  activeChatId,
+  characterById,
+  characterFilter,
+  filtered,
+  onClearSearch,
+  onDeletedChat,
+  onNewChat,
+  onSelect,
+  query,
+  scopedCount,
+}: ChatRowsProps): ReactElement {
+  if (characterFilter !== null && scopedCount === 0) {
     return (
       <EmptyState
         action={
@@ -134,8 +203,6 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
       />
     );
   }
-
-  const filtered = filterChats(scoped, query);
   if (filtered.length === 0) {
     return (
       <EmptyState
@@ -150,7 +217,6 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
       />
     );
   }
-
   return (
     <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
       {filtered.map((chat) => (

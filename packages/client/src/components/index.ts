@@ -9,6 +9,8 @@ export type { ConfirmDialogProps } from "./confirm-dialog";
 export { ConfirmDialog } from "./confirm-dialog";
 export type { EntryListEditorProps } from "./entry-list-editor";
 export { EntryListEditor } from "./entry-list-editor";
+export type { FaceStripItem, FaceStripProps } from "./face-strip";
+export { FaceStrip } from "./face-strip";
 export type { FormDialogProps, FormDialogSubmit, FormSubmitButtonProps } from "./form-dialog";
 export { FormDialog, FormSubmitButton } from "./form-dialog";
 export type { GreetingStudioProps } from "./greeting-studio";

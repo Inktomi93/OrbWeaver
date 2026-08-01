@@ -154,7 +154,8 @@ test("a chat with a portrait-owning participant renders the REAL portrait; the o
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
   // Exactly ONE row resolved a face — the row whose participantCharacterIds hit an avatar-owning character.
-  const images = component.locator(AVATAR_IMAGE);
+  // Scoped to the ROWS: the Arm B faces strip above them paints the same portrait as a shortcut.
+  const images = component.locator(LIST_ROW_ROOT).locator(AVATAR_IMAGE);
   await expect(images).toHaveCount(1);
   await expect(images).toHaveAttribute("src", ARIA_BLOB_RE);
   // …and the participant-less row still renders (its avatar is the hue-seeded initials fallback, no <img>).
@@ -266,6 +267,52 @@ test("the SCENT line wins the subtitle and stays ONE truncated line; the GAME ma
   await expect(component.getByLabel("Game chat")).toHaveCount(1);
   const gameRow = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
   await expect(gameRow.getByLabel("Game chat")).toBeVisible();
+});
+
+// ── Arm B: the chats pane learns FACES (list-pane-projection §5.2) ─────────────────────────────────
+// Tapping a face rides the LANDED filter-chip seam — the same pane becomes her threads, visibly "filtered
+// by" a chip you can clear, never a second list that owns her chats (the D18 grammar).
+
+test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the pane through the filter chip", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [GROUP, ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+
+  const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
+  await expect(face).toBeVisible();
+  await face.click();
+
+  // The chip is the visible scope, and the rows narrowed to hers — the untitled (seat-less) row is gone.
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await expect(component.getByText("Aria Nightshade", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Untitled chat")).toHaveCount(0);
+  await expect(face).toHaveAttribute("aria-current", "true");
+});
+
+test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-current announces)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  const face = component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true });
+  await face.click();
+  await expect(page.getByText("Untitled chat")).toHaveCount(0);
+
+  await face.click();
+  await expect(component.getByText("Filtered:")).toHaveCount(0);
+  await expect(page.getByText("Untitled chat")).toBeVisible();
+});
+
+test("Arm B: the strip STAYS while a scope is empty — it is the way out, not a dead end", async ({ mount, page }) => {
+  // Aria's only seat is on a chat that is filtered out by the search, so the scoped list goes empty.
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+  await component.getByRole("textbox", { name: "Search chats" }).fill("zzz-no-such-chat");
+
+  await expect(component.getByText("No matches")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
 });
 
 test("an empty chats list shows the 'no chats yet' empty state", async ({ mount, page }) => {

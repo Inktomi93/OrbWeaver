@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
@@ -40,7 +41,6 @@ import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCardTile } from "../components/character-card";
 import { CharacterCategorizedList } from "../components/character-categorized-list";
 import { CharacterCreateMenu } from "../components/character-create-menu";
-import { CharacterFavoritesStrip } from "../components/character-favorites-strip";
 import { CharacterFilterChips } from "../components/character-filter-chips";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations";
@@ -186,7 +186,10 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
         showArchived={showArchived}
         tagFilter={tagFilter}
       />
-      <CharacterFavoritesStrip favorites={favorites} onSelect={openEditor} selectedId={selectedId} />
+      {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
+          private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
+          names are already the rows' titles right below. */}
+      <FaceStrip items={favorites} label="Favorite characters" onSelect={openEditor} selectedId={selectedId} verb="Open" />
       <Stack className="min-h-0 flex-1">
         <CharacterLibraryBody
           ariaLabel={ariaLabel}
