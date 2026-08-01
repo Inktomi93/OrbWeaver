@@ -117,7 +117,7 @@ describe("createApp", () => {
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(OK);
-    expect(await res.json()).toEqual({ status: "ok" });
+    expect(await res.json()).toEqual({ status: "ok", harness: false });
   });
 
   test("GET /healthz → 503 shutting_down when the shutdown getter flips", async () => {

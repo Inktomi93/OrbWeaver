@@ -50,8 +50,12 @@ panes) · **SSE S2 branch IN FINAL ROUND** (re-review verdict MERGE-WITH-FIXES: 
 roomLagged resumes it from last-delivered; reconnect re-announce carries a sinceSeq THUNK reading
 the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
 stacks — re-review the delta then merge) · the scrub mid-slot-reconnect verification
-(security-executor) · the exhaustive reminder/delta reachability suite (owner-ordered; schema-
-derived inventory) · workloads junk-drawer exit. **THEN:** re-verify both fix-alls → SSE S3-S5 +
+(security-executor) · ~~reachability suite~~ LANDED (`b5c1d9ff` merged: 80 leaves/60 tests, cast-volatile parity FIXED
+via castVolatile+one volatileSegs; healthz test assertion fixed post-merge) · workloads junk-drawer
+exit. **NEW OWNER QUESTIONS (cited in the suite):** inventory item `description`/`location` are
+model-writable but read by NEITHER surface — render-capped, or make unwritable? **FOLLOW-ON
+QUEUED: the macro/CEL feed is a THIRD model-facing surface** (macro-view.ts carries NO volatile
+state for any carrier — same drift class; extend the suite's matrix to it + fix, ~a lane). **THEN:** re-verify both fix-alls → SSE S3-S5 +
 close-out ledger → HUD H2-H3 → SET-SEAMS S1-seal → PROSE-1 S1+ (app-tier; after SET-SEAMS S1
 merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone**.
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
