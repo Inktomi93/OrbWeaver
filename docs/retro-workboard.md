@@ -123,8 +123,17 @@ the keystroke happened]; uniquePresetName de-collision NOT import-merge [cited];
 editor read set now includes preset.list — every editor CT stubs it). ALL 5 MOCKS PUBLISHED:
 rack …/bce1a214-701d-4c60-8aa2-a6307ed9dcd0 (NEW) + 4 republished. Lesson: git commit --
 <pathspec> silently SKIPS untracked files — worktree teardown after = data loss; lanes must
-git-show-receipt their own commits. PRESET-1 spec is now FULLY SETTLED — build lanes dispatchable
-on owner's mock eyeball. (was: (worktree
+git-show-receipt their own commits. **PRESET-1 SPEC: FINAL (round 6 `79df24e1`+`da379e24` merged).** The complete ruled set: 5 flat
+views · ONE list grammar both views (rows select→readout echo; chevrons drill; drill-for-both —
+accordion DEAD, mobile-sealed [full-pane takeover + back row]) · TEMPLATE DEFINITION REGISTRY
+(§6.6: contracts/preset home; caps = GROWABLE discriminated union; capability-driven drill-in via
+exhaustive Record<cap, CapabilityRenderer> — richer template = one member + one renderer row;
+GUIDED_ACTION_COPY retires into it G11) · KIND badges census-derived (steer/voice/studio/format/
+nudge; registry kind = badge vocab; info hue ≠ state chips) · fires-on INFORMATIONAL on templates,
+Triggers editable ONLY in sections · KnobRow ghost grammar · resolveEffective · per-view CONTEXT +
+D8 chat-binding · lifecycle over the portability seam · freshness contract · form-factory mandate ·
+fork-choice landed · forkedFrom lineage. BUILD LANES DISPATCHABLE (P0 = 3 variant rows per §14;
+prose-straggler small rides the PROSE ladder). (was: (worktree
 cleaned → drawing lost; §5.1 text survives) — REDRAW ROUND IN FLIGHT with a stage-the-file receipt requirement + TWO owner corrections
 riding it: assistant-role ≠ PREFILL (prefill = TAIL-positioned assistant continuation — position
 property; fix the labeling) · the per-template field table re-derives from the LOCAL ST SOURCE
