@@ -1,7 +1,7 @@
 // The preset editor surface — the Presets tabbed editor. Binds the nested `PromptConfig` directly (no
 // flat mapper); AUTOSAVE through `preset.update` (D66 A4 / north-star §7) — no Save button, the header
-// carries the shared `AutosaveStatus` where Save used to be. A preset carries no model; the params tabs
-// resolve capability for the user's configured chat-role connection, and show a connect-a-model note when
+// carries the shared `AutosaveStatus` where Save used to be. A preset carries no model; the Params deck
+// resolves capability for the user's configured chat-role connection, and shows a connect-a-model note when
 // none is configured.
 //
 // D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityForm)
@@ -16,9 +16,19 @@
 // Once the owner ALREADY has a fork of the built-in, that hook parks the write on `PresetForkChoiceDialog`
 // (rendered here, the surface's second dialog): keep editing the fork they have, or name a new one.
 //
-// north-star §6.2: the ten leaf tabs render as FOUR primary groups (Generation · Prompt · Context ·
-// Transforms), each group's leaves shown as sub-navigation — leaf CONTENT is unchanged (a regroup). The
-// outer `Tabs` is the group strip; each group panel nests its own `Tabs` over its leaves.
+// preset-surface-redesign.md §3 (owner decision D3): ONE flat tab level — five views (Params · Prompt ·
+// Actions · Data · Transforms) replacing the two-level 4-groups × 10-leaves tree. The Params view is the
+// new deck (§4); the other four REHOME the landed leaf bodies per the §3 schema→home map (this lane moves
+// them; V2 rebuilds their insides).
+//
+// The active view is SECTION STATE (`presetEditorView`, #state), not local `Tabs` state, because CONTEXT
+// projects per-view (§7): the eye follows the hand. THIS TAB STRIP IS THE ONE WRITER (§16 row 10) — every
+// other region reads. `PRESET_EDITOR_VIEWS[0]` is the default an unset store read resolves to, so the
+// default lives with the vocabulary.
+//
+// The deck's ghost column reads `preset.resolveEffective` (§4.3/D5) — the REAL funnel, not a client
+// mirror. A plain `useQuery`: the read fails when no chat connection resolves (the same condition that
+// hides the model-fed clusters), and that degrades to un-ghosted rows rather than an error boundary.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -38,7 +48,9 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
-import { ParamsPanel } from "../components/params-panel";
+import { selectPresetSection, setPresetEditorView, usePresetEditorView } from "#state";
+import { ActionsView } from "../components/actions-view";
+import { ParamsDeck } from "../components/params-deck";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
@@ -46,10 +58,11 @@ import { UserMacrosTab } from "../components/user-macros-tab";
 import { VariablesTab } from "../components/variables-tab";
 import { usePresetAutosave } from "../hooks/use-preset-autosave";
 import { useResetPreset } from "../hooks/use-preset-mutations";
+import type { EffectiveProfileRow } from "../lib/effective-knobs";
 import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
 import { seedConfig } from "../lib/preset-editor-model";
-import type { PresetEditorTab } from "../lib/preset-nav";
-import { PRESET_EDITOR_GROUPS } from "../lib/preset-nav";
+import type { PresetEditorView } from "../lib/preset-nav";
+import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
 
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
@@ -82,38 +95,53 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
   );
 }
 
-interface LeafContentProps {
+interface ViewContentProps {
   readonly form: AppFormInstance<PromptConfig>;
   readonly capability: ModelCapability | undefined;
-  /** The Macros leaf's source attribution (`preset:<id>` in the browser). */
+  /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
+  readonly effective: EffectiveProfileRow | undefined;
+  /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
+  readonly customParameterKeys: readonly string[];
+  /** The Macros body's source attribution (`preset:<id>` in the browser). */
   readonly presetId: PresetId;
   readonly onRevealSection?: (() => void) | undefined;
   readonly onDismissSection?: (() => void) | undefined;
 }
 
-/** Render one leaf tab's content, UNCHANGED from the flat editor (the regroup only re-homes the leaf). */
-function leafContent(id: PresetEditorTab["id"], props: LeafContentProps): ReactElement {
-  const { form, capability, presetId, onRevealSection, onDismissSection } = props;
+/** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
+ *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
+function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
+  const { form, capability, effective, customParameterKeys, presetId, onRevealSection, onDismissSection } = props;
   switch (id) {
-    case "quality":
-    case "sampling":
-    case "reasoning":
-    case "output":
-      return <ParamsPanel capability={capability} form={form} axis={id} />;
+    case "params":
+      return <ParamsDeck capability={capability} customParameterKeys={customParameterKeys} effective={effective} form={form} />;
     case "prompt":
-      return <PresetStructureTabs form={form} tab="prompt" onRevealSection={onRevealSection} onDismissSection={onDismissSection} capability={capability} />;
-    case "templates":
-      return <PresetStructureTabs form={form} tab="templates" />;
-    case "postProcess":
-      return <PresetStructureTabs form={form} tab="postProcess" />;
-    case "compaction":
-      return <PresetStructureTabs form={form} tab="compaction" />;
-    case "variables":
-      return <VariablesTab form={form} />;
-    case "macros":
-      return <UserMacrosTab form={form} presetId={presetId} />;
-    case "regex":
-      return <RegexTab form={form} />;
+      return <PresetStructureTabs capability={capability} form={form} onDismissSection={onDismissSection} onRevealSection={onRevealSection} tab="prompt" />;
+    case "actions":
+      return (
+        <ActionsView
+          form={form}
+          onSelectSection={(sectionId): void => {
+            selectPresetSection(sectionId);
+            onRevealSection?.();
+          }}
+        />
+      );
+    case "data":
+      return (
+        <Stack gap="section">
+          <VariablesTab form={form} />
+          <UserMacrosTab form={form} presetId={presetId} />
+        </Stack>
+      );
+    case "transforms":
+      return (
+        <Stack gap="section">
+          <RegexTab form={form} />
+          <PresetStructureTabs form={form} tab="postProcess" />
+          <PresetStructureTabs form={form} tab="templates" />
+        </Stack>
+      );
   }
 }
 
@@ -135,6 +163,13 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   // the fallback from it); this panel gates on the descriptor only.
   const capability = capabilityQuery.data?.capability;
 
+  // The EFFECTIVE profile — the generation funnel projected for this preset against the caller's own chat
+  // model (§4.3). It is what every ghosted knob renders, and it rides the freshness map (`presetsChanged`
+  // via the preset root + the narrow `settingsChanged` row), so a save or a model swap re-resolves it.
+  // `?? undefined` at the seam: a query that has not landed (or an environment where the read yields no
+  // row) must degrade to "no ghost", and every consumer below takes `EffectiveProfileRow | undefined`.
+  const effectiveQuery = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
+
   // The save path incl. the built-in's fork-once retarget (see the hook header) — never an inline mutateAsync.
   const autosave = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });
 
@@ -147,6 +182,8 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
             presetId={presetId}
             presetName={preset.name}
             capability={capability}
+            effective={effectiveQuery.data ?? undefined}
+            customParameterKeys={Object.keys(preset.config.customParameters ?? {})}
             reset={reset}
             onRevealSection={onRevealSection}
             onDismissSection={onDismissSection}
@@ -174,12 +211,24 @@ interface PresetEditorBodyProps {
   readonly presetId: PresetId;
   readonly presetName: string;
   readonly capability: ModelCapability | undefined;
+  readonly effective: EffectiveProfileRow | undefined;
+  readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;
   readonly onRevealSection?: (() => void) | undefined;
   readonly onDismissSection?: (() => void) | undefined;
 }
 
-function PresetEditorBody({ session, presetId, presetName, capability, reset, onRevealSection, onDismissSection }: PresetEditorBodyProps): ReactElement {
+function PresetEditorBody({
+  session,
+  presetId,
+  presetName,
+  capability,
+  effective,
+  customParameterKeys,
+  reset,
+  onRevealSection,
+  onDismissSection,
+}: PresetEditorBodyProps): ReactElement {
   const { form, saveState, retrySave, reseed } = session;
 
   const [resetOpen, setResetOpen] = useState(false);
@@ -207,11 +256,13 @@ function PresetEditorBody({ session, presetId, presetName, capability, reset, on
     return (): void => clearAssemblyForm();
   }, [presetId, boundForm]);
 
-  const leafProps: LeafContentProps = { form: boundForm, capability, presetId, onRevealSection, onDismissSection };
+  const viewProps: ViewContentProps = { form: boundForm, capability, effective, customParameterKeys, presetId, onRevealSection, onDismissSection };
+  // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
+  const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
 
   return (
     <Stack>
-      <Tabs defaultValue={PRESET_EDITOR_GROUPS[0]?.id}>
+      <Tabs onValueChange={(next): void => setPresetEditorView(String(next))} value={view}>
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Row align="center" justify="between" gap="field">
             <Text size="label" weight="medium">
@@ -238,34 +289,20 @@ function PresetEditorBody({ session, presetId, presetName, capability, reset, on
             </Row>
           </Row>
           <TabsList>
-            {PRESET_EDITOR_GROUPS.map((group) => (
-              <TabsTab key={group.id} value={group.id}>
-                {group.label}
+            {PRESET_EDITOR_VIEWS.map((entry) => (
+              <TabsTab key={entry.id} value={entry.id}>
+                {entry.label}
               </TabsTab>
             ))}
             <TabsIndicator />
           </TabsList>
         </Stack>
 
-        {PRESET_EDITOR_GROUPS.map((group) => (
-          <TabsPanel key={group.id} value={group.id}>
-            <Tabs defaultValue={group.tabs[0]?.id}>
-              <Stack gap="block" padding="block">
-                <TabsList>
-                  {group.tabs.map((tab) => (
-                    <TabsTab key={tab.id} value={tab.id}>
-                      {tab.label}
-                    </TabsTab>
-                  ))}
-                  <TabsIndicator />
-                </TabsList>
-                {group.tabs.map((tab) => (
-                  <TabsPanel key={tab.id} value={tab.id}>
-                    {leafContent(tab.id, leafProps)}
-                  </TabsPanel>
-                ))}
-              </Stack>
-            </Tabs>
+        {PRESET_EDITOR_VIEWS.map((entry) => (
+          <TabsPanel key={entry.id} value={entry.id}>
+            <Stack gap="block" padding="block">
+              {viewContent(entry.id, viewProps)}
+            </Stack>
           </TabsPanel>
         ))}
       </Tabs>

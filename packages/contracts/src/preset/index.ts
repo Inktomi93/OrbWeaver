@@ -871,6 +871,12 @@ export const DEFAULT_COMPACT_INSTRUCTIONS =
 /** Managed-compaction trigger threshold (fraction of `contextWindow`). Overridable per preset. */
 export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
 
+/** How many newest canon rows managed compaction keeps VERBATIM on the no-fit-boundary (agent-sdk) path —
+ *  the engine floor `params.compaction.verbatimTail` overrides. Homed HERE, beside the knob's own bounds,
+ *  because it now has TWO consumers (the engine's coverage point AND the deck's blank-means-default
+ *  placeholder, redesign G4) and the schema's doc already claimed it was derived from one const. */
+export const MANAGED_VERBATIM_TAIL = 8;
+
 /** The RESOLVED default compaction mode — the ONE home BOTH consumers read: the engine's
  *  `resolveEffectiveCompaction` (unset ⇒ this) AND the preset UI's unset placeholder. `"managed"` per the owner
  *  ruling: compaction is a SAFETY property (no chat may error from context growth), and `auto` (the SDK's native
@@ -1429,7 +1435,11 @@ const ST_NAMES_NONE = -1;
 const ST_NAMES_DEFAULT = 0;
 const ST_NAMES_COMPLETION = 1;
 const ST_NAMES_CONTENT = 2;
-const ST_TOP_A_DEFAULT = 1;
+// ST's own default is 0 = "off" (`top_a_openai: 0`, SillyTavern/public/scripts/openai.js:418) — the same
+// sentinel discipline as `min_p`. It read `1` here while the field was being DROPPED, so nothing depended
+// on it; carrying the knob (G1) makes the sentinel load-bearing, and 1 would have inverted it (dropping a
+// deliberate 1 and importing an "off" 0 as an explicit knob).
+const ST_TOP_A_DEFAULT = 0;
 const ST_MIN_P_DEFAULT = 0;
 const ST_DISABLED_NUMERIC = 0; // ST top_k 0 / seed -1 / max 0 = disabled/unset
 
@@ -1615,8 +1625,9 @@ const setNumAbove = (out: Record<string, unknown>, k: string, v: number | undefi
   }
 };
 
-/** Map ST sampling/behavior scalars onto UserIntent, tracking what has no neo vocabulary. */
-function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): UserIntent {
+/** Map ST sampling/behavior scalars onto UserIntent. Every scalar ST carries now HAS a home (G1 closed the
+ *  last one, `top_a`); the remaining drops are TOP-LEVEL fields, reported by `DROPPABLE_FIELDS`. */
+function mapParams(raw: Record<string, unknown>): UserIntent {
   const out: Record<string, unknown> = {};
   setNum(out, "temperature", readNum(raw, "temperature"));
   setNum(out, "topP", readNum(raw, "top_p"));
@@ -1650,9 +1661,12 @@ function mapParams(raw: Record<string, unknown>, dropped: StDroppedField[]): Use
     out["advanced"] = { squashSystemMessages: true };
   }
 
+  // G1 (redesign §10): `top_a` HAS sampling vocab (`userIntentSchema.topA`) and now an editor — the drop
+  // was a stale claim contradicting the schema two hundred lines up. Mapped exactly like `min_p`: ST's
+  // default (0 = off) is not carried.
   const topA = readNum(raw, "top_a");
   if (topA !== undefined && topA !== ST_TOP_A_DEFAULT) {
-    dropped.push({ field: "top_a", reason: "no neo sampling vocab" });
+    out["topA"] = topA;
   }
 
   // `.catch({})` keeps a stray field from sinking the whole blob.
@@ -1767,7 +1781,7 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
   const sections = buildSections(byId, walk);
 
   const dropped: StDroppedField[] = [];
-  const params = mapParams(rawObj, dropped);
+  const params = mapParams(rawObj);
   dropped.push(...collectDroppableFields(rawObj));
 
   const namesBehavior = namesBehaviorOf(rawObj["names_behavior"]);

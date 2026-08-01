@@ -1,10 +1,16 @@
-// The structural preset-editor tabs — the non-descriptor tabs that edit `PromptConfig` fields directly:
-// Prompt, Post-process, Compaction, Templates. Bound via the direct-bind form (no flat mapper). The
-// descriptor-driven params tabs live in params-panel.tsx.
+// The structural preset-editor bodies — the non-descriptor fields that edit `PromptConfig` directly:
+// Prompt, Post-process, Templates (the inline-reasoning parse). Bound via the direct-bind form (no flat
+// mapper). The generation deck lives in params-deck.tsx.
+//
+// preset-surface-redesign.md §3 re-homed four things OUT of the Prompt tab, per the schema→home map:
+// `params.thinkingDisplay` → Params ▸ REASONING (F4 — a reasoning knob two groups from its own axis);
+// `formatStrings.continueNudge`/`impersonateNudge` + the guided templates → the ACTIONS view (F6 — they
+// are per-action steering prose, not prompt structure). `params.compaction.*` moved whole to Params ▸
+// CONTEXT, so the Compaction body is gone from here with them. What is left is genuinely the rack's:
+// speaker names + the continue delimiter (the DELIVERY cluster) and message handling.
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { MarkerType, PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT } from "@orb/contracts/preset";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -13,9 +19,8 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { clearPresetSection, selectPresetSection, useSelectedPresetSectionId } from "#state";
 import { makeSection } from "../lib/assembly-model";
-import { COMPACTION_MODE_ITEMS, CONTINUE_POSTFIX_ITEMS, compactionModeLabel, NAMES_BEHAVIOR_ITEMS, THINKING_DISPLAY_ITEMS } from "../lib/preset-nav";
+import { CONTINUE_POSTFIX_ITEMS, NAMES_BEHAVIOR_ITEMS } from "../lib/preset-nav";
 import { AssemblyToolbar } from "./assembly-toolbar";
-import { GuidedActionsSection } from "./guided-actions-section";
 import { MessageHandlingSection } from "./message-handling-section";
 import { AssemblyPreview } from "./prompt-assembly/assembly-preview";
 import { AssemblyRack } from "./prompt-assembly/assembly-rack";
@@ -28,7 +33,7 @@ type AppForm = AppFormInstance<PromptConfig>;
 
 interface PresetStructureTabsProps {
   readonly form: AppForm;
-  readonly tab: "prompt" | "templates" | "postProcess" | "compaction";
+  readonly tab: "prompt" | "templates" | "postProcess";
   /** Reveal the CONTEXT section inspector — Prompt tab only. */
   readonly onRevealSection?: (() => void) | undefined;
   /** Dismiss the CENTER section drill-in — Prompt tab only, the `SectionBodyEditor` back button. */
@@ -45,10 +50,7 @@ export function PresetStructureTabs({ form, tab, onRevealSection, onDismissSecti
   if (tab === "templates") {
     return <TemplatesTab form={form} />;
   }
-  if (tab === "postProcess") {
-    return <PostProcessTab form={form} />;
-  }
-  return <CompactionTab form={form} />;
+  return <PostProcessTab form={form} />;
 }
 
 function PromptTab({
@@ -122,39 +124,10 @@ function PromptTab({
             />
           )}
         </form.AppField>
-        <form.AppField name="formatStrings.continueNudge">
-          {(field): ReactElement => (
-            <field.MacroField
-              label="Continue nudge"
-              description="The instruction that steers a continuation (blank uses the built-in default)."
-              suggestions={[]}
-              rows={3}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="formatStrings.impersonateNudge">
-          {(field): ReactElement => (
-            <field.MacroField
-              label="Impersonate nudge"
-              description="The instruction that steers an impersonation — the model writes your next line (blank uses the built-in default)."
-              suggestions={[]}
-              rows={3}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="params.thinkingDisplay">
-          {(field): ReactElement => (
-            <field.SelectField label="Reasoning display" description="How the model's reasoning is shown, when it reasons." items={THINKING_DISPLAY_ITEMS} />
-          )}
-        </form.AppField>
       </CollapsedSection>
 
       <CollapsedSection title="Message handling">
         <MessageHandlingSection form={form} capability={capability} />
-      </CollapsedSection>
-
-      <CollapsedSection title="Guided actions">
-        <GuidedActionsSection form={form} onSelectSection={onSelectSection} />
       </CollapsedSection>
     </Stack>
   );
@@ -214,60 +187,6 @@ function PostProcessTab({ form }: { readonly form: AppForm }): ReactElement {
       </form.AppField>
       <form.AppField name="postProcess.singleLine">
         {(field): ReactElement => <field.SwitchField label="Single line" description="Flatten the whole reply to one line." />}
-      </form.AppField>
-    </Section>
-  );
-}
-
-function CompactionTab({ form }: { readonly form: AppForm }): ReactElement {
-  return (
-    <Section heading="Compaction">
-      <Text size="micro" tone="muted">
-        How long context is condensed as a conversation grows. Applies to agent-sdk chats — stateless models trim oldest turns instead.
-      </Text>
-      <form.AppField name="params.compaction.mode">
-        {(field): ReactElement => (
-          <field.SelectField
-            label="Compaction mode"
-            // Both modes ARE compaction (a chat never errors from context growth) — the choice is which engine:
-            // managed = OURS (a durable memory marker at a threshold); auto = the runner's own session compaction.
-            description="Managed summarizes into a durable memory marker at a threshold; auto lets the runner compact its own session. Context is always kept in bounds — this only picks how."
-            items={COMPACTION_MODE_ITEMS}
-            // Unset ⇒ the resolved default the engine uses (single-homed via DEFAULT_COMPACTION_MODE), shown so a
-            // fresh preset communicates the in-effect behavior instead of a blank trigger.
-            placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
-          />
-        )}
-      </form.AppField>
-      {/* HONEST-DEGRADE (plan-for-small-hardware): the runner's own auto-compaction never exposes its summary, so
-          `auto` stores no marker — no carry-forward on a model swap and no transcript memory-fact. Shown plainly,
-          never a silent capability difference. */}
-      <form.Subscribe selector={(state): string | undefined => state.values.params.compaction?.mode}>
-        {(mode): ReactElement | null =>
-          mode === "auto" ? (
-            <Text size="micro" tone="muted">
-              Auto uses the runner's own compaction. It won't produce a readable memory summary, so there's no memory marker in the transcript and nothing
-              carries forward if you switch this chat to another model. Choose managed to keep a durable, portable memory.
-            </Text>
-          ) : null
-        }
-      </form.Subscribe>
-      <form.AppField name="params.compaction.thresholdPct">
-        {(field): ReactElement => (
-          <field.NumberField
-            label="Managed threshold (fraction of the window)"
-            // The default is derived from the single-homed constant, never a re-spelled literal.
-            description={`Managed mode summarizes once the context fills past this fraction (0.5–0.99; leave blank for the ${MANAGED_COMPACT_DEFAULT_PCT} default).`}
-            min={0.5}
-            max={0.99}
-            step={0.01}
-          />
-        )}
-      </form.AppField>
-      <form.AppField name="params.compaction.instructions">
-        {(field): ReactElement => (
-          <field.TextareaField label="Summary instructions" description="How to steer the summary (leave blank for the RP-tuned default)." rows={3} />
-        )}
       </form.AppField>
     </Section>
   );
