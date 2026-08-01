@@ -1,4 +1,4 @@
-// CT: the World-info settings SECTION (Phase B ② — world-info-settings-surface.tsx), a settings-section
+// CT: the World-info settings SECTION (Phase B ② — world-info-settings-section.tsx), a settings-section
 // CONTRIBUTION into the chat-behavior pane. Drives the production autosave path: getUserSettings seeds the
 // form (scanDepth/tokenBudget), each field change debounces then fires updateUserSettingsSection("worldInfo")
 // with the full worldInfo-section patch. Proves the previously-UI-less knobs now have a real write path.

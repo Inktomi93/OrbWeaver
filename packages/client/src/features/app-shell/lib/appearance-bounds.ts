@@ -1,4 +1,5 @@
-// Appearance-panel numeric field bounds — split out of `appearance-settings-surface.tsx` (mirrors the
+// Appearance-panel numeric field bounds — split out of the appearance pane's knob surface, which SET-SEAMS
+// stage 1 decomposed into the `appearance-*-section.tsx` fragments that import these (mirrors the
 // `lib/appearance-select-items.ts` split: pure data, not JSX, so it belongs beside the surface rather
 // than inside it). A second, load-bearing reason for the split: a Playwright CT test that needs these
 // constants (never hardcode a slider's min/max as a magic number in an assertion) must import them from
