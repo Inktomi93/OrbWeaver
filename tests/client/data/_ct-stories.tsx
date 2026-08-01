@@ -8,6 +8,7 @@ import {
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
+  useColorQuotedSpeech,
   useGatedQuery,
   useInvalidation,
   useOnlineStatus,
@@ -39,6 +40,23 @@ export function SettingsViewerViewStory(): ReactElement {
 function SettingsViewerViewReader(): ReactElement {
   const viewer = useSettingsViewerView();
   return <output>{`isAdmin=${String(viewer.isAdmin)}`}</output>;
+}
+
+/** ColorQuotedSpeechStory — the ONE home of the `appearance.colorQuotedSpeech` → `colorQuotes` read for
+ *  the prose surfaces that render authored content OUTSIDE a message row (the greeting preview, the
+ *  greeting studio's preview, the facet editor's example transcript). NON-suspense on purpose: a preview
+ *  must paint before the settings read resolves, so an unresolved read falls back to the contract default. */
+export function ColorQuotedSpeechStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ColorQuotedSpeechReader />
+    </CtDataProviders>
+  );
+}
+
+function ColorQuotedSpeechReader(): ReactElement {
+  const colorQuotes = useColorQuotedSpeech();
+  return <output>{`colorQuotes=${String(colorQuotes)}`}</output>;
 }
 
 // The suspending read under test: a REAL procedure (`echo` — transport/trpc/router.ts loose public
