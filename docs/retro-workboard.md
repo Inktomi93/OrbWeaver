@@ -45,7 +45,7 @@ same class of fix IF ever wired.
 HUD-1 ledger amendments merged; ~190 commits past origin `24989143`, NO pushes). **IN FLIGHT:**
 HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · density-S5
 fix-all (centerpiece: make tiers.css load-bearing — the tier declarations were INERT on list
-panes) · **SSE S2 branch READY FOR STICKLER RE-RUN** (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
+panes) · **SSE S2 branch IN FINAL ROUND** (re-review verdict MERGE-WITH-FIXES: RF1 HIGH — the reconnect thunk heal is guard-dropped by any pre-attach durable row [monotonic guard + out-of-band resume don't compose; repro in the report]; lane is fixing RF1 [ordering-barrier lean] + reconciling the cold-scrubber producer-stamp merge + the park-skip corner; merges on its report) (`wt/agent-ae7a23e7ea4435982` @ `261b728b`
 — F1 fixed STRUCTURALLY: cursor advances at DELIVERY pre-yield; shed PARKS the pump, delivering
 roomLagged resumes it from last-delivered; reconnect re-announce carries a sinceSeq THUNK reading
 the seq-guard's highWater; regression tests probe-verified to bite; e2e+live green on isolated
