@@ -14,7 +14,9 @@ test("renders the slim no-selection state — where you are + the section's own 
   const component = await mount(<ChatLandingSurfaceStory />);
 
   await expect(component.getByText("No chat selected")).toBeVisible();
-  await expect(component.getByText("Pick a thread on the left, or start a new one.")).toBeVisible();
+  // SIDE-AGNOSTIC: the list pane is a docked column, a slide-over, or collapsed — "on the left" was wrong
+  // in three of the four states.
+  await expect(component.getByText("Pick a thread from your chats, or start a new one.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Start a new chat" })).toBeVisible();
 });
 
