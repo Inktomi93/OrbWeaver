@@ -44,7 +44,7 @@ export function PersonaSettingsSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your persona settings…</Text>}
+        fallback={<Text voice="gloss">Loading your persona settings…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your persona settings" onRetry={retry} />}
       >
         <PersonaSettingsForm />

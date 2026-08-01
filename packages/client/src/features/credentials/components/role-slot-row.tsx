@@ -73,16 +73,16 @@ function SlotLabel({ slot }: { readonly slot: RoleSlot }): ReactElement {
   return (
     <Stack className="w-(--width-sidebar-sm) shrink-0">
       <Row gap="field" align="center">
-        <Text as="span" size="body" weight="medium">
+        <Text as="span" className="font-medium">
           {slot.label}
         </Text>
         {slot.optional ? (
-          <Text as="span" size="micro" tone="muted">
+          <Text as="span" voice="gloss">
             optional
           </Text>
         ) : null}
       </Row>
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         {slot.description}
       </Text>
     </Stack>
@@ -125,9 +125,7 @@ function RowSyncDisclosure({
             <Badge intent={state === "failed" ? "danger" : "warning"} size="sm">
               {ROLE_ROW_SYNC_LABELS[state]}
             </Badge>
-            <Text size="micro" tone="muted">
-              Not applied yet — a turn still uses {persistedRoleLabel(persisted, role)}.
-            </Text>
+            <Text voice="gloss">Not applied yet — a turn still uses {persistedRoleLabel(persisted, role)}.</Text>
           </Row>
         );
       }}
@@ -238,14 +236,7 @@ function AppDefaultDisplay({ isChat }: { readonly isChat: boolean }): ReactEleme
   const resolved = useQuery({ ...trpc.connection.resolveChatCapability.queryOptions(), enabled: isChat }).data;
   const named = !isChat || resolved === undefined ? null : `${SOURCE_LABELS[resolved.source]} · ${resolved.model} · ${CHAT_API_LABELS[resolved.api]}`;
   return (
-    <Text
-      as="span"
-      size="body"
-      tone="muted"
-      className="min-w-0 flex-1 truncate italic"
-      data-slot="role-app-default"
-      {...(named === null ? {} : { title: named })}
-    >
+    <Text as="span" className="min-w-0 flex-1 truncate text-muted-foreground italic" data-slot="role-app-default" {...(named === null ? {} : { title: named })}>
       {named === null ? "Uses the app default" : `Uses the app default: ${named}`}
     </Text>
   );
@@ -332,9 +323,7 @@ function ModelCell({
             <Icon icon={AlertTriangle} size="xs" />
             not in catalog
           </Badge>
-          <Text size="micro" tone="muted">
-            {staleAmber}
-          </Text>
+          <Text voice="gloss">{staleAmber}</Text>
         </Row>
       ) : null}
     </Stack>
@@ -369,7 +358,7 @@ function AgentMirrorRow({ slot, form }: { readonly slot: RoleSlot; readonly form
         })}
       >
         {(chat): ReactElement => (
-          <Text as="span" size="body" tone="muted" className={`${MODEL_COL} truncate italic`}>
+          <Text as="span" className={`${MODEL_COL} truncate text-muted-foreground italic`}>
             {agentMirrorLabel(chat.source, chat.model)}
           </Text>
         )}
@@ -400,7 +389,7 @@ function staleIdWarning(
 function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactElement {
   return (
     <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center @2xl:ps-(--width-sidebar-sm)">
-      <Text as="span" size="micro" tone="muted">
+      <Text as="span" voice="gloss">
         Protocol
       </Text>
       <form.Subscribe selector={(state): string => state.values.chat.source}>

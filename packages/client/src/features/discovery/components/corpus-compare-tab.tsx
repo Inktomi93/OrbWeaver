@@ -23,7 +23,7 @@ const REDUNDANCY_PRECISION = 2;
 export function CorpusCompareTab(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading characters…</Text>}
+      fallback={<Text voice="gloss">Loading characters…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="characters" onRetry={retry} />}
     >
       <CompareBody />
@@ -59,9 +59,7 @@ function CompareBody(): ReactElement {
       {ready ? (
         <CompareResult idA={idA} idB={idB} deep={deep} onDeep={(): void => setDeep(true)} />
       ) : (
-        <Text size="micro" tone="muted">
-          Pick two different characters to compare.
-        </Text>
+        <Text voice="gloss">Pick two different characters to compare.</Text>
       )}
     </Stack>
   );
@@ -106,13 +104,13 @@ function CompareResult({
   const deepDiff = useQuery(trpc.discovery.compareCharactersDeep.queryOptions({ idA, idB }, { enabled: deep }));
 
   if (diff.isPending) {
-    return <Text tone="muted">Comparing…</Text>;
+    return <Text>Comparing…</Text>;
   }
   if (diff.error !== null) {
-    return <Text tone="muted">Couldn't compare those two.</Text>;
+    return <Text>Couldn't compare those two.</Text>;
   }
   if (diff.data === null) {
-    return <Text tone="muted">One of those characters has no distilled facets yet.</Text>;
+    return <Text>One of those characters has no distilled facets yet.</Text>;
   }
   const cmp = diff.data;
 
@@ -120,7 +118,7 @@ function CompareResult({
     <Stack gap="section">
       <Section heading="Facet diff">
         <Stack gap="field">
-          <Text size="micro" tone="muted">
+          <Text voice="gloss">
             Genre: {cmp.sameGenre ? "same" : "different"} · Tone: {cmp.sameTone ? "same" : "different"} · Redundancy:{" "}
             {cmp.redundancy.toFixed(REDUNDANCY_PRECISION)}
           </Text>
@@ -158,24 +156,20 @@ function DeepNarrative({
   } | null;
 }): ReactElement {
   if (isPending) {
-    return <Text tone="muted">Reading both characters…</Text>;
+    return <Text>Reading both characters…</Text>;
   }
   if (error !== null) {
-    return <Text tone="muted">Couldn't generate the narrative.</Text>;
+    return <Text>Couldn't generate the narrative.</Text>;
   }
   if (narrative === null) {
-    return <Text tone="muted">No narrative available.</Text>;
+    return <Text>No narrative available.</Text>;
   }
   return (
     <Stack gap="field">
       <Text>{narrative.summary}</Text>
-      <Text size="micro" tone="muted" transform="caps">
-        Overlap
-      </Text>
+      <Text voice="kicker">Overlap</Text>
       <Text>{narrative.overlap}</Text>
-      <Text size="micro" tone="muted" transform="caps">
-        Distinction
-      </Text>
+      <Text voice="kicker">Distinction</Text>
       <Text>{narrative.distinction}</Text>
     </Stack>
   );
@@ -184,13 +178,9 @@ function DeepNarrative({
 function TagLine({ label, tags }: { readonly label: string; readonly tags: readonly string[] }): ReactElement {
   return (
     <Row align="center" gap="field" className="flex-wrap">
-      <Text size="micro" tone="muted" transform="caps">
-        {label}
-      </Text>
+      <Text voice="kicker">{label}</Text>
       {tags.length === 0 ? (
-        <Text size="micro" tone="muted">
-          —
-        </Text>
+        <Text voice="gloss">—</Text>
       ) : (
         tags.map((tag) => (
           <Badge key={tag} intent="neutral" size="sm">

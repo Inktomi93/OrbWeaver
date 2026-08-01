@@ -80,7 +80,7 @@ export function EndpointInspectorDialog({ open, onOpenChange, credentialId, labe
           </Button>
         </Row>
         {inspect.isPending ? (
-          <Text size="micro" tone="muted" role="status">
+          <Text voice="gloss" role="status">
             Sending the shaped request…
           </Text>
         ) : null}
@@ -137,24 +137,20 @@ function InspectionView({ inspection }: { readonly inspection: EndpointInspectio
   return (
     <Stack gap="block">
       <Stack gap="field">
-        <Text size="micro" tone="muted" weight="semibold" transform="caps">
-          Request
-        </Text>
+        <Text voice="kicker">Request</Text>
         <CodeBlock ariaLabel="Request URL">{inspection.request.url}</CodeBlock>
         <CodeBlock ariaLabel="Request headers (redacted)">{formatHeaders(inspection.request.headers)}</CodeBlock>
         <CodeBlock ariaLabel="Request body">{inspection.request.body}</CodeBlock>
       </Stack>
       <Stack gap="field">
-        <Text size="micro" tone="muted" weight="semibold" transform="caps">
-          Response
-        </Text>
+        <Text voice="kicker">Response</Text>
         {inspection.response === null ? (
-          <Text size="body" tone="destructive" role="alert">
+          <Text role="alert" className="text-destructive">
             {inspection.error ?? "The request never completed."}
           </Text>
         ) : (
           <>
-            <Text size="micro" tone="muted">
+            <Text voice="gloss">
               {inspection.response.status} {inspection.response.statusText}
             </Text>
             <CodeBlock ariaLabel="Response body preview">{responsePreview}</CodeBlock>
@@ -171,7 +167,7 @@ function CodeBlock({ ariaLabel, children }: { readonly ariaLabel: string; readon
   return (
     <Text
       as="div"
-      size="code"
+      voice="datum"
       aria-label={ariaLabel}
       className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-control border border-border bg-muted p-field"
     >

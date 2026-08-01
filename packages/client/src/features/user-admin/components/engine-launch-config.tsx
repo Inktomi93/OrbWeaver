@@ -89,12 +89,12 @@ export function EngineLaunchConfig(): ReactElement {
 
   return (
     <Stack gap="row" data-testid={testId("engineLaunchConfig")}>
-      <Text size="label" tone="muted">
+      <Text voice="label" className="text-muted-foreground">
         Launch config (models, context windows, GPU-util, vision caps). Applies on the NEXT engine restart.
       </Text>
 
       {pendingRestart ? (
-        <Text size="label" tone="warning" data-testid={testId("engineLaunchPendingRestart")}>
+        <Text voice="label" data-testid={testId("engineLaunchPendingRestart")} className="text-warning">
           Saved. Restart each engine (buttons above) to apply the new launch flags — the running engines still serve the previous config.
         </Text>
       ) : null}
@@ -116,7 +116,7 @@ export function EngineLaunchConfig(): ReactElement {
         {save.isPending ? "Saving…" : "Save launch config"}
       </Button>
       {save.error === null ? null : (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Couldn't save the launch config — administrators only.
         </Text>
       )}

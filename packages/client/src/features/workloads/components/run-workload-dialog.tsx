@@ -187,7 +187,7 @@ function RunWorkloadFormBody({
         }
       </form.Subscribe>
       {start.error === null ? null : (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Couldn't start the workload — a run of that kind may already be active.
         </Text>
       )}

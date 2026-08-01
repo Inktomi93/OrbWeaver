@@ -128,16 +128,10 @@ function ClusterCard({ cluster }: { readonly cluster: ArchetypeCard }): ReactEle
   return (
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">
-        <Text weight="semibold">{cluster.label}</Text>
-        <Text size="micro" tone="muted">
-          {cluster.size} members
-        </Text>
+        <Text className="font-semibold">{cluster.label}</Text>
+        <Text voice="gloss">{cluster.size} members</Text>
       </Row>
-      {facets.length > 0 ? (
-        <Text size="micro" tone="muted" transform="caps">
-          {facets.join(" · ")}
-        </Text>
-      ) : null}
+      {facets.length > 0 ? <Text voice="kicker">{facets.join(" · ")}</Text> : null}
       {cluster.topTags.length > 0 ? (
         <Row align="center" gap="field" className="flex-wrap">
           {cluster.topTags.map((tag) => (
@@ -147,9 +141,7 @@ function ClusterCard({ cluster }: { readonly cluster: ArchetypeCard }): ReactEle
           ))}
         </Row>
       ) : null}
-      <Text size="micro" tone="muted">
-        {cluster.members.map((m) => m.name).join(", ")}
-      </Text>
+      <Text voice="gloss">{cluster.members.map((m) => m.name).join(", ")}</Text>
     </Stack>
   );
 }

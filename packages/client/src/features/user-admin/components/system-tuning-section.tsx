@@ -130,7 +130,7 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
 export function SystemTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading system tuning…</Text>}
+      fallback={<Text voice="gloss">Loading system tuning…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
     >
       <SystemTuningBody sectionId={sectionId} />
@@ -196,7 +196,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   return (
     <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={settingsAnchorId("admin", SYSTEM_TUNING_SUBCATEGORY.id)}>
       <Stack gap="field">
-        <Text size="label" tone="muted">
+        <Text voice="label" className="text-muted-foreground">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.
         </Text>
         {KNOBS.map((knob) => (

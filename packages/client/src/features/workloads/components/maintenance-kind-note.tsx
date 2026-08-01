@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 
 export function MaintenanceKindNote({ verb }: { readonly verb: "Runs" | "Recurs" }): ReactElement {
   return (
-    <Text size="label" tone="muted">
+    <Text voice="label" className="text-muted-foreground">
       {verb} across every deployment (maintenance) — there's no per-user version.
     </Text>
   );

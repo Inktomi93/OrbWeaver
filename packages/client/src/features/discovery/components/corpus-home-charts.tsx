@@ -50,11 +50,7 @@ function ThemeSizeBars({ level }: { readonly level: ThemeLevel }): ReactElement 
     return <QueryErrorState label="the themes" onRetry={themes.refetch} />;
   }
   if (themes.data.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        No {level} themes computed yet.
-      </Text>
-    );
+    return <Text voice="gloss">No {level} themes computed yet.</Text>;
   }
   return (
     <BarList
@@ -82,9 +78,7 @@ export function KeywordExplorer(): ReactElement {
   return (
     <Section heading="Keywords">
       {top.length === 0 ? (
-        <Text size="micro" tone="muted">
-          No keyword cooccurrence computed yet.
-        </Text>
+        <Text voice="gloss">No keyword cooccurrence computed yet.</Text>
       ) : (
         <Stack gap="block" data-testid={testId("corpusKeywordExplorer")}>
           <BarList
@@ -114,11 +108,7 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
     return <QueryErrorState label="the cooccurrences" onRetry={cooccurring.refetch} />;
   }
   if (cooccurring.data.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        Nothing co-occurs with “{keyword}” yet.
-      </Text>
-    );
+    return <Text voice="gloss">Nothing co-occurs with “{keyword}” yet.</Text>;
   }
   return (
     <BarList
@@ -156,19 +146,13 @@ function ThemeDriftBody({ level }: { readonly level: ThemeLevel }): ReactElement
     return <QueryErrorState label="theme drift" onRetry={drift.refetch} />;
   }
   if (drift.data.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        Not enough story-time data to chart theme drift.
-      </Text>
-    );
+    return <Text voice="gloss">Not enough story-time data to chart theme drift.</Text>;
   }
   return (
     <Stack gap="row">
       {drift.data.map((bucket) => (
         <Row key={bucket.bucket} align="center" gap="field" className="flex-wrap">
-          <Text size="micro" tone="muted" transform="caps">
-            {bucket.bucket}
-          </Text>
+          <Text voice="kicker">{bucket.bucket}</Text>
           {bucket.themes.map((t) => (
             <Badge key={t.clusterIdx} intent="neutral" size="sm">
               {t.themeName ?? "Unnamed"} ({t.count})
@@ -191,12 +175,8 @@ export function FacetBars({
   if (facets.length === 0) {
     return (
       <Stack gap="field">
-        <Text size="micro" tone="muted" transform="caps">
-          {label}
-        </Text>
-        <Text size="micro" tone="muted">
-          None distilled.
-        </Text>
+        <Text voice="kicker">{label}</Text>
+        <Text voice="gloss">None distilled.</Text>
       </Stack>
     );
   }

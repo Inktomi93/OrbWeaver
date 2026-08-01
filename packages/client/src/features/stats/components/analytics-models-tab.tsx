@@ -16,7 +16,7 @@ import { byModelBarItems, formatCompact, formatMs, formatUsd } from "../lib/anal
 export function AnalyticsModelsTab(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading model stats…</Text>}
+      fallback={<Text voice="gloss">Loading model stats…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="model stats" onRetry={retry} />}
     >
       <ModelsBody />
@@ -46,9 +46,7 @@ function ModelsBody(): ReactElement {
 
       <Section heading="Breakdown">
         {models.length === 0 ? (
-          <Text size="micro" tone="muted">
-            No model usage recorded yet.
-          </Text>
+          <Text voice="gloss">No model usage recorded yet.</Text>
         ) : (
           <Stack gap="row" role="list">
             {models.map((model) => (
@@ -57,7 +55,7 @@ function ModelsBody(): ReactElement {
                 title={model.model}
                 subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
                 actions={
-                  <Text size="micro" tone="muted" className="whitespace-nowrap font-mono">
+                  <Text voice="gloss" className="whitespace-nowrap font-mono">
                     {formatCompact(model.tokensOut)} tok · {formatUsd(model.costUsd)}
                   </Text>
                 }

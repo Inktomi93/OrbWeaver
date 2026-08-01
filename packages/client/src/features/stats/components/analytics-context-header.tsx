@@ -23,7 +23,7 @@ import type { AnalyticsContextState } from "#lib";
 export function AnalyticsContextHeader({ state }: { readonly state: AnalyticsContextState }): ReactElement {
   if (state.characterId === null) {
     return (
-      <Text size="label" weight="medium" tone="muted">
+      <Text voice="label" className="text-muted-foreground">
         Analytics
       </Text>
     );
@@ -42,9 +42,7 @@ function DrilledCharacterIdentity({ characterId }: { readonly characterId: Chara
       <Avatar size="sm" fallbackDelay={0} hueSeed={characterId} {...(avatarHash === null ? {} : { src: blobUrl(avatarHash) })}>
         {initialsFor(title)}
       </Avatar>
-      <Text size="title" weight="semibold" className="truncate">
-        {title}
-      </Text>
+      <Text className="truncate text-title leading-title font-semibold">{title}</Text>
     </Row>
   );
 }

@@ -81,9 +81,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
   return (
     <Section heading="Portrait fit">
       {report.count === 0 ? (
-        <Text size="micro" tone="muted">
-          No portrait↔card alignment computed yet.
-        </Text>
+        <Text voice="gloss">No portrait↔card alignment computed yet.</Text>
       ) : (
         <Stack gap="block">
           <Row gap="block" className="flex-wrap">
@@ -91,9 +89,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
             <StatFigure label="Mean fit" value={report.mean.toFixed(ALIGNMENT_PRECISION)} />
             <StatFigure label="Median fit" value={report.median.toFixed(ALIGNMENT_PRECISION)} />
           </Row>
-          <Text size="micro" tone="muted" transform="caps">
-            Worst-matched art
-          </Text>
+          <Text voice="kicker">Worst-matched art</Text>
           <Stack gap="row" role="list">
             {report.characters.slice(0, WORST_LIMIT).map((character) => (
               <ListRow
@@ -141,9 +137,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
   return (
     <Section heading="Visual facets">
       {facets.total === 0 ? (
-        <Text size="micro" tone="muted">
-          No captioned avatars to explore yet.
-        </Text>
+        <Text voice="gloss">No captioned avatars to explore yet.</Text>
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>
           <Row gap="block" className="flex-wrap">
@@ -151,9 +145,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
             <ParamSelect label="Value" value={value} items={valueItems} onValueChange={setValue} />
           </Row>
           {rows.length === 0 ? (
-            <Text size="micro" tone="muted">
-              No {view.label.toLowerCase()} captioned yet.
-            </Text>
+            <Text voice="gloss">No {view.label.toLowerCase()} captioned yet.</Text>
           ) : (
             <BarList
               label={view.label}
@@ -182,11 +174,7 @@ function FacetDrill({ facet, value }: { readonly facet: FacetKey; readonly value
     return <QueryErrorState label="those avatars" onRetry={members.refetch} />;
   }
   if (members.data.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        No avatars carry “{value}”.
-      </Text>
-    );
+    return <Text voice="gloss">No avatars carry “{value}”.</Text>;
   }
   return (
     <Stack gap="row" role="list">
