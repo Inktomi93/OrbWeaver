@@ -20,8 +20,8 @@ import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { publishRpgEvent } from "@orb/server/domain/rpg";
-import type { Context, SocketRegistry } from "@orb/server/transport/trpc";
-import { createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
+import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/transport/trpc";
+import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -201,11 +201,11 @@ describe("the staged fold leaves no dual transport", () => {
     const socketId = nextSocket();
     const call = caller(ctxWith(seated));
 
-    // `chat` folded at S2 and now ATTACHES (its own accept-always/withhold-per-yield posture, pinned in
-    // stream/sources/chat.test.ts); `notifications`/`automation` are still their own procedures, so their
-    // rooms refuse — there is never a moment where one room is reachable by two transports.
+    // `chat` folded at S2 and `notifications` at S3, so both now ATTACH (each with its own posture, pinned in
+    // stream/sources/{chat,notifications}.test.ts); `automation` is still its own procedure, so its room
+    // refuses — there is never a moment where one room is reachable by two transports.
     await expect(call.stream.attach({ socketId, ref: { channel: "chat", chatId: CHAT } })).resolves.toBeUndefined();
-    await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).resolves.toBeUndefined();
     await expect(call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
@@ -227,5 +227,66 @@ describe("the socket is bound to one principal", () => {
     await expect(caller(ctxWith(seated, STRANGER, sockets)).stream.connect({ socketId })).rejects.toMatchObject({ code: "NOT_FOUND" });
     // …and the refusal is a refusal, not a silently-forked second cell: nothing of Alice's went live.
     expect(sockets.liveSocketCount()).toBe(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// PRESENCE + THE HOST-RETURN DRAIN — moved onto the socket at S3 (spec §5.6, owner-ruled §14.4). They used
+// to ride `notifications.notifications`, which meant device liveness was gated by the PD-106 multi-human
+// belt: a deployment that refused the notifications router registered NO presence at all, and cast-gating
+// read every user as offline. The socket is `authedProcedure`, so the ref-count is now the tab's, full stop.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+describe("the socket owns presence (S3)", () => {
+  /** A context with a REAL presence registry (a fixed clock — the grace window has its own slice test) plus
+   *  the chat verb the host-return edge fires. */
+  function presenceCtx(drainDeferredTurns: ChatService["drainDeferredTurns"], multiHumanCapable = true): { ctx: Context; presence: PresenceRegistry } {
+    const presence = createPresenceRegistry(() => 0);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { chatEventBounds: seated, drainDeferredTurns } },
+      presence,
+      multiHumanCapable,
+    });
+    return { ctx, presence };
+  }
+
+  const emptyDrain: ChatService["drainDeferredTurns"] = () => Promise.resolve({ ran: 0, dropped: 0 });
+
+  test("connecting ref-counts the caller's device liveness", async () => {
+    const { ctx, presence } = presenceCtx(emptyDrain);
+    expect(presence.read(MEMBER).online).toBe(false);
+
+    await caller(ctx).stream.connect({ socketId: nextSocket() });
+
+    expect(presence.read(MEMBER).online).toBe(true);
+  });
+
+  test("presence is NOT gated by the multi-human belt any more — the behavior change the owner took", async () => {
+    // The point of the move: on a single-user deployment the notifications router was refused wholesale, so
+    // nothing ever called `presence.connect` and cast-gating saw the host as offline forever.
+    const { ctx, presence } = presenceCtx(emptyDrain, false);
+
+    await caller(ctx).stream.connect({ socketId: nextSocket() });
+
+    expect(presence.read(MEMBER).online).toBe(true);
+  });
+
+  test("the offline→online edge drains the turns that deferred while the host was dark", async () => {
+    const drain = vi.fn<ChatService["drainDeferredTurns"]>(emptyDrain);
+    const { ctx } = presenceCtx(drain);
+
+    await caller(ctx).stream.connect({ socketId: nextSocket() });
+
+    expect(drain).toHaveBeenCalledWith({ hostUserId: MEMBER });
+  });
+
+  test("a SECOND live socket does not re-drain — the edge is offline→online, not per-connection", async () => {
+    const drain = vi.fn<ChatService["drainDeferredTurns"]>(emptyDrain);
+    const { ctx } = presenceCtx(drain);
+
+    await caller(ctx).stream.connect({ socketId: nextSocket() });
+    await caller(ctx).stream.connect({ socketId: nextSocket() });
+
+    expect(drain).toHaveBeenCalledTimes(1);
   });
 });

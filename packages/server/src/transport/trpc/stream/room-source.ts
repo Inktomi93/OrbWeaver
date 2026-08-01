@@ -20,6 +20,14 @@ export interface RoomArgs<C extends StreamChannel> {
   readonly ref: Extract<StreamRoomRef, { readonly channel: C }>;
   readonly principal: Principal;
   readonly services: Services;
+  /**
+   * The deployment's multi-human capability (`Context.multiHumanCapable`), threaded as DATA. It is the
+   * PD-106 belt a per-room surface may need on its ATTACH — the socket itself is `authedProcedure` by
+   * design (a single-user deployment must still get its user/chat/rpg rooms), so a belt that used to be
+   * procedure middleware becomes a per-ROOM verdict (`sources/notifications.ts`). Threaded rather than
+   * re-derived because the request seam already resolved it once (`transport/trpc/context.ts`).
+   */
+  readonly multiHumanCapable: boolean;
 }
 
 export interface RoomSourceDef<C extends StreamChannel> {
