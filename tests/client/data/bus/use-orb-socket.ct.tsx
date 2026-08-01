@@ -22,11 +22,22 @@ import { RpgBusStory, TwoRoomStory, UserBusStory } from "./_ct-stories";
 
 const GAME_CHAT = castId<ChatId>("chat_ct_game_01");
 const PLAIN_CHAT = castId<ChatId>("chat_ct_plain_01");
+const DISENGAGED_CHAT = castId<ChatId>("chat_ct_off_01");
 
-/** `chat.getChat` shaped for the pointer gate: a game chat carries `rpg`, a plain one carries `null`. */
+/** `chat.getChat` shaped for the pointer gate's THREE states: a live game, a chat with no pointer at all,
+ *  and — the case the old re-spelled null-check got wrong — a chat whose game is present but TOGGLED OFF. */
 const getChat = (input: unknown): unknown => {
   const chatId = (input as { chatId: string }).chatId;
-  return { id: chatId, title: "room", rpg: chatId === GAME_CHAT ? { gameId: "rpg_game_ct" } : null };
+  const rpg = ((): unknown => {
+    if (chatId === GAME_CHAT) {
+      return { gameId: "rpg_game_ct", engaged: true };
+    }
+    if (chatId === DISENGAGED_CHAT) {
+      return { gameId: "rpg_game_ct_off", engaged: false };
+    }
+    return null;
+  })();
+  return { id: chatId, title: "room", rpg };
 };
 
 const RPG_FRAME: StreamFrame = { channel: "rpg", chatId: GAME_CHAT, event: { type: "gameChanged", chatId: GAME_CHAT } };
@@ -51,6 +62,20 @@ test("a NON-GAME chat attaches NO rpg room — the gate the old hook only claime
 
   // Wait for the pointer read to actually RESOLVE (routeTrpc records it) — only then is "no rpg room
   // attached" a verdict rather than a race with a query that had not answered yet.
+  await expect.poll(() => socket.connects()).toBe(1);
+  await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
+  await expect.poll(() => socket.attachedChannels()).toEqual([]);
+});
+
+test("a DISENGAGED game (pointer present, `engaged:false`) attaches NO rpg room", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "chat.getChat": getChat });
+  const socket = await routeOrbSocket(page);
+
+  await mount(<RpgBusStory chatId={DISENGAGED_CHAT} />);
+
+  // THE regression this file exists for: the shipped gate was a re-spelled `rpg !== null`, so a game the user
+  // had TOGGLED OFF (panel hidden, turn assembly clean, nothing rendered) still held a full always-on stream.
+  // Every other consumer of this pointer goes through `isRpgEngaged`; this one has to agree with them.
   await expect.poll(() => socket.connects()).toBe(1);
   await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
   await expect.poll(() => socket.attachedChannels()).toEqual([]);
