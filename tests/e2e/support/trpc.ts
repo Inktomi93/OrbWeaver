@@ -5,6 +5,10 @@
 // program (tsconfig.tests-dom.json — dom + node since the 2026-07-24 e2e-tree routing): node's global
 // `fetch`, and imports nothing from the browser client trees (deliberate — see below).
 //
+// GROW A SHAPE HERE = UPDATE THE MIRROR: every hand-declared wire shape below is pinned against its
+// @orb/contracts source by `./mirror-parity.test-d.ts` (the types lane) — a field added to the contract, a
+// renamed key, or a drifted field type turns THAT file red, naming the shape. Add a pin with a new shape.
+//
 // WHY specs need this (not just globalSetup): the honesty specs assert DOM-vs-DB PARITY and
 // settings-are-what's-used — they must read canon (chat.listMessages) and settings (getUserSettings)
 // straight from the server as ground truth, and some drive a turn via chat.send with an explicit
@@ -258,7 +262,7 @@ export async function fetchWireCaptures(chatId: string, backend?: string): Promi
 export interface ActivePresetConfig {
   readonly namesBehavior?: string;
   readonly sections: readonly { readonly id: string; readonly enabled?: boolean }[];
-  readonly params: { readonly maxOutputTokens?: number; readonly maxContextTokens?: number; readonly namesBehavior?: string };
+  readonly params: { readonly maxOutputTokens?: number; readonly maxContextTokens?: number };
 }
 
 /** Read the resolved active preset config for a chat (chat.getActivePresetConfig). The FE-layer read: "what
@@ -593,9 +597,11 @@ export interface TrackerActor {
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    readonly poolDefs: readonly { readonly name: string; readonly max: number }[];
     readonly maxHp: number | null;
+    readonly flavor: string;
     readonly level: number | null;
+    readonly trackerGrants: readonly string[];
+    readonly trackerRevokes: readonly string[];
   };
   readonly volatile: {
     readonly hp: { readonly value: number; readonly max: number } | null;
@@ -679,7 +685,10 @@ export interface TrackerView {
     readonly location: string;
     readonly calendarDate: string | null;
     readonly clock: { readonly day: number; readonly hour: number } | null;
-    readonly weather: { readonly type: string; readonly label: string; readonly description?: string } | null;
+    // `description` is spelled `| undefined` (not a bare `?:`) because the contract's optional carries
+    // undefined explicitly and the repo typechecks under `exactOptionalPropertyTypes` — the parity pin
+    // compares the two spellings.
+    readonly weather: { readonly type: string; readonly label: string; readonly description?: string | undefined } | null;
   } | null;
   readonly actors: readonly TrackerActor[];
   readonly cast: readonly TrackerCast[];
@@ -785,16 +794,20 @@ export type ActorRefInput =
   | { readonly kind: "cast"; readonly castKey: string };
 
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
- *  className/attributes/poolDefs/maxHp and the hand-only `level` plane (§2.6 — its ONLY write door). */
+ *  className/attributes/maxHp/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
+ *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
+ *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
 export function patchSheet(
   chatId: string,
   actorRef: ActorRefInput,
   patch: {
     readonly className?: string;
     readonly attributes?: Readonly<Record<string, number>>;
-    readonly poolDefs?: readonly { readonly name: string; readonly max: number }[];
     readonly maxHp?: number | null;
+    readonly flavor?: string;
     readonly level?: number | null;
+    readonly trackerGrants?: readonly string[];
+    readonly trackerRevokes?: readonly string[];
   },
 ): Promise<unknown> {
   return trpcMutation("rpg.patchSheet", { chatId, actorRef, patch });
