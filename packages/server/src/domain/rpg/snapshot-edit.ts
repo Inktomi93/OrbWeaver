@@ -16,8 +16,9 @@
 // "which snapshot am I reasoning from, and what does a game with no rows read?" is answered in ONE place.
 
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
+import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
-import type { HandEditLocks, RpgContext, RpgGameRow } from "./contract/service";
+import type { HandEditLocks, HandEditResult, RpgContext, RpgGameRow } from "./contract/service";
 import { snapshotRowToState } from "./contract/service";
 import { insertSnapshot, resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState } from "./persistence/snapshots";
 import { defaultSnapshotState } from "./substrate/default-state";
@@ -76,10 +77,23 @@ function toColumns(state: RpgSnapshotState): StateColumns {
  *  overlay runs with NO lock-honoring (`fieldLocks: null`), because the human editor is the authority a lock
  *  exists to protect — a lock blocks a later TOOL write, never the human re-editing/removing their own locked
  *  field (that would trap the host). The lock delta is applied to the existing locks and written with the
- *  state. The [merge-clear] contract still governs the overlay shape (`{}` = no-op, null = leaf clear). */
-export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<RpgSnapshotId> {
+ *  state. The [merge-clear] contract still governs the overlay shape (`{}` = no-op, null = leaf clear).
+ *
+ *  THE F1 WRITE-BOUNDARY BACKSTOP APPLIES HERE TOO (D108's "canon never corrupted is STRUCTURAL"): the merged
+ *  state is validated against the full contract schema BEFORE any durable write, exactly as `writeStagedSnapshot`
+ *  validates the model path. The hand path reaches the same columns with a caller-shaped overlay, so it can
+ *  produce the same poison — a `null` cleared onto a NON-nullable leaf (`location`, the arrays, the records)
+ *  is the reachable case, and the merge-clear contract is right to write it: it is the CONTRACT, not the merge,
+ *  that says which leaves clear. The refusal returns as data (never a wire reject — `inputs.ts`) and nothing is
+ *  written, so the caller learns WHY instead of watching a value snap back. */
+export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
   const head = await resolveHead(ctx, game);
   const nextState = applyLockedPatch(head.state as unknown as Record<string, unknown>, patch, null) as unknown as RpgSnapshotState;
+  const parsed = rpgSnapshotStateSchema.safeParse(nextState);
+  if (!parsed.success) {
+    // Refused BEFORE the clone-forward's `postNarratorMessage` — a rejected edit leaves no blank anchor slot.
+    return { ok: false, reason: parsed.error.message };
+  }
   const nextLocks: RpgFieldLocks = { ...(head.locks ?? {}) };
   for (const path of locks.lock ?? []) {
     nextLocks[path] = true;
@@ -90,7 +104,7 @@ export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Re
   if (head.variant !== null && !head.committed) {
     // In-place on the live UNcommitted variant (this turn's draft head — swipe-consistent).
     await updateSnapshotState(ctx.db, head.variant.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
-    return head.variant.snapshotId;
+    return { ok: true, snapshotId: head.variant.snapshotId };
   }
   // A COMMITTED head (or a turnless game) must NOT be edited in place — that would corrupt a locked-in past
   // (a checkpoint's frozen state, a past swipe). CLONE FORWARD onto a fresh narrator slot, born committed.
@@ -109,7 +123,7 @@ export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Re
     committed: 1,
     createdAt: ctx.now(),
   });
-  return snapshotId;
+  return { ok: true, snapshotId };
 }
 
 /** The current resolved snapshot state (a read the tracker view + the quest verbs project from). For a turnless
