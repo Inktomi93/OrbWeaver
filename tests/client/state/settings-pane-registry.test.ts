@@ -19,8 +19,13 @@ import {
   adminEmbeddingsSection,
   adminEnginesSection,
   adminUsersSection,
+  computeSection,
+  mediaTrustSection,
   memoryTuningSection,
+  multiUserSection,
+  operationsSection,
   rateLimitsSection,
+  sharedAccessSection,
   systemTuningSection,
 } from "@orb/client/features/user-admin";
 import { workloadsJobsSection, workloadsSchedulesSection, workloadsTuningSection } from "@orb/client/features/workloads";
@@ -39,7 +44,7 @@ describe("settingsAnchorId", () => {
   });
 
   test("distinct categories with the same subcategory id never collide", () => {
-    expect(settingsAnchorId("admin", "engines")).not.toBe(settingsAnchorId("system", "engines"));
+    expect(settingsAnchorId("admin", "compute")).not.toBe(settingsAnchorId("workloads", "compute"));
   });
 });
 
@@ -100,6 +105,7 @@ describe("resolveSettingsSections", () => {
 // Hoisted throw matchers (biome useTopLevelRegex — a literal re-compiled per call).
 const OVERLAP_AB = /claimed by BOTH "a" and "b"/;
 const OVERLAP_ONE_TWO = /claimed by BOTH "one" and "two"/;
+const NESTED_CLAIM = /NESTS with/;
 const GAP_ORPHAN = /"chat.orphan" has no owning section/;
 const CITE_NOW_CLAIMED = /section "a" now claims it/;
 const CITE_KEY_GONE = /not a key of DEFAULT_USER_SETTINGS/;
@@ -159,6 +165,39 @@ describe("assertSettingsKeyPartition", () => {
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(OVERLAP_ONE_TWO);
   });
 
+  // The stage-4 LEAF arm (SET-SEAMS §2.3 as amended): the app tier has no namespaces, so two sections may
+  // own different LEAVES of one nested key (`engineLaunch`) — but never a leaf AND its parent, in either
+  // declaration order, because the parent's owner clears the whole object.
+  test("two APP-tier sections claiming disjoint LEAVES of one nested key pass", () => {
+    const one: SettingsSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch.genModel", "engineLaunch.genMaxModelLen"] } };
+    const two: SettingsSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
+    const registry = createContributorRegistry<SettingsSectionContribution>("t", [one, two]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();
+  });
+
+  test("a LEAF claim beside its PARENT throws — parent-first", () => {
+    const one: SettingsSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch"] } };
+    const two: SettingsSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
+    const registry = createContributorRegistry<SettingsSectionContribution>("t", [one, two]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(NESTED_CLAIM);
+  });
+
+  test("a LEAF claim beside its PARENT throws — leaf-first (declaration order can't hide it)", () => {
+    const one: SettingsSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch.genPresencePenalty"] } };
+    const two: SettingsSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunch"] } };
+    const registry = createContributorRegistry<SettingsSectionContribution>("t", [one, two]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(NESTED_CLAIM);
+  });
+
+  // A key that merely PREFIXES another is not nested (`engineLaunchExtra` ≠ inside `engineLaunch`) — the
+  // check keys on the dot, never on a bare string prefix.
+  test("a sibling key sharing a name PREFIX is not a nesting conflict", () => {
+    const one: SettingsSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["engineLaunch" as never] } };
+    const two: SettingsSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["engineLaunchExtra" as never] } };
+    const registry = createContributorRegistry<SettingsSectionContribution>("t", [one, two]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();
+  });
+
   test("a CITED gap passes — the D107 exemption, with its reason", () => {
     const registry = createContributorRegistry<SettingsSectionContribution>("t", [claiming("a", "chat", ["one"])]);
     const cites = [{ section: "chat" as never, key: "orphan", reason: "ingest-only, set elsewhere" }];
@@ -204,6 +243,11 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
     worldInfoSettingsSection,
     databankSettingsSection,
     imageryTemplatesSection,
+    mediaTrustSection,
+    computeSection,
+    sharedAccessSection,
+    multiUserSection,
+    operationsSection,
     adminUsersSection,
     adminEnginesSection,
     adminCatalogSection,

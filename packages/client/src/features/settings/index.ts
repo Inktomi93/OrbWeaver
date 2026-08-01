@@ -8,7 +8,6 @@ export { automationPane } from "./lib/automation-pane";
 export { chatBehaviorPane } from "./lib/chat-behavior-pane";
 export { regexPane } from "./lib/regex-pane";
 export { settingsModal } from "./lib/settings-modal";
-export { systemPane } from "./lib/system-pane";
 export { tagsPane } from "./lib/tags-pane";
 export { themeModal } from "./lib/theme-modal";
 export { SettingsShell } from "./surfaces/settings-shell-surface";

@@ -12,7 +12,7 @@ test("SettingsPaneRegistryProvider renders children and delivers the registry to
   await expect(out).toBeVisible();
   // All eleven panes reached the consumer — the provider delivered the total registry, not a partial one.
   await Promise.all(
-    ["personas", "appearance", "tags", "workloads", "backup", "chat-behavior", "regex", "connections", "automation", "system", "admin"].map((id) =>
+    ["personas", "appearance", "tags", "workloads", "backup", "chat-behavior", "regex", "connections", "automation", "admin"].map((id) =>
       expect(out).toContainText(id),
     ),
   );

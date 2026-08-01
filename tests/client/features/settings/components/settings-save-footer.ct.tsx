@@ -34,12 +34,20 @@ async function openChatBehavior(mount: (c: ReactElement) => Promise<unknown>, pa
   await page.getByRole("heading", { name: "World info" }).waitFor();
 }
 
+/** Move a world-info knob (its autosave fires, and fails under `failSaves`). SCOPED to the world-info
+ *  anchor: an unscoped `Increase.first()` resolves to whichever stepper is highest in the PANE, and the
+ *  message-handling section above renders a deliberately DISABLED one (`autoContinueRounds` while
+ *  auto-continue is off, `663b956b`) — the click then hangs on a button that can never be enabled. */
+async function bumpScanDepth(page: Page): Promise<void> {
+  const worldInfo = page.locator("#settings-anchor-chat-behavior-world-info");
+  await worldInfo.getByRole("textbox", { name: "Scan depth" }).focus();
+  await worldInfo.getByRole("button", { name: "Increase" }).first().click();
+}
+
 test("ERROR: the aggregate flips to the failure, the failing section keeps its OWN inline retry, and its nav row is marked", async ({ mount, page }) => {
   await openChatBehavior(mount, page, true);
 
-  // Move a world-info knob — its autosave fires and fails.
-  await page.getByRole("textbox", { name: "Scan depth" }).focus();
-  await page.getByRole("button", { name: "Increase" }).first().click();
+  await bumpScanDepth(page);
 
   const footer = page.locator('[data-slot="settings-save-footer"]');
   await expect(footer).toContainText("failed to save");
@@ -58,8 +66,7 @@ test("ERROR: the aggregate flips to the failure, the failing section keeps its O
 
 test("ERROR: the footer's locator jumps to the failing section's anchor", async ({ mount, page }) => {
   await openChatBehavior(mount, page, true);
-  await page.getByRole("textbox", { name: "Scan depth" }).focus();
-  await page.getByRole("button", { name: "Increase" }).first().click();
+  await bumpScanDepth(page);
 
   const footer = page.locator('[data-slot="settings-save-footer"]');
   await expect(footer).toContainText("failed to save");

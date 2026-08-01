@@ -13,7 +13,6 @@ import { useState } from "react";
 // Rail precedent) — SystemSettingsSurface and friends are mounted by SettingsShell itself, not exported
 // standalone.
 import { RegexSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/regex-settings-surface";
-import { SystemSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/system-settings-surface";
 import { TagsSettingsSurface } from "../../../../packages/client/src/features/settings/surfaces/tags-settings-surface";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
@@ -145,19 +144,6 @@ export function RegexSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 560, overflow: "auto", width: 720 }}>
         <RegexSettingsSurface />
-      </div>
-    </CtDataProviders>
-  );
-}
-
-/** The real System settings pane (Task #37 — the APP-tier AppSettings home) in isolation — `getAppSettings`
- *  (the resolved effective config), `sessions.me` (the viewer's role for the D17 owner-gate), and
- *  `updateAppSettings` (the delta-autosave write) are stubbed per-test via routeTrpc. */
-export function SystemSettingsStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <SystemSettingsSurface />
       </div>
     </CtDataProviders>
   );
