@@ -12,6 +12,9 @@ import type { SettingsSubcategory } from "#state";
 export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: SettingsSubcategory = {
   id: "message-details",
   label: "Message details & actions",
+  // The full name overflows the 220px nav column; the heading keeps it, the nav row drops the "& actions"
+  // half (the action cluster is one of eight knobs here, the metadata chips are the section).
+  navLabel: "Message details",
   keywords: ["metadata"],
   settings: [
     { id: "show-timestamps", label: "Show timestamps", keywords: ["time", "date"] },

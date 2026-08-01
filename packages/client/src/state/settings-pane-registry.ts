@@ -28,7 +28,16 @@ interface SettingsSetting {
 /** A subcategory = one anchored section inside a pane; each stamps a stable anchor node the search jumps to. */
 export interface SettingsSubcategory {
   readonly id: string;
+  /** The section's real name — what its `<Section>` HEADING renders, and what search matches first. */
   readonly label: string;
+  /**
+   * A shorter name for the NAV ROW only, when `label` does not fit the 220px (`--width-sidebar-sm`) nav
+   * column. The heading keeps the full `label` — a sidebar's width is never a reason to rename a section
+   * (side-eye 2026-08-01). Search matches BOTH strings, so the abbreviation can never hide a section from
+   * the reader who typed its full name. Absent = the nav row renders `label`, and it MUST fit (the
+   * settings-shell CT sweeps every category and REDs on any clipped row).
+   */
+  readonly navLabel?: string;
   readonly keywords?: readonly string[];
   readonly settings?: readonly SettingsSetting[];
 }

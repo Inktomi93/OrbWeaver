@@ -46,7 +46,10 @@ export function buildSettingsSearchEntries(
         categoryId: pane.id,
         categoryLabel: pane.label,
         subId: sub.id,
-        keywords: [sub.label, ...(sub.keywords ?? []), pane.label],
+        // BOTH names: the hit READS as the full `label` (it lands on that heading), but a reader who typed
+        // the abbreviation they saw in the nav must find it too — an abbreviation that hides its own section
+        // from search would be worse than the truncation it replaced.
+        keywords: [sub.label, ...(sub.navLabel === undefined ? [] : [sub.navLabel]), ...(sub.keywords ?? []), pane.label],
       });
       for (const setting of sub.settings ?? []) {
         entries.push({

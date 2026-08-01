@@ -9,7 +9,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
+import { readClippedNavLabels, readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
 import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellFitsStory, SettingsShellNarrowStory, SettingsShellStory } from "../_ct-stories";
 
@@ -533,23 +533,75 @@ test("a pane that fits (no scroll) resolves the FIRST section, never the last", 
   await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
 });
 
-// The 220px (`--width-sidebar-sm`) nav cannot fit every section name — "Message details & actions" is the
-// longest and clips. A clipped row must still be READABLE on demand: the row's title carries the full
-// string as a native `title` tooltip (ListRow's contract), so the ellipsis is a recoverable abbreviation
-// and not a lost datum. Pinned because a future ListRow change that drops the attribute would make the
-// label unreadable with no other tell.
-test("a nav label too long for the 220px column keeps its full text as a title tooltip", async ({ mount, page }) => {
+// NAV LABEL ≠ HEADING (2026-08-01). "Message details & actions" does not fit the 220px
+// (`--width-sidebar-sm`) nav column, so its subcategory declares a shorter `navLabel` — the NAV row is
+// abbreviated, the section HEADING keeps the real name (a sidebar's width never renames a section). The
+// full string still rides the row's native `title` tooltip (ListRow's `fullTitle`), so the abbreviation is
+// recoverable on hover; pinned because a ListRow change that dropped the attribute would silently lose it.
+test("a navLabel section shows the SHORT name in the nav, the FULL one in its heading + tooltip", async ({ mount, page }) => {
   await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
   const component = await mount(<SettingsShellStory />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
-  const label = component
-    .getByRole("navigation", { name: "Settings sections" })
-    .locator('[data-slot="list-row-title"]', { hasText: "Message details & actions" });
-  await expect(label).toHaveAttribute("title", "Message details & actions");
-  // It really is clipped at this column width — the tooltip is load-bearing, not decoration.
-  const clipped = await label.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth);
-  expect(clipped).toBe(true);
+  const row = component.getByRole("navigation", { name: "Settings sections" }).locator('[data-slot="list-row-title"]', { hasText: "Message details" });
+  await expect(row).toHaveText("Message details");
+  await expect(row).toHaveAttribute("title", "Message details & actions");
+  // The heading is untouched — the pane still calls the section by its real name.
+  await expect(component.getByRole("heading", { name: "Message details & actions" })).toBeVisible();
+});
+
+// Search matches BOTH names (settings-search.ts merges `navLabel` into the entry's keywords): the reader who
+// remembers the heading and the reader who read the abbreviated nav row must land on the same section.
+test("search finds a navLabel section by its heading AND by its nav label", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+  await component.getByRole("heading", { name: "Message style" }).waitFor();
+
+  const search = component.getByRole("combobox", { name: "Search settings" });
+  // The entry always READS as the full heading — only the matching accepts either spelling.
+  const entry = component.getByRole("option", { name: "Message details & actions Appearance" });
+  await search.fill("message details & actions");
+  await expect(entry).toBeVisible();
+  await search.fill("message details");
+  await expect(entry).toBeVisible();
+});
+
+// The SWEEP: no nav row anywhere clips at the 220px column. A truncated row is unreadable at a glance, and
+// the nav is the only place most of these names appear at all — so a section whose HEADING is genuinely
+// longer than the column carries a shorter `navLabel` instead (the heading is never renamed to fit a
+// sidebar). Every category is visited (owner viewer, so Admin's rows are swept too), because a pane's rows
+// only render while it is active.
+test("no nav row clips at the 220px column, in ANY category", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+    "settings.getAppSettings": () => APP_CONFIG,
+    "settings.getAppSettingsWithOverrides": () => ({ resolved: APP_CONFIG, overrides: {} }),
+    "sessions.me": () => OWNER_VIEWER,
+    "admin.listUsers": () => [],
+    "admin.vllmEngines": () => ({}),
+    "credentials.list": () => [],
+    "connection.resolveChatCapability": () => makeResolvedChatCapability(),
+  });
+  const component = await mount(<SettingsShellStory />);
+  const nav = component.getByRole("navigation", { name: "Settings sections" });
+  await expect(component.getByRole("button", { name: "Admin" })).toBeVisible();
+
+  // A CATEGORY row is the one with a leading icon; subcategory rows have none. The count is stable across
+  // the sweep (expanding a category adds subcategory rows, never category rows).
+  const categories = nav.locator('[data-slot="list-row-root"]:has([data-slot="list-row-leading"])');
+  const total = await categories.count();
+  const clipped: string[] = [];
+  // biome-ignore-start lint/performance/noAwaitInLoops: the sweep is inherently sequential — only the ACTIVE pane's rows are in the DOM, so each category must be opened and measured before the next one is opened.
+  for (let index = 0; index < total; index += 1) {
+    await categories.nth(index).getByRole("button").click();
+    // The click has landed once exactly one row is current (the pane's first section, or the section-less
+    // category itself) — the rows to measure are painted by then.
+    await expect(nav.locator('[aria-current="true"]')).toHaveCount(1);
+    clipped.push(...(await readClippedNavLabels(page)));
+  }
+  // biome-ignore-end lint/performance/noAwaitInLoops: end of the sequential sweep.
+  expect(total).toBeGreaterThan(5);
+  expect([...new Set(clipped)]).toEqual([]);
 });
 
 // ── The NARROW arm (side-eye P0): push-detail, at the receipt's own 430×740 device ───────────────────

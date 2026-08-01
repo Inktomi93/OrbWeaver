@@ -23,6 +23,9 @@ import type { SettingsSubcategory } from "#state";
 export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: SettingsSubcategory = {
   id: "message-handling",
   label: "Chat & message handling",
+  // The full name overflows the 220px nav column; the heading keeps it. Inside the Chat behavior pane the
+  // "Chat &" half is the pane's own context anyway, so the nav row is unambiguous without it.
+  navLabel: "Message handling",
   keywords: ["send", "continue", "keyboard", "temporary"],
   settings: [
     { id: "enter-sends", label: "Enter to send", keywords: ["enter", "keyboard", "newline", "shortcut"] },
